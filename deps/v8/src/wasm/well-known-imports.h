@@ -88,6 +88,8 @@ enum class WellKnownImport : uint8_t {
   kStringToLocaleLowerCaseStringref,
   kStringToLowerCaseStringref,
   kStringToLowerCaseImported,
+  // Fast API calls:
+  kFastAPICall,
 };
 
 class NativeModule;

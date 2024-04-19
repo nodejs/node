@@ -960,16 +960,14 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index),
-        not_found_no_insertion_index(this),
-        not_found_with_insertion_index(this, &var_name_index);
+        not_found(this, &var_name_index);
     TNode<PropertyDictionary> properties = CAST(LoadSlowProperties(receiver));
 
     // When dealing with class fields defined with DefineKeyedOwnIC or
     // DefineNamedOwnIC, use the slow path to check the existing property.
     NameDictionaryLookup<PropertyDictionary>(
         properties, name, IsAnyDefineOwn() ? slow : &dictionary_found,
-        &var_name_index, &not_found_no_insertion_index, kFindExisting,
-        &not_found_with_insertion_index);
+        &var_name_index, &not_found, kFindExistingOrInsertionIndex);
 
     if (!IsAnyDefineOwn()) {
       BIND(&dictionary_found);
@@ -1018,12 +1016,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       }
     }
 
-    BIND(&not_found_no_insertion_index);
-    {
-      FindInsertionEntry<PropertyDictionary>(properties, name, &var_name_index);
-      Goto(&not_found_with_insertion_index);
-    }
-    BIND(&not_found_with_insertion_index);
+    BIND(&not_found);
     {
       // TODO(jkummerow): Also add support to correctly handle integer exotic
       // cases for typed arrays and remove this check here.

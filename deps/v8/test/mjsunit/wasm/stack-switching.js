@@ -774,3 +774,10 @@ function TestNestedSuspenders(suspend) {
   assertThrowsAsync(export_outer(), RangeError,
       /Maximum call stack size exceeded/);
 })();
+
+(function Regress326106962() {
+  print(arguments.callee.name);
+  const suspender = new WebAssembly.Suspender();
+  suspender.foo = "bar";
+  gc();
+})();

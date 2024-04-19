@@ -255,10 +255,9 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     scope_info->set_parameter_count(parameter_count);
     scope_info->set_context_local_count(context_local_count);
 
-    // Jump ahead to set the number of module variables so that we can use range
-    // DCHECKs in future steps.
     if (scope->is_module_scope()) {
       scope_info->set_module_variable_count(module_vars_count);
+      ++index;
     }
     if (!has_inlined_local_names) {
       scope_info->set_context_local_names_hashtable(*local_names_hashtable);
@@ -269,7 +268,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     int context_local_base = index;
     int context_local_info_base =
         context_local_base + local_names_container_size;
-    int module_var_entry = scope_info->ModuleVariableCountIndex() + 1;
+    int module_var_entry = scope_info->ModuleVariablesIndex();
 
     for (Variable* var : *scope->locals()) {
       switch (var->location()) {
@@ -407,9 +406,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     if (scope->is_module_scope()) {
       DCHECK_EQ(index, scope_info->ModuleInfoIndex());
       scope_info->set(index++, *module_info);
-      DCHECK_EQ(index, scope_info->ModuleVariableCountIndex());
-      // Module variable count was already written above.
-      index++;
       DCHECK_EQ(index, scope_info->ModuleVariablesIndex());
       // The variable entries themselves have already been written above.
       index += kModuleVariableEntryLength * module_vars_count;
@@ -1060,7 +1056,7 @@ FunctionKind ScopeInfo::function_kind() const {
 }
 
 int ScopeInfo::ContextLocalNamesIndex() const {
-  return ConvertOffsetToIndex(kContextLocalNamesOffset);
+  return ConvertOffsetToIndex(ContextLocalNamesOffset());
 }
 
 int ScopeInfo::ContextLocalInfosIndex() const {
@@ -1096,7 +1092,7 @@ int ScopeInfo::ModuleInfoIndex() const {
 }
 
 int ScopeInfo::ModuleVariableCountIndex() const {
-  return ConvertOffsetToIndex(ModuleVariableCountOffset());
+  return ConvertOffsetToIndex(kModuleVariableCountOffset);
 }
 
 int ScopeInfo::ModuleVariablesIndex() const {

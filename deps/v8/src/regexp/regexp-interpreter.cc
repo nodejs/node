@@ -180,9 +180,9 @@ class InterpreterRegisters {
     // TODO(jgruber): Use int32_t consistently for registers. Currently, CSA
     // uses int32_t while runtime uses int.
     static_assert(sizeof(int) == sizeof(int32_t));
-    DCHECK_GE(output_register_count, 2);  // At least 2 for the match itself.
-    DCHECK_GE(total_register_count, output_register_count);
-    DCHECK_LE(total_register_count, RegExpMacroAssembler::kMaxRegisterCount);
+    SBXCHECK_GE(output_register_count, 2);  // At least 2 for the match itself.
+    SBXCHECK_GE(total_register_count, output_register_count);
+    SBXCHECK_LE(total_register_count, RegExpMacroAssembler::kMaxRegisterCount);
     DCHECK_NOT_NULL(output_registers);
 
     // Initialize the output register region to -1 signifying 'no match'.

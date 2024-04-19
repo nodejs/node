@@ -11,7 +11,6 @@
 namespace v8 {
 namespace internal {
 
-class CallHandlerInfo;
 class Isolate;
 
 // The Serializer/Deserializer class is a common superclass for Serializer and
@@ -34,7 +33,7 @@ class SerializerDeserializer : public RootVisitor {
   void RestoreExternalReferenceRedirector(Isolate* isolate,
                                           Tagged<AccessorInfo> accessor_info);
   void RestoreExternalReferenceRedirector(
-      Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info);
+      Isolate* isolate, Tagged<FunctionTemplateInfo> function_template_info);
 
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
@@ -274,6 +273,27 @@ class SerializerDeserializer : public RootVisitor {
   // This backing store reference value represents empty backing stores during
   // serialization/deserialization.
   static const uint32_t kEmptyBackingStoreRefSentinel = 0;
+};
+
+struct SerializeEmbedderFieldsCallback {
+  SerializeEmbedderFieldsCallback(v8::SerializeInternalFieldsCallback js_cb =
+                                      v8::SerializeInternalFieldsCallback(),
+                                  v8::SerializeContextDataCallback context_cb =
+                                      v8::SerializeContextDataCallback())
+      : js_object_callback(js_cb), context_callback(context_cb) {}
+  v8::SerializeInternalFieldsCallback js_object_callback;
+  v8::SerializeContextDataCallback context_callback;
+};
+
+struct DeserializeEmbedderFieldsCallback {
+  DeserializeEmbedderFieldsCallback(
+      v8::DeserializeInternalFieldsCallback js_cb =
+          v8::DeserializeInternalFieldsCallback(),
+      v8::DeserializeContextDataCallback context_cb =
+          v8::DeserializeContextDataCallback())
+      : js_object_callback(js_cb), context_callback(context_cb) {}
+  v8::DeserializeInternalFieldsCallback js_object_callback;
+  v8::DeserializeContextDataCallback context_callback;
 };
 
 }  // namespace internal

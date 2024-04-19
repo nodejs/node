@@ -266,6 +266,7 @@
   V(_, fields_string, "fields")                                               \
   V(_, FinalizationRegistry_string, "FinalizationRegistry")                   \
   V(_, flags_string, "flags")                                                 \
+  V(_, Float16Array_string, "Float16Array")                                   \
   V(_, Float32Array_string, "Float32Array")                                   \
   V(_, Float64Array_string, "Float64Array")                                   \
   V(_, fractionalSecondDigits_string, "fractionalSecondDigits")               \
@@ -464,7 +465,6 @@
   V(_, unit_string, "unit")                                                   \
   V(_, URIError_string, "URIError")                                           \
   V(_, UTC_string, "UTC")                                                     \
-  V(_, valueOf_string, "valueOf")                                             \
   V(_, WeakMap_string, "WeakMap")                                             \
   V(_, WeakRef_string, "WeakRef")                                             \
   V(_, WeakSet_string, "WeakSet")                                             \
@@ -535,7 +535,6 @@
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
   V(_, match_symbol, Symbol.match)                        \
   V(_, search_symbol, Symbol.search)                      \
-  V(_, to_primitive_symbol, Symbol.toPrimitive)           \
   V(_, unscopables_symbol, Symbol.unscopables)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
@@ -552,7 +551,8 @@
   V(_, constructor_string, "constructor")                      \
   V(_, next_string, "next")                                    \
   V(_, resolve_string, "resolve")                              \
-  V(_, then_string, "then")
+  V(_, then_string, "then")                                    \
+  V(_, valueOf_string, "valueOf")
 
 // Note that the description string should be part of the internalized
 // string roots to make sure we don't accidentally end up allocating the
@@ -563,6 +563,9 @@
   V(_, replace_symbol, Symbol.replace)            \
   V(_, species_symbol, Symbol.species)            \
   V(_, split_symbol, Symbol.split)
+
+#define PUBLIC_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
+  V(_, to_primitive_symbol, Symbol.toPrimitive)
 
 #define WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, is_concat_spreadable_symbol, Symbol.isConcatSpreadable)

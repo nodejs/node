@@ -30,6 +30,13 @@ struct LoadStoreSimplificationConfiguration {
   // *(base + index * element_size_log2 + displacement), but architectures
   // typically support only a limited `element_size_log2`.
   static constexpr int kMaxElementSizeLog2 = 0;
+#elif V8_TARGET_ARCH_S390X
+  static constexpr bool kNeedsUntaggedBase = false;
+  // s390x supports *(base + index + displacement), element_size isn't
+  // supported.
+  static constexpr int32_t kMinOffset = std::numeric_limits<int32_t>::min() + 1;
+  static constexpr int32_t kMaxOffset = std::numeric_limits<int32_t>::max();
+  static constexpr int kMaxElementSizeLog2 = 0;
 #else
   static constexpr bool kNeedsUntaggedBase = false;
   // We don't want to encode INT32_MIN in the offset becauce instruction

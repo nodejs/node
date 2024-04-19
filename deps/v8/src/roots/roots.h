@@ -127,9 +127,6 @@ class RootVisitor;
   V(Map, property_array_map, PropertyArrayMap)                                 \
   V(Map, accessor_info_map, AccessorInfoMap)                                   \
   V(Map, regexp_match_info_map, RegExpMatchInfoMap)                            \
-  V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
-  V(Map, side_effect_free_call_handler_info_map,                               \
-    SideEffectFreeCallHandlerInfoMap)                                          \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
@@ -144,6 +141,7 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_exported_function_data_map,                             \
           WasmExportedFunctionDataMap)                                         \
   IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)         \
+  IF_WASM(V, Map, wasm_func_ref_map, WasmFuncRefMap)                           \
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
   IF_WASM(V, Map, wasm_null_map, WasmNullMap)                                  \
   IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
@@ -244,6 +242,15 @@ class RootVisitor;
   IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
+// TODO(saelo): ideally, these would be read-only roots (and then become part
+// of the READ_ONLY_ROOT_LIST instead of the
+// STRONG_MUTABLE_IMMOVABLE_ROOT_LIST). However, currently we do not have a
+// trusted RO space.
+#define TRUSTED_ROOT_LIST(V)                                              \
+  V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
+  V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
+  V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
+
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.
 #define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                  \
@@ -276,6 +283,8 @@ class RootVisitor;
   V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
   V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
+  V(PropertyCell, string_wrapper_to_primitive_protector,                       \
+    StringWrapperToPrimitiveProtector)                                         \
   V(PropertyCell, number_string_not_regexp_like_protector,                     \
     NumberStringNotRegexpLikeProtector)                                        \
   /* Caches */                                                                 \
@@ -338,7 +347,8 @@ class RootVisitor;
   V(SharedFunctionInfo, array_from_async_array_like_on_fulfilled_shared_fun,   \
     ArrayFromAsyncArrayLikeOnFulfilledSharedFun)                               \
   V(SharedFunctionInfo, array_from_async_array_like_on_rejected_shared_fun,    \
-    ArrayFromAsyncArrayLikeOnRejectedSharedFun)
+    ArrayFromAsyncArrayLikeOnRejectedSharedFun)                                \
+  TRUSTED_ROOT_LIST(V)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
@@ -410,10 +420,11 @@ class RootVisitor;
   WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
 
 // Produces (Na,e, name, CamelCase) entries
-#define NAME_FOR_PROTECTOR_ROOT_LIST(V)                            \
-  INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(                \
-      INTERNALIZED_STRING_LIST_ADAPTER, V)                         \
-  SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V) \
+#define NAME_FOR_PROTECTOR_ROOT_LIST(V)                                   \
+  INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(                       \
+      INTERNALIZED_STRING_LIST_ADAPTER, V)                                \
+  SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)        \
+  PUBLIC_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V) \
   WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
 
 // Adapts one ACCESSOR_INFO_LIST_GENERATOR entry to the ROOT_LIST-compatible
@@ -424,14 +435,6 @@ class RootVisitor;
 // Produces (AccessorInfo, name, CamelCase) entries
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
-
-// TODO(saelo): ideally, these would be read-only roots (and then become part
-// of the READ_ONLY_ROOT_LIST instead of the MUTABLE_ROOT_LIST). However,
-// currently we do not have a trusted RO space.
-#define TRUSTED_ROOT_LIST(V)                                              \
-  V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
-  V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
-  V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
 
 #define READ_ONLY_ROOT_LIST(V)     \
   STRONG_READ_ONLY_ROOT_LIST(V)    \
@@ -448,7 +451,6 @@ class RootVisitor;
 #define MUTABLE_ROOT_LIST(V)            \
   STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \
   STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)   \
-  TRUSTED_ROOT_LIST(V)                  \
   SMI_ROOT_LIST(V)
 
 #define ROOT_LIST(V)     \
@@ -492,8 +494,7 @@ enum class RootIndex : uint16_t {
   // roots).
   kMutableRootsCount = 0
       STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(COUNT_ROOT)
-      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT)
-      TRUSTED_ROOT_LIST(COUNT_ROOT),
+      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT),
   kFirstStrongRoot = kLastReadOnlyRoot + 1,
   kLastStrongRoot = kFirstStrongRoot + kMutableRootsCount - 1,
 

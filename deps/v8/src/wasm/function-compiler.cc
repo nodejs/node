@@ -109,6 +109,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   }
 
   WasmCompilationResult result;
+  int declared_index = declared_function_index(env->module, func_index_);
 
   switch (tier_) {
     case ExecutionTier::kNone:
@@ -119,8 +120,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
       // them to be compiled for debugging, see documentation.
       if (V8_LIKELY(v8_flags.wasm_tier_mask_for_testing == 0) ||
-          func_index_ >= 32 ||
-          ((v8_flags.wasm_tier_mask_for_testing & (1 << func_index_)) == 0) ||
+          declared_index >= 32 ||
+          ((v8_flags.wasm_tier_mask_for_testing & (1 << declared_index)) ==
+           0) ||
           v8_flags.liftoff_only) {
         auto options = LiftoffOptions{}
                            .set_func_index(func_index_)
@@ -130,9 +132,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
         // We do not use the debug side table, we only (optionally) pass it to
         // cover different code paths in Liftoff for testing.
         std::unique_ptr<DebugSideTable> unused_debug_sidetable;
-        if (V8_UNLIKELY(func_index_ < 32 &&
+        if (V8_UNLIKELY(declared_index < 32 &&
                         (v8_flags.wasm_debug_mask_for_testing &
-                         (1 << func_index_)) != 0)) {
+                         (1 << declared_index)) != 0)) {
           options.set_debug_sidetable(&unused_debug_sidetable);
           if (!for_debugging_) options.set_for_debugging(kForDebugging);
         }
@@ -147,15 +149,15 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // If Liftoff failed, fall back to TurboFan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case ExecutionTier::kTurbofan: {
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
       bool use_turboshaft = v8_flags.turboshaft_wasm;
-      if (func_index_ < 32 && ((v8_flags.wasm_turboshaft_mask_for_testing &
-                                (1 << func_index_)) == 1)) {
+      if (declared_index < 32 && ((v8_flags.wasm_turboshaft_mask_for_testing &
+                                   (1 << declared_index)) != 0)) {
         use_turboshaft = true;
       }
       if (use_turboshaft) {
@@ -170,8 +172,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       result.for_debugging = for_debugging_;
       break;
     }
-    default:
-      UNREACHABLE();
   }
 
   DCHECK(result.succeeded());

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax --harmony-array-find-last
+// Flags: --js-float16array
 
 "use strict";
 

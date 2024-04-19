@@ -71,37 +71,34 @@ V8_INLINE void LocalHeap::ParkAndExecuteCallback(Callback callback) {
 }
 
 template <typename Callback>
-V8_INLINE void LocalHeap::BlockWhileParked(Callback callback) {
+V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
   if (is_main_thread()) {
-    BlockMainThreadWhileParked(callback);
+    heap()->stack().SetMarkerIfNeededAndCallback(callback);
   } else {
-    ParkAndExecuteCallback(callback);
+    heap()->stack().SetMarkerForBackgroundThreadAndCallback(
+        ThreadId::Current().ToInteger(), callback);
   }
 }
 
 template <typename Callback>
-V8_INLINE void LocalHeap::BlockMainThreadWhileParked(Callback callback) {
+V8_INLINE void LocalHeap::BlockWhileParked(Callback callback) {
   ExecuteWithStackMarker(
       [this, callback]() { ParkAndExecuteCallback(callback); });
 }
 
 template <typename Callback>
-V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
-  // Conservative stack scanning is only performed for main threads, therefore
-  // this method should only be invoked from the main thread. In this case,
-  // heap()->stack() below is the stack object of the main thread that has last
-  // entered the isolate.
+V8_INLINE void LocalHeap::BlockMainThreadWhileParked(Callback callback) {
   DCHECK(is_main_thread());
-  heap()->stack().SetMarkerIfNeededAndCallback(callback);
+  heap()->stack().SetMarkerIfNeededAndCallback(
+      [this, callback]() { ParkAndExecuteCallback(callback); });
 }
 
 template <typename Callback>
-V8_INLINE void LocalHeap::ExecuteWithStackMarkerIfNeeded(Callback callback) {
-  if (is_main_thread()) {
-    ExecuteWithStackMarker(callback);
-  } else {
-    callback();
-  }
+V8_INLINE void LocalHeap::BlockBackgroundThreadWhileParked(Callback callback) {
+  DCHECK(!is_main_thread());
+  heap()->stack().SetMarkerForBackgroundThreadAndCallback(
+      ThreadId::Current().ToInteger(),
+      [this, callback]() { ParkAndExecuteCallback(callback); });
 }
 
 }  // namespace internal

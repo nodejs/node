@@ -22,7 +22,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
@@ -441,8 +441,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 void MacroAssembler::Call(Label* target) { bl(target); }
@@ -2783,6 +2782,13 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                  IsolateData::fast_c_call_caller_pc_offset()));
       str(fp, MemOperand(kRootRegister,
                          IsolateData::fast_c_call_caller_fp_offset()));
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      mov(pc_scratch, Operand(Context::kNoContext));
+      StoreRootRelative(IsolateData::context_offset(), pc_scratch);
+#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       Register addr_scratch = r4;
@@ -2794,7 +2800,15 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       str(fp, MemOperand(addr_scratch));
-
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      mov(pc_scratch, Operand(Context::kNoContext));
+      str(pc_scratch,
+          ExternalReferenceAsOperand(
+              ExternalReference::context_address(isolate()), addr_scratch));
+#endif
       Pop(addr_scratch);
     }
 

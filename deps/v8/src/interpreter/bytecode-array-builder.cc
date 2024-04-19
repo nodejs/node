@@ -117,7 +117,7 @@ int BytecodeArrayBuilder::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
 #endif
 
 template <typename IsolateT>
-Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+Handle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
     IsolateT* isolate) {
   DCHECK(RemainderOfBlockIsDead());
 
@@ -125,10 +125,10 @@ Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+    Handle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+    Handle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
         LocalIsolate* isolate);
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
@@ -544,16 +544,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     case Token::kEqStrict:
       OutputTestEqualStrict(reg, feedback_slot);
       break;
-    case Token::kLt:
+    case Token::kLessThan:
       OutputTestLessThan(reg, feedback_slot);
       break;
-    case Token::kGt:
+    case Token::kGreaterThan:
       OutputTestGreaterThan(reg, feedback_slot);
       break;
-    case Token::kLte:
+    case Token::kLessThanEq:
       OutputTestLessThanOrEqual(reg, feedback_slot);
       break;
-    case Token::kGte:
+    case Token::kGreaterThanEq:
       OutputTestGreaterThanOrEqual(reg, feedback_slot);
       break;
     case Token::kInstanceOf:
@@ -863,6 +863,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyFromSuper(
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
     Register object, int feedback_slot) {
   OutputGetKeyedProperty(object, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadEnumeratedKeyedProperty(
+    Register object, Register enum_index, Register cache_type,
+    int feedback_slot) {
+  OutputGetEnumeratedKeyedProperty(object, enum_index, cache_type,
+                                   feedback_slot);
   return *this;
 }
 

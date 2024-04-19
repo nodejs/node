@@ -133,7 +133,6 @@
   'array-functions-prototype-misc': [PASS, SLOW],
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
-  'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/regress-9017': [PASS, SLOW],
   'compiler/regress-crbug-11564': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
@@ -229,7 +228,7 @@
     ['system != linux or arch not in (arm, arm64, x64, s390x, ppc64)', SKIP]],
 
   # TODO(v8:12783): Turboshaft instruction selection not ported to these platforms yet.
-  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [s390x, riscv32]', SKIP]],
+  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [riscv32]', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
@@ -574,7 +573,6 @@
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],
   'asm/poppler/*': [SKIP],
-  'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
 }],  # 'byteorder == big'
@@ -596,12 +594,6 @@
 
   # Needs 64-bit number register support
   'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
-
-  # Temporary disabling Turboshaft's from-Maglev graph building on IA32 until
-  # functions calls are handled (required as fallback for some Float64
-  # instructions)
-  # TODO(dmercadier): re-enable.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 
 ##############################################################################
@@ -917,9 +909,6 @@
 
   # Requires too much memory on MIPS.
   'regress/regress-779407': [SKIP],
-
-  # Maglev is not supported on MIPS64 yet.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -928,9 +917,6 @@
   # This test fail because when convert sNaN to qNaN, loong64 use a different
   # qNaN encoding with x86 architectures
   'wasm/float-constant-folding': [SKIP],
-
-  # Maglev is not supported on loong64 yet.
-  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == loong64'
 
 ##############################################################################
@@ -1431,17 +1417,30 @@
   'regress/regress-crbug-319860': [SKIP],
 
   # Other slow tests:
+  'compiler/regress-crbug-1520697': [SKIP],
   'regress/regress-1449567': [SKIP],
+  'regress/regress-708247': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['variant == nooptimization', {
+  # nooptimization disables asm.js -> wasm translation, so disable these tests.
+  'regress/asm/*': [SKIP],
+  'asm/*': [SKIP],
+
   # Tests that depend on optimization (beyond doing assertOptimized).
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+
   # Wasm serialization relies on TurboFan to be available, hence does not work
   # in the 'nooptimization' variant.
+  'wasm/serialization-with-compilation-hints': [SKIP],
   'regress/wasm/regress-7785': [SKIP],
+
+  # Tests that require wasm tier up.
+  'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/speculative-inlining': [SKIP],
+  'regress/wasm/regress-1179065': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -1661,6 +1660,7 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
+  'wasm/generate-random-module': [SKIP],
   'wasm/js-to-js': [SKIP],
   'wasm/large-struct': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
@@ -1704,6 +1704,10 @@
   'regress/wasm/regress-1487077': [SKIP],
   'regress/wasm/regress-1500812': [SKIP],
   'regress/wasm/regress-323694592': [SKIP],
+  'regress/wasm/regress-325756545': [SKIP],
+  'regress/wasm/regress-326156493': [SKIP],
+  'regress/wasm/regress-326894018': [SKIP],
+  'regress/wasm/regress-329032153': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -1736,7 +1740,9 @@
   # Flaky under this variant, skipping per https://crbug.com/v8/12267#c4
   'compiler/inlined-call-polymorphic': [SKIP],
   # Flaky under this variant, skipping per https://crbug.com/v8/14560#c2
-  'turboshaft/turboshaft-frontend-test': [SKIP]
+  'turboshaft/turboshaft-frontend-test': [SKIP],
+  # Flaky under this variant, skipping per https://crbug.com/v8/14630#c3
+  'turboshaft/turboshaft-maglev-frontend': [SKIP]
 }],  # variant == stress_concurrent_inlining
 
 ##############################################################################
@@ -1771,7 +1777,11 @@
   'regress/regress-1424415': [SKIP],
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-generic-wrapper': [SKIP],
-  'regress/wasm/regress-v8-14471': [SKIP]
+  'regress/wasm/regress-v8-14471': [SKIP],
+
+  # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
+  # supported by the Maglev->Turboshaft graph builder.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }], # single_generation
 
 ################################################################################
@@ -1962,6 +1972,9 @@
   'compiler/test-literal-map-migration': [FAIL],
   'regress/regress-4121': [FAIL],
   'regress/regress-trap-allocation-memento': [FAIL],
+
+  # TODO(v8:14581): Re-enable this once turboshaft frontend is done.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }], # variant == google3_nociu or variant == google3_icu
 
 # Specific failures for no_icu builds
@@ -2080,5 +2093,11 @@
   'asm/poppler/poppler': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
 }],  # 'clang_coverage and mode == debug'
+
+##############################################################################
+['official_build', {
+  # Random Wasm module generation is not available on official builds.
+  'wasm/generate-random-module': [FAIL],
+}],  # 'official_build'
 
 ]

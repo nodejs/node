@@ -899,6 +899,7 @@ cc_test(
 cc_test(
     name = "cord_test",
     size = "medium",
+    timeout = "long",
     srcs = ["cord_test.cc"],
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
@@ -1377,6 +1378,7 @@ cc_test(
 cc_test(
     name = "str_format_convert_test",
     size = "medium",
+    timeout = "long",
     srcs = ["internal/str_format/convert_test.cc"],
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],

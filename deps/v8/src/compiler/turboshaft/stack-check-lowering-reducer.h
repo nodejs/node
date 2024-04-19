@@ -75,7 +75,7 @@ class StackCheckLoweringReducer : public Next {
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
-    END_IF
+
     return OpIndex::Invalid();
   }
 

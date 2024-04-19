@@ -22,7 +22,7 @@ namespace internal {
 // SemiSpace
 
 bool SemiSpace::Contains(Tagged<HeapObject> o) const {
-  BasicMemoryChunk* memory_chunk = BasicMemoryChunk::FromHeapObject(o);
+  MemoryChunk* memory_chunk = MemoryChunk::FromHeapObject(o);
   if (memory_chunk->IsLargePage()) return false;
   return id_ == kToSpace ? memory_chunk->IsToPage()
                          : memory_chunk->IsFromPage();
@@ -39,8 +39,8 @@ inline bool SemiSpace::Contains(Tagged<T> o) const {
 }
 
 bool SemiSpace::ContainsSlow(Address a) const {
-  for (const Page* p : *this) {
-    if (p == BasicMemoryChunk::FromAddress(a)) return true;
+  for (const PageMetadata* p : *this) {
+    if (p == MemoryChunkMetadata::FromAddress(a)) return true;
   }
   return false;
 }
@@ -53,7 +53,7 @@ bool NewSpace::Contains(Tagged<Object> o) const {
 }
 
 bool NewSpace::Contains(Tagged<HeapObject> o) const {
-  return BasicMemoryChunk::FromHeapObject(o)->InNewSpace();
+  return MemoryChunk::FromHeapObject(o)->InNewSpace();
 }
 
 // -----------------------------------------------------------------------------
@@ -64,8 +64,8 @@ SemiSpaceObjectIterator::SemiSpaceObjectIterator(const SemiSpaceNewSpace* space)
 
 Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
   while (true) {
-    if (Page::IsAlignedToPageSize(current_)) {
-      Page* page = Page::FromAllocationAreaAddress(current_);
+    if (PageMetadata::IsAlignedToPageSize(current_)) {
+      PageMetadata* page = PageMetadata::FromAllocationAreaAddress(current_);
       page = page->next_page();
       if (page == nullptr) return Tagged<HeapObject>();
       current_ = page->area_start();

@@ -7,7 +7,6 @@
 #include <limits>
 
 #include "src/base/iterator.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
@@ -462,12 +461,12 @@ int InstructionSelectorT<Adapter>::GetVirtualRegister(node_t node) {
 }
 
 template <typename Adapter>
-const std::map<NodeId, int>
+const std::map<typename Adapter::id_t, int>
 InstructionSelectorT<Adapter>::GetVirtualRegistersForTesting() const {
-  std::map<NodeId, int> virtual_registers;
+  std::map<typename Adapter::id_t, int> virtual_registers;
   for (size_t n = 0; n < virtual_registers_.size(); ++n) {
     if (virtual_registers_[n] != InstructionOperand::kInvalidVirtualRegister) {
-      NodeId const id = static_cast<NodeId>(n);
+      typename Adapter::id_t const id = static_cast<typename Adapter::id_t>(n);
       virtual_registers.insert(std::make_pair(id, virtual_registers_[n]));
     }
   }
@@ -720,7 +719,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
         }
       }
     }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     default:
       switch (kind) {
         case FrameStateInputKind::kStackSlot:
@@ -1601,6 +1600,12 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
             operation.TryCast<Simd128LoadTransformOp>()) {
       return lt->load_kind.with_trap_handler;
     }
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    if (const Simd256LoadTransformOp* lt =
+            operation.TryCast<Simd256LoadTransformOp>()) {
+      return lt->load_kind.with_trap_handler;
+    }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
     if (const Simd128LaneMemoryOp* lm =
             operation.TryCast<Simd128LaneMemoryOp>()) {
       return lm->kind.with_trap_handler;
@@ -1656,6 +1661,11 @@ bool increment_effect_level_for_node(TurbofanAdapter* adapter, Node* node) {
   return opcode == IrOpcode::kStore || opcode == IrOpcode::kUnalignedStore ||
          opcode == IrOpcode::kCall || opcode == IrOpcode::kProtectedStore ||
          opcode == IrOpcode::kStoreTrapOnNull ||
+#if V8_ENABLE_WEBASSEMBLY
+         opcode == IrOpcode::kStoreLane ||
+#endif
+         opcode == IrOpcode::kStorePair ||
+         opcode == IrOpcode::kStoreIndirectPointer ||
 #define ADD_EFFECT_FOR_ATOMIC_OP(Opcode) opcode == IrOpcode::k##Opcode ||
          MACHINE_ATOMIC_OP_LIST(ADD_EFFECT_FOR_ATOMIC_OP)
 #undef ADD_EFFECT_FOR_ATOMIC_OP
@@ -5383,6 +5393,62 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #undef VISIT_SIMD_TERNARY
       }
     }
+
+    // SIMD256
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    case Opcode::kSimd256Extract128Lane: {
+      MarkAsSimd128(node);
+      return VisitExtractF128(node);
+    }
+    case Opcode::kSimd256LoadTransform: {
+      MarkAsSimd256(node);
+      return VisitSimd256LoadTransform(node);
+    }
+    case Opcode::kSimd256Unary: {
+      const Simd256UnaryOp& unary = op.Cast<Simd256UnaryOp>();
+      MarkAsSimd256(node);
+      switch (unary.kind) {
+#define VISIT_SIMD_256_UNARY(kind)    \
+  case Simd256UnaryOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_256_UNARY_OPCODE(VISIT_SIMD_256_UNARY)
+#undef VISIT_SIMD_256_UNARY
+      }
+    }
+    case Opcode::kSimd256Binop: {
+      const Simd256BinopOp& binop = op.Cast<Simd256BinopOp>();
+      MarkAsSimd256(node);
+      switch (binop.kind) {
+#define VISIT_SIMD_BINOP(kind)        \
+  case Simd256BinopOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_256_BINARY_OPCODE(VISIT_SIMD_BINOP)
+#undef VISIT_SIMD_BINOP
+      }
+    }
+    case Opcode::kSimd256Shift: {
+      const Simd256ShiftOp& shift = op.Cast<Simd256ShiftOp>();
+      MarkAsSimd256(node);
+      switch (shift.kind) {
+#define VISIT_SIMD_SHIFT(kind)        \
+  case Simd256ShiftOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_256_SHIFT_OPCODE(VISIT_SIMD_SHIFT)
+#undef VISIT_SIMD_SHIFT
+      }
+    }
+    case Opcode::kSimd256Ternary: {
+      const Simd256TernaryOp& ternary = op.Cast<Simd256TernaryOp>();
+      MarkAsSimd256(node);
+      switch (ternary.kind) {
+#define VISIT_SIMD_256_TERNARY(kind)    \
+  case Simd256TernaryOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_256_TERNARY_OPCODE(VISIT_SIMD_256_TERNARY)
+#undef VISIT_SIMD_256_UNARY
+      }
+    }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
     case Opcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);

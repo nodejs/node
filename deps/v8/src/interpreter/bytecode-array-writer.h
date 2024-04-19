@@ -63,7 +63,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
+  Handle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   // Returns -1 if they match or the offset of the first mismatching byte.

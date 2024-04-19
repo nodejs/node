@@ -23,6 +23,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/scope-info.h"
@@ -281,6 +282,8 @@ class BytecodeGraphBuilder {
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreKeyed(
       const Operator* op, Node* receiver, Node* key, Node* value,
       FeedbackSlot slot);
+
+  bool DeoptimizeIfFP16(FeedbackSource feedback);
 
   // Applies the given early reduction onto the current environment.
   void ApplyEarlyReduction(JSTypeHintLowering::LoweringResult reduction);
@@ -2049,6 +2052,50 @@ void BytecodeGraphBuilder::VisitGetNamedPropertyFromSuper() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
+bool BytecodeGraphBuilder::DeoptimizeIfFP16(FeedbackSource feedback) {
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback, compiler::AccessMode::kLoad, base::nullopt);
+  if (processed_feedback.kind() != ProcessedFeedback::Kind::kElementAccess) {
+    return false;
+  }
+
+  compiler::AccessInfoFactory access_info_factory(broker(), graph_zone());
+  ZoneVector<compiler::ElementAccessInfo> access_infos(graph_zone());
+  if (!access_info_factory.ComputeElementAccessInfos(
+          processed_feedback.AsElementAccess(), &access_infos) ||
+      access_infos.empty()) {
+    return false;
+  }
+
+  bool has_float16_element = false;
+
+  for (size_t i = 0; i < access_infos.size(); i++) {
+    if (access_infos[i].elements_kind() == FLOAT16_ELEMENTS) {
+      has_float16_element = true;
+      break;
+    }
+  }
+
+  if (!has_float16_element) return false;
+
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+
+  Node* deoptimize = jsgraph()->graph()->NewNode(
+      jsgraph()->common()->Deoptimize(DeoptimizeReason::kFloat16NotYetSupported,
+                                      FeedbackSource()),
+      jsgraph()->Dead(), effect, control);
+
+  Node* frame_state =
+      NodeProperties::FindFrameStateBefore(deoptimize, jsgraph()->Dead());
+  deoptimize->ReplaceInput(0, frame_state);
+  environment()->BindAccumulator(deoptimize, Environment::kAttachFrameState);
+  ApplyEarlyReduction(JSTypeHintLowering::LoweringResult::Exit(deoptimize));
+
+  return true;
+}
+
 void BytecodeGraphBuilder::VisitGetKeyedProperty() {
   PrepareEagerCheckpoint();
   Node* key = environment()->LookupAccumulator();
@@ -2062,6 +2109,9 @@ void BytecodeGraphBuilder::VisitGetKeyedProperty() {
       TryBuildSimplifiedLoadKeyed(op, object, key, feedback.slot);
   if (lowering.IsExit()) return;
 
+  // TODO(v8:14012): We should avoid deopt-loop here. Before ship Float16Array.
+  if (DeoptimizeIfFP16(feedback)) return;
+
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {
     node = lowering.value();
@@ -2074,6 +2124,11 @@ void BytecodeGraphBuilder::VisitGetKeyedProperty() {
     node = NewNode(op, object, key, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitGetEnumeratedKeyedProperty() {
+  // TODO(v8:14245): Implement this bytecode in Maglev/Turbofan.
+  UNREACHABLE();
 }
 
 void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
@@ -2137,6 +2192,9 @@ void BytecodeGraphBuilder::VisitSetKeyedProperty() {
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedStoreKeyed(op, object, key, value, source.slot);
   if (lowering.IsExit()) return;
+
+  // TODO(v8:14012): We should avoid deopt-loop here. Before ship Float16Array.
+  if (DeoptimizeIfFP16(source)) return;
 
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {

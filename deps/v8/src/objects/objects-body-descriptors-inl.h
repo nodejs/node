@@ -366,7 +366,7 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
     v->VisitExternalPointer(
-        map, obj->RawExternalPointerField(kExtensionOffset,
+        obj, obj->RawExternalPointerField(kExtensionOffset,
                                           kArrayBufferExtensionTag));
   }
 
@@ -486,7 +486,7 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kBytecodeArrayIndirectPointerTag, v);
     IteratePointer(obj, kWrapperOffset, v);
-    IteratePointer(obj, kSourcePositionTableOffset, v);
+    IterateProtectedPointer(obj, kSourcePositionTableOffset, v);
     IterateProtectedPointer(obj, kHandlerTableOffset, v);
     IterateProtectedPointer(obj, kConstantPoolOffset, v);
   }
@@ -702,6 +702,9 @@ class JSSynchronizationPrimitive::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
+    v->VisitExternalPointer(obj,
+                            obj->RawExternalPointerField(kWaiterQueueHeadOffset,
+                                                         kWaiterQueueNodeTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -749,6 +752,7 @@ class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kWasmApiFunctionRefIndirectPointerTag, v);
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
   }
@@ -785,10 +789,28 @@ class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
+    IterateTrustedPointer(obj, kIndirectRefOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kUnknownIndirectPointerTag);
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(kCallTargetOffset,
                                           kWasmInternalFunctionCallTargetTag));
     IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kStrong);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
+};
+
+class WasmFuncRef::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    // TODO(14564): This will be a trusted pointer when the WasmInternaFunction
+    // moves to the trusted space.
+    IteratePointer(obj, kInternalOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -827,8 +849,9 @@ class WasmTrustedInstanceData::BodyDescriptor final
       IteratePointer(obj, offset, v);
     }
 
-    IterateProtectedPointer(obj, kDispatchTable0Offset, v);
-    IterateProtectedPointer(obj, kDispatchTablesOffset, v);
+    for (uint16_t offset : kProtectedFieldOffsets) {
+      IterateProtectedPointer(obj, offset, v);
+    }
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -843,7 +866,7 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     int length = WasmDispatchTable::cast(obj)->length(kAcquireLoad);
     for (int i = 0; i < length; ++i) {
-      IteratePointer(obj, OffsetOf(i) + kRefBias, v);
+      IterateProtectedPointer(obj, OffsetOf(i) + kRefBias, v);
     }
   }
 
@@ -1047,6 +1070,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     IterateSelfIndirectPointer(obj, kCodeIndirectPointerTag, v);
     IterateProtectedPointer(
         obj, Code::kDeoptimizationDataOrInterpreterDataOffset, v);
+    IterateProtectedPointer(obj, Code::kPositionTableOffset, v);
     IteratePointers(obj, Code::kStartOfStrongFieldsOffset,
                     Code::kEndOfStrongFieldsWithMainCageBaseOffset, v);
 
@@ -1184,8 +1208,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case COVERAGE_INFO_TYPE:
       return CALL_APPLY(CoverageInfo);
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_API_FUNCTION_REF_TYPE:
-      return CALL_APPLY(WasmApiFunctionRef);
     case WASM_ARRAY_TYPE:
       return CALL_APPLY(WasmArray);
     case WASM_CAPI_FUNCTION_DATA_TYPE:
@@ -1196,6 +1218,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmExportedFunctionData);
     case WASM_INTERNAL_FUNCTION_TYPE:
       return CALL_APPLY(WasmInternalFunction);
+    case WASM_FUNC_REF_TYPE:
+      return CALL_APPLY(WasmFuncRef);
     case WASM_JS_FUNCTION_DATA_TYPE:
       return CALL_APPLY(WasmJSFunctionData);
     case WASM_RESUME_DATA_TYPE:
@@ -1377,8 +1401,10 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
 #undef MAKE_STRUCT_CASE
     case ACCESSOR_INFO_TYPE:
       return CALL_APPLY(AccessorInfo);
-    case CALL_HANDLER_INFO_TYPE:
-      return CALL_APPLY(CallHandlerInfo);
+    case FUNCTION_TEMPLATE_INFO_TYPE:
+      return CALL_APPLY(FunctionTemplateInfo);
+    case OBJECT_TEMPLATE_INFO_TYPE:
+      return CALL_APPLY(ObjectTemplateInfo);
     case LOAD_HANDLER_TYPE:
       return CALL_APPLY(LoadHandler);
     case STORE_HANDLER_TYPE:
@@ -1518,20 +1544,17 @@ class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class CallHandlerInfo::BodyDescriptor final : public BodyDescriptorBase {
+class FunctionTemplateInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  static_assert(CallHandlerInfo::kEndOfStrongFieldsOffset ==
-                CallHandlerInfo::kMaybeRedirectedCallbackOffset);
-
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, HeapObject::kHeaderSize,
-                    CallHandlerInfo::kEndOfStrongFieldsOffset, v);
-    v->VisitExternalPointer(obj,
-                            obj->RawExternalPointerField(
-                                CallHandlerInfo::kMaybeRedirectedCallbackOffset,
-                                kCallHandlerInfoCallbackTag));
+                    FunctionTemplateInfo::kEndOfStrongFieldsOffset, v);
+    v->VisitExternalPointer(
+        obj, obj->RawExternalPointerField(
+                 FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+                 kFunctionTemplateInfoCallbackTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

@@ -27,7 +27,7 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
 
   // TODO(jgruber): Swap these names around. It's confusing that this
   // WeakFixedArray subclass redefines `get` with different semantics.
-  inline MaybeObject get_raw(int index) const;
+  inline Tagged<MaybeObject> get_raw(int index) const;
 
   // Setter for literals. This will set the object as strong or weak depending
   // on InstructionStream::IsWeakObjectInOptimizedCode.

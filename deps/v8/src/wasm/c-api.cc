@@ -1332,7 +1332,7 @@ auto Extern::copy() const -> own<Extern> { return impl(this)->copy(); }
 auto Extern::kind() const -> ExternKind {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(impl(this)->isolate());
   i::Handle<i::JSReceiver> obj = impl(this)->v8_object();
-  if (i::WasmExportedFunction::IsWasmExportedFunction(*obj)) {
+  if (i::WasmExternalFunction::IsWasmExternalFunction(*obj)) {
     return wasm::EXTERN_FUNC;
   }
   if (IsWasmGlobalObject(*obj)) return wasm::EXTERN_GLOBAL;
@@ -1484,7 +1484,7 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
   i::WasmApiFunctionRef::cast(
-      function->shared()->wasm_capi_function_data()->internal()->ref())
+      function->shared()->wasm_capi_function_data()->internal()->ref(isolate))
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;
@@ -1920,9 +1920,9 @@ auto Global::get() const -> Val {
       i::HandleScope scope(store->i_isolate());
       v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
-      if (IsWasmInternalFunction(*result)) {
-        result = i::WasmInternalFunction::GetOrCreateExternal(
-            i::Handle<i::WasmInternalFunction>::cast(result));
+      if (IsWasmFuncRef(*result)) {
+        result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
+            i::WasmFuncRef::cast(*result)->internal(), store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
         result = v8_global->GetIsolate()->factory()->null_value();
@@ -2063,9 +2063,9 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  if (IsWasmInternalFunction(*result)) {
+  if (IsWasmFuncRef(*result)) {
     result = i::WasmInternalFunction::GetOrCreateExternal(
-        i::Handle<i::WasmInternalFunction>::cast(result));
+        i::handle(i::WasmFuncRef::cast(*result)->internal(), isolate));
   }
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();
@@ -2298,9 +2298,9 @@ auto Instance::exports() const -> ownvec<Extern> {
     const ExternType* type = export_types[i]->type();
     switch (type->kind()) {
       case EXTERN_FUNC: {
-        DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*obj));
+        DCHECK(i::WasmExternalFunction::IsWasmExternalFunction(*obj));
         exports[i] = implement<Func>::type::make(
-            store, i::Handle<i::WasmExportedFunction>::cast(obj));
+            store, i::Handle<i::WasmExternalFunction>::cast(obj));
       } break;
       case EXTERN_GLOBAL: {
         exports[i] = implement<Global>::type::make(

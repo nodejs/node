@@ -6,7 +6,7 @@
 #define V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_INL_H_
 
 #include "src/codegen/machine-type.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -181,7 +181,7 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, dst);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case LoadType::kI64Load32U:
       assm->MacroAssembler::ByteSwapUnsigned(tmp.gp(), tmp.gp(), 4);
       break;
@@ -201,7 +201,7 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI64ReinterpretF64, tmp, dst);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case LoadType::kI64Load:
       assm->MacroAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
       break;
@@ -236,7 +236,7 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, src);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StoreType::kI32Store:
       assm->MacroAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
       break;
@@ -247,7 +247,7 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI64ReinterpretF64, tmp, src);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StoreType::kI64Store:
       assm->MacroAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
       break;
@@ -480,11 +480,11 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
   Ld(dst, liftoff::GetInstanceDataOperand());
 }
 
-void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
-    Register dst, Register instance_object) {
-  LoadTaggedPointerFromInstance(
-      dst, instance_object,
-      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kTrustedDataOffset));
+void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
+                                          int offset, IndirectPointerTag tag) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  static_assert(!COMPRESS_POINTERS_BOOL);
+  Ld(dst, MemOperand{src_addr, offset});
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -550,6 +550,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   if (protected_load_pc) {
     *protected_load_pc = pc_offset() - kInstrSize;
   }
+}
+
+void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
+                                            int32_t offset_imm) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  LoadTaggedPointer(dst, src_addr, no_reg, offset_imm);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -1327,6 +1333,18 @@ void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   MacroAssembler::Dmul(dst.gp(), lhs.gp(), rhs.gp());
+}
+
+void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
+  if (base::bits::IsPowerOfTwo(imm)) {
+    emit_i64_shli(dst, lhs, base::bits::WhichPowerOfTwo(imm));
+    return;
+  }
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MacroAssembler::li(scratch, Operand(imm));
+  MacroAssembler::Dmul(dst.gp(), lhs.gp(), scratch);
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,

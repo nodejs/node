@@ -665,6 +665,7 @@ void JSFunction::InitializeFeedbackCell(
 
   if (v8_flags.profile_guided_optimization &&
       v8_flags.profile_guided_optimization_for_empty_feedback_vector &&
+      function->has_feedback_vector() &&
       function->feedback_vector()->length() == 0) {
     if (function->shared()->cached_tiering_decision() ==
         CachedTieringDecision::kEarlyMaglev) {

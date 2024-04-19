@@ -31,8 +31,8 @@
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/minor-mark-sweep-inl.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/pretenuring-handler.h"
@@ -69,7 +69,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
       : MarkingVerifierBase(heap),
         marking_state_(heap->non_atomic_marking_state()) {}
 
-  const MarkingBitmap* bitmap(const MemoryChunk* chunk) override {
+  const MarkingBitmap* bitmap(const MutablePageMetadata* chunk) override {
     return chunk->marking_bitmap();
   }
 
@@ -167,21 +167,22 @@ YoungGenerationRememberedSetsMarkingWorklist::CollectItems(Heap* heap) {
   CodePageHeaderModificationScope rwx_write_scope(
       "Extracting of slot sets requires write access to Code page "
       "header");
-  OldGenerationMemoryChunkIterator::ForAll(heap, [&items](MemoryChunk* chunk) {
-    SlotSet* slot_set = chunk->ExtractSlotSet<OLD_TO_NEW>();
-    SlotSet* background_slot_set =
-        chunk->ExtractSlotSet<OLD_TO_NEW_BACKGROUND>();
-    if (slot_set || background_slot_set) {
-      items.emplace_back(chunk, MarkingItem::SlotsType::kRegularSlots, slot_set,
-                         background_slot_set);
-    }
-    if (TypedSlotSet* typed_slot_set =
-            chunk->ExtractTypedSlotSet<OLD_TO_NEW>()) {
-      DCHECK(IsAnyCodeSpace(chunk->owner_identity()));
-      items.emplace_back(chunk, MarkingItem::SlotsType::kTypedSlots,
-                         typed_slot_set);
-    }
-  });
+  OldGenerationMemoryChunkIterator::ForAll(
+      heap, [&items](MutablePageMetadata* chunk) {
+        SlotSet* slot_set = chunk->ExtractSlotSet<OLD_TO_NEW>();
+        SlotSet* background_slot_set =
+            chunk->ExtractSlotSet<OLD_TO_NEW_BACKGROUND>();
+        if (slot_set || background_slot_set) {
+          items.emplace_back(chunk, MarkingItem::SlotsType::kRegularSlots,
+                             slot_set, background_slot_set);
+        }
+        if (TypedSlotSet* typed_slot_set =
+                chunk->ExtractTypedSlotSet<OLD_TO_NEW>()) {
+          DCHECK(IsAnyCodeSpace(chunk->owner_identity()));
+          items.emplace_back(chunk, MarkingItem::SlotsType::kTypedSlots,
+                             typed_slot_set);
+        }
+      });
   DCHECK_LE(items.size(), max_remembered_set_count);
   return items;
 }
@@ -300,7 +301,7 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
 void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
-    for (Page* page : *heap_->new_space()) {
+    for (PageMetadata* page : *heap_->new_space()) {
       CHECK(page->marking_bitmap()->IsClean());
     }
   }
@@ -715,7 +716,7 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       if (visited_size) {
         main_marking_visitor_->IncrementLiveBytesCached(
-            MemoryChunk::FromHeapObject(heap_object),
+            MutablePageMetadata::FromHeapObject(heap_object),
             ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
       }
     }
@@ -730,7 +731,7 @@ void MinorMarkSweepCollector::TraceFragmentation() {
   size_t free_bytes_of_class[free_size_class_limits.size()] = {0};
   size_t live_bytes = 0;
   size_t allocatable_bytes = 0;
-  for (Page* p : *new_space) {
+  for (PageMetadata* p : *new_space) {
     Address free_start = p->area_start();
     for (auto [object, size] : LiveObjectRange(p)) {
       Address free_end = object.address();
@@ -781,10 +782,11 @@ intptr_t NewSpacePageEvacuationThreshold() {
          MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
 }
 
-bool ShouldMovePage(Page* p, intptr_t live_bytes, intptr_t wasted_bytes) {
+bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
+                    intptr_t wasted_bytes) {
   DCHECK(v8_flags.page_promotion);
   Heap* heap = p->heap();
-  DCHECK(!p->NeverEvacuate());
+  DCHECK(!p->Chunk()->NeverEvacuate());
   const bool should_move_page =
       ((live_bytes + wasted_bytes) > NewSpacePageEvacuationThreshold() ||
        (p->AllocatedLabSize() == 0)) &&
@@ -804,7 +806,7 @@ bool ShouldMovePage(Page* p, intptr_t live_bytes, intptr_t wasted_bytes) {
     // Don't allocate on old pages so that recently allocated objects on the
     // page get a chance to die young. The page will be force promoted on the
     // next GC because `AllocatedLabSize` will be 0.
-    p->SetFlag(Page::NEVER_ALLOCATE_ON_PAGE);
+    p->Chunk()->SetFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   }
   return should_move_page;
 }
@@ -826,7 +828,7 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
   }
 
   for (auto it = paged_space->begin(); it != paged_space->end();) {
-    Page* p = *(it++);
+    PageMetadata* p = *(it++);
     DCHECK(p->SweepingDone());
 
     intptr_t live_bytes_on_page = p->live_bytes();
@@ -870,7 +872,8 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
   OldLargeObjectSpace* old_lo_space = heap_->lo_space();
 
   for (auto it = new_lo_space->begin(); it != new_lo_space->end();) {
-    LargePage* current = *it;
+    LargePageMetadata* current = *it;
+    MemoryChunk* chunk = current->Chunk();
     it++;
     Tagged<HeapObject> object = current->GetObject();
     if (!non_atomic_marking_state_->IsMarked(object)) {
@@ -880,8 +883,8 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
                                       current);
       continue;
     }
-    current->ClearFlag(MemoryChunk::TO_PAGE);
-    current->SetFlag(MemoryChunk::FROM_PAGE);
+    chunk->ClearFlag(MemoryChunk::TO_PAGE);
+    chunk->SetFlag(MemoryChunk::FROM_PAGE);
     current->ProgressBar().ResetIfEnabled();
     old_lo_space->PromoteNewLargeObject(current);
     has_promoted_pages = true;

@@ -146,7 +146,8 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
   }
 #endif
 
-  Tagged<ByteArray> source_position_table = handle->SourcePositionTable();
+  Tagged<TrustedByteArray> source_position_table =
+      handle->SourcePositionTable();
   os << "Source Position Table (size = " << source_position_table->length()
      << ")\n";
 #ifdef OBJECT_PRINT

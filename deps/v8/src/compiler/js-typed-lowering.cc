@@ -17,7 +17,9 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
 #include "src/execution/protectors.h"
@@ -240,6 +242,26 @@ class JSBinopReduction final {
       Node* right_input =
           graph()->NewNode(simplified()->CheckString(FeedbackSource()), right(),
                            effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
+  }
+
+  // Checks that both inputs are String or string wrapper, and if we don't know
+  // statically that one side is already a String or a string wrapper, insert a
+  // CheckStringOrStringWrapper node.
+  void CheckInputsToStringOrStringWrapper() {
+    if (!left_type().Is(Type::StringOrStringWrapper())) {
+      Node* left_input = graph()->NewNode(
+          simplified()->CheckStringOrStringWrapper(FeedbackSource()), left(),
+          effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type().Is(Type::StringOrStringWrapper())) {
+      Node* right_input = graph()->NewNode(
+          simplified()->CheckStringOrStringWrapper(FeedbackSource()), right(),
+          effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -549,6 +571,108 @@ Reduction JSTypedLowering::ReduceJSNegate(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::GenerateStringAddition(
+    Node* node, Node* left, Node* right, Node* context, Node* frame_state,
+    Node** effect, Node** control, bool should_create_cons_string) {
+  // Compute the resulting length.
+  Node* left_length = graph()->NewNode(simplified()->StringLength(), left);
+  Node* right_length = graph()->NewNode(simplified()->StringLength(), right);
+  Node* length =
+      graph()->NewNode(simplified()->NumberAdd(), left_length, right_length);
+
+  PropertyCellRef string_length_protector =
+      MakeRef(broker(), factory()->string_length_protector());
+  string_length_protector.CacheAsProtector(broker());
+
+  if (string_length_protector.value(broker()).AsSmi() ==
+      Protectors::kProtectorValid) {
+    // We can just deoptimize if the {length} is out-of-bounds. Besides
+    // generating a shorter code sequence than the version below, this
+    // has the additional benefit of not holding on to the lazy {frame_state}
+    // and thus potentially reduces the number of live ranges and allows for
+    // more truncations.
+    length = *effect = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource()), length,
+        jsgraph()->ConstantNoHole(String::kMaxLength + 1), *effect, *control);
+  } else {
+    // Check if we would overflow the allowed maximum string length.
+    Node* check =
+        graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
+                         jsgraph()->ConstantNoHole(String::kMaxLength));
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, *control);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* efalse = *effect;
+    {
+      // Throw a RangeError in case of overflow.
+      Node* vfalse = efalse = if_false = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
+          context, frame_state, efalse, if_false);
+
+      // Update potential {IfException} uses of {node} to point to the
+      // %ThrowInvalidStringLength runtime call node instead.
+      Node* on_exception = nullptr;
+      if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+        NodeProperties::ReplaceControlInput(on_exception, vfalse);
+        NodeProperties::ReplaceEffectInput(on_exception, efalse);
+        if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+        Revisit(on_exception);
+      }
+
+      // The above %ThrowInvalidStringLength runtime call is an unconditional
+      // throw, making it impossible to return a successful completion in this
+      // case. We simply connect the successful completion to the graph end.
+      if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
+      MergeControlToEnd(graph(), common(), if_false);
+    }
+    *control = graph()->NewNode(common()->IfTrue(), branch);
+    length = *effect =
+        graph()->NewNode(common()->TypeGuard(type_cache_->kStringLengthType),
+                         length, *effect, *control);
+  }
+  // TODO(bmeurer): Ideally this should always use StringConcat and decide to
+  // optimize to NewConsString later during SimplifiedLowering, but for that
+  // to work we need to know that it's safe to create a ConsString.
+  Operator const* const op = should_create_cons_string
+                                 ? simplified()->NewConsString()
+                                 : simplified()->StringConcat();
+  Node* value = graph()->NewNode(op, length, left, right);
+  ReplaceWithValue(node, value, *effect, *control);
+  return Replace(value);
+}
+
+Node* JSTypedLowering::UnwrapStringWrapper(Node* string_or_wrapper,
+                                           Node** effect, Node** control) {
+  Node* check =
+      graph()->NewNode(simplified()->ObjectIsString(), string_or_wrapper);
+  Node* branch = graph()->NewNode(common()->Branch(), check, *control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = *effect;
+  Node* vtrue = string_or_wrapper;
+
+  // We just checked that the value is a string.
+  vtrue = etrue = graph()->NewNode(common()->TypeGuard(Type::String()), vtrue,
+                                   etrue, if_true);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = *effect;
+
+  Node* vfalse = efalse = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSPrimitiveWrapperValue()),
+      string_or_wrapper, *effect, *control);
+
+  // The value read from a string wrapper is a string.
+  vfalse = efalse = graph()->NewNode(common()->TypeGuard(Type::String()),
+                                     vfalse, efalse, if_false);
+
+  *control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  *effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, *control);
+
+  return graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                          vtrue, vfalse, *control);
+}
+
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Number())) {
@@ -577,9 +701,21 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     }
   }
 
+  PropertyCellRef to_primitive_protector =
+      MakeRef(broker(), factory()->string_wrapper_to_primitive_protector());
+  to_primitive_protector.CacheAsProtector(broker());
+  bool can_inline_string_wrapper_add = false;
+
   // Always bake in String feedback into the graph.
   if (r.GetBinaryOperationHint(node) == BinaryOperationHint::kString) {
     r.CheckInputsToString();
+  } else if (r.GetBinaryOperationHint(node) ==
+             BinaryOperationHint::kStringOrStringWrapper) {
+    can_inline_string_wrapper_add =
+        dependencies()->DependOnProtector(to_primitive_protector);
+    if (can_inline_string_wrapper_add) {
+      r.CheckInputsToStringOrStringWrapper();
+    }
   }
 
   // Strength-reduce concatenation of empty strings if both sides are
@@ -603,81 +739,27 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     }
   }
 
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
   // Lower to string addition if both inputs are known to be strings.
   if (r.BothInputsAre(Type::String())) {
-    Node* context = NodeProperties::GetContextInput(node);
-    Node* frame_state = NodeProperties::GetFrameStateInput(node);
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* control = NodeProperties::GetControlInput(node);
+    return GenerateStringAddition(node, r.left(), r.right(), context,
+                                  frame_state, &effect, &control,
+                                  r.ShouldCreateConsString());
+  } else if (r.BothInputsAre(Type::StringOrStringWrapper()) &&
+             can_inline_string_wrapper_add) {
+    // If the left hand side is a string wrapper, unwrap it.
+    Node* left_string = UnwrapStringWrapper(r.left(), &effect, &control);
 
-    // Compute the resulting length.
-    Node* left_length =
-        graph()->NewNode(simplified()->StringLength(), r.left());
-    Node* right_length =
-        graph()->NewNode(simplified()->StringLength(), r.right());
-    Node* length =
-        graph()->NewNode(simplified()->NumberAdd(), left_length, right_length);
+    // If the right hand side is a string wrapper, unwrap it.
+    Node* right_string = UnwrapStringWrapper(r.right(), &effect, &control);
 
-    PropertyCellRef string_length_protector =
-        MakeRef(broker(), factory()->string_length_protector());
-    string_length_protector.CacheAsProtector(broker());
-
-    if (string_length_protector.value(broker()).AsSmi() ==
-        Protectors::kProtectorValid) {
-      // We can just deoptimize if the {length} is out-of-bounds. Besides
-      // generating a shorter code sequence than the version below, this
-      // has the additional benefit of not holding on to the lazy {frame_state}
-      // and thus potentially reduces the number of live ranges and allows for
-      // more truncations.
-      length = effect = graph()->NewNode(
-          simplified()->CheckBounds(FeedbackSource()), length,
-          jsgraph()->ConstantNoHole(String::kMaxLength + 1), effect, control);
-    } else {
-      // Check if we would overflow the allowed maximum string length.
-      Node* check =
-          graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
-                           jsgraph()->ConstantNoHole(String::kMaxLength));
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* efalse = effect;
-      {
-        // Throw a RangeError in case of overflow.
-        Node* vfalse = efalse = if_false = graph()->NewNode(
-            javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
-            context, frame_state, efalse, if_false);
-
-        // Update potential {IfException} uses of {node} to point to the
-        // %ThrowInvalidStringLength runtime call node instead.
-        Node* on_exception = nullptr;
-        if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-          NodeProperties::ReplaceControlInput(on_exception, vfalse);
-          NodeProperties::ReplaceEffectInput(on_exception, efalse);
-          if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
-          Revisit(on_exception);
-        }
-
-        // The above %ThrowInvalidStringLength runtime call is an unconditional
-        // throw, making it impossible to return a successful completion in this
-        // case. We simply connect the successful completion to the graph end.
-        if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
-        MergeControlToEnd(graph(), common(), if_false);
-      }
-      control = graph()->NewNode(common()->IfTrue(), branch);
-      length = effect =
-          graph()->NewNode(common()->TypeGuard(type_cache_->kStringLengthType),
-                           length, effect, control);
-    }
-
-    // TODO(bmeurer): Ideally this should always use StringConcat and decide to
-    // optimize to NewConsString later during SimplifiedLowering, but for that
-    // to work we need to know that it's safe to create a ConsString.
-    Operator const* const op = r.ShouldCreateConsString()
-                                   ? simplified()->NewConsString()
-                                   : simplified()->StringConcat();
-    Node* value = graph()->NewNode(op, length, r.left(), r.right());
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
+    // Generate the string addition.
+    return GenerateStringAddition(node, left_string, right_string, context,
+                                  frame_state, &effect, &control, false);
   }
 
   // We never get here when we had String feedback.

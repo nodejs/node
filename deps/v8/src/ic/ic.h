@@ -61,7 +61,7 @@ class IC {
     return IsDefineNamedOwnIC() || IsDefineKeyedOwnIC();
   }
 
-  static inline bool IsHandler(MaybeObject object);
+  static inline bool IsHandler(Tagged<MaybeObject> object);
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,
@@ -87,7 +87,7 @@ class IC {
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             const MaybeObjectHandle& handler);
   // Configure the vector for POLYMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
+  void ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
                             MaybeObjectHandles* handlers);
   void ConfigureVectorState(
       Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);

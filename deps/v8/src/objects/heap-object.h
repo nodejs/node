@@ -103,16 +103,16 @@ V8_OBJECT class HeapObjectLayout {
 
 static_assert(sizeof(HeapObjectLayout) == kTaggedSize);
 
-inline bool operator==(const HeapObjectLayout* obj, TaggedBase ptr) {
+inline bool operator==(const HeapObjectLayout* obj, StrongTaggedBase ptr) {
   return Tagged<HeapObject>(obj) == ptr;
 }
-inline bool operator==(TaggedBase ptr, const HeapObjectLayout* obj) {
+inline bool operator==(StrongTaggedBase ptr, const HeapObjectLayout* obj) {
   return ptr == Tagged<HeapObject>(obj);
 }
-inline bool operator!=(const HeapObjectLayout* obj, TaggedBase ptr) {
+inline bool operator!=(const HeapObjectLayout* obj, StrongTaggedBase ptr) {
   return Tagged<HeapObject>(obj) != ptr;
 }
-inline bool operator!=(TaggedBase ptr, const HeapObjectLayout* obj) {
+inline bool operator!=(StrongTaggedBase ptr, const HeapObjectLayout* obj) {
   return ptr != Tagged<HeapObject>(obj);
 }
 

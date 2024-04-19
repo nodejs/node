@@ -51,25 +51,25 @@ void TaggedArrayBase<D, S, P>::set_capacity(int value, ReleaseStoreTag tag) {
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 int TaggedArrayBase<D, S, P>::length() const {
   return capacity();
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 int TaggedArrayBase<D, S, P>::length(AcquireLoadTag tag) const {
   return capacity(tag);
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set_length(int value) {
   set_capacity(value);
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set_length(int value, ReleaseStoreTag tag) {
   set_capacity(value, tag);
 }
@@ -86,37 +86,37 @@ bool TaggedArrayBase<D, S, P>::IsCowArray() const {
 }
 
 template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
-    int index) const {
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index) const {
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
   return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
-    int index, RelaxedLoadTag) const {
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index, RelaxedLoadTag) const {
   DCHECK(IsInBounds(index));
   return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
-    int index, AcquireLoadTag) const {
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index, AcquireLoadTag) const {
   DCHECK(IsInBounds(index));
   return ElementFieldT::Acquire_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
-    int index, SeqCstAccessTag) const {
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index, SeqCstAccessTag) const {
   DCHECK(IsInBounds(index));
   return ElementFieldT::SeqCst_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
 void TaggedArrayBase<D, S, P>::ConditionalWriteBarrier(
-    Tagged<HeapObject> object, int offset, PtrType value,
+    Tagged<HeapObject> object, int offset, Tagged<ElementT> value,
     WriteBarrierMode mode) {
   if constexpr (kElementsAreMaybeObject) {
     CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode);
@@ -126,7 +126,7 @@ void TaggedArrayBase<D, S, P>::ConditionalWriteBarrier(
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
                                    WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -137,13 +137,13 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value) {
   set(index, value, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
                                    RelaxedStoreTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -153,14 +153,14 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
                                    RelaxedStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
                                    ReleaseStoreTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -170,14 +170,14 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
                                    ReleaseStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
                                    SeqCstAccessTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
@@ -187,31 +187,33 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
                                    SeqCstAccessTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::swap(
-    int index, PtrType value, SeqCstAccessTag, WriteBarrierMode mode) {
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::swap(int index, Tagged<ElementT> value,
+                               SeqCstAccessTag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  PtrType previous_value =
+  Tagged<ElementT> previous_value =
       SEQ_CST_SWAP_FIELD(*this, OffsetOfElementAt(index), value);
   ConditionalWriteBarrier(*this, OffsetOfElementAt(index), value, mode);
   return previous_value;
 }
 
 template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::PtrType
-TaggedArrayBase<D, S, P>::compare_and_swap(int index, PtrType expected,
-                                           PtrType value, SeqCstAccessTag,
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::compare_and_swap(int index, Tagged<ElementT> expected,
+                                           Tagged<ElementT> value,
+                                           SeqCstAccessTag,
                                            WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  PtrType previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
+  Tagged<ElementT> previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
       *this, OffsetOfElementAt(index), expected, value);
   if (previous_value == expected) {
     ConditionalWriteBarrier(*this, OffsetOfElementAt(index), value, mode);
@@ -822,23 +824,25 @@ Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
   return result;
 }
 
-MaybeObject WeakArrayList::Get(int index) const {
+Tagged<MaybeObject> WeakArrayList::Get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return Get(cage_base, index);
 }
-MaybeObject WeakArrayList::get(int index) const { return Get(index); }
+Tagged<MaybeObject> WeakArrayList::get(int index) const { return Get(index); }
 
-MaybeObject WeakArrayList::Get(PtrComprCageBase cage_base, int index) const {
+Tagged<MaybeObject> WeakArrayList::Get(PtrComprCageBase cage_base,
+                                       int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
   return objects(cage_base, index, kRelaxedLoad);
 }
 
-void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
+void WeakArrayList::Set(int index, Tagged<MaybeObject> value,
+                        WriteBarrierMode mode) {
   set_objects(index, value, mode);
 }
 
 void WeakArrayList::Set(int index, Tagged<Smi> value) {
-  Set(index, MaybeObject::FromSmi(value), SKIP_WRITE_BARRIER);
+  Set(index, value, SKIP_WRITE_BARRIER);
 }
 
 MaybeObjectSlot WeakArrayList::data_start() {
@@ -861,9 +865,9 @@ void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
 Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   if (!array_.is_null()) {
     while (index_ < array_->length()) {
-      MaybeObject item = array_->Get(index_++);
-      DCHECK(item->IsWeakOrCleared());
-      if (!item->IsCleared()) return item.GetHeapObjectAssumeWeak();
+      Tagged<MaybeObject> item = array_->Get(index_++);
+      DCHECK(item.IsWeakOrCleared());
+      if (!item.IsCleared()) return item.GetHeapObjectAssumeWeak();
     }
     array_ = WeakArrayList();
   }

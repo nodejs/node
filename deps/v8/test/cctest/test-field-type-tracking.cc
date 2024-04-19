@@ -616,6 +616,7 @@ Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
   desc.instr_size = arraysize(buffer);
   return Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
       .set_is_turbofanned()
+      .set_empty_source_position_table()
       .set_deoptimization_data(DeoptimizationData::Empty(isolate))
       .Build();
 }
@@ -1836,8 +1837,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   // Ensure Map::FindElementsKindTransitionedMap() is able to find the
   // transitioned map.
   {
-    MapHandles map_list;
-    map_list.push_back(updated_map);
+    Handle<Map> map_list[1]{updated_map};
     Tagged<Map> transitioned_map = map2->FindElementsKindTransitionedMap(
         isolate, map_list, ConcurrencyMode::kSynchronous);
     CHECK_EQ(*updated_map, transitioned_map);

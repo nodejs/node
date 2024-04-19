@@ -337,6 +337,10 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
       return ExperimentalRegExp::Exec(isolate, regexp, subject, index,
                                       last_match_info, exec_quirks);
   }
+  // This UNREACHABLE() is necessary because we don't return a value here,
+  // which causes the compiler to emit potentially unsafe code for the switch
+  // above. See the commit message and b/326086002 for more details.
+  UNREACHABLE();
 }
 
 // RegExp Atom implementation: Simple string search using indexOf.

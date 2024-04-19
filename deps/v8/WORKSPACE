@@ -61,7 +61,7 @@ bind(
 
 new_local_repository(
     name = "com_googlesource_chromium_icu",
-    build_file = "bazel/BUILD.icu",
+    build_file = ":bazel/BUILD.icu",
     path = "third_party/icu",
 )
 
@@ -72,7 +72,7 @@ bind(
 
 new_local_repository(
     name = "com_googlesource_chromium_base_trace_event_common",
-    build_file = "bazel/BUILD.trace_event_common",
+    build_file = "//:bazel/BUILD.trace_event_common",
     path = "base/trace_event/common",
 )
 

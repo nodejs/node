@@ -44,6 +44,13 @@ namespace trap_handler {
 #elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
 #define V8_TRAP_HANDLER_VIA_SIMULATOR
 #define V8_TRAP_HANDLER_SUPPORTED true
+// RISCV64 (non-simulator) on Linux.
+#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_RISCV64 && V8_OS_LINUX
+#define V8_TRAP_HANDLER_SUPPORTED true
+// RISCV64 simulator on x64 on Linux
+#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+#define V8_TRAP_HANDLER_VIA_SIMULATOR
+#define V8_TRAP_HANDLER_SUPPORTED true
 // Everything else is unsupported.
 #else
 #define V8_TRAP_HANDLER_SUPPORTED false

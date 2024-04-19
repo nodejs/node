@@ -74,7 +74,10 @@ cc_library(
     hdrs = ["no_destructor.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [":config"],
+    deps = [
+        ":config",
+        ":nullability",
+    ],
 )
 
 cc_library(

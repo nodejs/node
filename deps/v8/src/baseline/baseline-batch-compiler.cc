@@ -99,9 +99,9 @@ class BaselineBatchCompilerJob {
     handles_ = isolate->NewPersistentHandles();
     tasks_.reserve(batch_size);
     for (int i = 0; i < batch_size; i++) {
-      MaybeObject maybe_sfi = task_queue->get(i);
+      Tagged<MaybeObject> maybe_sfi = task_queue->get(i);
       // TODO(victorgomes): Do I need to clear the value?
-      task_queue->set(i, HeapObjectReference::ClearedValue(isolate));
+      task_queue->set(i, ClearedValue(isolate));
       Tagged<HeapObject> obj;
       // Skip functions where weak reference is no longer valid.
       if (!maybe_sfi.GetHeapObjectIfWeak(&obj)) continue;
@@ -283,7 +283,7 @@ void BaselineBatchCompiler::EnqueueSFI(Tagged<SharedFunctionInfo> shared) {
 
 void BaselineBatchCompiler::Enqueue(Handle<SharedFunctionInfo> shared) {
   EnsureQueueCapacity();
-  compilation_queue_->set(last_index_++, HeapObjectReference::Weak(*shared));
+  compilation_queue_->set(last_index_++, MakeWeak(*shared));
 }
 
 void BaselineBatchCompiler::InstallBatch() {
@@ -315,9 +315,9 @@ void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
                               &is_compiled_scope);
   }
   for (int i = 0; i < last_index_; i++) {
-    MaybeObject maybe_sfi = compilation_queue_->get(i);
+    Tagged<MaybeObject> maybe_sfi = compilation_queue_->get(i);
     MaybeCompileFunction(maybe_sfi);
-    compilation_queue_->set(i, HeapObjectReference::ClearedValue(isolate_));
+    compilation_queue_->set(i, ClearedValue(isolate_));
   }
   ClearBatch();
 }
@@ -368,7 +368,8 @@ bool BaselineBatchCompiler::ShouldCompileBatch(
   return false;
 }
 
-bool BaselineBatchCompiler::MaybeCompileFunction(MaybeObject maybe_sfi) {
+bool BaselineBatchCompiler::MaybeCompileFunction(
+    Tagged<MaybeObject> maybe_sfi) {
   Tagged<HeapObject> heapobj;
   // Skip functions where the weak reference is no longer valid.
   if (!maybe_sfi.GetHeapObjectIfWeak(&heapobj)) return false;

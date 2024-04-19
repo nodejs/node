@@ -677,8 +677,6 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     // [fast callee, receiver, ... C arguments,
     // call code, external constant for function, argc, call handler info data,
     // holder, receiver, ... JS arguments, context, new frame state]
-    CallHandlerInfoRef call_handler_info =
-        *function_template_info_.call_code(broker());
     bool no_profiling =
         broker()->dependencies()->DependOnNoProfilingProtector();
     Callable call_api_callback = Builtins::CallableFor(
@@ -688,7 +686,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     CallDescriptor* call_descriptor =
         Linkage::GetStubCallDescriptor(graph()->zone(), cid, arity_ + kReceiver,
                                        CallDescriptor::kNeedsFrameState);
-    ApiFunction api_function(call_handler_info.callback(broker()));
+    ApiFunction api_function(function_template_info_.callback(broker()));
     ExternalReference function_reference = ExternalReference::Create(
         isolate(), &api_function, ExternalReference::DIRECT_API_CALL,
         function_template_info_.c_functions(broker()).data(),
@@ -703,7 +701,8 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     inputs[cursor++] = HeapConstant(call_api_callback.code());
     inputs[cursor++] = ExternalConstant(function_reference);
     inputs[cursor++] = NumberConstant(arity_);
-    inputs[cursor++] = Constant(call_handler_info.data(broker()));
+    inputs[cursor++] =
+        Constant(function_template_info_.callback_data(broker()).value());
     inputs[cursor++] = holder_;
     inputs[cursor++] = receiver_;
     for (int i = 0; i < arity_; ++i) {
@@ -4030,7 +4029,9 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   // TODO(turbofan): Consider introducing a JSCallApiCallback operator for
   // this and lower it during JSGenericLowering, and unify this with the
   // JSNativeContextSpecialization::InlineApiCall method a bit.
-  if (!function_template_info.call_code(broker()).has_value()) {
+  compiler::OptionalObjectRef maybe_callback_data =
+      function_template_info.callback_data(broker());
+  if (!maybe_callback_data.has_value()) {
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);
     return NoChange();
@@ -4056,8 +4057,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
 
   // Slow call
 
-  CallHandlerInfoRef call_handler_info =
-      *function_template_info.call_code(broker());
   bool no_profiling = broker()->dependencies()->DependOnNoProfilingProtector();
   Callable call_api_callback = Builtins::CallableFor(
       isolate(), no_profiling ? Builtin::kCallApiCallbackOptimizedNoProfiling
@@ -4066,7 +4065,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   auto call_descriptor =
       Linkage::GetStubCallDescriptor(graph()->zone(), cid, argc + 1 /*
      implicit receiver */, CallDescriptor::kNeedsFrameState);
-  ApiFunction api_function(call_handler_info.callback(broker()));
+  ApiFunction api_function(function_template_info.callback(broker()));
   ExternalReference function_reference = ExternalReference::Create(
       &api_function, ExternalReference::DIRECT_API_CALL);
 
@@ -4080,7 +4079,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   node->InsertInput(graph()->zone(), 2, jsgraph()->ConstantNoHole(argc));
   node->InsertInput(
       graph()->zone(), 3,
-      jsgraph()->ConstantNoHole(call_handler_info.data(broker()), broker()));
+      jsgraph()->ConstantNoHole(maybe_callback_data.value(), broker()));
   node->InsertInput(graph()->zone(), 4, holder);
   node->ReplaceInput(5, receiver);  // Update receiver input.
   // 6 + argc is context input.

@@ -10,13 +10,13 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/paged-spaces.h"
@@ -257,8 +257,8 @@ class HeapVerification final : public SpaceVerificationVisitor {
  private:
   void VerifySpace(BaseSpace* space);
 
-  void VerifyPage(const BasicMemoryChunk* chunk) final;
-  void VerifyPageDone(const BasicMemoryChunk* chunk) final;
+  void VerifyPage(const MemoryChunkMetadata* chunk) final;
+  void VerifyPageDone(const MemoryChunkMetadata* chunk) final;
 
   void VerifyObject(Tagged<HeapObject> object) final;
   void VerifyObjectMap(Tagged<HeapObject> object);
@@ -294,7 +294,7 @@ class HeapVerification final : public SpaceVerificationVisitor {
   Isolate* const isolate_;
   const PtrComprCageBase cage_base_;
   base::Optional<AllocationSpace> current_space_identity_;
-  base::Optional<const BasicMemoryChunk*> current_chunk_;
+  base::Optional<const MemoryChunkMetadata*> current_chunk_;
 };
 
 void HeapVerification::Verify() {
@@ -363,26 +363,28 @@ void HeapVerification::VerifySpace(BaseSpace* space) {
   current_space_identity_.reset();
 }
 
-void HeapVerification::VerifyPage(const BasicMemoryChunk* chunk) {
+void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
+  const MemoryChunk* chunk = chunk_metadata->Chunk();
+
   CHECK(!current_chunk_.has_value());
-  CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
-  CHECK(!chunk->IsFlagSet(Page::FROM_PAGE));
+  CHECK(!chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
+  CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
   if (V8_SHARED_RO_HEAP_BOOL && chunk->InReadOnlySpace()) {
-    CHECK_NULL(chunk->owner());
+    CHECK_NULL(chunk_metadata->owner());
   } else {
-    CHECK_EQ(chunk->heap(), heap());
-    CHECK_EQ(chunk->owner()->identity(), current_space_identity());
+    CHECK_EQ(chunk_metadata->heap(), heap());
+    CHECK_EQ(chunk_metadata->owner()->identity(), current_space_identity());
   }
-  current_chunk_ = chunk;
+  current_chunk_ = chunk_metadata;
 }
 
-void HeapVerification::VerifyPageDone(const BasicMemoryChunk* chunk) {
+void HeapVerification::VerifyPageDone(const MemoryChunkMetadata* chunk) {
   CHECK_EQ(chunk, *current_chunk_);
   current_chunk_.reset();
 }
 
 void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
-  CHECK_EQ(BasicMemoryChunk::FromHeapObject(object), *current_chunk_);
+  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(object), *current_chunk_);
 
   // Verify object map.
   VerifyObjectMap(object);
@@ -453,7 +455,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
       : ObjectVisitorWithCageBases(isolate), untyped_(untyped), typed_(typed) {}
 
   virtual bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
-                                      MaybeObject target) = 0;
+                                      Tagged<MaybeObject> target) = 0;
 
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {
@@ -477,8 +479,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
 
   void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
-    if (ShouldHaveBeenRecorded(
-            host, MaybeObject::FromObject(slot.load(code_cage_base())))) {
+    if (ShouldHaveBeenRecorded(host, slot.load(code_cage_base()))) {
       CHECK_GT(untyped_->count(slot.address()), 0);
     }
   }
@@ -487,7 +488,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
                        RelocInfo* rinfo) override {
     Tagged<Object> target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
+    if (ShouldHaveBeenRecorded(host, target)) {
       CHECK(InTypedSet(SlotType::kCodeEntry, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
              InTypedSet(SlotType::kConstPoolCodeEntry,
@@ -498,7 +499,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
     Tagged<Object> target = rinfo->target_object(cage_base());
-    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
+    if (ShouldHaveBeenRecorded(host, target)) {
       CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
             InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
@@ -533,10 +534,10 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
         ephemeron_remembered_set_(ephemeron_remembered_set) {}
 
   bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
-                              MaybeObject target) override {
-    DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InYoungGeneration(target),
+                              Tagged<MaybeObject> target) override {
+    DCHECK_IMPLIES(target.IsStrongOrWeak() && Heap::InYoungGeneration(target),
                    Heap::InToPage(target));
-    return target->IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
+    return target.IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
            !Heap::InYoungGeneration(host);
   }
 
@@ -569,7 +570,7 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
       : SlotVerifyingVisitor(isolate, untyped, typed) {}
 
   bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
-                              MaybeObject target) override {
+                              Tagged<MaybeObject> target) override {
     Tagged<HeapObject> target_heap_object;
     return target.GetHeapObject(&target_heap_object) &&
            InWritableSharedSpace(target_heap_object) &&
@@ -578,7 +579,7 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
 };
 
 template <RememberedSetType direction>
-void CollectSlots(MemoryChunk* chunk, Address start, Address end,
+void CollectSlots(MutablePageMetadata* chunk, Address start, Address end,
                   std::set<Address>* untyped,
                   std::set<std::pair<SlotType, Address>>* typed) {
   RememberedSet<direction>::Iterate(
@@ -655,7 +656,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     return;
   }
 
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
 
   Address start = object.address();
   Address end = start + object->Size(cage_base_);

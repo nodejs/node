@@ -12,7 +12,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
@@ -95,29 +95,43 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_code_comments_offset(options.code_comments_offset);
   code->set_unwinding_info_offset(options.unwinding_info_offset);
 
-  if (options.kind == CodeKind::BASELINE) {
+  // Set bytecode/interpreter data or deoptimization data.
+  if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {
     DCHECK(options.deoptimization_data.is_null());
-    Tagged<HeapObject> data =
+    Tagged<TrustedObject> data =
         *options.bytecode_or_interpreter_data.ToHandleChecked();
     DCHECK(IsBytecodeArray(data) || IsInterpreterData(data));
-    code->set_bytecode_or_interpreter_data(ExposedTrustedObject::cast(data));
-    code->set_bytecode_offset_table(
-        *options.bytecode_offsets_or_source_position_table);
-  } else if (options.kind == CodeKind::MAGLEV ||
-             options.kind == CodeKind::TURBOFAN) {
+    code->set_bytecode_or_interpreter_data(data);
+  } else if (CodeKindUsesDeoptimizationData(options.kind)) {
     DCHECK(options.bytecode_or_interpreter_data.is_null());
     code->set_deoptimization_data(
         *options.deoptimization_data.ToHandleChecked());
-    code->set_source_position_table(
-        *options.bytecode_offsets_or_source_position_table);
   } else {
-    DCHECK(options.deoptimization_data.is_null() &&
-           options.bytecode_or_interpreter_data.is_null());
+    DCHECK(options.deoptimization_data.is_null());
+    DCHECK(options.bytecode_or_interpreter_data.is_null());
     code->clear_deoptimization_data_and_interpreter_data();
-    code->set_source_position_table(
-        *options.bytecode_offsets_or_source_position_table);
   }
 
+  // Set bytecode offset table or source position table.
+  if (CodeKindUsesBytecodeOffsetTable(options.kind)) {
+    DCHECK(options.source_position_table.is_null());
+    code->set_bytecode_offset_table(
+        *options.bytecode_offset_table.ToHandleChecked());
+  } else if (CodeKindMayLackSourcePositionTable(options.kind)) {
+    DCHECK(options.bytecode_offset_table.is_null());
+    Handle<TrustedByteArray> table;
+    if (options.source_position_table.ToHandle(&table)) {
+      code->set_source_position_table(*table);
+    } else {
+      code->clear_source_position_table_and_bytecode_offset_table();
+    }
+  } else {
+    DCHECK(options.bytecode_offset_table.is_null());
+    code->set_source_position_table(
+        *options.source_position_table.ToHandleChecked());
+  }
+
+  // Set instruction stream and entrypoint.
   Handle<InstructionStream> istream;
   if (options.instruction_stream.ToHandle(&istream)) {
     CodePageHeaderModificationScope header_modification_scope(
@@ -160,12 +174,16 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
 
 template <typename Impl>
 Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(int length) {
+  // TODO(saelo): Move this check to TrustedFixedArray::New once we have a RO
+  // trusted space.
+  if (length == 0) return empty_trusted_fixed_array();
   return TrustedFixedArray::New(isolate(), length);
 }
 
 template <typename Impl>
 Handle<ProtectedFixedArray> FactoryBase<Impl>::NewProtectedFixedArray(
     int length) {
+  if (length == 0) return empty_protected_fixed_array();
   return ProtectedFixedArray::New(isolate(), length);
 }
 
@@ -261,6 +279,7 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
 
 template <typename Impl>
 Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(int length) {
+  if (length == 0) return empty_trusted_byte_array();
   return TrustedByteArray::New(isolate(), length);
 }
 
@@ -325,9 +344,8 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       interpreter::Register::invalid_value());
   instance->set_constant_pool(*constant_pool);
   instance->set_handler_table(*handler_table);
+  instance->clear_source_position_table(kReleaseStore);
   instance->set_wrapper(*wrapper);
-  instance->set_source_position_table(read_only_roots().undefined_value(),
-                                      kReleaseStore, SKIP_WRITE_BARRIER);
   CopyBytes(reinterpret_cast<uint8_t*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();
@@ -1213,7 +1231,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
       (size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePage::FromHeapObject(result)->ProgressBar().Enable();
+    LargePageMetadata::FromHeapObject(result)->ProgressBar().Enable();
   }
   return result;
 }

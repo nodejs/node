@@ -7,6 +7,7 @@
 #include "src/api/api-arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/logging.h"
+#include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -373,7 +374,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   OnFeedbackChanged(IsLoadGlobalIC() ? "LoadGlobal" : "Monomorphic");
 }
 
-void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
+void IC::ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
                               MaybeObjectHandles* handlers) {
   DCHECK(!IsGlobalIC());
   std::vector<MapAndHandler> maps_and_handlers;
@@ -645,7 +646,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
     DisallowGarbageCollection no_gc;
     int i = 0;
     for (FeedbackIterator it(nexus()); !it.done(); it.Advance()) {
-      if (it.handler()->IsCleared()) continue;
+      if (it.handler().IsCleared()) continue;
       MaybeObjectHandle existing_handler = handle(it.handler(), isolate());
       Handle<Map> existing_map = handle(it.map(), isolate());
 
@@ -739,10 +740,9 @@ bool IC::IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
       source_map->elements_kind(), target_elements_kind);
   Tagged<Map> transitioned_map;
   if (more_general_transition) {
-    MapHandles map_list;
-    map_list.push_back(handle(target_map, isolate_));
+    Handle<Map> single_map[1] = {handle(target_map, isolate_)};
     transitioned_map = source_map->FindElementsKindTransitionedMap(
-        isolate(), map_list, ConcurrencyMode::kSynchronous);
+        isolate(), single_map, ConcurrencyMode::kSynchronous);
   }
   return transitioned_map == target_map;
 }
@@ -767,17 +767,17 @@ void IC::SetCache(Handle<Name> name, const MaybeObjectHandle& handler) {
         UpdateMonomorphicIC(handler, name);
         break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case POLYMORPHIC:
       if (UpdatePolymorphicIC(name, handler)) break;
       if (UpdateMegaDOMIC(handler, name)) break;
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
         CopyICToMegamorphicCache(name);
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case MEGADOM:
       ConfigureVectorState(MEGAMORPHIC, name);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case MEGAMORPHIC:
       UpdateMegamorphicCache(lookup_start_object_map(), name, handler);
       // Indicate that we've handled this case.
@@ -1241,7 +1241,10 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
   } else {
-    ConfigureVectorState(Handle<Name>(), target_receiver_maps, &handlers);
+    ConfigureVectorState(Handle<Name>(),
+                         MapHandlesSpan(target_receiver_maps.begin(),
+                                        target_receiver_maps.end()),
+                         &handlers);
   }
 }
 
@@ -1438,7 +1441,9 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
       Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-          isolate(), *receiver_maps, ConcurrencyMode::kSynchronous);
+          isolate(),
+          MapHandlesSpan(receiver_maps->begin(), receiver_maps->end()),
+          ConcurrencyMode::kSynchronous);
       if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
@@ -1799,7 +1804,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
           UNREACHABLE();
         case LookupIterator::ACCESS_CHECK: {
           DCHECK(!IsAccessCheckNeeded(*it->GetHolder<JSObject>()));
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         }
         case LookupIterator::NOT_FOUND:
           return Object::AddDataProperty(it, value, NONE,
@@ -2353,7 +2358,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   }
 
   StoreElementPolymorphicHandlers(&target_maps_and_handlers, store_mode);
-  if (target_maps_and_handlers.size() == 0) {
+  if (target_maps_and_handlers.empty()) {
     Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
     ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   } else if (target_maps_and_handlers.size() == 1) {
@@ -2465,7 +2470,9 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     } else {
       {
         Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-            isolate(), receiver_maps, ConcurrencyMode::kSynchronous);
+            isolate(),
+            MapHandlesSpan(receiver_maps.begin(), receiver_maps.end()),
+            ConcurrencyMode::kSynchronous);
         if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());
@@ -2477,7 +2484,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       MaybeHandle<Object> validity_cell;
       Tagged<HeapObject> old_handler_obj;
       if (!old_handler.is_null() &&
-          old_handler->GetHeapObject(&old_handler_obj) &&
+          (*old_handler).GetHeapObject(&old_handler_obj) &&
           IsDataHandler(old_handler_obj)) {
         validity_cell = MaybeHandle<Object>(
             DataHandler::cast(old_handler_obj)->validity_cell(), isolate());
@@ -3414,55 +3421,64 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
 
   if (!MigrateDeprecated(isolate, source)) {
     Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
+    base::Optional<FeedbackNexus> nexus;
     if (IsFeedbackVector(*maybe_vector)) {
       int index = args.tagged_index_value_at(2);
       FeedbackSlot slot = FeedbackVector::ToSlot(index);
-      FeedbackNexus nexus(Handle<FeedbackVector>::cast(maybe_vector), slot);
-      if (!IsSmi(*source) && !nexus.IsMegamorphic()) {
-        Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(),
-                               isolate);
-        FastCloneObjectMode clone_mode =
-            GetCloneModeForMap(source_map, flags, isolate);
-        switch (clone_mode) {
-          case FastCloneObjectMode::kIdenticalMap: {
-            nexus.ConfigureCloneObject(source_map,
-                                       MaybeObjectHandle(source_map));
-            // When returning a map the IC miss handler re-starts from the top.
-            return *source_map;
+      nexus.emplace(Handle<FeedbackVector>::cast(maybe_vector), slot);
+    }
+    if (!IsSmi(*source) && (!nexus || !nexus->IsMegamorphic())) {
+      Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(), isolate);
+      FastCloneObjectMode clone_mode =
+          GetCloneModeForMap(source_map, flags, isolate);
+      switch (clone_mode) {
+        case FastCloneObjectMode::kIdenticalMap: {
+          if (nexus) {
+            nexus->ConfigureCloneObject(source_map,
+                                        MaybeObjectHandle(source_map));
           }
-          case FastCloneObjectMode::kEmptyObject: {
-            nexus.ConfigureCloneObject(
-                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
-            RETURN_RESULT_OR_FAILURE(
-                isolate, CloneObjectSlowPath(isolate, source, flags));
-          }
-          case FastCloneObjectMode::kDifferentMap: {
-            Handle<Object> res;
-            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                isolate, res, CloneObjectSlowPath(isolate, source, flags));
-            Handle<Map> result_map(Handle<HeapObject>::cast(res)->map(),
-                                   isolate);
-            if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
-                                                    isolate)) {
-              DCHECK(result_map->OnlyHasSimpleProperties());
-              DCHECK_LE(source_map->GetInObjectProperties() -
-                            source_map->UnusedInObjectProperties(),
-                        result_map->GetInObjectProperties());
-              DCHECK_GE(source_map->GetInObjectProperties(),
-                        result_map->GetInObjectProperties());
-              nexus.ConfigureCloneObject(source_map,
-                                         MaybeObjectHandle(result_map));
-            } else {
-              nexus.ConfigureMegamorphic();
-            }
-            return *res;
-          }
-          case FastCloneObjectMode::kNotSupported: {
-            break;
-          }
+          // When returning a map the IC miss handler re-starts from the top.
+          return *source_map;
         }
-        DCHECK(clone_mode == FastCloneObjectMode::kNotSupported);
-        nexus.ConfigureMegamorphic();
+        case FastCloneObjectMode::kEmptyObject: {
+          if (nexus) {
+            nexus->ConfigureCloneObject(
+                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
+          }
+          RETURN_RESULT_OR_FAILURE(isolate,
+                                   CloneObjectSlowPath(isolate, source, flags));
+        }
+        case FastCloneObjectMode::kDifferentMap: {
+          Handle<Object> res;
+          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+              isolate, res, CloneObjectSlowPath(isolate, source, flags));
+          Handle<Map> result_map(Handle<HeapObject>::cast(res)->map(), isolate);
+          if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
+                                                  isolate)) {
+            DCHECK(result_map->OnlyHasSimpleProperties());
+            DCHECK_LE(source_map->GetInObjectProperties() -
+                          source_map->UnusedInObjectProperties(),
+                      result_map->GetInObjectProperties());
+            DCHECK_GE(source_map->GetInObjectProperties(),
+                      result_map->GetInObjectProperties());
+            if (nexus) {
+              nexus->ConfigureCloneObject(source_map,
+                                          MaybeObjectHandle(result_map));
+            }
+          } else {
+            if (nexus) {
+              nexus->ConfigureMegamorphic();
+            }
+          }
+          return *res;
+        }
+        case FastCloneObjectMode::kNotSupported: {
+          break;
+        }
+      }
+      DCHECK(clone_mode == FastCloneObjectMode::kNotSupported);
+      if (nexus) {
+        nexus->ConfigureMegamorphic();
       }
     }
   }

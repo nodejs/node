@@ -12,7 +12,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -1001,7 +1001,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         start_pc_offset = __ pc_offset();
         // We are going to patch this instruction after emitting
         // CallCFunction, using a zero offset here as placeholder for now.
-        // patch_wasm_cpi_return_address assumes `addi` is used here to
+        // patch_pc_address assumes `addi` is used here to
         // add the offset to pc.
         __ addi(kScratchReg, kScratchReg, Operand::Zero());
         __ StoreU64(kScratchReg,
@@ -1010,29 +1010,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      int pc_offset;
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
-                         set_isolate_data_slots, has_function_descriptor);
+        pc_offset =
+            __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                             set_isolate_data_slots, has_function_descriptor);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
-                         set_isolate_data_slots, has_function_descriptor);
+        pc_offset =
+            __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                             set_isolate_data_slots, has_function_descriptor);
       }
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
-        int offset_since_start_call = __ SizeOfCodeGeneratedSince(&start_call);
+        int offset_since_start_call = pc_offset - start_pc_offset;
         // Here we are going to patch the `addi` instruction above to use the
         // correct offset.
         // LoadPC emits two instructions and pc is the address of its
         // second emitted instruction therefore there is one more instruction to
         // count.
         offset_since_start_call += kInstrSize;
-        __ patch_wasm_cpi_return_address(kScratchReg, start_pc_offset,
-                                         offset_since_start_call);
-        RecordSafepoint(instr->reference_map());
+        __ patch_pc_address(kScratchReg, start_pc_offset,
+                            offset_since_start_call);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      RecordSafepoint(instr->reference_map(), pc_offset);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -3330,6 +3333,15 @@ void CodeGenerator::AssembleConstructFrame() {
   const int returns = frame()->GetReturnSlotCount();
   // Create space for returns.
   __ AllocateStackSpace(returns * kSystemPointerSize);
+
+  if (!frame()->tagged_slots().IsEmpty()) {
+    __ mov(kScratchReg, Operand(0));
+    for (int spill_slot : frame()->tagged_slots()) {
+      FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+      DCHECK(offset.from_frame_pointer());
+      __ StoreU64(kScratchReg, MemOperand(fp, offset.offset()));
+    }
+  }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {

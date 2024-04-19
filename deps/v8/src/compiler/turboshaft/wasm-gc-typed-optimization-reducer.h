@@ -324,7 +324,7 @@ class WasmGCTypedOptimizationReducer : public Next {
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  OpIndex REDUCE(AnyConvertExtern)(V<Tagged> object) {
+  OpIndex REDUCE(AnyConvertExtern)(V<Object> object) {
     LABEL_BLOCK(no_change) { return Next::ReduceAnyConvertExtern(object); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 

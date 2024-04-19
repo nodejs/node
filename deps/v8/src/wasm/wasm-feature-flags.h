@@ -110,7 +110,14 @@
   /* Shipped in v12.0. */                                                      \
   /* ITS: */                                                                   \
   /* https://groups.google.com/a/chromium.org/g/blink-dev/c/WSrXwhKeSas */     \
-  V(multi_memory, "multi-memory", true)
+  V(multi_memory, "multi-memory", true)                                        \
+                                                                               \
+  /* Legacy exception handling proposal. */                                    \
+  /* https://github.com/WebAssembly/exception-handling */                      \
+  /* V8 side owner: thibaudm */                                                \
+  /* Staged in v8.9 */                                                         \
+  /* Shipped in v9.5 */                                                        \
+  V(legacy_eh, "legacy exception handling opcodes", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

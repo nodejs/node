@@ -213,30 +213,35 @@ class DelayedTasksPlatform final : public Platform {
                       DelayedTasksPlatform* platform)
         : task_runner_(task_runner), platform_(platform) {}
 
-    void PostTask(std::unique_ptr<Task> task) final {
-      task_runner_->PostTask(platform_->MakeDelayedTask(std::move(task)));
-    }
-
-    void PostNonNestableTask(std::unique_ptr<Task> task) final {
-      task_runner_->PostNonNestableTask(
-          platform_->MakeDelayedTask(std::move(task)));
-    }
-
-    void PostDelayedTask(std::unique_ptr<Task> task,
-                         double delay_in_seconds) final {
-      task_runner_->PostDelayedTask(platform_->MakeDelayedTask(std::move(task)),
-                                    delay_in_seconds);
-    }
-
-    void PostIdleTask(std::unique_ptr<IdleTask> task) final {
-      task_runner_->PostIdleTask(
-          platform_->MakeDelayedIdleTask(std::move(task)));
-    }
-
     bool IdleTasksEnabled() final { return task_runner_->IdleTasksEnabled(); }
 
     bool NonNestableTasksEnabled() const final {
       return task_runner_->NonNestableTasksEnabled();
+    }
+
+   private:
+    void PostTaskImpl(std::unique_ptr<Task> task,
+                      const SourceLocation& location) final {
+      task_runner_->PostTask(platform_->MakeDelayedTask(std::move(task)));
+    }
+
+    void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
+                                 const SourceLocation& location) final {
+      task_runner_->PostNonNestableTask(
+          platform_->MakeDelayedTask(std::move(task)));
+    }
+
+    void PostDelayedTaskImpl(std::unique_ptr<Task> task,
+                             double delay_in_seconds,
+                             const SourceLocation& location) final {
+      task_runner_->PostDelayedTask(platform_->MakeDelayedTask(std::move(task)),
+                                    delay_in_seconds);
+    }
+
+    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                          const SourceLocation& location) final {
+      task_runner_->PostIdleTask(
+          platform_->MakeDelayedIdleTask(std::move(task)));
     }
 
    private:

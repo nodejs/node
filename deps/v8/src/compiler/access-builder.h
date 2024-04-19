@@ -188,6 +188,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSIteratorResult::value() field.
   static FieldAccess ForJSIteratorResultValue();
 
+  static FieldAccess ForJSPrimitiveWrapperValue();
+
   // Provides access to JSRegExp::data() field.
   static FieldAccess ForJSRegExpData();
 

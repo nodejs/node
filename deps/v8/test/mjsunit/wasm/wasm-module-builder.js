@@ -159,11 +159,11 @@ let kStringViewIterCode = kWasmStringViewIter & kLeb128Mask;
 
 let kWasmRefNull = 0x63;
 let kWasmRef = 0x64;
-function wasmRefNullType(heap_type) {
-  return {opcode: kWasmRefNull, heap_type: heap_type};
+function wasmRefNullType(heap_type, is_shared = false) {
+  return {opcode: kWasmRefNull, heap_type: heap_type, is_shared: is_shared};
 }
-function wasmRefType(heap_type) {
-  return {opcode: kWasmRef, heap_type: heap_type};
+function wasmRefType(heap_type, is_shared = false) {
+  return {opcode: kWasmRef, heap_type: heap_type, is_shared: is_shared};
 }
 
 let kExternalFunction = 0;
@@ -521,8 +521,12 @@ let kExprRefTest = 0x14;
 let kExprRefTestNull = 0x15;
 let kExprRefCast = 0x16;
 let kExprRefCastNull = 0x17;
-let kExprBrOnCastGeneric = 0x18;      // TODO(14034): Drop "Generic" name.
-let kExprBrOnCastFailGeneric = 0x19;  // TODO(14034): Drop "Generic" name.
+let kExprBrOnCast = 0x18;
+let kExprBrOnCastFail = 0x19;
+// TODO(mliedtke): Drop by 07/2024 or later.
+// (Just keeping it temporarily for bisection.)
+let kExprBrOnCastGeneric = kExprBrOnCast;
+let kExprBrOnCastFailGeneric = kExprBrOnCastFail;
 let kExprAnyConvertExtern = 0x1a;
 let kExprExternConvertAny = 0x1b;
 let kExprRefI31 = 0x1c;
@@ -1090,7 +1094,7 @@ class Binary {
       this.emit_u8(type >= 0 ? type : type & kLeb128Mask);
     } else {
       this.emit_u8(type.opcode);
-      if ('depth' in type) this.emit_u8(type.depth);
+      if (type.is_shared) this.emit_u8(kWasmSharedTypeForm);
       this.emit_heap_type(type.heap_type);
     }
   }
@@ -1216,7 +1220,7 @@ function checkExpr(expr) {
 }
 
 class WasmTableBuilder {
-  constructor(module, type, initial_size, max_size, init_expr) {
+  constructor(module, type, initial_size, max_size, init_expr, is_shared) {
     // TODO(manoskouk): Add the table index.
     this.module = module;
     this.type = type;
@@ -1225,6 +1229,7 @@ class WasmTableBuilder {
     this.max_size = max_size;
     this.init_expr = init_expr;
     this.has_init = init_expr !== undefined;
+    this.is_shared = is_shared;
   }
 
   exportAs(name) {
@@ -1266,12 +1271,13 @@ class WasmArray {
 }
 
 class WasmElemSegment {
-  constructor(table, offset, type, elements, is_decl) {
+  constructor(table, offset, type, elements, is_decl, is_shared) {
     this.table = table;
     this.offset = offset;
     this.type = type;
     this.elements = elements;
     this.is_decl = is_decl;
+    this.is_shared = is_shared;
     // Invariant checks.
     if ((table === undefined) != (offset === undefined)) {
       throw new Error("invalid element segment");
@@ -1434,15 +1440,15 @@ class WasmModuleBuilder {
     return glob;
   }
 
-  addTable(
-      type, initial_size, max_size = undefined, init_expr = undefined) {
+  addTable(type, initial_size, max_size = undefined, init_expr = undefined,
+           is_shared = false) {
     if (type == kWasmI32 || type == kWasmI64 || type == kWasmF32 ||
         type == kWasmF64 || type == kWasmS128 || type == kWasmVoid) {
       throw new Error('Tables must be of a reference type');
     }
     if (init_expr != undefined) checkExpr(init_expr);
     let table = new WasmTableBuilder(
-        this, type, initial_size, max_size, init_expr);
+        this, type, initial_size, max_size, init_expr, is_shared);
     table.index = this.tables.length + this.num_imported_tables;
     this.tables.push(table);
     return table;
@@ -1612,35 +1618,35 @@ class WasmModuleBuilder {
   // {offset} is a constant expression.
   // If {type} is undefined, then {elements} are function indices. Otherwise,
   // they are constant expressions.
-  addActiveElementSegment(table, offset, elements, type) {
+  addActiveElementSegment(table, offset, elements, type, is_shared = false) {
     checkExpr(offset);
     if (type != undefined) {
       for (let element of elements) checkExpr(element);
     }
     this.element_segments.push(
-        new WasmElemSegment(table, offset, type, elements, false));
+        new WasmElemSegment(table, offset, type, elements, false, is_shared));
     return this.element_segments.length - 1;
   }
 
   // If {type} is undefined, then {elements} are function indices. Otherwise,
   // they are constant expressions.
-  addPassiveElementSegment(elements, type) {
+  addPassiveElementSegment(elements, type, is_shared = false) {
     if (type != undefined) {
       for (let element of elements) checkExpr(element);
     }
-    this.element_segments.push(
-      new WasmElemSegment(undefined, undefined, type, elements, false));
+    this.element_segments.push(new WasmElemSegment(
+      undefined, undefined, type, elements, false, is_shared));
     return this.element_segments.length - 1;
   }
 
   // If {type} is undefined, then {elements} are function indices. Otherwise,
   // they are constant expressions.
-  addDeclarativeElementSegment(elements, type) {
+  addDeclarativeElementSegment(elements, type, is_shared = false) {
     if (type != undefined) {
       for (let element of elements) checkExpr(element);
     }
-    this.element_segments.push(
-      new WasmElemSegment(undefined, undefined, type, elements, true));
+    this.element_segments.push(new WasmElemSegment(
+      undefined, undefined, type, elements, true, is_shared));
     return this.element_segments.length - 1;
   }
 
@@ -1819,7 +1825,8 @@ class WasmModuleBuilder {
             section.emit_u8(0x00);  // Reserved byte.
           }
           section.emit_type(table.type);
-          section.emit_u8(table.has_max);
+          section.emit_u8((table.has_max ? 1 : 0) |
+                          (table.is_shared ? 0b10 : 0));
           section.emit_u32v(table.initial_size);
           if (table.has_max) section.emit_u32v(table.max_size);
           if (table.has_init) section.emit_init_expr(table.init_expr);
@@ -1918,23 +1925,24 @@ class WasmModuleBuilder {
           // Each case below corresponds to a flag from
           // https://webassembly.github.io/spec/core/binary/modules.html#element-section
           // (not in increasing order).
+          let shared_flag = segment.is_shared ? 0b1000 : 0;
           if (segment.is_active()) {
             if (segment.table == 0 && segment.type === undefined) {
               if (segment.expressions_as_elements()) {
-                section.emit_u8(0x04);
+                section.emit_u8(0x04 | shared_flag);
                 section.emit_init_expr(segment.offset);
               } else {
-                section.emit_u8(0x00)
+                section.emit_u8(0x00 | shared_flag)
                 section.emit_init_expr(segment.offset);
               }
             } else {
               if (segment.expressions_as_elements()) {
-                section.emit_u8(0x06);
+                section.emit_u8(0x06 | shared_flag);
                 section.emit_u32v(segment.table);
                 section.emit_init_expr(segment.offset);
                 section.emit_type(segment.type);
               } else {
-                section.emit_u8(0x02);
+                section.emit_u8(0x02 | shared_flag);
                 section.emit_u32v(segment.table);
                 section.emit_init_expr(segment.offset);
                 section.emit_u8(kExternalFunction);
@@ -1943,16 +1951,16 @@ class WasmModuleBuilder {
           } else {
             if (segment.expressions_as_elements()) {
               if (segment.is_passive()) {
-                section.emit_u8(0x05);
+                section.emit_u8(0x05 | shared_flag);
               } else {
-                section.emit_u8(0x07);
+                section.emit_u8(0x07 | shared_flag);
               }
               section.emit_type(segment.type);
             } else {
               if (segment.is_passive()) {
-                section.emit_u8(0x01);
+                section.emit_u8(0x01 | shared_flag);
               } else {
-                section.emit_u8(0x03);
+                section.emit_u8(0x03 | shared_flag);
               }
               section.emit_u8(kExternalFunction);
             }
@@ -2276,7 +2284,7 @@ let [wasmBrOnCast, wasmBrOnCastFail] = (function() {
     let tgtIsNullable = targetType.opcode == kWasmRefNull;
     flags = (tgtIsNullable << 1) + srcIsNullable;
     return [
-      kGCPrefix, brOnFail ? kExprBrOnCastFailGeneric : kExprBrOnCastGeneric,
+      kGCPrefix, brOnFail ? kExprBrOnCastFail : kExprBrOnCast,
       flags, ...labelIdx, ...srcHeap, ...tgtHeap];
   }
 })();

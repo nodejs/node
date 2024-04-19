@@ -140,9 +140,13 @@ void SharedFunctionInfo::SetData(Tagged<Object> value, ReleaseStoreTag tag,
 }
 
 #ifdef V8_ENABLE_SANDBOX
+// TODO(saelo): consider using a unique magic value here instead. However,
+// using -1 has some benefits such as a recognizable crashing address if this
+// field was ever accidentally treated as a HeapObject.
+constexpr int kClearedFunctionDataValue = -1;
 void SharedFunctionInfo::clear_function_data(ReleaseStoreTag) {
-  TaggedField<Object, kFunctionDataOffset>::Release_Store(*this,
-                                                          Smi::FromInt(-1));
+  TaggedField<Object, kFunctionDataOffset>::Release_Store(
+      *this, Smi::FromInt(kClearedFunctionDataValue));
 }
 
 void SharedFunctionInfo::clear_trusted_function_data(ReleaseStoreTag) {
@@ -748,7 +752,7 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
 #endif  // V8_ENABLE_SANDBOX
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
-    data = baseline_code->bytecode_or_interpreter_data(isolate);
+    data = baseline_code->bytecode_or_interpreter_data();
   }
   if (IsBytecodeArray(data)) {
     return BytecodeArray::cast(data);
@@ -795,7 +799,7 @@ bool SharedFunctionInfo::HasInterpreterData(IsolateForSandbox isolate) const {
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-    data = baseline_code->bytecode_or_interpreter_data(isolate);
+    data = baseline_code->bytecode_or_interpreter_data();
   }
   return IsInterpreterData(data);
 }
@@ -811,7 +815,7 @@ Tagged<InterpreterData> SharedFunctionInfo::interpreter_data(
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-    data = baseline_code->bytecode_or_interpreter_data(isolate);
+    data = baseline_code->bytecode_or_interpreter_data();
   }
   return InterpreterData::cast(data);
 }
@@ -862,9 +866,9 @@ void SharedFunctionInfo::set_baseline_code(Tagged<Code> baseline_code,
   SetData(baseline_code, tag, DataType::kTrusted, mode);
 }
 
-void SharedFunctionInfo::FlushBaselineCode(IsolateForSandbox isolate) {
+void SharedFunctionInfo::FlushBaselineCode() {
   DCHECK(HasBaselineCode());
-  SetData(baseline_code(kAcquireLoad)->bytecode_or_interpreter_data(isolate),
+  SetData(baseline_code(kAcquireLoad)->bytecode_or_interpreter_data(),
           kReleaseStore, DataType::kTrusted);
 }
 
@@ -968,6 +972,13 @@ bool SharedFunctionInfo::HasBuiltinId() const {
       kNullIndirectPointerHandle) {
     return false;
   }
+  // It can happen that SetData is called on another thread at this point and
+  // transitions from function_data to trusted_function_data. In this case,
+  // we'll see the kClearedFunctionDataValue Smi value here and so must be able
+  // to handle that, for example by checking that the id is a valid builtin id.
+  static_assert(!Builtins::IsBuiltinId(kClearedFunctionDataValue));
+  Tagged<Object> data = function_data(kAcquireLoad);
+  return IsSmi(data) && Builtins::IsBuiltinId(Smi::ToInt(data));
 #endif
   return IsSmi(function_data(kAcquireLoad));
 }
@@ -975,7 +986,10 @@ bool SharedFunctionInfo::HasBuiltinId() const {
 Builtin SharedFunctionInfo::builtin_id() const {
   DCHECK(HasBuiltinId());
   int id = Smi::ToInt(function_data(kAcquireLoad));
-  DCHECK(Builtins::IsBuiltinId(id));
+  // The builtin id is read from the heap and so must be assumed to be
+  // untrusted in the sandbox attacker model. As it is considered trusted by
+  // e.g. `GetCode` (when fetching the code for this SFI), we validate it here.
+  SBXCHECK(Builtins::IsBuiltinId(id));
   return Builtins::FromInt(id);
 }
 

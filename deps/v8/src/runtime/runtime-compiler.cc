@@ -459,12 +459,16 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
                                    Handle<JSFunction> function,
                                    CodeKind min_opt_level,
                                    BytecodeOffset osr_offset) {
-  const ConcurrencyMode mode =
+  ConcurrencyMode mode =
       V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
-                v8_flags.concurrent_osr &&
-                !isolate->UseEfficiencyModeForTiering())
+                v8_flags.concurrent_osr)
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
+
+  if (V8_UNLIKELY(isolate->UseEfficiencyModeForTiering() &&
+                  min_opt_level == CodeKind::MAGLEV)) {
+    mode = ConcurrencyMode::kSynchronous;
+  }
 
   Handle<Code> result;
   if (!Compiler::CompileOptimizedOSR(
@@ -545,6 +549,13 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
              function->DebugNameCStr().get(), osr_offset.ToInt());
     }
     return function->code(isolate);
+  }
+
+  if (V8_UNLIKELY(isolate->UseEfficiencyModeForTiering() ||
+                  isolate->UseBatterySaverMode())) {
+    function->feedback_vector()->reset_osr_urgency();
+    function->SetInterruptBudget(isolate);
+    return Smi::zero();
   }
 
   return CompileOptimizedOSR(isolate, function, CodeKind::TURBOFAN, osr_offset);

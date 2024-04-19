@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -384,8 +385,8 @@ TEST(CompressedTupleTest, Constexpr) {
 
 #if defined(__clang__)
   // An apparent bug in earlier versions of gcc claims these are ambiguous.
-  constexpr int x2m = absl::move(x.get<2>()).get<0>();
-  constexpr CallType x3m = absl::move(x).get<3>().value();
+  constexpr int x2m = std::move(x.get<2>()).get<0>();
+  constexpr CallType x3m = std::move(x).get<3>().value();
   EXPECT_EQ(x2m, 5);
   EXPECT_EQ(x3m, CallType::kConstMove);
 #endif

@@ -198,6 +198,136 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
                                  caller_context, lookup_start_object));
 }
 
+void AccessorAssembler::TryEnumeratedKeyedLoad(
+    const LoadICParameters* p, TNode<Map> lookup_start_object_map,
+    ExitPoint* exit_point) {
+  if (!p->IsEnumeratedKeyedLoad()) return;
+  Label no_enum_cache(this);
+  // p->cache_type() comes from the outer loop's ForIn state.
+  GotoIf(TaggedNotEqual(p->cache_type(), lookup_start_object_map),
+         &no_enum_cache);
+
+  // Use field index in EnumCache.
+  TNode<DescriptorArray> descriptors =
+      LoadMapDescriptors(lookup_start_object_map);
+  TNode<EnumCache> enum_cache = LoadObjectField<EnumCache>(
+      descriptors, DescriptorArray::kEnumCacheOffset);
+  TNode<FixedArray> enum_keys =
+      LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
+  // p->enum_index() comes from the outer loop's ForIn state.
+  TNode<Object> key =
+      LoadFixedArrayElement(enum_keys, TaggedIndexToSmi(p->enum_index()));
+  // Check if the key in parameters match the one in enum cache. Debugger might
+  // change the value in key register, in this case we should not use the field
+  // index in enum cache.
+  GotoIf(TaggedNotEqual(key, p->name()), &no_enum_cache);
+  TNode<FixedArray> enum_indices =
+      LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
+  // Check if we have enum indices available.
+  GotoIf(IsEmptyFixedArray(enum_indices), &no_enum_cache);
+  TNode<Int32T> field_index = SmiToInt32(CAST(
+      LoadFixedArrayElement(enum_indices, TaggedIndexToSmi(p->enum_index()))));
+
+  TVARIABLE(Object, result);
+  Label if_double(this, Label::kDeferred), done(this, &result);
+  // Check if field is a mutable double field.
+  uint32_t kIsMutableDoubleFieldMask = 1;
+  GotoIf(IsSetWord32(field_index, kIsMutableDoubleFieldMask), &if_double);
+
+  TNode<Int32T> zero = Int32Constant(0);
+  {
+    Label if_outofobject(this);
+    // Check if field is in-object or out-of-object.
+    GotoIf(Int32LessThan(field_index, zero), &if_outofobject);
+
+    // The field is located in the {object} itself.
+    {
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(field_index, Int32Constant(kTaggedSizeLog2 - 1)),
+                   Int32Constant(JSObject::kHeaderSize))));
+      result =
+          LoadObjectField(CAST(p->receiver_and_lookup_start_object()), offset);
+      Goto(&done);
+    }
+
+    // The field is located in the properties backing store of {object}.
+    // The {index} is equal to the negated out of property index plus 1.
+    BIND(&if_outofobject);
+    {
+      TNode<PropertyArray> properties = CAST(LoadFastProperties(
+          CAST(p->receiver_and_lookup_start_object()), true));
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(Int32Sub(zero, field_index),
+                             Int32Constant(kTaggedSizeLog2 - 1)),
+                   Int32Constant(FixedArray::kHeaderSize - kTaggedSize))));
+      result = LoadObjectField(properties, offset);
+      Goto(&done);
+    }
+  }
+
+  // The field is a Double field, either unboxed in the object on 64-bit
+  // architectures, or a mutable HeapNumber.
+  BIND(&if_double);
+  {
+    TVARIABLE(Object, field);
+    Label loaded_field(this, &field), if_outofobject(this);
+    field_index = Word32Sar(field_index, Int32Constant(1));
+    // Check if field is in-object or out-of-object.
+    GotoIf(Int32LessThan(field_index, zero), &if_outofobject);
+
+    // The field is located in the {object} itself.
+    {
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(field_index, Int32Constant(kTaggedSizeLog2)),
+                   Int32Constant(JSObject::kHeaderSize))));
+      field =
+          LoadObjectField(CAST(p->receiver_and_lookup_start_object()), offset);
+      Goto(&loaded_field);
+    }
+
+    BIND(&if_outofobject);
+    {
+      TNode<PropertyArray> properties = CAST(LoadFastProperties(
+          CAST(p->receiver_and_lookup_start_object()), true));
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(Int32Sub(zero, field_index),
+                             Int32Constant(kTaggedSizeLog2)),
+                   Int32Constant(FixedArray::kHeaderSize - kTaggedSize))));
+      field = LoadObjectField(properties, offset);
+      Goto(&loaded_field);
+    }
+
+    BIND(&loaded_field);
+    {
+      // We may have transitioned in-place away from double, so check that
+      // this is a HeapNumber -- otherwise the load is fine and we don't need
+      // to copy anything anyway.
+      Label if_not_double(this);
+      GotoIf(TaggedIsSmi(field.value()), &if_not_double);
+
+      TNode<HeapObject> double_field = CAST(field.value());
+      TNode<Map> field_map = LoadMap(double_field);
+      GotoIfNot(TaggedEqual(field_map, HeapNumberMapConstant()),
+                &if_not_double);
+
+      TNode<Float64T> value = LoadHeapNumberValue(double_field);
+      result = AllocateHeapNumberWithValue(value);
+      Goto(&done);
+
+      BIND(&if_not_double);
+      {
+        result = field.value();
+        Goto(&done);
+      }
+    }
+  }
+
+  BIND(&done);
+  { exit_point->Return(result.value()); }
+
+  BIND(&no_enum_cache);
+}
+
 void AccessorAssembler::HandleLoadICHandlerCase(
     const LazyLoadICParameters* p, TNode<MaybeObject> handler, Label* miss,
     ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
@@ -267,7 +397,8 @@ void AccessorAssembler::HandleLoadCallbackProperty(
 }
 
 void AccessorAssembler::HandleLoadAccessor(
-    const LazyLoadICParameters* p, TNode<CallHandlerInfo> call_handler_info,
+    const LazyLoadICParameters* p,
+    TNode<FunctionTemplateInfo> function_template_info,
     TNode<Word32T> handler_word, TNode<DataHandler> handler,
     TNode<Uint32T> handler_kind, ExitPoint* exit_point) {
   Comment("api_getter");
@@ -298,7 +429,7 @@ void AccessorAssembler::HandleLoadAccessor(
     TNode<Int32T> argc = Int32Constant(0);
     TNode<Context> caller_context = p->context();
     exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
-                                   argc, caller_context, call_handler_info,
+                                   argc, caller_context, function_template_info,
                                    api_holder.value(), p->receiver()));
   }
 }
@@ -1912,7 +2043,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     {
       Comment("api_setter");
       CSA_DCHECK(this, TaggedIsNotSmi(handler));
-      TNode<CallHandlerInfo> call_handler_info = CAST(holder);
+      TNode<FunctionTemplateInfo> function_template_info = CAST(holder);
 
       // Context is stored either in data2 or data3 field depending on whether
       // the access check is enabled for this handler or not.
@@ -1942,7 +2073,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         TNode<Int32T> argc = Int32Constant(1);
         TNode<Context> caller_context = p->context();
         Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
-                           caller_context, call_handler_info,
+                           caller_context, function_template_info,
                            api_holder.value(), p->receiver(), p->value()));
       }
     }
@@ -2386,7 +2517,7 @@ void AccessorAssembler::EmitElementLoad(
     Label uint8_elements(this), int8_elements(this), uint16_elements(this),
         int16_elements(this), uint32_elements(this), int32_elements(this),
         float32_elements(this), float64_elements(this), bigint64_elements(this),
-        biguint64_elements(this);
+        biguint64_elements(this), float16_elements(this);
     static_assert(LAST_ELEMENTS_KIND ==
                   LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
     GotoIf(Int32GreaterThanOrEqual(
@@ -2440,17 +2571,18 @@ void AccessorAssembler::EmitElementLoad(
           } else {
             data_ptr = LoadJSTypedArrayDataPtr(array);
             Label* elements_kind_labels[] = {
-                &uint8_elements,    &uint8_elements,    &int8_elements,
-                &uint16_elements,   &int16_elements,    &uint32_elements,
-                &int32_elements,    &float32_elements,  &float64_elements,
-                &bigint64_elements, &biguint64_elements};
+                &uint8_elements,    &uint8_elements,     &int8_elements,
+                &uint16_elements,   &int16_elements,     &uint32_elements,
+                &int32_elements,    &float32_elements,   &float64_elements,
+                &bigint64_elements, &biguint64_elements, &float16_elements,
+            };
             int32_t elements_kinds[] = {
-                RAB_GSAB_UINT8_ELEMENTS,    RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-                RAB_GSAB_INT8_ELEMENTS,     RAB_GSAB_UINT16_ELEMENTS,
-                RAB_GSAB_INT16_ELEMENTS,    RAB_GSAB_UINT32_ELEMENTS,
-                RAB_GSAB_INT32_ELEMENTS,    RAB_GSAB_FLOAT32_ELEMENTS,
-                RAB_GSAB_FLOAT64_ELEMENTS,  RAB_GSAB_BIGINT64_ELEMENTS,
-                RAB_GSAB_BIGUINT64_ELEMENTS};
+                RAB_GSAB_UINT8_ELEMENTS,     RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+                RAB_GSAB_INT8_ELEMENTS,      RAB_GSAB_UINT16_ELEMENTS,
+                RAB_GSAB_INT16_ELEMENTS,     RAB_GSAB_UINT32_ELEMENTS,
+                RAB_GSAB_INT32_ELEMENTS,     RAB_GSAB_FLOAT32_ELEMENTS,
+                RAB_GSAB_FLOAT64_ELEMENTS,   RAB_GSAB_BIGINT64_ELEMENTS,
+                RAB_GSAB_BIGUINT64_ELEMENTS, RAB_GSAB_FLOAT16_ELEMENTS};
             const size_t kTypedElementsKindCount =
                 LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
                 FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
@@ -2477,15 +2609,15 @@ void AccessorAssembler::EmitElementLoad(
           data_ptr = LoadJSTypedArrayDataPtr(CAST(object));
 
           Label* elements_kind_labels[] = {
-              &uint8_elements,    &uint8_elements,    &int8_elements,
-              &uint16_elements,   &int16_elements,    &uint32_elements,
-              &int32_elements,    &float32_elements,  &float64_elements,
-              &bigint64_elements, &biguint64_elements};
+              &uint8_elements,    &uint8_elements,     &int8_elements,
+              &uint16_elements,   &int16_elements,     &uint32_elements,
+              &int32_elements,    &float32_elements,   &float64_elements,
+              &bigint64_elements, &biguint64_elements, &float16_elements};
           int32_t elements_kinds[] = {
               UINT8_ELEMENTS,    UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
               UINT16_ELEMENTS,   INT16_ELEMENTS,         UINT32_ELEMENTS,
               INT32_ELEMENTS,    FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS,
-              BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS};
+              BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS,     FLOAT16_ELEMENTS};
           const size_t kTypedElementsKindCount =
               LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
               FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
@@ -2535,6 +2667,14 @@ void AccessorAssembler::EmitElementLoad(
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
           TNode<Int32T> element = Load<Int32T>(data_ptr.value(), index);
           exit_point->Return(ChangeInt32ToTagged(element));
+        }
+        BIND(&float16_elements);
+        {
+          Comment("FLOAT16_ELEMENTS");
+          TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(1));
+          TNode<Float16T> raw_element = Load<Float16T>(data_ptr.value(), index);
+          *var_double_value = ChangeFloat16ToFloat64(raw_element);
+          Goto(rebox_double);
         }
         BIND(&float32_elements);
         {
@@ -3434,6 +3574,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
   TNode<Map> lookup_start_object_map =
       LoadReceiverMap(p->receiver_and_lookup_start_object());
   GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
+
+  TryEnumeratedKeyedLoad(p, lookup_start_object_map, &direct_exit);
 
   GotoIf(IsUndefined(p->vector()), &generic);
 
@@ -4488,6 +4630,23 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
   KeyedLoadIC(&p, LoadAccessMode::kLoad);
 }
 
+void AccessorAssembler::GenerateEnumeratedKeyedLoadIC() {
+  using Descriptor = EnumeratedKeyedLoadDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto enum_index = Parameter<TaggedIndex>(Descriptor::kEnumIndex);
+  auto cache_type = Parameter<Object>(Descriptor::kCacheType);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto lookup_start_object = base::nullopt;
+
+  LoadICParameters p(context, receiver, name, slot, vector, lookup_start_object,
+                     enum_index, cache_type);
+  KeyedLoadIC(&p, LoadAccessMode::kLoad);
+}
+
 void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
   using Descriptor = KeyedLoadWithVectorDescriptor;
 
@@ -4523,6 +4682,21 @@ void AccessorAssembler::GenerateKeyedLoadICBaseline() {
   TNode<Context> context = LoadContextFromBaseline();
 
   TailCallBuiltin(Builtin::kKeyedLoadIC, context, receiver, name, slot, vector);
+}
+
+void AccessorAssembler::GenerateEnumeratedKeyedLoadICBaseline() {
+  using Descriptor = EnumeratedKeyedLoadBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto enum_index = Parameter<TaggedIndex>(Descriptor::kEnumIndex);
+  auto cache_type = Parameter<Object>(Descriptor::kCacheType);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtin::kEnumeratedKeyedLoadIC, context, receiver, name,
+                  enum_index, cache_type, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
@@ -4983,7 +5157,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   TNode<Map> source_map = LoadReceiverMap(source);
   GotoIf(IsDeprecatedMap(source_map), &miss);
 
-  GotoIf(IsUndefined(maybe_vector), &slow);
+  GotoIf(IsUndefined(maybe_vector), &miss);
 
   TNode<HeapObjectReference> feedback;
   TNode<HeapObjectReference> weak_source_map = MakeWeak(source_map);

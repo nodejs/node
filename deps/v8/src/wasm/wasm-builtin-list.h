@@ -139,7 +139,8 @@ namespace v8::internal::wasm {
   V(WasmAllocateInYoungGeneration)                                             \
   V(WasmAllocateInOldGeneration)                                               \
   V(IterableToFixedArrayForWasm)                                               \
-  V(WasmAllocateZeroedFixedArray)
+  V(WasmAllocateZeroedFixedArray)                                              \
+  V(WasmFastApiCallTypeCheckAndUpdateIC)
 
 namespace detail {
 constexpr std::array<uint8_t, static_cast<int>(Builtin::kFirstBytecodeHandler)>

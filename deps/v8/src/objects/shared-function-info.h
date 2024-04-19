@@ -419,7 +419,7 @@ class SharedFunctionInfo
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
-  inline void FlushBaselineCode(IsolateForSandbox isolate);
+  inline void FlushBaselineCode();
   inline Tagged<BytecodeArray> GetActiveBytecodeArray(
       IsolateForSandbox isolate) const;
   inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode,

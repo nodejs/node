@@ -428,8 +428,7 @@ TEST(GetObjectProperties) {
 }
 
 static void FrameIterationCheck(
-    v8::Local<v8::String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();

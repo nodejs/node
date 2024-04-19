@@ -479,7 +479,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   }
 
   // Allocate the source position table.
-  Handle<ByteArray> source_positions =
+  Handle<TrustedByteArray> source_positions =
       source_position_table_builder_.ToSourcePositionTable(isolate());
 
   // Allocate and install the code.
@@ -506,8 +506,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
       .set_profiler_data(info()->profiler_data())
       .set_osr_offset(info()->osr_offset());
 
-  if (info()->code_kind() == CodeKind::TURBOFAN) {
-    // Deoptimization data is only used in this case.
+  if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
   }
 
@@ -743,7 +742,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   bool adjust_stack =
       GetSlotAboveSPBeforeTailCall(instr, &first_unused_stack_slot);
   if (adjust_stack) AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
-  AssembleGaps(instr);
+  if (instr->opcode() == kArchNop && block->successors().empty() &&
+      block->code_end() - block->code_start() == 1) {
+    // When the frame-less dummy end block in Turbofan contains a Phi node,
+    // don't attempt to access spill slots.
+    // TODO(dmercadier): When the switch to Turboshaft is complete, this
+    // will no longer be required.
+  } else {
+    AssembleGaps(instr);
+  }
   if (adjust_stack) AssembleTailCallAfterGap(instr, first_unused_stack_slot);
   DCHECK_IMPLIES(
       block->must_deconstruct_frame(),

@@ -1157,14 +1157,6 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
-#if defined(V8_COMPRESS_POINTERS)
-  // The null value is not accessible on mksnapshot runs.
-  if (isolate->snapshot_available()) {
-    wasm_null_tagged_compressed_ = V8HeapCompressionScheme::CompressObject(
-        isolate->factory()->wasm_null()->ptr());
-  }
-#endif
-
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to

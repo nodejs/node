@@ -402,6 +402,9 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
+      {'name': 'benchmarks', 'shards': 5},
+      {'name': 'mozilla', 'shards': 5},
+      {'name': 'test262', 'shards': 10},
     ],
   },
   'v8_linux64_dbg': {
@@ -553,7 +556,6 @@
       {'name': 'benchmarks', 'variant': 'minor_ms'},
       {'name': 'mozilla', 'variant': 'minor_ms'},
       {'name': 'test262', 'variant': 'minor_ms', 'shards': 2},
-      {'name': 'mjsunit', 'variant': 'minor_ms'},
     ],
   },
   'v8_linux64_msan_rel': {
@@ -1506,7 +1508,6 @@
       {'name': 'benchmarks', 'variant': 'minor_ms'},
       {'name': 'mozilla', 'variant': 'minor_ms'},
       {'name': 'test262', 'variant': 'minor_ms', 'shards': 2},
-      {'name': 'mjsunit', 'variant': 'minor_ms'},
     ],
   },
   'V8 Linux64 - disable runtime call stats': {
@@ -1732,6 +1733,9 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
+      {'name': 'benchmarks', 'shards': 5},
+      {'name': 'mozilla', 'shards': 5},
+      {'name': 'test262', 'shards': 10},
     ],
   },
   'V8 Linux64 GC Stress - custom snapshot': {

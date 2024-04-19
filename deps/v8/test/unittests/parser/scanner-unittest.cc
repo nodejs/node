@@ -94,10 +94,11 @@ TEST_F(ScannerTest, AllThePushbacks) {
     const char* src;
     const Token::Value tokens[5];  // Large enough for any of the test cases.
   } test_cases[] = {
-      {"<-x", {Token::kLt, Token::kSub, Token::kIdentifier, Token::kEos}},
-      {"<!x", {Token::kLt, Token::kNot, Token::kIdentifier, Token::kEos}},
+      {"<-x", {Token::kLessThan, Token::kSub, Token::kIdentifier, Token::kEos}},
+      {"<!x", {Token::kLessThan, Token::kNot, Token::kIdentifier, Token::kEos}},
       {"<!-x",
-       {Token::kLt, Token::kNot, Token::kSub, Token::kIdentifier, Token::kEos}},
+       {Token::kLessThan, Token::kNot, Token::kSub, Token::kIdentifier,
+        Token::kEos}},
       {"<!-- xx -->\nx", {Token::kIdentifier, Token::kEos}},
   };
 

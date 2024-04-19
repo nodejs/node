@@ -1139,6 +1139,7 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 TEST(SubclassTypedArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
   v8_flags.always_turbofan = false;
+  v8_flags.js_float16array = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 

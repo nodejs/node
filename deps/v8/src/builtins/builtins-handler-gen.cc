@@ -212,6 +212,7 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
   V(INT16_ELEMENTS)                  \
   V(UINT32_ELEMENTS)                 \
   V(INT32_ELEMENTS)                  \
+  V(FLOAT16_ELEMENTS)                \
   V(FLOAT32_ELEMENTS)                \
   V(FLOAT64_ELEMENTS)                \
   V(UINT8_CLAMPED_ELEMENTS)          \
@@ -223,6 +224,7 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
   V(RAB_GSAB_INT16_ELEMENTS)         \
   V(RAB_GSAB_UINT32_ELEMENTS)        \
   V(RAB_GSAB_INT32_ELEMENTS)         \
+  V(RAB_GSAB_FLOAT16_ELEMENTS)       \
   V(RAB_GSAB_FLOAT32_ELEMENTS)       \
   V(RAB_GSAB_FLOAT64_ELEMENTS)       \
   V(RAB_GSAB_UINT8_CLAMPED_ELEMENTS) \

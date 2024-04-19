@@ -302,6 +302,11 @@ class V8_EXPORT Value : public Data {
   bool IsInt32Array() const;
 
   /**
+   * Returns true if this value is a Float16Array.
+   */
+  bool IsFloat16Array() const;
+
+  /**
    * Returns true if this value is a Float32Array.
    */
   bool IsFloat32Array() const;

@@ -164,7 +164,7 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
   USE(object);
   {
     EmbedderStackStateScope stack_scope(
-        &js_heap, EmbedderStackStateScope::kExplicitInvocation,
+        &js_heap, EmbedderStackStateOrigin::kExplicitInvocation,
         StackState::kNoHeapPointers);
     InvokeMajorGC();
     cpp_heap.AsBase().sweeper().FinishIfRunning();
@@ -807,6 +807,8 @@ struct UnifiedHeapTestWithRandomGCInterval : RandomGCIntervalTestSetter,
                                              UnifiedHeapTest {};
 
 TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
+  if (v8_flags.stress_incremental_marking) return;
+  if (v8_flags.stress_concurrent_allocation) return;
   auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
   auto& allocator = cpp_heap.object_allocator();
   const int initial_allocation_timeout =

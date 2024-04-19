@@ -52,7 +52,7 @@ def list_fuzz_tests(executable):
   env['ASAN_OPTIONS'] = 'detect_odr_violation=0'
   env['CENTIPEDE_RUNNER_FLAGS'] = 'stack_limit_kb=0:'
   test_list = subprocess.check_output(
-      [executable, '--list_fuzz_tests'],
+      [executable, '--list_fuzz_tests=true'],
       env=env,
       cwd='.',
   ).decode('utf-8')

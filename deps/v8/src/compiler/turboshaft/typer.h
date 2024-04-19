@@ -1156,6 +1156,7 @@ class Typer {
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
       case RegisterRepresentation::Simd128():
+      case RegisterRepresentation::Simd256():
         // TODO(nicohartmann@): Support these representations.
         return Type::Any();
     }
@@ -1419,6 +1420,7 @@ class Typer {
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
       case RegisterRepresentation::Simd128():
+      case RegisterRepresentation::Simd256():
         if (lhs.IsNone() || rhs.IsNone()) return Type::None();
         // TODO(nicohartmann@): Support those cases.
         return Word32Type::Set({0, 1}, zone);

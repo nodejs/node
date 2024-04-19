@@ -50,6 +50,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceCheckNumber(node);
     case IrOpcode::kCheckString:
       return ReduceCheckString(node);
+    case IrOpcode::kCheckStringOrStringWrapper:
+      return ReduceCheckStringOrStringWrapper(node);
     case IrOpcode::kCheckEqualsInternalizedString:
       return ReduceCheckEqualsInternalizedString(node);
     case IrOpcode::kCheckEqualsSymbol:
@@ -265,6 +267,16 @@ Reduction TypedOptimization::ReduceCheckString(Node* node) {
   return NoChange();
 }
 
+Reduction TypedOptimization::ReduceCheckStringOrStringWrapper(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::StringOrStringWrapper())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
 Reduction TypedOptimization::ReduceCheckEqualsInternalizedString(Node* node) {
   Node* const exp = NodeProperties::GetValueInput(node, 0);
   Type const exp_type = NodeProperties::GetType(exp);
@@ -454,7 +466,7 @@ Reduction TypedOptimization::
       }
       break;
     case IrOpcode::kStringLessThan:
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case IrOpcode::kStringLessThanOrEqual:
       if (string.length() == 0) {
         // String.fromCharCode(x) <= "" is always false,

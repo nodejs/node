@@ -53,7 +53,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
-class ABSL_LOCKABLE SpinLock {
+class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
  public:
   SpinLock() : lockword_(kSpinLockCooperative) {
     ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);

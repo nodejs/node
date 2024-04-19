@@ -412,7 +412,7 @@ class V8_EXPORT_PRIVATE Scanner {
 
   // Scans the input as a template literal
   Token::Value ScanTemplateContinuation() {
-    DCHECK_EQ(next().token, Token::kRBrace);
+    DCHECK_EQ(next().token, Token::kRightBrace);
     DCHECK_EQ(source_pos() - 1, next().location.beg_pos);
     return ScanTemplateSpan();
   }

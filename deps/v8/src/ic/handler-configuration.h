@@ -225,7 +225,8 @@ class LoadHandler final : public DataHandler {
                                               KeyedAccessLoadMode load_mode);
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
-  static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(
+      Tagged<MaybeObject> handler);
 
   // Returns true iff the handler can be used in the "holder != lookup start
   // object" case.
@@ -374,7 +375,8 @@ class StoreHandler final : public DataHandler {
   static inline Tagged<Smi> StoreProxy();
 
   // Decodes the KeyedAccessStoreMode from a {handler}.
-  static KeyedAccessStoreMode GetKeyedAccessStoreMode(MaybeObject handler);
+  static KeyedAccessStoreMode GetKeyedAccessStoreMode(
+      Tagged<MaybeObject> handler);
 
 #if defined(OBJECT_PRINT)
   static void PrintHandler(Tagged<Object> handler, std::ostream& os);

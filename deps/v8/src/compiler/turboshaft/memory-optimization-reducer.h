@@ -250,11 +250,11 @@ class MemoryOptimizationReducer : public Next {
     if (analyzer_->IsFoldedAllocation(__ current_operation_origin())) {
       DCHECK_NE(__ GetVariable(top(type)), OpIndex::Invalid());
       OpIndex obj_addr = __ GetVariable(top(type));
-      __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
+      __ SetVariable(top(type), __ WordPtrAdd(__ GetVariable(top(type)), size));
       __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                       MemoryRepresentation::UintPtr());
       return __ BitcastWordPtrToHeapObject(
-          __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
+          __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
     }
 
     __ SetVariable(top(type), __ LoadOffHeap(top_address,
@@ -319,7 +319,7 @@ class MemoryOptimizationReducer : public Next {
         __ SetVariable(result,
                        __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
                            top_value, __ IntPtrConstant(kHeapObjectTag))));
-        OpIndex new_top = __ PointerAdd(top_value, size);
+        OpIndex new_top = __ WordPtrAdd(top_value, size);
         OpIndex limit =
             __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
@@ -356,7 +356,7 @@ class MemoryOptimizationReducer : public Next {
       OpIndex limit =
           __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
       __ Branch(__ UintPtrLessThan(
-                    __ PointerAdd(__ GetVariable(top(type)), reservation_size),
+                    __ WordPtrAdd(__ GetVariable(top(type)), reservation_size),
                     limit),
                 done, call_runtime, BranchHint::kTrue);
     }
@@ -366,7 +366,7 @@ class MemoryOptimizationReducer : public Next {
       OpIndex allocated = __ Call(allocate_builtin, {reservation_size},
                                   AllocateBuiltinDescriptor());
       __ SetVariable(top(type),
-                     __ PointerSub(__ BitcastHeapObjectToWordPtr(allocated),
+                     __ WordPtrSub(__ BitcastHeapObjectToWordPtr(allocated),
                                    __ IntPtrConstant(kHeapObjectTag)));
       __ Goto(done);
     }
@@ -374,11 +374,11 @@ class MemoryOptimizationReducer : public Next {
     __ BindReachable(done);
     // Compute the new top and write it back.
     OpIndex obj_addr = __ GetVariable(top(type));
-    __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
+    __ SetVariable(top(type), __ WordPtrAdd(__ GetVariable(top(type)), size));
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                     MemoryRepresentation::UintPtr());
     return __ BitcastWordPtrToHeapObject(
-        __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
+        __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 
   OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,

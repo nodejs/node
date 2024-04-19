@@ -93,9 +93,7 @@ std::string Type::HandlifiedCppTypeName(HandleKind kind) const {
 
 std::string Type::TagglifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
-  // TODO(leszeks): Changee this to GetTaggedType once there's a Maybe version
-  // of Tagged<T>.
-  if (IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
+  if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
     return "Tagged<" + GetConstexprGeneratedTypeName() + ">";
   } else {
     return GetConstexprGeneratedTypeName();

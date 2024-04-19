@@ -17,7 +17,7 @@
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/objects/smi.h"
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -409,6 +409,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_GETTER(HasFixedUint16Elements, bool)
   DECL_GETTER(HasFixedInt32Elements, bool)
   DECL_GETTER(HasFixedUint32Elements, bool)
+  DECL_GETTER(HasFixedFloat16Elements, bool)
   DECL_GETTER(HasFixedFloat32Elements, bool)
   DECL_GETTER(HasFixedFloat64Elements, bool)
   DECL_GETTER(HasFixedBigInt64Elements, bool)

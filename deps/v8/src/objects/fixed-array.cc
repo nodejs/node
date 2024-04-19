@@ -228,9 +228,9 @@ void WeakArrayList::Compact(Isolate* isolate) {
   int new_length = 0;
 
   for (int i = 0; i < length; i++) {
-    MaybeObject value = Get(isolate, i);
+    Tagged<MaybeObject> value = Get(isolate, i);
 
-    if (!value->IsCleared()) {
+    if (!value.IsCleared()) {
       if (new_length != i) {
         Set(new_length, value);
       }
@@ -260,7 +260,7 @@ Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,
 int WeakArrayList::CountLiveWeakReferences() const {
   int live_weak_references = 0;
   for (int i = 0; i < length(); i++) {
-    if (Get(i)->IsWeak()) {
+    if (Get(i).IsWeak()) {
       ++live_weak_references;
     }
   }
@@ -270,7 +270,7 @@ int WeakArrayList::CountLiveWeakReferences() const {
 int WeakArrayList::CountLiveElements() const {
   int non_cleared_objects = 0;
   for (int i = 0; i < length(); i++) {
-    if (!Get(i)->IsCleared()) {
+    if (!Get(i).IsCleared()) {
       ++non_cleared_objects;
     }
   }
@@ -285,14 +285,14 @@ bool WeakArrayList::RemoveOne(MaybeObjectHandle value) {
     // Move the last element into this slot (or no-op, if this is the last
     // slot).
     Set(i, Get(last_index));
-    Set(last_index, HeapObjectReference::ClearedValue(GetIsolate()));
+    Set(last_index, ClearedValue(GetIsolate()));
     set_length(last_index);
     return true;
   }
   return false;
 }
 
-bool WeakArrayList::Contains(MaybeObject value) {
+bool WeakArrayList::Contains(Tagged<MaybeObject> value) {
   for (int i = 0; i < length(); ++i) {
     if (Get(i) == value) return true;
   }

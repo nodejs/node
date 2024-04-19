@@ -4,7 +4,6 @@
 
 #include "src/compiler/turboshaft/decompression-optimization.h"
 
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/operations.h"

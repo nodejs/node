@@ -22,6 +22,29 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(10, wasm.roundtrip(10));
 })();
 
+(function SharedGlobalAbstractType() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig = builder.addType(kSig_i_i, kNoSuperType, true, false);
+  let struct = builder.addStruct(
+    [makeField(kWasmI32, true)], kNoSuperType, false, true);
+  let global = builder.addGlobal(
+    wasmRefNullType(kWasmAnyRef, true), true, true,
+    [kExprRefNull, kWasmSharedTypeForm, kAnyRefCode]);
+
+  builder.addFunction("roundtrip", sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct,
+              kExprGlobalSet, global.index,
+              kExprGlobalGet, global.index,
+              kGCPrefix, kExprRefCast, struct,
+              kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+
+  assertEquals(10, wasm.roundtrip(10));
+})();
+
 (function SharedGlobalInNonSharedFunction() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -160,4 +183,76 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
                /cannot refer to non-shared segment/);
+})();
+
+(function ElementSegmentInFunction() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig = builder.addType(kSig_v_v, kNoSuperType, false, true);
+  let func = builder.addFunction("void", sig).addBody([]);
+  let elem = builder.addPassiveElementSegment(
+    [[kExprRefFunc, func.index]], wasmRefType(0), true);
+  builder.addFunction("drop", sig)
+    .addBody([kNumericPrefix, kExprElemDrop, elem])
+  builder.instantiate();
+})();
+
+(function InvalidElementSegmentInFunction() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig = builder.addType(kSig_v_v, kNoSuperType, false, true);
+  let elem = builder.addPassiveElementSegment(
+    [[kExprRefNull, kNullFuncRefCode]], kWasmFuncRef, false);
+  builder.addFunction("drop", sig)
+    .addBody([kNumericPrefix, kExprElemDrop, elem])
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /cannot reference non-shared element segment/);
+})();
+
+(function TableInFunction() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
+                                 true, true);
+  let sig = builder.addType(makeSig([kWasmI32], [wasmRefNullType(struct)]),
+                            kNoSuperType, false, true);
+  let table = builder.addTable(wasmRefNullType(struct), 10, undefined,
+                               [kExprRefNull, struct], true);
+  builder.addFunction("get", sig)
+    .addBody([kExprLocalGet, 0, kExprTableGet, table.index])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  assertEquals(null, instance.exports.get(0));
+})();
+
+(function InvalidTableInFunction() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
+                                 true, true);
+  let sig = builder.addType(makeSig([kWasmI32], [wasmRefNullType(struct)]),
+                            kNoSuperType, false, true);
+  let table = builder.addTable(wasmRefNullType(struct), 10, undefined,
+                               [kExprRefNull, struct], false);
+  builder.addFunction("get", sig)
+    .addBody([kExprLocalGet, 0, kExprTableGet, table.index])
+    .exportFunc();
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /cannot reference non-shared table/);
+})();
+
+(function InvalidTableInitializer() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_shared = builder.addType(kSig_v_v, kNoSuperType, false, true);
+  let sig = builder.addType(kSig_v_v, kNoSuperType, false, false);
+  builder.addTable(wasmRefNullType(sig_shared), 10, undefined,
+                   [kExprRefNull, sig], true);
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /type error in constant expression\[0\] \(expected \(ref null 0\), got \(ref null 1\)\)/);
 })();

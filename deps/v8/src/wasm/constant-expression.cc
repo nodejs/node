@@ -43,9 +43,8 @@ ValueOrError EvaluateConstantExpression(
           ValueType::RefNull(expr.repr()));
     case ConstantExpression::kRefFunc: {
       uint32_t index = expr.index();
-      Handle<Object> value =
-          WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
-              isolate, trusted_instance_data, index);
+      Handle<WasmFuncRef> value = WasmTrustedInstanceData::GetOrCreateFuncRef(
+          isolate, trusted_instance_data, index);
       return WasmValue(value, expected);
     }
     case ConstantExpression::kWireBytesRef: {

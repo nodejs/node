@@ -356,10 +356,9 @@ bool AddDescriptorsByTemplate(
 
       property_array->set(field_index, value);
       field_index++;
-      descriptors->Set(i, name, MaybeObject::FromObject(FieldType::Any()),
-                       details);
+      descriptors->Set(i, name, FieldType::Any(), details);
     } else {
-      descriptors->Set(i, name, MaybeObject::FromObject(value), details);
+      descriptors->Set(i, name, value, details);
     }
   }
 

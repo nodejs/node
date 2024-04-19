@@ -29,19 +29,21 @@ class Counters;
 struct TrustedPointerTableEntry {
   // Make this entry a "regular" entry, containing an absolute pointer to a
   // TrustedObject.
-  inline void MakeTrustedPointerEntry(Address value, bool mark_as_alive);
+  inline void MakeTrustedPointerEntry(Address pointer, IndirectPointerTag tag,
+                                      bool mark_as_alive);
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
   inline void MakeFreelistEntry(uint32_t next_entry_index);
 
-  // Retrieve the pointer stored in this entry.
+  // Retrieve the pointer stored in this entry. This entry must be tagged with
+  // the given tag, otherwise an inaccessible pointer will be returned.
   // This entry must not be a freelist entry.
-  inline Address GetContent() const;
+  inline Address GetPointer(IndirectPointerTag tag) const;
 
-  // Store the given pointer in this entry.
+  // Store the given pointer in this entry while preserving the marking state.
   // This entry must not be a freelist entry.
-  inline void SetContent(Address value);
+  inline void SetPointer(Address pointer, IndirectPointerTag tag);
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
@@ -64,23 +66,53 @@ struct TrustedPointerTableEntry {
  private:
   friend class TrustedPointerTable;
 
-  // Freelist entries contain the index of the next free entry in their lower 32
-  // bits and this tag in the upper 32 bits.
-  static constexpr Address kFreeEntryTag = 0xffffffffULL << 32;
+  // TrustedPointerTable entries consist of a single pointer-sized word
+  // containing a tag and marking bit together with the actual pointer.
+  struct Payload {
+    static Payload ForTrustedPointerEntry(Address pointer,
+                                          IndirectPointerTag tag) {
+      // We expect to only store references to (trusted) HeapObjects in the
+      // TrustedPointerTable, so the HeapObject tag bit must be set.
+      DCHECK_EQ(pointer & kHeapObjectTag, kHeapObjectTag);
+      DCHECK_EQ(pointer & kTrustedPointerTableMarkBit, 0);
+      DCHECK_EQ(pointer & kIndirectPointerTagMask, 0);
+      return Payload(pointer, tag);
+    }
 
-  // The marking bit is stored in the content_ field, see below.
-  static constexpr Address kMarkingBit = 1;
+    static Payload ForFreelistEntry(uint32_t next_entry) {
+      return Payload(next_entry, kFreeTrustedPointerTableEntryTag);
+    }
 
-  // The pointer to the TrustedObject stored in this entry. Also contains the
-  // marking bit: since this is a tagged pointer to a V8 HeapObject, we know
-  // that it will be 4-byte aligned and that the LSB should always be set. We
-  // therefore use the LSB as marking bit. In this way:
-  //  - When loading the pointer, we only need to perform an unconditional OR 1
-  //    to get the correctly tagged pointer
-  //  - When storing the pointer we don't need to do anything since the tagged
-  //    pointer will automatically be marked
-  static_assert(kMarkingBit == kHeapObjectTag);
-  std::atomic<Address> content_;
+    Address Untag(IndirectPointerTag tag) const {
+      return encoded_word_ & ~(tag | kTrustedPointerTableMarkBit);
+    }
+
+    void SetMarkBit() { encoded_word_ |= kTrustedPointerTableMarkBit; }
+
+    void ClearMarkBit() { encoded_word_ &= ~kTrustedPointerTableMarkBit; }
+
+    bool HasMarkBitSet() const {
+      return (encoded_word_ & kTrustedPointerTableMarkBit) != 0;
+    }
+
+    bool ContainsFreelistLink() const {
+      return (encoded_word_ & kFreeTrustedPointerTableEntryTag) ==
+             kFreeTrustedPointerTableEntryTag;
+    }
+
+    uint32_t ExtractFreelistLink() const {
+      return static_cast<uint32_t>(encoded_word_);
+    }
+
+    bool ContainsTrustedPointer() const { return !ContainsFreelistLink(); }
+
+   private:
+    Payload(Address pointer, Address tag) : encoded_word_(pointer | tag) {}
+
+    Address encoded_word_;
+  };
+
+  std::atomic<Payload> payload_;
 };
 
 static_assert(sizeof(TrustedPointerTableEntry) ==
@@ -120,7 +152,7 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Retrieves the content of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
-  inline Address Get(TrustedPointerHandle handle) const;
+  inline Address Get(TrustedPointerHandle handle, IndirectPointerTag tag) const;
 
   // Sets the content of the entry referenced by the given handle.
   //

@@ -13,6 +13,7 @@
 
 #include "src/base/optional.h"
 #include "src/common/message-template.h"
+#include "src/objects/code-kind.h"
 #include "src/wasm/wasm-value.h"
 #include "src/wasm/well-known-imports.h"
 
@@ -123,6 +124,20 @@ base::Optional<MessageTemplate> InitializeElementSegment(
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, int type_index,
     Handle<WasmInstanceObject> instance_object, Handle<FixedArray> maps);
+
+// A union tagged on the code-kind for wrapper graph building data. The rest of
+// the wrapper compilation pipeline is independent of the code kind.
+struct WrapperCompilationInfo {
+  CodeKind code_kind;
+  union {
+    bool is_import;
+    struct {
+      wasm::ImportCallKind import_kind;
+      int expected_arity;
+      wasm::Suspend suspend;
+    } import_info;
+  };
+};
 
 }  // namespace wasm
 }  // namespace internal

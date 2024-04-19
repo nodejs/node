@@ -620,16 +620,18 @@ TEST(RunFloat32SelectImmediateIntCompare) {
     return;
   }
 
-  float tval = -1.0;
+  float tval = -0.0;
   float fval = 1.0;
   Node* cmp = m.Int32LessThanOrEqual(m.Parameter(0), m.Parameter(1));
-  m.Return(m.Float64Select(cmp, m.Float32Constant(tval),
-                           m.Float32Constant(fval)));
+  m.Return(
+      m.Float32Select(cmp, m.Float32Constant(tval), m.Float32Constant(fval)));
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
       float expected_result = pl <= pr ? tval : fval;
-      CHECK_FLOAT_EQ(expected_result, m.Call(pl, pr));
+      float actual_result = m.Call(pl, pr);
+      CHECK_FLOAT_EQ(expected_result, actual_result);
+      CHECK_EQ(std::signbit(expected_result), std::signbit(actual_result));
     }
   }
 }
@@ -642,7 +644,7 @@ TEST(RunFloat64SelectImmediateIntCompare) {
   }
 
   double tval = -1.0;
-  double fval = 1.0;
+  double fval = 0.0;
   Node* cmp = m.Int64LessThan(m.Parameter(0), m.Parameter(1));
   m.Return(m.Float64Select(cmp, m.Float64Constant(tval),
                            m.Float64Constant(fval)));
@@ -650,7 +652,9 @@ TEST(RunFloat64SelectImmediateIntCompare) {
   FOR_INT64_INPUTS(pl) {
     FOR_INT64_INPUTS(pr) {
       double expected_result = pl < pr ? tval : fval;
-      CHECK_DOUBLE_EQ(expected_result, m.Call(pl, pr));
+      double actual_result = m.Call(pl, pr);
+      CHECK_DOUBLE_EQ(expected_result, actual_result);
+      CHECK_EQ(std::signbit(expected_result), std::signbit(actual_result));
     }
   }
 }

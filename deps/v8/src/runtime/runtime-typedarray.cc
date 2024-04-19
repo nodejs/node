@@ -150,7 +150,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     ctype* data = copy_data ? reinterpret_cast<ctype*>(data_copy_ptr)      \
                             : static_cast<ctype*>(array->DataPtr());       \
     if (kExternal##Type##Array == kExternalFloat64Array ||                 \
-        kExternal##Type##Array == kExternalFloat32Array) {                 \
+        kExternal##Type##Array == kExternalFloat32Array ||                 \
+        kExternal##Type##Array == kExternalFloat16Array) {                 \
       if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
         /* TODO(ishell, v8:8875): See UnalignedSlot<T> for details. */     \
         std::sort(UnalignedSlot<ctype>(data),                              \

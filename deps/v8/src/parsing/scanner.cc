@@ -335,7 +335,7 @@ Token::Value Scanner::ScanHtmlComment() {
   Advance();
   if (c0_ != '-' || Peek() != '-') {
     PushBack('!');  // undo Advance()
-    return Token::kLt;
+    return Token::kLessThan;
   }
   Advance();
 

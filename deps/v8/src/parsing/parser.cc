@@ -1013,7 +1013,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           CHECK(stack_overflow());
           return nullptr;
         }
-        if (!(peek_any_identifier() || peek() == Token::kLParen)) {
+        if (!(peek_any_identifier() || peek() == Token::kLeftParen)) {
           CHECK(stack_overflow());
           return nullptr;
         }
@@ -1035,10 +1035,10 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         // NewUnresolved references in current scope. Enter arrow function
         // scope for formal parameter parsing.
         BlockState inner_block_state(&scope_, scope);
-        if (Check(Token::kLParen)) {
+        if (Check(Token::kLeftParen)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals);
-          Expect(Token::kRParen);
+          Expect(Token::kRightParen);
         } else {
           // BindingIdentifier
           ParameterParsingScope parameter_parsing_scope(impl(), &formals);
@@ -1227,7 +1227,7 @@ Statement* Parser::ParseModuleItem() {
     // We must be careful not to parse a dynamic import expression as an import
     // declaration. Same for import.meta expressions.
     Token::Value peek_ahead = PeekAhead();
-    if (peek_ahead != Token::kLParen && peek_ahead != Token::kPeriod) {
+    if (peek_ahead != Token::kLeftParen && peek_ahead != Token::kPeriod) {
       ParseImportDeclaration();
       return factory()->EmptyStatement();
     }
@@ -1286,10 +1286,10 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   ZoneChunkList<ExportClauseData>* export_data =
       zone()->New<ZoneChunkList<ExportClauseData>>(zone());
 
-  Expect(Token::kLBrace);
+  Expect(Token::kLeftBrace);
 
   Token::Value name_tok;
-  while ((name_tok = peek()) != Token::kRBrace) {
+  while ((name_tok = peek()) != Token::kRightBrace) {
     const AstRawString* local_name = ParseExportSpecifierName();
     if (!string_literal_local_name_loc->IsValid() &&
         name_tok == Token::kString) {
@@ -1314,14 +1314,14 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
       export_name = local_name;
     }
     export_data->push_back({export_name, local_name, location});
-    if (peek() == Token::kRBrace) break;
+    if (peek() == Token::kRightBrace) break;
     if (V8_UNLIKELY(!Check(Token::kComma))) {
       ReportUnexpectedToken(Next());
       break;
     }
   }
 
-  Expect(Token::kRBrace);
+  Expect(Token::kRightBrace);
   return export_data;
 }
 
@@ -1365,10 +1365,10 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   //   IdentifierName 'as' BindingIdentifier
   //   ModuleExportName 'as' BindingIdentifier
 
-  Expect(Token::kLBrace);
+  Expect(Token::kLeftBrace);
 
   auto result = zone()->New<ZonePtrList<const NamedImport>>(1, zone());
-  while (peek() != Token::kRBrace) {
+  while (peek() != Token::kRightBrace) {
     const AstRawString* import_name = ParseExportSpecifierName();
     const AstRawString* local_name = import_name;
     Scanner::Location location = scanner()->location();
@@ -1395,11 +1395,11 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
         zone()->New<NamedImport>(import_name, local_name, location);
     result->Add(import, zone());
 
-    if (peek() == Token::kRBrace) break;
+    if (peek() == Token::kRightBrace) break;
     Expect(Token::kComma);
   }
 
-  Expect(Token::kRBrace);
+  Expect(Token::kRightBrace);
   return result;
 }
 
@@ -1436,9 +1436,9 @@ ImportAttributes* Parser::ParseImportWithOrAssertClause() {
     return import_attributes;
   }
 
-  Expect(Token::kLBrace);
+  Expect(Token::kLeftBrace);
 
-  while (peek() != Token::kRBrace) {
+  while (peek() != Token::kRightBrace) {
     const AstRawString* attribute_key =
         Check(Token::kString) ? GetSymbol() : ParsePropertyName();
 
@@ -1462,14 +1462,14 @@ ImportAttributes* Parser::ParseImportWithOrAssertClause() {
       break;
     }
 
-    if (peek() == Token::kRBrace) break;
+    if (peek() == Token::kRightBrace) break;
     if (V8_UNLIKELY(!Check(Token::kComma))) {
       ReportUnexpectedToken(Next());
       break;
     }
   }
 
-  Expect(Token::kRBrace);
+  Expect(Token::kRightBrace);
 
   return import_attributes;
 }
@@ -1511,7 +1511,7 @@ void Parser::ParseImportDeclaration() {
   // Parse ImportedDefaultBinding if present.
   const AstRawString* import_default_binding = nullptr;
   Scanner::Location import_default_binding_loc;
-  if (tok != Token::kMul && tok != Token::kLBrace) {
+  if (tok != Token::kMul && tok != Token::kLeftBrace) {
     import_default_binding = ParseNonRestrictedIdentifier();
     import_default_binding_loc = scanner()->location();
     DeclareUnboundVariable(import_default_binding, VariableMode::kConst,
@@ -1534,7 +1534,7 @@ void Parser::ParseImportDeclaration() {
         break;
       }
 
-      case Token::kLBrace:
+      case Token::kLeftBrace:
         named_imports = ParseNamedImports(pos);
         break;
 
@@ -1613,7 +1613,7 @@ Statement* Parser::ParseExportDefault() {
         result = ParseAsyncFunctionDeclaration(&local_names, true);
         break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
 
     default: {
       int pos = position();
@@ -1739,7 +1739,7 @@ Statement* Parser::ParseExportDeclaration() {
       ParseExportStar();
       return factory()->EmptyStatement();
 
-    case Token::kLBrace: {
+    case Token::kLeftBrace: {
       // There are two cases here:
       //
       // 'export' ExportClause ';'
@@ -1816,7 +1816,7 @@ Statement* Parser::ParseExportDeclaration() {
         result = ParseAsyncFunctionDeclaration(&names, false);
         break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
 
     default:
       ReportUnexpectedToken(scanner()->current_token());
@@ -2107,7 +2107,7 @@ void Parser::ParseAndRewriteGeneratorFunctionBody(
   Expression* initial_yield = BuildInitialYield(pos, kind);
   body->Add(
       factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-  ParseStatementList(body, Token::kRBrace);
+  ParseStatementList(body, Token::kRightBrace);
 }
 
 void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
@@ -2140,7 +2140,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
     Expression* initial_yield = BuildInitialYield(pos, kind);
     statements.Add(
         factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-    ParseStatementList(&statements, Token::kRBrace);
+    ParseStatementList(&statements, Token::kRightBrace);
     // Since the whole body is wrapped in a try-catch, make the implicit
     // end-of-function return explicit to ensure BytecodeGenerator's special
     // handling for ReturnStatements in async generators applies.
@@ -2782,7 +2782,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   scope->SetScopeName(function_name);
 #endif
 
-  if (!is_wrapped && V8_UNLIKELY(!Check(Token::kLParen))) {
+  if (!is_wrapped && V8_UNLIKELY(!Check(Token::kLeftParen))) {
     ReportUnexpectedToken(Next());
     return nullptr;
   }
@@ -2801,7 +2801,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   if (!did_preparse_successfully) {
     // If skipping aborted, it rewound the scanner until before the lparen.
     // Consume it in that case.
-    if (should_preparse) Consume(Token::kLParen);
+    if (should_preparse) Consume(Token::kLeftParen);
     should_post_parallel_task = false;
     ParseFunction(&body, function_name, pos, kind, function_syntax_kind, scope,
                   &num_parameters, &function_length, &has_duplicate_parameters,
@@ -2902,7 +2902,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     function_scope->set_is_skipped_function(true);
     function_scope->set_end_position(end_position);
     scanner()->SeekForward(end_position - 1);
-    Expect(Token::kRBrace);
+    Expect(Token::kRightBrace);
     SetLanguageMode(function_scope, language_mode);
     if (uses_super_property) {
       function_scope->RecordSuperPropertyUsage();
@@ -2959,7 +2959,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
 
     PreParserLogger* logger = reusable_preparser()->logger();
     function_scope->set_end_position(logger->end());
-    Expect(Token::kRBrace);
+    Expect(Token::kRightBrace);
     total_preparse_skipped_ +=
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
@@ -3127,13 +3127,13 @@ void Parser::ParseFunction(
           return;
         }
       }
-      Expect(Token::kRParen);
+      Expect(Token::kRightParen);
       int formals_end_position = scanner()->location().end_pos;
 
       CheckArityRestrictions(formals.arity, kind, formals.has_rest,
                              function_scope->start_position(),
                              formals_end_position);
-      Expect(Token::kLBrace);
+      Expect(Token::kLeftBrace);
     }
     formals.duplicate_loc = formals_scope.duplicate_location();
   }

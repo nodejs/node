@@ -11,9 +11,9 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/third-party/heap-api.h"
 #include "src/objects/heap-object-inl.h"
@@ -277,7 +277,7 @@ bool ReadOnlyHeap::Contains(Address address) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return third_party_heap::Heap::InReadOnlySpace(address);
   } else {
-    return BasicMemoryChunk::FromAddress(address)->InReadOnlySpace();
+    return MemoryChunk::FromAddress(address)->InReadOnlySpace();
   }
 }
 
@@ -286,7 +286,7 @@ bool ReadOnlyHeap::Contains(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return third_party_heap::Heap::InReadOnlySpace(object.address());
   } else {
-    return BasicMemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+    return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
   }
 }
 
@@ -318,13 +318,14 @@ Tagged<HeapObject> ReadOnlyHeapObjectIterator::Next() {
 }
 
 ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
-    const ReadOnlyPage* page, SkipFreeSpaceOrFiller skip_free_space_or_filler)
+    const ReadOnlyPageMetadata* page,
+    SkipFreeSpaceOrFiller skip_free_space_or_filler)
     : ReadOnlyPageObjectIterator(
           page, page == nullptr ? kNullAddress : page->GetAreaStart(),
           skip_free_space_or_filler) {}
 
 ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
-    const ReadOnlyPage* page, Address current_addr,
+    const ReadOnlyPageMetadata* page, Address current_addr,
     SkipFreeSpaceOrFiller skip_free_space_or_filler)
     : page_(page),
       current_addr_(current_addr),
@@ -356,7 +357,7 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
   }
 }
 
-void ReadOnlyPageObjectIterator::Reset(const ReadOnlyPage* page) {
+void ReadOnlyPageObjectIterator::Reset(const ReadOnlyPageMetadata* page) {
   page_ = page;
   current_addr_ = page->GetAreaStart();
 }

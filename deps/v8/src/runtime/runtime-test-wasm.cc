@@ -12,16 +12,17 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/smi.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 struct WasmCompileControls {
@@ -493,7 +494,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   Tagged<WeakArrayList> weak_instance_list =
       module_obj->script()->wasm_weak_instance_list();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
-    if (weak_instance_list->Get(i)->IsWeak()) instance_count++;
+    if (weak_instance_list->Get(i).IsWeak()) instance_count++;
   }
   return Smi::FromInt(instance_count);
 }
@@ -686,5 +687,71 @@ RUNTIME_FUNCTION(Runtime_CheckIsOnCentralStack) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-}  // namespace internal
-}  // namespace v8
+// The GenerateRandomWasmModule function is only implemented in non-official
+// builds (to save binary size). Hence also skip the runtime function in
+// official builds.
+#ifndef OFFICIAL_BUILD
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
+  HandleScope scope{isolate};
+  Zone temporary_zone{isolate->allocator(), "WasmGenerateRandomModule"};
+  constexpr size_t kMaxInputBytes = 512;
+  ZoneVector<uint8_t> input_bytes{&temporary_zone};
+  auto add_input_bytes = [&input_bytes](void* bytes, size_t max_bytes) {
+    size_t num_bytes = std::min(kMaxInputBytes - input_bytes.size(), max_bytes);
+    input_bytes.resize(input_bytes.size() + num_bytes);
+    memcpy(input_bytes.end() - num_bytes, bytes, num_bytes);
+  };
+  if (args.length() == 0) {
+    // If we are called without any arguments, use the RNG from the isolate to
+    // generate between 1 and kMaxInputBytes random bytes.
+    int num_bytes =
+        1 + isolate->random_number_generator()->NextInt(kMaxInputBytes);
+    input_bytes.resize(num_bytes);
+    isolate->random_number_generator()->NextBytes(input_bytes.data(),
+                                                  num_bytes);
+  } else {
+    for (int i = 0; i < args.length(); ++i) {
+      if (IsJSTypedArray(args[i])) {
+        Tagged<JSTypedArray> typed_array = JSTypedArray::cast(args[i]);
+        add_input_bytes(typed_array->DataPtr(), typed_array->GetByteLength());
+      } else if (IsJSArrayBuffer(args[i])) {
+        Tagged<JSArrayBuffer> array_buffer = JSArrayBuffer::cast(args[i]);
+        add_input_bytes(array_buffer->backing_store(),
+                        array_buffer->GetByteLength());
+      } else if (IsSmi(args[i])) {
+        int smi_value = Smi::cast(args[i]).value();
+        add_input_bytes(&smi_value, kIntSize);
+      } else if (IsHeapNumber(args[i])) {
+        double value = HeapNumber::cast(args[i])->value();
+        add_input_bytes(&value, kDoubleSize);
+      } else {
+        // TODO(14637): Extract bytes from more types.
+      }
+    }
+  }
+
+  // Don't limit any expressions in the generated Wasm module.
+  constexpr auto options =
+      wasm::fuzzing::WasmModuleGenerationOptions::kGenerateAll;
+  base::Vector<const uint8_t> module_bytes =
+      wasm::fuzzing::GenerateRandomWasmModule<options>(
+          &temporary_zone, base::VectorOf(input_bytes));
+
+  if (module_bytes.empty()) return ReadOnlyRoots(isolate).undefined_value();
+
+  wasm::ErrorThrower thrower{isolate, "WasmGenerateRandomModule"};
+  MaybeHandle<WasmModuleObject> maybe_module_object =
+      wasm::GetWasmEngine()->SyncCompile(
+          isolate, wasm::WasmFeatures::FromFlags(), wasm::CompileTimeImports{},
+          &thrower, wasm::ModuleWireBytes{module_bytes});
+  if (thrower.error()) {
+    FATAL(
+        "wasm::GenerateRandomWasmModule produced a module which did not "
+        "compile: %s",
+        thrower.error_msg());
+  }
+  return *maybe_module_object.ToHandleChecked();
+}
+#endif  // OFFICIAL_BUILD
+
+}  // namespace v8::internal

@@ -3167,7 +3167,7 @@ class RegisterAllocator {
     while (it != allocated_registers_.end()) {
       if (registerIsAvailable(**it)) {
         **it = no_reg;
-        allocated_registers_.erase(it);
+        it = allocated_registers_.erase(it);
       } else {
         it++;
       }
@@ -3947,7 +3947,8 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
     __ PrepareCallCFunction(2);
     __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ Move(kCArgRegs[1], kOldSPRegister);
-    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
+    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
+                     SetIsolateDataSlots::kNo);
     __ Move(central_stack_sp, kReturnRegister0);
     __ Pop(argv_input);
     __ Pop(target_input);
@@ -3980,7 +3981,8 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
     __ Push(kReturnRegister0, kReturnRegister1);
     __ PrepareCallCFunction(1);
     __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
-    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
+    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
+                     SetIsolateDataSlots::kNo);
     __ Pop(kReturnRegister0, kReturnRegister1);
   }
 
@@ -4120,7 +4122,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(r0, Operand(0));
     __ mov(r1, Operand(0));
     __ Move(r2, ExternalReference::isolate_address(masm->isolate()));
-    __ CallCFunction(find_handler, 3);
+    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
 
   // Retrieve the handler context, SP and FP.
@@ -4283,7 +4285,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      callback =
+          CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
@@ -4352,7 +4355,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // kData.
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
-      __ ldr(scratch2, FieldMemOperand(callback, CallHandlerInfo::kDataOffset));
+      __ ldr(
+          scratch2,
+          FieldMemOperand(callback, FunctionTemplateInfo::kCallbackDataOffset));
       __ str(scratch2, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
 
@@ -4405,13 +4410,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ ldr(scratch,
-           FieldMemOperand(callback, CallHandlerInfo::kOwnerTemplateOffset));
-    __ str(scratch, MemOperand(sp, 0 * kSystemPointerSize));
+    __ str(callback, MemOperand(sp, 0 * kSystemPointerSize));
 
     __ ldr(api_function_address,
-           FieldMemOperand(callback,
-                           CallHandlerInfo::kMaybeRedirectedCallbackOffset));
+           FieldMemOperand(
+               callback, FunctionTemplateInfo::kMaybeRedirectedCallbackOffset));
 
     __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
   } else {
@@ -4521,10 +4524,15 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   __ RecordComment(
       "Load address of v8::PropertyAccessorInfo::args_ array and name handle.");
-  // name_arg = Handle<Name>(&name), name value was pushed to GC-ed stack space.
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
+  __ mov(name_arg, scratch);
+#else
+  // name_arg = Local<Name>(&name), name value was pushed to GC-ed stack space.
   __ mov(name_arg, sp);
+#endif
   // property_callback_info_arg = v8::PCI::args_ (= &ShouldThrow)
-  __ add(property_callback_info_arg, name_arg, Operand(1 * kPointerSize));
+  __ add(property_callback_info_arg, sp, Operand(1 * kPointerSize));
 
   constexpr int kNameOnStackSize = 1;
   constexpr int kStackUnwindSpace = PCA::kArgsLength + kNameOnStackSize;

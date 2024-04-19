@@ -956,6 +956,7 @@ class WasmGraphBuildingInterface {
       case WKI::kDataViewSetUint16:
       case WKI::kDataViewSetUint32:
       case WKI::kDataViewByteLength:
+      case WKI::kFastAPICall:
         return false;
     }
     if (v8_flags.trace_wasm_inlining) {
@@ -977,10 +978,21 @@ class WasmGraphBuildingInterface {
       if (try_info->catch_env->state == SsaEnv::kUnreachable) {
         auto [true_cont, false_cont] =
             builder_->BranchExpectTrue(builder_->Int32Constant(1));
-        builder_->SetControl(false_cont);
+        SsaEnv* success_env = Steal(decoder->zone(), ssa_env_);
+        success_env->control = true_cont;
+
+        SsaEnv* exception_env = Split(decoder->zone(), success_env);
+        exception_env->control = false_cont;
+
+        ScopedSsaEnv scoped_env(this, exception_env, success_env);
+
+        if (emit_loop_exits()) {
+          ValueVector stack_values;
+          uint32_t depth = decoder->control_depth_of_current_catch();
+          BuildNestedLoopExits(decoder, depth, true, stack_values);
+        }
         Goto(decoder, try_info->catch_env);
         try_info->exception = builder_->Int32Constant(1);
-        builder_->SetControl(true_cont);
       }
     }
     return true;
@@ -1063,9 +1075,9 @@ class WasmGraphBuildingInterface {
 
       TFNode* success_control;
       TFNode* failure_control;
-      builder_->CompareToInternalFunctionAtIndex(
-          func_ref.node, expected_function_index, &success_control,
-          &failure_control, i == num_cases - 1);
+      builder_->CompareToFuncRefAtIndex(func_ref.node, expected_function_index,
+                                        &success_control, &failure_control,
+                                        i == num_cases - 1);
       TFNode* initial_effect = effect();
 
       builder_->SetControl(success_control);
@@ -1152,9 +1164,9 @@ class WasmGraphBuildingInterface {
 
       TFNode* success_control;
       TFNode* failure_control;
-      builder_->CompareToInternalFunctionAtIndex(
-          func_ref.node, expected_function_index, &success_control,
-          &failure_control, i == num_cases - 1);
+      builder_->CompareToFuncRefAtIndex(func_ref.node, expected_function_index,
+                                        &success_control, &failure_control,
+                                        i == num_cases - 1);
       TFNode* initial_effect = effect();
 
       builder_->SetControl(success_control);

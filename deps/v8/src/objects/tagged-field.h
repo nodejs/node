@@ -100,10 +100,12 @@ static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
 #define FLEXIBLE_ARRAY_MEMBER(Type, name)                     \
   using FlexibleDataReturnType = Type[0];                     \
   FlexibleDataReturnType& name() {                            \
+    static_assert(alignof(Type) <= alignof(decltype(*this))); \
     using ReturnType = Type[0];                               \
     return reinterpret_cast<ReturnType&>(*(this + 1));        \
   }                                                           \
   const FlexibleDataReturnType& name() const {                \
+    static_assert(alignof(Type) <= alignof(decltype(*this))); \
     using ReturnType = Type[0];                               \
     return reinterpret_cast<const ReturnType&>(*(this + 1));  \
   }                                                           \
@@ -139,8 +141,7 @@ template <typename T, int kFieldOffset = 0,
           typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedField : public AllStatic {
  public:
-  static_assert(is_taggable_v<T> || std::is_same<MapWord, T>::value ||
-                    std::is_same<MaybeObject, T>::value,
+  static_assert(is_taggable_v<T> || std::is_same<MapWord, T>::value,
                 "T must be strong or weak tagged type or MapWord");
 
   // True for Smi fields.
@@ -150,11 +151,13 @@ class TaggedField : public AllStatic {
   // if it contains forwarding pointer but still requires tagged pointer
   // decompression.
   static constexpr bool kIsHeapObject =
-      is_subtype<T, HeapObject>::value || std::is_same<MapWord, T>::value;
+      is_subtype<T, HeapObject>::value || std::is_same_v<MapWord, T>;
 
-  // Object subclasses should be wrapped in Tagged<>, otherwise use T directly.
+  // Types should be wrapped in Tagged<>, except for MapWord which is used
+  // directly.
   // TODO(leszeks): Clean this up to be more uniform.
-  using PtrType = std::conditional_t<is_taggable_v<T>, Tagged<T>, T>;
+  using PtrType =
+      std::conditional_t<std::is_same_v<MapWord, T>, MapWord, Tagged<T>>;
 
   static inline Address address(Tagged<HeapObject> host, int offset = 0);
 
@@ -222,6 +225,13 @@ class TaggedField : public AllStatic {
 
   static inline Tagged_t full_to_tagged(Address value);
 };
+
+template <typename T>
+class TaggedField<Tagged<T>> : public TaggedField<T> {};
+
+template <typename T, int kFieldOffset>
+class TaggedField<Tagged<T>, kFieldOffset>
+    : public TaggedField<T, kFieldOffset> {};
 
 template <typename T, int kFieldOffset, typename CompressionScheme>
 class TaggedField<Tagged<T>, kFieldOffset, CompressionScheme>

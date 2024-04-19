@@ -132,12 +132,12 @@ class HeapEntryVerifier {
     // Read-only objects can't ever retain normal read-write objects, so these
     // are fine to skip.
     for (Tagged<HeapObject> obj : reference_summary_.strong_references()) {
-      if (!BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+      if (!MemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
         CHECK_NE(checked_objects_.find(obj), checked_objects_.end());
       }
     }
     for (Tagged<HeapObject> obj : reference_summary_.weak_references()) {
-      if (!BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+      if (!MemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
         CHECK_NE(checked_objects_.find(obj), checked_objects_.end());
       }
     }
@@ -158,7 +158,7 @@ class HeapEntryVerifier {
           level == 0 ? reference_summary_.strong_references()
                      : indirect_strong_references_[level - 1];
       for (Tagged<HeapObject> obj : previous) {
-        if (BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+        if (MemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
           // Marking visitors don't expect to visit objects in read-only space,
           // and will fail DCHECKs if they are used on those objects. Read-only
           // objects can never retain anything outside read-only space, so
@@ -264,7 +264,7 @@ void HeapEntry::VerifyReference(HeapGraphEdge::Type type, HeapEntry* entry,
   }
   Tagged<HeapObject> from_obj = HeapObject::cast(Tagged<Object>(from_address));
   Tagged<HeapObject> to_obj = HeapObject::cast(Tagged<Object>(to_address));
-  if (BasicMemoryChunk::FromHeapObject(to_obj)->InReadOnlySpace()) {
+  if (MemoryChunk::FromHeapObject(to_obj)->InReadOnlySpace()) {
     // We can't verify pointers into read-only space, because marking visitors
     // might not mark those. For example, every Map has a pointer to the
     // MetaMap, but marking visitors don't bother with following that link.
@@ -1040,7 +1040,7 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
   // Maps in read-only space are for internal V8 data, not user-defined object
   // shapes.
   if ((InstanceTypeChecker::IsMap(type) &&
-       !BasicMemoryChunk::FromHeapObject(object)->InReadOnlySpace()) ||
+       !MemoryChunk::FromHeapObject(object)->InReadOnlySpace()) ||
       InstanceTypeChecker::IsDescriptorArray(type) ||
       InstanceTypeChecker::IsTransitionArray(type) ||
       InstanceTypeChecker::IsPrototypeInfo(type) ||
@@ -1516,7 +1516,8 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
-  MaybeObject maybe_raw_transitions_or_prototype_info = map->raw_transitions();
+  Tagged<MaybeObject> maybe_raw_transitions_or_prototype_info =
+      map->raw_transitions();
   Tagged<HeapObject> raw_transitions_or_prototype_info;
   if (maybe_raw_transitions_or_prototype_info.GetHeapObjectIfWeak(
           &raw_transitions_or_prototype_info)) {
@@ -1681,10 +1682,9 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
                        Code::kInstructionStreamOffset);
 
   if (code->kind() == CodeKind::BASELINE) {
-    TagObject(code->bytecode_or_interpreter_data(isolate()),
-              "(interpreter data)");
+    TagObject(code->bytecode_or_interpreter_data(), "(interpreter data)");
     SetInternalReference(entry, "interpreter_data",
-                         code->bytecode_or_interpreter_data(isolate()),
+                         code->bytecode_or_interpreter_data(),
                          Code::kDeoptimizationDataOrInterpreterDataOffset);
     TagObject(code->bytecode_offset_table(), "(bytecode offset table)",
               HeapEntry::kCode);
@@ -1871,7 +1871,7 @@ void V8HeapExplorer::ExtractBytecodeArrayReferences(
   RecursivelyTagConstantPool(bytecode->constant_pool(), "(constant pool)",
                              HeapEntry::kCode, 3);
   TagObject(bytecode->handler_table(), "(handler table)", HeapEntry::kCode);
-  TagObject(bytecode->source_position_table(kAcquireLoad),
+  TagObject(bytecode->raw_source_position_table(kAcquireLoad),
             "(source position table)", HeapEntry::kCode);
 }
 
@@ -1885,14 +1885,14 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
     HeapEntry* entry, Tagged<FeedbackVector> feedback_vector) {
-  MaybeObject code = feedback_vector->maybe_optimized_code();
+  Tagged<MaybeObject> code = feedback_vector->maybe_optimized_code();
   Tagged<HeapObject> code_heap_object;
   if (code.GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
                      FeedbackVector::kMaybeOptimizedCodeOffset);
   }
   for (int i = 0; i < feedback_vector->length(); ++i) {
-    MaybeObject maybe_entry = *(feedback_vector->slots_start() + i);
+    Tagged<MaybeObject> maybe_entry = *(feedback_vector->slots_start() + i);
     Tagged<HeapObject> entry;
     if (maybe_entry.GetHeapObjectIfStrong(&entry) &&
         (entry->map(isolate())->instance_type() == WEAK_FIXED_ARRAY_TYPE ||
@@ -1912,7 +1912,7 @@ void V8HeapExplorer::ExtractDescriptorArrayReferences(
   for (int i = 0; start + i < end; ++i) {
     MaybeObjectSlot slot = start + i;
     int offset = static_cast<int>(slot.address() - array.address());
-    MaybeObject object = *slot;
+    Tagged<MaybeObject> object = *slot;
     Tagged<HeapObject> heap_object;
     if (object.GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(entry, i, heap_object, offset);
@@ -1941,7 +1941,7 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
                                                 HeapEntry* entry,
                                                 Tagged<T> array) {
   for (int i = 0; i < array->length(); ++i) {
-    MaybeObject object = array->get(i);
+    Tagged<MaybeObject> object = array->get(i);
     Tagged<HeapObject> heap_object;
     if (object.GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(entry, i, heap_object, header_size + i * kTaggedSize);
@@ -2307,7 +2307,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     // never retain read-write objects, so there is no risk in skipping
     // verification for them.
     if (v8_flags.heap_snapshot_verify &&
-        !BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+        !MemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
       verifier = std::make_unique<HeapEntryVerifier>(generator, obj);
     }
 #endif
@@ -2597,10 +2597,11 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Tagged<HeapObject> object) {
 }
 
 void V8HeapExplorer::TagObject(Tagged<Object> obj, const char* tag,
-                               base::Optional<HeapEntry::Type> type) {
+                               base::Optional<HeapEntry::Type> type,
+                               bool overwrite_existing_name) {
   if (IsEssentialObject(obj)) {
     HeapEntry* entry = GetEntry(obj);
-    if (entry->name()[0] == '\0') {
+    if (overwrite_existing_name || entry->name()[0] == '\0') {
       entry->set_name(tag);
     }
     if (type.has_value()) {
@@ -2617,6 +2618,13 @@ void V8HeapExplorer::RecursivelyTagConstantPool(Tagged<Object> obj,
   if (IsFixedArrayExact(obj, isolate())) {
     Tagged<FixedArray> arr = FixedArray::cast(obj);
     TagObject(arr, tag, type);
+    if (recursion_limit <= 0) return;
+    for (int i = 0; i < arr->length(); ++i) {
+      RecursivelyTagConstantPool(arr->get(i), tag, type, recursion_limit);
+    }
+  } else if (IsTrustedFixedArray(obj, isolate())) {
+    Tagged<TrustedFixedArray> arr = TrustedFixedArray::cast(obj);
+    TagObject(arr, tag, type, /*overwrite_existing_name=*/true);
     if (recursion_limit <= 0) return;
     for (int i = 0; i < arr->length(); ++i) {
       RecursivelyTagConstantPool(arr->get(i), tag, type, recursion_limit);
@@ -2978,7 +2986,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
       v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
 
   EmbedderStackStateScope stack_scope(
-      heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
+      heap_, EmbedderStackStateOrigin::kImplicitThroughTask, stack_state_);
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
   // No allocation that could trigger GC from here onwards. We cannot use a

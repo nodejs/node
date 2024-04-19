@@ -87,7 +87,7 @@ class FastApiCallLoweringReducer : public Next {
                       MemoryRepresentation::Int32(),
                       offsetof(v8::FastApiCallbackOptions, fallback));
       // data = data_argument
-      OpIndex data_argument_to_pass = AdaptLocalArgument(data_argument);
+      OpIndex data_argument_to_pass = __ AdaptLocalArgument(data_argument);
       __ StoreOffHeap(stack_slot, data_argument_to_pass,
                       MemoryRepresentation::UintPtr(),
                       offsetof(v8::FastApiCallbackOptions, data));
@@ -129,21 +129,6 @@ class FastApiCallLoweringReducer : public Next {
   }
 
  private:
-  OpIndex AdaptLocalArgument(OpIndex argument) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
-    // With direct locals, the argument can be passed directly.
-    return __ BitcastTaggedToWordPtr(argument);
-#else
-    // With indirect locals, the argument has to be stored on the stack and the
-    // slot address is passed.
-    OpIndex stack_slot =
-        __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t), true);
-    __ StoreOffHeap(stack_slot, __ BitcastTaggedToWordPtr(argument),
-                    MemoryRepresentation::UintPtr());
-    return stack_slot;
-#endif
-  }
-
   std::pair<OpIndex, OpIndex> AdaptOverloadedFastCallArgument(
       OpIndex argument, const FastApiCallFunctionVector& c_functions,
       const fast_api_call::OverloadsResolutionResult& resolution_result,
@@ -169,7 +154,7 @@ class FastApiCallLoweringReducer : public Next {
           V<Word32> instance_type = __ LoadInstanceTypeField(map);
           GOTO_IF_NOT(__ Word32Equal(instance_type, JS_ARRAY_TYPE), next);
 
-          OpIndex argument_to_pass = AdaptLocalArgument(argument);
+          OpIndex argument_to_pass = __ AdaptLocalArgument(argument);
           OpIndex target_address = __ ExternalConstant(
               ExternalReference::Create(c_functions[func_index].address,
                                         ExternalReference::FAST_C_CALL));
@@ -246,10 +231,10 @@ class FastApiCallLoweringReducer : public Next {
         } else {
           switch (arg_type.GetType()) {
             case CTypeInfo::Type::kV8Value: {
-              return AdaptLocalArgument(argument);
+              return __ AdaptLocalArgument(argument);
             }
             case CTypeInfo::Type::kFloat32: {
-              return __ ChangeFloat64ToFloat32(argument);
+              return __ TruncateFloat64ToFloat32(argument);
             }
             case CTypeInfo::Type::kPointer: {
               // Check that the value is a HeapObject.
@@ -325,7 +310,7 @@ class FastApiCallLoweringReducer : public Next {
         V<Word32> instance_type = __ LoadInstanceTypeField(map);
         GOTO_IF_NOT(__ Word32Equal(instance_type, JS_ARRAY_TYPE), handle_error);
 
-        return AdaptLocalArgument(argument);
+        return __ AdaptLocalArgument(argument);
       }
       case CTypeInfo::SequenceType::kIsTypedArray: {
         // Check that the value is a HeapObject.
@@ -617,7 +602,6 @@ class FastApiCallLoweringReducer : public Next {
         // We expect that JS execution is enabled, otherwise assert.
         __ Unreachable();
       }
-      END_IF
     }
     __ StoreOffHeap(js_execution_assert, __ Word32Constant(0),
                     MemoryRepresentation::Int8());

@@ -120,7 +120,6 @@ TEST_F(ControlFlowTest, LoopPeelingSingleInputPhi) {
   auto test = CreateFromGraph(1, [](auto& Asm) {
     Block* loop = __ NewLoopHeader();
     Block *loop_body = __ NewBlock(), *outside = __ NewBlock();
-    OpIndex cond = Asm.GetParameter(0);
     __ Goto(loop);
     __ Bind(loop);
     OpIndex cst = __ Word32Constant(42);
@@ -154,11 +153,9 @@ TEST_F(ControlFlowTest, DCEGoto) {
       __ Goto(b2);
       __ Bind(b2);
       __ Word32Constant(53);
-    }
-    ELSE {
+    } ELSE {
       __ Word32Constant(19);
     }
-    END_IF
     __ Word32Constant(42);
     __ Goto(b3);
     __ Bind(b3);

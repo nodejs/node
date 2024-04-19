@@ -96,8 +96,13 @@ HeapAllocator* Factory::allocator() const {
   return isolate()->heap()->allocator();
 }
 
+Factory::CodeBuilder& Factory::CodeBuilder::set_empty_source_position_table() {
+  return set_source_position_table(
+      isolate_->factory()->empty_trusted_byte_array());
+}
+
 Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
-    Handle<HeapObject> interpreter_data) {
+    Handle<TrustedObject> interpreter_data) {
   // This DCHECK requires this function to be in -inl.h.
   DCHECK(IsInterpreterData(*interpreter_data) ||
          IsBytecodeArray(*interpreter_data));

@@ -56,6 +56,7 @@ macro HandleF32Returns(
 
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+  dcheck(Is<WasmApiFunctionRef>(ref));
   // Spill the signature on the stack so that it can be read by the GC. This is
   // done in the very beginning before a GC could be triggered.
   // Caller FP + return address.

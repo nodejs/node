@@ -429,6 +429,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
   };
 
+  class V8_NODISCARD BlockPoolsScope {
+   public:
+    // Block Trampoline Pool and Constant Pool. Emits pools if necessary to
+    // ensure that {margin} more bytes can be emitted without triggering pool
+    // emission.
+    explicit BlockPoolsScope(Assembler* assem, size_t margin = 0)
+        : block_const_pool_(assem, margin), block_trampoline_pool_(assem) {}
+
+    BlockPoolsScope(Assembler* assem, PoolEmissionCheck check)
+        : block_const_pool_(assem, check), block_trampoline_pool_(assem) {}
+    ~BlockPoolsScope() {}
+
+   private:
+    BlockConstPoolScope block_const_pool_;
+    BlockTrampolinePoolScope block_trampoline_pool_;
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
+  };
+
   // Class for postponing the assembly buffer growth. Typically used for
   // sequences of instructions that must be emitted as a unit, before
   // buffer growth (and relocation) can occur.
@@ -511,8 +529,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       Address pc_) const;
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
-
-  using BlockPoolsScope = BlockTrampolinePoolScope;
 
   void RecordConstPool(int size);
 

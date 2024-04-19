@@ -30,12 +30,14 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
+// Represents a control byte corresponding to a full slot with arbitrary hash.
+constexpr ctrl_t ZeroCtrlT() { return static_cast<ctrl_t>(0); }
+
 // We have space for `growth_left` before a single block of control bytes. A
 // single block of empty control bytes for tables without any slots allocated.
 // This enables removing a branch in the hot path of find(). In order to ensure
 // that the control bytes are aligned to 16, we have 16 bytes before the control
 // bytes even though growth_left only needs 8.
-constexpr ctrl_t ZeroCtrlT() { return static_cast<ctrl_t>(0); }
 alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[32] = {
     ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
     ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
@@ -45,6 +47,18 @@ alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[32] = {
     ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty};
+
+// We need one full byte followed by a sentinel byte for iterator::operator++ to
+// work. We have a full group after kSentinel to be safe (in case operator++ is
+// changed to read a full group).
+ABSL_CONST_INIT ABSL_DLL const ctrl_t kSooControl[17] = {
+    ZeroCtrlT(),    ctrl_t::kSentinel, ZeroCtrlT(),    ctrl_t::kEmpty,
+    ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
+    ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
+    ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
+    ctrl_t::kEmpty};
+static_assert(NumControlBytes(SooCapacity()) <= 17,
+              "kSooControl capacity too small");
 
 #ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
 constexpr size_t Group::kWidth;
@@ -104,10 +118,25 @@ bool CommonFieldsGenerationInfoEnabled::should_rehash_for_bug_detection_on_move(
   return ShouldRehashForBugDetection(ctrl, capacity);
 }
 
-bool ShouldInsertBackwards(size_t hash, const ctrl_t* ctrl) {
+bool ShouldInsertBackwardsForDebug(size_t capacity, size_t hash,
+                                   const ctrl_t* ctrl) {
   // To avoid problems with weak hashes and single bit tests, we use % 13.
   // TODO(kfm,sbenza): revisit after we do unconditional mixing
-  return (H1(hash, ctrl) ^ RandomSeed()) % 13 > 6;
+  return !is_small(capacity) && (H1(hash, ctrl) ^ RandomSeed()) % 13 > 6;
+}
+
+size_t PrepareInsertAfterSoo(size_t hash, size_t slot_size,
+                             CommonFields& common) {
+  assert(common.capacity() == NextCapacity(SooCapacity()));
+  // After resize from capacity 1 to 3, we always have exactly the slot with
+  // index 1 occupied, so we need to insert either at index 0 or index 2.
+  assert(HashSetResizeHelper::SooSlotIndex() == 1);
+  PrepareInsertCommon(common);
+  const size_t offset = H1(hash, common.control()) & 2;
+  common.set_growth_left(common.growth_left() - 1);
+  SetCtrlInSingleGroupTable(common, offset, H2(hash), slot_size);
+  common.infoz().RecordInsert(hash, /*distance_from_desired=*/0);
+  return offset;
 }
 
 void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity) {
@@ -253,9 +282,10 @@ void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size) {
 }
 
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
-                       bool reuse) {
+                       bool reuse, bool soo_enabled) {
   c.set_size(0);
   if (reuse) {
+    assert(!soo_enabled || c.capacity() > SooCapacity());
     ResetCtrl(c, policy.slot_size);
     ResetGrowthLeft(c);
     c.infoz().RecordStorageChanged(0, c.capacity());
@@ -263,12 +293,9 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
     // We need to record infoz before calling dealloc, which will unregister
     // infoz.
     c.infoz().RecordClearedReservation();
-    c.infoz().RecordStorageChanged(0, 0);
+    c.infoz().RecordStorageChanged(0, soo_enabled ? SooCapacity() : 0);
     (*policy.dealloc)(c, policy);
-    c.set_control(EmptyGroup());
-    c.set_generation_ptr(EmptyGeneration());
-    c.set_slots(nullptr);
-    c.set_capacity(0);
+    c = soo_enabled ? CommonFields{soo_tag_t{}} : CommonFields{};
   }
 }
 
@@ -285,7 +312,7 @@ void HashSetResizeHelper::GrowIntoSingleGroupShuffleControlBytes(
 
   // Copy second half of bytes to the beginning.
   // We potentially copy more bytes in order to have compile time known size.
-  // Mirrored bytes from the old_ctrl_ will also be copied.
+  // Mirrored bytes from the old_ctrl() will also be copied.
   // In case of old_capacity_ == 3, we will copy 1st element twice.
   // Examples:
   // old_ctrl = 0S0EEEEEEE...
@@ -296,7 +323,7 @@ void HashSetResizeHelper::GrowIntoSingleGroupShuffleControlBytes(
   //
   // old_ctrl = 0123456S0123456EE...
   // new_ctrl = 456S0123?????????...
-  std::memcpy(new_ctrl, old_ctrl_ + half_old_capacity + 1, kHalfWidth);
+  std::memcpy(new_ctrl, old_ctrl() + half_old_capacity + 1, kHalfWidth);
   // Clean up copied kSentinel from old_ctrl.
   new_ctrl[half_old_capacity] = ctrl_t::kEmpty;
 
@@ -347,31 +374,52 @@ void HashSetResizeHelper::GrowIntoSingleGroupShuffleControlBytes(
   new_ctrl[new_capacity] = ctrl_t::kSentinel;
 }
 
+void HashSetResizeHelper::InitControlBytesAfterSoo(ctrl_t* new_ctrl, ctrl_t h2,
+                                                   size_t new_capacity) {
+  assert(is_single_group(new_capacity));
+  std::memset(new_ctrl, static_cast<int8_t>(ctrl_t::kEmpty),
+              NumControlBytes(new_capacity));
+  assert(HashSetResizeHelper::SooSlotIndex() == 1);
+  // This allows us to avoid branching on had_soo_slot_.
+  assert(had_soo_slot_ || h2 == ctrl_t::kEmpty);
+  new_ctrl[1] = new_ctrl[new_capacity + 2] = h2;
+  new_ctrl[new_capacity] = ctrl_t::kSentinel;
+}
+
 void HashSetResizeHelper::GrowIntoSingleGroupShuffleTransferableSlots(
-    void* old_slots, void* new_slots, size_t slot_size) const {
+    void* new_slots, size_t slot_size) const {
   assert(old_capacity_ > 0);
   const size_t half_old_capacity = old_capacity_ / 2;
 
-  SanitizerUnpoisonMemoryRegion(old_slots, slot_size * old_capacity_);
+  SanitizerUnpoisonMemoryRegion(old_slots(), slot_size * old_capacity_);
   std::memcpy(new_slots,
-              SlotAddress(old_slots, half_old_capacity + 1, slot_size),
+              SlotAddress(old_slots(), half_old_capacity + 1, slot_size),
               slot_size * half_old_capacity);
   std::memcpy(SlotAddress(new_slots, half_old_capacity + 1, slot_size),
-              old_slots, slot_size * (half_old_capacity + 1));
+              old_slots(), slot_size * (half_old_capacity + 1));
 }
 
 void HashSetResizeHelper::GrowSizeIntoSingleGroupTransferable(
-    CommonFields& c, void* old_slots, size_t slot_size) {
+    CommonFields& c, size_t slot_size) {
   assert(old_capacity_ < Group::kWidth / 2);
   assert(is_single_group(c.capacity()));
   assert(IsGrowingIntoSingleGroupApplicable(old_capacity_, c.capacity()));
 
   GrowIntoSingleGroupShuffleControlBytes(c.control(), c.capacity());
-  GrowIntoSingleGroupShuffleTransferableSlots(old_slots, c.slot_array(),
-                                              slot_size);
+  GrowIntoSingleGroupShuffleTransferableSlots(c.slot_array(), slot_size);
 
   // We poison since GrowIntoSingleGroupShuffleTransferableSlots
   // may leave empty slots unpoisoned.
+  PoisonSingleGroupEmptySlots(c, slot_size);
+}
+
+void HashSetResizeHelper::TransferSlotAfterSoo(CommonFields& c,
+                                               size_t slot_size) {
+  assert(was_soo_);
+  assert(had_soo_slot_);
+  assert(is_single_group(c.capacity()));
+  std::memcpy(SlotAddress(c.slot_array(), SooSlotIndex(), slot_size),
+              old_soo_data(), slot_size);
   PoisonSingleGroupEmptySlots(c, slot_size);
 }
 

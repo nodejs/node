@@ -16,6 +16,7 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-engine.h"
@@ -30,7 +31,7 @@
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
-namespace v8::internal::wasm::fuzzer {
+namespace v8::internal::wasm::fuzzing {
 
 constexpr CompileTimeImports CompileTimeImportsForFuzzing() {
   return CompileTimeImports({CompileTimeImport::kJsString,
@@ -53,6 +54,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
+  WasmError imports_error = ValidateAndSetBuiltinImports(
+      module.get(), wire_bytes, CompileTimeImportsForFuzzing());
+  CHECK(!imports_error.has_error());  // The module was compiled before.
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, CompileTimeImportsForFuzzing(), module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
@@ -133,17 +137,45 @@ void ExecuteAgainstReference(Isolate* isolate,
     return;
   }
 
+  struct OomCallbackData {
+    Isolate* isolate;
+    bool heap_limit_reached{false};
+    size_t initial_limit{0};
+  };
+  OomCallbackData oom_callback_data{isolate};
+  auto heap_limit_callback = [](void* raw_data, size_t current_limit,
+                                size_t initial_limit) -> size_t {
+    OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
+    data->heap_limit_reached = true;
+    data->isolate->TerminateExecution();
+    data->initial_limit = initial_limit;
+    // Return a slightly raised limit, just to make it to the next
+    // interrupt check point, where execution will terminate.
+    return initial_limit * 1.25;
+  };
+  isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
+                                            &oom_callback_data);
+
   base::OwnedVector<Handle<Object>> compiled_args =
       testing::MakeDefaultArguments(isolate, main_function->sig());
   std::unique_ptr<const char[]> exception_ref;
   int32_t result_ref = testing::CallWasmFunctionForTesting(
       isolate, instance_ref, "main", compiled_args.as_vector(), &exception_ref);
+  bool execute = true;
   // Reached max steps, do not try to execute the test module as it might
   // never terminate.
-  if (max_steps < 0) return;
+  if (max_steps < 0) execute = false;
   // If there is nondeterminism, we cannot guarantee the behavior of the test
   // module, and in particular it may not terminate.
-  if (nondeterminism != 0) return;
+  if (nondeterminism != 0) execute = false;
+  // Similar to max steps reached, also discard modules that need too much
+  // memory.
+  isolate->heap()->RemoveNearHeapLimitCallback(heap_limit_callback,
+                                               oom_callback_data.initial_limit);
+  if (oom_callback_data.heap_limit_reached) {
+    execute = false;
+    isolate->CancelTerminateExecution();
+  }
 
   if (exception_ref) {
     if (strcmp(exception_ref.get(),
@@ -151,8 +183,13 @@ void ExecuteAgainstReference(Isolate* isolate,
       // There was a stack overflow, which may happen nondeterministically. We
       // cannot guarantee the behavior of the test module, and in particular it
       // may not terminate.
-      return;
+      execute = false;
     }
+  }
+  if (!execute) {
+    // Before discarding the module, see if Turbofan runs into any DCHECKs.
+    TierUpAllForTesting(isolate, instance_ref->trusted_data(isolate));
+    return;
   }
 
   // Instantiate a fresh instance for the actual (non-ref) execution.
@@ -648,8 +685,10 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     if (segment.active) {
       // TODO(wasm): Add other expressions when needed.
       CHECK_EQ(ConstantExpression::kI32Const, segment.dest_addr.kind());
-      os << "builder.addActiveDataSegment(0, [kExprI32Const, "
-         << segment.dest_addr.i32_value() << "], ";
+      os << "builder.addActiveDataSegment(0, ";
+      DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, segment.dest_addr,
+                              kWasmI32);
+      os << ", ";
     } else {
       os << "builder.addPassiveDataSegment(";
     }
@@ -658,7 +697,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       os << unsigned{data[0]};
       for (unsigned byte : data + 1) os << ", " << byte;
     }
-    os << "]);\n";
+    os << "]";
+    if (segment.shared) os << ", true";
+    os << ");\n";
   }
 
   for (WasmGlobal& global : module->globals) {
@@ -683,7 +724,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     } else {
       os << "undefined";
     }
-    os << ")\n";
+    if (table.shared) os << ", true";
+    os << ");\n";
   }
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
     const char* status_str =
@@ -718,8 +760,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << "], "
        << (elem_segment.element_type == WasmElemSegment::kExpressionElements
                ? ValueTypeToConstantName(elem_segment.type)
-               : "undefined")
-       << ");\n";
+               : "undefined");
+    if (elem_segment.shared) os << ", true";
+    os << ");\n";
   }
 
   for (const WasmTag& tag : module->tags) {
@@ -809,6 +852,8 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 
       // Enable non-staged experimental features that we also want to fuzz.
       // <currently none>
+      // Note: If you add something here, you will also have to add the
+      // respective flag(s) to the mjsunit/wasm/generate-random-module test.
 
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();
@@ -841,6 +886,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
   GetTypeCanonicalizer()->EmptyStorageForTesting();
+  i_isolate->heap()->ClearWasmCanonicalRttsForTesting();
 
   // Clear any exceptions from a prior run.
   if (i_isolate->has_exception()) {
@@ -904,10 +950,15 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, valid);
   }
 
-  // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
-  // way, we deterministically test a combination of Liftoff and Turbofan.
-  FlagScope<bool> liftoff(&v8_flags.liftoff, true);
-  FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
+  FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
+  // We want to keep dynamic tiering enabled because that changes the code
+  // Liftoff generates as well as optimizing compilers' behavior (especially
+  // around inlining). We switch it to synchronous mode to avoid the
+  // nondeterminism of background jobs finishing at random times.
+  FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
+  // The purpose of setting the tier mask (which affects the initial
+  // compilation of each function) is to deterministically test a combination
+  // of Liftoff and Turbofan.
   FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
                                  tier_mask);
   FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
@@ -931,4 +982,4 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   }
 }
 
-}  // namespace v8::internal::wasm::fuzzer
+}  // namespace v8::internal::wasm::fuzzing

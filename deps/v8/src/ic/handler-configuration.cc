@@ -49,7 +49,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
     // corresponds.
     if (fill_handler) {
       Handle<Context> native_context = isolate->native_context();
-      handler->set_data2(HeapObjectReference::Weak(*native_context));
+      handler->set_data2(MakeWeak(*native_context));
     } else {
       // Enable access checks on the lookup start object.
       *smi_handler = SetBitFieldValue<
@@ -168,7 +168,8 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 }
 
 // static
-KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(
+    Tagged<MaybeObject> handler) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(handler)) {
     int const raw_handler = handler.ToSmi().value();
@@ -184,7 +185,7 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
 
 // static
 KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
-    MaybeObject handler) {
+    Tagged<MaybeObject> handler) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(handler)) {
     int const raw_handler = handler.ToSmi().value();
@@ -216,7 +217,7 @@ Handle<Object> StoreHandler::StoreElementTransition(
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);
   handler->set_smi_handler(*code);
   handler->set_validity_cell(*validity_cell);
-  handler->set_data1(HeapObjectReference::Weak(*transition));
+  handler->set_data1(MakeWeak(*transition));
   return handler;
 }
 
@@ -246,7 +247,7 @@ MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
   if (is_dictionary_map) {
     DCHECK(!IsJSGlobalObjectMap(*transition_map));
     int config = KindBits::encode(Kind::kNormal);
-    return MaybeObjectHandle(Smi::FromInt(config), isolate);
+    return MaybeObjectHandle(Tagged<Object>(Smi::FromInt(config)), isolate);
 
   } else {
     return MaybeObjectHandle::Weak(transition_map);

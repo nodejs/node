@@ -13,7 +13,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {
@@ -366,7 +366,6 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = true;
       return CLT;
     case kUnsignedGreaterThanOrEqual:
-    case kFloatGreaterThanOrEqual:
       *predicate = false;
       return CLT;
     case kUnsignedLessThanOrEqual:
@@ -374,9 +373,26 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = true;
       return CLE;
     case kUnsignedGreaterThan:
-    case kFloatGreaterThan:
       *predicate = false;
       return CLE;
+    case kFloatGreaterThan:
+      *predicate = false;
+      return CULE;
+    case kFloatGreaterThanOrEqual:
+      *predicate = false;
+      return CULT;
+    case kFloatLessThanOrUnordered:
+      *predicate = true;
+      return CULT;
+    case kFloatGreaterThanOrUnordered:
+      *predicate = false;
+      return CLE;
+    case kFloatGreaterThanOrEqualOrUnordered:
+      *predicate = false;
+      return CLT;
+    case kFloatLessThanOrEqualOrUnordered:
+      *predicate = true;
+      return CULE;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       *predicate = true;
@@ -645,10 +661,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        CodeEntrypointTag tag =
+            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ CallCodeObject(reg);
+        __ CallCodeObject(reg, tag);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -697,10 +715,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        CodeEntrypointTag tag =
+            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ JumpCodeObject(reg);
+        __ JumpCodeObject(reg, tag);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -776,50 +796,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
+      Label return_location;
 #if V8_ENABLE_WEBASSEMBLY
-      Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
-      // from start_call to return address.
-      int offset = 0;
-      // TODO(loongarch): Use a more robust way to calculate offset of pc.
-      // See CallCFunction.
       if (isWasmCapiFunction) {
-        offset = 16;  // SetIsolateDataSlots::kNo
-      } else if (__ root_array_available()) {
-        offset = 36;  // SetIsolateDataSlots::kYes and root_array_available
-      } else {
-        offset = 80;  // SetIsolateDataSlots::kYes but not root_array_available
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
-#if V8_HOST_ARCH_LOONG64
-      if (v8_flags.debug_code) {
-        offset += 12;  // see CallCFunction
-      }
-#endif
-#if V8_ENABLE_WEBASSEMBLY
-      if (isWasmCapiFunction) {
-        __ bind(&start_call);
-        __ pcaddi(t7, offset >> kInstrSizeLog2);
+        __ LoadLabelRelative(t7, &return_location);
         __ St_d(t7, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      int pc_offset;
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
-                         set_isolate_data_slots);
+        pc_offset = __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots, &return_location);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
-                         set_isolate_data_slots);
+        pc_offset = __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots, &return_location);
       }
-#if V8_ENABLE_WEBASSEMBLY
-      if (isWasmCapiFunction) {
-        CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
-        RecordSafepoint(instr->reference_map());
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
+      RecordSafepoint(instr->reference_map(), pc_offset);
+
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -2531,6 +2529,12 @@ void CodeGenerator::AssembleConstructFrame() {
   if (returns != 0) {
     // Create space for returns.
     __ Sub_d(sp, sp, Operand(returns * kSystemPointerSize));
+  }
+
+  for (int spill_slot : frame()->tagged_slots()) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+    DCHECK(offset.from_frame_pointer());
+    __ St_d(zero_reg, MemOperand(fp, offset.offset()));
   }
 }
 

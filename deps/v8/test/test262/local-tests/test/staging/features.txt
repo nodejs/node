@@ -93,6 +93,10 @@ String.prototype.toWellFormed
 # https://github.com/tc39/proposal-json-parse-with-source
 json-parse-with-source
 
+# Regular expression modifiers
+# https://github.com/tc39/proposal-regexp-modifiers
+regexp-modifiers
+
 # Iterator Helpers
 # https://github.com/tc39/proposal-iterator-helpers
 iterator-helpers

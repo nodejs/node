@@ -291,11 +291,6 @@ class V8_EXPORT Module : public Data {
    * module_name is used solely for logging/debugging and doesn't affect module
    * behavior.
    */
-  V8_DEPRECATED("Please use the version that takes a MemorySpan")
-  static Local<Module> CreateSyntheticModule(
-      Isolate* isolate, Local<String> module_name,
-      const std::vector<Local<String>>& export_names,
-      SyntheticModuleEvaluationSteps evaluation_steps);
   static Local<Module> CreateSyntheticModule(
       Isolate* isolate, Local<String> module_name,
       const MemorySpan<const Local<String>>& export_names,
@@ -310,17 +305,6 @@ class V8_EXPORT Module : public Data {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
       Isolate* isolate, Local<String> export_name, Local<Value> export_value);
-
-  /**
-   * Search the modules requested directly or indirectly by the module for
-   * any top-level await that has not yet resolved. If there is any, the
-   * returned vector contains a tuple of the unresolved module and a message
-   * with the pending top-level await.
-   * An embedder may call this before exiting to improve error messages.
-   */
-  V8_DEPRECATED("Please use GetStalledTopLevelAwaitMessages")
-  std::vector<std::tuple<Local<Module>, Local<Message>>>
-  GetStalledTopLevelAwaitMessage(Isolate* isolate);
 
   /**
    * Search the modules requested directly or indirectly by the module for

@@ -1578,6 +1578,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
+  void UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
+      Handle<JSObject> object);
 
   // Returns true if array is the initial array prototype in any native context.
   inline bool IsAnyInitialArrayPrototype(Tagged<JSArray> array);
@@ -1678,9 +1680,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   inline void DidFinishModuleAsyncEvaluation(unsigned ordinal);
 
-  void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
-  void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
-                                   size_t heap_limit);
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
@@ -2020,8 +2019,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // before such a mode change to ensure that this cannot happen.
   void CollectSourcePositionsForAllBytecodeArrays();
 
-  void AddCodeMemoryChunk(MemoryChunk* chunk);
-  void RemoveCodeMemoryChunk(MemoryChunk* chunk);
+  void AddCodeMemoryChunk(MutablePageMetadata* chunk);
+  void RemoveCodeMemoryChunk(MutablePageMetadata* chunk);
   void AddCodeRange(Address begin, size_t length_in_bytes);
 
   bool RequiresCodeRange() const;
@@ -2078,11 +2077,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         &isolate_data_.shared_external_pointer_table_);
   }
 
-  ExternalPointerHandle* GetWaiterQueueNodeExternalPointerHandleLocation() {
-    return &waiter_queue_node_external_pointer_handle_;
-  }
-
-  ExternalPointerHandle GetOrCreateWaiterQueueNodeExternalPointer();
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
@@ -2669,12 +2663,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stores the external pointer table space for the shared external pointer
   // table.
   ExternalPointerTable::Space* shared_external_pointer_space_ = nullptr;
-
-  // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
-  // It is used to wait for JS-exposed mutex or condition variable.
-  ExternalPointerHandle waiter_queue_node_external_pointer_handle_ =
-      kNullExternalPointerHandle;
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
   // Used to track and safepoint all client isolates attached to this shared
   // isolate.

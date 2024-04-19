@@ -792,7 +792,7 @@ Platform* GetCurrentPlatform() { return i::V8::GetCurrentPlatform(); }
 void ForceGarbageCollection(Isolate* isolate, StackState embedder_stack_state) {
   i::EmbedderStackStateScope stack_scope(
       reinterpret_cast<i::Isolate*>(isolate)->heap(),
-      i::EmbedderStackStateScope::kImplicitThroughTask, embedder_stack_state);
+      i::EmbedderStackStateOrigin::kImplicitThroughTask, embedder_stack_state);
   isolate->LowMemoryNotification();
 }
 

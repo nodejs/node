@@ -1406,9 +1406,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
     // Check that the {index} is within range for the {array}. We handle all
     // kinds of JSArray's here, so we do the computation on Uint32.
-    TNode<Uint32T> index32 = ChangeNumberToUint32(index);
+    TNode<Uint32T> index32 = ChangeNonNegativeNumberToUint32(index);
     TNode<Uint32T> length32 =
-        ChangeNumberToUint32(LoadJSArrayLength(CAST(array)));
+        ChangeNonNegativeNumberToUint32(LoadJSArrayLength(CAST(array)));
     GotoIfNot(Uint32LessThan(index32, length32), &set_done);
     StoreJSArrayIteratorNextIndex(
         iterator, ChangeUint32ToTagged(Uint32Add(index32, Uint32Constant(1))));

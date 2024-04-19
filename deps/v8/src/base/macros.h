@@ -368,9 +368,9 @@ bool is_inbounds(float_t v) {
 // Setup for Windows shared library export.
 #define V8_EXPORT_ENUM
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
 #elif USING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define V8_EXPORT_PRIVATE
 #endif  // BUILDING_V8_SHARED
@@ -380,8 +380,8 @@ bool is_inbounds(float_t v) {
 // Setup for Linux shared library export.
 #if V8_HAS_ATTRIBUTE_VISIBILITY
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define V8_EXPORT_ENUM V8_EXPORT_PRIVATE
 #else
 #define V8_EXPORT_PRIVATE
 #define V8_EXPORT_ENUM
@@ -427,7 +427,18 @@ bool is_inbounds(float_t v) {
 #define IF_TARGET_ARCH_64_BIT(V, ...) EXPAND(V(__VA_ARGS__))
 #else
 #define IF_TARGET_ARCH_64_BIT(V, ...)
-#endif
+#endif  // V8_TARGET_ARCH_64_BIT
+
+// Defines IF_OFFICIAL_BUILD and IF_NO_OFFICIAL_BUILD, to be used in macro lists
+// for elements that should only be there in official / non-official builds.
+#ifdef OFFICIAL_BUILD
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_OFFICIAL_BUILD(V, ...) EXPAND(V(__VA_ARGS__))
+#define IF_NO_OFFICIAL_BUILD(V, ...)
+#else
+#define IF_OFFICIAL_BUILD(V, ...)
+#define IF_NO_OFFICIAL_BUILD(V, ...) EXPAND(V(__VA_ARGS__))
+#endif  // OFFICIAL_BUILD
 
 #ifdef GOOGLE3
 // Disable FRIEND_TEST macro in Google3.

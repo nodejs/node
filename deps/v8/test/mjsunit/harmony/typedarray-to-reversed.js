@@ -4,6 +4,7 @@
 
 // Flags: --harmony-rab-gsab
 // Flags: --allow-natives-syntax
+// Flags: --js-float16array
 
 d8.file.execute('test/mjsunit/typedarray-helpers.js');
 

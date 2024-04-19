@@ -613,8 +613,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // Note, that it's illegal to "look" at the pointer bits of non-smi values.
   const Operator* BitcastTaggedToWordForTagAndSmiBits();
 
-  // This operator reinterprets the bits of a tagged MaybeObject pointer as
-  // word.
+  // This operator reinterprets the bits of a tagged Tagged<MaybeObject> pointer
+  // as word.
   const Operator* BitcastMaybeObjectToWord();
 
   // This operator reinterprets the bits of a word as tagged pointer.

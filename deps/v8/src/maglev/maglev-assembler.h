@@ -91,6 +91,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand);
   inline MemOperand ToMemOperand(const ValueLocation& location);
 
+  inline Register GetFramePointer();
+
   inline int GetFramePointerOffsetForStackSlot(
       const compiler::AllocatedOperand& operand) {
     int index = operand.index();

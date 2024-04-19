@@ -6851,7 +6851,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       } else {
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kV8Value: {
-            return fast_api_call::AdaptLocalArgument(gasm(), node);
+            return __ AdaptLocalArgument(node);
           }
           case CTypeInfo::Type::kFloat32: {
             return __ TruncateFloat64ToFloat32(node);
@@ -6947,7 +6947,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       Node* value_is_smi = ObjectIsSmi(node);
       __ GotoIf(value_is_smi, if_error);
 
-      Node* node_to_pass = fast_api_call::AdaptLocalArgument(gasm(), node);
+      Node* node_to_pass = __ AdaptLocalArgument(node);
 
       // Check that the value is a JSArray.
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
@@ -7007,7 +7007,7 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
             value_instance_type, __ Int32Constant(JS_ARRAY_TYPE));
         __ GotoIfNot(value_is_js_array, &next);
 
-        Node* node_to_pass = fast_api_call::AdaptLocalArgument(gasm(), node);
+        Node* node_to_pass = __ AdaptLocalArgument(node);
 
         Node* target_address = __ ExternalConstant(ExternalReference::Create(
             c_functions[func_index].address, ref_type));
@@ -7334,7 +7334,7 @@ Node* EffectControlLinearizer::BuildReverseBytes(ExternalArrayType type,
         return result;
       }
     }
-
+    case kExternalFloat16Array:
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
       UNREACHABLE();

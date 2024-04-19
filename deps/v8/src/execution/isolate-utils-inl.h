@@ -20,7 +20,7 @@ V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object)->heap();
 #else
-  MemoryChunkHeader* chunk = MemoryChunkHeader::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   return chunk->GetHeap();
 #endif  // V8_ENABLE_THIRD_PARTY_HEAP
 }
@@ -48,7 +48,7 @@ V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
   *isolate = Heap::GetIsolateFromWritableObject(object);
   return true;
 #else
-  MemoryChunkHeader* chunk = MemoryChunkHeader::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) {
     *isolate = nullptr;
     return false;

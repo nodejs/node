@@ -107,38 +107,43 @@ Tagged<Object> CompressedObjectSlot::Release_CompareAndSwap(
 // CompressedMaybeObjectSlot implementation.
 //
 
-MaybeObject CompressedMaybeObjectSlot::operator*() const {
+Tagged<MaybeObject> CompressedMaybeObjectSlot::operator*() const {
   Tagged_t value = *location();
-  return MaybeObject(TCompressionScheme::DecompressTagged(address(), value));
+  return Tagged<MaybeObject>(
+      TCompressionScheme::DecompressTagged(address(), value));
 }
 
-MaybeObject CompressedMaybeObjectSlot::load(PtrComprCageBase cage_base) const {
+Tagged<MaybeObject> CompressedMaybeObjectSlot::load(
+    PtrComprCageBase cage_base) const {
   Tagged_t value = *location();
-  return MaybeObject(TCompressionScheme::DecompressTagged(cage_base, value));
+  return Tagged<MaybeObject>(
+      TCompressionScheme::DecompressTagged(cage_base, value));
 }
 
-void CompressedMaybeObjectSlot::store(MaybeObject value) const {
+void CompressedMaybeObjectSlot::store(Tagged<MaybeObject> value) const {
   *location() = TCompressionScheme::CompressObject(value.ptr());
 }
 
-MaybeObject CompressedMaybeObjectSlot::Relaxed_Load() const {
+Tagged<MaybeObject> CompressedMaybeObjectSlot::Relaxed_Load() const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return MaybeObject(TCompressionScheme::DecompressTagged(address(), value));
+  return Tagged<MaybeObject>(
+      TCompressionScheme::DecompressTagged(address(), value));
 }
 
-MaybeObject CompressedMaybeObjectSlot::Relaxed_Load(
+Tagged<MaybeObject> CompressedMaybeObjectSlot::Relaxed_Load(
     PtrComprCageBase cage_base) const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
-  return MaybeObject(TCompressionScheme::DecompressTagged(cage_base, value));
+  return Tagged<MaybeObject>(
+      TCompressionScheme::DecompressTagged(cage_base, value));
 }
 
-void CompressedMaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
+void CompressedMaybeObjectSlot::Relaxed_Store(Tagged<MaybeObject> value) const {
   Tagged_t ptr = TCompressionScheme::CompressObject(value.ptr());
   AsAtomicTagged::Relaxed_Store(location(), ptr);
 }
 
 void CompressedMaybeObjectSlot::Release_CompareAndSwap(
-    MaybeObject old, MaybeObject target) const {
+    Tagged<MaybeObject> old, Tagged<MaybeObject> target) const {
   Tagged_t old_ptr = TCompressionScheme::CompressObject(old.ptr());
   Tagged_t target_ptr = TCompressionScheme::CompressObject(target.ptr());
   AsAtomicTagged::Release_CompareAndSwap(location(), old_ptr, target_ptr);
@@ -148,20 +153,20 @@ void CompressedMaybeObjectSlot::Release_CompareAndSwap(
 // CompressedHeapObjectSlot implementation.
 //
 
-HeapObjectReference CompressedHeapObjectSlot::operator*() const {
+Tagged<HeapObjectReference> CompressedHeapObjectSlot::operator*() const {
   Tagged_t value = *location();
-  return HeapObjectReference(
-      TCompressionScheme::DecompressTagged(address(), value));
+  return Tagged<HeapObjectReference>::cast(Tagged<MaybeObject>(
+      TCompressionScheme::DecompressTagged(address(), value)));
 }
 
-HeapObjectReference CompressedHeapObjectSlot::load(
+Tagged<HeapObjectReference> CompressedHeapObjectSlot::load(
     PtrComprCageBase cage_base) const {
   Tagged_t value = *location();
-  return HeapObjectReference(
-      TCompressionScheme::DecompressTagged(cage_base, value));
+  return Tagged<HeapObjectReference>::cast(Tagged<MaybeObject>(
+      TCompressionScheme::DecompressTagged(cage_base, value)));
 }
 
-void CompressedHeapObjectSlot::store(HeapObjectReference value) const {
+void CompressedHeapObjectSlot::store(Tagged<HeapObjectReference> value) const {
   *location() = TCompressionScheme::CompressObject(value.ptr());
 }
 

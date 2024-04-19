@@ -769,9 +769,75 @@ class JSDataObjectBuilder {
     }
   }
 
+  // Builds and returns an object whose properties are based on a property
+  // iterator.
+  //
+  // Expects an iterator of the form:
+  //
+  // struct Iterator {
+  //   void Advance();
+  //   bool Done();
+  //
+  //   // Get the key of the current property, optionally returning the hinted
+  //   // expected key if applicable.
+  //   Handle<String> GetKey(Handle<String> expected_key_hint);
+  //
+  //   // Get the value of the current property. `will_revisit_value` is true
+  //   // if this value will need to be revisited later via RevisitValues().
+  //   Handle<Object> GetValue(bool will_revisit_value);
+  //
+  //   // Return an iterator over the values that were already visited by
+  //   // GetValue. Might require caching those values if necessary.
+  //   ValueIterator RevisitValues();
+  // }
+  template <typename PropertyIterator>
+  Handle<Object> BuildFromIterator(
+      PropertyIterator&& it, MaybeHandle<FixedArrayBase> maybe_elements = {}) {
+    Handle<String> failed_property_add_key;
+    for (; !it.Done(); it.Advance()) {
+      Handle<String> property_key;
+      if (!TryAddFastPropertyForValue(
+              [&](Handle<String> expected_key) {
+                return property_key = it.GetKey(expected_key);
+              },
+              [&]() { return it.GetValue(true); })) {
+        failed_property_add_key = property_key;
+        break;
+      }
+    }
+
+    Handle<FixedArrayBase> elements;
+    if (!maybe_elements.ToHandle(&elements)) {
+      elements = isolate_->factory()->empty_fixed_array();
+    }
+    CreateAndInitialiseObject(it.RevisitValues(), elements);
+
+    // Slow path: define remaining named properties.
+    for (; !it.Done(); it.Advance()) {
+      Handle<String> key;
+      if (!failed_property_add_key.is_null()) {
+        key = std::exchange(failed_property_add_key, {});
+      } else {
+        key = it.GetKey({});
+      }
+#ifdef DEBUG
+      uint32_t index;
+      DCHECK(!key->AsArrayIndex(&index));
+#endif
+      Handle<Object> value = it.GetValue(false);
+      AddSlowProperty(key, value);
+    }
+
+    return object();
+  }
+
   template <typename GetKeyFunction, typename GetValueFunction>
   V8_INLINE bool TryAddFastPropertyForValue(GetKeyFunction&& get_key,
                                             GetValueFunction&& get_value) {
+    // The fast path is only valid as long as we haven't allocated an object
+    // yet.
+    DCHECK(object_.is_null());
+
     Handle<String> key;
     bool existing_map_found = TryFastTransitionToPropertyKey(get_key, &key);
     // Unconditionally get the value after getting the transition result.
@@ -825,11 +891,12 @@ class JSDataObjectBuilder {
   }
 
   template <typename ValueIterator>
-  V8_INLINE Handle<JSObject> CreateAndInitialiseObject(
-      ValueIterator value_it, Handle<FixedArrayBase> elements) {
+  V8_INLINE void CreateAndInitialiseObject(ValueIterator value_it,
+                                           Handle<FixedArrayBase> elements) {
     // We've created a map for the first `i` property stack values (which might
     // be all of them). We need to write these properties to a newly allocated
-    // object, before returning that object.
+    // object.
+    DCHECK(object_.is_null());
 
     if (current_property_index_ < property_count_in_expected_final_map_) {
       // If we were on the expected map fast path all the way, but never reached
@@ -851,8 +918,17 @@ class JSDataObjectBuilder {
       Handle<JSObject> object = isolate_->factory()->NewSlowJSObjectFromMap(
           map_, expected_property_count_);
       object->set_elements(*elements);
-      return object;
+      object_ = object;
+      return;
     }
+
+    // The map should have as many own descriptors as the number of properties
+    // we've created so far...
+    DCHECK_EQ(current_property_index_, map_->NumberOfOwnDescriptors());
+
+    // ... and all of those properties should be in-object data properties.
+    DCHECK_EQ(current_property_index_,
+              map_->GetInObjectProperties() - map_->UnusedInObjectProperties());
 
     // Create a folded mutable HeapNumber allocation area before allocating the
     // object -- this ensures that there is no allocation between the object
@@ -895,6 +971,9 @@ class JSDataObjectBuilder {
         }
       }
 
+      DCHECK(FieldIndex::ForPropertyIndex(object->map(), i).is_inobject());
+      DCHECK_EQ(current_property_offset,
+                FieldIndex::ForPropertyIndex(object->map(), i).offset());
       DCHECK_EQ(current_property_offset,
                 object->map()->GetInObjectPropertyOffset(i));
       FieldIndex index = FieldIndex::ForInObjectOffset(current_property_offset,
@@ -902,13 +981,22 @@ class JSDataObjectBuilder {
       raw_object->RawFastInobjectPropertyAtPut(index, value, mode);
       current_property_offset += kTaggedSize;
     }
-    DCHECK_EQ(current_property_index_,
-              object->map()->GetInObjectProperties() -
-                  object->map()->UnusedInObjectProperties());
     DCHECK_EQ(current_property_offset, object->map()->GetInObjectPropertyOffset(
                                            current_property_index_));
 
-    return object;
+    object_ = object;
+  }
+
+  void AddSlowProperty(Handle<String> key, Handle<Object> value) {
+    DCHECK(!object_.is_null());
+
+    LookupIterator it(isolate_, object_, key, object_, LookupIterator::OWN);
+    JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE).Check();
+  }
+
+  Handle<Object> object() {
+    DCHECK(!object_.is_null());
+    return object_;
   }
 
  private:
@@ -1116,6 +1204,8 @@ class JSDataObjectBuilder {
   int current_property_index_ = 0;
   int extra_heap_numbers_needed_ = 0;
 
+  Handle<JSObject> object_;
+
   Handle<Map> expected_final_map_ = {};
   int property_count_in_expected_final_map_ = 0;
 };
@@ -1125,9 +1215,7 @@ class NamedPropertyValueIterator {
   NamedPropertyValueIterator(const JsonProperty* it, const JsonProperty* end)
       : it_(it), end_(end) {
     DCHECK_LE(it_, end_);
-    while (it_ != end_ && it_->string.is_index()) {
-      it_++;
-    }
+    DCHECK_IMPLIES(it_ != end_, !it_->string.is_index());
   }
 
   NamedPropertyValueIterator& operator++() {
@@ -1148,6 +1236,50 @@ class NamedPropertyValueIterator {
   // We need to store both the current iterator and the iterator end, since we
   // don't want to iterate past the end on operator++ if the last property is an
   // index property.
+  const JsonProperty* it_;
+  const JsonProperty* end_;
+};
+
+template <typename Char>
+class JsonParser<Char>::NamedPropertyIterator {
+ public:
+  NamedPropertyIterator(JsonParser<Char>& parser, const JsonProperty* it,
+                        const JsonProperty* end)
+      : parser_(parser), it_(it), end_(end) {
+    DCHECK_LE(it_, end_);
+    while (it_ != end_ && it_->string.is_index()) {
+      it_++;
+    }
+    start_ = it_;
+  }
+
+  void Advance() {
+    DCHECK_LT(it_, end_);
+    do {
+      it_++;
+    } while (it_ != end_ && it_->string.is_index());
+  }
+
+  bool Done() const {
+    DCHECK_LE(it_, end_);
+    return it_ == end_;
+  }
+
+  Handle<String> GetKey(Handle<String> expected_key_hint) {
+    return parser_.MakeString(it_->string, expected_key_hint);
+  }
+  Handle<Object> GetValue(bool will_revisit_value) {
+    // Revisiting values is free, so we don't need to cache the value anywhere.
+    return it_->value;
+  }
+  NamedPropertyValueIterator RevisitValues() {
+    return NamedPropertyValueIterator(start_, it_);
+  }
+
+ private:
+  JsonParser<Char>& parser_;
+
+  const JsonProperty* start_;
   const JsonProperty* it_;
   const JsonProperty* end_;
 };
@@ -1206,45 +1338,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       isolate_, elements_kind, named_length, feedback,
       JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
 
-  int i;
-  for (i = 0; i < length; i++) {
-    const JsonProperty& property = property_stack[start + i];
-    if (property.string.is_index()) continue;
+  NamedPropertyIterator it(*this, property_stack.begin() + start,
+                           property_stack.end());
 
-    if (!js_data_object_builder.TryAddFastPropertyForValue(
-            [&](Handle<String> expected_key) {
-              // TODO(leszeks): This string is dropped on failure and re-created
-              // in the slow path -- maybe cache it somewhere.
-              return MakeString(property.string, expected_key);
-            },
-            [&]() { return property.value; })) {
-      break;
-    }
-  }
-
-  // Iterator for re-visiting the values that were visited by the above fast
-  // path property initialisation.
-  NamedPropertyValueIterator named_property_values(
-      property_stack.begin() + start, property_stack.end());
-  Handle<JSObject> object = js_data_object_builder.CreateAndInitialiseObject(
-      named_property_values, elements);
-
-  // Slow path: define remaining named properties.
-  for (; i < length; i++) {
-    HandleScope scope(isolate_);
-    const JsonProperty& property = property_stack[start + i];
-    if (property.string.is_index()) continue;
-    Handle<String> key = MakeString(property.string);
-#ifdef DEBUG
-    uint32_t index;
-    DCHECK(!key->AsArrayIndex(&index));
-#endif
-    Handle<Object> value = property.value;
-    LookupIterator it(isolate_, object, key, object, LookupIterator::OWN);
-    JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE).Check();
-  }
-
-  return object;
+  return js_data_object_builder.BuildFromIterator(it, elements);
 }
 
 template <typename Char>
@@ -1928,8 +2025,11 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
       int length = end - offset;
       bool convert = sizeof(Char) == 1 ? bits > unibrow::Latin1::kMaxChar
                                        : bits <= unibrow::Latin1::kMaxChar;
-      return JsonString(start, length, convert, needs_internalization,
-                        has_escape);
+      constexpr int kMaxInternalizedStringValueLength = 10;
+      bool internalize =
+          needs_internalization ||
+          (sizeof(Char) == 1 && length < kMaxInternalizedStringValueLength);
+      return JsonString(start, length, convert, internalize, has_escape);
     }
 
     if (*cursor_ == '\\') {

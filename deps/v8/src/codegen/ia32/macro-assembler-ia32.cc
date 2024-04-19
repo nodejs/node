@@ -35,10 +35,10 @@
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/logging/counters.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
@@ -736,8 +736,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
 }
 
 Immediate MacroAssembler::ClearedValue() const {
-  return Immediate(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Immediate(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 namespace {
@@ -1998,6 +1997,17 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
                   ExternalReference::fast_c_call_caller_fp_address(isolate()),
                   scratch),
         ebp);
+
+#if DEBUG
+    // Reset Isolate::context field right before the fast C call such that the
+    // GC can visit this field unconditionally. This is necessary because
+    // CEntry sets it to kInvalidContext in debug build only.
+    mov(root_array_available()
+            ? Operand(kRootRegister, IsolateData::context_offset())
+            : ExternalReferenceAsOperand(
+                  ExternalReference::context_address(isolate()), scratch),
+        Immediate(Context::kNoContext));
+#endif
   }
 
   call(function);
@@ -2197,7 +2207,7 @@ void MacroAssembler::LoadLabelAddress(Register dst, Label* lbl) {
 void MacroAssembler::MemoryChunkHeaderFromObject(Register object,
                                                  Register header) {
   constexpr intptr_t alignment_mask =
-      MemoryChunkHeader::GetAlignmentMaskForAssembler();
+      MemoryChunk::GetAlignmentMaskForAssembler();
   if (header == object) {
     and_(header, Immediate(~alignment_mask));
   } else {

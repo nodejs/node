@@ -682,7 +682,7 @@ class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
 
   MaybeHandle<SharedFunctionInfo> Finish(Isolate* isolate,
                                          Handle<String> source,
-                                         const ScriptDetails& script_details);
+                                         ScriptOriginOptions origin_options);
 
   bool rejected() const { return cached_data_.rejected(); }
 

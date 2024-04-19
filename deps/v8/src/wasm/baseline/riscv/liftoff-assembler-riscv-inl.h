@@ -5,7 +5,7 @@
 #ifndef V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
 #define V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
 
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -199,10 +199,10 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
 void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
   LoadWord(dst, liftoff::GetInstanceDataOperand());
 }
-void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
-    Register dst, Register instance_object) {
-  MemOperand src{instance_object, wasm::ObjectAccess::ToTagged(
-                                      WasmInstanceObject::kTrustedDataOffset)};
+
+void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
+                                          int offset, IndirectPointerTag tag) {
+  MemOperand src{src_addr, offset};
   LoadTrustedPointerField(dst, src, kWasmTrustedInstanceDataIndirectPointerTag);
 }
 
@@ -232,20 +232,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand{instance, offset});
 }
 
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, ExternalPointerTag tag,
-                                           Register /* scratch */) {
-  LoadFullPointer(dst, src_addr, offset);
-}
-
-#ifdef V8_ENABLE_SANDBOX
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
-                                           int offset, ExternalPointerTag tag,
-                                           Register /* scratch */) {
-  LoadExternalPointerField(dst, FieldMemOperand(instance, offset), tag,
-                           kRootRegister);
-}
-#endif
 
 void LiftoffAssembler::SpillInstanceData(Register instance) {
   StoreWord(instance, liftoff::GetInstanceDataOperand());

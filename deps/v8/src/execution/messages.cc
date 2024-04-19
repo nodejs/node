@@ -9,7 +9,6 @@
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/ast/prettyprinter.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"

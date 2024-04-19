@@ -33,6 +33,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/tagged.h"
+#include "src/objects/templates.h"
 #include "src/roots/roots.h"
 #include "torque-generated/exported-macros-assembler.h"
 
@@ -72,6 +73,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)        \
   V(StringIteratorProtector, string_iterator_protector,                        \
     StringIteratorProtector)                                                   \
+  V(StringWrapperToPrimitiveProtector, string_wrapper_to_primitive_protector,  \
+    StringWrapperToPrimitiveProtector)                                         \
   V(TypedArraySpeciesProtector, typed_array_species_protector,                 \
     TypedArraySpeciesProtector)                                                \
   V(AsyncFunctionAwaitRejectSharedFun, async_function_await_reject_shared_fun, \
@@ -401,6 +404,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> ParameterToIntPtr(TNode<IntPtrT> value) { return value; }
   TNode<IntPtrT> ParameterToIntPtr(TNode<UintPtrT> value) {
     return Signed(value);
+  }
+  TNode<IntPtrT> ParameterToIntPtr(TNode<TaggedIndex> value) {
+    return TaggedIndexToIntPtr(value);
   }
 
   TNode<Smi> ParameterToTagged(TNode<Smi> value) { return value; }
@@ -1036,8 +1042,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
             single_char[0]));
   }
 
+  TNode<Float16T> TruncateFloat32ToFloat16(TNode<Float32T> value);
+  TNode<Float16T> TruncateFloat64ToFloat16(TNode<Float64T> value);
+
   TNode<Int32T> TruncateWordToInt32(TNode<WordT> value);
   TNode<Int32T> TruncateIntPtrToInt32(TNode<IntPtrT> value);
+  TNode<Word32T> TruncateWord64ToWord32(TNode<Word64T> value);
 
   // Check a value for smi-ness
   TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
@@ -1253,19 +1263,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                        CodeEntrypointTag tag);
 #endif
 
-  TNode<TrustedObject> LoadProtectedPointerFromObject(
-      TNode<TrustedObject> object, int offset);
+  TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
+                                          TNode<IntPtrT> offset) {
+    return CAST(LoadProtectedPointerFromObject(
+        object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
+  }
+  TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
+                                          int offset) {
+    return CAST(LoadProtectedPointerFromObject(
+        object, IntPtrConstant(offset - kHeapObjectTag)));
+  }
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
                                          kForeignForeignAddressTag);
   }
 
-  TNode<RawPtrT> LoadCallHandlerInfoJsCallbackPtr(
-      TNode<CallHandlerInfo> object) {
+  TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(
+      TNode<FunctionTemplateInfo> object) {
     return LoadExternalPointerFromObject(
-        object, CallHandlerInfo::kMaybeRedirectedCallbackOffset,
-        kCallHandlerInfoCallbackTag);
+        object, FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+        kFunctionTemplateInfoCallbackTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {
@@ -1293,6 +1311,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  // Returns WasmApiFunctionRef or WasmTrustedInstanceData.
+  TNode<ExposedTrustedObject> LoadRefFromWasmInternalFunction(
+      TNode<WasmInternalFunction> object) {
+    TNode<TrustedObject> ref = LoadTrustedPointerFromObject(
+        object, WasmInternalFunction::kIndirectRefOffset,
+        kUnknownIndirectPointerTag);
+    CSA_DCHECK(this,
+               Word32Or(HasInstanceType(ref, WASM_TRUSTED_INSTANCE_DATA_TYPE),
+                        HasInstanceType(ref, WASM_API_FUNCTION_REF_TYPE)));
+    return CAST(ref);
+  }
+
   TNode<RawPtrT> LoadWasmInternalFunctionCallTargetPtr(
       TNode<WasmInternalFunction> object) {
     return LoadExternalPointerFromObject(
@@ -1547,7 +1577,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   template <typename Array>
   TNode<Smi> LoadArrayCapacity(TNode<Array> array) {
-    return LoadObjectField<Smi>(array, Array::ShapeT::kCapacityOffset);
+    return LoadObjectField<Smi>(array, Array::Shape::kCapacityOffset);
   }
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
@@ -1642,7 +1672,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void DispatchMaybeObject(TNode<MaybeObject> maybe_object, Label* if_smi,
                            Label* if_cleared, Label* if_weak, Label* if_strong,
                            TVariable<Object>* extracted);
-  // See MaybeObject for semantics of these functions.
+  // See Tagged<MaybeObject> for semantics of these functions.
   TNode<BoolT> IsStrong(TNode<MaybeObject> value);
   TNode<BoolT> IsStrong(TNode<HeapObjectReference> value);
   TNode<HeapObject> GetHeapObjectIfStrong(TNode<MaybeObject> value,
@@ -1695,6 +1725,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<UintPtrT> index,
                              int additional_offset) {
     FixedArrayBoundsCheck(array, Signed(index), additional_offset);
+  }
+
+  void FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
+                             TNode<TaggedIndex> index, int additional_offset);
+  void FixedArrayBoundsCheck(TNode<FixedArray> array, TNode<TaggedIndex> index,
+                             int additional_offset) {
+    FixedArrayBoundsCheck(UncheckedCast<FixedArrayBase>(array), index,
+                          additional_offset);
   }
 
   // Array is any array-like type that has a fixed header followed by
@@ -2768,13 +2806,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> TryHeapNumberToSmi(TNode<HeapNumber> number, Label* not_smi);
   TNode<Smi> TryFloat32ToSmi(TNode<Float32T> number, Label* not_smi);
   TNode<Smi> TryFloat64ToSmi(TNode<Float64T> number, Label* not_smi);
+
+  TNode<Uint32T> BitcastFloat16ToUint32(TNode<Float16T> value);
+  TNode<Float16T> BitcastUint32ToFloat16(TNode<Uint32T> value);
+  TNode<Float16T> RoundInt32ToFloat16(TNode<Int32T> value);
+
+  TNode<Float64T> ChangeFloat16ToFloat64(TNode<Float16T> value);
+  TNode<Float32T> ChangeFloat16ToFloat32(TNode<Float16T> value);
   TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
   TNode<Number> ChangeFloat64ToTagged(TNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(TNode<Int32T> value);
   TNode<Number> ChangeInt32ToTaggedNoOverflow(TNode<Int32T> value);
   TNode<Number> ChangeUint32ToTagged(TNode<Uint32T> value);
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
-  TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
+  TNode<Uint32T> ChangeNonNegativeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
 
   TNode<Int32T> ChangeTaggedNonSmiToInt32(TNode<Context> context,
@@ -3000,6 +3045,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsSpecialReceiverMap(TNode<Map> map);
   TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsString(TNode<HeapObject> object);
+  TNode<Word32T> IsStringWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
@@ -3533,33 +3579,37 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNameDictionaryFlags(TNode<Dictionary>, TNode<Smi> flags);
 
-  enum LookupMode { kFindExisting, kFindInsertionIndex };
+  enum LookupMode {
+    kFindExisting,
+    kFindInsertionIndex,
+    kFindExistingOrInsertionIndex
+  };
 
   template <typename Dictionary>
   TNode<HeapObject> LoadName(TNode<HeapObject> key);
 
   // Looks up an entry in a NameDictionaryBase successor.
-  // For {mode} == kFindExisting:
-  //   If the entry is found control goes to {if_found} and {var_name_index}
-  //   contains an index of the key field of the entry found.
-  //   If the key is not found and {if_not_found_with_insertion_index} is
-  //   provided, control goes to {if_not_found_with_insertion_index} and
-  //   {var_name_index} contains the index of the key field to insert the given
-  //   name at.
-  //   Otherwise control goes to {if_not_found_no_insertion_index}.
-  // For {mode} == kFindInsertionIndex:
-  //   {if_not_found_no_insertion_index} and {if_not_found_with_insertion_index}
-  //   are treated equally. If {if_not_found_with_insertion_index} is provided,
-  //   control goes to {if_not_found_with_insertion_index}, otherwise control
-  //   goes to {if_not_found_no_insertion_index}. In both cases {var_name_index}
-  //   contains the index of the key field to insert the given name at.
+  // If the entry is found control goes to {if_found} and {var_name_index}
+  // contains an index of the key field of the entry found.
+  // If the key is not found control goes to {if_not_found}. If mode is
+  // {kFindExisting}, {var_name_index} might contain garbage, otherwise
+  // {var_name_index} contains the index of the key field to insert the given
+  // name at.
   template <typename Dictionary>
   void NameDictionaryLookup(TNode<Dictionary> dictionary,
                             TNode<Name> unique_name, Label* if_found,
                             TVariable<IntPtrT>* var_name_index,
-                            Label* if_not_found_no_insertion_index,
-                            LookupMode mode = kFindExisting,
-                            Label* if_not_found_with_insertion_index = nullptr);
+                            Label* if_not_found,
+                            LookupMode mode = kFindExisting);
+  // Slow lookup for unique_names with forwarding index.
+  // Both resolving the actual hash and the lookup are handled via runtime.
+  template <typename Dictionary>
+  void NameDictionaryLookupWithForwardIndex(TNode<Dictionary> dictionary,
+                                            TNode<Name> unique_name,
+                                            Label* if_found,
+                                            TVariable<IntPtrT>* var_name_index,
+                                            Label* if_not_found,
+                                            LookupMode mode = kFindExisting);
 
   TNode<Word32T> ComputeSeededHash(TNode<IntPtrT> key);
 
@@ -3915,13 +3965,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void TrapAllocationMemento(TNode<JSObject> object, Label* memento_found);
 
-  // Helpers to look up MemoryChunk/Page metadata for a given address.
-  // Equivalent to MemoryChunkHeader::FromAddress().
-  TNode<IntPtrT> PageHeaderFromAddress(TNode<IntPtrT> address);
-  // Equivalent to MemoryChunkHeader::MemoryChunk().
-  TNode<IntPtrT> PageFromPageHeader(TNode<IntPtrT> address);
-  // Equivalent to BasicMemoryChunk::FromAddress().
-  TNode<IntPtrT> PageFromAddress(TNode<IntPtrT> address);
+  // Helpers to look up Page metadata for a given address.
+  // Equivalent to MemoryChunk::FromAddress().
+  TNode<IntPtrT> MemoryChunkFromAddress(TNode<IntPtrT> address);
+  // Equivalent to MemoryChunk::MutablePageMetadata().
+  TNode<IntPtrT> PageMetadataFromMemoryChunk(TNode<IntPtrT> address);
+  // Equivalent to MemoryChunkMetadata::FromAddress().
+  TNode<IntPtrT> PageMetadataFromAddress(TNode<IntPtrT> address);
 
   // Store a weak in-place reference into the FeedbackVector.
   TNode<MaybeObject> StoreWeakReferenceInFeedbackVector(

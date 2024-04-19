@@ -133,6 +133,18 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringAsWtf16)                        \
   V(StringPrepareForGetCodeUnit)
 
+#if V8_ENABLE_WASM_SIMD256_REVEC
+#define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
+  V(Simd256Extract128Lane)                   \
+  V(Simd256LoadTransform)                    \
+  V(Simd256Unary)                            \
+  V(Simd256Binop)                            \
+  V(Simd256Shift)                            \
+  V(Simd256Ternary)
+#else
+#define TURBOSHAFT_SIMD256_OPERATION_LIST(V)
+#endif
+
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V) \
   V(Simd128Constant)                      \
   V(Simd128Binop)                         \
@@ -145,7 +157,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128ReplaceLane)                   \
   V(Simd128LaneMemory)                    \
   V(Simd128LoadTransform)                 \
-  V(Simd128Shuffle)
+  V(Simd128Shuffle)                       \
+  TURBOSHAFT_SIMD256_OPERATION_LIST(V)
 
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
@@ -266,7 +279,11 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 // These are operations used in the frontend and are mostly tied to JS
 // semantics.
-#define TURBOSHAFT_JS_OPERATION_LIST(V) V(SpeculativeNumberBinop)
+#define TURBOSHAFT_JS_OPERATION_LIST(V) \
+  V(SpeculativeNumberBinop)             \
+  V(GenericBinop)                       \
+  V(GenericUnop)                        \
+  V(ToNumberOrNumeric)
 
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
@@ -1242,6 +1259,120 @@ V8_EXPORT_PRIVATE bool ValidOpInputRep(
     const Graph& graph, OpIndex input, RegisterRepresentation expected_rep,
     base::Optional<size_t> projection_index = {});
 
+struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
+#define GENERIC_BINOP_LIST(V) \
+  V(Add)                      \
+  V(Multiply)                 \
+  V(Subtract)                 \
+  V(Divide)                   \
+  V(Modulus)                  \
+  V(Exponentiate)             \
+  V(BitwiseAnd)               \
+  V(BitwiseOr)                \
+  V(BitwiseXor)               \
+  V(ShiftLeft)                \
+  V(ShiftRight)               \
+  V(ShiftRightLogical)        \
+  V(Equal)                    \
+  V(StrictEqual)              \
+  V(LessThan)                 \
+  V(LessThanOrEqual)          \
+  V(GreaterThan)              \
+  V(GreaterThanOrEqual)
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(Name) k##Name,
+    GENERIC_BINOP_LIST(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<Object> left() const { return input(0); }
+  V<Object> right() const { return input(1); }
+  OpIndex frame_state() const { return input(2); }
+  V<Context> context() const { return input(3); }
+
+  GenericBinopOp(V<Object> left, V<Object> right, OpIndex frame_state,
+                 V<Context> context, Kind kind)
+      : Base(left, right, frame_state, context), kind(kind) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           GenericBinopOp::Kind kind);
+
+struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
+#define GENERIC_UNOP_LIST(V) \
+  V(BitwiseNot)              \
+  V(Negate)                  \
+  V(Increment)               \
+  V(Decrement)
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(Name) k##Name,
+    GENERIC_UNOP_LIST(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<Object> input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+  V<Context> context() const { return Base::input(2); }
+
+  GenericUnopOp(V<Object> input, OpIndex frame_state, V<Context> context,
+                Kind kind)
+      : Base(input, frame_state, context), kind(kind) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           GenericUnopOp::Kind kind);
+
+struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
+  Object::Conversion kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<Object> input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+  V<Context> context() const { return Base::input(2); }
+
+  ToNumberOrNumericOp(V<Object> input, OpIndex frame_state, V<Context> context,
+                      Object::Conversion kind)
+      : Base(input, frame_state, context), kind(kind) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
+};
+
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
@@ -1335,8 +1466,7 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   WordBinopOp(OpIndex left, OpIndex right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -1762,7 +1892,8 @@ DEFINE_MULTI_SWITCH_INTEGRAL(ComparisonOp::Kind, 8)
 
 struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   enum class Kind : uint8_t {
-    // convert between different floating-point types
+    // convert between different floating-point types. Note that the
+    // Float64->Float32 conversion is truncating.
     kFloatConversion,
     // overflow guaranteed to result in the minimal integer
     kSignedFloatTruncateOverflowToMin,
@@ -2394,18 +2525,22 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kFloat32:
         // Using a bit_cast to uint32_t in order to return false when comparing
         // +0 and -0.
+        // Note: for JavaScript, it would be fine to return true when both
+        // values are NaNs, but for Wasm we must not merge NaNs that way.
+        // Since we canonicalize NaNs for JS anyway, we don't need to treat
+        // them specially here.
         return base::bit_cast<uint32_t>(storage.float32) ==
-                   base::bit_cast<uint32_t>(other.storage.float32) ||
-               (std::isnan(storage.float32) &&
-                std::isnan(other.storage.float32));
+               base::bit_cast<uint32_t>(other.storage.float32);
       case Kind::kFloat64:
       case Kind::kNumber:
         // Using a bit_cast to uint64_t in order to return false when comparing
         // +0 and -0.
+        // Note: for JavaScript, it would be fine to return true when both
+        // values are NaNs, but for Wasm we must not merge NaNs that way.
+        // Since we canonicalize NaNs for JS anyway, we don't need to treat
+        // them specially here.
         return base::bit_cast<uint64_t>(storage.float64) ==
-                   base::bit_cast<uint64_t>(other.storage.float64) ||
-               (std::isnan(storage.float64) &&
-                std::isnan(other.storage.float64));
+               base::bit_cast<uint64_t>(other.storage.float64);
       case Kind::kExternal:
         return storage.external.address() == other.storage.external.address();
       case Kind::kHeapObject:
@@ -3065,8 +3200,7 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
   AllocateOp(OpIndex size, AllocationType type) : Base(size), type(type) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
   void PrintOptions(std::ostream& os) const;
 
   auto options() const { return std::tuple{type}; }
@@ -3794,13 +3928,13 @@ struct ReturnOp : OperationT<ReturnOp> {
   }
 
   // Number of additional stack slots to be removed.
-  OpIndex pop_count() const { return input(0); }
+  V<Word32> pop_count() const { return input(0); }
 
   base::Vector<const OpIndex> return_values() const {
     return inputs().SubVector(1, input_count);
   }
 
-  ReturnOp(OpIndex pop_count, base::Vector<const OpIndex> return_values)
+  ReturnOp(V<Word32> pop_count, base::Vector<const OpIndex> return_values)
       : Base(1 + return_values.size()) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = pop_count;
@@ -3816,7 +3950,7 @@ struct ReturnOp : OperationT<ReturnOp> {
 
   void Validate(const Graph& graph) const {
   }
-  static ReturnOp& New(Graph* graph, OpIndex pop_count,
+  static ReturnOp& New(Graph* graph, V<Word32> pop_count,
                        base::Vector<const OpIndex> return_values) {
     return Base::New(graph, 1 + return_values.size(), pop_count, return_values);
   }
@@ -4043,6 +4177,7 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
     kReceiverOrNullOrUndefined,
     kSmi,
     kString,
+    kStringOrStringWrapper,
     kSymbol,
     kUndetectable,
   };
@@ -4086,6 +4221,7 @@ enum class NumericKind : uint8_t {
   kFinite,
   kInteger,
   kSafeInteger,
+  kSmi,
   kMinusZero,
   kNaN,
 };
@@ -4554,8 +4690,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
-struct ConvertJSPrimitiveToObjectOp
-    : FixedArityOperationT<3, ConvertJSPrimitiveToObjectOp> {
+struct ConvertJSPrimitiveToObjectOp : OperationT<ConvertJSPrimitiveToObjectOp> {
   ConvertReceiverMode mode;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
@@ -4569,16 +4704,38 @@ struct ConvertJSPrimitiveToObjectOp
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex value() const { return Base::input(0); }
-  OpIndex native_context() const { return Base::input(1); }
-  OpIndex global_proxy() const { return Base::input(2); }
-
-  ConvertJSPrimitiveToObjectOp(OpIndex value, OpIndex native_context,
-                               OpIndex global_proxy, ConvertReceiverMode mode)
-      : Base(value, native_context, global_proxy), mode(mode) {}
-
-  void Validate(const Graph& graph) const {
+  V<Object> value() const { return Base::input(0); }
+  V<Object> native_context() const { return Base::input(1); }
+  OptionalV<Object> global_proxy() const {
+    return input_count > 2 ? Base::input(2) : OpIndex::Invalid();
   }
+
+  ConvertJSPrimitiveToObjectOp(V<Object> value, V<Object> native_context,
+                               OptionalV<Object> global_proxy,
+                               ConvertReceiverMode mode)
+      : Base(2 + global_proxy.valid()), mode(mode) {
+    input(0) = value;
+    input(1) = native_context;
+    if (global_proxy.valid()) {
+      input(2) = global_proxy.value();
+    }
+  }
+
+  static ConvertJSPrimitiveToObjectOp& New(Graph* graph, V<Object> value,
+                                           V<Object> native_context,
+                                           OptionalV<Object> global_proxy,
+                                           ConvertReceiverMode mode) {
+    return Base::New(graph, 2 + global_proxy.valid(), value, native_context,
+                     global_proxy, mode);
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(value()), mapper.Map(native_context()),
+              mapper.Map(global_proxy()), mode);
+  }
+
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{mode}; }
 };
@@ -5247,6 +5404,8 @@ inline constexpr RegisterRepresentation RegisterRepresentationForArrayType(
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
       return RegisterRepresentation::Word64();
+    case kExternalFloat16Array:
+      UNIMPLEMENTED();
   }
 }
 
@@ -5479,8 +5638,7 @@ struct TransitionAndStoreArrayElementOp
         fast_map(fast_map),
         double_map(double_map) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   RegisterRepresentation value_representation() const {
     switch (kind) {
@@ -6257,7 +6415,7 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
   static constexpr OpEffects effects = OpEffects().AssumesConsistentHeap();
 
-  WasmTypeCheckOp(V<Tagged> object, OptionalV<Tagged> rtt,
+  WasmTypeCheckOp(V<Object> object, OptionalV<Object> rtt,
                   WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
@@ -6271,8 +6429,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
     return fn(mapper.Map(object()), mapper.Map(rtt()), config);
   }
 
-  V<Tagged> object() const { return Base::input(0); }
-  OptionalV<Tagged> rtt() const {
+  V<Object> object() const { return Base::input(0); }
+  OptionalV<Object> rtt() const {
     return input_count > 1 ? input(1) : OpIndex::Invalid();
   }
 
@@ -6292,8 +6450,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
   auto options() const { return std::tuple{config}; }
 
-  static WasmTypeCheckOp& New(Graph* graph, V<Tagged> object,
-                              OptionalV<Tagged> rtt,
+  static WasmTypeCheckOp& New(Graph* graph, V<Object> object,
+                              OptionalV<Object> rtt,
                               WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
@@ -6304,7 +6462,7 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
 
-  WasmTypeCastOp(V<Tagged> object, OptionalV<Tagged> rtt,
+  WasmTypeCastOp(V<Object> object, OptionalV<Object> rtt,
                  WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
@@ -6318,8 +6476,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
     return fn(mapper.Map(object()), mapper.Map(rtt()), config);
   }
 
-  V<Tagged> object() const { return Base::input(0); }
-  OptionalV<Tagged> rtt() const {
+  V<Object> object() const { return Base::input(0); }
+  OptionalV<Object> rtt() const {
     return input_count > 1 ? input(1) : OpIndex::Invalid();
   }
 
@@ -6339,8 +6497,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   auto options() const { return std::tuple{config}; }
 
-  static WasmTypeCastOp& New(Graph* graph, V<Tagged> object,
-                             OptionalV<Tagged> rtt,
+  static WasmTypeCastOp& New(Graph* graph, V<Object> object,
+                             OptionalV<Object> rtt,
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
@@ -6356,7 +6514,7 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
   explicit WasmTypeAnnotationOp(OpIndex value, wasm::ValueType type)
       : Base(value), type(type) {}
 
-  V<Tagged> value() const { return Base::input(0); }
+  V<Object> value() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6382,9 +6540,9 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
       SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
                            : OpEffects().CanReadMemory().CanAllocate();
 
-  explicit AnyConvertExternOp(V<Tagged> object) : Base(object) {}
+  explicit AnyConvertExternOp(V<Object> object) : Base(object) {}
 
-  V<Tagged> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6403,9 +6561,9 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
 struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
   static constexpr OpEffects effects = OpEffects();
 
-  explicit ExternConvertAnyOp(V<Tagged> object) : Base(object) {}
+  explicit ExternConvertAnyOp(V<Object> object) : Base(object) {}
 
-  V<Tagged> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6548,8 +6706,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{array_type, is_signed}; }
   void PrintOptions(std::ostream& os) const;
@@ -6678,7 +6835,7 @@ struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
   static constexpr OpEffects effects = OpEffects().CanAllocate();
   uint32_t function_index;
 
-  explicit WasmRefFuncOp(V<Tagged> wasm_instance, uint32_t function_index)
+  explicit WasmRefFuncOp(V<Object> wasm_instance, uint32_t function_index)
       : Base(wasm_instance), function_index(function_index) {}
 
   OpIndex instance() const { return Base::input(0); }
@@ -6706,7 +6863,7 @@ struct StringAsWtf16Op : FixedArityOperationT<1, StringAsWtf16Op> {
           .CanDependOnChecks()
           .CanReadMemory();
 
-  explicit StringAsWtf16Op(V<Tagged> string) : Base(string) {}
+  explicit StringAsWtf16Op(V<Object> string) : Base(string) {}
 
   OpIndex string() const { return input(0); }
 
@@ -6732,7 +6889,7 @@ struct StringPrepareForGetCodeUnitOp
           // This should not float above a protective null/length check.
           .CanDependOnChecks();
 
-  explicit StringPrepareForGetCodeUnitOp(V<Tagged> string) : Base(string) {}
+  explicit StringPrepareForGetCodeUnitOp(V<Object> string) : Base(string) {}
 
   OpIndex string() const { return input(0); }
 
@@ -6993,15 +7150,18 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(I32x4RelaxedTruncF64x2SZero)                      \
   V(I32x4RelaxedTruncF64x2UZero)
 
-#define FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V) \
-  V(F32x4Ceil)                                    \
-  V(F32x4Floor)                                   \
-  V(F32x4Trunc)                                   \
-  V(F32x4NearestInt)                              \
-  V(F64x2Ceil)                                    \
-  V(F64x2Floor)                                   \
-  V(F64x2Trunc)                                   \
-  V(F64x2NearestInt)
+#define FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V)                             \
+  V(F32x4Ceil)                                                                \
+  V(F32x4Floor)                                                               \
+  V(F32x4Trunc)                                                               \
+  V(F32x4NearestInt)                                                          \
+  V(F64x2Ceil)                                                                \
+  V(F64x2Floor)                                                               \
+  V(F64x2Trunc)                                                               \
+  V(F64x2NearestInt)                                                          \
+  /* TODO(mliedtke): Rename to ReverseBytes once the naming is decoupled from \
+   * Turbofan naming. */                                                      \
+  V(Simd128ReverseBytes)
 
 #define FOREACH_SIMD_128_UNARY_OPCODE(V)        \
   FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(V) \
@@ -7567,6 +7727,353 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+#if V8_ENABLE_WASM_SIMD256_REVEC
+struct Simd256Extract128LaneOp
+    : FixedArityOperationT<1, Simd256Extract128LaneOp> {
+  uint8_t lane;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256Extract128LaneOp(OpIndex input, uint8_t lane)
+      : Base(input), lane(lane) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {
+#if DEBUG
+    DCHECK_LT(lane, 2);
+#endif
+  }
+
+  auto options() const { return std::tuple{lane}; }
+};
+
+#define FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(V) \
+  V(8x16S)                                        \
+  V(8x16U)                                        \
+  V(16x8S)                                        \
+  V(16x8U)                                        \
+  V(32x4S)                                        \
+  V(32x4U)                                        \
+  V(8Splat)                                       \
+  V(16Splat)                                      \
+  V(32Splat)                                      \
+  V(64Splat)
+
+struct Simd256LoadTransformOp
+    : FixedArityOperationT<2, Simd256LoadTransformOp> {
+  using LoadKind = LoadOp::Kind;
+  enum class TransformKind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  LoadKind load_kind;
+  TransformKind transform_kind;
+  int offset;
+
+  OpEffects Effects() const {
+    OpEffects effects = OpEffects().CanReadMemory().CanDependOnChecks();
+    if (load_kind.with_trap_handler) {
+      effects = effects.CanLeaveCurrentFunction();
+    }
+    return effects;
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::WordPtr(),
+                          RegisterRepresentation::WordPtr()>();
+  }
+
+  Simd256LoadTransformOp(V<WordPtr> base, V<WordPtr> index, LoadKind load_kind,
+                         TransformKind transform_kind, int offset)
+      : Base(base, index),
+        load_kind(load_kind),
+        transform_kind(transform_kind),
+        offset(offset) {}
+
+  V<WordPtr> base() const { return input(0); }
+  V<WordPtr> index() const { return input(1); }
+
+  void Validate(const Graph& graph) { DCHECK(!load_kind.tagged_base); }
+
+  auto options() const { return std::tuple{load_kind, transform_kind, offset}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
+#define FOREACH_SIMD_256_UNARY_OPCODE(V) \
+  V(S256Not)                             \
+  V(I8x32Abs)                            \
+  V(I8x32Neg)                            \
+  V(I16x16ExtAddPairwiseI8x32S)          \
+  V(I16x16ExtAddPairwiseI8x32U)          \
+  V(I32x8ExtAddPairwiseI16x16S)          \
+  V(I32x8ExtAddPairwiseI16x16U)          \
+  V(I16x16Abs)                           \
+  V(I16x16Neg)                           \
+  V(I32x8Abs)                            \
+  V(I32x8Neg)                            \
+  V(F32x8Abs)                            \
+  V(F32x8Neg)                            \
+  V(F32x8Sqrt)                           \
+  V(F64x4Sqrt)                           \
+  V(I32x8UConvertF32x8)                  \
+  V(F32x8UConvertI32x8)
+
+struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_UNARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256UnaryOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind);
+
+#define FOREACH_SIMD_256_BINARY_BASIC_OPCODE(V) \
+  V(I8x32Eq)                                    \
+  V(I8x32Ne)                                    \
+  V(I8x32GtS)                                   \
+  V(I8x32GtU)                                   \
+  V(I8x32GeS)                                   \
+  V(I8x32GeU)                                   \
+  V(I16x16Eq)                                   \
+  V(I16x16Ne)                                   \
+  V(I16x16GtS)                                  \
+  V(I16x16GtU)                                  \
+  V(I16x16GeS)                                  \
+  V(I16x16GeU)                                  \
+  V(I32x8Eq)                                    \
+  V(I32x8Ne)                                    \
+  V(I32x8GtS)                                   \
+  V(I32x8GtU)                                   \
+  V(I32x8GeS)                                   \
+  V(I32x8GeU)                                   \
+  V(F32x8Eq)                                    \
+  V(F32x8Ne)                                    \
+  V(F32x8Lt)                                    \
+  V(F32x8Le)                                    \
+  V(F64x4Eq)                                    \
+  V(F64x4Ne)                                    \
+  V(F64x4Lt)                                    \
+  V(F64x4Le)                                    \
+  V(S256And)                                    \
+  V(S256AndNot)                                 \
+  V(S256Or)                                     \
+  V(S256Xor)                                    \
+  V(I8x32SConvertI16x16)                        \
+  V(I8x32UConvertI16x16)                        \
+  V(I8x32Add)                                   \
+  V(I8x32AddSatS)                               \
+  V(I8x32AddSatU)                               \
+  V(I8x32Sub)                                   \
+  V(I8x32SubSatS)                               \
+  V(I8x32SubSatU)                               \
+  V(I8x32MinS)                                  \
+  V(I8x32MinU)                                  \
+  V(I8x32MaxS)                                  \
+  V(I8x32MaxU)                                  \
+  V(I8x32RoundingAverageU)                      \
+  V(I16x16SConvertI32x8)                        \
+  V(I16x16UConvertI32x8)                        \
+  V(I16x16Add)                                  \
+  V(I16x16AddSatS)                              \
+  V(I16x16AddSatU)                              \
+  V(I16x16Sub)                                  \
+  V(I16x16SubSatS)                              \
+  V(I16x16SubSatU)                              \
+  V(I16x16Mul)                                  \
+  V(I16x16MinS)                                 \
+  V(I16x16MinU)                                 \
+  V(I16x16MaxS)                                 \
+  V(I16x16MaxU)                                 \
+  V(I16x16RoundingAverageU)                     \
+  V(I32x8Add)                                   \
+  V(I32x8Sub)                                   \
+  V(I32x8Mul)                                   \
+  V(I32x8MinS)                                  \
+  V(I32x8MinU)                                  \
+  V(I32x8MaxS)                                  \
+  V(I32x8MaxU)                                  \
+  V(I32x8DotI16x16S)                            \
+  V(I64x4Add)                                   \
+  V(I64x4Sub)                                   \
+  V(I64x4Mul)                                   \
+  V(I64x4Eq)                                    \
+  V(I64x4Ne)                                    \
+  V(I64x4GtS)                                   \
+  V(I64x4GeS)                                   \
+  V(F32x8Add)                                   \
+  V(F32x8Sub)                                   \
+  V(F32x8Mul)                                   \
+  V(F32x8Div)                                   \
+  V(F32x8Min)                                   \
+  V(F32x8Max)                                   \
+  V(F32x8Pmin)                                  \
+  V(F32x8Pmax)                                  \
+  V(F64x4Add)                                   \
+  V(F64x4Sub)                                   \
+  V(F64x4Mul)                                   \
+  V(F64x4Div)                                   \
+  V(F64x4Min)                                   \
+  V(F64x4Max)                                   \
+  V(F64x4Pmin)                                  \
+  V(F64x4Pmax)
+
+#define FOREACH_SIMD_256_BINARY_OPCODE(V) \
+  FOREACH_SIMD_256_BINARY_BASIC_OPCODE(V)
+
+struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_BINARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256BinopOp(OpIndex left, OpIndex right, Kind kind)
+      : Base(left, right), kind(kind) {}
+
+  OpIndex left() const { return input(0); }
+  OpIndex right() const { return input(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+
+std::ostream& operator<<(std::ostream& os, Simd256BinopOp::Kind kind);
+
+#define FOREACH_SIMD_256_SHIFT_OPCODE(V) \
+  V(I16x16Shl)                           \
+  V(I16x16ShrS)                          \
+  V(I16x16ShrU)                          \
+  V(I32x8Shl)                            \
+  V(I32x8ShrS)                           \
+  V(I32x8ShrU)                           \
+  V(I64x4Shl)                            \
+  V(I64x4ShrU)
+
+struct Simd256ShiftOp : FixedArityOperationT<2, Simd256ShiftOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_SHIFT_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Word32()>();
+  }
+
+  Simd256ShiftOp(V<Simd256> input, V<Word32> shift, Kind kind)
+      : Base(input, shift), kind(kind) {}
+
+  V<Simd256> input() const { return Base::input(0); }
+  V<Word32> shift() const { return Base::input(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd256ShiftOp::Kind kind);
+
+#define FOREACH_SIMD_256_TERNARY_OPCODE(V) V(S256Select)
+struct Simd256TernaryOp : FixedArityOperationT<3, Simd256TernaryOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_TERNARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256TernaryOp(V<Simd256> first, V<Simd256> second, V<Simd256> third,
+                   Kind kind)
+      : Base(first, second, third), kind(kind) {}
+
+  V<Simd256> first() const { return input(0); }
+  V<Simd256> second() const { return input(1); }
+  V<Simd256> third() const { return input(2); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd256TernaryOp::Kind kind);
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {
   // TODO(nicohartmann@): Review effects.
   static constexpr OpEffects effects = OpEffects().CanReadMemory();
@@ -7681,6 +8188,10 @@ inline OpEffects Operation::Effects() const {
       return Cast<Simd128LaneMemoryOp>().Effects();
     case Opcode::kSimd128LoadTransform:
       return Cast<Simd128LoadTransformOp>().Effects();
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    case Opcode::kSimd256LoadTransform:
+      return Cast<Simd256LoadTransformOp>().Effects();
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
     default:
       UNREACHABLE();
@@ -7738,15 +8249,66 @@ V8_EXPORT_PRIVATE V8_INLINE bool ShouldSkipOperation(const Operation& op) {
 }
 
 namespace detail {
-// Computes the number of inputs of an operation, ignoring non-OpIndex inputs
-// (which are always inlined in the operation) and `base::Vector<OpIndex>`
-// inputs.
-template <typename T>
+// Defining `input_count` to compute the number of OpIndex inputs of an
+// operation.
+
+// There is one overload for each possible type of parameters for all
+// Operations rather than a default generic overload, so that we don't
+// accidentally forget some types (eg, if a new Operation takes its inputs as a
+// std::vector<OpIndex>, we shouldn't count this as "0 inputs because it's
+// neither raw OpIndex nor base::Vector<OpIndex>", which a generic overload
+// might do).
+
+// Base case
+constexpr size_t input_count() { return 0; }
+
+// All parameters that are not OpIndex and should thus not count towards the
+// "input_count" of the operations.
+template <typename T, typename = std::enable_if_t<std::is_enum_v<T> ||
+                                                  std::is_integral_v<T> ||
+                                                  std::is_floating_point_v<T>>>
 constexpr size_t input_count(T) {
   return 0;
 }
-constexpr size_t input_count() { return 0; }
+template <typename T>
+constexpr size_t input_count(const MaybeHandle<T>) {
+  return 0;
+}
+template <typename T>
+constexpr size_t input_count(const Handle<T>) {
+  return 0;
+}
+template <typename T>
+constexpr size_t input_count(const base::Flags<T>) {
+  return 0;
+}
+constexpr size_t input_count(const Block*) { return 0; }
+constexpr size_t input_count(const TSCallDescriptor*) { return 0; }
+constexpr size_t input_count(const char*) { return 0; }
+constexpr size_t input_count(const DeoptimizeParameters*) { return 0; }
+constexpr size_t input_count(const FastApiCallParameters*) { return 0; }
+constexpr size_t input_count(const FrameStateData*) { return 0; }
+constexpr size_t input_count(const base::Vector<SwitchOp::Case>) { return 0; }
+constexpr size_t input_count(LoadOp::Kind) { return 0; }
+constexpr size_t input_count(RegisterRepresentation) { return 0; }
+constexpr size_t input_count(MemoryRepresentation) { return 0; }
+constexpr size_t input_count(OpEffects) { return 0; }
+inline size_t input_count(const ElementsTransition) { return 0; }
+inline size_t input_count(const FeedbackSource) { return 0; }
+inline size_t input_count(const ZoneRefSet<Map>) { return 0; }
+inline size_t input_count(ConstantOp::Storage) { return 0; }
+inline size_t input_count(Type) { return 0; }
+#ifdef V8_ENABLE_WEBASSEMBLY
+constexpr size_t input_count(const wasm::WasmGlobal*) { return 0; }
+constexpr size_t input_count(const wasm::StructType*) { return 0; }
+constexpr size_t input_count(const wasm::ArrayType*) { return 0; }
+constexpr size_t input_count(wasm::ValueType) { return 0; }
+constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
+#endif
+
+// All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)
 constexpr size_t input_count(OpIndex) { return 1; }
+constexpr size_t input_count(OptionalOpIndex) { return 1; }
 constexpr size_t input_count(base::Vector<const OpIndex> inputs) {
   return inputs.size();
 }
@@ -7755,10 +8317,16 @@ constexpr size_t input_count(base::Vector<const OpIndex> inputs) {
 template <typename Op, typename... Args>
 Op* CreateOperation(base::SmallVector<OperationStorageSlot, 32>& storage,
                     Args... args) {
-  size_t size = Operation::StorageSlotCount(
-      Op::opcode, (0 + ... + detail::input_count(args)));
+  size_t input_count = (0 + ... + detail::input_count(args));
+  size_t size = Operation::StorageSlotCount(Op::opcode, input_count);
   storage.resize_no_init(size);
-  return new (storage.data()) Op(args...);
+  Op* op = new (storage.data()) Op(args...);
+  // Checking that the {input_count} we computed is at least the actual
+  // input_count of the operation. {input_count} could be greater in the case of
+  // OptionalOpIndex: they count for 1 input when computing {input_count} here,
+  // but in Operations, they only count for 1 input when they are valid.
+  DCHECK_GE(input_count, op->input_count);
+  return op;
 }
 
 }  // namespace v8::internal::compiler::turboshaft

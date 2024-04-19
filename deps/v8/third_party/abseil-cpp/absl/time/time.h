@@ -98,7 +98,6 @@ class Time;      // Defined below
 class TimeZone;  // Defined below
 
 namespace time_internal {
-int64_t IDivDuration(bool satq, Duration num, Duration den, Duration* rem);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Time FromUnixDuration(Duration d);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration ToUnixDuration(Time t);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t GetRepHi(Duration d);
@@ -338,30 +337,6 @@ ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator-(Duration lhs,
   return lhs -= rhs;
 }
 
-// Multiplicative Operators
-// Integer operands must be representable as int64_t.
-template <typename T>
-ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(Duration lhs, T rhs) {
-  return lhs *= rhs;
-}
-template <typename T>
-ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(T lhs, Duration rhs) {
-  return rhs *= lhs;
-}
-template <typename T>
-ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator/(Duration lhs, T rhs) {
-  return lhs /= rhs;
-}
-ABSL_ATTRIBUTE_CONST_FUNCTION inline int64_t operator/(Duration lhs,
-                                                       Duration rhs) {
-  return time_internal::IDivDuration(true, lhs, rhs,
-                                     &lhs);  // trunc towards zero
-}
-ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator%(Duration lhs,
-                                                        Duration rhs) {
-  return lhs %= rhs;
-}
-
 // IDivDuration()
 //
 // Divides a numerator `Duration` by a denominator `Duration`, returning the
@@ -390,10 +365,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator%(Duration lhs,
 //   // Here, q would overflow int64_t, so rem accounts for the difference.
 //   int64_t q = absl::IDivDuration(a, b, &rem);
 //   // q == std::numeric_limits<int64_t>::max(), rem == a - b * q
-inline int64_t IDivDuration(Duration num, Duration den, Duration* rem) {
-  return time_internal::IDivDuration(true, num, den,
-                                     rem);  // trunc towards zero
-}
+int64_t IDivDuration(Duration num, Duration den, Duration* rem);
 
 // FDivDuration()
 //
@@ -408,6 +380,30 @@ inline int64_t IDivDuration(Duration num, Duration den, Duration* rem) {
 //   double d = absl::FDivDuration(absl::Milliseconds(1500), absl::Seconds(1));
 //   // d == 1.5
 ABSL_ATTRIBUTE_CONST_FUNCTION double FDivDuration(Duration num, Duration den);
+
+// Multiplicative Operators
+// Integer operands must be representable as int64_t.
+template <typename T>
+ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(Duration lhs, T rhs) {
+  return lhs *= rhs;
+}
+template <typename T>
+ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(T lhs, Duration rhs) {
+  return rhs *= lhs;
+}
+template <typename T>
+ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator/(Duration lhs, T rhs) {
+  return lhs /= rhs;
+}
+ABSL_ATTRIBUTE_CONST_FUNCTION inline int64_t operator/(Duration lhs,
+                                                       Duration rhs) {
+  return IDivDuration(lhs, rhs,
+                      &lhs);  // trunc towards zero
+}
+ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator%(Duration lhs,
+                                                        Duration rhs) {
+  return lhs %= rhs;
+}
 
 // ZeroDuration()
 //

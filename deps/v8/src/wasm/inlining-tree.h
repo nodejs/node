@@ -170,7 +170,9 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
       continue;
     }
 
-    int min_count_for_inlining = top->wire_byte_size_ / 2;
+    int min_count_for_inlining = v8_flags.wasm_inlining_ignore_call_counts
+                                     ? 0
+                                     : top->wire_byte_size_ / 2;
     if (top != this && top->wire_byte_size_ >= 12 &&
         (top->call_count_ < min_count_for_inlining)) {
       if (v8_flags.trace_wasm_inlining) {

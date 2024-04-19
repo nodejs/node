@@ -613,6 +613,15 @@ FieldAccess AccessBuilder::ForJSIteratorResultValue() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSPrimitiveWrapperValue() {
+  FieldAccess access = {kTaggedBase,         JSPrimitiveWrapper::kValueOffset,
+                        MaybeHandle<Name>(), OptionalMapRef(),
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier,   "JSPrimitiveWrapperValue"};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSRegExpData() {
   FieldAccess access = {kTaggedBase,         JSRegExp::kDataOffset,
                         MaybeHandle<Name>(), OptionalMapRef(),
@@ -1213,6 +1222,10 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
       ElementAccess access = {taggedness, header_size, Type::Unsigned32(),
                               MachineType::Uint32(), kNoWriteBarrier};
       return access;
+    }
+    case kExternalFloat16Array: {
+      // TODO(v8:14012): support machine logic
+      UNIMPLEMENTED();
     }
     case kExternalFloat32Array: {
       ElementAccess access = {taggedness, header_size, Type::Number(),

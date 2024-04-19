@@ -265,7 +265,7 @@ BUILTIN(AtomicsConditionNotify) {
   Handle<JSAtomicsCondition> js_condition =
       Handle<JSAtomicsCondition>::cast(js_condition_obj);
   return *isolate->factory()->NewNumberFromUint(
-      js_condition->Notify(isolate, count));
+      JSAtomicsCondition::Notify(isolate, js_condition, count));
 }
 
 }  // namespace internal
