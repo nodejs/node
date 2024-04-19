@@ -310,6 +310,8 @@ class PerProcessOptions : public Options {
   bool openssl_shared_config = false;
 #endif
 
+  bool disable_wasm_trap_handler = false;
+
   // Per-process because reports can be triggered outside a known V8 context.
   bool report_on_fatalerror = false;
   bool report_compact = false;

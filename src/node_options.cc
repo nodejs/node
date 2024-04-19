@@ -1071,6 +1071,14 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "Generate a blob that can be embedded into the single executable "
             "application",
             &PerProcessOptions::experimental_sea_config);
+
+  AddOption(
+      "--disable-wasm-trap-handler",
+      "Disable trap-handler-based WebAssembly bound checks. V8 will insert "
+      "inline bound checks when compiling WebAssembly which may slow down "
+      "performance.",
+      &PerProcessOptions::disable_wasm_trap_handler,
+      kAllowedInEnvvar);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {

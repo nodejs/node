@@ -559,6 +559,45 @@ const vm = require('node:vm');
 vm.measureMemory();
 ```
 
+### `--disable-wasm-trap-handler`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+By default, Node.js enables trap-handler-based WebAssembly bound
+checks. As a result, V8 does not need to insert inline bound checks
+int the code compiled from WebAssembly which may speedup WebAssembly
+execution significantly, but this optimization requires allocating
+a big virtual memory cage (currently 10GB). If the Node.js process
+does not have access to a large enough virtual memory address space
+due to system configurations or hardware limitations, users won't
+be able to run any WebAssembly that involves allocation in this
+virtual memory cage and will see an out-of-memory error.
+
+```console
+$ ulimit -v 5000000
+$ node -p "new WebAssembly.Memory({ initial: 10, maximum: 100 });"
+[eval]:1
+new WebAssembly.Memory({ initial: 10, maximum: 100 });
+^
+
+RangeError: WebAssembly.Memory(): could not allocate memory
+    at [eval]:1:1
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:118:14
+    at [eval]-wrapper:6:24
+    at runScript (node:internal/process/execution:101:62)
+    at evalScript (node:internal/process/execution:136:3)
+    at node:internal/main/eval_string:49:3
+
+```
+
+`--disable-wasm-trap-handler` disables this optimization so that
+users can at least run WebAssembly (with less optimal performance)
+when the virtual memory address space available to their Node.js
+process is lower than what the V8 WebAssembly memory cage needs.
+
 ### `--disable-proto=mode`
 
 <!-- YAML
@@ -2499,6 +2538,7 @@ one is included in the list below.
 * `--diagnostic-dir`
 * `--disable-proto`
 * `--disable-warning`
+* `--disable-wasm-trap-handler`
 * `--dns-result-order`
 * `--enable-fips`
 * `--enable-network-family-autoselection`

@@ -420,6 +420,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 typedef void (*sigaction_cb)(int signo, siginfo_t* info, void* ucontext);
 #endif
 #if NODE_USE_V8_WASM_TRAP_HANDLER
+static std::atomic<bool> is_wasm_trap_handler_configured{false};
 #if defined(_WIN32)
 static LONG WINAPI TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
   if (v8::TryHandleWebAssemblyTrapWindows(exception)) {
@@ -465,15 +466,17 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler) {
   CHECK_NOT_NULL(handler);
 #if NODE_USE_V8_WASM_TRAP_HANDLER
-  if (signal == SIGSEGV) {
+  // Stash the user-registered handlers for TrapWebAssemblyOrContinue
+  // to call out to when the signal is not coming from a WASM OOM.
+  if (signal == SIGSEGV && is_wasm_trap_handler_configured.load()) {
     CHECK(previous_sigsegv_action.is_lock_free());
     CHECK(!reset_handler);
     previous_sigsegv_action.store(handler);
     return;
   }
-// TODO(align behavior between macos and other in next major version)
+  // TODO(align behavior between macos and other in next major version)
 #if defined(__APPLE__)
-  if (signal == SIGBUS) {
+  if (signal == SIGBUS && is_wasm_trap_handler_configured.load()) {
     CHECK(previous_sigbus_action.is_lock_free());
     CHECK(!reset_handler);
     previous_sigbus_action.store(handler);
@@ -625,25 +628,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
     RegisterSignalHandler(SIGINT, SignalExit, true);
     RegisterSignalHandler(SIGTERM, SignalExit, true);
-
-#if NODE_USE_V8_WASM_TRAP_HANDLER
-    // Tell V8 to disable emitting WebAssembly
-    // memory bounds checks. This means that we have
-    // to catch the SIGSEGV/SIGBUS in TrapWebAssemblyOrContinue
-    // and pass the signal context to V8.
-    {
-      struct sigaction sa;
-      memset(&sa, 0, sizeof(sa));
-      sa.sa_sigaction = TrapWebAssemblyOrContinue;
-      sa.sa_flags = SA_SIGINFO;
-      CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
-// TODO(align behavior between macos and other in next major version)
-#if defined(__APPLE__)
-      CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
-#endif
-    }
-    V8::EnableWebAssemblyTrapHandler(false);
-#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   }
 
   if (!(flags & ProcessInitializationFlags::kNoAdjustResourceLimits)) {
@@ -670,14 +654,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   }
 #endif  // __POSIX__
 #ifdef _WIN32
-#ifdef NODE_USE_V8_WASM_TRAP_HANDLER
-  {
-    constexpr ULONG first = TRUE;
-    per_process::old_vectored_exception_handler =
-        AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
-  }
-  V8::EnableWebAssemblyTrapHandler(false);
-#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
     for (int fd = 0; fd <= 2; ++fd) {
       auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
@@ -1207,6 +1183,37 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     cppgc::InitializeProcess(allocator);
   }
 
+#if NODE_USE_V8_WASM_TRAP_HANDLER
+  bool use_wasm_trap_handler =
+      !per_process::cli_options->disable_wasm_trap_handler;
+  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling) &&
+      use_wasm_trap_handler) {
+#if defined(_WIN32)
+    constexpr ULONG first = TRUE;
+    per_process::old_vectored_exception_handler =
+        AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
+#else
+    // Tell V8 to disable emitting WebAssembly
+    // memory bounds checks. This means that we have
+    // to catch the SIGSEGV/SIGBUS in TrapWebAssemblyOrContinue
+    // and pass the signal context to V8.
+    {
+      struct sigaction sa;
+      memset(&sa, 0, sizeof(sa));
+      sa.sa_sigaction = TrapWebAssemblyOrContinue;
+      sa.sa_flags = SA_SIGINFO;
+      CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+      CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
+#endif
+    }
+#endif  // defined(_WIN32)
+    is_wasm_trap_handler_configured.store(true);
+    V8::EnableWebAssemblyTrapHandler(false);
+  }
+#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
+
   performance::performance_v8_start = PERFORMANCE_NOW();
   per_process::v8_initialized = true;
 
@@ -1236,7 +1243,7 @@ void TearDownOncePerProcess() {
   }
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER && defined(_WIN32)
-  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
+  if (is_wasm_trap_handler_configured.load()) {
     RemoveVectoredExceptionHandler(per_process::old_vectored_exception_handler);
   }
 #endif
