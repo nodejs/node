@@ -25,6 +25,16 @@ module.exports = {
         }
       },
 
+      'VariableDeclaration > VariableDeclarator[init.name="primordials"]'({ id: node }) {
+        const { loc } = node;
+        if (loc.start.line === loc.end.line) {
+          context.report({
+            node,
+            message: 'destructuring from primordials should be multiline',
+          });
+        }
+      },
+
       'VariableDeclaration > VariableDeclarator[init.name="primordials"] Property:not(:first-child)'(node) {
         const { properties } = node.parent;
         const prev = properties[properties.indexOf(node) - 1].key.name;
