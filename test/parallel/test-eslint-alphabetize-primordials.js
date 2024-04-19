@@ -34,11 +34,15 @@ new RuleTester({
         errors: [{ message: /destructuring from primordials should be multiline/ }],
       },
       {
-        code: '"use strict";const fs = require("fs");const {Array} = primordials',
-        errors: [{ message: /destructuring from primordials should be the first expression/ }],
+        code: '"use strict";const fs = require("fs");const {Date,Array} = primordials',
+        errors: [
+          { message: /destructuring from primordials should be multiline/ },
+          { message: /destructuring from primordials should be the first expression/ },
+          { message: /Date >= Array/ },
+        ],
       },
       {
-        code: 'function fn() {"use strict";const {Array} = primordials}',
+        code: 'function fn() {"use strict";const {\nArray,\n} = primordials}',
         errors: [{ message: /destructuring from primordials should be the first expression/ }],
       },
       {
