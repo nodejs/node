@@ -86,7 +86,8 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
                                              const wasm::FunctionSig*,
                                              Handle<JSReceiver> callable);
 
-// Returns an TurbofanCompilationJob object for a JS to Wasm wrapper.
+// Returns an TurbofanCompilationJob or TurboshaftCompilationJob object
+// (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
@@ -97,12 +98,6 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          wasm::ImportCallKind kind,
                                          int expected_arity,
                                          wasm::Suspend suspend);
-
-// Compiles a stub with JS linkage that serves as an adapter for function
-// objects constructed via {WebAssembly.Function}. It performs a round-trip
-// simulating a JS-to-Wasm-to-JS coercion of parameter and return values.
-MaybeHandle<Code> CompileJSToJSWrapper(Isolate*, const wasm::FunctionSig*,
-                                       const wasm::WasmModule* module);
 
 enum CWasmEntryParameters {
   kCodeEntry,
@@ -316,10 +311,9 @@ class WasmGraphBuilder {
   Node* ReturnCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                       CheckForNull null_check, wasm::WasmCodePosition position);
 
-  void CompareToInternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
-                                        Node** success_control,
-                                        Node** failure_control,
-                                        bool is_last_case);
+  void CompareToFuncRefAtIndex(Node* func_ref, uint32_t function_index,
+                               Node** success_control, Node** failure_control,
+                               bool is_last_case);
 
   // BrOnNull returns the control for the null and non-null case.
   std::tuple<Node*, Node*> BrOnNull(Node* ref_object, wasm::ValueType type);
@@ -703,14 +697,6 @@ class WasmGraphBuilder {
                      base::Vector<Node*> rets, CheckForNull null_check,
                      IsReturnCall continuation,
                      wasm::WasmCodePosition position);
-
-  // Load the trusted data if the given object is a WasmInstanceObject.
-  // Otherwise return the value unmodified.
-  // This is used when calling via WasmInternalFunction where the "ref" is
-  // either an instance object or a WasmApiFunctionRef.
-  // TODO(14499): Refactor WasmInternalFunction to avoid this conditional
-  // indirect load.
-  Node* LoadTrustedDataFromMaybeInstanceObject(Node* maybe_instance_object);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

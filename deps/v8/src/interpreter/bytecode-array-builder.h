@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   Handle<BytecodeArray> ToBytecodeArray(IsolateT* isolate);
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
+  Handle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
@@ -139,6 +139,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
+
+  BytecodeArrayBuilder& LoadEnumeratedKeyedProperty(Register object,
+                                                    Register enum_index,
+                                                    Register cache_type,
+                                                    int feedback_slot);
 
   // Named load property of the @@iterator symbol.
   BytecodeArrayBuilder& LoadIteratorProperty(Register object,

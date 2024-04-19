@@ -310,6 +310,8 @@ inline Condition MaglevAssembler::IsRootConstant(Input input,
   return equal;
 }
 
+inline Register MaglevAssembler::GetFramePointer() { return rbp; }
+
 inline MemOperand MaglevAssembler::GetStackSlot(
     const compiler::AllocatedOperand& operand) {
   return MemOperand(rbp, GetFramePointerOffsetForStackSlot(operand));

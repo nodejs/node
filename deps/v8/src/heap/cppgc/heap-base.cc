@@ -175,6 +175,10 @@ size_t HeapBase::ExecutePreFinalizers() {
 void HeapBase::EnableGenerationalGC() {
   DCHECK(in_atomic_pause());
   if (HeapHandle::is_young_generation_enabled_) return;
+#if defined(CPPGC_CAGED_HEAP)
+  // Commit storage for the age table.
+  CagedHeap::CommitAgeTable(*(page_allocator()));
+#endif  // defined(CPPGC_CAGED_HEAP)
   // Notify the global flag that the write barrier must always be enabled.
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.

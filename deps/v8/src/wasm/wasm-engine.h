@@ -385,12 +385,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
     return &call_descriptors_;
   }
 
-  // Returns either the compressed tagged pointer representing a null value or
-  // 0 if pointer compression is not available.
-  Tagged_t compressed_wasm_null_value_or_zero() const {
-    return wasm_null_tagged_compressed_;
-  }
-
   // Returns an approximation of current off-heap memory used by this engine,
   // excluding code space.
   size_t EstimateCurrentMemoryConsumption() const;
@@ -430,9 +424,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::atomic<int> next_compilation_id_{0};
-
-  // Compressed tagged pointer to null value.
-  std::atomic<Tagged_t> wasm_null_tagged_compressed_{0};
 
   TypeCanonicalizer type_canonicalizer_;
 

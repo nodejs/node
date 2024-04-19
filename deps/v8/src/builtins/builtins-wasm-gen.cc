@@ -74,10 +74,10 @@ TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstanceData(
                                      WasmTrustedInstanceData::kTablesOffset);
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadInternalFunctionsFromInstanceData(
+TNode<FixedArray> WasmBuiltinsAssembler::LoadFuncRefsFromInstanceData(
     TNode<WasmTrustedInstanceData> trusted_data) {
-  return LoadObjectField<FixedArray>(
-      trusted_data, WasmTrustedInstanceData::kWasmInternalFunctionsOffset);
+  return LoadObjectField<FixedArray>(trusted_data,
+                                     WasmTrustedInstanceData::kFuncRefsOffset);
 }
 
 TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstanceData(

@@ -9,8 +9,8 @@
 
 #include "src/base/build_config.h"
 #include "src/common/globals.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/minor-mark-sweep.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/young-generation-marking-visitor-inl.h"
 #include "src/objects/heap-object.h"

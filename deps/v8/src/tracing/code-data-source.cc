@@ -243,11 +243,8 @@ uint64_t CodeDataSourceIncrementalState::InternWasmScript(
 
 uint64_t CodeDataSourceIncrementalState::InternJsFunctionName(
     Tagged<String> function_name) {
-  PerfettoV8String v8_string(function_name);
-  auto& function_names = v8_string.is_one_byte() ? one_byte_function_names_
-                                                 : two_byte_function_names_;
-  auto [it, was_inserted] =
-      function_names.emplace(v8_string.buffer(), next_function_name_iid());
+  auto [it, was_inserted] = js_function_names_.emplace(
+      PerfettoV8String(function_name), next_js_function_name_iid());
   uint64_t iid = it->second;
   if (!was_inserted) {
     return iid;
@@ -255,7 +252,7 @@ uint64_t CodeDataSourceIncrementalState::InternJsFunctionName(
 
   auto* v8_function_name = serialized_interned_data_->add_v8_js_function_name();
   v8_function_name->set_iid(iid);
-  v8_string.WriteToProto(*v8_function_name);
+  it->first.WriteToProto(*v8_function_name);
   return iid;
 }
 

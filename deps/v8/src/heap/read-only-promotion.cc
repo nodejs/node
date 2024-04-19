@@ -116,7 +116,6 @@ class Committee final {
 #define PROMO_CANDIDATE_TYPE_LIST(V) \
   V(AccessCheckInfo)                 \
   V(AccessorInfo)                    \
-  V(CallHandlerInfo)                 \
   V(Code)                            \
   V(CodeWrapper)                     \
   V(InterceptorInfo)                 \
@@ -149,7 +148,6 @@ class Committee final {
 
   DEF_PROMO_CANDIDATE(AccessCheckInfo)
   DEF_PROMO_CANDIDATE(AccessorInfo)
-  DEF_PROMO_CANDIDATE(CallHandlerInfo)
   static bool IsPromoCandidateCode(Isolate* isolate, Tagged<Code> o) {
     return Builtins::kCodeObjectsAreInROSpace && o->is_builtin();
   }
@@ -198,7 +196,7 @@ class Committee final {
                        MaybeObjectSlot end) final {
       if (!all_slots_are_promo_candidates()) return;
       for (MaybeObjectSlot slot = start; slot < end; slot++) {
-        MaybeObject maybe_object = slot.load(committee_->isolate_);
+        Tagged<MaybeObject> maybe_object = slot.load(committee_->isolate_);
         Tagged<HeapObject> heap_object;
         if (!maybe_object.GetHeapObject(&heap_object)) continue;
         if (!committee_->EvaluateSubgraph(heap_object, accepted_subgraph_,
@@ -253,7 +251,7 @@ class Committee final {
               << " at slot offset " << first_rejected_slot_offset << " ";
 
     MaybeObjectSlot slot = o->RawMaybeWeakField(first_rejected_slot_offset);
-    MaybeObject maybe_object = slot.load(isolate_);
+    Tagged<MaybeObject> maybe_object = slot.load(isolate_);
     Tagged<HeapObject> heap_object;
     if (maybe_object.GetHeapObject(&heap_object)) {
       std::cout << reinterpret_cast<void*>(heap_object.ptr()) << " ("
@@ -296,7 +294,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
     // Iterate all roots.
     EmbedderStackStateScope stack_scope(
-        isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
+        isolate->heap(), EmbedderStackStateOrigin::kExplicitInvocation,
         StackState::kNoHeapPointers);
     heap->IterateRoots(&v, base::EnumSet<SkipRoot>{});
 
@@ -489,7 +487,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       auto it = moves_->find(old_slot_value);
       if (it == moves_->end()) return;
       Tagged<HeapObject> new_slot_value = it->second;
-      slot.store(MaybeObject::FromObject(new_slot_value));
+      slot.store(new_slot_value);
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedPointer(host, slot, old_slot_value, new_slot_value);
       }

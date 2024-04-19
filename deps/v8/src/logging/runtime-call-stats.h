@@ -157,6 +157,7 @@ class RuntimeCallTimer final {
   V(DictionaryTemplate_NewInstance)                        \
   V(Error_New)                                             \
   V(External_New)                                          \
+  V(Float16Array_New)                                      \
   V(Float32Array_New)                                      \
   V(Float64Array_New)                                      \
   V(Function_Call)                                         \

@@ -1030,7 +1030,7 @@ void CppGraphBuilderImpl::Run() {
   // Only add stack roots in case the callback is not run from generating a
   // snapshot without stack. This avoids adding false-positive edges when
   // conservatively scanning the stack.
-  if (cpp_heap_.isolate()->heap()->IsGCWithStack()) {
+  if (cpp_heap_.isolate()->heap()->IsGCWithMainThreadStack()) {
     ParentScope parent_scope(
         states_.CreateRootState(AddRootNode("C++ native stack roots")));
     GraphBuildingRootVisitor root_object_visitor(*this, parent_scope);

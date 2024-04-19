@@ -91,16 +91,13 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   // 9. Let segmentData be ! CreateSegmentDataObject(segmenter, string,
   // startIndex, endIndex).
 
-  icu::UnicodeString string;
-  icu_break_iterator->getText().getText(string);
-
   Handle<Object> segment_data;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment_data,
       JSSegments::CreateSegmentDataObject(
           isolate, segment_iterator->granularity(), icu_break_iterator,
-          handle(segment_iterator->raw_string(), isolate), string, start_index,
-          end_index),
+          handle(segment_iterator->raw_string(), isolate),
+          *segment_iterator->unicode_string()->raw(), start_index, end_index),
       JSReceiver);
 
   // 10. Return ! CreateIterResultObject(segmentData, false).

@@ -12,7 +12,7 @@
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {

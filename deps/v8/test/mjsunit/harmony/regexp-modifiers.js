@@ -56,3 +56,4 @@ test(
 test(
     /(?m:^f(?si:.o)$)/, ['foo', '\nfoO', 'f\no\n', '\nf\rO\n'],
     ['Foo', 'F\no\n']);
+test(/(?i:.oo)/, ['Foo', 'FOO', 'fOo', 'foO']);

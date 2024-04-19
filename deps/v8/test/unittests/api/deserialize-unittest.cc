@@ -303,10 +303,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     return i_function->shared();
   }
 
-  static i::MaybeObject WeakOrSmi(i::Tagged<i::Object> obj) {
-    return IsSmi(obj)
-               ? i::MaybeObject::FromSmi(i::Smi::cast(obj))
-               : i::MaybeObject::MakeWeak(i::MaybeObject::FromObject(obj));
+  static i::Tagged<i::MaybeObject> WeakOrSmi(i::Tagged<i::Object> obj) {
+    return IsSmi(obj) ? i::Smi::cast(obj) : i::MakeWeak(obj);
   }
 
   static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
@@ -395,7 +393,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                      i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((to_retain & (1 << index)) == (1 << index)) {
-        i::MaybeObject maybe = original_objects->get(index);
+        i::Tagged<i::MaybeObject> maybe = original_objects->get(index);
         if (i::Tagged<i::HeapObject> heap_object;
             maybe.GetHeapObjectIfWeak(&heap_object)) {
           retained_original_objects->set(index, heap_object);

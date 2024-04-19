@@ -53,7 +53,7 @@ BUILD_TARGETS_ALL = ["all"]
 ARCHES = [
     "ia32", "x64", "arm", "arm64", "mips64el", "ppc", "ppc64", "riscv32",
     "riscv64", "s390", "s390x", "android_arm", "android_arm64", "loong64",
-    "fuchsia_x64", "fuchsia_arm64"
+    "fuchsia_x64", "fuchsia_arm64", "android_riscv64"
 ]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
@@ -308,15 +308,20 @@ def print_help_and_exit():
   sys.exit(0)
 
 
+# Used by `tools/bash-completion.sh`
 def print_completions_and_exit():
   for a in ARCHES:
     print(str(a))
     for m in set(MODES.values()):
-      print(str(m))
       print(f"{a}.{m}")
       for t in TARGETS:
-        print(str(t))
-        print("{a}.{m}.{t}")
+        print(f"{a}.{m}.{t}")
+      for k in ACTIONS.keys():
+        print(f"{a}.{m}.{k}")
+  for t in TARGETS:
+    print(str(t))
+  for m in set(MODES.values()):
+    print(str(m))
   sys.exit(0)
 
 
@@ -414,7 +419,28 @@ class RawConfig:
     self.tests.update(tests)
     self.clean |= clean
 
+  def update_build_distribution_args(self):
+    args_gn = self.path / "args.gn"
+    assert args_gn.exists()
+    with open(args_gn) as f:
+      gn_args = f.read()
+    # Remove custom reclient config path (it will be added again as part of
+    # the config line below if needed).
+    new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
+    new_gn_args = BUILD_DISTRIBUTION_RE.sub(BUILD_DISTRIBUTION_LINE,
+                                            new_gn_args)
+    if gn_args != new_gn_args:
+      print(f"# Updated gn args:\n{BUILD_DISTRIBUTION_LINE}")
+      _write(args_gn, new_gn_args, log=False)
+
   def build(self):
+    self.update_build_distribution_args()
+    # If the target is to just build args.gn then we are done here; otherwise
+    # drop that target because it's not something ninja can build.
+    if 'gn_args' in self.targets:
+      self.targets.remove('gn_args')
+    if len(self.targets) == 0:
+      return 0
     build_ninja = self.path / "build.ninja"
     if not build_ninja.exists():
       code = _call(f"gn gen {self.path}")
@@ -497,6 +523,8 @@ class ManagedConfig(RawConfig):
       cpu = "arm"
     elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
       cpu = "arm64"
+    elif self.arch == "android_riscv64":
+      cpu = "riscv64"
     elif self.arch == "arm64" and _get_machine() in ("aarch64", "arm64"):
       # arm64 build host:
       cpu = "arm64"
@@ -516,6 +544,8 @@ class ManagedConfig(RawConfig):
       v8_cpu = "arm"
     elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
       v8_cpu = "arm64"
+    elif self.arch == "android_riscv64":
+      v8_cpu = "riscv64"
     elif self.arch in ("arm", "arm64", "mips64el", "ppc", "ppc64", "riscv64",
                        "riscv32", "s390", "s390x", "loong64"):
       v8_cpu = self.arch
@@ -524,7 +554,7 @@ class ManagedConfig(RawConfig):
     return [f"v8_target_cpu = \"{v8_cpu}\""]
 
   def get_target_os(self):
-    if self.arch in ("android_arm", "android_arm64"):
+    if self.arch in ("android_arm", "android_arm64", "android_riscv64"):
       return ["target_os = \"android\""]
     elif self.arch in ("fuchsia_x64", "fuchsia_arm64"):
       return ["target_os = \"fuchsia\""]
@@ -552,20 +582,6 @@ class ManagedConfig(RawConfig):
         self.get_sandbox_flag())
     return template % "\n".join(arch_specific)
 
-  def update_build_distribution_args(self):
-    args_gn = self.path / "args.gn"
-    assert args_gn.exists()
-    with open(args_gn) as f:
-      gn_args = f.read()
-    # Remove custom reclient config path (it will be added again as part of
-    # the config line below if needed).
-    new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
-    new_gn_args = BUILD_DISTRIBUTION_RE.sub(
-        BUILD_DISTRIBUTION_LINE, new_gn_args)
-    if gn_args != new_gn_args:
-      print(f"# Updated gn args:\n{BUILD_DISTRIBUTION_LINE}")
-      _write(args_gn, new_gn_args, log=False)
-
   def build(self):
     path = self.path
     args_gn = path / "args.gn"
@@ -574,14 +590,6 @@ class ManagedConfig(RawConfig):
       path.mkdir(parents=True)
     if not args_gn.exists():
       _write(args_gn, self.get_gn_args())
-    else:
-      self.update_build_distribution_args()
-    # If the target is to just build args.gn then we are done here; otherwise
-    # drop that target because it's not something ninja can build.
-    if 'gn_args' in self.targets:
-      self.targets.remove('gn_args')
-    if len(self.targets) == 0:
-      return 0
     return super().build()
 
   def run_tests(self):
@@ -759,10 +767,11 @@ def main(argv):
   configs = parser.parse_arguments(argv[1:])
   return_code = 0
   # If we have Goma but it is not running, start it.
-  if (IS_GOMA_MACHINE and
-      _call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
+  is_goma_running_cmd = "tasklist | FIND \"compiler_proxy.exe\" > nul" if \
+    sys.platform == "win32" else "pgrep -x compiler_proxy > /dev/null"
+  if (IS_GOMA_MACHINE and _call(is_goma_running_cmd, silent=True) != 0):
     goma_ctl = GOMADIR / "goma_ctl.py"
-    _call(f"{goma_ctl} ensure_start")
+    _call(f"{sys.executable} {goma_ctl} ensure_start")
   # If we have Reclient with the Google configuration, check for current
   # certificate.
   if (RECLIENT_MODE == Reclient.GOOGLE and not detect_reclient_cert()):

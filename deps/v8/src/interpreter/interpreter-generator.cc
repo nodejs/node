@@ -612,6 +612,28 @@ IGNITION_HANDLER(GetKeyedProperty, InterpreterAssembler) {
   Dispatch();
 }
 
+// GetEnumeratedKeyedProperty <object> <enum_index> <cache_type> <slot>
+//
+// Calls the EnumeratedKeyedLoadIC at FeedBackVector slot <slot> for <object>
+// and the key in the accumulator. The key is coming from the each target of a
+// for-in loop.
+IGNITION_HANDLER(GetEnumeratedKeyedProperty, InterpreterAssembler) {
+  TNode<Object> object = LoadRegisterAtOperandIndex(0);
+  TNode<Object> name = GetAccumulator();
+  TNode<TaggedIndex> enum_index =
+      SmiToTaggedIndex(CAST(LoadRegisterAtOperandIndex(1)));
+  TNode<Object> cache_type = LoadRegisterAtOperandIndex(2);
+  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(3);
+  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
+
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtin::kEnumeratedKeyedLoadIC, context, object,
+                           name, enum_index, cache_type, slot, feedback_vector);
+  SetAccumulator(var_result.value());
+  Dispatch();
+}
+
 class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
  public:
   InterpreterSetNamedPropertyAssembler(CodeAssemblerState* state,
@@ -2236,6 +2258,8 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
 
+  ClobberAccumulator(UndefinedConstant());
+
 #ifndef V8_JITLESS
   TVARIABLE(HeapObject, maybe_feedback_vector);
   Label ok(this);
@@ -2277,8 +2301,6 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
 
   BIND(&ok);
 #endif  // !V8_JITLESS
-
-  ClobberAccumulator(UndefinedConstant());
 
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.

@@ -31,56 +31,57 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
 // Format of all opcode macros: kExprName, binary, signature, wat name
 
 // Control expressions and blocks.
-#define FOREACH_CONTROL_OPCODE(V) /* 80 columns                             */ \
-  V(Unreachable, 0x00, _, "unreachable")                                       \
-  V(Nop, 0x01, _, "nop")                                                       \
-  V(Block, 0x02, _, "block")                                                   \
-  V(Loop, 0x03, _, "loop")                                                     \
-  V(If, 0x04, _, "if")                                                         \
-  V(Else, 0x05, _, "else")                                                     \
-  V(Try, 0x06, _, "try")                                                       \
-  V(Catch, 0x07, _, "catch")                                                   \
-  V(Throw, 0x08, _, "throw")                                                   \
-  V(Rethrow, 0x09, _, "rethrow")                                               \
-  V(TryTable, 0x1f, _, "try_table")                                            \
-  V(ThrowRef, 0x0a, _, "throw_ref")                                            \
-  V(End, 0x0b, _, "end")                                                       \
-  V(Br, 0x0c, _, "br")                                                         \
-  V(BrIf, 0x0d, _, "br_if")                                                    \
-  V(BrTable, 0x0e, _, "br_table")                                              \
-  V(Return, 0x0f, _, "return")                                                 \
-  V(Delegate, 0x18, _, "delegate")                                             \
-  V(CatchAll, 0x19, _, "catch_all")                                            \
-  V(BrOnNull, 0xd5, _, "br_on_null")        /* typed_funcref prototype */      \
-  V(BrOnNonNull, 0xd6, _, "br_on_non_null") /* typed_funcref prototype */      \
+#define FOREACH_CONTROL_OPCODE(V)           \
+  V(Unreachable, 0x00, _, "unreachable")    \
+  V(Nop, 0x01, _, "nop")                    \
+  V(Block, 0x02, _, "block")                \
+  V(Loop, 0x03, _, "loop")                  \
+  V(If, 0x04, _, "if")                      \
+  V(Else, 0x05, _, "else")                  \
+  V(Try, 0x06, _, "try")                    \
+  V(Catch, 0x07, _, "catch")                \
+  V(Throw, 0x08, _, "throw")                \
+  V(Rethrow, 0x09, _, "rethrow")            \
+  V(TryTable, 0x1f, _, "try_table")         \
+  V(ThrowRef, 0x0a, _, "throw_ref")         \
+  V(End, 0x0b, _, "end")                    \
+  V(Br, 0x0c, _, "br")                      \
+  V(BrIf, 0x0d, _, "br_if")                 \
+  V(BrTable, 0x0e, _, "br_table")           \
+  V(Return, 0x0f, _, "return")              \
+  V(Delegate, 0x18, _, "delegate")          \
+  V(CatchAll, 0x19, _, "catch_all")         \
+  V(BrOnNull, 0xd5, _, "br_on_null")        \
+  V(BrOnNonNull, 0xd6, _, "br_on_non_null") \
   V(NopForTestingUnsupportedInLiftoff, 0x16, _, "nop_for_testing")
 
-// Constants, locals, globals, and calls.
-#define FOREACH_MISC_OPCODE(V)                                               \
-  V(CallFunction, 0x10, _, "call")                                           \
-  V(CallIndirect, 0x11, _, "call_indirect")                                  \
-  V(ReturnCall, 0x12, _, "return_call")                                      \
-  V(ReturnCallIndirect, 0x13, _, "return_call_indirect")                     \
-  V(CallRef, 0x14, _, "call_ref")              /* typed_funcref prototype */ \
-  V(ReturnCallRef, 0x15, _, "return_call_ref") /* typed_funcref prototype */ \
-  V(Drop, 0x1a, _, "drop")                                                   \
-  V(Select, 0x1b, _, "select")                                               \
-  V(SelectWithType, 0x1c, _, "select")                                       \
-  V(LocalGet, 0x20, _, "local.get")                                          \
-  V(LocalSet, 0x21, _, "local.set")                                          \
-  V(LocalTee, 0x22, _, "local.tee")                                          \
-  V(GlobalGet, 0x23, _, "global.get")                                        \
-  V(GlobalSet, 0x24, _, "global.set")                                        \
-  V(TableGet, 0x25, _, "table.get")                                          \
-  V(TableSet, 0x26, _, "table.set")                                          \
-  V(I32Const, 0x41, _, "i32.const")                                          \
-  V(I64Const, 0x42, _, "i64.const")                                          \
-  V(F32Const, 0x43, _, "f32.const")                                          \
-  V(F64Const, 0x44, _, "f64.const")                                          \
-  V(RefNull, 0xd0, _, "ref.null")                                            \
-  V(RefIsNull, 0xd1, _, "ref.is_null")                                       \
-  V(RefFunc, 0xd2, _, "ref.func")                                            \
-  V(RefAsNonNull, 0xd4, _, "ref.as_non_null") /* typed_funcref prototype */
+// Constants, locals, globals, calls, etc.
+#define FOREACH_MISC_OPCODE(V)                           \
+  V(CallFunction, 0x10, _, "call")                       \
+  V(CallIndirect, 0x11, _, "call_indirect")              \
+  V(ReturnCall, 0x12, _, "return_call")                  \
+  V(ReturnCallIndirect, 0x13, _, "return_call_indirect") \
+  V(CallRef, 0x14, _, "call_ref")                        \
+  V(ReturnCallRef, 0x15, _, "return_call_ref")           \
+  V(Drop, 0x1a, _, "drop")                               \
+  V(Select, 0x1b, _, "select")                           \
+  V(SelectWithType, 0x1c, _, "select")                   \
+  V(LocalGet, 0x20, _, "local.get")                      \
+  V(LocalSet, 0x21, _, "local.set")                      \
+  V(LocalTee, 0x22, _, "local.tee")                      \
+  V(GlobalGet, 0x23, _, "global.get")                    \
+  V(GlobalSet, 0x24, _, "global.set")                    \
+  V(TableGet, 0x25, _, "table.get")                      \
+  V(TableSet, 0x26, _, "table.set")                      \
+  V(I32Const, 0x41, _, "i32.const")                      \
+  V(I64Const, 0x42, _, "i64.const")                      \
+  V(F32Const, 0x43, _, "f32.const")                      \
+  V(F64Const, 0x44, _, "f64.const")                      \
+  V(RefNull, 0xd0, _, "ref.null")                        \
+  V(RefIsNull, 0xd1, _, "ref.is_null")                   \
+  V(RefFunc, 0xd2, _, "ref.func")                        \
+  V(RefAsNonNull, 0xd4, _, "ref.as_non_null")            \
+  V(RefEq, 0xd3, _, "ref.eq")
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V)            \
@@ -256,7 +257,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
   FOREACH_SIMPLE_NON_CONST_OPCODE(V)
 
-#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefEq, 0xd3, i_qq, "ref.eq")
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V)
 
 // For compatibility with Asm.js.
 // These opcodes are not spec'ed (or visible) externally; the idea is
@@ -715,8 +716,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(RefTestNull, 0xfb15, _, "ref.test null")                                   \
   V(RefCast, 0xfb16, _, "ref.cast")                                            \
   V(RefCastNull, 0xfb17, _, "ref.cast null")                                   \
-  V(BrOnCastGeneric, 0xfb18, _, "br_on_cast")                                  \
-  V(BrOnCastFailGeneric, 0xfb19, _, "br_on_cast_fail")                         \
+  V(BrOnCast, 0xfb18, _, "br_on_cast")                                         \
+  V(BrOnCastFail, 0xfb19, _, "br_on_cast_fail")                                \
   V(AnyConvertExtern, 0xfb1a, _, "any.convert_extern")                         \
   V(ExternConvertAny, 0xfb1b, _, "extern.convert_any")                         \
   V(RefI31, 0xfb1c, _, "ref.i31")                                              \

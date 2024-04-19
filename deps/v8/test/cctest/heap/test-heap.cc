@@ -55,8 +55,8 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
@@ -668,7 +668,7 @@ TEST(BytecodeArray) {
 
   // Perform a full garbage collection and force the constant pool to be on an
   // evacuation candidate.
-  Page* evac_page = Page::FromHeapObject(*constant_pool);
+  PageMetadata* evac_page = PageMetadata::FromHeapObject(*constant_pool);
   heap::ForceEvacuationCandidate(evac_page);
   {
     // We need to invoke GC without stack, otherwise no compaction is performed.
@@ -1775,7 +1775,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     // Script.
     Handle<Script> script(Script::cast(lazy_sfi->script()), isolate);
     bool root_sfi_still_exists = false;
-    MaybeObject maybe_root_sfi =
+    Tagged<MaybeObject> maybe_root_sfi =
         script->shared_function_infos()->get(kFunctionLiteralIdTopLevel);
     if (Tagged<HeapObject> sfi_or_undefined;
         maybe_root_sfi.GetHeapObject(&sfi_or_undefined)) {
@@ -2717,9 +2717,11 @@ HEAP_TEST(GCFlags) {
                                 GarbageCollectionReason::kTesting);
   CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
 
-  heap::InvokeMinorGC(heap);
-  // NewSpace scavenges should not overwrite the flags.
-  CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
+  if (!v8_flags.separate_gc_phases) {
+    heap::InvokeMinorGC(heap);
+    // NewSpace scavenges should not overwrite the flags.
+    CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
+  }
 
   heap::InvokeMajorGC(heap, GCFlag::kNoFlags);
   CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
@@ -3340,7 +3342,13 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
       "root = new F");
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
-  heap::InvokeMinorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    heap::InvokeMinorGC(CcTest::heap());
+  }
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3368,7 +3376,13 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
 
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
-  heap::InvokeMinorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    heap::InvokeMinorGC(CcTest::heap());
+  }
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3561,14 +3575,14 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CHECK_EQ(expected_slots, feedback_helper.slot_count());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeak());
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeak());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1)).IsWeak());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2)).IsWeak());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   heap::InvokeMajorGC(CcTest::heap());
 
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeak());
-  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeak());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1)).IsWeak());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2)).IsWeak());
 }
 
 static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
@@ -3600,12 +3614,12 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<FeedbackVector> vector(f->feedback_vector(), f->GetIsolate());
-  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrCleared());
+  CHECK(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   heap::InvokeMajorGC(CcTest::heap());
 
-  CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrCleared());
+  CHECK(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
@@ -4057,7 +4071,7 @@ TEST(LargeObjectSlotRecording) {
   heap::SimulateFullSpace(heap->old_space());
   Handle<FixedArray> lit =
       isolate->factory()->NewFixedArray(4, AllocationType::kOld);
-  Page* evac_page = Page::FromHeapObject(*lit);
+  PageMetadata* evac_page = PageMetadata::FromHeapObject(*lit);
   heap::ForceEvacuationCandidate(evac_page);
   Tagged<FixedArray> old_location = *lit;
 
@@ -4300,8 +4314,9 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     CHECK_NE(dependency,
              DependentCode::empty_dependent_code(ReadOnlyRoots(isolate)));
     CHECK_EQ(dependency->length(), DependentCode::kSlotsPerEntry);
-    MaybeObject code = dependency->Get(0 + DependentCode::kCodeSlotOffset);
-    CHECK(code->IsWeak());
+    Tagged<MaybeObject> code =
+        dependency->Get(0 + DependentCode::kCodeSlotOffset);
+    CHECK(code.IsWeak());
     CHECK_EQ(bar_handle->code(isolate),
              CodeWrapper::cast(code.GetHeapObjectAssumeWeak())->code(isolate));
     Tagged<Smi> groups =
@@ -4322,7 +4337,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
-  CHECK(site->dependent_code()->Get(0)->IsCleared());
+  CHECK(site->dependent_code()->Get(0).IsCleared());
 }
 
 void CheckNumberOfAllocations(Heap* heap, const char* source,
@@ -4658,6 +4673,7 @@ static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
   Handle<InstructionStream> code(
       Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
           .set_self_reference(masm.CodeObject())
+          .set_empty_source_position_table()
           .set_deoptimization_data(DeoptimizationData::Empty(isolate))
           .Build()
           ->instruction_stream(),
@@ -4729,20 +4745,20 @@ TEST(WeakFunctionInConstructor) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
-    MaybeObject slot_value = feedback_vector->Get(FeedbackSlot(0));
-    CHECK(slot_value->IsWeakOrCleared());
-    if (slot_value->IsCleared()) break;
+    Tagged<MaybeObject> slot_value = feedback_vector->Get(FeedbackSlot(0));
+    CHECK(slot_value.IsWeakOrCleared());
+    if (slot_value.IsCleared()) break;
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap::InvokeMajorGC(heap);
   }
 
-  MaybeObject slot_value = feedback_vector->Get(FeedbackSlot(0));
-  CHECK(slot_value->IsCleared());
+  Tagged<MaybeObject> slot_value = feedback_vector->Get(FeedbackSlot(0));
+  CHECK(slot_value.IsCleared());
   CompileRun(
       "function coat() { this.x = 6; }"
       "createObj(coat);");
   slot_value = feedback_vector->Get(FeedbackSlot(0));
-  CHECK(slot_value->IsWeak());
+  CHECK(slot_value.IsWeak());
 }
 
 // Checks that the value returned by execution of the source is weak.
@@ -5122,7 +5138,7 @@ HEAP_TEST(Regress538257) {
          i++) {
       objects[i] = i_isolate->factory()->NewFixedArray(kFixedArrayLen,
                                                        AllocationType::kOld);
-      heap::ForceEvacuationCandidate(Page::FromHeapObject(*objects[i]));
+      heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*objects[i]));
     }
     heap::SimulateFullSpace(old_space);
     heap::InvokeMajorGC(heap);
@@ -5197,7 +5213,7 @@ TEST(Regress388880) {
                          OMIT_TRANSITION)
           .ToHandleChecked();
 
-  size_t desired_offset = Page::kPageSize - map1->instance_size();
+  size_t desired_offset = PageMetadata::kPageSize - map1->instance_size();
 
   // Allocate padding objects in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
@@ -5211,7 +5227,7 @@ TEST(Regress388880) {
   o->set_raw_properties_or_hash(*factory->empty_fixed_array());
 
   // Ensure that the object allocated where we need it.
-  Page* page = Page::FromHeapObject(*o);
+  PageMetadata* page = PageMetadata::FromHeapObject(*o);
   CHECK_EQ(desired_offset, page->Offset(o->address()));
 
   // Now we have an object right at the end of the page.
@@ -5304,9 +5320,9 @@ TEST(Regress3877) {
     v8::Local<v8::Value> result = CompileRun("cls.prototype");
     Handle<JSReceiver> proto =
         v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-    weak_prototype_holder->set(0, HeapObjectReference::Weak(*proto));
+    weak_prototype_holder->set(0, MakeWeak(*proto));
   }
-  CHECK(!weak_prototype_holder->get(0)->IsCleared());
+  CHECK(!weak_prototype_holder->get(0).IsCleared());
   CompileRun(
       "var a = { };"
       "a.x = new cls();"
@@ -5315,7 +5331,7 @@ TEST(Regress3877) {
     heap::InvokeMajorGC(heap);
   }
   // The map of a.x keeps prototype alive
-  CHECK(!weak_prototype_holder->get(0)->IsCleared());
+  CHECK(!weak_prototype_holder->get(0).IsCleared());
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
   for (int i = 0; i < 4; i++) {
@@ -5324,7 +5340,7 @@ TEST(Regress3877) {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap::InvokeMajorGC(heap);
   }
-  CHECK(weak_prototype_holder->get(0)->IsCleared());
+  CHECK(weak_prototype_holder->get(0).IsCleared());
 }
 
 Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
@@ -5340,7 +5356,7 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
   maps.Push(*map);
   isolate->heap()->AddRetainedMaps(context, std::move(maps));
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
-  array->set(0, HeapObjectReference::Weak(*map));
+  array->set(0, MakeWeak(*map));
   return inner_scope.CloseAndEscape(array);
 }
 
@@ -5367,13 +5383,13 @@ void CheckMapRetainingFor(int n) {
 
   Handle<WeakFixedArray> array_with_map =
       AddRetainedMap(i_isolate, native_context);
-  CHECK(array_with_map->get(0)->IsWeak());
+  CHECK(array_with_map->get(0).IsWeak());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap::InvokeMajorGC(heap);
   }
-  CHECK(array_with_map->get(0)->IsWeak());
+  CHECK(array_with_map->get(0).IsWeak());
   {
     heap::SimulateIncrementalMarking(heap);
     // In this test, we need to invoke GC without stack, otherwise some objects
@@ -5381,7 +5397,7 @@ void CheckMapRetainingFor(int n) {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap::InvokeMajorGC(heap);
   }
-  CHECK(array_with_map->get(0)->IsCleared());
+  CHECK(array_with_map->get(0).IsCleared());
 
   global_ctxt.Get(isolate)->Exit();
 }
@@ -5412,7 +5428,7 @@ TEST(RetainedMapsCleanup) {
   ctx->Enter();
   Handle<WeakFixedArray> array_with_map =
       AddRetainedMap(isolate, native_context);
-  CHECK(array_with_map->get(0)->IsWeak());
+  CHECK(array_with_map->get(0).IsWeak());
   heap->NotifyContextDisposed(true);
   heap::InvokeMajorGC(heap);
   ctx->Exit();
@@ -5736,15 +5752,15 @@ HEAP_TEST(Regress589413) {
   // Fill the new space with byte arrays with elements looking like pointers.
   const int M = 256;
   Tagged<ByteArray> byte_array;
-  Page* young_page = nullptr;
+  PageMetadata* young_page = nullptr;
   while (AllocateByteArrayForTest(heap, M, AllocationType::kYoung)
              .To(&byte_array)) {
     // Only allocate objects on one young page as a rough estimate on
     // how much memory can be promoted into the old generation.
     // Otherwise we would crash when forcing promotion of all young
     // live objects.
-    if (!young_page) young_page = Page::FromHeapObject(byte_array);
-    if (Page::FromHeapObject(byte_array) != young_page) break;
+    if (!young_page) young_page = PageMetadata::FromHeapObject(byte_array);
+    if (PageMetadata::FromHeapObject(byte_array) != young_page) break;
 
     for (int j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
@@ -5768,14 +5784,14 @@ HEAP_TEST(Regress589413) {
     const int N = 0x3EEE;
 
     std::vector<Tagged<FixedArray>> arrays;
-    std::set<Page*> pages;
+    std::set<PageMetadata*> pages;
     Tagged<FixedArray> array;
     // Fill all pages with fixed arrays.
     heap->set_force_oom(true);
     while (
         AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
       arrays.push_back(array);
-      pages.insert(Page::FromHeapObject(array));
+      pages.insert(PageMetadata::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
     }
@@ -5786,7 +5802,7 @@ HEAP_TEST(Regress589413) {
     while (
         AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
       arrays.push_back(array);
-      pages.insert(Page::FromHeapObject(array));
+      pages.insert(PageMetadata::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
       // Do not expand anymore.
@@ -5799,7 +5815,7 @@ HEAP_TEST(Regress589413) {
     {
       Handle<HeapObject> ec_obj =
           factory->NewFixedArray(5000, AllocationType::kOld);
-      Page* ec_page = Page::FromHeapObject(*ec_obj);
+      PageMetadata* ec_page = PageMetadata::FromHeapObject(*ec_obj);
       heap::ForceEvacuationCandidate(ec_page);
       // Make all arrays point to evacuation candidate so that
       // slots are recorded for them.
@@ -5867,7 +5883,7 @@ TEST(Regress598319) {
 
   CHECK_EQ(arr.get()->length(), kNumberOfObjects);
   CHECK(heap->lo_space()->Contains(arr.get()));
-  LargePage* page = LargePage::FromHeapObject(arr.get());
+  LargePageMetadata* page = LargePageMetadata::FromHeapObject(arr.get());
   CHECK_NOT_NULL(page);
 
   // GC to cleanup state
@@ -6059,7 +6075,7 @@ TEST(Regress631969) {
       factory->NewStringFromStaticChars("123456789", AllocationType::kOld);
   Handle<String> s2 =
       factory->NewStringFromStaticChars("01234", AllocationType::kOld);
-  heap::ForceEvacuationCandidate(Page::FromHeapObject(*s1));
+  heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*s1));
 
   heap::SimulateIncrementalMarking(heap, false);
 
@@ -6118,7 +6134,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       isolate->factory()->NewFixedArray(100, AllocationType::kOld);
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
-  Page* page = Page::FromAddress(start_address);
+  PageMetadata* page = PageMetadata::FromAddress(start_address);
   NonAtomicMarkingState* marking_state = heap->non_atomic_marking_state();
   CHECK(marking_state->IsMarked(*array));
   CHECK(page->marking_bitmap()->AllBitsSetInRange(
@@ -6179,7 +6195,8 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
+  CHECK_EQ(NEW_LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -6191,7 +6208,8 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // After the first young generation GC array_small will be in the old
   // generation large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner_identity());
+  CHECK_EQ(LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6208,7 +6226,8 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
+  CHECK_EQ(NEW_LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -6220,7 +6239,8 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // After the first full GC array_small will be in the old generation
   // large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner_identity());
+  CHECK_EQ(LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6239,7 +6259,8 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
     for (int i = 0; i < 10; i++) {
       Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-      CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
+      CHECK_EQ(NEW_LO_SPACE,
+               MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
       CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
     }
   }
@@ -6262,26 +6283,33 @@ TEST(UncommitUnusedLargeObjectMemory) {
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
-                chunk->owner_identity() == LO_SPACE);
+  CHECK_IMPLIES(
+      !v8_flags.enable_third_party_heap,
+      MutablePageMetadata::cast(chunk->Metadata())->owner_identity() ==
+          LO_SPACE);
 
   intptr_t size_before = array->Size();
-  size_t committed_memory_before = chunk->CommittedPhysicalMemory();
+  size_t committed_memory_before =
+      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory();
 
   array->RightTrim(isolate, 1);
   CHECK(array->Size() < size_before);
 
   heap::InvokeMajorGC(heap);
-  CHECK(chunk->CommittedPhysicalMemory() < committed_memory_before);
+  CHECK(
+      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory() <
+      committed_memory_before);
   size_t shrinked_size = RoundUp(
       (array->address() - chunk->address()) + array->Size(), CommitPageSize());
-  CHECK_EQ(shrinked_size, chunk->CommittedPhysicalMemory());
+  CHECK_EQ(
+      shrinked_size,
+      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory());
 }
 
 template <RememberedSetType direction>
 static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MemoryChunk::FromHeapObject(obj);
+  auto chunk = MutablePageMetadata::FromHeapObject(obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -6413,7 +6441,7 @@ TEST(RememberedSet_OldToOld) {
     factory->NewFixedArray(100, AllocationType::kOld);
   }
 
-  heap::ForceEvacuationCandidate(Page::FromHeapObject(*arr));
+  heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*arr));
   const auto prev_location = *arr;
 
   // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
@@ -6432,8 +6460,8 @@ TEST(RememberedSetRemoveRange) {
   Isolate* isolate = heap->isolate();
 
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(
-      Page::kPageSize / kTaggedSize, AllocationType::kOld);
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
+      PageMetadata::kPageSize / kTaggedSize, AllocationType::kOld);
+  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(*array);
   CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                 chunk->owner_identity() == LO_SPACE);
   Address start = array->address();
@@ -6441,13 +6469,14 @@ TEST(RememberedSetRemoveRange) {
   std::map<Address, bool> slots;
   slots[start + 0] = true;
   slots[start + kTaggedSize] = true;
-  slots[start + Page::kPageSize - kTaggedSize] = true;
-  slots[start + Page::kPageSize] = true;
-  slots[start + Page::kPageSize + kTaggedSize] = true;
+  slots[start + PageMetadata::kPageSize - kTaggedSize] = true;
+  slots[start + PageMetadata::kPageSize] = true;
+  slots[start + PageMetadata::kPageSize + kTaggedSize] = true;
   slots[chunk->area_end() - kTaggedSize] = true;
 
   for (auto x : slots) {
-    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk, x.first);
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(
+        chunk, chunk->Offset(x.first));
   }
 
   RememberedSet<OLD_TO_NEW>::Iterate(
@@ -6470,10 +6499,10 @@ TEST(RememberedSetRemoveRange) {
       SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kTaggedSize,
-                                         start + Page::kPageSize,
+                                         start + PageMetadata::kPageSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + kTaggedSize] = false;
-  slots[start + Page::kPageSize - kTaggedSize] = false;
+  slots[start + PageMetadata::kPageSize - kTaggedSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(
       chunk,
       [&slots](MaybeObjectSlot slot) {
@@ -6482,10 +6511,10 @@ TEST(RememberedSetRemoveRange) {
       },
       SlotSet::FREE_EMPTY_BUCKETS);
 
-  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start,
-                                         start + Page::kPageSize + kTaggedSize,
-                                         SlotSet::FREE_EMPTY_BUCKETS);
-  slots[start + Page::kPageSize] = false;
+  RememberedSet<OLD_TO_NEW>::RemoveRange(
+      chunk, start, start + PageMetadata::kPageSize + kTaggedSize,
+      SlotSet::FREE_EMPTY_BUCKETS);
+  slots[start + PageMetadata::kPageSize] = false;
   RememberedSet<OLD_TO_NEW>::Iterate(
       chunk,
       [&slots](MaybeObjectSlot slot) {
@@ -6806,8 +6835,8 @@ size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
 
 size_t MemoryAllocatorSizeFromHeapCapacity(size_t capacity) {
   // Size to capacity factor.
-  double factor =
-      Page::kPageSize * 1.0 / MemoryChunkLayout::AllocatableMemoryInDataPage();
+  double factor = PageMetadata::kPageSize * 1.0 /
+                  MemoryChunkLayout::AllocatableMemoryInDataPage();
   // Some tables (e.g. deoptimization table) are allocated directly with the
   // memory allocator. Allow some slack to account for them.
   size_t slack = 5 * MB;
@@ -6910,6 +6939,12 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
 
   {
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning and the heap
+    // limit may be reached.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+
     OutOfMemoryState state;
     state.heap = heap;
     state.oom_triggered = false;
@@ -6989,11 +7024,11 @@ TEST(Regress8617) {
       "obj.method = foo;"
       "obj;");
   // Step 3. Make sure that foo moves during Mark-Compact.
-  Page* ec_page = Page::FromAddress((*foo).ptr());
+  PageMetadata* ec_page = PageMetadata::FromAddress((*foo).ptr());
   heap::ForceEvacuationCandidate(ec_page);
   // Step 4. Start incremental marking.
   heap::SimulateIncrementalMarking(heap, false);
-  CHECK(ec_page->IsEvacuationCandidate());
+  CHECK(ec_page->Chunk()->IsEvacuationCandidate());
   // Step 5. Install a new descriptor array on the map of the object.
   // This runs the marking barrier for the descriptor array.
   // In the bad case it sets the number of marked descriptors but does not
@@ -7056,14 +7091,18 @@ TEST(CodeObjectRegistry) {
     Handle<InstructionStream> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
 
-    CHECK_EQ(MemoryChunk::FromHeapObject(*code1),
-             MemoryChunk::FromHeapObject(*code2));
-    CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));
-    CHECK(MemoryChunk::FromHeapObject(*code2)->Contains(code2->address()));
+    CHECK_EQ(MutablePageMetadata::FromHeapObject(*code1),
+             MutablePageMetadata::FromHeapObject(*code2));
+    CHECK(MutablePageMetadata::FromHeapObject(*code1)->Contains(
+        code1->address()));
+    CHECK(MutablePageMetadata::FromHeapObject(*code2)->Contains(
+        code2->address()));
   }
   heap::InvokeMemoryReducingMajorGCs(heap);
-  CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));
-  CHECK(MemoryChunk::FromAddress(code2_address)->Contains(code2_address));
+  CHECK(
+      MutablePageMetadata::FromHeapObject(*code1)->Contains(code1->address()));
+  CHECK(
+      MutablePageMetadata::FromAddress(code2_address)->Contains(code2_address));
 }
 
 TEST(Regress9701) {

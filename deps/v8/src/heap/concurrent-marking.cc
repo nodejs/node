@@ -25,11 +25,11 @@
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/minor-mark-sweep-inl.h"
 #include "src/heap/minor-mark-sweep.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -94,7 +94,7 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordSlot(object, slot, target);
   }
 
-  void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by) {
+  void IncrementLiveBytesCached(MutablePageMetadata* chunk, intptr_t by) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                    IsAligned(by, kObjectAlignment8GbHeap));
     (*memory_chunk_data_)[chunk].live_bytes += by;
@@ -110,7 +110,7 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordRelocSlotInfo info =
         MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
 
-    MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
+    MemoryChunkData& data = (*memory_chunk_data_)[info.page_metadata];
     if (!data.typed_slots) {
       data.typed_slots.reset(new TypedSlots());
     }
@@ -349,7 +349,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           }
           const auto visited_size = visitor.Visit(map, object);
           visitor.IncrementLiveBytesCached(
-              MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+              MutablePageMetadata::cast(
+                  MemoryChunkMetadata::FromHeapObject(object)),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           if (is_per_context_mode) {
             native_context_stats.IncrementSize(
@@ -466,7 +467,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
         if (visited_size) {
           current_marked_bytes += visited_size;
           visitor.IncrementLiveBytesCached(
-              MemoryChunk::FromHeapObject(heap_object),
+              MutablePageMetadata::FromHeapObject(heap_object),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
         }
       }
@@ -734,7 +735,7 @@ void ConcurrentMarking::FlushMemoryChunkData() {
     for (auto& pair : memory_chunk_data) {
       // ClearLiveness sets the live bytes to zero.
       // Pages with zero live bytes might be already unmapped.
-      MemoryChunk* memory_chunk = pair.first;
+      MutablePageMetadata* memory_chunk = pair.first;
       MemoryChunkData& data = pair.second;
       if (data.live_bytes) {
         memory_chunk->IncrementLiveBytesAtomically(data.live_bytes);
@@ -750,7 +751,7 @@ void ConcurrentMarking::FlushMemoryChunkData() {
   total_marked_bytes_ = 0;
 }
 
-void ConcurrentMarking::ClearMemoryChunkData(MemoryChunk* chunk) {
+void ConcurrentMarking::ClearMemoryChunkData(MutablePageMetadata* chunk) {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
   for (size_t i = 1; i < task_state_.size(); i++) {
     task_state_[i]->memory_chunk_data.erase(chunk);

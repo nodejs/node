@@ -451,6 +451,7 @@
   V(CheckReceiverOrNullOrUndefined)     \
   V(CheckSmi)                           \
   V(CheckString)                        \
+  V(CheckStringOrStringWrapper)         \
   V(CheckSymbol)                        \
   V(CheckTurboshaftTypeOf)              \
   V(CompareMaps)                        \

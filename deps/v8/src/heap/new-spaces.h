@@ -25,7 +25,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
-class MemoryChunk;
+class MutablePageMetadata;
 class SemiSpaceNewSpace;
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
@@ -76,7 +76,7 @@ class SemiSpace final : public Space {
     return memory_chunk_list_.front()->area_start();
   }
 
-  Page* current_page() { return current_page_; }
+  PageMetadata* current_page() { return current_page_; }
 
   // Returns the start address of the current page of the space.
   Address page_low() const { return current_page_->area_start(); }
@@ -85,7 +85,7 @@ class SemiSpace final : public Space {
   Address page_high() const { return current_page_->area_end(); }
 
   bool AdvancePage() {
-    Page* next_page = current_page_->next_page();
+    PageMetadata* next_page = current_page_->next_page();
     // We cannot expand if we reached the target capacity. Note
     // that we need to account for the next page already for this check as we
     // could potentially fill the whole page after advancing.
@@ -93,18 +93,18 @@ class SemiSpace final : public Space {
       return false;
     }
     current_page_ = next_page;
-    current_capacity_ += Page::kPageSize;
+    current_capacity_ += PageMetadata::kPageSize;
     return true;
   }
 
   // Resets the space to using the first page.
   void Reset();
 
-  void RemovePage(Page* page);
-  void PrependPage(Page* page);
-  void MovePageToTheEnd(Page* page);
+  void RemovePage(PageMetadata* page);
+  void PrependPage(PageMetadata* page);
+  void MovePageToTheEnd(PageMetadata* page);
 
-  Page* InitializePage(MemoryChunk* chunk) final;
+  PageMetadata* InitializePage(MutablePageMetadata* chunk) final;
 
   // Age mark accessors.
   Address age_mark() const { return age_mark_; }
@@ -136,14 +136,18 @@ class SemiSpace final : public Space {
 
   size_t Available() const final { UNREACHABLE(); }
 
-  Page* first_page() final { return Page::cast(memory_chunk_list_.front()); }
-  Page* last_page() final { return Page::cast(memory_chunk_list_.back()); }
-
-  const Page* first_page() const final {
-    return reinterpret_cast<const Page*>(memory_chunk_list_.front());
+  PageMetadata* first_page() final {
+    return PageMetadata::cast(memory_chunk_list_.front());
   }
-  const Page* last_page() const final {
-    return reinterpret_cast<const Page*>(memory_chunk_list_.back());
+  PageMetadata* last_page() final {
+    return PageMetadata::cast(memory_chunk_list_.back());
+  }
+
+  const PageMetadata* first_page() const final {
+    return reinterpret_cast<const PageMetadata*>(memory_chunk_list_.front());
+  }
+  const PageMetadata* last_page() const final {
+    return reinterpret_cast<const PageMetadata*>(memory_chunk_list_.back());
   }
 
   iterator begin() { return iterator(first_page()); }
@@ -178,7 +182,8 @@ class SemiSpace final : public Space {
   void RewindPages(int num_pages);
 
   // Copies the flags into the masked positions on all pages in the space.
-  void FixPagesFlags(Page::MainThreadFlags flags, Page::MainThreadFlags mask);
+  void FixPagesFlags(MemoryChunk::MainThreadFlags flags,
+                     MemoryChunk::MainThreadFlags mask);
 
   void IncrementCommittedPhysicalMemory(size_t increment_value);
   void DecrementCommittedPhysicalMemory(size_t decrement_value);
@@ -196,7 +201,7 @@ class SemiSpace final : public Space {
   Address age_mark_ = kNullAddress;
   size_t committed_physical_memory_ = 0;
   SemiSpaceId id_;
-  Page* current_page_ = nullptr;
+  PageMetadata* current_page_ = nullptr;
 
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceObjectIterator;
@@ -238,7 +243,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
     return result;
   }
 
-  void PromotePageToOldSpace(Page* page);
+  void PromotePageToOldSpace(PageMetadata* page);
 
   virtual size_t Capacity() const = 0;
   virtual size_t TotalCapacity() const = 0;
@@ -262,7 +267,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual void GarbageCollectionEpilogue() = 0;
 
-  virtual bool IsPromotionCandidate(const MemoryChunk* page) const = 0;
+  virtual bool IsPromotionCandidate(const MutablePageMetadata* page) const = 0;
 
   virtual bool EnsureCurrentCapacity() = 0;
 
@@ -271,7 +276,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   base::Mutex mutex_;
 
-  virtual void RemovePage(Page* page) = 0;
+  virtual void RemovePage(PageMetadata* page) = 0;
 };
 
 // -----------------------------------------------------------------------------
@@ -312,7 +317,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Return the allocatable capacity of a semispace.
   size_t Capacity() const final {
     SLOW_DCHECK(to_space_.target_capacity() == from_space_.target_capacity());
-    return (to_space_.target_capacity() / Page::kPageSize) *
+    return (to_space_.target_capacity() / PageMetadata::kPageSize) *
            MemoryChunkLayout::AllocatableMemoryInDataPage();
   }
 
@@ -407,11 +412,13 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void MakeAllPagesInFromSpaceIterable();
   void MakeUnusedPagesInToSpaceIterable();
 
-  Page* first_page() final { return to_space_.first_page(); }
-  Page* last_page() final { return to_space_.last_page(); }
+  PageMetadata* first_page() final { return to_space_.first_page(); }
+  PageMetadata* last_page() final { return to_space_.last_page(); }
 
-  const Page* first_page() const final { return to_space_.first_page(); }
-  const Page* last_page() const final { return to_space_.last_page(); }
+  const PageMetadata* first_page() const final {
+    return to_space_.first_page();
+  }
+  const PageMetadata* last_page() const final { return to_space_.last_page(); }
 
   iterator begin() final { return to_space_.begin(); }
   iterator end() final { return to_space_.end(); }
@@ -436,7 +443,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   void ZapUnusedMemory();
 
-  bool IsPromotionCandidate(const MemoryChunk* page) const final;
+  bool IsPromotionCandidate(const MutablePageMetadata* page) const final;
 
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 
@@ -456,7 +463,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Removes a page from the space. Assumes the page is in the `from_space` semi
   // space.
-  void RemovePage(Page* page) final;
+  void RemovePage(PageMetadata* page) final;
 
   // Frees the given memory region. Will be resuable for allocation if this was
   // the last allocation.
@@ -470,15 +477,15 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   void IncrementAllocationTop(Address new_top) {
     DCHECK_LE(allocation_top_, new_top);
-    DCHECK_EQ(Page::FromAllocationAreaAddress(allocation_top_),
-              Page::FromAllocationAreaAddress(new_top));
+    DCHECK_EQ(PageMetadata::FromAllocationAreaAddress(allocation_top_),
+              PageMetadata::FromAllocationAreaAddress(new_top));
     allocation_top_ = new_top;
   }
 
   void DecrementAllocationTop(Address new_top) {
     DCHECK_LE(new_top, allocation_top_);
-    DCHECK_EQ(Page::FromAllocationAreaAddress(allocation_top_),
-              Page::FromAllocationAreaAddress(new_top));
+    DCHECK_EQ(PageMetadata::FromAllocationAreaAddress(allocation_top_),
+              PageMetadata::FromAllocationAreaAddress(new_top));
     allocation_top_ = new_top;
   }
 
@@ -539,11 +546,11 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool EnsureCurrentCapacity() { return true; }
 
-  Page* InitializePage(MemoryChunk* chunk) final;
+  PageMetadata* InitializePage(MutablePageMetadata* chunk) final;
 
-  size_t AddPage(Page* page) final;
-  void RemovePage(Page* page) final;
-  void ReleasePage(Page* page) final;
+  size_t AddPage(PageMetadata* page) final;
+  void RemovePage(PageMetadata* page) final;
+  void ReleasePage(PageMetadata* page) final;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
@@ -562,7 +569,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Allocates pages as long as current capacity is below the target capacity.
   void AllocatePageUpToCapacityForTesting();
 
-  bool IsPromotionCandidate(const MemoryChunk* page) const;
+  bool IsPromotionCandidate(const MutablePageMetadata* page) const;
 
   // Return the available bytes without growing.
   size_t Available() const final;
@@ -584,7 +591,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t target_capacity_ = 0;
   size_t current_capacity_ = 0;
 
-  Page* last_lab_page_ = nullptr;
+  PageMetadata* last_lab_page_ = nullptr;
 
   friend class PagedNewSpaceAllocatorPolicy;
 };
@@ -674,11 +681,15 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   void Print() final { paged_space_.Print(); }
 #endif
 
-  Page* first_page() final { return paged_space_.first_page(); }
-  Page* last_page() final { return paged_space_.last_page(); }
+  PageMetadata* first_page() final { return paged_space_.first_page(); }
+  PageMetadata* last_page() final { return paged_space_.last_page(); }
 
-  const Page* first_page() const final { return paged_space_.first_page(); }
-  const Page* last_page() const final { return paged_space_.last_page(); }
+  const PageMetadata* first_page() const final {
+    return paged_space_.first_page();
+  }
+  const PageMetadata* last_page() const final {
+    return paged_space_.last_page();
+  }
 
   iterator begin() final { return paged_space_.begin(); }
   iterator end() final { return paged_space_.end(); }
@@ -694,7 +705,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     paged_space_.GarbageCollectionEpilogue();
   }
 
-  bool IsPromotionCandidate(const MemoryChunk* page) const final {
+  bool IsPromotionCandidate(const MutablePageMetadata* page) const final {
     return paged_space_.IsPromotionCandidate(page);
   }
 
@@ -708,17 +719,17 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   void MakeIterable() override { paged_space_.MakeIterable(); }
 
   // All operations on `memory_chunk_list_` should go through `paged_space_`.
-  heap::List<MemoryChunk>& memory_chunk_list() final { UNREACHABLE(); }
+  heap::List<MutablePageMetadata>& memory_chunk_list() final { UNREACHABLE(); }
 
   bool ShouldReleaseEmptyPage() {
     return paged_space_.ShouldReleaseEmptyPage();
   }
-  void ReleasePage(Page* page) { paged_space_.ReleasePage(page); }
+  void ReleasePage(PageMetadata* page) { paged_space_.ReleasePage(page); }
 
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 
  private:
-  void RemovePage(Page* page) final { paged_space_.RemovePage(page); }
+  void RemovePage(PageMetadata* page) final { paged_space_.RemovePage(page); }
 
   PagedSpaceForNewSpace paged_space_;
 };

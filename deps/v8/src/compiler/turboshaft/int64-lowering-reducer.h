@@ -500,29 +500,27 @@ class Int64LoweringReducer : public Next {
 
   OpIndex LowerClz(V<Word64> input) {
     auto [low, high] = Unpack(input);
-    ScopedVar<Word32> result(Asm());
+    ScopedVar<Word32> result(this);
     IF (__ Word32Equal(high, 0)) {
       result = __ Word32Add(32, __ Word32CountLeadingZeros(low));
-    }
-    ELSE {
+    } ELSE {
       result = __ Word32CountLeadingZeros(high);
     }
-    END_IF
-    return __ Tuple(*result, __ Word32Constant(0));
+
+    return __ Tuple(result, __ Word32Constant(0));
   }
 
   OpIndex LowerCtz(V<Word64> input) {
     DCHECK(SupportedOperations::word32_ctz());
     auto [low, high] = Unpack(input);
-    ScopedVar<Word32> result(Asm());
+    ScopedVar<Word32> result(this);
     IF (__ Word32Equal(low, 0)) {
       result = __ Word32Add(32, __ Word32CountTrailingZeros(high));
-    }
-    ELSE {
+    } ELSE {
       result = __ Word32CountTrailingZeros(low);
     }
-    END_IF
-    return __ Tuple(*result, __ Word32Constant(0));
+
+    return __ Tuple(result, __ Word32Constant(0));
   }
 
   OpIndex LowerPopCount(V<Word64> input) {
@@ -625,16 +623,15 @@ class Int64LoweringReducer : public Next {
     // The low word and the high word can be swapped either at the input or
     // at the output. We swap the inputs so that shift does not have to be
     // kept for so long in a register.
-    ScopedVar<Word32> var_low(Asm(), left_high);
-    ScopedVar<Word32> var_high(Asm(), left_low);
+    ScopedVar<Word32> var_low(this, left_high);
+    ScopedVar<Word32> var_high(this, left_low);
     IF (less_than_32) {
       var_low = left_low;
       var_high = left_high;
     }
-    END_IF
 
-    V<Word32> rotate_low = __ Word32RotateRight(*var_low, safe_shift);
-    V<Word32> rotate_high = __ Word32RotateRight(*var_high, safe_shift);
+    V<Word32> rotate_low = __ Word32RotateRight(var_low, safe_shift);
+    V<Word32> rotate_high = __ Word32RotateRight(var_high, safe_shift);
 
     V<Word32> low_node =
         __ Word32BitwiseOr(__ Word32BitwiseAnd(rotate_low, bit_mask),

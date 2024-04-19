@@ -20,7 +20,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/runtime/runtime.h"
@@ -372,8 +372,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 void MacroAssembler::Call(Label* target) { b(target, SetLK); }
@@ -2915,23 +2914,35 @@ void MacroAssembler::MovToFloatParameters(DoubleRegister src1,
   }
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
+int MacroAssembler::CallCFunction(ExternalReference function,
+                                  int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
   Move(ip, function);
-  CallCFunction(ip, num_reg_arguments, num_double_arguments,
-                set_isolate_data_slots, has_function_descriptor);
+  return CallCFunction(ip, num_reg_arguments, num_double_arguments,
+                       set_isolate_data_slots, has_function_descriptor);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
+int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
+
+  Label start_call;
+  Register pc_scratch = r11;
+  DCHECK(!AreAliased(pc_scratch, function));
+  LoadPC(pc_scratch);
+  bind(&start_call);
+  int start_pc_offset = pc_offset();
+  // We are going to patch this instruction after emitting
+  // Call, using a zero offset here as placeholder for now.
+  // patch_pc_address assumes `addi` is used here to
+  // add the offset to pc.
+  addi(pc_scratch, pc_scratch, Operand::Zero());
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // Save the frame pointer and PC so that the stack layout remains iterable,
@@ -2941,11 +2952,18 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     mflr(scratch);
     // See x64 code for reasoning about how to address the isolate data fields.
     if (root_array_available()) {
-      LoadPC(r0);
-      StoreU64(r0, MemOperand(kRootRegister,
-                              IsolateData::fast_c_call_caller_pc_offset()));
+      StoreU64(pc_scratch,
+               MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_pc_offset()));
       StoreU64(fp, MemOperand(kRootRegister,
                               IsolateData::fast_c_call_caller_fp_offset()));
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      mov(pc_scratch, Operand(Context::kNoContext));
+      StoreRootRelative(IsolateData::context_offset(), pc_scratch);
+#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       Register addr_scratch = r7;
@@ -2953,11 +2971,19 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
 
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      LoadPC(r0);
-      StoreU64(r0, MemOperand(addr_scratch));
+      StoreU64(pc_scratch, MemOperand(addr_scratch));
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       StoreU64(fp, MemOperand(addr_scratch));
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      mov(pc_scratch, Operand(Context::kNoContext));
+      StoreU64(pc_scratch, ExternalReferenceAsOperand(
+                               ExternalReference::context_address(isolate()),
+                               addr_scratch));
+#endif
       Pop(addr_scratch);
     }
     mtlr(scratch);
@@ -2982,6 +3008,15 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   }
 
   Call(dest);
+  int call_pc_offset = pc_offset();
+  int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
+  // Here we are going to patch the `addi` instruction above to use the
+  // correct offset.
+  // LoadPC emits two instructions and pc is the address of its
+  // second emitted instruction therefore there is one more instruction to
+  // count.
+  offset_since_start_call += kInstrSize;
+  patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -3012,21 +3047,22 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   } else {
     AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
   }
+
+  return call_pc_offset;
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                has_function_descriptor);
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       has_function_descriptor);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                has_function_descriptor);
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       has_function_descriptor);
 }
 
 void MacroAssembler::CheckPageFlag(
@@ -5486,12 +5522,12 @@ void MacroAssembler::ByteReverseU64(Register dst, Register val, Register) {
 }
 
 void MacroAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
-  CmpS64(x, Operand(y), r0);
+  CmpS32(x, Operand(y), r0);
   beq(dest);
 }
 
 void MacroAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
-  CmpS64(x, Operand(y), r0);
+  CmpS32(x, Operand(y), r0);
   blt(dest);
 }
 

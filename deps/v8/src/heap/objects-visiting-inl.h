@@ -48,7 +48,6 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
   V(BytecodeArray)                        \
   V(BytecodeWrapper)                      \
   V(ByteArray)                            \
-  V(CallHandlerInfo)                      \
   V(Cell)                                 \
   V(Code)                                 \
   V(CodeWrapper)                          \
@@ -62,6 +61,7 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
   V(FeedbackVector)                       \
   V(FixedArray)                           \
   V(FixedDoubleArray)                     \
+  V(FunctionTemplateInfo)                 \
   V(InstructionStream)                    \
   V(PreparseData)                         \
   V(PropertyArray)                        \
@@ -173,6 +173,17 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
     case kDataOnlyVisitorIdCount:
     case kVisitorIdCount:
       UNREACHABLE();
+  }
+  // TODO(chromium:327992715): Remove once we have some clarity why execution
+  // can reach this point.
+  {
+    Isolate* isolate;
+    if (GetIsolateFromHeapObject(object, &isolate)) {
+      isolate->PushParamsAndDie(
+          reinterpret_cast<void*>(object.ptr()),
+          reinterpret_cast<void*>(map.ptr()),
+          reinterpret_cast<void*>(static_cast<intptr_t>(map->visitor_id())));
+    }
   }
   UNREACHABLE();
   // Make the compiler happy.

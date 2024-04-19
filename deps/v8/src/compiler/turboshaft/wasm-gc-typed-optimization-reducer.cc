@@ -67,6 +67,7 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
   // Reset reachability information. This can be outdated in case of loop
   // revisits. Below the reachability is calculated again and potentially
   // re-added.
+  bool block_was_previously_reachable = IsReachable(block);
   block_is_unreachable_.Remove(block.index().id());
   // Start new snapshot based on predecessor information.
   if (block.HasPredecessors() == 0) {
@@ -74,21 +75,29 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
     DCHECK_EQ(block.index().id(), 0);
     types_table_.StartNewSnapshot();
   } else if (block.IsLoop()) {
+    const Block& forward_predecessor =
+        *block.LastPredecessor()->NeighboringPredecessor();
+    if (!IsReachable(forward_predecessor)) {
+      // If a loop isn't reachable through its forward edge, it can't possibly
+      // become reachable via the backedge.
+      block_is_unreachable_.Add(block.index().id());
+    }
     MaybeSnapshot back_edge_snap =
         block_to_snapshot_[block.LastPredecessor()->index()];
-    if (back_edge_snap.has_value()) {
+    if (back_edge_snap.has_value() && block_was_previously_reachable) {
       // The loop was already visited at least once. In this case use the
       // available information from the backedge.
+      // Note that we only do this if the loop wasn't marked as unreachable
+      // before. This solves an issue where a single block loop would think the
+      // backedge is reachable as we just removed the unreachable information
+      // above. Once the analyzer hits the backedge, it will re-evaluate if the
+      // backedge changes any analysis results and then potentially revisit
+      // this loop with forward edge and backedge.
       CreateMergeSnapshot(block);
     } else {
       // The loop wasn't visited yet. There isn't any type information available
       // for the backedge.
       is_first_loop_header_evaluation_ = true;
-      const Block& forward_predecessor =
-          *block.LastPredecessor()->NeighboringPredecessor();
-      if (!IsReachable(forward_predecessor)) {
-        block_is_unreachable_.Add(block.index().id());
-      }
       Snapshot forward_edge_snap =
           block_to_snapshot_[forward_predecessor.index()].value();
       types_table_.StartNewSnapshot(forward_edge_snap);

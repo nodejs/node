@@ -54,7 +54,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   // Check the template weakmap to see if the template object already exists.
   Handle<Script> script(Script::cast(shared_info->script(isolate)), isolate);
   int32_t hash =
-      EphemeronHashTable::ShapeT::Hash(ReadOnlyRoots(isolate), script);
+      EphemeronHashTable::TodoShape::Hash(ReadOnlyRoots(isolate), script);
   MaybeHandle<ArrayList> maybe_cached_templates;
 
   if (!IsUndefined(native_context->template_weakmap(), isolate)) {

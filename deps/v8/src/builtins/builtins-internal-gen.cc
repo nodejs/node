@@ -11,7 +11,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
@@ -137,7 +137,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
-    TNode<IntPtrT> header = PageHeaderFromAddress(object);
+    TNode<IntPtrT> header = MemoryChunkFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), header,
              IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
@@ -155,7 +155,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                   TNode<IntPtrT>* mask) {
-    TNode<IntPtrT> page = PageFromAddress(object);
+    TNode<IntPtrT> page = PageMetadataFromAddress(object);
     TNode<IntPtrT> bitmap = IntPtrAdd(
         page, IntPtrConstant(MemoryChunkLayout::kMarkingBitmapOffset));
 
@@ -165,10 +165,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       int shift = MarkingBitmap::kBitsPerCellLog2 + kTaggedSizeLog2 -
                   MarkingBitmap::kBytesPerCellLog2;
       r0 = WordShr(object, IntPtrConstant(shift));
-      r0 = WordAnd(
-          r0, IntPtrConstant(
-                  (MemoryChunkHeader::GetAlignmentMaskForAssembler() >> shift) &
-                  ~(MarkingBitmap::kBytesPerCell - 1)));
+      r0 = WordAnd(r0,
+                   IntPtrConstant(
+                       (MemoryChunk::GetAlignmentMaskForAssembler() >> shift) &
+                       ~(MarkingBitmap::kBytesPerCell - 1)));
       *cell = IntPtrAdd(bitmap, Signed(r0));
     }
     {
@@ -187,12 +187,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InsertIntoRememberedSet(TNode<IntPtrT> object, TNode<IntPtrT> slot,
                                SaveFPRegsMode fp_mode) {
     Label slow_path(this), next(this);
-    TNode<IntPtrT> page_header = PageHeaderFromAddress(object);
-    TNode<IntPtrT> page = PageFromPageHeader(page_header);
+    TNode<IntPtrT> chunk = MemoryChunkFromAddress(object);
+    TNode<IntPtrT> page = PageMetadataFromMemoryChunk(chunk);
 
     // Load address of SlotSet
     TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);
-    TNode<IntPtrT> slot_offset = IntPtrSub(slot, page_header);
+    TNode<IntPtrT> slot_offset = IntPtrSub(slot, chunk);
 
     // Load bucket
     TNode<IntPtrT> bucket = LoadBucket(slot_set, slot_offset, &slow_path);
@@ -208,7 +208,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       CallCFunctionWithCallerSavedRegisters(
           function, MachineTypeOf<Int32T>::value, fp_mode,
           std::make_pair(MachineTypeOf<IntPtrT>::value, page),
-          std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+          std::make_pair(MachineTypeOf<IntPtrT>::value, slot_offset));
       Goto(&next);
     }
 
@@ -218,7 +218,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
     TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), page,
-             IntPtrConstant(MemoryChunk::kOldToNewSlotSetOffset)));
+             IntPtrConstant(MutablePageMetadata::kOldToNewSlotSetOffset)));
     GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
     return slot_set;
   }

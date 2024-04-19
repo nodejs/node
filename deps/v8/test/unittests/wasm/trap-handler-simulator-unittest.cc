@@ -137,6 +137,18 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   uint32_t recovery_offset = masm.pc_offset();
   // Return.
   masm.Ret();
+#elif V8_TARGET_ARCH_RISCV64
+  constexpr Register scratch = a0;
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  // Generate an illegal memory access.
+  masm.li(scratch, static_cast<int64_t>(InaccessibleMemoryPtr()));
+  uint32_t crash_offset = masm.pc_offset();
+  masm.StoreWord(scratch,
+                 MemOperand(scratch, 0));  // load from inaccessible memory.
+  uint32_t recovery_offset = masm.pc_offset();
+  // Return.
+  masm.Ret();
 #else
 #error Unsupported platform
 #endif

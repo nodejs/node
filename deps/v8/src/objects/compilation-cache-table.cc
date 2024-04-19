@@ -32,9 +32,9 @@ int SearchLiteralsMapEntry(Tagged<CompilationCacheTable> cache,
     Tagged<WeakFixedArray> literals_map = WeakFixedArray::cast(obj);
     int length = literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      DCHECK(literals_map->get(i + kLiteralContextOffset)->IsWeakOrCleared());
+      DCHECK(literals_map->get(i + kLiteralContextOffset).IsWeakOrCleared());
       if (literals_map->get(i + kLiteralContextOffset) ==
-          HeapObjectReference::Weak(native_context)) {
+          MakeWeak(native_context)) {
         return i;
       }
     }
@@ -67,7 +67,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
     if (entry >= 0) {
       // Just set the code of the entry.
       old_literals_map->set(entry + kLiteralLiteralsOffset,
-                            HeapObjectReference::Weak(*feedback_cell));
+                            MakeWeak(*feedback_cell));
       return;
     }
 
@@ -75,7 +75,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
     DCHECK_LT(entry, 0);
     int length = old_literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      if (old_literals_map->get(i + kLiteralContextOffset)->IsCleared()) {
+      if (old_literals_map->get(i + kLiteralContextOffset).IsCleared()) {
         new_literals_map = old_literals_map;
         entry = i;
         break;
@@ -91,17 +91,18 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
   }
 
   new_literals_map->set(entry + kLiteralContextOffset,
-                        HeapObjectReference::Weak(*native_context));
+                        MakeWeak(*native_context));
   new_literals_map->set(entry + kLiteralLiteralsOffset,
-                        HeapObjectReference::Weak(*feedback_cell));
+                        MakeWeak(*feedback_cell));
 
 #ifdef DEBUG
   for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
-    MaybeObject object = new_literals_map->get(i + kLiteralContextOffset);
-    DCHECK(object->IsCleared() ||
+    Tagged<MaybeObject> object =
+        new_literals_map->get(i + kLiteralContextOffset);
+    DCHECK(object.IsCleared() ||
            IsNativeContext(object.GetHeapObjectAssumeWeak()));
     object = new_literals_map->get(i + kLiteralLiteralsOffset);
-    DCHECK(object->IsCleared() ||
+    DCHECK(object.IsCleared() ||
            IsFeedbackCell(object.GetHeapObjectAssumeWeak()));
   }
 #endif
@@ -121,9 +122,10 @@ Tagged<FeedbackCell> SearchLiteralsMap(Tagged<CompilationCacheTable> cache,
     Tagged<WeakFixedArray> literals_map =
         WeakFixedArray::cast(cache->EvalFeedbackValueAt(cache_entry));
     DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
-    MaybeObject object = literals_map->get(entry + kLiteralLiteralsOffset);
+    Tagged<MaybeObject> object =
+        literals_map->get(entry + kLiteralLiteralsOffset);
 
-    if (!object->IsCleared()) {
+    if (!object.IsCleared()) {
       result = FeedbackCell::cast(object.GetHeapObjectAssumeWeak());
     }
   }
@@ -394,10 +396,8 @@ Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
   DCHECK(IsScript(shared->script()));
-  array->set(kHash,
-             MaybeObject::FromObject(Smi::FromInt(static_cast<int>(Hash()))));
-  array->set(kWeakScript,
-             MaybeObject::MakeWeak(MaybeObject::FromObject(shared->script())));
+  array->set(kHash, Smi::FromInt(static_cast<int>(Hash())));
+  array->set(kWeakScript, MakeWeak(shared->script()));
   return array;
 }
 

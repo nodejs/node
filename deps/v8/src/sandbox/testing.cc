@@ -20,12 +20,18 @@
 #include <unistd.h>
 #endif  // V8_OS_LINUX
 
+#ifdef V8_USE_ADDRESS_SANITIZER
+#include <sanitizer/asan_interface.h>
+#endif  // V8_USE_ADDRESS_SANITIZER
+
 namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 
-#ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
+SandboxTesting::Mode SandboxTesting::mode_ = SandboxTesting::Mode::kDisabled;
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
 
@@ -201,7 +207,7 @@ static void SandboxIsWritableImpl(
     return;
   }
 
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(obj);
+  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(obj);
   bool is_writable = chunk->IsWritable();
   info.GetReturnValue().Set(is_writable);
 }
@@ -325,23 +331,22 @@ void InstallConstructor(Isolate* isolate, Handle<JSObject> holder,
                         int num_parameters) {
   InstallFunc(isolate, holder, func, name, num_parameters, true);
 }
-
 }  // namespace
 
-void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
-  CHECK(GetProcessWideSandbox()->is_initialized());
-
-#ifndef V8_EXPOSE_MEMORY_CORRUPTION_API
+void SandboxTesting::InstallMemoryCorruptionApiIfEnabled(Isolate* isolate) {
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
 #error "This function should not be available in any shipping build "          \
        "where it could potentially be abused to facilitate exploitation."
 #endif
 
-  Factory* factory = isolate->factory();
+  if (!IsEnabled()) return;
+
+  CHECK(GetProcessWideSandbox()->is_initialized());
 
   // Create the special Sandbox object that provides read/write access to the
   // sandbox address space alongside other miscellaneous functionality.
-  Handle<JSObject> sandbox =
-      factory->NewJSObject(isolate->object_function(), AllocationType::kOld);
+  Handle<JSObject> sandbox = isolate->factory()->NewJSObject(
+      isolate->object_function(), AllocationType::kOld);
 
   InstallGetter(isolate, sandbox, SandboxGetByteLength, "byteLength");
   InstallConstructor(isolate, sandbox, SandboxMemoryView, "MemoryView", 2);
@@ -362,20 +367,28 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 
   // Install the Sandbox object as property on the global object.
   Handle<JSGlobalObject> global = isolate->global_object();
-  Handle<String> name = factory->NewStringFromAsciiChecked("Sandbox");
+  Handle<String> name =
+      isolate->factory()->NewStringFromAsciiChecked("Sandbox");
   JSObject::AddProperty(isolate, global, name, sandbox, DONT_ENUM);
 }
 
-#endif  // V8_EXPOSE_MEMORY_CORRUPTION_API
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
-
 #ifdef V8_OS_LINUX
+
 void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
   ssize_t return_val = write(STDERR_FILENO, output, strlen(output));
   USE(return_val);
+}
+
+[[noreturn]] void FilterCrash(const char* reason) {
+  // NOTE: This code MUST be async-signal safe.
+  // NO malloc or stdio is allowed here.
+  PrintToStderr(reason);
+  _exit(-1);
 }
 
 // Signal handler checking whether a memory access violation happened inside or
@@ -385,30 +398,50 @@ void PrintToStderr(const char* output) {
 struct sigaction g_old_sigabrt_handler, g_old_sigtrap_handler,
     g_old_sigbus_handler, g_old_sigsegv_handler;
 
-void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
+void UninstallCrashFilter() {
+  // NOTE: This code MUST be async-signal safe.
+  // NO malloc or stdio is allowed here.
+
+  // It's important that we always restore all signal handlers. For example, if
+  // we forward a SIGSEGV to Asan's signal handler, that signal handler may
+  // terminate the process with SIGABRT, which we must then *not* ignore.
+  //
+  // Should any of the sigaction calls below ever fail, the default signal
+  // handler will be invoked (due to SA_RESETHAND) and will terminate the
+  // process, so there's no need to attempt to handle that condition.
+  sigaction(SIGABRT, &g_old_sigabrt_handler, nullptr);
+  sigaction(SIGTRAP, &g_old_sigtrap_handler, nullptr);
+  sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
+  sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
+
+  // We should also uninstall the sanitizer death callback as our crash filter
+  // may hand a crash over to ASan, which should then not enter our crash
+  // filtering logic a second time.
+#ifdef V8_USE_ADDRESS_SANITIZER
+  __sanitizer_set_death_callback(nullptr);
+#endif
+}
+
+void CrashFilter(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
 
   if (signal == SIGABRT) {
-    // SIGABRT typically indicates a failed CHECK which is harmless.
-    PrintToStderr("Caught harmless signal (SIGABRT). Exiting process...\n");
-    _exit(0);
+    // SIGABRT typically indicates a failed CHECK or similar, which is harmless.
+    FilterCrash("Caught harmless signal (SIGABRT). Exiting process...\n");
   }
 
   if (signal == SIGTRAP) {
-    // Similarly, SIGTRAP probably indicates UNREACHABLE code.
-    PrintToStderr("Caught harmless signal (SIGTRAP). Exiting process...\n");
-    _exit(0);
+    // Similarly, SIGTRAP may for example indicate UNREACHABLE code.
+    FilterCrash("Caught harmless signal (SIGTRAP). Exiting process...\n");
   }
 
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
 
   if (GetProcessWideSandbox()->Contains(faultaddr)) {
-    // Access violation happened inside the sandbox.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (inside sandbox address "
         "space). Exiting process...\n");
-    _exit(0);
   }
 
   if (info->si_code == SI_KERNEL && faultaddr == 0) {
@@ -418,10 +451,9 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     // at a non-canonical address are not exploitable and so these are filtered
     // out here. However, testcases need to be written with this in mind and
     // must cause crashes at valid addresses.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (non-canonical address). "
         "Exiting process...\n");
-    _exit(0);
   }
 
   if (faultaddr >= 0x8000'0000'0000'0000ULL) {
@@ -430,29 +462,26 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     // handle these separately. We've already filtered out non-canonical
     // addresses above, so here we can just test if the most-significant bit of
     // the address is set, and if so assume that it's a kernel address.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violatation (kernel space address). "
         "Exiting process...\n");
-    _exit(0);
   }
 
   if (faultaddr < 0x1000) {
     // Nullptr dereferences are harmless as nothing can be mapped there. We use
     // the typical page size (which is also the default value of mmap_min_addr
     // on Linux) to determine what counts as a nullptr dereference here.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (nullptr dereference). Exiting "
         "process...\n");
-    _exit(0);
   }
 
   if (faultaddr < 4ULL * GB) {
     // Currently we also ignore access violations in the first 4GB of the
     // virtual address space. See crbug.com/1470641 for more details.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (first 4GB of virtual address "
         "space). Exiting process...\n");
-    _exit(0);
   }
 
   // Stack overflow detection.
@@ -494,8 +523,7 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     uintptr_t stack_guard_region_end = stack_base;
     if (!pthread_error && stack_guard_region_start <= faultaddr &&
         faultaddr < stack_guard_region_end) {
-      PrintToStderr("Caught harmless stack overflow. Exiting process...\n");
-      _exit(0);
+      FilterCrash("Caught harmless stack overflow. Exiting process...\n");
     }
   }
 
@@ -514,49 +542,61 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     // testcases need to be written with this behavior in mind and should
     // typically try to access non-existing memory to demonstrate the ability
     // to escape from the sandbox.
-    PrintToStderr(
+    //
+    // An exception to this rule is the target page: in sandbox testing mode a
+    // write access to this read-only page is considered a sandbox bypass.
+    FilterCrash(
         "Caught harmless memory access violaton (memory permission violation). "
         "Exiting process...\n");
-    _exit(0);
   }
 
   // Otherwise it's a sandbox violation, so restore the original signal
   // handlers, then return from this handler. The faulting instruction will be
   // re-executed and will again trigger the access violation, but now the
   // signal will be handled by the original signal handler.
-  //
-  // It's important that we restore all signal handlers here. For example, if
-  // we forward a SIGSEGV to Asan's signal handler, that signal handler may
-  // terminate the process with SIGABRT, which we must then *not* ignore.
-  //
-  // Should any of the sigaction calls below ever fail, the default signal
-  // handler will be invoked (due to SA_RESETHAND) and will terminate the
-  // process, so there's no need to attempt to handle that condition.
-  sigaction(SIGABRT, &g_old_sigabrt_handler, nullptr);
-  sigaction(SIGTRAP, &g_old_sigtrap_handler, nullptr);
-  sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
-  sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
+  UninstallCrashFilter();
 
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 }
-#endif  // V8_OS_LINUX
 
-}  // namespace
+#ifdef V8_USE_ADDRESS_SANITIZER
+void AsanFaultHandler() {
+  Address faultaddr = reinterpret_cast<Address>(__asan_get_report_address());
 
-void SandboxTesting::InstallSandboxCrashFilter() {
-  CHECK(GetProcessWideSandbox()->is_initialized());
-#ifdef V8_OS_LINUX
+  if (faultaddr == kNullAddress) {
+    FilterCrash(
+        "Caught ASan fault without a fault address. Ignoring it as we cannot "
+        "check if it is a sandbox violation. Exiting process...\n");
+  }
+
+  if (GetProcessWideSandbox()->Contains(faultaddr)) {
+    FilterCrash(
+        "Caught harmless ASan fault (inside sandbox address space). Exiting "
+        "process...\n");
+  }
+
+  // Asan may report the failure via abort(), so we should also restore the
+  // original signal handlers here.
+  UninstallCrashFilter();
+
+  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+}
+#endif  // V8_USE_ADDRESS_SANITIZER
+
+void InstallCrashFilter() {
   // Register an alternate stack for signal delivery so that signal handlers
   // can run properly even if for example the stack pointer has been corrupted
   // or the stack has overflowed.
   // Note that the alternate stack is currently only registered for the main
   // thread. Stack pointer corruption or stack overflows on background threads
   // may therefore still cause the signal handler to crash.
-  void* alternate_stack = mmap(nullptr, SIGSTKSZ, PROT_READ | PROT_WRITE,
-                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  CHECK_NE(alternate_stack, MAP_FAILED);
+  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+  Address alternate_stack =
+      vas->AllocatePages(VirtualAddressSpace::kNoHint, SIGSTKSZ,
+                         vas->page_size(), PagePermissions::kReadWrite);
+  CHECK_NE(alternate_stack, kNullAddress);
   stack_t signalstack = {
-      .ss_sp = alternate_stack,
+      .ss_sp = reinterpret_cast<void*>(alternate_stack),
       .ss_flags = 0,
       .ss_size = static_cast<size_t>(SIGSTKSZ),
   };
@@ -564,8 +604,8 @@ void SandboxTesting::InstallSandboxCrashFilter() {
 
   struct sigaction action;
   memset(&action, 0, sizeof(action));
-  action.sa_flags = SA_RESETHAND | SA_SIGINFO | SA_ONSTACK;
-  action.sa_sigaction = &SandboxSignalHandler;
+  action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+  action.sa_sigaction = &CrashFilter;
   sigemptyset(&action.sa_mask);
 
   bool success = true;
@@ -574,6 +614,28 @@ void SandboxTesting::InstallSandboxCrashFilter() {
   success &= (sigaction(SIGBUS, &action, &g_old_sigbus_handler) == 0);
   success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
   CHECK(success);
+
+#if defined(V8_USE_ADDRESS_SANITIZER)
+  __sanitizer_set_death_callback(&AsanFaultHandler);
+#elif defined(V8_USE_MEMORY_SANITIZER) || \
+    defined(V8_USE_UNDEFINED_BEHAVIOR_SANITIZER)
+  // TODO(saelo): can we also test for the other sanitizers here somehow?
+  FATAL("The sandbox crash filter currently only supports AddressSanitizer");
+#endif
+}
+
+#endif  // V8_OS_LINUX
+}  // namespace
+
+void SandboxTesting::Enable(Mode mode) {
+  CHECK_EQ(mode_, Mode::kDisabled);
+  CHECK_NE(mode, Mode::kDisabled);
+  CHECK(GetProcessWideSandbox()->is_initialized());
+
+  mode_ = mode;
+
+#ifdef V8_OS_LINUX
+  InstallCrashFilter();
 #else
   FATAL("The sandbox crash filter is currently only available on Linux");
 #endif  // V8_OS_LINUX

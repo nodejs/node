@@ -87,6 +87,17 @@ inline Address StackFrame::unauthenticated_pc(Address* pc_address) {
   return PointerAuthentication::StripPAC(*pc_address);
 }
 
+inline Address StackFrame::maybe_unauthenticated_pc() const {
+  if (!InFastCCall()) {
+    // Here the pc_address() is on the stack and properly authenticated.
+    return pc();
+  } else {
+    // For fast C calls pc_address() points into IsolateData and the pc in there
+    // is unauthenticated.
+    return unauthenticated_pc(pc_address());
+  }
+}
+
 inline Address StackFrame::ReadPC(Address* pc_address) {
   return PointerAuthentication::AuthenticatePC(pc_address, kSystemPointerSize);
 }

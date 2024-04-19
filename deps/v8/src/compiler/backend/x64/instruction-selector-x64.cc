@@ -310,6 +310,17 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
     result.displacement = 0;
     DCHECK(!load_transform->load_kind.tagged_base);
     return result;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+  } else if (const Simd256LoadTransformOp* load_transform =
+                 op.TryCast<Simd256LoadTransformOp>()) {
+    result.base = load_transform->base();
+    result.index = load_transform->index();
+    DCHECK_EQ(load_transform->offset, 0);
+    result.scale = 0;
+    result.displacement = 0;
+    DCHECK(!load_transform->load_kind.tagged_base);
+    return result;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     return base::nullopt;
@@ -1276,6 +1287,64 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   }
   VisitLoad(node, node, code);
 }
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSimd256LoadTransform(
+    Node* node) {
+  // For Turbofan, VisitLoadTransform should be called instead.
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitSimd256LoadTransform(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd256LoadTransformOp& op =
+      this->Get(node).Cast<Simd256LoadTransformOp>();
+  ArchOpcode opcode;
+  switch (op.transform_kind) {
+    case Simd256LoadTransformOp::TransformKind::k8x16S:
+      opcode = kX64S256Load8x16S;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k8x16U:
+      opcode = kX64S256Load8x16U;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k16x8S:
+      opcode = kX64S256Load16x8S;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k16x8U:
+      opcode = kX64S256Load16x8U;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k32x4S:
+      opcode = kX64S256Load32x4S;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k32x4U:
+      opcode = kX64S256Load32x4U;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k8Splat:
+      opcode = kX64S256Load8Splat;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k16Splat:
+      opcode = kX64S256Load16Splat;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k32Splat:
+      opcode = kX64S256Load32Splat;
+      break;
+    case Simd256LoadTransformOp::TransformKind::k64Splat:
+      opcode = kX64S256Load64Splat;
+      break;
+  }
+
+  // x64 supports unaligned loads
+  DCHECK(!op.load_kind.maybe_unaligned);
+  InstructionCode code = opcode;
+  if (op.load_kind.with_trap_handler) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+  VisitLoad(node, node, code);
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
@@ -5915,7 +5984,11 @@ void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitS256Select(node_t node) {
-  UNIMPLEMENTED();
+  X64OperandGeneratorT<TurboshaftAdapter> g(this);
+  Emit(kX64SSelect | VectorLengthField::encode(kV256), g.DefineAsRegister(node),
+       g.UseRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)),
+       g.UseRegister(this->input_at(node, 2)));
 }
 
 template <>
@@ -6080,6 +6153,25 @@ void InstructionSelectorT<Adapter>::VisitI32x8UConvertF32x8(node_t node) {
   Emit(kX64I32x8UConvertF32x8, g.DefineSameAsFirst(node),
        g.UseRegister(this->input_at(node, 0)), arraysize(temps), temps);
 }
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitExtractF128(node_t node) {
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
+  int32_t lane = OpParameter<int32_t>(node->op());
+  Emit(kX64ExtractF128, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitExtractF128(node_t node) {
+  X64OperandGeneratorT<TurboshaftAdapter> g(this);
+  const turboshaft::Simd256Extract128LaneOp& op =
+      this->Get(node).template Cast<turboshaft::Simd256Extract128LaneOp>();
+  Emit(kX64ExtractF128, g.DefineAsRegister(node), g.UseRegister(op.input()),
+       g.UseImmediate(op.lane));
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
 
 template <typename Adapter>
@@ -6090,19 +6182,6 @@ void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   UNREACHABLE();
-}
-
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitExtractF128(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitExtractF128(node_t node) {
-  X64OperandGeneratorT<TurbofanAdapter> g(this);
-  int32_t lane = OpParameter<int32_t>(node->op());
-  Emit(kX64ExtractF128, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

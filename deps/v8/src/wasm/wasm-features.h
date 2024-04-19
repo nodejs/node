@@ -15,7 +15,6 @@
 
 // Features that are always enabled and do not have a flag.
 #define FOREACH_WASM_NON_FLAG_FEATURE(V)             \
-  V(eh, "exception handling opcodes")                \
   V(reftypes, "reference type opcodes")              \
   V(simd, "SIMD opcodes")                            \
   V(threads, "thread opcodes")                       \

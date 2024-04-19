@@ -22,7 +22,7 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -46,7 +46,7 @@ class HeapObjectRange final {
     using iterator_category = std::forward_iterator_tag;
 
     inline iterator();
-    explicit inline iterator(const Page* page);
+    explicit inline iterator(const PageMetadata* page);
 
     inline iterator& operator++();
     inline iterator operator++(int);
@@ -69,13 +69,13 @@ class HeapObjectRange final {
     Address cur_end_ = kNullAddress;  // End iteration point.
   };
 
-  explicit HeapObjectRange(const Page* page) : page_(page) {}
+  explicit HeapObjectRange(const PageMetadata* page) : page_(page) {}
 
   inline iterator begin();
   inline iterator end();
 
  private:
-  const Page* const page_;
+  const PageMetadata* const page_;
 };
 
 // Heap object iterator in paged spaces.
@@ -182,10 +182,10 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   void ResetFreeList();
 
-  void DecreaseAllocatedBytes(size_t bytes, Page* page) {
+  void DecreaseAllocatedBytes(size_t bytes, PageMetadata* page) {
     accounting_stats_.DecreaseAllocatedBytes(bytes, page);
   }
-  void IncreaseAllocatedBytes(size_t bytes, Page* page) {
+  void IncreaseAllocatedBytes(size_t bytes, PageMetadata* page) {
     accounting_stats_.IncreaseAllocatedBytes(bytes, page);
   }
   void DecreaseCapacity(size_t bytes) {
@@ -195,17 +195,17 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     accounting_stats_.IncreaseCapacity(bytes);
   }
 
-  Page* InitializePage(MemoryChunk* chunk) override;
+  PageMetadata* InitializePage(MutablePageMetadata* chunk) override;
 
-  virtual void ReleasePage(Page* page);
+  virtual void ReleasePage(PageMetadata* page);
 
   // Adds the page to this space and returns the number of bytes added to the
   // free list of the space.
-  virtual size_t AddPage(Page* page);
-  virtual void RemovePage(Page* page);
+  virtual size_t AddPage(PageMetadata* page);
+  virtual void RemovePage(PageMetadata* page);
   // Remove a page if it has at least |size_in_bytes| bytes available that can
   // be used for allocation.
-  Page* RemovePageSafe(int size_in_bytes);
+  PageMetadata* RemovePageSafe(int size_in_bytes);
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
@@ -252,21 +252,21 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   base::Mutex* mutex() { return &space_mutex_; }
 
-  void UnlinkFreeListCategories(Page* page);
-  size_t RelinkFreeListCategories(Page* page);
+  void UnlinkFreeListCategories(PageMetadata* page);
+  size_t RelinkFreeListCategories(PageMetadata* page);
 
-  Page* first_page() override {
-    return reinterpret_cast<Page*>(memory_chunk_list_.front());
+  PageMetadata* first_page() override {
+    return reinterpret_cast<PageMetadata*>(memory_chunk_list_.front());
   }
-  const Page* first_page() const override {
-    return reinterpret_cast<const Page*>(memory_chunk_list_.front());
+  const PageMetadata* first_page() const override {
+    return reinterpret_cast<const PageMetadata*>(memory_chunk_list_.front());
   }
 
-  Page* last_page() override {
-    return reinterpret_cast<Page*>(memory_chunk_list_.back());
+  PageMetadata* last_page() override {
+    return reinterpret_cast<PageMetadata*>(memory_chunk_list_.back());
   }
-  const Page* last_page() const override {
-    return reinterpret_cast<const Page*>(memory_chunk_list_.back());
+  const PageMetadata* last_page() const override {
+    return reinterpret_cast<const PageMetadata*>(memory_chunk_list_.back());
   }
 
   iterator begin() { return iterator(first_page()); }
@@ -279,18 +279,19 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // using the high water mark.
   void ShrinkImmortalImmovablePages();
 
-  size_t ShrinkPageToHighWaterMark(Page* page);
+  size_t ShrinkPageToHighWaterMark(PageMetadata* page);
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
-  void AddRangeToActiveSystemPages(Page* page, Address start, Address end);
-  void ReduceActiveSystemPages(Page* page,
+  void AddRangeToActiveSystemPages(PageMetadata* page, Address start,
+                                   Address end);
+  void ReduceActiveSystemPages(PageMetadata* page,
                                ActiveSystemPages active_system_pages);
 
   // Expands the space by a single page and returns true on success.
   bool TryExpand(LocalHeap* local_heap, AllocationOrigin origin);
 
-  void RefineAllocatedBytesAfterSweeping(Page* page);
+  void RefineAllocatedBytesAfterSweeping(PageMetadata* page);
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -304,15 +305,15 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void TearDown();
 
   // Spaces can use this method to get notified about pages added to it.
-  virtual void NotifyNewPage(Page* page) {}
+  virtual void NotifyNewPage(PageMetadata* page) {}
 
   size_t committed_physical_memory() const {
     return committed_physical_memory_.load(std::memory_order_relaxed);
   }
 
-  void ReleasePageImpl(Page* page, MemoryAllocator::FreeMode free_mode);
+  void ReleasePageImpl(PageMetadata* page, MemoryAllocator::FreeMode free_mode);
 
-  void AddPageImpl(Page* page);
+  void AddPageImpl(PageMetadata* page);
 
   Executability executable_;
 
@@ -381,18 +382,18 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
     DCHECK(is_compaction_space());
   }
 
-  const std::vector<Page*>& GetNewPages() { return new_pages_; }
+  const std::vector<PageMetadata*>& GetNewPages() { return new_pages_; }
 
   void RefillFreeList() final;
 
  protected:
-  void NotifyNewPage(Page* page) final;
+  void NotifyNewPage(PageMetadata* page) final;
 
   // The space is temporary and not included in any snapshots.
   bool snapshotable() const final { return false; }
   // Pages that were allocated in this local space and need to be merged
   // to the main space.
-  std::vector<Page*> new_pages_;
+  std::vector<PageMetadata*> new_pages_;
 };
 
 // A collection of |CompactionSpace|s used by a single compaction task.
@@ -435,9 +436,9 @@ class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
                    CompactionSpaceKind::kNone) {}
 
-  void AddPromotedPage(Page* page);
+  void AddPromotedPage(PageMetadata* page);
 
-  void ReleasePage(Page* page) override;
+  void ReleasePage(PageMetadata* page) override;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
@@ -504,13 +505,13 @@ class OldGenerationMemoryChunkIterator {
   inline explicit OldGenerationMemoryChunkIterator(Heap* heap);
 
   // Return nullptr when the iterator is done.
-  inline MemoryChunk* next();
+  inline MutablePageMetadata* next();
 
-  // Applies `callback` to all `MemoryChunk` returned by the iterator.
+  // Applies `callback` to all `MutablePageMetadata` returned by the iterator.
   template <typename Callback>
   static void ForAll(Heap* heap, Callback callback) {
     OldGenerationMemoryChunkIterator it(heap);
-    while (MemoryChunk* chunk = it.next()) {
+    while (MutablePageMetadata* chunk = it.next()) {
       callback(chunk);
     }
   }

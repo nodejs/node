@@ -109,7 +109,7 @@ inline void Code::set_deoptimization_data(Tagged<TrustedFixedArray> value,
 }
 
 inline bool Code::uses_deoptimization_data() const {
-  return kind() == CodeKind::MAGLEV || kind() == CodeKind::TURBOFAN;
+  return CodeKindUsesDeoptimizationData(kind());
 }
 
 inline void Code::clear_deoptimization_data_and_interpreter_data() {
@@ -121,15 +121,13 @@ inline bool Code::has_deoptimization_data_or_interpreter_data() const {
       kDeoptimizationDataOrInterpreterDataOffset);
 }
 
-Tagged<TrustedObject> Code::bytecode_or_interpreter_data(
-    IsolateForSandbox isolate) const {
+Tagged<TrustedObject> Code::bytecode_or_interpreter_data() const {
   DCHECK_EQ(kind(), CodeKind::BASELINE);
   return ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
 }
 void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
                                             WriteBarrierMode mode) {
   DCHECK(kind() == CodeKind::BASELINE);
-  DCHECK(!ObjectInYoungGeneration(value));
   DCHECK(IsBytecodeArray(value) || IsInterpreterData(value));
 
   WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
@@ -137,28 +135,71 @@ void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
       *this, kDeoptimizationDataOrInterpreterDataOffset, value, mode);
 }
 
-ACCESSORS_CHECKED2(Code, source_position_table, Tagged<ByteArray>,
-                   kPositionTableOffset, kind() != CodeKind::BASELINE,
-                   kind() != CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
-ACCESSORS_CHECKED2(Code, bytecode_offset_table, Tagged<ByteArray>,
-                   kPositionTableOffset, kind() == CodeKind::BASELINE,
-                   kind() == CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
+inline Tagged<TrustedByteArray> Code::source_position_table() const {
+  DCHECK(has_source_position_table());
+  return TrustedByteArray::cast(
+      ReadProtectedPointerField(kPositionTableOffset));
+}
+
+inline void Code::set_source_position_table(Tagged<TrustedByteArray> value,
+                                            WriteBarrierMode mode) {
+  DCHECK(!CodeKindUsesBytecodeOffsetTable(kind()));
+
+  WriteProtectedPointerField(kPositionTableOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kPositionTableOffset,
+                                              value, mode);
+}
+
+inline Tagged<TrustedByteArray> Code::bytecode_offset_table() const {
+  DCHECK(has_bytecode_offset_table());
+  return TrustedByteArray::cast(
+      ReadProtectedPointerField(kPositionTableOffset));
+}
+
+inline void Code::set_bytecode_offset_table(Tagged<TrustedByteArray> value,
+                                            WriteBarrierMode mode) {
+  DCHECK(CodeKindUsesBytecodeOffsetTable(kind()));
+
+  WriteProtectedPointerField(kPositionTableOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kPositionTableOffset,
+                                              value, mode);
+}
+
+bool Code::has_source_position_table_or_bytecode_offset_table() const {
+  return TaggedField<Object, kPositionTableOffset>::load(*this) != Smi::zero();
+}
+
+bool Code::has_source_position_table() const {
+  bool has_table = has_source_position_table_or_bytecode_offset_table() &&
+                   !CodeKindUsesBytecodeOffsetTable(kind());
+  DCHECK_IMPLIES(!CodeKindMayLackSourcePositionTable(kind()), has_table);
+  return has_table;
+}
+
+bool Code::has_bytecode_offset_table() const {
+  return has_source_position_table_or_bytecode_offset_table() &&
+         CodeKindUsesBytecodeOffsetTable(kind());
+}
+
+void Code::clear_source_position_table_and_bytecode_offset_table() {
+  TaggedField<Object, kPositionTableOffset>::store(*this, Smi::zero());
+}
 
 ACCESSORS(Code, wrapper, Tagged<CodeWrapper>, kWrapperOffset)
 
-Tagged<ByteArray> Code::SourcePositionTable(
+Tagged<TrustedByteArray> Code::SourcePositionTable(
     Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const {
-  if (!has_instruction_stream()) {
-    return GetReadOnlyRoots().empty_byte_array();
-  }
-
   DisallowGarbageCollection no_gc;
+
   if (kind() == CodeKind::BASELINE) {
     return sfi->GetBytecodeArray(isolate)->SourcePositionTable(isolate);
   }
-  return source_position_table(isolate);
+
+  if (!has_source_position_table()) {
+    return *isolate->factory()->empty_trusted_byte_array();
+  }
+
+  return source_position_table();
 }
 
 Address Code::body_start() const { return instruction_start(); }
@@ -290,7 +331,7 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
-      ByteArray::cast(bytecode_offset_table()), bytecodes);
+      TrustedByteArray::cast(bytecode_offset_table()), bytecodes);
   Address pc = baseline_pc - instruction_start();
   offset_iterator.AdvanceToPCOffset(pc);
   return offset_iterator.current_bytecode_offset();
@@ -302,7 +343,7 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
-      ByteArray::cast(bytecode_offset_table()), bytecodes);
+      TrustedByteArray::cast(bytecode_offset_table()), bytecodes);
   offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
   uintptr_t pc = 0;
   if (position == kPcAtStartOfBytecode) {
@@ -331,7 +372,7 @@ uintptr_t Code::GetBaselinePCForNextExecutedBytecode(
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
-      ByteArray::cast(bytecode_offset_table()), bytecodes);
+      TrustedByteArray::cast(bytecode_offset_table()), bytecodes);
   Handle<BytecodeArray> bytecodes_handle(
       reinterpret_cast<Address*>(&bytecodes));
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes_handle,
@@ -529,7 +570,7 @@ void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
   Tagged<DeoptimizationLiteralArray> literals = deopt_data->LiteralArray();
   const int literals_length = literals->length();
   for (int i = 0; i < literals_length; ++i) {
-    MaybeObject maybe_literal = literals->get_raw(i);
+    Tagged<MaybeObject> maybe_literal = literals->get_raw(i);
     Tagged<HeapObject> heap_literal;
     if (maybe_literal.GetHeapObject(&heap_literal)) {
       v->VisitRootPointer(Root::kStackRoots, "deoptimization literal",
@@ -641,18 +682,23 @@ void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 }
 
 CodeEntrypointTag Code::entrypoint_tag() const {
-  // Currently we only distinguish between bytecode handlers and other Code. In
-  // the future, we'll probably also want to distinguish between Wasm, RegExp,
-  // and JavaScript Code.
-  if (kind() == CodeKind::BYTECODE_HANDLER) {
-    return kBytecodeHandlerEntrypointTag;
-  } else if (kind() == CodeKind::BUILTIN) {
-    return Builtins::EntrypointTagFor(builtin_id());
-  } else if (kind() == CodeKind::REGEXP) {
-    return kRegExpEntrypointTag;
+  switch (kind()) {
+    case CodeKind::BYTECODE_HANDLER:
+      return kBytecodeHandlerEntrypointTag;
+    case CodeKind::BUILTIN:
+      return Builtins::EntrypointTagFor(builtin_id());
+    case CodeKind::REGEXP:
+      return kRegExpEntrypointTag;
+    case CodeKind::WASM_FUNCTION:
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
+      return kWasmEntrypointTag;
+    case CodeKind::JS_TO_WASM_FUNCTION:
+      return kJSEntrypointTag;
+    default:
+      // TODO(saelo): eventually we'll want this to be UNREACHABLE().
+      return kDefaultCodeEntrypointTag;
   }
-  // TODO(saelo): eventually we'll want this to be UNREACHABLE().
-  return kDefaultCodeEntrypointTag;
 }
 
 void Code::SetInstructionStreamAndInstructionStart(

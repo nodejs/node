@@ -337,10 +337,12 @@ declare_args() {
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
-  # Expose the memory corruption API to JavaScript. Useful for testing the sandbox.
-  # WARNING This will expose builtins that (by design) cause memory corruption.
-  # Sets -DV8_EXPOSE_MEMORY_CORRUPTION_API
-  v8_expose_memory_corruption_api = false
+  # Enable the memory corruption API. Useful for testing the sandbox.
+  # The memory corruption API is only exposed to JavaScript if sandbox testing
+  # mode is enabled at runtime, for example via --sandbox-fuzzing.
+  # WARNING This will enable builtins that (by design) cause memory corruption.
+  # Sets -DV8_ENABLE_MEMORY_CORRUPTION_API
+  v8_enable_memory_corruption_api = false
 
   # Experimental feature for collecting per-class zone memory stats.
   # Requires use_rtti = true
@@ -605,24 +607,26 @@ assert(
 if (v8_builtins_profiling_log_file == "default") {
   v8_builtins_profiling_log_file = ""
 
-  # Don't use existing profile when
-  # * v8_enable_builtins_optimization is disabled,
-  # * generating a new one (i.e. v8_enable_builtins_profiling),
-  # * is_debug or dcheck_always_on because they add more checks to the
-  #   builtins control flow which we don't want to generate,
-  # * !v8_enable_sandbox because it affects the way how external pointer values
-  #   are accessed,
-  # * v8_enable_webassembly because it changes the set of opcodes which affects
-  #   graphs hashes,
+  # The existing profile can be used only when
+  # * `v8_enable_builtins_optimization` - this switch enables builtins PGO,
+  # * `!v8_enable_builtins_profiling` - don't use the profiles when generating
+  #    a new one,
+  # * `!is_debug && !dcheck_always_on` - these modes add more checks to
+  #   the builtins control flow which makes the builtins code different,
+  # * `v8_enable_pointer_compression` - it changes the objects layouts,
+  # * `v8_enable_sandbox && v8_enable_external_code_space` because they affect
+  #   the way how external pointer values are accessed,
+  # * `v8_enable_webassembly` because it changes the set of opcodes which
+  #   affects graphs hashes.
   if (v8_enable_builtins_optimization && !v8_enable_builtins_profiling &&
       !is_debug && !dcheck_always_on && v8_enable_webassembly) {
-    # This is about function arguments evaluation order, which makes node IDs
-    # not predictable for subgraphs like Op1(Op2(), Op3()) and as a result
-    # different graph hashes.
+    # This is about function arguments evaluation order on the machine building
+    # mksnapshot, which makes node IDs not predictable for subgraphs like
+    # Op1(Op2(), Op3()) and as a result different graph hashes.
     # Clang uses left-to-right order everywhere except Windows, otherwise the
     # order is right-to-left.
     # TODO(crbug.com/v8/13647): Remove once this issue is fixed in CSA.
-    if (!is_clang || is_win) {
+    if (!is_clang || host_os == "win") {
       pgo_profile_suffix = "-rl"
     } else {
       pgo_profile_suffix = ""
@@ -680,7 +684,7 @@ assert(!v8_enable_sandbox || v8_enable_external_code_space,
 assert(!v8_enable_sandbox || !v8_enable_third_party_heap,
        "The sandbox is incompatible with the third-party heap")
 
-assert(!v8_expose_memory_corruption_api || v8_enable_sandbox,
+assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
 
 assert(
@@ -873,6 +877,7 @@ external_v8_defines = [
   "V8_IS_TSAN",
   "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
   "V8_ENABLE_DIRECT_LOCAL",
+  "V8_MINORMS_STRING_SHORTCUTTING",
 ]
 
 enabled_external_v8_defines = []
@@ -1206,8 +1211,8 @@ config("features") {
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
   }
-  if (v8_expose_memory_corruption_api) {
-    defines += [ "V8_EXPOSE_MEMORY_CORRUPTION_API" ]
+  if (v8_enable_memory_corruption_api) {
+    defines += [ "V8_ENABLE_MEMORY_CORRUPTION_API" ]
   }
   if (v8_enable_pointer_compression_8gb) {
     defines += [ "V8_COMPRESS_POINTERS_8GB" ]
@@ -1738,7 +1743,7 @@ config("always_turbofanimize") {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
+  if (((is_posix && !is_android) || is_fuchsia || is_win) && !using_sanitizer) {
     configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     configs += [ "//build/config/compiler:optimize_max" ]
@@ -2735,6 +2740,7 @@ generated_file("v8_generate_features_json") {
     v8_enable_31bit_smis_on_64bit_arch = v8_enable_31bit_smis_on_64bit_arch
     v8_enable_conservative_stack_scanning =
         v8_enable_conservative_stack_scanning
+    v8_enable_direct_handle = v8_enable_direct_handle
     v8_enable_direct_local = v8_enable_direct_local
     v8_enable_extensible_ro_snapshot = v8_enable_extensible_ro_snapshot
     v8_enable_gdbjit = v8_enable_gdbjit
@@ -2903,6 +2909,7 @@ v8_source_set("v8_initializers") {
     "src/interpreter/interpreter-intrinsics-generator.h",
     "src/numbers/integer-literal-inl.h",
     "src/numbers/integer-literal.h",
+    "third_party/v8/codegen/fp16-inl.h",
   ]
 
   if (v8_enable_webassembly) {
@@ -3159,6 +3166,7 @@ v8_header_set("v8_flags") {
 
   sources = [
     "src/flags/flag-definitions.h",
+    "src/flags/flags-impl.h",
     "src/flags/flags.h",
   ]
 
@@ -3382,6 +3390,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/per-isolate-compiler-cache.h",
     "src/compiler/persistent-map.h",
     "src/compiler/phase.h",
+    "src/compiler/pipeline-data-inl.h",
     "src/compiler/pipeline-statistics.h",
     "src/compiler/pipeline.h",
     "src/compiler/processed-feedback.h",
@@ -3427,6 +3436,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph.h",
     "src/compiler/turboshaft/index.h",
     "src/compiler/turboshaft/instruction-selection-phase.h",
+    "src/compiler/turboshaft/js-generic-lowering-reducer.h",
     "src/compiler/turboshaft/late-escape-analysis-reducer.h",
     "src/compiler/turboshaft/late-load-elimination-reducer.h",
     "src/compiler/turboshaft/layered-hash-map.h",
@@ -3439,6 +3449,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/machine-lowering-phase.h",
     "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
+    "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h",
     "src/compiler/turboshaft/maglev-graph-building-phase.h",
     "src/compiler/turboshaft/memory-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matcher.h",
@@ -3578,7 +3589,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/allocation-stats.h",
     "src/heap/array-buffer-sweeper.h",
     "src/heap/base-space.h",
-    "src/heap/basic-memory-chunk.h",
     "src/heap/code-range.h",
     "src/heap/code-stats.h",
     "src/heap/collection-barrier.h",
@@ -3648,9 +3658,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/marking.h",
     "src/heap/memory-allocator.h",
     "src/heap/memory-balancer.h",
-    "src/heap/memory-chunk-header.h",
-    "src/heap/memory-chunk-inl.h",
     "src/heap/memory-chunk-layout.h",
+    "src/heap/memory-chunk-metadata.h",
     "src/heap/memory-chunk.h",
     "src/heap/memory-measurement-inl.h",
     "src/heap/memory-measurement.h",
@@ -3658,6 +3667,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/minor-gc-job.h",
     "src/heap/minor-mark-sweep-inl.h",
     "src/heap/minor-mark-sweep.h",
+    "src/heap/mutable-page-inl.h",
+    "src/heap/mutable-page.h",
     "src/heap/new-spaces-inl.h",
     "src/heap/new-spaces.h",
     "src/heap/object-lock.h",
@@ -4253,6 +4264,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/function-body-decoder-impl.h",
       "src/wasm/function-body-decoder.h",
       "src/wasm/function-compiler.h",
+      "src/wasm/fuzzing/random-module-generation.h",
       "src/wasm/graph-builder-interface.h",
       "src/wasm/inlining-tree.h",
       "src/wasm/jump-table-assembler.h",
@@ -4676,6 +4688,17 @@ v8_header_set("v8_internal_headers") {
         "src/baseline/riscv/baseline-assembler-riscv-inl.h",
         "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       ]
+    }
+    if (v8_enable_webassembly) {
+      # Trap handling is enabled on riscv64 Linux and in simulators on
+      # x64 on Linux.
+      if ((current_cpu == "riscv64" && is_linux) ||
+          (current_cpu == "x64" && is_linux)) {
+        sources += [ "src/trap-handler/handler-inside-posix.h" ]
+      }
+      if (current_cpu == "x64" && is_linux) {
+        sources += [ "src/trap-handler/trap-handler-simulator.h" ]
+      }
     }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
@@ -5305,7 +5328,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/handles/traced-handles.cc",
     "src/heap/allocation-observer.cc",
     "src/heap/array-buffer-sweeper.cc",
-    "src/heap/basic-memory-chunk.cc",
     "src/heap/code-range.cc",
     "src/heap/code-stats.cc",
     "src/heap/collection-barrier.cc",
@@ -5347,13 +5369,14 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/marking.cc",
     "src/heap/memory-allocator.cc",
     "src/heap/memory-balancer.cc",
-    "src/heap/memory-chunk-header.cc",
     "src/heap/memory-chunk-layout.cc",
+    "src/heap/memory-chunk-metadata.cc",
     "src/heap/memory-chunk.cc",
     "src/heap/memory-measurement.cc",
     "src/heap/memory-reducer.cc",
     "src/heap/minor-gc-job.cc",
     "src/heap/minor-mark-sweep.cc",
+    "src/heap/mutable-page.cc",
     "src/heap/new-spaces.cc",
     "src/heap/object-stats.cc",
     "src/heap/objects-visiting.cc",
@@ -5734,6 +5757,12 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/well-known-imports.cc",
       "src/wasm/wrappers.cc",
     ]
+    if (!is_official_build) {
+      sources += [
+        ### gcmole(all) ###
+        "src/wasm/fuzzing/random-module-generation.cc",
+      ]
+    }
   }
 
   if (v8_enable_third_party_heap) {
@@ -5984,6 +6013,20 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/riscv/simulator-riscv.cc",
       "src/regexp/riscv/regexp-macro-assembler-riscv.cc",
     ]
+    if (v8_enable_webassembly) {
+      # Trap handling is enabled on riscv64 Linux and in simulators on
+      # x64 on Linux.
+      if ((current_cpu == "riscv64" && is_linux) ||
+          (current_cpu == "x64" && is_linux)) {
+        sources += [
+          "src/trap-handler/handler-inside-posix.cc",
+          "src/trap-handler/handler-outside-posix.cc",
+        ]
+      }
+      if (current_cpu == "x64" && is_linux) {
+        sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
+      }
+    }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       ### gcmole(riscv32) ###
@@ -6364,7 +6407,6 @@ v8_component("v8_libbase") {
     "src/base/timezone-cache.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
-    "src/base/v8-fallthrough.h",
     "src/base/vector.h",
     "src/base/virtual-address-space-page-allocator.cc",
     "src/base/virtual-address-space-page-allocator.h",
@@ -7309,7 +7351,9 @@ group("v8_fuzzers") {
       ":v8_simple_wasm_async_fuzzer",
       ":v8_simple_wasm_code_fuzzer",
       ":v8_simple_wasm_compile_fuzzer",
+      ":v8_simple_wasm_compile_simd_fuzzer",
       ":v8_simple_wasm_fuzzer",
+      ":v8_simple_wasm_init_expr_fuzzer",
       ":v8_simple_wasm_streaming_fuzzer",
     ]
   }
@@ -7502,6 +7546,13 @@ v8_executable("v8_hello_world") {
     ":v8_libplatform",
     "//build/win:default_exe_manifest",
   ]
+
+  # Need to workaround a link error when using devtoolset
+  # https://bugzilla.redhat.com/show_bug.cgi?id=2268188
+  if ((v8_current_cpu == "ppc64" || v8_current_cpu == "s390x") && is_linux &&
+      !is_clang) {
+    libs = [ "stdc++" ]
+  }
 }
 
 v8_executable("v8_sample_process") {
@@ -7772,6 +7823,27 @@ if (v8_enable_webassembly) {
   v8_fuzzer("wasm_compile_fuzzer") {
   }
 
+  v8_source_set("wasm_compile_simd_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-compile-simd.cc",
+    ]
+
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
+
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
+
+  v8_fuzzer("wasm_compile_simd_fuzzer") {
+  }
+
   v8_source_set("wasm_streaming_fuzzer") {
     sources = [ "test/fuzzer/wasm-streaming.cc" ]
 
@@ -7788,6 +7860,24 @@ if (v8_enable_webassembly) {
   }
 
   v8_fuzzer("wasm_streaming_fuzzer") {
+  }
+
+  v8_source_set("wasm_init_expr_fuzzer") {
+    sources = [ "test/fuzzer/wasm-init-expr.cc" ]
+
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
+
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
+
+  v8_fuzzer("wasm_init_expr_fuzzer") {
   }
 }
 

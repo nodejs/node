@@ -8,7 +8,7 @@
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
-#include "src/heap/memory-chunk-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"
@@ -163,7 +163,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
       // serialize it.
-      obj = handle(code->bytecode_or_interpreter_data(isolate()), isolate());
+      obj = handle(code->bytecode_or_interpreter_data(), isolate());
     }
   }
   SerializeObjectImpl(obj, slot_type);
@@ -864,7 +864,7 @@ SnapshotSpace GetSnapshotSpace(Tagged<HeapObject> object) {
     return SnapshotSpace::kReadOnlyHeap;
   } else {
     AllocationSpace heap_space =
-        MemoryChunk::FromHeapObject(object)->owner_identity();
+        MutablePageMetadata::FromHeapObject(object)->owner_identity();
     // Large code objects are not supported and cannot be expressed by
     // SnapshotSpace.
     DCHECK_NE(heap_space, CODE_LO_SPACE);
@@ -972,7 +972,7 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
     }
     // TODO(ishell): Revisit this change once we stick to 32-bit compressed
     // tagged values.
-    while (current < end && current.load(cage_base)->IsCleared()) {
+    while (current < end && current.load(cage_base).IsCleared()) {
       sink_->Put(kClearedWeakReference, "ClearedWeakReference");
       bytes_processed_so_far_ += kTaggedSize;
       ++current;
@@ -1120,7 +1120,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   if (InstanceTypeChecker::IsForeign(instance_type) ||
       InstanceTypeChecker::IsJSExternalObject(instance_type) ||
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
-      InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
+      InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
     // Output raw data payload, if any.
     OutputRawData(slot.address());
     Address value = slot.load(isolate());
@@ -1144,7 +1144,12 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsExternalString(instance_type) ||
         // See ObjectSerializer::SanitizeNativeContextScope.
         InstanceTypeChecker::IsNativeContext(instance_type) ||
-        // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
+        // Serialization of external pointers stored in
+        // JSSynchronizationPrimitive is not supported.
+        // TODO(v8:12547): JSSynchronizationPrimitives should also be sanitized
+        // to always be serialized in an unlocked state.
+        InstanceTypeChecker::IsJSSynchronizationPrimitive(instance_type) ||
+        // See ContextSerializer::SerializeObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
          JSObject::cast(host)->GetEmbedderFieldCount() > 0));
   }
@@ -1351,11 +1356,11 @@ bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
   Address address = obj.address();
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
+  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
   DCHECK(!read_only_space->writable());
-  for (ReadOnlyPage* page : read_only_space->pages()) {
+  for (ReadOnlyPageMetadata* page : read_only_space->pages()) {
     if (chunk == page) break;
     ++chunk_index;
   }

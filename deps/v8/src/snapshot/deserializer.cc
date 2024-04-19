@@ -60,7 +60,7 @@ class SlotAccessorForHeapObject {
 
   // Writes the given value to this slot, optionally with an offset (e.g. for
   // repeat writes). Returns the number of slots written (which is one).
-  int Write(MaybeObject value, int slot_offset = 0) {
+  int Write(Tagged<MaybeObject> value, int slot_offset = 0) {
     MaybeObjectSlot current_slot = slot() + slot_offset;
     current_slot.Relaxed_Store(value);
     CombinedWriteBarrier(*object_, current_slot, value, UPDATE_WRITE_BARRIER);
@@ -68,7 +68,7 @@ class SlotAccessorForHeapObject {
   }
   int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
-    return Write(HeapObjectReference::From(value, ref_type), slot_offset);
+    return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset);
   }
   int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
@@ -122,14 +122,14 @@ class SlotAccessorForRootSlots {
 
   // Writes the given value to this slot, optionally with an offset (e.g. for
   // repeat writes). Returns the number of slots written (which is one).
-  int Write(MaybeObject value, int slot_offset = 0) {
+  int Write(Tagged<MaybeObject> value, int slot_offset = 0) {
     FullMaybeObjectSlot current_slot = slot() + slot_offset;
     current_slot.Relaxed_Store(value);
     return 1;
   }
   int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
-    return Write(HeapObjectReference::From(value, ref_type), slot_offset);
+    return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset);
   }
   int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
@@ -157,7 +157,7 @@ class SlotAccessorForHandle {
   Handle<HeapObject> object() const { UNREACHABLE(); }
   int offset() const { UNREACHABLE(); }
 
-  int Write(MaybeObject value, int slot_offset = 0) { UNREACHABLE(); }
+  int Write(Tagged<MaybeObject> value, int slot_offset = 0) { UNREACHABLE(); }
   int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
     DCHECK_EQ(slot_offset, 0);
@@ -569,9 +569,9 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
 #ifdef USE_SIMULATOR
     accessor_infos_.push_back(Handle<AccessorInfo>::cast(obj));
 #endif
-  } else if (InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
+  } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
 #ifdef USE_SIMULATOR
-    call_handler_infos_.push_back(Handle<CallHandlerInfo>::cast(obj));
+    function_template_infos_.push_back(Handle<FunctionTemplateInfo>::cast(obj));
 #endif
   } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
     PostProcessExternalString(ExternalString::cast(raw_obj),
@@ -972,7 +972,7 @@ int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
   uint32_t chunk_offset = source_.GetUint30();
 
   ReadOnlySpace* read_only_space = isolate()->heap()->read_only_space();
-  ReadOnlyPage* page = read_only_space->pages()[chunk_index];
+  ReadOnlyPageMetadata* page = read_only_space->pages()[chunk_index];
   Address address = page->OffsetToAddress(chunk_offset);
   Tagged<HeapObject> heap_object = HeapObject::FromAddress(address);
 
@@ -1200,7 +1200,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadClearedWeakReference(
     uint8_t data, SlotAccessor slot_accessor) {
-  return slot_accessor.Write(HeapObjectReference::ClearedValue(isolate()));
+  return slot_accessor.Write(ClearedValue(isolate()));
 }
 
 template <typename IsolateT>

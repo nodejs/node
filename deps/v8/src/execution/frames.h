@@ -291,6 +291,15 @@ class StackFrame {
   inline Address unauthenticated_pc() const;
   static inline Address unauthenticated_pc(Address* pc_address);
 
+  // Conditionally calls either pc() or unauthenticated_pc() based on whether
+  // this is fast C call stack frame.
+  inline Address maybe_unauthenticated_pc() const;
+  static inline Address maybe_unauthenticated_pc(Address* pc_address);
+
+  // If the stack pointer is missing, this is a fast C call frame. For such
+  // frames we cannot compute a stack pointer because of the missing ExitFrame.
+  bool InFastCCall() const { return sp() == kNullAddress; }
+
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
     *constant_pool_address() = constant_pool;
@@ -323,8 +332,7 @@ class StackFrame {
   V8_EXPORT_PRIVATE Tagged<GcSafeCode> GcSafeLookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
-  void IteratePc(RootVisitor* v, Address* pc_address,
-                 Address* constant_pool_address,
+  void IteratePc(RootVisitor* v, Address* constant_pool_address,
                  Tagged<GcSafeCode> holder) const;
 
   // Sets a callback function for return-address rewriting profilers
@@ -718,14 +726,15 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintFunctionAndOffset(Tagged<JSFunction> function,
+  static void PrintFunctionAndOffset(Isolate* isolate,
+                                     Tagged<JSFunction> function,
                                      Tagged<AbstractCode> code, int code_offset,
                                      FILE* file, bool print_line_number);
 
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
-  static void CollectFunctionAndOffsetForICStats(IsolateForSandbox isolate,
+  static void CollectFunctionAndOffsetForICStats(Isolate* isolate,
                                                  Tagged<JSFunction> function,
                                                  Tagged<AbstractCode> code,
                                                  int code_offset);

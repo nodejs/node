@@ -25,7 +25,6 @@ namespace internal {
   V(AllocationSite)                    \
   V(BigInt)                            \
   V(BytecodeWrapper)                   \
-  V(CallHandlerInfo)                   \
   V(CallSiteInfo)                      \
   V(Cell)                              \
   V(CodeWrapper)                       \
@@ -40,6 +39,7 @@ namespace internal {
   V(ExternalString)                    \
   V(FeedbackCell)                      \
   V(FeedbackMetadata)                  \
+  V(FunctionTemplateInfo)              \
   V(Hole)                              \
   V(JSArrayBuffer)                     \
   V(JSDataViewOrRabGsabDataView)       \
@@ -74,12 +74,12 @@ namespace internal {
   V(ThinString)                        \
   V(TransitionArray)                   \
   V(WeakCell)                          \
-  IF_WASM(V, WasmApiFunctionRef)       \
   IF_WASM(V, WasmArray)                \
   IF_WASM(V, WasmCapiFunctionData)     \
   IF_WASM(V, WasmContinuationObject)   \
   IF_WASM(V, WasmExportedFunctionData) \
   IF_WASM(V, WasmFunctionData)         \
+  IF_WASM(V, WasmFuncRef)              \
   IF_WASM(V, WasmInstanceObject)       \
   IF_WASM(V, WasmInternalFunction)     \
   IF_WASM(V, WasmJSFunctionData)       \

@@ -78,6 +78,34 @@ JSDateTimeFormat::HourCycle ToHourCycle(UDateFormatHourCycle hc) {
   }
 }
 
+// The following two functions are hack until we add necessary API to ICU
+// to get default hour cycle for 12 hours system (h11 or h12) or 24 hours system
+// (h23 or h24).
+// From timeData in third_party/icu/source/data/misc/supplementalData.txt
+// we know the preferred values are either h or H.
+// And all allowed values are also h or H except in JP K (h11) is listed before
+// h (h12).
+JSDateTimeFormat::HourCycle DefaultHourCycle12(
+    const icu::Locale& locale, JSDateTimeFormat::HourCycle defaultHourCycle) {
+  if (defaultHourCycle == JSDateTimeFormat::HourCycle::kH11 ||
+      defaultHourCycle == JSDateTimeFormat::HourCycle::kH12) {
+    return defaultHourCycle;
+  }
+  if (std::strcmp(locale.getCountry(), "JP") == 0) {
+    return JSDateTimeFormat::HourCycle::kH11;
+  }
+  return JSDateTimeFormat::HourCycle::kH12;
+}
+
+JSDateTimeFormat::HourCycle DefaultHourCycle24(
+    const icu::Locale& locale, JSDateTimeFormat::HourCycle defaultHourCycle) {
+  if (defaultHourCycle == JSDateTimeFormat::HourCycle::kH23 ||
+      defaultHourCycle == JSDateTimeFormat::HourCycle::kH24) {
+    return defaultHourCycle;
+  }
+  return JSDateTimeFormat::HourCycle::kH23;
+}
+
 Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(Isolate* isolate,
                                                 Handle<JSReceiver> options,
                                                 const char* method_name) {
@@ -508,6 +536,7 @@ Handle<String> DateTimeStyleAsString(Isolate* isolate,
     case JSDateTimeFormat::DateTimeStyle::kUndefined:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 int FractionalSecondDigitsFromPattern(const std::string& pattern) {
@@ -1337,7 +1366,7 @@ icu::UnicodeString GetSkeletonForPatternKind(const icu::UnicodeString& input,
       // Row TemporalInstantPattern is the same as TemporalPlainDateTimePattern
       // in Table 16: Supported fields for Temporal patterns
       // #table-temporal-patterns
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case PatternKind::kInstant:
       return KeepSupportedAddDefault(
           input,
@@ -1790,11 +1819,11 @@ icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
         result.append(ch);
         break;
       case 'H':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'h':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'K':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'k':
         // If the previous field is a day, add a space before the hour.
         if (replace && last == u'd') {
@@ -1997,18 +2026,18 @@ icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
       // We need to skip 'a', 'b', 'B' here due to
       // https://unicode-org.atlassian.net/browse/ICU-20437
       case 'a':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'b':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'B':
         // ignore
         break;
       case 'h':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'H':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'K':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'k':
         result += to;
         break;
@@ -2297,36 +2326,24 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   } else {
     hc = hour_cycle;
   }
-  // 17. If hc is null, then
-  if (hc == HourCycle::kUndefined) {
-    // a. Set hc to hcDefault.
-    hc = hc_default;
-  }
 
-  // 18. If hour12 is not undefined, then
+  // 25. If hour12 is true, then
   if (maybe_get_hour12.FromJust()) {
-    // a. If hour12 is true, then
     if (hour12) {
-      // i. If hcDefault is "h11" or "h23", then
-      if (hc_default == HourCycle::kH11 || hc_default == HourCycle::kH23) {
-        // 1. Set hc to "h11".
-        hc = HourCycle::kH11;
-        // ii. Else,
-      } else {
-        // 1. Set hc to "h12".
-        hc = HourCycle::kH12;
-      }
-      // b. Else,
+      // a. Let hc be dataLocaleData.[[hourCycle12]].
+      hc = DefaultHourCycle12(icu_locale, hc_default);
+      // 26. Else if hour12 is false, then
     } else {
-      // ii. If hcDefault is "h11" or "h23", then
-      if (hc_default == HourCycle::kH11 || hc_default == HourCycle::kH23) {
-        // 1. Set hc to "h23".
-        hc = HourCycle::kH23;
-        // iii. Else,
-      } else {
-        // 1. Set hc to "h24".
-        hc = HourCycle::kH24;
-      }
+      // a. Let hc be dataLocaleData.[[hourCycle24]].
+      hc = DefaultHourCycle24(icu_locale, hc_default);
+    }
+  } else {
+    // 27. Else,
+    // a. Assert: hour12 is undefined.
+    // b. Let hc be r.[[hc]].
+    // c. If hc is null, set hc to dataLocaleData.[[hourCycle]].
+    if (hc == HourCycle::kUndefined) {
+      hc = hc_default;
     }
   }
 

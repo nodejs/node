@@ -1471,19 +1471,22 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
   tester.CompileModule();
 
+  i::Isolate* i_isolate = CcTest::i_isolate();
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
-  CHECK(IsWasmInternalFunction(*result_cast));
-  Handle<JSFunction> cast_function = WasmInternalFunction::GetOrCreateExternal(
-      Handle<WasmInternalFunction>::cast(result_cast));
+  CHECK(IsWasmFuncRef(*result_cast));
+  Handle<WasmInternalFunction> result_cast_internal{
+      WasmFuncRef::cast(*result_cast)->internal(), i_isolate};
+  Handle<JSFunction> cast_function =
+      WasmInternalFunction::GetOrCreateExternal(result_cast_internal);
 
   Handle<Object> result_cast_reference =
       tester.GetResultObject(cast_reference).ToHandleChecked();
-  CHECK(IsWasmInternalFunction(*result_cast_reference));
+  CHECK(IsWasmFuncRef(*result_cast_reference));
+  Handle<WasmInternalFunction> result_cast_reference_internal{
+      WasmFuncRef::cast(*result_cast_reference)->internal(), i_isolate};
   Handle<JSFunction> cast_function_reference =
-      WasmInternalFunction::GetOrCreateExternal(
-          Handle<WasmInternalFunction>::cast(result_cast_reference));
+      WasmInternalFunction::GetOrCreateExternal(result_cast_reference_internal);
 
-  i::Isolate* i_isolate = CcTest::i_isolate();
   CHECK_EQ(cast_function->code(i_isolate)->instruction_start(),
            cast_function_reference->code(i_isolate)->instruction_start());
 
@@ -1515,6 +1518,7 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
 // Test that calling a function expecting any ref accepts the abstract null
 // type argument (nullref, nullfuncref, nullexternref).
 WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
+  FlagScope<bool> exnref(&v8_flags.experimental_wasm_exnref, true);
   const struct {
     ValueType super_type;
     ValueTypeCode sub_type_code;
@@ -1526,6 +1530,7 @@ WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
       {kWasmArrayRef.AsNullable(), kNoneCode},
       {kWasmAnyRef, kNoneCode},
       {kWasmExternRef, kNoExternCode},
+      {kWasmExnRef, kNoExnCode},
       {refNull(0), kNoneCode},    // struct
       {refNull(1), kNoneCode},    // array
       {refNull(2), kNoFuncCode},  // signature

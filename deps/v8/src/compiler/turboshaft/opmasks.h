@@ -173,6 +173,10 @@ using kWord64Mul =
     WordBinopMask::For<WordBinopOp::Kind::kMul, WordRepresentation::Word64()>;
 using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
                                              WordRepresentation::Word64()>;
+using kWord64BitwiseOr = WordBinopMask::For<WordBinopOp::Kind::kBitwiseOr,
+                                            WordRepresentation::Word64()>;
+using kWord64BitwiseXor = WordBinopMask::For<WordBinopOp::Kind::kBitwiseXor,
+                                             WordRepresentation::Word64()>;
 
 using kBitwiseAnd = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseAnd>;
 using kBitwiseXor = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseXor>;

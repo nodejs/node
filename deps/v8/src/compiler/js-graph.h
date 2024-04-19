@@ -74,8 +74,9 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   Node* ConstantMaybeHole(ObjectRef ref, JSHeapBroker* broker);
 
   // Creates a NumberConstant node, usually canonicalized.
-  // Checks that we are not emitting a kHoleNanInt64, please use whenever you
-  // can.
+  Node* ConstantMaybeHole(double value);
+  // Same, but checks that we are not emitting a kHoleNanInt64, please use
+  // whenever you can.
   Node* ConstantNoHole(double value);
 
   // Creates a HeapConstant node for either true or false.
@@ -86,7 +87,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 
   Node* SmiConstant(int32_t immediate) {
     DCHECK(Smi::IsValid(immediate));
-    return Constant(immediate);
+    return ConstantMaybeHole(immediate);
   }
 
   JSOperatorBuilder* javascript() const { return javascript_; }
@@ -159,9 +160,6 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 
   // Internal helper to canonicalize a number constant.
   Node* NumberConstant(double value);
-
-  // Internal helper that creates a NumberConstant node, usually canonicalized.
-  Node* Constant(double value);
 
   // Internal helper that creates a Constant node of the appropriate type for
   // the given object.  Inspect the (serialized) object and determine whether

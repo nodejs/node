@@ -33,8 +33,9 @@ namespace compiler {
 static const char kFunctionName[] = "f";
 
 static const Token::Value kCompareOperators[] = {
-    Token::kEq, Token::kNe,  Token::kEqStrict, Token::kNeStrict,
-    Token::kLt, Token::kLte, Token::kGt,       Token::kGte};
+    Token::kEq,          Token::kNotEq,        Token::kEqStrict,
+    Token::kNotEqStrict, Token::kLessThan,     Token::kLessThanEq,
+    Token::kGreaterThan, Token::kGreaterThanEq};
 
 static const int SMI_MAX = (1 << 30) - 1;
 static const int SMI_MIN = -(1 << 30);
@@ -1293,19 +1294,19 @@ bool get_compare_result(Isolate* isolate, Token::Value opcode,
   switch (opcode) {
     case Token::kEq:
       return Object::Equals(isolate, lhs_value, rhs_value).FromJust();
-    case Token::kNe:
+    case Token::kNotEq:
       return !Object::Equals(isolate, lhs_value, rhs_value).FromJust();
     case Token::kEqStrict:
       return Object::StrictEquals(*lhs_value, *rhs_value);
-    case Token::kNeStrict:
+    case Token::kNotEqStrict:
       return !Object::StrictEquals(*lhs_value, *rhs_value);
-    case Token::kLt:
+    case Token::kLessThan:
       return Object::LessThan(isolate, lhs_value, rhs_value).FromJust();
-    case Token::kLte:
+    case Token::kLessThanEq:
       return Object::LessThanOrEqual(isolate, lhs_value, rhs_value).FromJust();
-    case Token::kGt:
+    case Token::kGreaterThan:
       return Object::GreaterThan(isolate, lhs_value, rhs_value).FromJust();
-    case Token::kGte:
+    case Token::kGreaterThanEq:
       return Object::GreaterThanOrEqual(isolate, lhs_value, rhs_value)
           .FromJust();
     default:
@@ -1317,19 +1318,19 @@ const char* get_code_snippet(Token::Value opcode) {
   switch (opcode) {
     case Token::kEq:
       return "return p1 == p2;";
-    case Token::kNe:
+    case Token::kNotEq:
       return "return p1 != p2;";
     case Token::kEqStrict:
       return "return p1 === p2;";
-    case Token::kNeStrict:
+    case Token::kNotEqStrict:
       return "return p1 !== p2;";
-    case Token::kLt:
+    case Token::kLessThan:
       return "return p1 < p2;";
-    case Token::kLte:
+    case Token::kLessThanEq:
       return "return p1 <= p2;";
-    case Token::kGt:
+    case Token::kGreaterThan:
       return "return p1 > p2;";
-    case Token::kGte:
+    case Token::kGreaterThanEq:
       return "return p1 >= p2;";
     default:
       UNREACHABLE();

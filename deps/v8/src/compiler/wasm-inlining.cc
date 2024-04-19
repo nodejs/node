@@ -97,7 +97,8 @@ Reduction WasmInliner::ReduceCall(Node* call) {
   int call_count = GetCallCount(call);
 
   int wire_byte_size = static_cast<int>(function_bytes.size());
-  int min_count_for_inlining = wire_byte_size / 2;
+  int min_count_for_inlining =
+      v8_flags.wasm_inlining_ignore_call_counts ? 0 : wire_byte_size / 2;
 
   // If liftoff ran and collected call counts, only inline calls that have been
   // invoked often, except for truly tiny functions.

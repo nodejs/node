@@ -19,7 +19,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
@@ -4437,7 +4437,7 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
     case BuiltinCallJumpMode::kForMksnapshot: {
       Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       IndirectLoadConstant(temp, code);
-      CallCodeObject(temp);
+      CallCodeObject(temp, kJSEntrypointTag);
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
@@ -4477,7 +4477,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin) {
     case BuiltinCallJumpMode::kForMksnapshot: {
       Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       IndirectLoadConstant(temp, code);
-      JumpCodeObject(temp);
+      JumpCodeObject(temp, kJSEntrypointTag);
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
@@ -4915,8 +4915,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimizationAndJump(
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
@@ -6172,8 +6171,7 @@ void MacroAssembler::CallCFunctionHelper(
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
   ASM_CODE_COMMENT(this);
-  And(scratch, object,
-      Operand(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
+  And(scratch, object, Operand(~MemoryChunk::GetAlignmentMaskForAssembler()));
   Ld(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
@@ -6228,39 +6226,41 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
 }
 
 void MacroAssembler::LoadCodeInstructionStart(
-    Register destination, Register code_data_container_object) {
+    Register destination, Register code_data_container_object,
+    CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   Ld(destination, FieldMemOperand(code_data_container_object,
                                   Code::kInstructionStartOffset));
 }
 
-void MacroAssembler::CallCodeObject(Register code_data_container_object) {
+void MacroAssembler::CallCodeObject(Register code_data_container_object,
+                                    CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   LoadCodeInstructionStart(code_data_container_object,
-                           code_data_container_object);
+                           code_data_container_object, tag);
   Call(code_data_container_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_data_container_object,
-                                    JumpMode jump_mode) {
+                                    CodeEntrypointTag tag, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeInstructionStart(code_data_container_object,
-                           code_data_container_object);
+                           code_data_container_object, tag);
   Jump(code_data_container_object);
 }
 
 void MacroAssembler::CallJSFunction(Register function_object) {
   Register code = kJavaScriptCallCodeStartRegister;
   Ld(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(code);
+  CallCodeObject(code, kJSEntrypointTag);
 }
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
   Ld(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(code, jump_mode);
+  JumpCodeObject(code, kJSEntrypointTag, jump_mode);
 }
 
 namespace {
@@ -6301,7 +6301,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          scratch1, scratch2);
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ LoadCodeInstructionStart(a2, optimized_code_entry);
+  __ LoadCodeInstructionStart(a2, optimized_code_entry, kJSEntrypointTag);
   __ Jump(a2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -6368,7 +6368,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  LoadCodeInstructionStart(a2, v0);
+  LoadCodeInstructionStart(a2, v0, kJSEntrypointTag);
   Jump(a2);
 }
 

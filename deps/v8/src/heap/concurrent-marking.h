@@ -30,7 +30,7 @@ namespace internal {
 class Heap;
 class Isolate;
 class NonAtomicMarkingState;
-class MemoryChunk;
+class MutablePageMetadata;
 class WeakObjects;
 
 struct MemoryChunkData {
@@ -43,8 +43,9 @@ struct MemoryChunkData {
 // common case where the requested element is the same as the one previously
 // tried.
 class MemoryChunkDataMap final {
-  using MemoryChunkDataMapT = std::unordered_map<MemoryChunk*, MemoryChunkData,
-                                                 base::hash<MemoryChunk*>>;
+  using MemoryChunkDataMapT =
+      std::unordered_map<MutablePageMetadata*, MemoryChunkData,
+                         base::hash<MutablePageMetadata*>>;
 
  public:
   MemoryChunkDataMapT::mapped_type& operator[](
@@ -141,7 +142,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   void FlushMemoryChunkData();
   // This function is called for a new space page that was cleared after
   // scavenge and is going to be re-used.
-  void ClearMemoryChunkData(MemoryChunk* chunk);
+  void ClearMemoryChunkData(MutablePageMetadata* chunk);
   // Flushes pretenuring feedback.
   void FlushPretenuringFeedback();
 

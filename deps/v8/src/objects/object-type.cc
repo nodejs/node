@@ -73,7 +73,7 @@ Address CheckObjectType(Address raw_value, Address raw_type,
 #undef TYPE_STRUCT_CASE
     }
   }
-  MaybeObject maybe_value(raw_value);
+  Tagged<MaybeObject> maybe_value(raw_value);
   std::stringstream value_description;
   Print(maybe_value, value_description);
   FATAL(

@@ -674,6 +674,7 @@ filegroup(
     name = "v8_flags",
     srcs = [
         "src/flags/flag-definitions.h",
+        "src/flags/flags-impl.h",
         "src/flags/flags.h",
     ] + select({
         "is_v8_enable_webassembly": ["src/wasm/wasm-feature-flags.h"],
@@ -802,7 +803,6 @@ filegroup(
         "src/base/timezone-cache.h",
         "src/base/utils/random-number-generator.cc",
         "src/base/utils/random-number-generator.h",
-        "src/base/v8-fallthrough.h",
         "src/base/vector.h",
         "src/base/virtual-address-space.cc",
         "src/base/virtual-address-space.h",
@@ -1540,6 +1540,7 @@ filegroup(
         "src/extensions/trigger-failure-extension.cc",
         "src/extensions/trigger-failure-extension.h",
         "src/flags/flag-definitions.h",
+        "src/flags/flags-impl.h",
         "src/flags/flags.cc",
         "src/flags/flags.h",
         "src/handles/global-handles.cc",
@@ -1569,8 +1570,8 @@ filegroup(
         "src/heap/base-space.h",
         "src/heap/base/active-system-pages.cc",
         "src/heap/base/active-system-pages.h",
-        "src/heap/basic-memory-chunk.cc",
-        "src/heap/basic-memory-chunk.h",
+        "src/heap/memory-chunk-metadata.cc",
+        "src/heap/memory-chunk-metadata.h",
         "src/heap/code-range.cc",
         "src/heap/code-range.h",
         "src/heap/trusted-range.cc",
@@ -1687,11 +1688,11 @@ filegroup(
         "src/heap/memory-allocator.h",
         "src/heap/memory-balancer.cc",
         "src/heap/memory-balancer.h",
+        "src/heap/mutable-page.cc",
+        "src/heap/mutable-page.h",
         "src/heap/memory-chunk.cc",
         "src/heap/memory-chunk.h",
-        "src/heap/memory-chunk-header.cc",
-        "src/heap/memory-chunk-header.h",
-        "src/heap/memory-chunk-inl.h",
+        "src/heap/mutable-page-inl.h",
         "src/heap/memory-chunk-layout.cc",
         "src/heap/memory-chunk-layout.h",
         "src/heap/memory-measurement.cc",
@@ -2805,6 +2806,8 @@ filegroup(
             "src/wasm/function-body-decoder-impl.h",
             "src/wasm/function-compiler.cc",
             "src/wasm/function-compiler.h",
+            "src/wasm/fuzzing/random-module-generation.cc",
+            "src/wasm/fuzzing/random-module-generation.h",
             "src/wasm/graph-builder-interface.cc",
             "src/wasm/graph-builder-interface.h",
             "src/wasm/inlining-tree.h",
@@ -3144,6 +3147,7 @@ filegroup(
         "src/compiler/phase.h",
         "src/compiler/pipeline.cc",
         "src/compiler/pipeline.h",
+        "src/compiler/pipeline-data-inl.h",
         "src/compiler/pipeline-statistics.cc",
         "src/compiler/pipeline-statistics.h",
         "src/compiler/processed-feedback.h",
@@ -3213,6 +3217,7 @@ filegroup(
         "src/compiler/turboshaft/graph-builder.h",
         "src/compiler/turboshaft/graph-visualizer.cc",
         "src/compiler/turboshaft/graph-visualizer.h",
+        "src/compiler/turboshaft/js-generic-lowering-reducer.h",
         "src/compiler/turboshaft/index.h",
         "src/compiler/turboshaft/instruction-selection-phase.cc",
         "src/compiler/turboshaft/instruction-selection-phase.h",
@@ -3234,6 +3239,7 @@ filegroup(
         "src/compiler/turboshaft/machine-lowering-phase.cc",
         "src/compiler/turboshaft/machine-lowering-phase.h",
         "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
+        "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h",
         "src/compiler/turboshaft/maglev-graph-building-phase.cc",
         "src/compiler/turboshaft/maglev-graph-building-phase.h",
         "src/compiler/turboshaft/machine-optimization-reducer.h",
@@ -3479,6 +3485,7 @@ filegroup(
         "src/builtins/setup-builtins-internal.cc",
         "src/builtins/torque-csa-header-includes.h",
         "src/codegen/code-stub-assembler.cc",
+        "third_party/v8/codegen/fp16-inl.h",
         "src/codegen/code-stub-assembler-inl.h",
         "src/codegen/code-stub-assembler.h",
         "src/heap/setup-heap-internal.cc",
@@ -3676,6 +3683,18 @@ filegroup(
         "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.asm"],
         "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
     }),
+)
+
+v8_library(
+  name = "lib_fp16",
+  srcs = ["third_party/fp16/src/include/fp16.h"],
+  hdrs = [
+    "third_party/fp16/src/include/fp16/fp16.h",
+    "third_party/fp16/src/include/fp16/bitcasts.h",
+  ],
+  includes = [
+    "third_party/fp16/src/include",
+  ],
 )
 
 filegroup(
@@ -4167,6 +4186,7 @@ v8_library(
         ":noicu/generated_torque_definitions",
     ],
     deps = [
+        ":lib_fp16",
         ":v8_libbase",
         "//external:base_trace_event_common",
         "//external:absl_btree",
@@ -4223,11 +4243,11 @@ alias(
 
 v8_library(
     name = "v8_vtune",
-    srcs = glob([
+    srcs = [
         "src/third_party/vtune/v8-vtune.h",
         "src/third_party/vtune/vtune-jit.cc",
         "src/third_party/vtune/vtune-jit.h",
-    ]),
+    ],
     copts = ["-I"],
     deps = [
         ":core_lib_noicu",

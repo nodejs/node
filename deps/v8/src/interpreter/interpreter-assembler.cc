@@ -675,7 +675,7 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandIntrinsicId(
 }
 
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
-  TNode<TrustedFixedArray> constant_pool = CAST(LoadProtectedPointerFromObject(
+  TNode<TrustedFixedArray> constant_pool = CAST(LoadProtectedPointerField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
   return CAST(LoadArrayElement(constant_pool, TrustedFixedArray::kHeaderSize,
                                UncheckedCast<IntPtrT>(index), 0));

@@ -83,7 +83,7 @@ class ScriptCacheKey : public HashTableKey {
     Tagged<WeakFixedArray> array = WeakFixedArray::cast(obj);
     DCHECK_EQ(array->length(), kEnd);
 
-    MaybeObject maybe_script = array->get(kWeakScript);
+    Tagged<MaybeObject> maybe_script = array->get(kWeakScript);
     if (Tagged<HeapObject> script; maybe_script.GetHeapObjectIfWeak(&script)) {
       Tagged<PrimitiveHeapObject> source_or_undefined =
           Script::cast(script)->source();

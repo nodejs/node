@@ -49,6 +49,7 @@ class ValueSerializerTest : public TestWithIsolate {
 
  protected:
   ValueSerializerTest() {
+    FLAG_SCOPE(js_float16array);
     Local<Context> serialization_context = Context::New(isolate());
     Local<Context> deserialization_context = Context::New(isolate());
     serialization_context_.Reset(isolate(), serialization_context);
@@ -64,14 +65,14 @@ class ValueSerializerTest : public TestWithIsolate {
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+        [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
               info.Holder()->GetInternalField(0).As<v8::Value>());
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+        [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
               info.Holder()->GetInternalField(1).As<v8::Value>());
@@ -2085,6 +2086,7 @@ TEST_F(ValueSerializerTestWithArrayBufferTransfer,
 }
 
 TEST_F(ValueSerializerTest, RoundTripTypedArray) {
+  FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
@@ -2135,6 +2137,7 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
   FLAG_SCOPE(harmony_rab_gsab);
+  FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
@@ -2160,6 +2163,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
   FLAG_SCOPE(harmony_rab_gsab);
+  FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
   // TODO(v8:11111): Use API functions for testing is_length_tracking and

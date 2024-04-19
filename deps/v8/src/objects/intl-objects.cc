@@ -204,11 +204,15 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
   std::unique_ptr<base::uc16[]> sap;
   // Short one-byte strings can be expanded on the stack to avoid allocating a
   // temporary buffer.
-  constexpr int kShortStringSize = 80;
+  constexpr unsigned int kShortStringSize = 80;
   UChar short_string_buffer[kShortStringSize];
   const UChar* uchar_buffer = nullptr;
   const String::FlatContent& flat = string->GetFlatContent(no_gc);
-  int32_t length = string->length();
+  // We read the length from the heap, so it may be untrusted (in the sandbox
+  // attacker model) and we therefore need to use an unsigned int here when
+  // comparing it against the kShortStringSize.
+  // TODO(saelo): consider using uint32_t for the size in String objects.
+  uint32_t length = string->length();
   DCHECK_LE(offset, length);
   if (flat.IsOneByte() && length <= kShortStringSize) {
     CopyChars(short_string_buffer, flat.ToOneByteVector().begin(), length);

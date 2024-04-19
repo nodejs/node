@@ -155,10 +155,14 @@ void CheckDebuggerUnloaded() {
   CHECK_EQ(CcTest::i_isolate()->debug()->debug_infos_.Size(), 0);
 
   // Collect garbage to ensure weak handles are cleared.
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-  heap::InvokeMajorGC(CcTest::heap());
-  heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
+  }
 
   // Iterate the heap and check that there are no debugger related objects left.
   HeapObjectIterator iterator(CcTest::heap());

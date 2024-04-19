@@ -44,17 +44,23 @@ class TrustedObject : public HeapObject {
   // such, the slot accessors for these slots only exist on TrustedObjects but
   // not on other HeapObjects.
   inline Tagged<TrustedObject> ReadProtectedPointerField(int offset) const;
-  inline Tagged<TrustedObject> ReadProtectedPointerField(
-      int offset, AcquireLoadTag tag) const;
+  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset,
+                                                         AcquireLoadTag) const;
   inline void WriteProtectedPointerField(int offset,
                                          Tagged<TrustedObject> value);
   inline void WriteProtectedPointerField(int offset,
                                          Tagged<TrustedObject> value,
-                                         ReleaseStoreTag tag);
+                                         ReleaseStoreTag);
   inline bool IsProtectedPointerFieldCleared(int offset) const;
+  inline bool IsProtectedPointerFieldCleared(int offset, AcquireLoadTag) const;
   inline void ClearProtectedPointerField(int offset);
+  inline void ClearProtectedPointerField(int offset, ReleaseStoreTag);
 
   inline ProtectedPointerSlot RawProtectedPointerField(int byte_offset) const;
+
+#ifdef VERIFY_HEAP
+  inline void VerifyProtectedPointerField(Isolate* isolate, int offset);
+#endif
 
   static constexpr int kHeaderSize = HeapObject::kHeaderSize;
 

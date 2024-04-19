@@ -349,7 +349,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
         __ Int32Constant(0));
 
-    Node* data_argument_to_pass = AdaptLocalArgument(gasm(), data_argument);
+    Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),

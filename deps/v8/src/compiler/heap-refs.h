@@ -23,7 +23,6 @@ class CFunctionInfo;
 namespace internal {
 
 class BytecodeArray;
-class CallHandlerInfo;
 class FixedDoubleArray;
 class FunctionTemplateInfo;
 class HeapNumber;
@@ -103,6 +102,7 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(JSGlobalObject)                                       \
   BACKGROUND_SERIALIZED(JSGlobalProxy)                                        \
   BACKGROUND_SERIALIZED(JSTypedArray)                                         \
+  BACKGROUND_SERIALIZED(JSPrimitiveWrapper)                                   \
   /* Subtypes of Context */                                                   \
   NEVER_SERIALIZED(NativeContext)                                             \
   /* Subtypes of FixedArray */                                                \
@@ -124,7 +124,6 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(ArrayBoilerplateDescription)                               \
   BACKGROUND_SERIALIZED(BigInt)                                               \
   NEVER_SERIALIZED(BytecodeArray)                                             \
-  NEVER_SERIALIZED(CallHandlerInfo)                                           \
   NEVER_SERIALIZED(Cell)                                                      \
   NEVER_SERIALIZED(Code)                                                      \
   NEVER_SERIALIZED(Context)                                                   \
@@ -440,9 +439,10 @@ class HeapObjectType {
 
   using Flags = base::Flags<Flag>;
 
-  HeapObjectType(InstanceType instance_type, Flags flags,
-                 OddballType oddball_type, HoleType hole_type)
+  HeapObjectType(InstanceType instance_type, ElementsKind elements_kind,
+                 Flags flags, OddballType oddball_type, HoleType hole_type)
       : instance_type_(instance_type),
+        elements_kind_(elements_kind),
         oddball_type_(oddball_type),
         hole_type_(hole_type),
         flags_(flags) {
@@ -457,12 +457,14 @@ class HeapObjectType {
   HoleType hole_type(JSHeapBroker* broker) const { return hole_type_; }
   InstanceType instance_type() const { return instance_type_; }
   Flags flags() const { return flags_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
 
   bool is_callable() const { return flags_ & kCallable; }
   bool is_undetectable() const { return flags_ & kUndetectable; }
 
  private:
   InstanceType const instance_type_;
+  ElementsKind const elements_kind_;
   OddballType const oddball_type_;
   HoleType const hole_type_;
   Flags const flags_;
@@ -786,16 +788,6 @@ class FeedbackVectorRef : public HeapObjectRef {
   FeedbackCellRef GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
 };
 
-class CallHandlerInfoRef : public HeapObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(CallHandlerInfo, HeapObjectRef)
-
-  Handle<CallHandlerInfo> object() const;
-
-  Address callback(JSHeapBroker* broker) const;
-  ObjectRef data(JSHeapBroker* broker) const;
-};
-
 class AccessorInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(AccessorInfo, HeapObjectRef)
@@ -919,7 +911,11 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
   int16_t allowed_receiver_instance_type_range_start() const;
   int16_t allowed_receiver_instance_type_range_end() const;
 
-  OptionalCallHandlerInfoRef call_code(JSHeapBroker* broker) const;
+  // Function pointer and a data value that should be passed to the callback.
+  // The |callback_data| must be read before the |callback|.
+  Address callback(JSHeapBroker* broker) const;
+  OptionalObjectRef callback_data(JSHeapBroker* broker) const;
+
   ZoneVector<Address> c_functions(JSHeapBroker* broker) const;
   ZoneVector<const CFunctionInfo*> c_signatures(JSHeapBroker* broker) const;
   HolderLookupResult LookupHolderOfExpectedType(JSHeapBroker* broker,
@@ -980,7 +976,7 @@ class BytecodeArrayRef : public HeapObjectRef {
   int parameter_count() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 
-  Handle<ByteArray> SourcePositionTable(JSHeapBroker* broker) const;
+  Handle<TrustedByteArray> SourcePositionTable(JSHeapBroker* broker) const;
 
   // Exception handler table.
   Address handler_table_address() const;
@@ -1142,6 +1138,15 @@ class JSTypedArrayRef : public JSObjectRef {
   size_t length() const;
   void* data_ptr() const;
   HeapObjectRef buffer(JSHeapBroker* broker) const;
+};
+
+class JSPrimitiveWrapperRef : public JSObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSPrimitiveWrapper, JSObjectRef)
+
+  bool IsStringWrapper(JSHeapBroker* broker) const;
+
+  Handle<JSPrimitiveWrapper> object() const;
 };
 
 class SourceTextModuleRef : public HeapObjectRef {

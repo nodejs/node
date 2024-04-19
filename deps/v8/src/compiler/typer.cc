@@ -707,7 +707,7 @@ Type Typer::Visitor::ToNumeric(Type type, Typer* t) {
 Type Typer::Visitor::ToObject(Type type, Typer* t) {
   // ES6 section 7.1.13 ToObject ( argument )
   if (type.Is(Type::Receiver())) return type;
-  if (type.Is(Type::Primitive())) return Type::OtherObject();
+  if (type.Is(Type::Primitive())) return Type::StringWrapperOrOtherObject();
   if (!type.Maybe(Type::OtherUndetectable())) {
     return Type::DetectableReceiver();
   }
@@ -2363,6 +2363,11 @@ Type Typer::Visitor::TypeCheckSmi(Node* node) {
 Type Typer::Visitor::TypeCheckString(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::String(), zone());
+}
+
+Type Typer::Visitor::TypeCheckStringOrStringWrapper(Node* node) {
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::StringOrStringWrapper(), zone());
 }
 
 Type Typer::Visitor::TypeCheckSymbol(Node* node) {

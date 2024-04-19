@@ -62,6 +62,7 @@ absl_cc_library(
     "no_destructor.h"
   DEPS
     absl::config
+    absl::nullability
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )

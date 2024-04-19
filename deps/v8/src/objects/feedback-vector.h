@@ -320,14 +320,13 @@ class FeedbackVector
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(intptr_t index);
 
-  inline MaybeObject SynchronizedGet(FeedbackSlot slot) const;
-  inline void SynchronizedSet(FeedbackSlot slot, MaybeObject value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SynchronizedSet(FeedbackSlot slot, Tagged<Object> value,
+  inline Tagged<MaybeObject> SynchronizedGet(FeedbackSlot slot) const;
+  inline void SynchronizedSet(FeedbackSlot slot, Tagged<MaybeObject> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline MaybeObject Get(FeedbackSlot slot) const;
-  inline MaybeObject Get(PtrComprCageBase cage_base, FeedbackSlot slot) const;
+  inline Tagged<MaybeObject> Get(FeedbackSlot slot) const;
+  inline Tagged<MaybeObject> Get(PtrComprCageBase cage_base,
+                                 FeedbackSlot slot) const;
 
   // Returns the feedback cell at |index| that is used to create the
   // closure.
@@ -431,15 +430,13 @@ class FeedbackVector
                                             Handle<FeedbackVector> vector);
 
   // Private for initializing stores in FeedbackVector::New().
-  inline void Set(FeedbackSlot slot, MaybeObject value,
-                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void Set(FeedbackSlot slot, Tagged<Object> value,
+  inline void Set(FeedbackSlot slot, Tagged<MaybeObject> value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
 #ifdef DEBUG
   // Returns true if value is a non-HashTable FixedArray. We want to
   // make sure not to store such objects in the vector.
-  inline static bool IsOfLegacyType(MaybeObject value);
+  inline static bool IsOfLegacyType(Tagged<MaybeObject> value);
 #endif  // DEBUG
 
   // NexusConfig controls setting slots in the vector.
@@ -752,23 +749,23 @@ class V8_EXPORT_PRIVATE NexusConfig {
 
   Isolate* isolate() const { return isolate_; }
 
-  MaybeObjectHandle NewHandle(MaybeObject object) const;
+  MaybeObjectHandle NewHandle(Tagged<MaybeObject> object) const;
   template <typename T>
   Handle<T> NewHandle(Tagged<T> object) const;
 
   bool can_write() const { return mode() == MainThread; }
 
-  inline MaybeObject GetFeedback(Tagged<FeedbackVector> vector,
-                                 FeedbackSlot slot) const;
+  inline Tagged<MaybeObject> GetFeedback(Tagged<FeedbackVector> vector,
+                                         FeedbackSlot slot) const;
   inline void SetFeedback(Tagged<FeedbackVector> vector, FeedbackSlot slot,
-                          MaybeObject object,
+                          Tagged<MaybeObject> object,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER) const;
 
-  std::pair<MaybeObject, MaybeObject> GetFeedbackPair(
+  std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>> GetFeedbackPair(
       Tagged<FeedbackVector> vector, FeedbackSlot slot) const;
   void SetFeedbackPair(Tagged<FeedbackVector> vector, FeedbackSlot start_slot,
-                       MaybeObject feedback, WriteBarrierMode mode,
-                       MaybeObject feedback_extra,
+                       Tagged<MaybeObject> feedback, WriteBarrierMode mode,
+                       Tagged<MaybeObject> feedback_extra,
                        WriteBarrierMode mode_extra) const;
 
  private:
@@ -851,9 +848,10 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   bool ConfigureMegamorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
-  inline MaybeObject GetFeedback() const;
-  inline MaybeObject GetFeedbackExtra() const;
-  inline std::pair<MaybeObject, MaybeObject> GetFeedbackPair() const;
+  inline Tagged<MaybeObject> GetFeedback() const;
+  inline Tagged<MaybeObject> GetFeedbackExtra() const;
+  inline std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>> GetFeedbackPair()
+      const;
 
   inline Isolate* GetIsolate() const;
 
@@ -923,23 +921,23 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
  private:
   template <typename FeedbackType>
-  inline void SetFeedback(FeedbackType feedback,
+  inline void SetFeedback(Tagged<FeedbackType> feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <typename FeedbackType, typename FeedbackExtraType>
-  inline void SetFeedback(FeedbackType feedback, WriteBarrierMode mode,
-                          FeedbackExtraType feedback_extra,
+  inline void SetFeedback(Tagged<FeedbackType> feedback, WriteBarrierMode mode,
+                          Tagged<FeedbackExtraType> feedback_extra,
                           WriteBarrierMode mode_extra = UPDATE_WRITE_BARRIER);
 
-  inline MaybeObject UninitializedSentinel() const;
-  inline MaybeObject MegamorphicSentinel() const;
-  inline MaybeObject MegaDOMSentinel() const;
+  inline Tagged<MaybeObject> UninitializedSentinel() const;
+  inline Tagged<MaybeObject> MegamorphicSentinel() const;
+  inline Tagged<MaybeObject> MegaDOMSentinel() const;
 
   // Create an array. The caller must install it in a feedback vector slot.
   Handle<WeakFixedArray> CreateArrayOfSize(int length);
 
   // Helpers to maintain feedback_cache_.
-  inline MaybeObject FromHandle(MaybeObjectHandle slot) const;
-  inline MaybeObjectHandle ToHandle(MaybeObject value) const;
+  inline Tagged<MaybeObject> FromHandle(MaybeObjectHandle slot) const;
+  inline MaybeObjectHandle ToHandle(Tagged<MaybeObject> value) const;
 
   // The reason for having a vector handle and a raw pointer is that we can and
   // should use handles during IC miss, but not during GC when we clear ICs. If
@@ -962,7 +960,7 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
   void Advance();
   bool done() { return done_; }
   Tagged<Map> map() { return map_; }
-  MaybeObject handler() { return handler_; }
+  Tagged<MaybeObject> handler() { return handler_; }
 
   static int SizeFor(int number_of_entries) {
     CHECK_GT(number_of_entries, 0);
@@ -988,7 +986,7 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
 
   Handle<WeakFixedArray> polymorphic_feedback_;
   Tagged<Map> map_;
-  MaybeObject handler_;
+  Tagged<MaybeObject> handler_;
   bool done_;
   int index_;
   State state_;

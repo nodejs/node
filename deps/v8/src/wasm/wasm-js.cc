@@ -1276,8 +1276,8 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
 }
 
 namespace {
-i::Handle<i::Object> DefaultReferenceValue(i::Isolate* isolate,
-                                           i::wasm::ValueType type) {
+i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
+                                               i::wasm::ValueType type) {
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
@@ -1344,6 +1344,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
           "Descriptor property 'element' must be a WebAssembly reference type");
       return;
     }
+    // TODO(14616): Support shared types.
   }
 
   int64_t initial = 0;
@@ -1732,7 +1733,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
         thrower.TypeError("Non-defaultable global needs initial value");
         break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case i::wasm::kRefNull: {
       // We need the wasm default value {null} over {undefined}.
       i::Handle<i::Object> value_handle;
@@ -2251,35 +2252,39 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       thrower.TypeError("Incompatible signature for promising function");
       return;
     }
-    i::Handle<i::WasmInstanceObject> instance(
-        i::WasmInstanceObject::cast(data->internal()->ref()), i_isolate);
-    i::Handle<i::WasmTrustedInstanceData> trusted_data(
-        instance->trusted_data(i_isolate), i_isolate);
+    i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
+        i::WasmTrustedInstanceData::cast(data->internal()->ref(i_isolate)),
+        i_isolate);
     int func_index = data->function_index();
     i::Handle<i::Code> wrapper =
         BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
 
-    int sig_index = instance->module()->functions[func_index].sig_index;
+    int sig_index =
+        trusted_instance_data->module()->functions[func_index].sig_index;
     // TODO(14034): Create funcref RTTs lazily?
     i::Handle<i::Map> rtt = handle(
-        i::Map::cast(trusted_data->managed_object_maps()->get(sig_index)),
+        i::Map::cast(
+            trusted_instance_data->managed_object_maps()->get(sig_index)),
         i_isolate);
 
-    int num_imported_functions = instance->module()->num_imported_functions;
-    i::Handle<i::HeapObject> ref =
+    int num_imported_functions =
+        trusted_instance_data->module()->num_imported_functions;
+    i::Handle<i::ExposedTrustedObject> ref =
         func_index >= num_imported_functions
-            ? instance
+            ? trusted_instance_data
             : i::handle(
-                  i::HeapObject::cast(
-                      trusted_data->imported_function_refs()->get(func_index)),
+                  i::ExposedTrustedObject::cast(
+                      trusted_instance_data->imported_function_refs()->get(
+                          func_index)),
                   i_isolate);
 
     i::Handle<i::WasmInternalFunction> internal =
         i_isolate->factory()->NewWasmInternalFunction(
-            trusted_data->GetCallTarget(func_index), ref, rtt, func_index);
+            trusted_instance_data->GetCallTarget(func_index), ref, rtt,
+            func_index);
 
     i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
-        i_isolate, instance, internal, func_index,
+        i_isolate, trusted_instance_data, internal, func_index,
         static_cast<int>(data->sig()->parameter_count()), wrapper);
     info.GetReturnValue().Set(Utils::ToLocal(result));
     return;
@@ -3005,6 +3010,7 @@ Handle<JSFunction> InstallFunc(
   Handle<JSFunction> function =
       CreateFunc(isolate, name, func, has_prototype, side_effect_type);
   function->shared()->set_length(length);
+  CHECK(!JSObject::HasRealNamedProperty(isolate, object, name).FromMaybe(true));
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
 }
@@ -3289,6 +3295,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   if (native_context->is_wasm_js_installed() != Smi::zero()) return;
   native_context->set_is_wasm_js_installed(Smi::FromInt(1));
 
+  // We can get the WebAssembly object here from the native context because no
+  // user code has been executed yet. However, once user code has been executed,
+  // the WebAssembly object has to be retrieved with a JavaScript property
+  // lookup.
   Handle<JSObject> webassembly(native_context->wasm_webassembly_object(),
                                isolate);
 
@@ -3325,13 +3335,13 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   const auto enabled_features = wasm::WasmFeatures::FromFlags();
 
   if (enabled_features.has_type_reflection()) {
-    InstallTypeReflection(isolate, native_context);
+    InstallTypeReflection(isolate, native_context, webassembly);
   }
 
   // Create the Suspender object.
   if (enabled_features.has_jspi()) {
     isolate->WasmInitJSPIFeature();
-    InstallSuspenderConstructor(isolate, native_context);
+    InstallSuspenderConstructor(isolate, native_context, webassembly);
   }
 }
 
@@ -3369,22 +3379,17 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     Handle<String> suspender_string = v8_str(isolate, "Suspender");
     if (!JSObject::HasRealNamedProperty(isolate, webassembly, suspender_string)
              .FromMaybe(true)) {
-      InstallSuspenderConstructor(isolate, context);
+      InstallSuspenderConstructor(isolate, context, webassembly);
     }
 
-    // Install Wasm type reflection features (if not already done).
-    Handle<String> function_string = v8_str(isolate, "Function");
-    if (!JSObject::HasRealNamedProperty(isolate, webassembly, function_string)
-             .FromMaybe(true)) {
-      InstallTypeReflection(isolate, context);
-    }
+    InstallTypeReflection(isolate, context, webassembly);
   }
 }
 
 // static
 void WasmJs::InstallSuspenderConstructor(Isolate* isolate,
-                                         Handle<NativeContext> context) {
-  Handle<JSObject> webassembly(context->wasm_webassembly_object(), isolate);
+                                         Handle<NativeContext> context,
+                                         Handle<JSObject> webassembly) {
   Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
       isolate, webassembly, "Suspender", WebAssemblySuspender);
   context->set_wasm_suspender_constructor(*suspender_constructor);
@@ -3394,11 +3399,42 @@ void WasmJs::InstallSuspenderConstructor(Isolate* isolate,
 
 // static
 void WasmJs::InstallTypeReflection(Isolate* isolate,
-                                   Handle<NativeContext> context) {
-  Handle<JSObject> webassembly(context->wasm_webassembly_object(), isolate);
+                                   Handle<NativeContext> context,
+                                   Handle<JSObject> webassembly) {
+  // First check if any of the type reflection fields already exist. If so, bail
+  // out and don't install any new fields.
+  if (JSObject::HasRealNamedProperty(isolate, webassembly,
+                                     isolate->factory()->Function_string())
+          .FromMaybe(true)) {
+    return;
+  }
 
+  Handle<String> type_string = v8_str(isolate, "type");
 #define INSTANCE_PROTO_HANDLE(Name) \
   handle(JSObject::cast(context->Name()->instance_prototype()), isolate)
+
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_table_constructor), type_string)
+          .FromMaybe(true)) {
+    return;
+  }
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_global_constructor), type_string)
+          .FromMaybe(true)) {
+    return;
+  }
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_memory_constructor), type_string)
+          .FromMaybe(true)) {
+    return;
+  }
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_tag_constructor), type_string)
+          .FromMaybe(true)) {
+    return;
+  }
+
+  // Checks are done, start installing the new fields.
   InstallFunc(isolate, INSTANCE_PROTO_HANDLE(wasm_table_constructor), "type",
               WebAssemblyTableType, 0, false, NONE,
               SideEffectType::kHasNoSideEffect);
@@ -3409,7 +3445,8 @@ void WasmJs::InstallTypeReflection(Isolate* isolate,
               WebAssemblyGlobalType, 0, false, NONE,
               SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, INSTANCE_PROTO_HANDLE(wasm_tag_constructor), "type",
-              WebAssemblyTagType, 0);
+              WebAssemblyTagType, 0, false, NONE,
+              SideEffectType::kHasNoSideEffect);
 #undef INSTANCE_PROTO_HANDLE
 
   // Create the Function object.

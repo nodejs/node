@@ -648,6 +648,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDataViewPrototypeGetUint16:
     case Builtin::kDataViewPrototypeGetInt32:
     case Builtin::kDataViewPrototypeGetUint32:
+    case Builtin::kDataViewPrototypeGetFloat16:
     case Builtin::kDataViewPrototypeGetFloat32:
     case Builtin::kDataViewPrototypeGetFloat64:
     case Builtin::kDataViewPrototypeGetBigInt64:
@@ -723,6 +724,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kMathCosh:
     case Builtin::kMathExp:
     case Builtin::kMathFloor:
+    case Builtin::kMathF16round:
     case Builtin::kMathFround:
     case Builtin::kMathHypot:
     case Builtin::kMathImul:

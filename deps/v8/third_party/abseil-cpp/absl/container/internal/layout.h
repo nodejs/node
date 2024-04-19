@@ -706,7 +706,7 @@ class Layout : public internal_layout::LayoutType<sizeof...(Ts), Ts...> {
   template <class... Sizes>
   static constexpr PartialType<sizeof...(Sizes)> Partial(Sizes&&... sizes) {
     static_assert(sizeof...(Sizes) <= sizeof...(Ts), "");
-    return PartialType<sizeof...(Sizes)>(absl::forward<Sizes>(sizes)...);
+    return PartialType<sizeof...(Sizes)>(std::forward<Sizes>(sizes)...);
   }
 
   // Creates a layout with the sizes of all arrays specified. If you know

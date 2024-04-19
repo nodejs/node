@@ -6,6 +6,7 @@
 #define V8_HEAP_MAIN_ALLOCATOR_INL_H_
 
 #include "src/base/sanitizer/msan.h"
+#include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/main-allocator.h"
 
@@ -22,7 +23,9 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
   DCHECK_EQ(in_gc(), isolate_heap()->IsInGC());
 
   // We are not supposed to allocate in fast c calls.
-  DCHECK_IMPLIES(is_main_thread(), !isolate_heap()->isolate()->InFastCCall());
+  DCHECK_IMPLIES(is_main_thread(),
+                 v8_flags.allow_allocation_in_fast_api_call ||
+                     !isolate_heap()->isolate()->InFastCCall());
 
   AllocationResult result;
 

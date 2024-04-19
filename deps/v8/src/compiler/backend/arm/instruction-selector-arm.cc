@@ -4527,8 +4527,9 @@ void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
     node_t node) {
-  // TODO(thibaudm): Implement.
-  UNREACHABLE();
+  OperandGenerator g(this);
+  auto input = g.UseRegister(this->input_at(node, 0));
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
 template <typename Adapter>

@@ -20,7 +20,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/smi.h"
@@ -565,8 +565,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 void MacroAssembler::Call(Label* target) { b(r14, target); }
@@ -2512,42 +2511,61 @@ void MacroAssembler::MovToFloatParameters(DoubleRegister src1,
   }
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(ExternalReference function,
+                                  int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
   Move(ip, function);
-  CallCFunction(ip, num_reg_arguments, num_double_arguments,
-                set_isolate_data_slots);
+  return CallCFunction(ip, num_reg_arguments, num_double_arguments,
+                       set_isolate_data_slots, return_label);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
+
+  Label get_pc;
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
     // See x64 code for reasoning about how to address the isolate data fields.
+    larl(r0, &get_pc);
     if (root_array_available()) {
-      LoadPC(r0);
       StoreU64(r0, MemOperand(kRootRegister,
                               IsolateData::fast_c_call_caller_pc_offset()));
       StoreU64(fp, MemOperand(kRootRegister,
                               IsolateData::fast_c_call_caller_fp_offset()));
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      mov(r0, Operand(Context::kNoContext));
+      StoreRootRelative(IsolateData::context_offset(), r0);
+#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       Register addr_scratch = r1;
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      LoadPC(r0);
       StoreU64(r0, MemOperand(addr_scratch));
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       StoreU64(fp, MemOperand(addr_scratch));
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      mov(r0, Operand(Context::kNoContext));
+      StoreU64(
+          r0, ExternalReferenceAsOperand(
+                  ExternalReference::context_address(isolate()), addr_scratch));
+#endif
     }
   }
 
@@ -2561,6 +2579,9 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   }
 
   Call(dest);
+  int call_pc_offset = pc_offset();
+  bind(&get_pc);
+  if (return_label) bind(return_label);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -2589,17 +2610,22 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   } else {
     la(sp, MemOperand(sp, stack_space * kSystemPointerSize));
   }
+
+  return call_pc_offset;
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_label);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_label);
 }
 
 void MacroAssembler::CheckPageFlag(

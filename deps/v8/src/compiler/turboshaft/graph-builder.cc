@@ -597,7 +597,7 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(RoundUint32ToFloat32, ChangeUint32ToFloat32)
       UNARY_CASE(RoundUint64ToFloat32, ChangeUint64ToFloat32)
       UNARY_CASE(RoundUint64ToFloat64, ChangeUint64ToFloat64)
-      UNARY_CASE(TruncateFloat64ToFloat32, ChangeFloat64ToFloat32)
+      UNARY_CASE(TruncateFloat64ToFloat32, TruncateFloat64ToFloat32)
       UNARY_CASE(TruncateFloat64ToUint32,
                  TruncateFloat64ToUint32OverflowUndefined)
       UNARY_CASE(TruncateFloat64ToWord32, JSTruncateFloat64ToWord32)
@@ -726,7 +726,7 @@ OpIndex GraphBuilder::Process(
 #define CHECK_OBJECT_IS_CASE(code, kind, input_assumptions, reason, feedback) \
   case IrOpcode::k##code: {                                                   \
     DCHECK(dominating_frame_state.valid());                                   \
-    V<Tagged> input = Map(node->InputAt(0));                                  \
+    V<Object> input = Map(node->InputAt(0));                                  \
     V<Word32> check =                                                         \
         __ ObjectIs(input, ObjectIsOp::Kind::k##kind,                         \
                     ObjectIsOp::InputAssumptions::k##input_assumptions);      \
@@ -744,6 +744,9 @@ OpIndex GraphBuilder::Process(
                            ReceiverOrNullOrUndefined, HeapObject,
                            NotAJavaScriptObjectOrNullOrUndefined, {})
       CHECK_OBJECT_IS_CASE(CheckString, String, HeapObject, NotAString,
+                           CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckStringOrStringWrapper, StringOrStringWrapper,
+                           HeapObject, NotAStringOrStringWrapper,
                            CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckSymbol, Symbol, HeapObject, NotASymbol, {})
       CHECK_OBJECT_IS_CASE(CheckBigInt, BigInt, None, NotABigInt,
@@ -1786,7 +1789,7 @@ OpIndex GraphBuilder::Process(
       V<Word32> check = __ UintLessThan(index, limit, rep);
       if ((params.flags() & CheckBoundsFlag::kAbortOnOutOfBounds) != 0) {
         IF_NOT(LIKELY(check)) { __ Unreachable(); }
-        END_IF
+
       } else {
         DCHECK(dominating_frame_state.valid());
         __ DeoptimizeIfNot(check, dominating_frame_state,
@@ -1911,10 +1914,9 @@ OpIndex GraphBuilder::Process(
       V<Word32> result_state =
           __ template Projection<Word32>(fast_call_result, 0);
 
-      IF(LIKELY(__ Word32Equal(result_state, FastApiCallOp::kSuccessValue))) {
+      IF (LIKELY(__ Word32Equal(result_state, FastApiCallOp::kSuccessValue))) {
         GOTO(done, __ template Projection<Object>(fast_call_result, 1));
-      }
-      ELSE {
+      } ELSE {
         // We need to generate a fallback (both fast and slow call) in case:
         // 1) the generated code might fail, in case e.g. a Smi was passed where
         // a JSObject was expected and an error must be thrown or
@@ -1928,7 +1930,6 @@ OpIndex GraphBuilder::Process(
                                              CanThrow::kYes, __ graph_zone()));
         GOTO(done, slow_call_result);
       }
-      END_IF
 
       BIND(done, result);
       return result;
@@ -2257,8 +2258,9 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kJSStackCheck: {
       DCHECK_EQ(OpParameter<StackCheckKind>(node->op()),
                 StackCheckKind::kJSFunctionEntry);
-      return __ StackCheck(StackCheckOp::CheckOrigin::kFromJS,
-                           StackCheckOp::CheckKind::kFunctionHeaderCheck);
+      __ StackCheck(StackCheckOp::CheckOrigin::kFromJS,
+                    StackCheckOp::CheckKind::kFunctionHeaderCheck);
+      return OpIndex::Invalid();
     }
 
     default:

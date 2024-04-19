@@ -863,8 +863,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
 
     Handle<WeakFixedArray> awaited_by_holder(
         isolate->factory()->NewWeakFixedArray(1));
-    awaited_by_holder->set(
-        0, MaybeObject::MakeWeak(MaybeObject::FromObject(*generator)));
+    awaited_by_holder->set(0, MakeWeak(*generator));
     Object::SetProperty(isolate, promise,
                         isolate->factory()->promise_awaited_by_symbol(),
                         awaited_by_holder, StoreOrigin::kMaybeKeyed,

@@ -74,6 +74,8 @@ class TestInstance {
 
   Assembler& Asm() { return assembler_; }
   Graph& graph() { return *graph_; }
+  Factory& factory() { return *isolate_->factory(); }
+
   Assembler& operator()() { return Asm(); }
 
   template <template <typename> typename... Reducers>

@@ -4,8 +4,6 @@
 
 namespace runtime {
 extern runtime IsWasmExternalFunction(NoContext, JSAny): Boolean;
-extern runtime TierUpJSToJSWrapper(
-    NoContext, WasmApiFunctionRef, WasmFunctionData): JSAny;
 }  // namespace runtime
 
 namespace wasm {
@@ -76,12 +74,6 @@ transitioning javascript builtin JSToJSWrapper(
   const functionData =
       UnsafeCast<WasmFunctionData>(target.shared_function_info.function_data);
   const ref = UnsafeCast<WasmApiFunctionRef>(functionData.internal.ref);
-
-  dcheck(ref.wrapper_budget > 0);
-  ref.wrapper_budget = ref.wrapper_budget - 1;
-  if (ref.wrapper_budget == 0) {
-    runtime::TierUpJSToJSWrapper(kNoContext, ref, functionData);
-  }
 
   const signaturePod = &ref.sig.bytes;
   const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(

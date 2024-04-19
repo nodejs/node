@@ -333,7 +333,7 @@ class PointerMap {
 
  private:
   // Number of buckets in hash table for pointer lookups.
-  static constexpr uint32_t kHashTableSize = 8171;  // should be prime
+  static constexpr uint32_t kHashTableSize = 262139;  // should be prime
 
   const Vec<Node*>* nodes_;
   std::array<int32_t, kHashTableSize> table_;

@@ -35,10 +35,12 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadSuperIC();
   void GenerateLoadSuperICBaseline();
   void GenerateKeyedLoadIC();
+  void GenerateEnumeratedKeyedLoadIC();
   void GenerateKeyedLoadIC_Megamorphic();
   void GenerateKeyedLoadIC_PolymorphicName();
   void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadICBaseline();
+  void GenerateEnumeratedKeyedLoadICBaseline();
   void GenerateKeyedLoadICTrampoline_Megamorphic();
   void GenerateStoreIC();
   void GenerateStoreIC_Megamorphic();
@@ -107,14 +109,18 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     LoadICParameters(
         TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
         TNode<TaggedIndex> slot, TNode<HeapObject> vector,
-        base::Optional<TNode<Object>> lookup_start_object = base::nullopt)
+        base::Optional<TNode<Object>> lookup_start_object = base::nullopt,
+        base::Optional<TNode<TaggedIndex>> enum_index = base::nullopt,
+        base::Optional<TNode<Object>> cache_type = base::nullopt)
         : context_(context),
           receiver_(receiver),
           name_(name),
           slot_(slot),
           vector_(vector),
           lookup_start_object_(lookup_start_object ? lookup_start_object.value()
-                                                   : receiver) {}
+                                                   : receiver),
+          enum_index_(enum_index),
+          cache_type_(cache_type) {}
 
     LoadICParameters(const LoadICParameters* p, TNode<Object> unique_name)
         : context_(p->context_),
@@ -132,6 +138,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Object> lookup_start_object() const {
       return lookup_start_object_.value();
     }
+    TNode<TaggedIndex> enum_index() const { return *enum_index_; }
+    TNode<Object> cache_type() const { return *cache_type_; }
 
     // Usable in cases where the receiver and the lookup start object are
     // expected to be the same, i.e., when "receiver != lookup_start_object"
@@ -141,6 +149,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       return receiver_;
     }
 
+    bool IsEnumeratedKeyedLoad() const { return enum_index_ != base::nullopt; }
+
    private:
     TNode<Context> context_;
     TNode<Object> receiver_;
@@ -148,6 +158,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     base::Optional<TNode<Object>> lookup_start_object_;
+    base::Optional<TNode<TaggedIndex>> enum_index_;
+    base::Optional<TNode<Object>> cache_type_;
   };
 
   struct LazyLoadICParameters {
@@ -391,6 +403,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                       TNode<TaggedIndex> slot, Label* miss,
                       ExitPoint* exit_point);
 
+  void TryEnumeratedKeyedLoad(const LoadICParameters* p,
+                              TNode<Map> lookup_start_object_map,
+                              ExitPoint* exit_point);
+
   // LoadIC implementation.
   void HandleLoadICHandlerCase(
       const LazyLoadICParameters* p, TNode<MaybeObject> handler, Label* miss,
@@ -421,7 +437,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                   ExitPoint* exit_point);
 
   void HandleLoadAccessor(const LazyLoadICParameters* p,
-                          TNode<CallHandlerInfo> call_handler_info,
+                          TNode<FunctionTemplateInfo> function_template_info,
                           TNode<Word32T> handler_word,
                           TNode<DataHandler> handler,
                           TNode<Uint32T> handler_kind, ExitPoint* exit_point);
