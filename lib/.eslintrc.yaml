@@ -268,6 +268,6 @@ globals:
   internalBinding: false
   primordials: false
 overrides:
-  - files: ["internal/per_context/primordials.js"]
+  - files: [internal/per_context/primordials.js]
     rules:
       node-core/alphabetize-primordials: [error, {enforceTopPosition: false}]
