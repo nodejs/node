@@ -27,7 +27,7 @@ If you find a potential security vulnerability, please refer to our
 
 <!-- type=misc -->
 
-> Stability: 1 - Experimental
+> Stability: 0 - Deprecated: Will be removed shortly
 
 <!-- name=policy -->
 
