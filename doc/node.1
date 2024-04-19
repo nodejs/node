@@ -142,6 +142,11 @@ is `delete`, the property will be removed entirely. If
 is `throw`, accesses to the property will throw an exception with the code
 `ERR_PROTO_ACCESS`.
 .
+.It Fl -disable-wasm-trap-handler Ns = Ns Ar mode
+Disable trap-handler-based WebAssembly bound checks and fall back to
+inline bound checks so that WebAssembly can be run with limited virtual
+memory.
+.
 .It Fl -disallow-code-generation-from-strings
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
