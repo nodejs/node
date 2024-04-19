@@ -30,7 +30,7 @@ to be a collaborator, team member etc.
 The work of the team or individual(s) will be showcased on the
 Node.js social channels and, if warranted, through a blog post created by the
 OpenJS marketing staff along with the team or individual(s) which will
-be published on [openjs.org](https://openjsf.org/).
+be published on [openjsf.org](https://openjsf.org/).
 
 Nominations can be made through this web form:
 [Contributor Spotlight nomination](https://forms.gle/dXBXZn8yu83HLJ57A)
