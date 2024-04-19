@@ -98,21 +98,6 @@ class ContextifyContext : public BaseObject {
       bool produce_cached_data,
       v8::Local<v8::Symbol> id_symbol,
       const errors::TryCatchScope& try_catch);
-  static v8::ScriptCompiler::Source GetCommonJSSourceInstance(
-      v8::Isolate* isolate,
-      v8::Local<v8::String> code,
-      v8::Local<v8::String> filename,
-      int line_offset,
-      int column_offset,
-      v8::Local<v8::PrimitiveArray> host_defined_options,
-      v8::ScriptCompiler::CachedData* cached_data);
-  static v8::ScriptCompiler::CompileOptions GetCompileOptions(
-      const v8::ScriptCompiler::Source& source);
-  static void ContainsModuleSyntax(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ShouldRetryAsESM(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static bool ShouldRetryAsESMInternal(Environment* env,
-                                       v8::Local<v8::String> code);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
   static void PropertyGetterCallback(
