@@ -3,6 +3,7 @@
 const { kReadyState, kController, kResponse, kBinaryType, kWebSocketURL } = require('./symbols')
 const { states, opcodes } = require('./constants')
 const { MessageEvent, ErrorEvent } = require('./events')
+const { isUtf8 } = require('node:buffer')
 
 /* globals Blob */
 
@@ -87,7 +88,7 @@ function websocketMessageReceived (ws, type, data) {
     // -> type indicates that the data is Text
     //      a new DOMString containing data
     try {
-      dataForEvent = new TextDecoder('utf-8', { fatal: true }).decode(data)
+      dataForEvent = utf8Decode(data)
     } catch {
       failWebsocketConnection(ws, 'Received invalid UTF-8 in text frame.')
       return
@@ -200,6 +201,30 @@ function failWebsocketConnection (ws, reason) {
   }
 }
 
+// https://nodejs.org/api/intl.html#detecting-internationalization-support
+const hasIntl = typeof process.versions.icu === 'string'
+const fatalDecoder = hasIntl ? new TextDecoder('utf-8', { fatal: true }) : undefined
+
+/**
+ * Converts a Buffer to utf-8, even on platforms without icu.
+ * @param {Buffer} buffer
+ */
+const utf8Decode = hasIntl
+  ? fatalDecoder.decode.bind(fatalDecoder)
+  : !isUtf8
+      ? function () { // TODO: remove once node 18 or < node v18.14.0 is dropped
+        process.emitWarning('ICU is not supported and no fallback exists. Please upgrade to at least Node v18.14.0.', {
+          code: 'UNDICI-WS-NO-ICU'
+        })
+        throw new TypeError('Invalid utf-8 received.')
+      }
+      : function (buffer) {
+        if (isUtf8(buffer)) {
+          return buffer.toString('utf-8')
+        }
+        throw new TypeError('Invalid utf-8 received.')
+      }
+
 module.exports = {
   isConnecting,
   isEstablished,
@@ -209,5 +234,6 @@ module.exports = {
   isValidSubprotocol,
   isValidStatusCode,
   failWebsocketConnection,
-  websocketMessageReceived
+  websocketMessageReceived,
+  utf8Decode
 }

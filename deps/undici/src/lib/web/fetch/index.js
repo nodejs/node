@@ -58,7 +58,7 @@ const {
   subresourceSet
 } = require('./constants')
 const EE = require('node:events')
-const { Readable, pipeline } = require('node:stream')
+const { Readable, pipeline, finished } = require('node:stream')
 const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
@@ -1080,42 +1080,19 @@ function fetchFinale (fetchParams, response) {
   if (internalResponse.body == null) {
     processResponseEndOfBody()
   } else {
+    // mcollina: all the following steps of the specs are skipped.
+    // The internal transform stream is not needed.
+    // See https://github.com/nodejs/undici/pull/3093#issuecomment-2050198541
+
     // 1. Let transformStream be a new TransformStream.
     // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
     // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm
     //    set to processResponseEndOfBody.
-    const transformStream = new TransformStream({
-      start () { },
-      transform (chunk, controller) {
-        controller.enqueue(chunk)
-      },
-      flush: processResponseEndOfBody
-    })
-
     // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
-    internalResponse.body.stream.pipeThrough(transformStream)
 
-    const byteStream = new ReadableStream({
-      readableStream: transformStream.readable,
-      async start () {
-        this._bodyReader = this.readableStream.getReader()
-      },
-      async pull (controller) {
-        while (controller.desiredSize >= 0) {
-          const { done, value } = await this._bodyReader.read()
-
-          if (done) {
-            queueMicrotask(() => readableStreamClose(controller))
-            break
-          }
-
-          controller.enqueue(value)
-        }
-      },
-      type: 'bytes'
+    finished(internalResponse.body.stream, () => {
+      processResponseEndOfBody()
     })
-
-    internalResponse.body.stream = byteStream
   }
 }
 
