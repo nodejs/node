@@ -286,7 +286,7 @@
       'VCCLCompilerTool': {
         'AdditionalOptions': [
           '/Zc:__cplusplus',
-          '-std:c++17'
+          '-std:c++20'
         ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
