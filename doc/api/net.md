@@ -725,7 +725,7 @@ added:
 * `ip` {string} The IP which the socket attempted to connect to.
 * `port` {number} The port which the socket attempted to connect to.
 * `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
-  \* `error` {Error} The error associated with the failure.
+* `error` {Error} The error associated with the failure.
 
 Emitted when a connection attempt failed. This may be emitted multiple times
 if the family autoselection algorithm is enabled in [`socket.connect(options)`][].
