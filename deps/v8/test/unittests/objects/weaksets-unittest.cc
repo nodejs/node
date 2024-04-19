@@ -178,7 +178,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet();
 
   // Start second old-space page so that values land on evacuation candidate.
-  Page* first_page = heap->old_space()->first_page();
+  PageMetadata* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak set with values on an evacuation candidate.
@@ -220,7 +220,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
       factory->NewFunctionForTesting(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  Page* first_page = heap->old_space()->first_page();
+  PageMetadata* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak set with keys on an evacuation candidate.

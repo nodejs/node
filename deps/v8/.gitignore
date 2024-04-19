@@ -134,3 +134,6 @@ bazel-v8
 !/third_party/abseil-cpp
 /third_party/abseil-cpp/.github
 /third_party/abseil-cpp/ci
+!/third_party/fp16
+/third_party/fp16/src/*
+!/third_party/fp16/src/include

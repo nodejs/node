@@ -601,22 +601,22 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
 #define WASM_BR_ON_CAST(depth, sourcetype, targettype)               \
-  WASM_GC_OP(kExprBrOnCastGeneric),                                  \
+  WASM_GC_OP(kExprBrOnCast),                                         \
       static_cast<uint8_t>(0b01), /*source is nullable*/             \
       static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
       static_cast<uint8_t>(targettype)
 #define WASM_BR_ON_CAST_NULL(depth, sourcetype, targettype)          \
-  WASM_GC_OP(kExprBrOnCastGeneric),                                  \
+  WASM_GC_OP(kExprBrOnCast),                                         \
       static_cast<uint8_t>(0b11) /*source & target nullable*/,       \
       static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
       static_cast<uint8_t>(targettype)
 #define WASM_BR_ON_CAST_FAIL(depth, sourcetype, targettype)          \
-  WASM_GC_OP(kExprBrOnCastFailGeneric),                              \
+  WASM_GC_OP(kExprBrOnCastFail),                                     \
       static_cast<uint8_t>(0b01), /*source is nullable*/             \
       static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
       static_cast<uint8_t>(targettype)
 #define WASM_BR_ON_CAST_FAIL_NULL(depth, sourcetype, targettype)     \
-  WASM_GC_OP(kExprBrOnCastFailGeneric),                              \
+  WASM_GC_OP(kExprBrOnCastFail),                                     \
       static_cast<uint8_t>(0b11), /*source, target nullable*/        \
       static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
       static_cast<uint8_t>(targettype)

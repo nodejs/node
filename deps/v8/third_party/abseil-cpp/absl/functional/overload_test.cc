@@ -30,7 +30,7 @@
 
 namespace {
 
-TEST(OverloadTest, DispatchConsidersType) {
+TEST(OverloadTest, DispatchConsidersTypeWithAutoFallback) {
   auto overloaded = absl::Overload(
       [](int v) -> std::string { return absl::StrCat("int ", v); },        //
       [](double v) -> std::string { return absl::StrCat("double ", v); },  //
@@ -103,6 +103,35 @@ TEST(OverloadTest, AmbiguousConversionNotInvocable) {
   static_assert(!std::is_invocable_v<decltype(overloaded), int>);
 }
 
+TEST(OverloadTest, AmbiguousConversionWithAutoNotInvocable) {
+  auto overloaded = absl::Overload(  //
+      [](auto a) { return a; },  //
+      [](auto c) { return c; }   //
+  );
+  static_assert(!std::is_invocable_v<decltype(overloaded), int>);
+}
+
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+
+TEST(OverloadTest, AmbiguousConversionWithAutoAndTemplateNotInvocable) {
+  auto overloaded = absl::Overload(  //
+      [](auto a) { return a; },  //
+      []<class T>(T c) { return c; }   //
+  );
+  static_assert(!std::is_invocable_v<decltype(overloaded), int>);
+}
+
+TEST(OverloadTest, DispatchConsidersTypeWithTemplateFallback) {
+  auto overloaded = absl::Overload(       //
+      [](int a) { return a; },            //
+      []<class T>(T c) { return c * 2; }  //
+  );
+  EXPECT_EQ(7, overloaded(7));
+  EXPECT_EQ(14.0, overloaded(7.0));
+}
+
+#endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+
 TEST(OverloadTest, DispatchConsidersSfinae) {
   auto overloaded = absl::Overload(                    //
       [](auto a) -> decltype(a + 1) { return a + 1; }  //
@@ -123,6 +152,19 @@ TEST(OverloadTest, VariantVisitDispatchesCorrectly) {
   EXPECT_EQ("double", absl::visit(overloaded, v));
   v = "hello";
   EXPECT_EQ("string", absl::visit(overloaded, v));
+}
+
+TEST(OverloadTest, VariantVisitWithAutoFallbackDispatchesCorrectly) {
+  absl::variant<std::string, int32_t, int64_t> v(int32_t{1});
+  auto overloaded = absl::Overload(
+      [](const std::string& s) { return s.size(); },  //
+      [](const auto& s) { return sizeof(s); }         //
+  );
+  EXPECT_EQ(4, absl::visit(overloaded, v));
+  v = int64_t{1};
+  EXPECT_EQ(8, absl::visit(overloaded, v));
+  v = std::string("hello");
+  EXPECT_EQ(5, absl::visit(overloaded, v));
 }
 
 }  // namespace

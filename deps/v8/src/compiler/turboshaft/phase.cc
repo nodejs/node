@@ -9,6 +9,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/utils/ostreams.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -63,6 +64,14 @@ void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
           return true;
         }
         return false;
+      });
+  PrintTurboshaftCustomDataPerOperation(
+      stream, "Representations", graph,
+      [](std::ostream& stream, const turboshaft::Graph& graph,
+         turboshaft::OpIndex index) -> bool {
+        const Operation& op = graph.Get(index);
+        stream << PrintCollection(op.outputs_rep());
+        return true;
       });
   PrintTurboshaftCustomDataPerOperation(
       stream, "Use Count (saturated)", graph,

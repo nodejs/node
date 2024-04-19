@@ -21,6 +21,7 @@ class FreeListCategory;
 class Heap;
 class TypedSlotsSet;
 class SlotSet;
+class MemoryChunkMetadata;
 
 enum RememberedSetType {
   OLD_TO_NEW,
@@ -43,8 +44,10 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
 #define FIELD(Type, Name) \
   k##Name##Offset, k##Name##End = k##Name##Offset + sizeof(Type) - 1
   enum Header {
-    // BasicMemoryChunk fields:
+    // MemoryChunk fields:
     FIELD(uintptr_t, Flags),
+    FIELD(MemoryChunkMetadata*, Metadata),
+    // MemoryChunkMetadata fields:
     FIELD(size_t, Size),
     FIELD(Heap*, Heap),
     FIELD(Address, AreaStart),
@@ -54,7 +57,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(std::atomic<intptr_t>, HighWaterMark),
     FIELD(Address, Owner),
     FIELD(VirtualMemory, Reservation),
-    // MemoryChunk fields:
+    // MutablePageMetadata fields:
     FIELD(SlotSet* [kNumSets], SlotSet),
     FIELD(TypedSlotsSet* [kNumSets], TypedSlotSet),
     FIELD(ProgressBar, ProgressBar),
@@ -64,7 +67,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(base::Mutex*, PageProtectionChangeMutex),
     FIELD(std::atomic<intptr_t>, ConcurrentSweeping),
     FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
-    FIELD(heap::ListNode<MemoryChunk>, ListNode),
+    FIELD(heap::ListNode<MutablePageMetadata>, ListNode),
     FIELD(FreeListCategory**, Categories),
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
     FIELD(ActiveSystemPages*, ActiveSystemPages),

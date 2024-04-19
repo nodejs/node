@@ -206,13 +206,13 @@ class OperationMatcher {
     return true;
   }
 
-  bool MatchWasmStubCallConstant(OpIndex matched, int64_t* stub_id) const {
+  bool MatchWasmStubCallConstant(OpIndex matched, uint64_t* stub_id) const {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
     if (op->kind != ConstantOp::Kind::kRelocatableWasmStubCall) {
       return false;
     }
-    *stub_id = op->signed_integral();
+    *stub_id = op->integral();
     return true;
   }
 
@@ -274,6 +274,21 @@ class OperationMatcher {
                        WordRepresentation rep) const {
     return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kBitwiseAnd,
                           rep);
+  }
+
+  bool MatchBitwiseAndWithConstant(OpIndex matched, OpIndex* value,
+                                   uint64_t* constant,
+                                   WordRepresentation rep) const {
+    OpIndex left, right;
+    if (!MatchBitwiseAnd(matched, &left, &right, rep)) return false;
+    if (MatchIntegralWordConstant(right, rep, constant)) {
+      *value = left;
+      return true;
+    } else if (MatchIntegralWordConstant(left, rep, constant)) {
+      *value = right;
+      return true;
+    }
+    return false;
   }
 
   bool MatchEqual(OpIndex matched, OpIndex* left, OpIndex* right,

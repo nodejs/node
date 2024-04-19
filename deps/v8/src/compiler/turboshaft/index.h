@@ -36,9 +36,18 @@ class ConstOrV;
 // Compared to `Operation*`, it is more memory efficient (32bit) and stable when
 // the operations buffer is re-allocated.
 class OpIndex {
- public:
+ protected:
+  // We make this constructor protected so that integers are not easily
+  // convertible to OpIndex. FromOffset should be used instead to create an
+  // OpIndex from an offset.
   explicit constexpr OpIndex(uint32_t offset) : offset_(offset) {
     DCHECK(CheckInvariants());
+  }
+  friend class OperationBuffer;
+
+ public:
+  static constexpr OpIndex FromOffset(uint32_t offset) {
+    return OpIndex(offset);
   }
   constexpr OpIndex() : offset_(std::numeric_limits<uint32_t>::max()) {}
   template <typename T, typename C>
@@ -192,7 +201,7 @@ struct Any {};
 template <size_t Bits>
 struct WordWithBits : public Any {
   static constexpr int bits = Bits;
-  static_assert(Bits == 32 || Bits == 64 || Bits == 128);
+  static_assert(Bits == 32 || Bits == 64 || Bits == 128 || Bits == 256);
 };
 
 using Word32 = WordWithBits<32>;
@@ -209,9 +218,7 @@ using Float32 = FloatWithBits<32>;
 using Float64 = FloatWithBits<64>;
 
 using Simd128 = WordWithBits<128>;
-
-// TODO(nicohartmann@): Replace all uses of `V<Tagged>` by `V<Object>`.
-using Tagged = Object;
+using Simd256 = WordWithBits<256>;
 
 struct Compressed : public Any {};
 
@@ -318,6 +325,21 @@ struct v_traits<Simd128> {
       : std::bool_constant<std::is_base_of_v<U, Simd128>> {};
 };
 
+template <>
+struct v_traits<Simd256> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr RegisterRepresentation rep =
+      RegisterRepresentation::Simd256();
+  using constexpr_type = uint8_t[kSimd256Size];
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Simd256();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Simd256>> {};
+};
+
 template <typename T>
 struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
   static constexpr bool is_abstract_tag = false;
@@ -408,8 +430,8 @@ class OptionalV : public OptionalOpIndex {
   // different conversion rules in the corresponding `v_traits` when necessary.
   template <typename U, typename = std::enable_if_t<v_traits<
                             U>::template implicitly_convertible_to<T>::value>>
-  OptionalV(OptionalV<U> index)
-      : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
+  OptionalV(OptionalV<U> index)  // NOLINT(runtime/explicit)
+      : OptionalOpIndex(index) {}
   template <typename U, typename = std::enable_if_t<v_traits<
                             U>::template implicitly_convertible_to<T>::value>>
   OptionalV(V<U> index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
@@ -484,6 +506,24 @@ V8_INLINE size_t hash_value(OpIndex op) { return base::hash_value(op.hash()); }
 V8_INLINE size_t hash_value(OptionalOpIndex op) {
   return base::hash_value(op.hash());
 }
+
+namespace detail {
+template <typename T, typename = void>
+struct ConstOrVTypeHelper {
+  static constexpr bool exists = false;
+  using type = V<T>;
+};
+template <typename T>
+struct ConstOrVTypeHelper<T, std::void_t<ConstOrV<T>>> {
+  static constexpr bool exists = true;
+  using type = ConstOrV<T>;
+};
+}  // namespace detail
+
+template <typename T>
+using maybe_const_or_v_t = typename detail::ConstOrVTypeHelper<T>::type;
+template <typename T>
+constexpr bool const_or_v_exists_v = detail::ConstOrVTypeHelper<T>::exists;
 
 // `BlockIndex` is the index of a bound block.
 // A dominating block always has a smaller index.

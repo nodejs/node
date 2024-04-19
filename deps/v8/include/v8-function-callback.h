@@ -82,8 +82,15 @@ class ReturnValue {
   friend class PropertyCallbackInfo;
   template <class F, class G, class H>
   friend class PersistentValueMapBase;
-  V8_INLINE void SetInternal(internal::Address value) { *value_ = value; }
-  V8_INLINE internal::Address GetDefaultValue();
+  V8_INLINE void SetInternal(internal::Address value);
+  // Setting the hole value has different meanings depending on the usage:
+  //  - for function template callbacks it means that the callback returns
+  //    the undefined value,
+  //  - for property getter callbacks is means that the callback returns
+  //    the undefined value (for property setter callbacks the value returned
+  //    is ignored),
+  //  - for interceptor callbacks it means that the request was not handled.
+  V8_INLINE void SetTheHole();
   V8_INLINE explicit ReturnValue(internal::Address* slot);
 
   // See FunctionCallbackInfo.
@@ -287,13 +294,27 @@ template <typename T>
 ReturnValue<T>::ReturnValue(internal::Address* slot) : value_(slot) {}
 
 template <typename T>
+void ReturnValue<T>::SetInternal(internal::Address value) {
+#if V8_STATIC_ROOTS_BOOL
+  using I = internal::Internals;
+  // Ensure that the upper 32-bits are not modified. Compiler should be
+  // able to optimize this to a store of a lower 32-bits of the value.
+  // This is fine since the callback can return only JavaScript values which
+  // are either Smis or heap objects allocated in the main cage.
+  *value_ = I::DecompressTaggedField(*value_, I::CompressTagged(value));
+#else
+  *value_ = value;
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
+template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Global<S>& handle) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
-    *value_ = GetDefaultValue();
+    SetTheHole();
   } else {
-    *value_ = handle.ptr();
+    SetInternal(handle.ptr());
   }
 }
 
@@ -304,7 +325,7 @@ void ReturnValue<T>::SetNonEmpty(const Global<S>& handle) {
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
-  *value_ = handle.ptr();
+  SetInternal(handle.ptr());
 }
 
 template <typename T>
@@ -312,9 +333,9 @@ template <typename S>
 void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
-    *value_ = GetDefaultValue();
+    SetTheHole();
   } else {
-    *value_ = handle.ptr();
+    SetInternal(handle.ptr());
   }
 }
 
@@ -325,7 +346,7 @@ void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
-  *value_ = handle.ptr();
+  SetInternal(handle.ptr());
 }
 
 template <typename T>
@@ -334,9 +355,9 @@ void ReturnValue<T>::Set(const Local<S> handle) {
   static_assert(std::is_void<T>::value || std::is_base_of<T, S>::value,
                 "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
-    *value_ = GetDefaultValue();
+    SetTheHole();
   } else {
-    *value_ = handle.ptr();
+    SetInternal(handle.ptr());
   }
 }
 
@@ -348,13 +369,13 @@ void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
-  *value_ = handle.ptr();
+  SetInternal(handle.ptr());
 }
 
 template <typename T>
 void ReturnValue<T>::Set(double i) {
   static_assert(std::is_base_of<T, Number>::value, "type check");
-  Set(Number::New(GetIsolate(), i));
+  SetNonEmpty(Number::New(GetIsolate(), i));
 }
 
 template <typename T>
@@ -362,10 +383,10 @@ void ReturnValue<T>::Set(int32_t i) {
   static_assert(std::is_base_of<T, Integer>::value, "type check");
   using I = internal::Internals;
   if (V8_LIKELY(I::IsValidSmi(i))) {
-    *value_ = I::IntToSmi(i);
+    SetInternal(I::IntToSmi(i));
     return;
   }
-  Set(Integer::New(GetIsolate(), i));
+  SetNonEmpty(Integer::New(GetIsolate(), i));
 }
 
 template <typename T>
@@ -377,7 +398,7 @@ void ReturnValue<T>::Set(uint32_t i) {
     Set(static_cast<int32_t>(i));
     return;
   }
-  Set(Integer::NewFromUnsigned(GetIsolate(), i));
+  SetNonEmpty(Integer::NewFromUnsigned(GetIsolate(), i));
 }
 
 template <typename T>
@@ -386,7 +407,7 @@ void ReturnValue<T>::Set(uint16_t i) {
   using I = internal::Internals;
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::min()));
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::max()));
-  *value_ = I::IntToSmi(i);
+  SetInternal(I::IntToSmi(i));
 }
 
 template <typename T>
@@ -398,9 +419,8 @@ void ReturnValue<T>::Set(bool value) {
   internal::PerformCastCheck(
       internal::ValueHelper::SlotAsValue<Value, true>(value_));
 #endif  // V8_ENABLE_CHECKS
-  *value_ = I::DecompressTaggedField(
-      *value_, value ? I::StaticReadOnlyRoot::kTrueValue
-                     : I::StaticReadOnlyRoot::kFalseValue);
+  SetInternal(value ? I::StaticReadOnlyRoot::kTrueValue
+                    : I::StaticReadOnlyRoot::kFalseValue);
 #else
   int root_index;
   if (value) {
@@ -413,6 +433,16 @@ void ReturnValue<T>::Set(bool value) {
 }
 
 template <typename T>
+void ReturnValue<T>::SetTheHole() {
+  using I = internal::Internals;
+#if V8_STATIC_ROOTS_BOOL
+  SetInternal(I::StaticReadOnlyRoot::kTheHoleValue);
+#else
+  *value_ = I::GetRoot(GetIsolate(), I::kTheHoleValueRootIndex);
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
+template <typename T>
 void ReturnValue<T>::SetNull() {
   static_assert(std::is_base_of<T, Primitive>::value, "type check");
   using I = internal::Internals;
@@ -421,8 +451,7 @@ void ReturnValue<T>::SetNull() {
   internal::PerformCastCheck(
       internal::ValueHelper::SlotAsValue<Value, true>(value_));
 #endif  // V8_ENABLE_CHECKS
-  *value_ =
-      I::DecompressTaggedField(*value_, I::StaticReadOnlyRoot::kNullValue);
+  SetInternal(I::StaticReadOnlyRoot::kNullValue);
 #else
   *value_ = I::GetRoot(GetIsolate(), I::kNullValueRootIndex);
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -437,8 +466,7 @@ void ReturnValue<T>::SetUndefined() {
   internal::PerformCastCheck(
       internal::ValueHelper::SlotAsValue<Value, true>(value_));
 #endif  // V8_ENABLE_CHECKS
-  *value_ =
-      I::DecompressTaggedField(*value_, I::StaticReadOnlyRoot::kUndefinedValue);
+  SetInternal(I::StaticReadOnlyRoot::kUndefinedValue);
 #else
   *value_ = I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -453,8 +481,7 @@ void ReturnValue<T>::SetEmptyString() {
   internal::PerformCastCheck(
       internal::ValueHelper::SlotAsValue<Value, true>(value_));
 #endif  // V8_ENABLE_CHECKS
-  *value_ =
-      I::DecompressTaggedField(*value_, I::StaticReadOnlyRoot::kEmptyString);
+  SetInternal(I::StaticReadOnlyRoot::kEmptyString);
 #else
   *value_ = I::GetRoot(GetIsolate(), I::kEmptyStringRootIndex);
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -483,12 +510,6 @@ template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(S* whatever) {
   static_assert(sizeof(S) < 0, "incompilable to prevent inadvertent misuse");
-}
-
-template <typename T>
-internal::Address ReturnValue<T>::GetDefaultValue() {
-  using I = internal::Internals;
-  return I::GetRoot(GetIsolate(), I::kTheHoleValueRootIndex);
 }
 
 template <typename T>

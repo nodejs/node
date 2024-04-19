@@ -581,6 +581,17 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
       std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
           *this, *isolate_->traced_handles());
   no_gc_scope_--;
+
+  // Propagate overridden stack state to the attached heap, if necessary.
+  // TODO(b/326503098): This should not be required, to be removed when the
+  // issue is resolved.
+  CHECK(!override_stack_state_scope_);
+  if (detached_override_stack_state_) {
+    override_stack_state_scope_ = std::make_unique<EmbedderStackStateScope>(
+        heap_, EmbedderStackStateOrigin::kExplicitInvocation,
+        detached_override_stack_state_.value());
+    detached_override_stack_state_.reset();
+  }
 }
 
 void CppHeap::DetachIsolate() {
@@ -603,6 +614,16 @@ void CppHeap::DetachIsolate() {
     heap_profiler->set_native_move_listener(nullptr);
   }
   SetMetricRecorder(nullptr);
+
+  // Propagate overridden stack state from the attached heap, if necessary.
+  // TODO(b/326503098): This should not be required, to be removed when the
+  // issue is resolved.
+  CHECK(!detached_override_stack_state_);
+  if (override_stack_state_scope_) {
+    detached_override_stack_state_ = heap_->overridden_stack_state();
+    override_stack_state_scope_.reset();
+  }
+
   isolate_ = nullptr;
   heap_ = nullptr;
   // Any future garbage collections will ignore the V8->C++ references.
@@ -1195,8 +1216,33 @@ void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {
       flags, GarbageCollectionReason::kCppHeapAllocationFailure);
 }
 
-const cppgc::EmbedderStackState* CppHeap::override_stack_state() const {
-  return HeapBase::override_stack_state();
+std::optional<cppgc::EmbedderStackState> CppHeap::overridden_stack_state()
+    const {
+  return heap_ ? heap_->overridden_stack_state()
+               : detached_override_stack_state_;
+}
+
+void CppHeap::set_override_stack_state(cppgc::EmbedderStackState state) {
+  CHECK(!detached_override_stack_state_);
+  CHECK(!override_stack_state_scope_);
+  if (heap_) {
+    override_stack_state_scope_ = std::make_unique<EmbedderStackStateScope>(
+        heap_, EmbedderStackStateOrigin::kExplicitInvocation, state);
+  } else {
+    detached_override_stack_state_ = state;
+  }
+}
+
+void CppHeap::clear_overridden_stack_state() {
+  if (heap_) {
+    CHECK(!detached_override_stack_state_);
+    CHECK(override_stack_state_scope_);
+    override_stack_state_scope_.reset();
+  } else {
+    CHECK(detached_override_stack_state_);
+    CHECK(!override_stack_state_scope_);
+    detached_override_stack_state_.reset();
+  }
 }
 
 void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
@@ -1240,7 +1286,9 @@ bool CppHeap::IsGCAllowed() const {
 }
 
 bool CppHeap::IsGCForbidden() const {
-  return (isolate_ && isolate_->InFastCCall()) || HeapBase::IsGCForbidden();
+  return (isolate_ && isolate_->InFastCCall() &&
+          !v8_flags.allow_allocation_in_fast_api_call) ||
+         HeapBase::IsGCForbidden();
 }
 
 }  // namespace internal

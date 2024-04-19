@@ -18,7 +18,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -165,7 +165,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         // Support calling this method without an active context, but refuse
         // access to access-checked objects in that case.
         if (!it->isolate()->context().is_null() && it->HasAccess()) continue;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case LookupIterator::JSPROXY:
       case LookupIterator::WASM_OBJECT:
         it->NotFound();
@@ -3005,7 +3005,7 @@ void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
       // The new map isn't registered with its prototype yet; reflect this fact
       // in the PrototypeInfo it just inherited from the old map.
       PrototypeInfo::cast(new_map->prototype_info())
-          ->set_registry_slot(PrototypeInfo::UNREGISTERED);
+          ->set_registry_slot(MemoryChunk::UNREGISTERED);
     }
     JSObject::LazyRegisterPrototypeUser(new_map, isolate);
   }
@@ -4917,7 +4917,7 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
       Map::GetOrCreatePrototypeInfo(user, isolate);
   for (PrototypeIterator iter(isolate, user); !iter.IsAtEnd(); iter.Advance()) {
     // Walk up the prototype chain as far as links haven't been registered yet.
-    if (current_user_info->registry_slot() != PrototypeInfo::UNREGISTERED) {
+    if (current_user_info->registry_slot() != MemoryChunk::UNREGISTERED) {
       break;
     }
     Handle<Object> maybe_proto = PrototypeIterator::GetCurrent(iter);
@@ -4978,7 +4978,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   Handle<PrototypeInfo> user_info =
       Map::GetOrCreatePrototypeInfo(user, isolate);
   int slot = user_info->registry_slot();
-  if (slot == PrototypeInfo::UNREGISTERED) return false;
+  if (slot == MemoryChunk::UNREGISTERED) return false;
   DCHECK(prototype->map()->is_prototype_map());
   Tagged<Object> maybe_proto_info = prototype->map()->prototype_info();
   // User knows its registry slot, prototype info and user registry must exist.
@@ -4987,7 +4987,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
                                    isolate);
   Handle<WeakArrayList> prototype_users(
       WeakArrayList::cast(proto_info->prototype_users()), isolate);
-  DCHECK_EQ(prototype_users->Get(slot), HeapObjectReference::Weak(*user));
+  DCHECK_EQ(prototype_users->Get(slot), MakeWeak(*user));
   PrototypeUsers::MarkSlotEmpty(*prototype_users, slot);
   if (v8_flags.trace_prototype_users) {
     PrintF("Unregistering %p as a user of prototype %p.\n",
@@ -5185,6 +5185,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
       real_receiver);
   isolate->UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
       real_receiver);
+  isolate->UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(real_receiver);
 
   Handle<Map> new_map = Map::TransitionToUpdatePrototype(
       isolate, map, Handle<HeapObject>::cast(value));
@@ -5451,7 +5452,7 @@ int JSObject::GetFastElementsUsage() {
                               : store->length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       store = SloppyArgumentsElements::cast(store)->arguments();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:

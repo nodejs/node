@@ -167,14 +167,17 @@ class TestModuleBuilder {
   }
 
   uint8_t AddPassiveElementSegment(wasm::ValueType type) {
-    mod.elem_segments.emplace_back(type, WasmElemSegment::kStatusPassive,
-                                   WasmElemSegment::kExpressionElements, 0, 0);
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+    mod.elem_segments.emplace_back(WasmElemSegment::kStatusPassive, kIsShared,
+                                   type, WasmElemSegment::kExpressionElements,
+                                   0, 0);
     return static_cast<uint8_t>(mod.elem_segments.size() - 1);
   }
 
   uint8_t AddDeclarativeElementSegment() {
-    mod.elem_segments.emplace_back(kWasmFuncRef,
-                                   WasmElemSegment::kStatusDeclarative,
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+    mod.elem_segments.emplace_back(WasmElemSegment::kStatusDeclarative,
+                                   kIsShared, kWasmFuncRef,
                                    WasmElemSegment::kExpressionElements, 0, 0);
     return static_cast<uint8_t>(mod.elem_segments.size() - 1);
   }
@@ -1918,12 +1921,11 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs2) {
                                             WASM_I32V_1(42), WASM_ZERO)});
 
   uint8_t wrong_type_index = builder.AddSignature(sigs.i_ii());
-  ExpectFailure(sigs.i_v(),
-                {WASM_CALL_INDIRECT_TABLE(table_index, wrong_type_index,
-                                          WASM_I32V_1(42), WASM_ZERO)},
-                kAppendEnd,
-                "call_indirect: Immediate signature #1 is not a subtype of "
-                "immediate table #0");
+  // Note: this would trap at runtime, but does validate.
+  ExpectValidates(
+      sigs.i_v(),
+      {WASM_CALL_INDIRECT_TABLE(table_index, wrong_type_index, WASM_I32V_1(41),
+                                WASM_I32V_1(42), WASM_ZERO)});
 
   uint8_t non_function_table_index = builder.InitializeTable(kWasmExternRef);
   ExpectFailure(
@@ -2153,6 +2155,19 @@ TEST_F(FunctionBodyDecoderTest, NullFuncRefGlobals) {
                   {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
   ExpectValidates(&sig, {WASM_GLOBAL_SET(0, WASM_REF_NULL(kNoFuncCode)),
                          WASM_LOCAL_GET(0)});
+}
+
+TEST_F(FunctionBodyDecoderTest, NullExnRefGlobals) {
+  WASM_FEATURE_SCOPE(exnref);
+  ValueType nullFuncRefs[] = {kWasmNullExnRef, kWasmNullExnRef,
+                              kWasmNullExnRef};
+  FunctionSig sig(1, 2, nullFuncRefs);
+  builder.AddGlobal(kWasmNullExnRef);
+  ExpectValidates(&sig, {WASM_GLOBAL_GET(0)});
+  ExpectValidates(&sig,
+                  {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
+  ExpectValidates(
+      &sig, {WASM_GLOBAL_SET(0, WASM_REF_NULL(kNoExnCode)), WASM_LOCAL_GET(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
@@ -2868,6 +2883,7 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 #define WASM_TRY_OP kExprTry, kVoidCode
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
+  WASM_FEATURE_SCOPE(legacy_eh);
   uint8_t ex = builder.AddException(sigs.v_v());
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprEnd});
   ExpectValidates(sigs.v_v(),
@@ -2884,6 +2900,8 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
+  WASM_FEATURE_SCOPE(legacy_eh);
+
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_OP, kExprCatchAll, kExprRethrow, 0, kExprEnd});
   ExpectFailure(sigs.v_v(),
@@ -2896,6 +2914,7 @@ TEST_F(FunctionBodyDecoderTest, Rethrow) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TryDelegate) {
+  WASM_FEATURE_SCOPE(legacy_eh);
   uint8_t ex = builder.AddException(sigs.v_v());
 
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP,
@@ -3583,8 +3602,10 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
   }
 }
 
-ValueType ref(uint8_t type_index) { return ValueType::Ref(type_index); }
-ValueType refNull(uint8_t type_index) { return ValueType::RefNull(type_index); }
+ValueType ref(uint32_t type_index) { return ValueType::Ref(type_index); }
+ValueType refNull(uint32_t type_index) {
+  return ValueType::RefNull(type_index);
+}
 
 TEST_F(FunctionBodyDecoderTest, StructOrArrayNewDefault) {
   TestModuleBuilder builder;
@@ -3627,6 +3648,7 @@ TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
 }
 
 TEST_F(FunctionBodyDecoderTest, NonDefaultableLocals) {
+  WASM_FEATURE_SCOPE(legacy_eh);
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   ValueType rep = ref(struct_type_index);
   FunctionSig sig(0, 1, &rep);
@@ -3707,9 +3729,18 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
   WASM_FEATURE_SCOPE(exnref);
 
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType eqref_subtypes[] = {
-      kWasmEqRef,  kWasmI31Ref.AsNonNull(), kWasmEqRef.AsNonNull(),
-      kWasmI31Ref, ref(struct_type_index),  refNull(struct_type_index)};
+  ValueType eqref_subtypes[] = {kWasmEqRef,
+                                kWasmI31Ref,
+                                kWasmI31Ref.AsNonNull(),
+                                kWasmEqRef.AsNonNull(),
+                                kWasmStructRef,
+                                kWasmArrayRef,
+                                refNull(HeapType::kEqShared),
+                                refNull(HeapType::kI31Shared),
+                                ref(HeapType::kStructShared),
+                                ref(HeapType::kArrayShared),
+                                ref(struct_type_index),
+                                refNull(struct_type_index)};
   ValueType non_eqref_subtypes[] = {kWasmI32,
                                     kWasmI64,
                                     kWasmF32,
@@ -3719,10 +3750,14 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
                                     kWasmExternRef,
                                     kWasmAnyRef,
                                     kWasmExnRef,
-                                    ValueType::Ref(HeapType::kExtern),
-                                    ValueType::Ref(HeapType::kAny),
-                                    ValueType::Ref(HeapType::kFunc),
-                                    ValueType::Ref(HeapType::kExn)};
+                                    ref(HeapType::kExtern),
+                                    ref(HeapType::kAny),
+                                    ref(HeapType::kFunc),
+                                    ref(HeapType::kExn),
+                                    refNull(HeapType::kExternShared),
+                                    refNull(HeapType::kAnyShared),
+                                    refNull(HeapType::kFuncShared),
+                                    refNull(HeapType::kExnShared)};
 
   for (ValueType type1 : eqref_subtypes) {
     for (ValueType type2 : eqref_subtypes) {
@@ -3738,9 +3773,13 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
       ValueType reps[] = {kWasmI32, type1, type2};
       FunctionSig sig(1, 2, reps);
       ExpectFailure(&sig, {WASM_REF_EQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
-                    kAppendEnd, "expected type eqref, found local.get of type");
+                    kAppendEnd,
+                    "expected either eqref or (ref null shared eq), found "
+                    "local.get of type");
       ExpectFailure(&sig, {WASM_REF_EQ(WASM_LOCAL_GET(1), WASM_LOCAL_GET(0))},
-                    kAppendEnd, "expected type eqref, found local.get of type");
+                    kAppendEnd,
+                    "expected either eqref or (ref null shared eq), found "
+                    "local.get of type");
     }
   }
 }
@@ -4906,8 +4945,8 @@ TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
 TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
   // br_on_cast[_fail]: prefix + opcode + flags + br_depth + source_type +
   //                    target_type
-  ExpectLength(6, 0xfb, kExprBrOnCastGeneric & 0xFF);
-  ExpectLength(6, 0xfb, kExprBrOnCastFailGeneric & 0xFF);
+  ExpectLength(6, 0xfb, kExprBrOnCast & 0xFF);
+  ExpectLength(6, 0xfb, kExprBrOnCastFail & 0xFF);
 
   // struct.new, with leb immediate operand.
   ExpectLength(3, 0xfb, 0x07, 0x42);

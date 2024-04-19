@@ -47,6 +47,7 @@ struct TurbofanAdapter {
   using inputs_t = Node::Inputs;
   using opcode_t = IrOpcode::Value;
   using id_t = uint32_t;
+  static_assert(std::is_same_v<NodeId, id_t>);
   using source_position_table_t = SourcePositionTable;
 
   explicit TurbofanAdapter(Schedule*) {}
@@ -60,7 +61,9 @@ struct TurbofanAdapter {
              node_->opcode() == IrOpcode::kRelocatableInt64Constant ||
              node_->opcode() == IrOpcode::kHeapConstant ||
              node_->opcode() == IrOpcode::kCompressedHeapConstant ||
-             node_->opcode() == IrOpcode::kNumberConstant);
+             node_->opcode() == IrOpcode::kNumberConstant ||
+             node_->opcode() == IrOpcode::kFloat32Constant ||
+             node_->opcode() == IrOpcode::kFloat64Constant);
     }
 
     bool is_int32() const {
@@ -452,6 +455,8 @@ struct TurbofanAdapter {
       case IrOpcode::kHeapConstant:
       case IrOpcode::kCompressedHeapConstant:
       case IrOpcode::kNumberConstant:
+      case IrOpcode::kFloat32Constant:
+      case IrOpcode::kFloat64Constant:
         // For those, a view must be constructible.
         DCHECK_EQ(constant_view(node), node);
         return true;
@@ -820,50 +825,58 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   class LoadView {
    public:
     LoadView(turboshaft::Graph* graph, node_t node) : node_(node) {
-      load_ = graph->Get(node_).TryCast<turboshaft::LoadOp>();
+      switch (graph->Get(node_).opcode) {
+        case opcode_t::kLoad:
+          load_ = &graph->Get(node_).Cast<turboshaft::LoadOp>();
+          break;
 #if V8_ENABLE_WEBASSEMBLY
-      if (load_ == nullptr) {
-        load_transform_ =
-            &graph->Get(node_).Cast<turboshaft::Simd128LoadTransformOp>();
+        case opcode_t::kSimd128LoadTransform:
+          load_transform_ =
+              &graph->Get(node_).Cast<turboshaft::Simd128LoadTransformOp>();
+          break;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+        case opcode_t::kSimd256LoadTransform:
+          load_transform256_ =
+              &graph->Get(node_).Cast<turboshaft::Simd256LoadTransformOp>();
+          break;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+        default:
+          UNREACHABLE();
       }
-#else
-      DCHECK_NOT_NULL(load_);
-#endif
     }
-
     LoadRepresentation loaded_rep() const {
       DCHECK_NOT_NULL(load_);
       return load_->machine_type();
     }
     bool is_protected(bool* traps_on_null) const {
-      if (load_) {
-        if (load_->kind.with_trap_handler) {
+      if (kind().with_trap_handler) {
+        if (load_) {
           *traps_on_null = load_->kind.trap_on_null;
-          return true;
-        }
 #if V8_ENABLE_WEBASSEMBLY
-      } else {
-        if (load_transform_->load_kind.with_trap_handler) {
-          DCHECK(!load_transform_->load_kind.trap_on_null);
+        } else {
+          DCHECK((load_transform_ && !load_transform_->load_kind.trap_on_null)
+#if V8_ENABLE_WASM_SIMD256_REVEC
+                 || (load_transform256_ &&
+                     !load_transform256_->load_kind.trap_on_null)
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+          );
           *traps_on_null = false;
-          return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
         }
-#endif
+        return true;
       }
       return false;
     }
-    bool is_atomic() const {
-      if (load_) return load_->kind.is_atomic;
-#if V8_ENABLE_WEBASSEMBLY
-      if (load_transform_) return load_transform_->load_kind.is_atomic;
-#endif
-      UNREACHABLE();
-    }
+    bool is_atomic() const { return kind().is_atomic; }
 
     node_t base() const {
       if (load_) return load_->base();
 #if V8_ENABLE_WEBASSEMBLY
       if (load_transform_) return load_transform_->base();
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return load_transform256_->base();
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
       UNREACHABLE();
     }
@@ -871,6 +884,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       if (load_) return load_->index().value_or_invalid();
 #if V8_ENABLE_WEBASSEMBLY
       if (load_transform_) return load_transform_->index();
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return load_transform256_->index();
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
       UNREACHABLE();
     }
@@ -890,6 +906,12 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
         int32_t offset = load_transform_->offset;
         DCHECK(!load_transform_->load_kind.tagged_base);
         return offset;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      } else if (load_transform256_) {
+        int32_t offset = load_transform256_->offset;
+        DCHECK(!load_transform256_->load_kind.tagged_base);
+        return offset;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
       }
       UNREACHABLE();
@@ -901,6 +923,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       if (load_) return load_->element_size_log2;
 #if V8_ENABLE_WEBASSEMBLY
       if (load_transform_) return 0;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return 0;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
       UNREACHABLE();
     }
@@ -908,10 +933,24 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     operator node_t() const { return node_; }
 
    private:
-    node_t node_;
-    const turboshaft::LoadOp* load_;
+    turboshaft::LoadOp::Kind kind() const {
+      if (load_) return load_->kind;
 #if V8_ENABLE_WEBASSEMBLY
-    const turboshaft::Simd128LoadTransformOp* load_transform_;
+      if (load_transform_) return load_transform_->load_kind;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+      if (load_transform256_) return load_transform256_->load_kind;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif
+      UNREACHABLE();
+    }
+
+    node_t node_;
+    const turboshaft::LoadOp* load_ = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+    const turboshaft::Simd128LoadTransformOp* load_transform_ = nullptr;
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    const turboshaft::Simd256LoadTransformOp* load_transform256_ = nullptr;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
   };
 
@@ -1094,6 +1133,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     return graph_->Get(node).Is<turboshaft::LoadOp>()
 #if V8_ENABLE_WEBASSEMBLY
            || graph_->Get(node).Is<turboshaft::Simd128LoadTransformOp>()
+#if V8_ENABLE_WASM_SIMD256_REVEC
+           || graph_->Get(node).Is<turboshaft::Simd256LoadTransformOp>()
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
         ;
   }

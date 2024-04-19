@@ -4,6 +4,7 @@
 
 #include "src/snapshot/serializer-deserializer.h"
 
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -65,7 +66,10 @@ bool SerializerDeserializer::CanBeDeferred(Tagged<HeapObject> o,
   // were resolved after object post processing?
   return !IsInternalizedString(o) &&
          !(IsJSObject(o) && JSObject::cast(o)->GetEmbedderFieldCount() > 0) &&
-         !IsByteArray(o);
+         !IsByteArray(o) && !IsEmbedderDataArray(o) &&
+         !(IsNativeContext(o) &&
+           EmbedderDataArray::cast(Context::cast(o)->embedder_data())
+                   ->length() > 0);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
@@ -75,9 +79,9 @@ void SerializerDeserializer::RestoreExternalReferenceRedirector(
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info) {
+    Isolate* isolate, Tagged<FunctionTemplateInfo> function_template_info) {
   DisallowGarbageCollection no_gc;
-  call_handler_info->init_callback_redirection(isolate);
+  function_template_info->init_callback_redirection(isolate);
 }
 
 }  // namespace internal

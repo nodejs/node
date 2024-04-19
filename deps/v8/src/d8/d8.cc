@@ -1435,6 +1435,14 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   }
 
   if (!global_result.IsEmpty()) {
+    // This method is invoked from a microtask, where in general we may have an
+    // non-trivial stack. Emptying the message queue below may trigger the
+    // execution of a stackless GC. We need to override the embedder stack
+    // state, to force scanning the stack, if this happens.
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    i::EmbedderStackStateScope scope(
+        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kMayContainHeapPointers);
     EmptyMessageQueues(isolate);
   } else {
     DCHECK(try_catch.HasCaught());
@@ -2185,7 +2193,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 // Realm.shared is an accessor for a single shared value across realms.
-void Shell::RealmSharedGet(Local<String> property,
+void Shell::RealmSharedGet(Local<Name> property,
                            const PropertyCallbackInfo<Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
@@ -2194,7 +2202,7 @@ void Shell::RealmSharedGet(Local<String> property,
   info.GetReturnValue().Set(data->realm_shared_);
 }
 
-void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
+void Shell::RealmSharedSet(Local<Name> property, Local<Value> value,
                            const PropertyCallbackInfo<void>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
@@ -2286,11 +2294,11 @@ void Shell::TestVerifySourcePositions(
       handle(function->shared()->GetBytecodeArray(i_isolate), i_isolate);
   i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
   bool has_baseline = function->shared()->HasBaselineCode();
-  i::Handle<i::ByteArray> bytecode_offsets;
+  i::Handle<i::TrustedByteArray> bytecode_offsets;
   std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
   if (has_baseline) {
     bytecode_offsets = handle(
-        i::ByteArray::cast(
+        i::TrustedByteArray::cast(
             function->shared()->GetCode(i_isolate)->bytecode_offset_table()),
         i_isolate);
     offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(
@@ -3227,24 +3235,33 @@ void Shell::NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8::Number::New(isolate, 1));
 }
 
-Local<FunctionTemplate> NewDOMFunctionTemplate(Isolate* isolate,
-                                               uint16_t instance_type) {
+enum class JSApiInstanceType : uint16_t {
+  kGenericApiObject = 0,  // FunctionTemplateInfo::kNoJSApiObjectType.
+  kEventTarget,
+  kNode,
+  kElement,
+  kHTMLElement,
+  kHTMLDivElement,
+};
+
+Local<FunctionTemplate> NewDOMFunctionTemplate(
+    Isolate* isolate, JSApiInstanceType instance_type) {
   return FunctionTemplate::New(
       isolate, nullptr, Local<Value>(), Local<Signature>(), 0,
       ConstructorBehavior::kAllow, SideEffectType::kHasSideEffect, nullptr,
-      instance_type);
+      static_cast<uint16_t>(instance_type));
 }
 
 Local<FunctionTemplate> Shell::CreateEventTargetTemplate(Isolate* isolate) {
   Local<FunctionTemplate> event_target =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 1);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kEventTarget);
   return event_target;
 }
 
 Local<FunctionTemplate> Shell::CreateNodeTemplates(
     Isolate* isolate, Local<FunctionTemplate> event_target) {
   Local<FunctionTemplate> node =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 2);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kNode);
   node->Inherit(event_target);
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -3255,23 +3272,23 @@ Local<FunctionTemplate> Shell::CreateNodeTemplates(
   Local<FunctionTemplate> nodeType = FunctionTemplate::New(
       isolate, NodeTypeCallback, Local<Value>(), signature, 0,
       ConstructorBehavior::kThrow, SideEffectType::kHasSideEffect, nullptr,
-      i::Internals::kFirstJSApiObjectType,
-      i::Internals::kFirstJSApiObjectType + 3,
-      i::Internals::kFirstJSApiObjectType + 5);
+      static_cast<uint16_t>(JSApiInstanceType::kGenericApiObject),
+      static_cast<uint16_t>(JSApiInstanceType::kElement),
+      static_cast<uint16_t>(JSApiInstanceType::kHTMLDivElement));
   nodeType->SetAcceptAnyReceiver(false);
   proto_template->SetAccessorProperty(
       String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
 
   Local<FunctionTemplate> element =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 3);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kElement);
   element->Inherit(node);
 
   Local<FunctionTemplate> html_element =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 4);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kHTMLElement);
   html_element->Inherit(element);
 
   Local<FunctionTemplate> div_element =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 5);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kHTMLDivElement);
   div_element->Inherit(html_element);
 
   return div_element;
@@ -4235,6 +4252,14 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         context->Global()->Get(context, callback_name).ToLocalChecked();
     if (!callback->IsFunction()) return;
 
+    // Running the message loop below may trigger the execution of a stackless
+    // GC. We need to override the embedder stack state, to force scanning the
+    // stack, if this happens.
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
+    i::EmbedderStackStateScope stack_scanning_scope(
+        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+        v8::StackState::kMayContainHeapPointers);
+
     v8::TryCatch try_catch(isolate_);
     try_catch.SetVerbose(true);
     is_paused = true;
@@ -5062,16 +5087,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--expose-fast-api") == 0) {
       options.expose_fast_api = true;
       argv[i] = nullptr;
-#if V8_ENABLE_SANDBOX
-    } else if (strcmp(argv[i], "--enable-sandbox-crash-filter") == 0) {
-      options.enable_sandbox_crash_filter = true;
-      // Enable the "soft" abort mode in addition to the crash filter. This is
-      // mostly so that we get better error output for (safe) fatal errors.
-      // TODO(saelo): consider renaming --enable-sandbox-crash-filter to
-      // --sandbox-fuzzing and make it a V8 flag that implies --soft-abort.
-      i::v8_flags.soft_abort = true;
-      argv[i] = nullptr;
-#endif  // V8_ENABLE_SANDBOX
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -5876,13 +5891,19 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
 #ifdef V8_ENABLE_SANDBOX
-  if (options.enable_sandbox_crash_filter) {
-    // Note: this must happen before the Wasm trap handler is installed, so
-    // that the Wasm trap handler is invoked first (and can handle Wasm OOB
-    // accesses), then forwards all "real" crashes to the sandbox crash filter.
-    i::SandboxTesting::InstallSandboxCrashFilter();
+  // Enable sandbox testing mode if requested.
+  //
+  // This will install the sandbox crash filter to ignore all crashes that do
+  // not represent sandbox violations.
+  //
+  // Note: this must happen before the Wasm trap handler is installed, so that
+  // the wasm trap handler is invoked first (and can handle Wasm OOB accesses),
+  // then forwards all "real" crashes to the sandbox crash filter.
+  if (i::v8_flags.sandbox_fuzzing) {
+    i::SandboxTesting::Mode mode = i::SandboxTesting::Mode::kForFuzzing;
+    i::SandboxTesting::Enable(mode);
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 #if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && options.wasm_trap_handler) {

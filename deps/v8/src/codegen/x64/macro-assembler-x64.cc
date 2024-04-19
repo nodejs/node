@@ -25,7 +25,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/instance-type-inl.h"
@@ -594,9 +594,10 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   movq(destination,
        Operand{kRootRegister, IsolateData::trusted_pointer_table_offset()});
   movq(destination, Operand{destination, handle, times_8, 0});
-  // The LSB is used as marking bit by the trusted pointer table, so here we
-  // have to set it using a bitwise OR as it may or may not be set.
-  orq(destination, Immediate(kHeapObjectTag));
+  // Untag the pointer and remove the marking bit in one operation.
+  Register tag_reg = handle;
+  movq(tag_reg, Immediate64(~(tag | kTrustedPointerTableMarkBit)));
+  andq(destination, tag_reg);
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,
@@ -3201,8 +3202,7 @@ void MacroAssembler::TestCodeIsTurbofanned(Register code) {
 }
 
 Immediate MacroAssembler::ClearedValue() const {
-  return Immediate(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Immediate(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -3960,6 +3960,13 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
            kScratchRegister);
       movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
            rbp);
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      movq(Operand(kRootRegister, IsolateData::context_offset()),
+           Immediate(Context::kNoContext));
+#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       // Use alternative scratch register in order not to overwrite
@@ -3974,7 +3981,14 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
       movq(ExternalReferenceAsOperand(
                ExternalReference::fast_c_call_caller_fp_address(isolate())),
            rbp);
-
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      movq(ExternalReferenceAsOperand(
+               ExternalReference::context_address(isolate()), kScratchRegister),
+           Immediate(Context::kNoContext));
+#endif
       popq(scratch);
     }
   }
@@ -4009,7 +4023,7 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
 void MacroAssembler::MemoryChunkHeaderFromObject(Register object,
                                                  Register header) {
   constexpr intptr_t alignment_mask =
-      MemoryChunkHeader::GetAlignmentMaskForAssembler();
+      MemoryChunk::GetAlignmentMaskForAssembler();
   if (header == object) {
     andq(header, Immediate(~alignment_mask));
   } else {

@@ -239,7 +239,7 @@ Handle<Code> BuildTeardownFunction(
       case MachineRepresentation::kFloat32:
         param =
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case MachineRepresentation::kFloat64: {
         __ StoreHeapNumberValue(
             __ Cast(__ LoadFixedArrayElement(result_array, i)),

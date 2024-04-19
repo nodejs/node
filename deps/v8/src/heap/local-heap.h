@@ -26,7 +26,7 @@ namespace internal {
 class Heap;
 class LocalHandles;
 class MarkingBarrier;
-class MemoryChunk;
+class MutablePageMetadata;
 class Safepoint;
 
 // LocalHeap is used by the GC to track all threads with heap access in order to
@@ -193,18 +193,20 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Used to make SetupMainThread() available to unit tests.
   void SetUpMainThreadForTesting();
 
-  // Execute the callback while the local heap is parked. The main thread must
+  // Execute the callback while the local heap is parked. All threads must
   // always park via this method, not directly with `ParkedScope`. The callback
   // is only allowed to execute blocking operations.
   //
   // The callback must be a callable object, expecting either no parameters or a
-  // const ParkedScope&, which serves as a witness for parking. Use the second
-  // method, if it is guaranteed that we are on the main thread, or the first
-  // one if it is uncertain.
+  // const ParkedScope&, which serves as a witness for parking. The first
+  // variant checks if we are on the main thread or not. Use the other two
+  // variants if this already known.
   template <typename Callback>
   V8_INLINE void BlockWhileParked(Callback callback);
   template <typename Callback>
   V8_INLINE void BlockMainThreadWhileParked(Callback callback);
+  template <typename Callback>
+  V8_INLINE void BlockBackgroundThreadWhileParked(Callback callback);
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
@@ -308,8 +310,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   template <typename Callback>
   V8_INLINE void ExecuteWithStackMarker(Callback callback);
-  template <typename Callback>
-  V8_INLINE void ExecuteWithStackMarkerIfNeeded(Callback callback);
 
   void Park() {
     DCHECK(AllowSafepoints::IsAllowed());

@@ -142,14 +142,42 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
   __ Bind(&done);
 }
 
-void FoldedAllocation::SetValueLocationConstraints() {
-  UseRegister(raw_allocation());
-  DefineAsRegister(this);
+void InlinedAllocation::SetValueLocationConstraints() {
+  UseRegister(allocation_block());
+  if (offset() == 0) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
-void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
-  __ Add(ToRegister(result()), ToRegister(raw_allocation()), offset());
+void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  if (offset() != 0) {
+    __ Add(ToRegister(result()), ToRegister(allocation_block()), offset());
+  }
+}
+
+void ArgumentsLength::SetValueLocationConstraints() { DefineAsRegister(this); }
+
+void ArgumentsLength::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Register argc = ToRegister(result());
+  __ Ldr(argc, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+  __ Sub(argc, argc, 1);  // Remove receiver.
+}
+
+void RestLength::SetValueLocationConstraints() { DefineAsRegister(this); }
+
+void RestLength::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register length = ToRegister(result());
+  Label done;
+  __ Ldr(length, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+  __ Subs(length, length, formal_parameter_count() + 1);
+  __ B(kGreaterThanEqual, &done);
+  __ Move(length, 0);
+  __ Bind(&done);
 }
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
@@ -601,7 +629,7 @@ void Float64Ieee754Unary::SetValueLocationConstraints() {
 void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ CallCFunction(ieee_function_, 1);
+  __ CallCFunction(ieee_function_ref(), 1);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {

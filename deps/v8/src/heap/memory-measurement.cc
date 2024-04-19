@@ -198,7 +198,7 @@ bool MemoryMeasurement::EnqueueRequest(
   Handle<WeakFixedArray> weak_contexts =
       isolate_->factory()->NewWeakFixedArray(length);
   for (int i = 0; i < length; ++i) {
-    weak_contexts->set(i, HeapObjectReference::Weak(*contexts[i]));
+    weak_contexts->set(i, MakeWeak(*contexts[i]));
   }
   Handle<WeakFixedArray> global_weak_contexts =
       isolate_->global_handles()->Create(*weak_contexts);
@@ -342,9 +342,6 @@ void MemoryMeasurement::ReportResults() {
     v8::LocalVector<v8::Context> contexts(
         reinterpret_cast<v8::Isolate*>(isolate_));
     std::vector<size_t> size_in_bytes;
-    // TODO(chromium:1454114): The vector of pairs will be removed when
-    // deprecation is complete.
-    std::vector<std::pair<v8::Local<v8::Context>, size_t>> sizes;
     DCHECK_EQ(request.sizes.size(),
               static_cast<size_t>(request.contexts->length()));
     for (int i = 0; i < request.contexts->length(); i++) {
@@ -356,20 +353,13 @@ void MemoryMeasurement::ReportResults() {
           direct_handle(raw_context, isolate_), isolate_);
       contexts.push_back(context);
       size_in_bytes.push_back(request.sizes[i]);
-      sizes.emplace_back(context, request.sizes[i]);
     }
-    // Temporarily call both old and new callbacks.
-    START_ALLOW_USE_DEPRECATED()
-    request.delegate->MeasurementComplete(sizes, request.shared);
     request.delegate->MeasurementComplete(
-        {sizes,  // TODO(chromium:1454114): This will be removed when
-                 // deprecation is complete.
-         {contexts.begin(), contexts.end()},
+        {{contexts.begin(), contexts.end()},
          {size_in_bytes.begin(), size_in_bytes.end()},
          request.shared,
          request.wasm_code,
          request.wasm_metadata});
-    END_ALLOW_USE_DEPRECATED()
     isolate_->counters()->measure_memory_delay_ms()->AddSample(
         static_cast<int>(request.timer.Elapsed().InMilliseconds()));
   }

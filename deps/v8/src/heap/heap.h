@@ -81,7 +81,7 @@ class Impl;
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
-class BasicMemoryChunk;
+class MemoryChunkMetadata;
 class Boolean;
 class CodeLargeObjectSpace;
 class CodeRange;
@@ -105,7 +105,7 @@ class LinearAllocationArea;
 class LocalHeap;
 class MemoryAllocator;
 class MemoryBalancer;
-class MemoryChunk;
+class MutablePageMetadata;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkSweepCollector;
@@ -113,7 +113,7 @@ class NativeContext;
 class NopRwxMemoryWriteScope;
 class ObjectIterator;
 class ObjectStats;
-class Page;
+class PageMetadata;
 class PagedSpace;
 class PagedNewSpace;
 class ReadOnlyHeap;
@@ -157,6 +157,11 @@ enum class SkipRoot {
   kWeak,
   kConservativeStack,
   kReadOnlyBuiltins,
+};
+
+enum class EmbedderStackStateOrigin {
+  kImplicitThroughTask,
+  kExplicitInvocation,
 };
 
 class StrongRootsEntry final {
@@ -415,7 +420,8 @@ class Heap final {
   void NotifyBootstrapComplete();
 
   void NotifyOldGenerationExpansion(LocalHeap* local_heap,
-                                    AllocationSpace space, MemoryChunk* chunk);
+                                    AllocationSpace space,
+                                    MutablePageMetadata* chunk);
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
@@ -563,8 +569,10 @@ class Heap final {
     return pause_allocation_observers_depth_ == 0;
   }
 
+  bool IsGCWithMainThreadStack() const;
+
+  // This method is only safe to use in a safepoint.
   bool IsGCWithStack() const;
-  V8_EXPORT_PRIVATE void ForceSharedGCWithEmptyStackForTesting();
 
   bool CanShortcutStringsDuringGC(GarbageCollector collector) const;
 
@@ -691,6 +699,7 @@ class Heap final {
   // TODO(manoskouk): Consider inlining/moving this if
   // STRONG_MUTABLE_MOVABLE_ROOT_LIST setters become public.
   V8_EXPORT_PRIVATE void EnsureWasmCanonicalRttsSize(int length);
+  V8_EXPORT_PRIVATE void ClearWasmCanonicalRttsForTesting();
 #endif
 
   // ===========================================================================
@@ -1006,7 +1015,8 @@ class Heap final {
 
   void ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
-  static int InsertIntoRememberedSetFromCode(MemoryChunk* chunk, Address slot);
+  static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
+                                             size_t slot_offset);
 
 #ifdef DEBUG
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);
@@ -1098,12 +1108,13 @@ class Heap final {
 
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
-  const cppgc::EmbedderStackState* overriden_stack_state() const;
+  std::optional<StackState> overridden_stack_state() const;
 
   V8_EXPORT_PRIVATE void SetStackStart(void* stack_start);
 
   // Stack information of the main thread.
   V8_EXPORT_PRIVATE ::heap::base::Stack& stack();
+  V8_EXPORT_PRIVATE const ::heap::base::Stack& stack() const;
 
   // ===========================================================================
   // Embedder roots optimizations. =============================================
@@ -1140,13 +1151,13 @@ class Heap final {
 
   // Returns whether the object resides in new space.
   static inline bool InYoungGeneration(Tagged<Object> object);
-  static inline bool InYoungGeneration(MaybeObject object);
+  static inline bool InYoungGeneration(Tagged<MaybeObject> object);
   static inline bool InYoungGeneration(Tagged<HeapObject> heap_object);
   static inline bool InFromPage(Tagged<Object> object);
-  static inline bool InFromPage(MaybeObject object);
+  static inline bool InFromPage(Tagged<MaybeObject> object);
   static inline bool InFromPage(Tagged<HeapObject> heap_object);
   static inline bool InToPage(Tagged<Object> object);
-  static inline bool InToPage(MaybeObject object);
+  static inline bool InToPage(Tagged<MaybeObject> object);
   static inline bool InToPage(Tagged<HeapObject> heap_object);
 
   // Returns whether the object resides in old space.
@@ -1933,7 +1944,6 @@ class Heap final {
   bool ShouldExpandYoungGenerationOnSlowAllocation();
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
   bool IsMainThreadParked(LocalHeap* local_heap);
-  bool IsMajorMarkingComplete(LocalHeap* local_heap);
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
@@ -2274,8 +2284,8 @@ class Heap final {
   EmbedderRootsHandler* embedder_roots_handler_ =
       nullptr;  // Owned by the embedder.
 
-  cppgc::EmbedderStackState embedder_stack_state_ =
-      cppgc::EmbedderStackState::kMayContainHeapPointers;
+  StackState embedder_stack_state_ = StackState::kMayContainHeapPointers;
+  std::optional<EmbedderStackStateOrigin> embedder_stack_state_origin_;
 
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;
@@ -2409,7 +2419,7 @@ class Heap final {
   friend class NewLargeObjectSpace;
   friend class NewSpace;
   friend class ObjectStatsCollector;
-  friend class Page;
+  friend class PageMetadata;
   friend class PagedNewSpaceAllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;
   friend class PagedSpaceBase;
@@ -2556,7 +2566,8 @@ class CodePageMemoryModificationScopeForDebugging {
   // access the page header. Hence, use the VirtualMemory for tracking instead.
   explicit CodePageMemoryModificationScopeForDebugging(
       Heap* heap, VirtualMemory* reservation, base::AddressRegion region);
-  explicit CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk);
+  explicit CodePageMemoryModificationScopeForDebugging(
+      MemoryChunkMetadata* chunk);
   ~CodePageMemoryModificationScopeForDebugging();
 
  private:
@@ -2680,28 +2691,21 @@ class StrongRootAllocator<Address> : public StrongRootAllocatorBase {
 
 class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
  public:
-  enum Origin {
-    kImplicitThroughTask,
-    kExplicitInvocation,
-  };
-
-  // Only used for testing where the Origin is always an explicit invocation.
-  static EmbedderStackStateScope ExplicitScopeForTesting(
-      Heap* heap, StackState stack_state);
-
-  EmbedderStackStateScope(Heap* heap, Origin origin, StackState stack_state);
+  EmbedderStackStateScope(Heap* heap, EmbedderStackStateOrigin origin,
+                          StackState stack_state);
   ~EmbedderStackStateScope();
 
  private:
   Heap* const heap_;
   const StackState old_stack_state_;
+  std::optional<EmbedderStackStateOrigin> old_origin_;
 };
 
 class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
  public:
   explicit inline DisableConservativeStackScanningScopeForTesting(Heap* heap)
-      : embedder_scope_(EmbedderStackStateScope::ExplicitScopeForTesting(
-            heap, cppgc::EmbedderStackState::kNoHeapPointers)) {}
+      : embedder_scope_(heap, EmbedderStackStateOrigin::kExplicitInvocation,
+                        StackState::kNoHeapPointers) {}
 
  private:
   EmbedderStackStateScope embedder_scope_;

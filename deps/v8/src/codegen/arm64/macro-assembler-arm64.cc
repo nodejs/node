@@ -19,7 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/runtime/runtime.h"
@@ -2091,13 +2091,20 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
   DCHECK(has_frame());
 
   Label get_pc;
+  UseScratchRegisterScope temps(this);
+  // We're doing a C call, which means non-parameter caller-saved registers
+  // (x8-x17) will be clobbered and so are available to use as scratches.
+  // In the worst-case scenario, we'll need 2 scratch registers. We pick 3
+  // registers minus the `function` register, in case `function` aliases with
+  // any of the registers.
+  temps.Include(CPURegList(64, {x8, x9, x10, function}));
+  temps.Exclude(function);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
-    Register pc_scratch = x4;
-    Register addr_scratch = x5;
-    Push(pc_scratch, addr_scratch);
+    UseScratchRegisterScope temps(this);
+    Register pc_scratch = temps.AcquireX();
 
     Adr(pc_scratch, &get_pc);
 
@@ -2107,7 +2114,16 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
       static_assert(IsolateData::fast_c_call_caller_pc_offset() ==
                     fp_offset + 8);
       Stp(fp, pc_scratch, MemOperand(kRootRegister, fp_offset));
+
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      static_assert(Context::kNoContext == 0);
+      StoreRootRelative(IsolateData::context_offset(), xzr);
+#endif
     } else {
+      Register addr_scratch = temps.AcquireX();
       DCHECK_NOT_NULL(isolate());
       Mov(addr_scratch,
           ExternalReference::fast_c_call_caller_pc_address(isolate()));
@@ -2115,9 +2131,16 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
       Mov(addr_scratch,
           ExternalReference::fast_c_call_caller_fp_address(isolate()));
       Str(fp, MemOperand(addr_scratch));
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      static_assert(Context::kNoContext == 0);
+      Str(xzr,
+          ExternalReferenceAsOperand(
+              ExternalReference::context_address(isolate()), addr_scratch));
+#endif
     }
-
-    Pop(addr_scratch, pc_scratch);
   }
 
   // Call directly. The function called cannot cause a GC, or allow preemption,
@@ -2134,12 +2157,11 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
                           IsolateData::fast_c_call_caller_fp_offset()));
     } else {
       DCHECK_NOT_NULL(isolate());
-      Register addr_scratch = x5;
-      Push(addr_scratch, xzr);
+      UseScratchRegisterScope temps(this);
+      Register addr_scratch = temps.AcquireX();
       Mov(addr_scratch,
           ExternalReference::fast_c_call_caller_fp_address(isolate()));
       Str(xzr, MemOperand(addr_scratch));
-      Pop(xzr, addr_scratch);
     }
   }
 
@@ -2841,8 +2863,7 @@ void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 Operand MacroAssembler::ReceiverOperand() { return Operand(0); }
@@ -3493,7 +3514,7 @@ void MacroAssembler::CheckPageFlag(const Register& object, int mask,
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  And(scratch, object, ~MemoryChunkHeader::GetAlignmentMaskForAssembler());
+  And(scratch, object, ~MemoryChunk::GetAlignmentMaskForAssembler());
   Ldr(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   if (cc == ne) {
     TestAndBranchIfAnySet(scratch, mask, condition_met);
@@ -3698,9 +3719,10 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   Mov(handle, Operand(handle, LSR, kTrustedPointerHandleShift));
   Ldr(destination,
       MemOperand(table, handle, LSL, kTrustedPointerTableEntrySizeLog2));
-  // The LSB is used as marking bit by the trusted pointer table, so here we
-  // have to set it using a bitwise OR as it may or may not be set.
-  Orr(destination, destination, Immediate(kHeapObjectTag));
+  // Untag the pointer and remove the marking bit in one operation.
+  Register tag_reg = handle;
+  Mov(tag_reg, Immediate(~(tag | kTrustedPointerTableMarkBit)));
+  And(destination, destination, tag_reg);
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,

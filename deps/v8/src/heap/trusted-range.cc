@@ -20,7 +20,7 @@ bool TrustedRange::InitReservation(size_t requested) {
 
   auto page_allocator = GetPlatformPageAllocator();
 
-  const size_t kPageSize = MemoryChunk::kPageSize;
+  const size_t kPageSize = MutablePageMetadata::kPageSize;
   CHECK(IsAligned(kPageSize, page_allocator->AllocatePageSize()));
 
   // We want the trusted range to be allocated above 4GB, for a few reasons:

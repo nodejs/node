@@ -95,7 +95,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 }
 
 void CpuFeatures::PrintTarget() {}
-void CpuFeatures::PrintFeatures() {}
+void CpuFeatures::PrintFeatures() {
+  printf("supports_wasm_simd_128=%d\n", CpuFeatures::SupportsWasmSimd128());
+}
 int ToNumber(Register reg) {
   DCHECK(reg.is_valid());
   const int kNumbers[] = {

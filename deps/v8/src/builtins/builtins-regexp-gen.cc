@@ -322,13 +322,11 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       // - Receiver has no interceptors
       Label add_dictionary_property_slow(this, Label::kDeferred);
       TVARIABLE(IntPtrT, var_name_index);
-      Label add_name_entry_find_index(this),
-          add_name_entry_known_index(this, &var_name_index),
+      Label add_name_entry(this, &var_name_index),
           duplicate_name(this, &var_name_index), next(this);
       NameDictionaryLookup<PropertyDictionary>(
           CAST(properties), name, &duplicate_name, &var_name_index,
-          &add_name_entry_find_index, kFindExisting,
-          &add_name_entry_known_index);
+          &add_name_entry, kFindExistingOrInsertionIndex);
       BIND(&duplicate_name);
       GotoIf(IsUndefined(capture), &next);
       CSA_DCHECK(this,
@@ -339,12 +337,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
                                                var_name_index.value(), capture);
       Goto(&next);
 
-      BIND(&add_name_entry_find_index);
-      FindInsertionEntry<PropertyDictionary>(CAST(properties), name,
-                                             &var_name_index);
-      Goto(&add_name_entry_known_index);
-
-      BIND(&add_name_entry_known_index);
+      BIND(&add_name_entry);
       AddToDictionary<PropertyDictionary>(CAST(properties), name, capture,
                                           &add_dictionary_property_slow,
                                           var_name_index.value());

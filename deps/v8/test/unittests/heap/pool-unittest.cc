@@ -379,17 +379,18 @@ PoolTestMixin<TMixin>::~PoolTestMixin() {
 // See v8:5945.
 TEST_F(PoolTest, UnmapOnTeardown) {
   if (v8_flags.enable_third_party_heap) return;
-  Page* page =
+  PageMetadata* page =
       allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
                                 static_cast<PagedSpace*>(heap()->old_space()),
                                 Executability::NOT_EXECUTABLE);
+  Address chunk_address = page->ChunkAddress();
   EXPECT_NE(nullptr, page);
   const size_t page_size = tracking_page_allocator()->AllocatePageSize();
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
+  tracking_page_allocator()->CheckPagePermissions(chunk_address, page_size,
                                                   PageAllocator::kReadWrite);
 
   allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
+  tracking_page_allocator()->CheckPagePermissions(chunk_address, page_size,
                                                   PageAllocator::kReadWrite);
   pool()->ReleasePooledChunks();
 #ifdef V8_COMPRESS_POINTERS
@@ -397,9 +398,9 @@ TEST_F(PoolTest, UnmapOnTeardown) {
   // inside prereserved region. Thus these pages are kept reserved until
   // the Isolate dies.
   tracking_page_allocator()->CheckPagePermissions(
-      page->address(), page_size, PageAllocator::kNoAccess, false);
+      chunk_address, page_size, PageAllocator::kNoAccess, false);
 #else
-  tracking_page_allocator()->CheckIsFree(page->address(), page_size);
+  tracking_page_allocator()->CheckIsFree(chunk_address, page_size);
 #endif  // V8_COMPRESS_POINTERS
 }
 #endif  // !V8_OS_FUCHSIA && !V8_ENABLE_SANDBOX

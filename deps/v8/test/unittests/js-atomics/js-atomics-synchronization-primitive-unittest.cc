@@ -269,7 +269,8 @@ TEST_F(JSAtomicsConditionTest, NotifyAll) {
     threads[i]->keep_waiting = false;
   }
   EXPECT_EQ(kThreads,
-            condition->Notify(i_main_isolate, JSAtomicsCondition::kAllWaiters));
+            JSAtomicsCondition::Notify(i_main_isolate, condition,
+                                       JSAtomicsCondition::kAllWaiters));
 
   for (uint32_t i = 0; i < kThreads; i++) {
     sema_execute_complete.ParkedWait(local_isolate);

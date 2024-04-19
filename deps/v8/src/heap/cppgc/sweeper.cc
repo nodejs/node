@@ -925,31 +925,33 @@ class Sweeper::SweeperImpl final {
   }
 
   void FinishIfOutOfWork() {
-    if (is_in_progress_ && !is_sweeping_on_mutator_thread_ &&
-        concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
-        !concurrent_sweeper_handle_->IsActive()) {
+    if (!is_in_progress_) return;
+    if (is_sweeping_on_mutator_thread_) return;
+    if (!concurrent_sweeper_handle_ || !concurrent_sweeper_handle_->IsValid() ||
+        concurrent_sweeper_handle_->IsActive()) {
+      return;
+    }
+    // At this point we know that the concurrent sweeping task has run
+    // out-of-work: all pages are swept. The main thread still needs to finalize
+    // swept pages.
+    DCHECK(std::all_of(
+        space_states_.begin(), space_states_.end(),
+        [](const SpaceState& state) { return state.unswept_pages.IsEmpty(); }));
+    if (std::any_of(space_states_.begin(), space_states_.end(),
+                    [](const SpaceState& state) {
+                      return !state.swept_unfinalized_pages.IsEmpty();
+                    })) {
+      return;
+    }
+    // All pages have also been finalized. Finalizing pages likely occured on
+    // allocation, in which sweeping is not finalized even thopugh all work is
+    // done.
+    {
       StatsCollector::EnabledScope stats_scope(
           stats_collector_, StatsCollector::kSweepFinishIfOutOfWork);
-      MutatorThreadSweepingScope sweeping_in_progress(*this);
-      // At this point we know that the concurrent sweeping task has run
-      // out-of-work: all pages are swept. The main thread still needs to finish
-      // sweeping though.
-      DCHECK(std::all_of(space_states_.begin(), space_states_.end(),
-                         [](const SpaceState& state) {
-                           return state.unswept_pages.IsEmpty();
-                         }));
-
-      // There may be unfinalized pages left. Since it's hard to estimate
-      // the actual amount of sweeping necessary, we sweep with a small
-      // deadline to see if sweeping can be fully finished.
-      MutatorThreadSweeper sweeper(heap_.heap(), &space_states_, platform_,
-                                   config_.free_memory_handling);
-      if (sweeper.SweepWithDeadline(v8::base::TimeDelta::FromMilliseconds(2),
-                                    MutatorThreadSweepingMode::kAll)) {
-        FinalizeSweep();
-      }
+      FinalizeSweep();
     }
-    NotifyDoneIfNeeded();
+    NotifyDone();
   }
 
   void Finish() {
@@ -990,11 +992,6 @@ class Sweeper::SweeperImpl final {
     if (config_.free_memory_handling ==
         FreeMemoryHandling::kDiscardWherePossible)
       heap_.heap()->page_backend()->DiscardPooledPages();
-  }
-
-  void NotifyDoneIfNeeded() {
-    if (!notify_done_pending_) return;
-    NotifyDone();
   }
 
   void WaitForConcurrentSweepingForTesting() {
@@ -1185,7 +1182,6 @@ void Sweeper::FinishIfOutOfWork() { impl_->FinishIfOutOfWork(); }
 void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
 }
-void Sweeper::NotifyDoneIfNeeded() { impl_->NotifyDoneIfNeeded(); }
 bool Sweeper::SweepForAllocationIfRunning(NormalPageSpace* space, size_t size,
                                           v8::base::TimeDelta max_duration) {
   return impl_->SweepForAllocationIfRunning(space, size, max_duration);

@@ -25,7 +25,7 @@ Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
 }
 
 Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
-    int offset, AcquireLoadTag tag) const {
+    int offset, AcquireLoadTag) const {
   return TaggedField<TrustedObject, 0,
                      TrustedSpaceCompressionScheme>::Acquire_Load(*this,
                                                                   offset);
@@ -39,7 +39,7 @@ void TrustedObject::WriteProtectedPointerField(int offset,
 
 void TrustedObject::WriteProtectedPointerField(int offset,
                                                Tagged<TrustedObject> value,
-                                               ReleaseStoreTag tag) {
+                                               ReleaseStoreTag) {
   TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::Release_Store(
       *this, offset, value);
 }
@@ -49,15 +49,32 @@ bool TrustedObject::IsProtectedPointerFieldCleared(int offset) const {
              *this, offset) == Smi::zero();
 }
 
+bool TrustedObject::IsProtectedPointerFieldCleared(int offset,
+                                                   AcquireLoadTag) const {
+  return TaggedField<Object, 0, TrustedSpaceCompressionScheme>::Acquire_Load(
+             *this, offset) == Smi::zero();
+}
+
 void TrustedObject::ClearProtectedPointerField(int offset) {
   TaggedField<Object, 0, TrustedSpaceCompressionScheme>::store(*this, offset,
                                                                Smi::zero());
+}
+
+void TrustedObject::ClearProtectedPointerField(int offset, ReleaseStoreTag) {
+  TaggedField<Object, 0, TrustedSpaceCompressionScheme>::Release_Store(
+      *this, offset, Smi::zero());
 }
 
 ProtectedPointerSlot TrustedObject::RawProtectedPointerField(
     int byte_offset) const {
   return ProtectedPointerSlot(field_address(byte_offset));
 }
+
+#ifdef VERIFY_HEAP
+void TrustedObject::VerifyProtectedPointerField(Isolate* isolate, int offset) {
+  Object::VerifyPointer(isolate, ReadProtectedPointerField(offset));
+}
+#endif
 
 CAST_ACCESSOR(ExposedTrustedObject)
 OBJECT_CONSTRUCTORS_IMPL(ExposedTrustedObject, TrustedObject)

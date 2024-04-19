@@ -204,9 +204,9 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   if (!trusted_instance_data_.is_null()) {
-    Handle<FixedArray> funcs = isolate_->factory()->NewFixedArrayWithZeroes(
+    Handle<FixedArray> func_refs = isolate_->factory()->NewFixedArrayWithZeroes(
         static_cast<int>(test_module_->functions.size()));
-    trusted_instance_data_->set_wasm_internal_functions(*funcs);
+    trusted_instance_data_->set_func_refs(*func_refs);
   }
   return index;
 }
@@ -225,9 +225,9 @@ void TestingModuleBuilder::InitializeWrapperCache() {
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   InitializeWrapperCache();
-  Handle<WasmInternalFunction> internal =
-      WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
-          isolate_, trusted_instance_data_, index);
+  Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
+      isolate_, trusted_instance_data_, index);
+  Handle<WasmInternalFunction> internal{func_ref->internal(), isolate_};
   return WasmInternalFunction::GetOrCreateExternal(internal);
 }
 
@@ -267,8 +267,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       isolate_, instance_object_, table.type, table.initial_size,
       table.has_maximum_size, table.maximum_size,
       IsSubtypeOf(table.type, kWasmExternRef, test_module_.get())
-          ? Handle<Object>::cast(isolate_->factory()->null_value())
-          : Handle<Object>::cast(isolate_->factory()->wasm_null()));
+          ? Handle<HeapObject>{isolate_->factory()->null_value()}
+          : Handle<HeapObject>{isolate_->factory()->wasm_null()});
 
   WasmTableObject::AddUse(isolate_, table_obj, trusted_instance_data_,
                           table_index);

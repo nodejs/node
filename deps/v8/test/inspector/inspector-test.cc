@@ -467,7 +467,7 @@ class ConsoleExtension : public InspectorIsolateData::SetupGlobalTask {
 
  private:
   static void ConsoleGetterCallback(
-      v8::Local<v8::String>, const v8::PropertyCallbackInfo<v8::Value>& info) {
+      v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -691,13 +691,13 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked());
   }
 
-  static void AccessorGetter(v8::Local<v8::String> property,
+  static void AccessorGetter(v8::Local<v8::Name> property,
                              const v8::PropertyCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     isolate->ThrowError("Getter is called");
   }
 
-  static void AccessorSetter(v8::Local<v8::String> property,
+  static void AccessorSetter(v8::Local<v8::Name> property,
                              v8::Local<v8::Value> value,
                              const v8::PropertyCallbackInfo<void>& info) {
     v8::Isolate* isolate = info.GetIsolate();

@@ -729,7 +729,8 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
   Zone zone(isolate->allocator(), ZONE_NAME);
   SourcePositionTableBuilder builder(&zone);
 
-  Handle<ByteArray> source_position_table(code->SourcePositionTable(), isolate);
+  Handle<TrustedByteArray> source_position_table(code->SourcePositionTable(),
+                                                 isolate);
   for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePosition position = iterator.source_position();
@@ -739,7 +740,7 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
                         iterator.is_statement());
   }
 
-  Handle<ByteArray> new_source_position_table(
+  Handle<TrustedByteArray> new_source_position_table(
       builder.ToSourcePositionTable(isolate));
   code->set_source_position_table(*new_source_position_table, kReleaseStore);
   LOG_CODE_EVENT(isolate,
@@ -922,7 +923,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     sfi->set_script(*new_script, kReleaseStore);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
     new_script->shared_function_infos()->set(
-        mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
+        mapping.second->function_literal_id(), MakeWeak(*sfi));
     DCHECK_EQ(sfi->function_literal_id(),
               mapping.second->function_literal_id());
 

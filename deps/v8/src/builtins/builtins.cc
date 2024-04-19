@@ -216,6 +216,8 @@ const char* Builtins::NameForStackTrace(Isolate* isolate, Builtin builtin) {
       return "DataView.prototype.getBigInt64";
     case Builtin::kDataViewPrototypeGetBigUint64:
       return "DataView.prototype.getBigUint64";
+    case Builtin::kDataViewPrototypeGetFloat16:
+      return "DataView.prototype.getFloat16";
     case Builtin::kDataViewPrototypeGetFloat32:
       return "DataView.prototype.getFloat32";
     case Builtin::kDataViewPrototypeGetFloat64:
@@ -236,6 +238,8 @@ const char* Builtins::NameForStackTrace(Isolate* isolate, Builtin builtin) {
       return "DataView.prototype.setBigInt64";
     case Builtin::kDataViewPrototypeSetBigUint64:
       return "DataView.prototype.setBigUint64";
+    case Builtin::kDataViewPrototypeSetFloat16:
+      return "DataView.prototype.setFloat16";
     case Builtin::kDataViewPrototypeSetFloat32:
       return "DataView.prototype.setFloat32";
     case Builtin::kDataViewPrototypeSetFloat64:
@@ -471,17 +475,18 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
 
   Kind kind = Builtins::KindOf(builtin);
   switch (kind) {
+    case CPP:
+    case TFJ:
+      return kJSEntrypointTag;
     case BCH:
       return kBytecodeHandlerEntrypointTag;
+    case TFC:
+    case TFS:
     case TFH:
-      return kICHandlerEntrypointTag;
     case ASM:
-      // TODO(saelo) consider using this approach for the other kinds as well.
       return CallInterfaceDescriptorFor(builtin).tag();
-    default:
-      // TODO(saelo): use more fine-grained tags here.
-      return kDefaultCodeEntrypointTag;
   }
+  UNREACHABLE();
 }
 
 // static

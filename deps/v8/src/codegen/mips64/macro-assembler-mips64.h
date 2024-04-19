@@ -274,9 +274,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(Register destination,
-                                Register code_data_container_object);
-  void CallCodeObject(Register code_data_container_object);
+                                Register code_data_container_object,
+                                CodeEntrypointTag tag);
+  void CallCodeObject(Register code_data_container_object,
+                      CodeEntrypointTag tag);
   void JumpCodeObject(Register code_data_container_object,
+                      CodeEntrypointTag tag,
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.

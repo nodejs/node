@@ -401,7 +401,7 @@ class V8_EXPORT_PRIVATE Debug {
 
   // Make a one-time exception for a next call to given side-effectful API
   // function.
-  void IgnoreSideEffectsOnNextCallTo(Handle<CallHandlerInfo> call_handler_info);
+  void IgnoreSideEffectsOnNextCallTo(Handle<FunctionTemplateInfo> function);
 
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
@@ -409,8 +409,7 @@ class V8_EXPORT_PRIVATE Debug {
   bool PerformSideEffectCheckForAccessor(Handle<AccessorInfo> accessor_info,
                                          Handle<Object> receiver,
                                          AccessorComponent component);
-  bool PerformSideEffectCheckForCallback(
-      Handle<CallHandlerInfo> call_handler_info);
+  bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
       Handle<InterceptorInfo> interceptor_info);
 
@@ -674,9 +673,9 @@ class V8_EXPORT_PRIVATE Debug {
 
   // This is a part of machinery for allowing to ignore side effects for one
   // call to this API function. See Function::NewInstanceWithSideEffectType().
-  // Since the call_handler_info is allowlisted right before the call to
+  // Since the FunctionTemplateInfo is allowlisted right before the call to
   // constructor there must be never more than one such object at a time.
-  Handle<CallHandlerInfo> ignore_side_effects_for_call_handler_info_;
+  Handle<FunctionTemplateInfo> ignore_side_effects_for_function_template_info_;
 
   Isolate* isolate_;
 

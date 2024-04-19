@@ -138,9 +138,6 @@ namespace internal {
   V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                       \
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
     promise_resolve_thenable_job_task)                                        \
-  V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                     \
-    function_template_info)                                                   \
-  V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)   \
   V(_, ACCESS_CHECK_INFO_TYPE, AccessCheckInfo, access_check_info)            \
   V(_, ACCESSOR_PAIR_TYPE, AccessorPair, accessor_pair)                       \
   V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                   \

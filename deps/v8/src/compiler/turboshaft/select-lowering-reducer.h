@@ -49,11 +49,9 @@ class SelectLoweringReducer : public Next {
     Variable result = __ NewLoopInvariantVariable(rep);
     IF (cond) {
       __ SetVariable(result, vtrue);
-    }
-    ELSE {
+    } ELSE {
       __ SetVariable(result, vfalse);
     }
-    END_IF
 
     return __ GetVariable(result);
   }

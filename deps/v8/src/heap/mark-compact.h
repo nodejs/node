@@ -24,7 +24,7 @@ namespace internal {
 // Forward declarations.
 class HeapObjectVisitor;
 class LargeObjectSpace;
-class LargePage;
+class LargePageMetadata;
 class MainMarkingVisitor;
 class RecordMigratedSlotVisitor;
 
@@ -61,7 +61,7 @@ class MarkCompactCollector final {
 
   void CollectEvacuationCandidates(PagedSpace* space);
 
-  void AddEvacuationCandidate(Page* p);
+  void AddEvacuationCandidate(PageMetadata* p);
 
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
@@ -76,14 +76,12 @@ class MarkCompactCollector final {
 
   void StartMarking();
 
-  static inline bool IsOnEvacuationCandidate(Tagged<Object> obj) {
-    return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
+  static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj) {
+    return MemoryChunk::FromAddress(obj.ptr())->IsEvacuationCandidate();
   }
 
-  static bool IsOnEvacuationCandidate(MaybeObject obj);
-
   struct RecordRelocSlotInfo {
-    MemoryChunk* memory_chunk;
+    MutablePageMetadata* page_metadata;
     SlotType slot_type;
     uint32_t offset;
   };
@@ -102,7 +100,7 @@ class MarkCompactCollector final {
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
   template <typename THeapObjectSlot>
-  V8_INLINE static void RecordSlot(MemoryChunk* source_page,
+  V8_INLINE static void RecordSlot(MemoryChunk* source_chunk,
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
 
@@ -202,10 +200,6 @@ class MarkCompactCollector final {
   // heaps.
   void MarkObjectsFromClientHeaps();
   void MarkObjectsFromClientHeap(Isolate* client);
-
-  // Mark the entry in the external pointer table for the given isolates
-  // WaiterQueueNode.
-  void MarkWaiterQueueNode(Isolate* isolate);
 
   // Updates pointers to shared objects from client heaps.
   void UpdatePointersInClientHeaps();
@@ -320,9 +314,9 @@ class MarkCompactCollector final {
   // Returns number of aborted pages.
   size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
-                                                Page* page);
+                                                PageMetadata* page);
   void ReportAbortedEvacuationCandidateDueToFlags(Address failed_start,
-                                                  Page* page);
+                                                  PageMetadata* page);
 
   static const int kEphemeronChunkSize = 8 * KB;
 
@@ -379,15 +373,15 @@ class MarkCompactCollector final {
   base::Mutex strong_descriptor_arrays_mutex_;
 
   // Candidates for pages that should be evacuated.
-  std::vector<Page*> evacuation_candidates_;
+  std::vector<PageMetadata*> evacuation_candidates_;
   // Pages that are actually processed during evacuation.
-  std::vector<Page*> old_space_evacuation_pages_;
-  std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<std::pair<Address, Page*>>
+  std::vector<PageMetadata*> old_space_evacuation_pages_;
+  std::vector<PageMetadata*> new_space_evacuation_pages_;
+  std::vector<std::pair<Address, PageMetadata*>>
       aborted_evacuation_candidates_due_to_oom_;
-  std::vector<std::pair<Address, Page*>>
+  std::vector<std::pair<Address, PageMetadata*>>
       aborted_evacuation_candidates_due_to_flags_;
-  std::vector<LargePage*> promoted_large_pages_;
+  std::vector<LargePageMetadata*> promoted_large_pages_;
 
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
@@ -408,7 +402,7 @@ class MarkCompactCollector final {
   // the start of each GC.
   base::EnumSet<CodeFlushMode> code_flush_mode_;
 
-  std::vector<Page*> empty_new_space_pages_to_be_swept_;
+  std::vector<PageMetadata*> empty_new_space_pages_to_be_swept_;
 
   bool use_background_threads_in_cycle_ = false;
 

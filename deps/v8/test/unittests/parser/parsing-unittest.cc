@@ -121,7 +121,7 @@ bool TokenIsAutoSemicolon(Token::Value token) {
   switch (token) {
     case Token::kSemicolon:
     case Token::kEos:
-    case Token::kRBrace:
+    case Token::kRightBrace:
       return true;
     default:
       return false;
@@ -710,12 +710,12 @@ bool TokenIsCompareOp(Token::Value token) {
   switch (token) {
     case Token::kEq:
     case Token::kEqStrict:
-    case Token::kNe:
-    case Token::kNeStrict:
-    case Token::kLt:
-    case Token::kGt:
-    case Token::kLte:
-    case Token::kGte:
+    case Token::kNotEq:
+    case Token::kNotEqStrict:
+    case Token::kLessThan:
+    case Token::kGreaterThan:
+    case Token::kLessThanEq:
+    case Token::kGreaterThanEq:
     case Token::kInstanceOf:
     case Token::kIn:
       return true;
@@ -733,10 +733,10 @@ TEST_F(ParsingTest, CompareOp) {
 
 bool TokenIsOrderedRelationalCompareOp(Token::Value token) {
   switch (token) {
-    case Token::kLt:
-    case Token::kGt:
-    case Token::kLte:
-    case Token::kGte:
+    case Token::kLessThan:
+    case Token::kGreaterThan:
+    case Token::kLessThanEq:
+    case Token::kGreaterThanEq:
       return true;
     default:
       return false;
@@ -818,8 +818,8 @@ bool TokenIsPropertyOrCall(Token::Value token) {
     case Token::kTemplateTail:
     case Token::kPeriod:
     case Token::kQuestionPeriod:
-    case Token::kLBrack:
-    case Token::kLParen:
+    case Token::kLeftBracket:
+    case Token::kLeftParen:
       return true;
     default:
       return false;
@@ -838,7 +838,7 @@ bool TokenIsMember(Token::Value token) {
     case Token::kTemplateSpan:
     case Token::kTemplateTail:
     case Token::kPeriod:
-    case Token::kLBrack:
+    case Token::kLeftBracket:
       return true;
     default:
       return false;
@@ -858,7 +858,7 @@ bool TokenIsTemplate(Token::Value token) {
 bool TokenIsProperty(Token::Value token) {
   switch (token) {
     case Token::kPeriod:
-    case Token::kLBrack:
+    case Token::kLeftBracket:
       return true;
     default:
       return false;
@@ -1255,28 +1255,29 @@ TEST_F(ParsingTest, StreamScanner) {
   std::unique_ptr<i::Utf16CharacterStream> stream1(
       i::ScannerStream::ForTesting(str1));
   i::Token::Value expectations1[] = {
-      i::Token::kLBrace,     i::Token::kIdentifier, i::Token::kGet,
+      i::Token::kLeftBrace,  i::Token::kIdentifier, i::Token::kGet,
       i::Token::kFor,        i::Token::kColon,      i::Token::kMul,
-      i::Token::kDiv,        i::Token::kLt,         i::Token::kSub,
+      i::Token::kDiv,        i::Token::kLessThan,   i::Token::kSub,
       i::Token::kIdentifier, i::Token::kEos,        i::Token::kIllegal};
   TestStreamScanner(stream1.get(), expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
   std::unique_ptr<i::Utf16CharacterStream> stream2(
       i::ScannerStream::ForTesting(str2));
-  i::Token::Value expectations2[] = {
-      i::Token::kCase, i::Token::kDefault, i::Token::kConst, i::Token::kLBrace,
-      // Skipped part here
-      i::Token::kRBrace, i::Token::kDo, i::Token::kEos, i::Token::kIllegal};
+  i::Token::Value expectations2[] = {i::Token::kCase, i::Token::kDefault,
+                                     i::Token::kConst, i::Token::kLeftBrace,
+                                     // Skipped part here
+                                     i::Token::kRightBrace, i::Token::kDo,
+                                     i::Token::kEos, i::Token::kIllegal};
   CHECK_EQ('{', str2[19]);
   CHECK_EQ('}', str2[37]);
   TestStreamScanner(stream2.get(), expectations2, 20, 37);
 
   const char* str3 = "{}}}}";
-  i::Token::Value expectations3[] = {i::Token::kLBrace, i::Token::kRBrace,
-                                     i::Token::kRBrace, i::Token::kRBrace,
-                                     i::Token::kRBrace, i::Token::kEos,
-                                     i::Token::kIllegal};
+  i::Token::Value expectations3[] = {
+      i::Token::kLeftBrace,  i::Token::kRightBrace, i::Token::kRightBrace,
+      i::Token::kRightBrace, i::Token::kRightBrace, i::Token::kEos,
+      i::Token::kIllegal};
   // Skip zero-four RBRACEs.
   for (int i = 0; i <= 4; i++) {
     expectations3[6 - i] = i::Token::kIllegal;

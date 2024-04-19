@@ -771,6 +771,8 @@ void Symbol::SymbolPrint(std::ostream& os) {
   os << "\n - private: " << is_private();
   os << "\n - private_name: " << is_private_name();
   os << "\n - private_brand: " << is_private_brand();
+  os << "\n - is_interesting_symbol: " << is_interesting_symbol();
+  os << "\n - is_well_known_symbol: " << is_well_known_symbol();
   os << "\n";
 }
 
@@ -807,9 +809,9 @@ void PrintFixedArrayWithHeader(std::ostream& os, Tagged<T> array,
 template <typename T>
 void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
-  MaybeObject previous_value =
-      array->length() > 0 ? array->get(0) : MaybeObject(kNullAddress);
-  MaybeObject value;
+  Tagged<MaybeObject> previous_value =
+      array->length() > 0 ? array->get(0) : Tagged<MaybeObject>(kNullAddress);
+  Tagged<MaybeObject> value;
   int previous_index = 0;
   int i;
   for (i = 1; i <= array->length(); i++) {
@@ -977,6 +979,44 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
     os << "\n - getter: " << kUnavailableString;
     os << "\n - maybe_redirected_getter: " << kUnavailableString;
     os << "\n - setter: " << kUnavailableString;
+  }
+  os << '\n';
+}
+
+void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
+  TorqueGeneratedFunctionTemplateInfo<
+      FunctionTemplateInfo, TemplateInfo>::FunctionTemplateInfoPrint(os);
+
+  Isolate* isolate;
+  if (GetIsolateFromHeapObject(*this, &isolate)) {
+    os << " - callback: " << reinterpret_cast<void*>(callback(isolate));
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - maybe_redirected_callback: "
+         << reinterpret_cast<void*>(maybe_redirected_callback(isolate));
+    }
+  } else {
+    os << "\n - callback: " << kUnavailableString;
+    os << "\n - maybe_redirected_callback: " << kUnavailableString;
+  }
+
+  os << "\n --- flags: ";
+  if (is_object_template_call_handler()) {
+    os << "\n - is_object_template_call_handler";
+  }
+  if (has_side_effects()) os << "\n - has_side_effects";
+
+  if (undetectable()) os << "\n - undetectable";
+  if (needs_access_check()) os << "\n - needs_access_check";
+  if (read_only_prototype()) os << "\n - read_only_prototype";
+  if (remove_prototype()) os << "\n - remove_prototype";
+  if (accept_any_receiver()) os << "\n - accept_any_receiver";
+  if (published()) os << "\n - published";
+
+  if (allowed_receiver_instance_type_range_start() ||
+      allowed_receiver_instance_type_range_end()) {
+    os << "\n - allowed_receiver_instance_type_range: ["
+       << allowed_receiver_instance_type_range_start() << ", "
+       << allowed_receiver_instance_type_range_end() << "]";
   }
   os << '\n';
 }
@@ -2049,7 +2089,7 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
     os << "\n - builtin_id: " << Builtins::name(builtin_id());
   }
   os << "\n - deoptimization_data_or_interpreter_data: "
-     << Brief(raw_deoptimization_data_or_interpreter_data(Isolate::Current()));
+     << Brief(raw_deoptimization_data_or_interpreter_data());
   os << "\n - position_table: " << Brief(raw_position_table());
   os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - instruction_start: "
@@ -2346,6 +2386,16 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  JSObjectPrintHeader(os, *this, "WasmInstanceObject");
+  os << "\n - trusted_data: " << Brief(trusted_data(isolate));
+  os << "\n - module_object: " << Brief(module_object());
+  os << "\n - exports_object: " << Brief(exports_object());
+  JSObjectPrintBody(os, *this);
+  os << "\n";
+}
+
 void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
 #define PRINT_WASM_INSTANCE_FIELD(name, convert) \
   os << "\n - " #name ": " << convert(name());
@@ -2369,7 +2419,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(dispatch_tables, Brief);
   PRINT_WASM_INSTANCE_FIELD(imported_function_refs, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tags_table, Brief);
-  PRINT_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
+  PRINT_WASM_INSTANCE_FIELD(func_refs, Brief);
   PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
@@ -2420,7 +2470,7 @@ void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   os << "\n - internal: " << Brief(internal());
   os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
-  os << "\n";
+  // No newline here; the caller prints it after printing additional fields.
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
@@ -2462,9 +2512,16 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - call target: " << reinterpret_cast<void*>(call_target(isolate));
-  os << "\n - ref: " << Brief(ref());
+  os << "\n - ref: " << Brief(ref(isolate));
   os << "\n - external: " << Brief(external());
   os << "\n - code: " << Brief(code(isolate));
+  os << "\n - func_ref: " << Brief(func_ref());
+  os << "\n";
+}
+
+void WasmFuncRef::WasmFuncRefPrint(std::ostream& os) {
+  PrintHeader(os, "WasmFuncRef");
+  os << "\n - internal: " << Brief(internal());
   os << "\n";
 }
 
@@ -2544,26 +2601,6 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
   if (data_count >= 3) {
     os << "\n - data3: " << Brief(data3());
   }
-  os << "\n";
-}
-
-void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {
-  PrintHeader(os, "CallHandlerInfo");
-  Isolate* isolate;
-  if (GetIsolateFromHeapObject(*this, &isolate)) {
-    os << "\n - callback: " << reinterpret_cast<void*>(callback(isolate));
-    if (USE_SIMULATOR_BOOL) {
-      os << "\n - maybe_redirected_callback: "
-         << reinterpret_cast<void*>(maybe_redirected_callback(isolate));
-    }
-  } else {
-    os << "\n - callback: " << kUnavailableString;
-    os << "\n - maybe_redirected_callback: " << kUnavailableString;
-  }
-  os << "\n - data: " << Brief(data());
-  os << "\n - side_effect_free: "
-     << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");
-  os << "\n - owner_template: " << Brief(owner_template());
   os << "\n";
 }
 
@@ -3252,20 +3289,21 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << ">";
       break;
     }
-    case CALL_HANDLER_INFO_TYPE: {
-      Tagged<CallHandlerInfo> info = CallHandlerInfo::cast(*this);
-      os << "<CallHandlerInfo ";
+    case FUNCTION_TEMPLATE_INFO_TYPE: {
+      Tagged<FunctionTemplateInfo> info = FunctionTemplateInfo::cast(*this);
+      os << "<FunctionTemplateInfo ";
       Isolate* isolate;
       if (GetIsolateFromHeapObject(*this, &isolate)) {
         os << "callback= " << reinterpret_cast<void*>(info->callback(isolate));
       } else {
         os << "callback= " << kUnavailableString;
       }
-      os << ", data= " << Brief(info->data());
-      if (info->IsSideEffectFreeCallHandlerInfo()) {
-        os << ", side_effect_free= true>";
+      os << ", data= " << Brief(info->callback_data(kAcquireLoad));
+      os << ", has_side_effects= ";
+      if (info->has_side_effects()) {
+        os << "true>";
       } else {
-        os << ", side_effect_free= false>";
+        os << "false>";
       }
       break;
     }
@@ -3426,7 +3464,7 @@ void Map::MapPrint(std::ostream& os) {
       os << "\n - transitions #" << nof_transitions << ": ";
       Tagged<HeapObject> heap_object;
       Tagged<Smi> smi;
-      if (raw_transitions()->ToSmi(&smi)) {
+      if (raw_transitions().ToSmi(&smi)) {
         os << Brief(smi);
       } else if (raw_transitions().GetHeapObject(&heap_object)) {
         os << Brief(heap_object);

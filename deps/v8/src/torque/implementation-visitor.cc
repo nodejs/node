@@ -3615,6 +3615,10 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
 
           interface_descriptors << " public:\n";
 
+          // Currently, no torque-defined builtins are directly exposed to
+          // objects inside the sandbox via the code pointer table.
+          interface_descriptors << "  INTERNAL_DESCRIPTOR()\n";
+
           if (has_context_parameter) {
             interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
           } else {
@@ -4336,14 +4340,14 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
 
   ClassFieldOffsetGenerator g(impl_, impl_, type_, gen_name_,
                               type_->GetSuperClass(), false);
-  for (auto f : type_->fields()) {
+  for (const auto& f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
   }
   g.Finish();
   impl_ << "\n";
 
-  for (auto f : type_->fields()) {
+  for (const auto& f : type_->fields()) {
     std::string field_offset =
         "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string cpp_field_offset =
@@ -5206,7 +5210,7 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
       !field_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
   const char* object_type = maybe_object ? "MaybeObject" : "Object";
   const char* tagged_object_type =
-      maybe_object ? "MaybeObject" : "Tagged<Object>";
+      maybe_object ? "Tagged<MaybeObject>" : "Tagged<Object>";
   const char* verify_fn =
       maybe_object ? "VerifyMaybeObjectPointer" : "VerifyPointer";
   if (indexed) {
@@ -5226,8 +5230,7 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
   }
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
-  cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
-              << value << ");\n";
+  cc_contents << "    Object::" << verify_fn << "(isolate, " << value << ");\n";
 
   // Check that the value is of an appropriate type. We can skip this part for
   // the Object type because it would not check anything beyond what we already

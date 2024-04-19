@@ -30,12 +30,12 @@ class PrototypeInfo
 
   static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
                                         Handle<Map> map, Isolate* isolate);
-  inline MaybeObject ObjectCreateMap(AcquireLoadTag);
-  inline MaybeObject ObjectCreateMap();
+  inline Tagged<MaybeObject> ObjectCreateMap(AcquireLoadTag);
+  inline Tagged<MaybeObject> ObjectCreateMap();
 
   static inline void AddDerivedMap(Handle<PrototypeInfo> info, Handle<Map> to,
                                    Isolate* isolate);
-  inline MaybeObject GetDerivedMap(Handle<Map> from);
+  inline Tagged<MaybeObject> GetDerivedMap(Handle<Map> from);
 
   static inline bool IsPrototypeInfoFast(Tagged<Object> object);
 

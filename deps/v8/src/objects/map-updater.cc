@@ -1146,7 +1146,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
                                  const MaybeObjectHandle& new_wrapped_type) {
-  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeak());
+  DCHECK(IsSmi(*new_wrapped_type) || IsWeak(*new_wrapped_type));
   // We store raw pointers in the queue, so no allocations are allowed.
   PropertyDetails details =
       map->instance_descriptors(isolate)->GetDetails(descriptor);

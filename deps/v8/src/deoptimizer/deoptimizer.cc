@@ -87,7 +87,7 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
           // moving.
           safepoint_scope_.reset();
           state_ = kDone;
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kDone:
           return Code();
       }
@@ -574,10 +574,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
   // the first deopt with resume entry.
   if (from_ <= lazy_deopt_start) {
+    DCHECK_EQ(kind, DeoptimizeKind::kEager);
     int offset = static_cast<int>(from_ - kEagerDeoptExitSize - deopt_start);
     DCHECK_EQ(0, offset % kEagerDeoptExitSize);
     deopt_exit_index_ = offset / kEagerDeoptExitSize;
   } else {
+    DCHECK_EQ(kind, DeoptimizeKind::kLazy);
     int offset =
         static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
     DCHECK_EQ(0, offset % kLazyDeoptExitSize);
@@ -844,10 +846,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 
   DCHECK_NULL(output_);
-  output_ = new FrameDescription*[count];
-  for (size_t i = 0; i < count; ++i) {
-    output_[i] = nullptr;
-  }
+  output_ = new FrameDescription* [count] {};
   output_count_ = static_cast<int>(count);
 
   // Translate each output frame.
@@ -1371,7 +1370,7 @@ void Deoptimizer::DoComputeInlinedExtraArguments(
     // The receiver and arguments with index below the formal parameter
     // count are in the fake adaptor frame, because they are used to create the
     // arguments object. We should however not push them, since the interpreter
-    // frame with do that.
+    // frame will do that.
     value_iterator++;  // Skip function.
     value_iterator++;  // Skip receiver.
     for (int i = 0; i < formal_parameter_count; i++) value_iterator++;
@@ -1718,11 +1717,11 @@ TranslatedValue Deoptimizer::TranslatedValueForWasmReturnKind(
       case wasm::kI32:
         return TranslatedValue::NewInt32(
             &translated_state_,
-            (int32_t)input_->GetRegister(kReturnRegister0.code()));
+            static_cast<int32_t>(input_->GetRegister(kReturnRegister0.code())));
       case wasm::kI64:
         return TranslatedValue::NewInt64ToBigInt(
             &translated_state_,
-            (int64_t)input_->GetRegister(kReturnRegister0.code()));
+            static_cast<int64_t>(input_->GetRegister(kReturnRegister0.code())));
       case wasm::kF32:
         return TranslatedValue::NewFloat(
             &translated_state_,

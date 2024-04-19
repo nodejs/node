@@ -119,6 +119,8 @@ class Graph final : public ZoneObject {
     return osr_values().back()->stack_slot() + 1;
   }
 
+  int NewObjectId() { return object_ids_++; }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
@@ -142,6 +144,7 @@ class Graph final : public ZoneObject {
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
   bool is_osr_ = false;
+  int object_ids_ = 0;
 };
 
 }  // namespace maglev

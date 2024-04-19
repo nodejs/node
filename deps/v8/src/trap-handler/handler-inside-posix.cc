@@ -51,7 +51,7 @@ namespace trap_handler {
 
 #if V8_OS_LINUX && V8_HOST_ARCH_ARM64
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.regs[REG]
-#elif V8_OS_LINUX && V8_HOST_ARCH_LOONG64
+#elif V8_OS_LINUX && (V8_HOST_ARCH_LOONG64 || V8_HOST_ARCH_RISCV64)
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.__gregs[REG]
 #elif V8_OS_LINUX
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.gregs[REG_##REG]
@@ -71,6 +71,8 @@ namespace trap_handler {
 #define CONTEXT_PC() &uc->uc_mcontext->__ss.__pc
 #elif V8_OS_LINUX && V8_HOST_ARCH_LOONG64
 #define CONTEXT_PC() &uc->uc_mcontext.__pc
+#elif V8_OS_LINUX && V8_HOST_ARCH_RISCV64
+#define CONTEXT_PC() &uc->uc_mcontext.__gregs[REG_PC]
 #endif
 
 bool IsKernelGeneratedSignal(siginfo_t* info) {
@@ -149,6 +151,8 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
     auto* context_ip = CONTEXT_PC();
 #elif V8_HOST_ARCH_LOONG64
     auto* context_ip = CONTEXT_PC();
+#elif V8_HOST_ARCH_RISCV64
+    auto* context_ip = CONTEXT_PC();
 #else
 #error "Unsupported architecture."
 #endif
@@ -182,6 +186,8 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
 #elif V8_HOST_ARCH_ARM64
     auto* fault_address_reg = CONTEXT_REG(x16, 16);
 #elif V8_HOST_ARCH_LOONG64
+    auto* fault_address_reg = CONTEXT_REG(t6, 18);
+#elif V8_HOST_ARCH_RISCV64
     auto* fault_address_reg = CONTEXT_REG(t6, 18);
 #else
 #error "Unsupported architecture."

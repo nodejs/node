@@ -835,7 +835,11 @@ NativeModule::NativeModule(WasmFeatures enabled,
       code_allocator_(async_counters),
       enabled_features_(enabled),
       compile_imports_(compile_imports),
-      module_(std::move(module)) {
+      module_(std::move(module)),
+      fast_api_targets_(
+          new std::atomic<Address>[module_->num_imported_functions]()),
+      fast_api_return_is_bool_(
+          new std::atomic<bool>[module_->num_imported_functions]()) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
@@ -923,8 +927,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     reloc_info = base::OwnedVector<uint8_t>::Of(
         base::Vector<uint8_t>{code->relocation_start(), relocation_size});
   }
-  Handle<ByteArray> source_pos_table(code->source_position_table(),
-                                     code->instruction_stream()->GetIsolate());
+  Handle<TrustedByteArray> source_pos_table(
+      code->source_position_table(), code->instruction_stream()->GetIsolate());
   int source_pos_len = source_pos_table->length();
   auto source_pos = base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_len);
   if (source_pos_len > 0) {
@@ -1069,10 +1073,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
     base::Vector<const uint8_t> protected_instructions_data,
-    base::Vector<const uint8_t> source_position_table, WasmCode::Kind kind,
+    base::Vector<const uint8_t> source_position_table,
+    base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging) {
   base::Vector<uint8_t> code_space;
-  base::Vector<uint8_t> inlining_positions;
   NativeModule::JumpTablesRef jump_table_ref;
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
@@ -2427,7 +2431,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 520);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 536);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
@@ -2444,6 +2448,9 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   // For {tiering_budgets_}.
   result += module_->num_declared_functions * sizeof(uint32_t);
 
+  // For fast api call targets.
+  result += module_->num_imported_functions *
+            (sizeof(std::atomic<Address>) + sizeof(CFunctionInfo*));
   {
     base::RecursiveMutexGuard lock(&allocation_mutex_);
     result += ContentSize(owned_code_);

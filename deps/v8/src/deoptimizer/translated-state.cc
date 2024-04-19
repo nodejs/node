@@ -7,7 +7,6 @@
 #include <iomanip>
 
 #include "src/base/memory.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/common/assert-scope.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/materialized-object-store.h"
@@ -602,7 +601,7 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
       }
       // If this is not the hole nan, then this is a normal double value, so
       // fall through to that.
-      V8_FALLTHROUGH;
+      [[fallthrough]];
 
     case kDouble: {
       int smi;

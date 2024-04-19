@@ -252,7 +252,7 @@ bool InAnySharedSpace(Tagged<HeapObject> obj) {
 }
 
 bool InWritableSharedSpace(Tagged<HeapObject> obj) {
-  return BasicMemoryChunk::FromHeapObject(obj)->InWritableSharedSpace();
+  return MemoryChunk::FromHeapObject(obj)->InWritableSharedSpace();
 }
 
 bool InReadOnlySpace(Tagged<HeapObject> obj) {
@@ -968,7 +968,7 @@ void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
 }
 
 void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
-  MaybeObject::VerifyMaybeObjectPointer(
+  Object::VerifyMaybeObjectPointer(
       isolate, TaggedField<MaybeObject>::load(isolate, *this, offset));
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
@@ -1588,7 +1588,7 @@ Relocatable::~Relocatable() {
 // Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
 static inline uint32_t ObjectAddressForHashing(Address object) {
-  return MemoryChunkHeader::AddressToOffset(object);
+  return MemoryChunk::AddressToOffset(object);
 }
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,

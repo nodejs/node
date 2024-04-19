@@ -107,7 +107,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   }
 
   EmbedderStackStateScope scope(
-      heap, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
+      heap, EmbedderStackStateOrigin::kImplicitThroughTask, stack_state_);
 
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (incremental_marking->IsStopped()) {

@@ -485,6 +485,10 @@ class ModuleDecoderImpl : public Decoder {
         }
         break;
       case kCompilationHintsSectionCode:
+        // TODO(jkummerow): We're missing tracing support for well-known
+        // custom sections. This confuses `wami --full-hexdump` e.g.
+        // for the modules created by
+        // mjsunit/wasm/compilation-hints-streaming-compilation.js.
         if (enabled_features_.has_compilation_hints()) {
           DecodeCompilationHintsSection();
         } else {
@@ -760,7 +764,9 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
           table->type = type;
-          consume_table_flags("element count", &table->has_maximum_size);
+          auto [has_maximum, shared] = consume_table_flags("element count");
+          table->has_maximum_size = has_maximum;
+          table->shared = shared;
           consume_resizable_limits(
               "element count", "elements", std::numeric_limits<uint32_t>::max(),
               &table->initial_size, table->has_maximum_size,
@@ -788,6 +794,7 @@ class ModuleDecoderImpl : public Decoder {
           import->index = mem_index;
           module_->memories.emplace_back();
           WasmMemory* external_memory = &module_->memories.back();
+          external_memory->imported = true;
           external_memory->index = mem_index;
 
           consume_memory_flags(&external_memory->is_shared,
@@ -912,7 +919,9 @@ class ModuleDecoderImpl : public Decoder {
       }
       table->type = table_type;
 
-      consume_table_flags("table elements", &table->has_maximum_size);
+      auto [has_maximum, shared] = consume_table_flags("table elements");
+      table->has_maximum_size = has_maximum;
+      table->shared = shared;
       consume_resizable_limits("table elements", "elements",
                                std::numeric_limits<uint32_t>::max(),
                                &table->initial_size, table->has_maximum_size,
@@ -920,9 +929,8 @@ class ModuleDecoderImpl : public Decoder {
                                &table->maximum_size, k32BitLimits);
 
       if (has_initializer) {
-        constexpr bool kIsShared = false;  // TODO(14616): Extend this.
         table->initial_value =
-            consume_init_expr(module_.get(), table_type, kIsShared);
+            consume_init_expr(module_.get(), table_type, shared);
       }
     }
   }
@@ -1756,8 +1764,7 @@ class ModuleDecoderImpl : public Decoder {
   ConstantExpression consume_element_segment_entry(
       WasmModule* module, const WasmElemSegment& segment) {
     if (segment.element_type == WasmElemSegment::kExpressionElements) {
-      constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-      return consume_init_expr(module, segment.type, kIsShared);
+      return consume_init_expr(module, segment.type, segment.shared);
     } else {
       return ConstantExpression::RefFunc(
           consume_element_func_index(module, segment.type));
@@ -1892,20 +1899,30 @@ class ModuleDecoderImpl : public Decoder {
     return index;
   }
 
-  void consume_table_flags(const char* name, bool* has_maximum_out) {
+  std::pair<bool, bool> consume_table_flags(const char* name) {
     if (tracer_) tracer_->Bytes(pc_, 1);
     uint8_t flags = consume_u8("table limits flags");
+    if (flags & ~0b11) {
+      errorf(pc() - 1, "invalid %s limits flags", name);
+      return {};
+    }
+    bool with_maximum = flags & 1;
+    bool shared = flags & 0b10;
+
+    if (shared && !v8_flags.experimental_wasm_shared) {
+      errorf(pc() - 1,
+             "invalid %s limits flags, enable with --experimental-wasm-shared",
+             name);
+      return {};
+    }
+
     if (tracer_) {
-      tracer_->Description(flags == kNoMaximum ? " no maximum"
-                                               : " with maximum");
+      tracer_->Description(with_maximum ? " no maximum" : " with maximum");
+      tracer_->Description(shared ? " shared" : "");
       tracer_->NextLine();
     }
 
-    static_assert(kNoMaximum == 0 && kWithMaximum == 1);
-    *has_maximum_out = flags == kWithMaximum;
-    if (V8_UNLIKELY(flags > kWithMaximum)) {
-      errorf(pc() - 1, "invalid %s limits flags", name);
-    }
+    return {with_maximum, shared};
   }
 
   void consume_memory_flags(bool* is_shared_out, bool* is_memory64_out,
@@ -1947,13 +1964,18 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   std::pair<bool, bool> consume_global_flags() {
-    uint8_t flags = consume_u8("global flags", tracer_);
+    uint8_t flags = consume_u8("global flags");
     if (flags & ~0b11) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
       return {false, false};
     }
     bool mutability = flags & 0b1;
     bool shared = flags & 0b10;
+    if (tracer_) {
+      tracer_->Bytes(pc_, 1);  // The flags byte.
+      if (shared) tracer_->Description(" shared");
+      tracer_->Description(mutability ? " mutable" : " immutable");
+    }
     if (shared && !v8_flags.experimental_wasm_shared) {
       errorf(
           pc() - 1,
@@ -2292,13 +2314,23 @@ class ModuleDecoderImpl : public Decoder {
     // The mask for the bit in the flag which indicates if the functions of this
     // segment are defined as function indices (0) or constant expressions (1).
     constexpr uint8_t kExpressionsAsElementsMask = 1 << 2;
+    // The mask for the bit which denotes whether this segment is shared.
+    constexpr uint8_t kSharedFlag = 1 << 3;
     constexpr uint8_t kFullMask = kNonActiveMask |
                                   kHasTableIndexOrIsDeclarativeMask |
-                                  kExpressionsAsElementsMask;
+                                  kExpressionsAsElementsMask | kSharedFlag;
 
     uint32_t flag = consume_u32v("flag: ", tracer_);
     if ((flag & kFullMask) != flag) {
-      errorf(pos, "illegal flag value %u. Must be between 0 and 7", flag);
+      errorf(pos, "illegal flag value %u", flag);
+      return {};
+    }
+
+    bool is_shared = flag & kSharedFlag;
+    if (is_shared && !v8_flags.experimental_wasm_shared) {
+      errorf(pos,
+             "illegal flag value %u, enable with --experimental-wasm-shared",
+             flag);
       return {};
     }
 
@@ -2332,6 +2364,10 @@ class ModuleDecoderImpl : public Decoder {
              has_table_index ? " implicit" : "", table_index);
       return {};
     }
+
+    // TODO(14616): What is the interaction between shared tables and non-shared
+    // elements?
+
     ValueType table_type =
         is_active ? module_->tables[table_index].type : kWasmBottom;
 
@@ -2341,8 +2377,7 @@ class ModuleDecoderImpl : public Decoder {
         tracer_->Description(", offset:");
         tracer_->NextLine();
       }
-      constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-      offset = consume_init_expr(module_.get(), kWasmI32, kIsShared);
+      offset = consume_init_expr(module_.get(), kWasmI32, is_shared);
       // Failed to parse offset initializer, return early.
       if (failed()) return {};
     }
@@ -2404,10 +2439,10 @@ class ModuleDecoderImpl : public Decoder {
         consume_count(" number of elements", max_table_init_entries());
 
     if (is_active) {
-      return {type,         table_index, std::move(offset),
-              element_type, num_elem,    pc_offset()};
+      return {is_shared,    type,     table_index, std::move(offset),
+              element_type, num_elem, pc_offset()};
     } else {
-      return {type, status, element_type, num_elem, pc_offset()};
+      return {status, is_shared, type, element_type, num_elem, pc_offset()};
     }
   }
 

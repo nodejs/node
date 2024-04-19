@@ -75,7 +75,6 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
                                     const LazyNode<HeapObject>& feedback_vector,
                                     TNode<UintPtrT> slot);
 
- private:
   TNode<JSReceiver> GetCompatibleReceiver(TNode<JSReceiver> receiver,
                                           TNode<HeapObject> signature,
                                           TNode<Context> context);

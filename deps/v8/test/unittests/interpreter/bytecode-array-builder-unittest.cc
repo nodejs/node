@@ -162,6 +162,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
       .LoadNamedPropertyFromSuper(reg, name, load_slot.ToInt())
       .LoadKeyedProperty(reg, keyed_load_slot.ToInt())
+      .LoadEnumeratedKeyedProperty(reg, reg, reg, keyed_load_slot.ToInt())
       .SetNamedProperty(reg, name, sloppy_store_slot.ToInt(),
                         LanguageMode::kSloppy)
       .SetKeyedProperty(reg, reg, sloppy_keyed_store_slot.ToInt(),
@@ -283,10 +284,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit test operator invocations.
   builder.CompareOperation(Token::kEq, reg, 1)
       .CompareOperation(Token::kEqStrict, reg, 2)
-      .CompareOperation(Token::kLt, reg, 3)
-      .CompareOperation(Token::kGt, reg, 4)
-      .CompareOperation(Token::kLte, reg, 5)
-      .CompareOperation(Token::kGte, reg, 6)
+      .CompareOperation(Token::kLessThan, reg, 3)
+      .CompareOperation(Token::kGreaterThan, reg, 4)
+      .CompareOperation(Token::kLessThanEq, reg, 5)
+      .CompareOperation(Token::kGreaterThanEq, reg, 6)
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
       .CompareOperation(Token::kInstanceOf, reg, 7)
       .CompareOperation(Token::kIn, reg, 8)

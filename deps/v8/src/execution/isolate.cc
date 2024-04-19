@@ -3828,6 +3828,7 @@ void Isolate::Deinit() {
   }
 
   DisallowGarbageCollection no_gc;
+  IgnoreLocalGCRequests ignore_gc_requests(heap());
 
   tracing_cpu_profiler_.reset();
   if (v8_flags.stress_sampling_allocation_profiler > 0) {
@@ -5374,6 +5375,17 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
   }
 }
 
+void Isolate::UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
+    Handle<JSObject> object) {
+  if (!Protectors::IsStringWrapperToPrimitiveIntact(this)) {
+    return;
+  }
+
+  if (IsStringWrapper(*object)) {
+    Protectors::InvalidateStringWrapperToPrimitive(this);
+  }
+}
+
 static base::RandomNumberGenerator* ensure_rng_exists(
     base::RandomNumberGenerator** rng, int seed) {
   if (*rng == nullptr) {
@@ -6136,9 +6148,9 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    MaybeObject context = detached_contexts->Get(i);
-    DCHECK(context->IsWeakOrCleared());
-    if (!context->IsCleared()) {
+    Tagged<MaybeObject> context = detached_contexts->Get(i);
+    DCHECK(context.IsWeakOrCleared());
+    if (!context.IsCleared()) {
       int mark_sweeps = detached_contexts->Get(i + 1).ToSmi().value();
       detached_contexts->Set(new_length, context);
       detached_contexts->Set(new_length + 1, Smi::FromInt(mark_sweeps + 1));
@@ -6155,9 +6167,9 @@ void Isolate::CheckDetachedContextsAfterGC() {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      MaybeObject context = detached_contexts->Get(i);
+      Tagged<MaybeObject> context = detached_contexts->Get(i);
       int mark_sweeps = detached_contexts->Get(i + 1).ToSmi().value();
-      DCHECK(context->IsWeakOrCleared());
+      DCHECK(context.IsWeakOrCleared());
       if (mark_sweeps > 3) {
         PrintF("detached context %p\n survived %d GCs (leak?)\n",
                reinterpret_cast<void*>(context.ptr()), mark_sweeps);
@@ -6465,7 +6477,7 @@ void Isolate::AddCodeMemoryRange(MemoryRange range) {
 }
 
 // |chunk| is either a Page or an executable LargePage.
-void Isolate::AddCodeMemoryChunk(MemoryChunk* chunk) {
+void Isolate::AddCodeMemoryChunk(MutablePageMetadata* chunk) {
   // We only keep track of individual code pages/allocations if we are on arm32,
   // because on x64 and arm64 we have a code range which makes this unnecessary.
 #if defined(V8_TARGET_ARCH_ARM)
@@ -6550,7 +6562,7 @@ LocalHeap* Isolate::CurrentLocalHeap() {
 }
 
 // |chunk| is either a Page or an executable LargePage.
-void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
+void Isolate::RemoveCodeMemoryChunk(MutablePageMetadata* chunk) {
   // We only keep track of individual code pages/allocations if we are on arm32,
   // because on x64 and arm64 we have a code range which makes this unnecessary.
 #if defined(V8_TARGET_ARCH_ARM)
@@ -6607,22 +6619,6 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   // Only iterators and references to the erased elements are invalidated.
   return reinterpret_cast<Address>(&map[name].second);
 }
-
-#ifdef V8_COMPRESS_POINTERS
-ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
-  ExternalPointerHandle handle;
-  if (waiter_queue_node_external_pointer_handle_ !=
-      kNullExternalPointerHandle) {
-    handle = waiter_queue_node_external_pointer_handle_;
-  } else {
-    handle = shared_external_pointer_table().AllocateAndInitializeEntry(
-        shared_external_pointer_space(), kNullAddress, kWaiterQueueNodeTag);
-    waiter_queue_node_external_pointer_handle_ = handle;
-  }
-  DCHECK_NE(0, handle);
-  return handle;
-}
-#endif  // V8_COMPRESS_POINTERS
 
 void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
                                       Handle<ScopeInfo> outer_scope_info,

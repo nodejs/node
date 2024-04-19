@@ -1095,7 +1095,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
               Advance(2);
               break;
             }
-            V8_FALLTHROUGH;
+            [[fallthrough]];
           }
           case '0': {
             Advance();
@@ -1193,7 +1193,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
               break;
             }
           }
-            V8_FALLTHROUGH;
+            [[fallthrough]];
           // AtomEscape ::
           //   CharacterEscape
           default: {
@@ -1214,14 +1214,14 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
         int dummy;
         bool parsed = ParseIntervalQuantifier(&dummy, &dummy CHECK_FAILED);
         if (parsed) return ReportError(RegExpError::kNothingToRepeat);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       }
       case '}':
       case ']':
         if (IsUnicodeMode()) {
           return ReportError(RegExpError::kLoneQuantifierBrackets);
         }
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       default:
         builder->AddUnicodeCharacter(current());
         Advance();
@@ -2352,7 +2352,7 @@ base::uc32 RegExpParserImpl<CharT>::ParseCharacterEscape(
         Advance();
         return 0;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case '1':
     case '2':
     case '3':

@@ -44,29 +44,31 @@ void MarkCompactCollector::RecordSlot(Tagged<HeapObject> object,
 
 // static
 template <typename THeapObjectSlot>
-void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
+void MarkCompactCollector::RecordSlot(MemoryChunk* source_chunk,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> target) {
-  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
-  if (target_page->IsEvacuationCandidate()) {
-    if (target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-      RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
-                                                             slot.address());
-    } else if (source_page->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
-               target_page->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+  MemoryChunk* target_chunk = MemoryChunk::FromHeapObject(target);
+  if (target_chunk->IsEvacuationCandidate()) {
+    MutablePageMetadata* source_page =
+        MutablePageMetadata::cast(source_chunk->Metadata());
+    if (target_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+      RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(
+          source_page, source_chunk->Offset(slot.address()));
+    } else if (source_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
+               target_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
       RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
-          source_page, slot.address());
-    } else if (V8_LIKELY(!target_page->InWritableSharedSpace()) ||
+          source_page, source_chunk->Offset(slot.address()));
+    } else if (V8_LIKELY(!target_chunk->InWritableSharedSpace()) ||
                source_page->heap()->isolate()->is_shared_space_isolate()) {
-      DCHECK_EQ(source_page->heap(), target_page->heap());
-      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(source_page,
-                                                            slot.address());
+      DCHECK_EQ(source_page->heap(), target_chunk->GetHeap());
+      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
+          source_page, source_chunk->Offset(slot.address()));
     } else {
       // DCHECK here that we only don't record in case of local->shared
       // references in a client GC.
       DCHECK(!source_page->heap()->isolate()->is_shared_space_isolate());
-      DCHECK(target_page->heap()->isolate()->is_shared_space_isolate());
-      DCHECK(target_page->InWritableSharedSpace());
+      DCHECK(target_chunk->GetHeap()->isolate()->is_shared_space_isolate());
+      DCHECK(target_chunk->InWritableSharedSpace());
     }
   }
 }

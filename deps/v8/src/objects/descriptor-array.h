@@ -73,9 +73,9 @@ class DescriptorArray
   inline Tagged<Object> GetStrongValue(InternalIndex descriptor_number);
   inline Tagged<Object> GetStrongValue(PtrComprCageBase cage_base,
                                        InternalIndex descriptor_number);
-  inline MaybeObject GetValue(InternalIndex descriptor_number);
-  inline MaybeObject GetValue(PtrComprCageBase cage_base,
-                              InternalIndex descriptor_number);
+  inline Tagged<MaybeObject> GetValue(InternalIndex descriptor_number);
+  inline Tagged<MaybeObject> GetValue(PtrComprCageBase cage_base,
+                                      InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
   inline int GetFieldIndex(InternalIndex descriptor_number);
   inline Tagged<FieldType> GetFieldType(InternalIndex descriptor_number);
@@ -90,12 +90,12 @@ class DescriptorArray
   // Accessor for complete descriptor.
   inline void Set(InternalIndex descriptor_number, Descriptor* desc);
   inline void Set(InternalIndex descriptor_number, Tagged<Name> key,
-                  MaybeObject value, PropertyDetails details);
+                  Tagged<MaybeObject> value, PropertyDetails details);
   void Replace(InternalIndex descriptor_number, Descriptor* descriptor);
 
   // Generalizes constness, representation and field type of all field
   // descriptors.
-  void GeneralizeAllFields();
+  void GeneralizeAllFields(TransitionKindFlag transition_kind);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
@@ -227,7 +227,8 @@ class DescriptorArray
 
  private:
   inline void SetKey(InternalIndex descriptor_number, Tagged<Name> key);
-  inline void SetValue(InternalIndex descriptor_number, MaybeObject value);
+  inline void SetValue(InternalIndex descriptor_number,
+                       Tagged<MaybeObject> value);
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
 

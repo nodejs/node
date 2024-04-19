@@ -566,13 +566,23 @@ Isolate* SnapshotCreator::GetIsolate() {
 }
 
 void SnapshotCreator::SetDefaultContext(
-    Local<Context> context, SerializeInternalFieldsCallback callback) {
-  impl_->SetDefaultContext(Utils::OpenHandle(*context), callback);
+    Local<Context> context,
+    SerializeInternalFieldsCallback internal_fields_serializer,
+    SerializeContextDataCallback context_data_serializer) {
+  impl_->SetDefaultContext(
+      Utils::OpenHandle(*context),
+      i::SerializeEmbedderFieldsCallback(internal_fields_serializer,
+                                         context_data_serializer));
 }
 
-size_t SnapshotCreator::AddContext(Local<Context> context,
-                                   SerializeInternalFieldsCallback callback) {
-  return impl_->AddContext(Utils::OpenHandle(*context), callback);
+size_t SnapshotCreator::AddContext(
+    Local<Context> context,
+    SerializeInternalFieldsCallback internal_fields_serializer,
+    SerializeContextDataCallback context_data_serializer) {
+  return impl_->AddContext(
+      Utils::OpenHandle(*context),
+      i::SerializeEmbedderFieldsCallback(internal_fields_serializer,
+                                         context_data_serializer));
 }
 
 size_t SnapshotCreator::AddData(i::Address object) {
@@ -768,33 +778,36 @@ void HandleHelper::VerifyOnMainThread() {
 
 #if V8_STATIC_ROOTS_BOOL
 
-// Initialize static root constants exposed in v8-internal.h.
+// Check static root constants exposed in v8-internal.h.
 
 namespace {
 constexpr InstanceTypeChecker::TaggedAddressRange kStringMapRange =
     *InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(FIRST_STRING_TYPE,
                                                             LAST_STRING_TYPE);
-constexpr Tagged_t kFirstStringMapPtr = kStringMapRange.first;
-constexpr Tagged_t kLastStringMapPtr = kStringMapRange.second;
 }  // namespace
 
-#define EXPORTED_STATIC_ROOTS_MAPPING(V)                    \
+#define EXPORTED_STATIC_ROOTS_PTR_MAPPING(V)                \
   V(UndefinedValue, i::StaticReadOnlyRoot::kUndefinedValue) \
   V(NullValue, i::StaticReadOnlyRoot::kNullValue)           \
   V(TrueValue, i::StaticReadOnlyRoot::kTrueValue)           \
   V(FalseValue, i::StaticReadOnlyRoot::kFalseValue)         \
   V(EmptyString, i::StaticReadOnlyRoot::kempty_string)      \
   V(TheHoleValue, i::StaticReadOnlyRoot::kTheHoleValue)     \
-  V(FirstStringMap, kFirstStringMapPtr)                     \
-  V(LastStringMap, kLastStringMapPtr)
+  V(FirstStringMap, kStringMapRange.first)                  \
+  V(LastStringMap, kStringMapRange.second)
 
 static_assert(std::is_same<Internals::Tagged_t, Tagged_t>::value);
-#define DEF_STATIC_ROOT(name, internal_value)                        \
-  const Internals::Tagged_t Internals::StaticReadOnlyRoot::k##name = \
-      internal_value;
-EXPORTED_STATIC_ROOTS_MAPPING(DEF_STATIC_ROOT)
-#undef DEF_STATIC_ROOT
-#undef EXPORTED_STATIC_ROOTS_MAPPING
+// Ensure they have the correct value.
+#define CHECK_STATIC_ROOT(name, value) \
+  static_assert(Internals::StaticReadOnlyRoot::k##name == value);
+EXPORTED_STATIC_ROOTS_PTR_MAPPING(CHECK_STATIC_ROOT)
+#undef CHECK_STATIC_ROOT
+#define PLUS_ONE(...) +1
+static constexpr int kNumberOfCheckedStaticRoots =
+    0 EXPORTED_STATIC_ROOTS_PTR_MAPPING(PLUS_ONE);
+#undef EXPORTED_STATIC_ROOTS_PTR_MAPPING
+static_assert(Internals::StaticReadOnlyRoot::kNumberOfExportedStaticRoots ==
+              kNumberOfCheckedStaticRoots);
 
 #endif  // V8_STATIC_ROOTS_BOOL
 
@@ -1130,15 +1143,6 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 
 // --- T e m p l a t e ---
 
-static void InitializeTemplate(i::Tagged<i::TemplateInfo> that, int type,
-                               bool do_not_cache) {
-  that->set_number_of_properties(0);
-  that->set_tag(type);
-  int serial_number =
-      do_not_cache ? i::TemplateInfo::kDoNotCache : i::TemplateInfo::kUncached;
-  that->set_serial_number(serial_number);
-}
-
 void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
                    v8::PropertyAttribute attribute) {
   auto templ = Utils::OpenHandle(this);
@@ -1172,58 +1176,32 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
                                    v8::Local<FunctionTemplate> getter,
                                    v8::Local<FunctionTemplate> setter,
                                    v8::PropertyAttribute attribute) {
-  Utils::ApiCheck(
-      getter.IsEmpty() ||
-          !IsUndefined(
-              Utils::OpenDirectHandle(*getter)->call_code(kAcquireLoad)),
-      "v8::Template::SetAccessorProperty", "Getter must have a call handler");
-  Utils::ApiCheck(
-      setter.IsEmpty() ||
-          !IsUndefined(
-              Utils::OpenDirectHandle(*setter)->call_code(kAcquireLoad)),
-      "v8::Template::SetAccessorProperty", "Setter must have a call handler");
-
   auto templ = Utils::OpenHandle(this);
   auto i_isolate = templ->GetIsolateChecked();
+  i::Handle<i::FunctionTemplateInfo> i_getter;
+  if (!getter.IsEmpty()) {
+    i_getter = Utils::OpenHandle(*getter);
+    Utils::ApiCheck(i_getter->has_callback(i_isolate),
+                    "v8::Template::SetAccessorProperty",
+                    "Getter must have a call handler");
+  }
+  i::Handle<i::FunctionTemplateInfo> i_setter;
+  if (!setter.IsEmpty()) {
+    i_setter = Utils::OpenHandle(*setter);
+    Utils::ApiCheck(i_setter->has_callback(i_isolate),
+                    "v8::Template::SetAccessorProperty",
+                    "Setter must have a call handler");
+  }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(!name.IsEmpty());
   DCHECK(!getter.IsEmpty() || !setter.IsEmpty());
   i::HandleScope scope(i_isolate);
   i::ApiNatives::AddAccessorProperty(
-      i_isolate, templ, Utils::OpenHandle(*name),
-      Utils::OpenHandle(*getter, true), Utils::OpenHandle(*setter, true),
+      i_isolate, templ, Utils::OpenHandle(*name), i_getter, i_setter,
       static_cast<i::PropertyAttributes>(attribute));
 }
 
 // --- F u n c t i o n   T e m p l a t e ---
-static void InitializeFunctionTemplate(i::Tagged<i::FunctionTemplateInfo> info,
-                                       bool do_not_cache) {
-  InitializeTemplate(info, Consts::FUNCTION_TEMPLATE, do_not_cache);
-  info->set_flag(0, kRelaxedStore);
-}
-
-namespace {
-Local<ObjectTemplate> ObjectTemplateNew(i::Isolate* i_isolate,
-                                        v8::Local<FunctionTemplate> constructor,
-                                        bool do_not_cache) {
-  API_RCS_SCOPE(i_isolate, ObjectTemplate, New);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Struct> struct_obj = i_isolate->factory()->NewStruct(
-      i::OBJECT_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
-  auto obj = i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
-  {
-    // Disallow GC until all fields of obj have acceptable types.
-    i::DisallowGarbageCollection no_gc;
-    i::Tagged<i::ObjectTemplateInfo> raw = *obj;
-    InitializeTemplate(raw, Consts::OBJECT_TEMPLATE, do_not_cache);
-    raw->set_data(0);
-    if (!constructor.IsEmpty()) {
-      raw->set_constructor(*Utils::OpenDirectHandle(*constructor));
-    }
-  }
-  return Utils::ToLocal(obj);
-}
-}  // namespace
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   auto self = Utils::OpenHandle(this);
@@ -1233,11 +1211,13 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
                                           i_isolate);
   if (i::IsUndefined(*heap_obj, i_isolate)) {
     // Do not cache prototype objects.
-    Local<ObjectTemplate> result =
-        ObjectTemplateNew(i_isolate, Local<FunctionTemplate>(), true);
+    constexpr bool do_not_cache = true;
+    i::Handle<i::ObjectTemplateInfo> proto_template =
+        i_isolate->factory()->NewObjectTemplateInfo(
+            i::Handle<i::FunctionTemplateInfo>(), do_not_cache);
     i::FunctionTemplateInfo::SetPrototypeTemplate(i_isolate, self,
-                                                  Utils::OpenHandle(*result));
-    return result;
+                                                  proto_template);
+    return Utils::ToLocal(proto_template);
   }
   return ToApiHandle<ObjectTemplate>(heap_obj, i_isolate);
 }
@@ -1267,48 +1247,35 @@ static void EnsureNotPublished(i::DirectHandle<i::FunctionTemplateInfo> info,
                   "FunctionTemplate already instantiated");
 }
 
-Local<FunctionTemplate> FunctionTemplateNew(
+i::Handle<i::FunctionTemplateInfo> FunctionTemplateNew(
     i::Isolate* i_isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const MemorySpan<const CFunction>& c_function_overloads = {},
-    uint8_t instance_type = 0,
-    uint8_t allowed_receiver_instance_type_range_start = 0,
-    uint8_t allowed_receiver_instance_type_range_end = 0) {
-  i::Handle<i::Struct> struct_obj = i_isolate->factory()->NewStruct(
-      i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
-  auto obj = i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
+    const MemorySpan<const CFunction>& c_function_overloads = {}) {
+  i::Handle<i::FunctionTemplateInfo> obj =
+      i_isolate->factory()->NewFunctionTemplateInfo(length, do_not_cache);
   {
     // Disallow GC until all fields of obj have acceptable types.
     i::DisallowGarbageCollection no_gc;
     i::Tagged<i::FunctionTemplateInfo> raw = *obj;
-    InitializeFunctionTemplate(raw, do_not_cache);
-    raw->set_length(length);
-    raw->set_undetectable(false);
-    raw->set_needs_access_check(false);
-    raw->set_accept_any_receiver(true);
     if (!signature.IsEmpty()) {
       raw->set_signature(*Utils::OpenDirectHandle(*signature));
     }
-    raw->set_cached_property_name(
-        cached_property_name.IsEmpty()
-            ? i::ReadOnlyRoots(i_isolate).the_hole_value()
-            : *Utils::OpenDirectHandle(*cached_property_name));
-    if (behavior == ConstructorBehavior::kThrow)
+    if (!cached_property_name.IsEmpty()) {
+      raw->set_cached_property_name(
+          *Utils::OpenDirectHandle(*cached_property_name));
+    }
+    if (behavior == ConstructorBehavior::kThrow) {
       raw->set_remove_prototype(true);
-    raw->SetInstanceType(instance_type);
-    raw->set_allowed_receiver_instance_type_range_start(
-        allowed_receiver_instance_type_range_start);
-    raw->set_allowed_receiver_instance_type_range_end(
-        allowed_receiver_instance_type_range_end);
+    }
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
                                         c_function_overloads);
   }
-  return Utils::ToLocal(obj);
+  return obj;
 }
 }  // namespace
 
@@ -1342,24 +1309,43 @@ Local<FunctionTemplate> FunctionTemplate::New(
     return Local<FunctionTemplate>();
   }
 
-  if (instance_type != 0) {
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::FunctionTemplateInfo> templ = FunctionTemplateNew(
+      i_isolate, callback, data, signature, length, behavior, false,
+      Local<Private>(), side_effect_type,
+      c_function ? MemorySpan<const CFunction>{c_function, 1}
+                 : MemorySpan<const CFunction>{});
+
+  if (instance_type) {
     if (!Utils::ApiCheck(
-            instance_type >= i::Internals::kFirstJSApiObjectType &&
-                instance_type <= i::Internals::kLastJSApiObjectType,
+            base::IsInRange(static_cast<int>(instance_type),
+                            i::Internals::kFirstEmbedderJSApiObjectType,
+                            i::Internals::kLastEmbedderJSApiObjectType),
             "FunctionTemplate::New",
             "instance_type is outside the range of valid JSApiObject types")) {
       return Local<FunctionTemplate>();
     }
+    templ->SetInstanceType(instance_type);
   }
 
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(
-      i_isolate, callback, data, signature, length, behavior, false,
-      Local<Private>(), side_effect_type,
-      c_function ? MemorySpan<const CFunction>{c_function, 1}
-                 : MemorySpan<const CFunction>{},
-      instance_type, allowed_receiver_instance_type_range_start,
-      allowed_receiver_instance_type_range_end);
+  if (allowed_receiver_instance_type_range_start ||
+      allowed_receiver_instance_type_range_end) {
+    if (!Utils::ApiCheck(i::Internals::kFirstEmbedderJSApiObjectType <=
+                                 allowed_receiver_instance_type_range_start &&
+                             allowed_receiver_instance_type_range_start <=
+                                 allowed_receiver_instance_type_range_end &&
+                             allowed_receiver_instance_type_range_end <=
+                                 i::Internals::kLastEmbedderJSApiObjectType,
+                         "FunctionTemplate::New",
+                         "allowed receiver instance type range is outside the "
+                         "range of valid JSApiObject types")) {
+      return Local<FunctionTemplate>();
+    }
+    templ->SetAllowedReceiverInstanceTypeRange(
+        allowed_receiver_instance_type_range_start,
+        allowed_receiver_instance_type_range_end);
+  }
+  return Utils::ToLocal(templ);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
@@ -1379,9 +1365,10 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
   }
 
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(i_isolate, callback, data, signature, length,
-                             behavior, false, Local<Private>(),
-                             side_effect_type, c_function_overloads);
+  i::Handle<i::FunctionTemplateInfo> templ = FunctionTemplateNew(
+      i_isolate, callback, data, signature, length, behavior, false,
+      Local<Private>(), side_effect_type, c_function_overloads);
+  return Utils::ToLocal(templ);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
@@ -1391,9 +1378,10 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCache(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, FunctionTemplate, NewWithCache);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(i_isolate, callback, data, signature, length,
-                             ConstructorBehavior::kAllow, false, cache_property,
-                             side_effect_type);
+  i::Handle<i::FunctionTemplateInfo> templ = FunctionTemplateNew(
+      i_isolate, callback, data, signature, length, ConstructorBehavior::kAllow,
+      false, cache_property, side_effect_type);
+  return Utils::ToLocal(templ);
 }
 
 Local<Signature> Signature::New(Isolate* v8_isolate,
@@ -1416,14 +1404,15 @@ void FunctionTemplate::SetCallHandler(
   i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
-  i::Handle<i::CallHandlerInfo> obj = i_isolate->factory()->NewCallHandlerInfo(
-      side_effect_type == SideEffectType::kHasNoSideEffect);
-  obj->set_owner_template(*info);
-  obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
+  info->set_has_side_effects(side_effect_type !=
+                             SideEffectType::kHasNoSideEffect);
+  info->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
-  obj->set_data(*Utils::OpenDirectHandle(*data));
+  // "Release" callback and callback data fields.
+  info->set_callback_data(*Utils::OpenDirectHandle(*data), kReleaseStore);
+
   if (!c_function_overloads.empty()) {
     // Stores the data for a sequence of CFunction overloads into a single
     // FixedArray, as [address_0, signature_0, ... address_n-1, signature_n-1].
@@ -1447,7 +1436,6 @@ void FunctionTemplate::SetCallHandler(
     i::FunctionTemplateInfo::SetCFunctionOverloads(i_isolate, info,
                                                    function_overloads);
   }
-  info->set_call_code(*obj, kReleaseStore);
 }
 
 namespace {
@@ -1490,24 +1478,25 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
 }  // namespace
 
 Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
-  auto handle = Utils::OpenHandle(this, true);
-  if (!Utils::ApiCheck(!handle.is_null(),
+  auto constructor = Utils::OpenHandle(this, true);
+  if (!Utils::ApiCheck(!constructor.is_null(),
                        "v8::FunctionTemplate::InstanceTemplate()",
                        "Reading from empty handle")) {
     return Local<ObjectTemplate>();
   }
-  i::Isolate* i_isolate = handle->GetIsolateChecked();
+  i::Isolate* i_isolate = constructor->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  if (i::IsUndefined(handle->GetInstanceTemplate(), i_isolate)) {
-    Local<ObjectTemplate> templ =
-        ObjectTemplate::New(i_isolate, ToApiHandle<FunctionTemplate>(handle));
-    i::FunctionTemplateInfo::SetInstanceTemplate(i_isolate, handle,
-                                                 Utils::OpenHandle(*templ));
+  auto maybe_templ = constructor->GetInstanceTemplate();
+  if (!i::IsUndefined(maybe_templ, i_isolate)) {
+    return Utils::ToLocal(
+        i::direct_handle(i::ObjectTemplateInfo::cast(maybe_templ), i_isolate),
+        i_isolate);
   }
-  return Utils::ToLocal(i::direct_handle(i::ObjectTemplateInfo::cast(
-                                             handle->GetInstanceTemplate()),
-                                         i_isolate),
-                        i_isolate);
+  constexpr bool do_not_cache = false;
+  i::Handle<i::ObjectTemplateInfo> templ =
+      i_isolate->factory()->NewObjectTemplateInfo(constructor, do_not_cache);
+  i::FunctionTemplateInfo::SetInstanceTemplate(i_isolate, constructor, templ);
+  return Utils::ToLocal(templ);
 }
 
 void FunctionTemplate::SetLength(int length) {
@@ -1554,12 +1543,14 @@ void FunctionTemplate::RemovePrototype() {
 
 Local<ObjectTemplate> ObjectTemplate::New(
     Isolate* v8_isolate, v8::Local<FunctionTemplate> constructor) {
-  return New(reinterpret_cast<i::Isolate*>(v8_isolate), constructor);
-}
-
-Local<ObjectTemplate> ObjectTemplate::New(
-    i::Isolate* i_isolate, v8::Local<FunctionTemplate> constructor) {
-  return ObjectTemplateNew(i_isolate, constructor, false);
+  auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  API_RCS_SCOPE(i_isolate, ObjectTemplate, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  constexpr bool do_not_cache = false;
+  i::Handle<i::ObjectTemplateInfo> obj =
+      i_isolate->factory()->NewObjectTemplateInfo(
+          Utils::OpenDirectHandle(*constructor, true), do_not_cache);
+  return Utils::ToLocal(obj);
 }
 
 namespace {
@@ -1708,7 +1699,8 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+    Definer definer, Local<Value> data,
+    base::Flags<PropertyHandlerFlags> flags) {
   auto obj =
       i::Handle<i::InterceptorInfo>::cast(i_isolate->factory()->NewStruct(
           i::INTERCEPTOR_INFO_TYPE, i::AllocationType::kOld));
@@ -1730,13 +1722,12 @@ i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     SET_FIELD_WRAPPED(i_isolate, obj, set_definer, definer);
   }
   obj->set_can_intercept_symbols(
-      !(static_cast<int>(flags) &
-        static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));
-  obj->set_non_masking(static_cast<int>(flags) &
-                       static_cast<int>(PropertyHandlerFlags::kNonMasking));
-  obj->set_has_no_side_effect(
-      static_cast<int>(flags) &
-      static_cast<int>(PropertyHandlerFlags::kHasNoSideEffect));
+      !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
+  obj->set_non_masking(flags & PropertyHandlerFlags::kNonMasking);
+  obj->set_has_no_side_effect(flags & PropertyHandlerFlags::kHasNoSideEffect);
+
+  obj->set_has_new_callbacks_signature(
+      flags & PropertyHandlerFlags::kInternalNewCallbacksSignatures);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -1750,7 +1741,8 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::Handle<i::InterceptorInfo> CreateNamedInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+    Definer definer, Local<Value> data,
+    base::Flags<PropertyHandlerFlags> flags) {
   auto interceptor =
       CreateInterceptorInfo(i_isolate, getter, setter, query, descriptor,
                             remover, enumerator, definer, data, flags);
@@ -1763,7 +1755,8 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::Handle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+    Definer definer, Local<Value> data,
+    base::Flags<PropertyHandlerFlags> flags) {
   auto interceptor =
       CreateInterceptorInfo(i_isolate, getter, setter, query, descriptor,
                             remover, enumerator, definer, data, flags);
@@ -1891,15 +1884,17 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   i::HandleScope scope(i_isolate);
   auto cons = EnsureConstructor(i_isolate, this);
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
-  i::Handle<i::CallHandlerInfo> obj =
-      i_isolate->factory()->NewCallHandlerInfo();
-  obj->set_owner_template(*Utils::OpenDirectHandle(this));
-  obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
-  if (data.IsEmpty()) {
-    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-  }
-  obj->set_data(*Utils::OpenDirectHandle(*data));
-  i::FunctionTemplateInfo::SetInstanceCallHandler(i_isolate, cons, obj);
+  DCHECK_NOT_NULL(callback);
+
+  // This template is just a container for callback and data values and thus
+  // it's not supposed to be instantiated. Don't cache it.
+  constexpr bool do_not_cache = true;
+  constexpr int length = 0;
+  i::Handle<i::FunctionTemplateInfo> templ =
+      i_isolate->factory()->NewFunctionTemplateInfo(length, do_not_cache);
+  templ->set_is_object_template_call_handler(true);
+  Utils::ToLocal(templ)->SetCallHandler(callback, data);
+  i::FunctionTemplateInfo::SetInstanceCallHandler(i_isolate, cons, templ);
 }
 
 int ObjectTemplate::InternalFieldCount() const {
@@ -2231,10 +2226,6 @@ std::vector<int> Script::GetProducedCompileHints() const {
       CHECK(IsSmi(item));
       result.push_back(i::Smi::ToInt(item));
     }
-    // Clear the data; the embedder can still request more data later, but it'll
-    // have to keep track of the original data itself.
-    script->set_compiled_lazy_function_positions(
-        i::ReadOnlyRoots(i_isolate).undefined_value());
   }
   return result;
 }
@@ -2474,16 +2465,6 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
 
 Local<Module> Module::CreateSyntheticModule(
     Isolate* v8_isolate, Local<String> module_name,
-    const std::vector<Local<String>>& export_names,
-    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
-  return CreateSyntheticModule(
-      v8_isolate, module_name,
-      MemorySpan<const Local<String>>(export_names.begin(), export_names.end()),
-      evaluation_steps);
-}
-
-Local<Module> Module::CreateSyntheticModule(
-    Isolate* v8_isolate, Local<String> module_name,
     const MemorySpan<const Local<String>>& export_names,
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -2520,33 +2501,6 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,
                       .IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
-}
-
-std::vector<std::tuple<Local<Module>, Local<Message>>>
-Module::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
-  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  auto self = Utils::OpenDirectHandle(this);
-  Utils::ApiCheck(i::IsSourceTextModule(*self),
-                  "v8::Module::GetStalledTopLevelAwaitMessage",
-                  "v8::Module::GetStalledTopLevelAwaitMessage must only be "
-                  "called on a SourceTextModule");
-  std::vector<
-      std::tuple<i::Handle<i::SourceTextModule>, i::Handle<i::JSMessageObject>>>
-      stalled_awaits = i::DirectHandle<i::SourceTextModule>::cast(self)
-                           ->GetStalledTopLevelAwaitMessages(i_isolate);
-
-  std::vector<std::tuple<Local<Module>, Local<Message>>> result;
-  size_t stalled_awaits_count = stalled_awaits.size();
-  if (stalled_awaits_count == 0) {
-    return result;
-  }
-  result.reserve(stalled_awaits_count);
-  for (size_t i = 0; i < stalled_awaits_count; ++i) {
-    auto [module, message] = stalled_awaits[i];
-    result.push_back(std::make_tuple(ToApiHandle<Module>(module),
-                                     ToApiHandle<Message>(message)));
-  }
-  return result;
 }
 
 std::pair<LocalVector<Module>, LocalVector<Message>>
@@ -3801,9 +3755,16 @@ bool Value::IsTypedArray() const {
            i::JSTypedArray::cast(obj)->type() == i::kExternal##Type##Array; \
   }
 
-TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
-
+TYPED_ARRAYS_BASE(VALUE_IS_TYPED_ARRAY)
 #undef VALUE_IS_TYPED_ARRAY
+
+bool Value::IsFloat16Array() const {
+  Utils::ApiCheck(i::v8_flags.js_float16array, "Value::IsFloat16Array",
+                  "Float16Array is not supported");
+  auto obj = *Utils::OpenDirectHandle(this);
+  return i::IsJSTypedArray(obj) &&
+         i::JSTypedArray::cast(obj)->type() == i::kExternalFloat16Array;
+}
 
 bool Value::IsDataView() const {
   auto obj = *Utils::OpenDirectHandle(this);
@@ -4331,9 +4292,18 @@ void v8::TypedArray::CheckCast(Value* that) {
         "v8::" #Type "Array::Cast()", "Value is not a " #Type "Array");      \
   }
 
-TYPED_ARRAYS(CHECK_TYPED_ARRAY_CAST)
-
+TYPED_ARRAYS_BASE(CHECK_TYPED_ARRAY_CAST)
 #undef CHECK_TYPED_ARRAY_CAST
+
+void v8::Float16Array::CheckCast(Value* that) {
+  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::Cast",
+                  "Float16Array is not supported");
+  auto obj = *Utils::OpenHandle(that);
+  Utils::ApiCheck(
+      i::IsJSTypedArray(obj) &&
+          i::JSTypedArray::cast(obj)->type() == i::kExternalFloat16Array,
+      "v8::Float16Array::Cast()", "Value is not a Float16Array");
+}
 
 void v8::DataView::CheckCast(Value* that) {
   auto obj = *Utils::OpenDirectHandle(that);
@@ -4861,6 +4831,7 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
   i::PrototypeIterator iter(i_isolate, *self, i::kStartAtReceiver);
   i::Tagged<i::FunctionTemplateInfo> tmpl_info =
       *Utils::OpenDirectHandle(*tmpl);
+  if (!IsJSObject(iter.GetCurrent())) return Local<Object>();
   while (!tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
     iter.Advance();
     if (iter.IsAtEnd()) return Local<Object>();
@@ -5451,7 +5422,7 @@ MaybeLocal<Function> Function::New(Local<Context> context,
   auto templ =
       FunctionTemplateNew(i_isolate, callback, data, Local<Signature>(), length,
                           behavior, true, Local<Private>(), side_effect_type);
-  return templ->GetFunction(context);
+  return Utils::ToLocal(templ)->GetFunction(context);
 }
 
 MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
@@ -5477,15 +5448,12 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   if (should_set_has_no_side_effect) {
     CHECK(IsJSFunction(*self) &&
           i::JSFunction::cast(*self)->shared()->IsApiFunction());
-    i::Tagged<i::Object> obj =
-        i::JSFunction::cast(*self)->shared()->api_func_data()->call_code(
-            kAcquireLoad);
-    if (i::IsCallHandlerInfo(obj)) {
-      i::Tagged<i::CallHandlerInfo> handler_info =
-          i::CallHandlerInfo::cast(obj);
-      if (handler_info->IsSideEffectCallHandlerInfo()) {
+    i::Tagged<i::FunctionTemplateInfo> func_data =
+        i::JSFunction::cast(*self)->shared()->api_func_data();
+    if (func_data->has_callback(i_isolate)) {
+      if (func_data->has_side_effects()) {
         i_isolate->debug()->IgnoreSideEffectsOnNextCallTo(
-            handle(handler_info, i_isolate));
+            handle(func_data, i_isolate));
       }
     }
   }
@@ -6593,7 +6561,7 @@ struct InvokeBootstrapper<i::NativeContext> {
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+      i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       v8::MicrotaskQueue* microtask_queue) {
     return i_isolate->bootstrapper()->CreateEnvironment(
         maybe_global_proxy, global_proxy_template, extensions,
@@ -6608,7 +6576,7 @@ struct InvokeBootstrapper<i::JSGlobalProxy> {
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+      i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       v8::MicrotaskQueue* microtask_queue) {
     USE(extensions);
     USE(context_snapshot_index);
@@ -6622,7 +6590,7 @@ static i::Handle<ObjectType> CreateEnvironment(
     i::Isolate* i_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> maybe_global_template,
     v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   i::Handle<ObjectType> result;
 
@@ -6727,7 +6695,7 @@ Local<Context> NewContext(
     v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> global_template,
     v8::MaybeLocal<Value> global_object, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   // TODO(jkummerow): This is for crbug.com/713699. Remove it if it doesn't
@@ -6751,27 +6719,34 @@ Local<Context> v8::Context::New(
     v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> global_template,
     v8::MaybeLocal<Value> global_object,
-    DeserializeInternalFieldsCallback internal_fields_deserializer,
-    v8::MicrotaskQueue* microtask_queue) {
-  return NewContext(external_isolate, extensions, global_template,
-                    global_object, 0, internal_fields_deserializer,
-                    microtask_queue);
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue,
+    v8::DeserializeContextDataCallback context_callback_deserializer) {
+  return NewContext(
+      external_isolate, extensions, global_template, global_object, 0,
+      i::DeserializeEmbedderFieldsCallback(internal_fields_deserializer,
+                                           context_callback_deserializer),
+      microtask_queue);
 }
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
     v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object,
-    v8::MicrotaskQueue* microtask_queue) {
+    v8::MicrotaskQueue* microtask_queue,
+    v8::DeserializeContextDataCallback context_callback_deserializer) {
   size_t index_including_default_context = context_snapshot_index + 1;
   if (!i::Snapshot::HasContextSnapshot(
           reinterpret_cast<i::Isolate*>(external_isolate),
           index_including_default_context)) {
     return MaybeLocal<Context>();
   }
-  return NewContext(external_isolate, extensions, MaybeLocal<ObjectTemplate>(),
-                    global_object, index_including_default_context,
-                    embedder_fields_deserializer, microtask_queue);
+  return NewContext(
+      external_isolate, extensions, MaybeLocal<ObjectTemplate>(), global_object,
+      index_including_default_context,
+      i::DeserializeEmbedderFieldsCallback(internal_fields_deserializer,
+                                           context_callback_deserializer),
+      microtask_queue);
 }
 
 MaybeLocal<Object> v8::Context::NewRemoteContext(
@@ -6794,7 +6769,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
       "Global template needs to have access check handlers");
   i::Handle<i::JSObject> global_proxy = CreateEnvironment<i::JSGlobalProxy>(
       i_isolate, nullptr, global_template, global_object, 0,
-      DeserializeInternalFieldsCallback(), nullptr);
+      i::DeserializeEmbedderFieldsCallback(), nullptr);
   if (global_proxy.is_null()) {
     if (i_isolate->has_exception()) i_isolate->clear_exception();
     return MaybeLocal<Object>();
@@ -6850,6 +6825,7 @@ bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
     /* Function types */
     case i::BIGINT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
     case i::BIGUINT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+    case i::FLOAT16_TYPED_ARRAY_CONSTRUCTOR_TYPE:
     case i::FLOAT32_TYPED_ARRAY_CONSTRUCTOR_TYPE:
     case i::FLOAT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
     case i::INT16_TYPED_ARRAY_CONSTRUCTOR_TYPE:
@@ -7217,32 +7193,6 @@ void Context::SetAbortScriptExecution(
     SET_FIELD_WRAPPED(i_isolate, context, set_script_execution_callback,
                       callback);
   }
-}
-
-Local<Value> Context::GetContinuationPreservedEmbedderData() const {
-  auto context = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate = context->GetIsolate();
-
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return ToApiHandle<Object>(
-      i::direct_handle(
-          context->native_context()->continuation_preserved_embedder_data(),
-          i_isolate),
-      i_isolate);
-#else   // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-}
-
-void Context::SetContinuationPreservedEmbedderData(Local<Value> data) {
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  auto context = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate = context->GetIsolate();
-  if (data.IsEmpty())
-    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-  context->native_context()->set_continuation_preserved_embedder_data(
-      i::HeapObject::cast(*Utils::OpenDirectHandle(*data)));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 }
 
 void v8::Context::SetPromiseHooks(Local<Function> init_hook,
@@ -9161,8 +9111,47 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
     return Utils::ToLocal##Type##Array(obj);                                \
   }
 
-TYPED_ARRAYS(TYPED_ARRAY_NEW)
+TYPED_ARRAYS_BASE(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
+
+Local<Float16Array> Float16Array::New(Local<ArrayBuffer> array_buffer,
+                                      size_t byte_offset, size_t length) {
+  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
+                  "Float16Array is not supported");
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(*array_buffer)->GetIsolate();
+  API_RCS_SCOPE(i_isolate, Float16Array, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  if (!Utils::ApiCheck(
+          length <= kMaxLength,
+          "v8::Float16Array::New(Local<ArrayBuffer>, size_t, size_t)",
+          "length exceeds max allowed value")) {
+    return Local<Float16Array>();
+  }
+  auto buffer = Utils::OpenHandle(*array_buffer);
+  i::Handle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
+      i::kExternalFloat16Array, buffer, byte_offset, length);
+  return Utils::ToLocalFloat16Array(obj);
+}
+Local<Float16Array> Float16Array::New(
+    Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,
+    size_t length) {
+  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
+                  "Float16Array is not supported");
+  i::Isolate* i_isolate =
+      Utils::OpenDirectHandle(*shared_array_buffer)->GetIsolate();
+  API_RCS_SCOPE(i_isolate, Float16Array, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  if (!Utils::ApiCheck(
+          length <= kMaxLength,
+          "v8::Float16Array::New(Local<SharedArrayBuffer>, size_t, size_t)",
+          "length exceeds max allowed value")) {
+    return Local<Float16Array>();
+  }
+  auto buffer = Utils::OpenHandle(*shared_array_buffer);
+  i::Handle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
+      i::kExternalFloat16Array, buffer, byte_offset, length);
+  return Utils::ToLocalFloat16Array(obj);
+}
 
 // TODO(v8:11111): Support creating length tracking DataViews via the API.
 Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
@@ -9619,7 +9608,7 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type,
   base::Optional<i::EmbedderStackStateScope> stack_scope;
   if (type == kFullGarbageCollection) {
     stack_scope.emplace(reinterpret_cast<i::Isolate*>(this)->heap(),
-                        i::EmbedderStackStateScope::kExplicitInvocation,
+                        i::EmbedderStackStateOrigin::kExplicitInvocation,
                         stack_state);
   }
   RequestGarbageCollectionForTesting(type);
@@ -11678,10 +11667,8 @@ inline void InvokeFunctionCallback(
         ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
         Tagged<FunctionTemplateInfo> fti =
             FunctionTemplateInfo::cast(frame->target());
-        Tagged<CallHandlerInfo> call_handler_info =
-            CallHandlerInfo::cast(fti->call_code(kAcquireLoad));
         if (!i_isolate->debug()->PerformSideEffectCheckForCallback(
-                handle(call_handler_info, i_isolate))) {
+                handle(fti, i_isolate))) {
           // Failed side effect check.
           return;
         }

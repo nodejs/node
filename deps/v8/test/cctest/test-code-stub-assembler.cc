@@ -1109,10 +1109,10 @@ TEST(TransitionLookup) {
   }
 
   CHECK(IsTransitionArray(
-      root_map->raw_transitions()->GetHeapObjectAssumeStrong()));
+      root_map->raw_transitions().GetHeapObjectAssumeStrong()));
   Handle<TransitionArray> transitions(
       TransitionArray::cast(
-          root_map->raw_transitions()->GetHeapObjectAssumeStrong()),
+          root_map->raw_transitions().GetHeapObjectAssumeStrong()),
       isolate);
   DCHECK(transitions->IsSortedNoDuplicates());
 

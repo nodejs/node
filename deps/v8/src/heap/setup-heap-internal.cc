@@ -319,7 +319,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
 void Heap::FinalizePartialMap(Tagged<Map> map) {
   ReadOnlyRoots roots(this);
   map->set_dependent_code(DependentCode::empty_dependent_code(roots));
-  map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
+  map->set_raw_transitions(Smi::zero());
   map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   map->init_prototype_and_constructor_or_back_pointer(roots);
 }
@@ -725,11 +725,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
     ALLOCATE_VARSIZE_MAP(REG_EXP_MATCH_INFO_TYPE, regexp_match_info);
 
-    ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
-                 side_effect_call_handler_info)
-    ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
-                 side_effect_free_call_handler_info)
-
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
                  source_text_module)
     ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, SyntheticModule::kSize,
@@ -746,6 +741,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             WasmExportedFunctionData::kSize, wasm_exported_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_INTERNAL_FUNCTION_TYPE,
             WasmInternalFunction::kSize, wasm_internal_function)
+    IF_WASM(ALLOCATE_MAP, WASM_FUNC_REF_TYPE, WasmFuncRef::kSize, wasm_func_ref)
     IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
             wasm_js_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_RESUME_DATA_TYPE, WasmResumeData::kSize,
@@ -1112,7 +1108,6 @@ bool Heap::CreateReadOnlyObjects() {
 
     // Mark "Interesting Symbols" appropriately.
     to_string_tag_symbol->set_is_interesting_symbol(true);
-    to_primitive_symbol->set_is_interesting_symbol(true);
   }
 
   {
@@ -1128,6 +1123,8 @@ bool Heap::CreateReadOnlyObjects() {
 
     SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
                                         /* not used */)
+    PUBLIC_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
+                                               /* not used */)
     WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
                                                    /* not used */)
 #undef ALLOCATE_SYMBOL_STRING
@@ -1140,8 +1137,13 @@ bool Heap::CreateReadOnlyObjects() {
                                                      /* not used */)
     SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(PUBLIC_SYMBOL_INIT,
                                         /* not used */)
+    PUBLIC_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(PUBLIC_SYMBOL_INIT,
+                                               /* not used */)
     WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(WELL_KNOWN_SYMBOL_INIT,
                                                    /* not used */)
+
+    // Mark "Interesting Symbols" appropriately.
+    to_primitive_symbol->set_is_interesting_symbol(true);
 
 #ifdef DEBUG
     roots.VerifyNameForProtectors();
@@ -1365,6 +1367,7 @@ void Heap::CreateInitialMutableObjects() {
   set_set_iterator_protector(*factory->NewProtector());
   set_string_iterator_protector(*factory->NewProtector());
   set_string_length_protector(*factory->NewProtector());
+  set_string_wrapper_to_primitive_protector(*factory->NewProtector());
   set_number_string_not_regexp_like_protector(*factory->NewProtector());
   set_typed_array_species_protector(*factory->NewProtector());
 
@@ -1555,9 +1558,9 @@ void Heap::CreateInitialMutableObjects() {
   // TODO(saelo): these would ideally be read-only and shared, but we currently
   // don't have a trusted RO space.
   {
-    set_empty_trusted_byte_array(*factory->NewTrustedByteArray(0));
-    set_empty_trusted_fixed_array(*factory->NewTrustedFixedArray(0));
-    set_empty_protected_fixed_array(*factory->NewProtectedFixedArray(0));
+    set_empty_trusted_byte_array(*TrustedByteArray::New(isolate_, 0));
+    set_empty_trusted_fixed_array(*TrustedFixedArray::New(isolate_, 0));
+    set_empty_protected_fixed_array(*ProtectedFixedArray::New(isolate_, 0));
   }
 }
 

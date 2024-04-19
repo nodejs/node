@@ -1407,9 +1407,9 @@ class btree {
     copy_or_move_values_in_order(other);
   }
   btree(btree &&other) noexcept
-      : root_(absl::exchange(other.root_, EmptyNode())),
+      : root_(std::exchange(other.root_, EmptyNode())),
         rightmost_(std::move(other.rightmost_)),
-        size_(absl::exchange(other.size_, 0u)) {
+        size_(std::exchange(other.size_, 0u)) {
     other.mutable_rightmost() = EmptyNode();
   }
   btree(btree &&other, const allocator_type &alloc)

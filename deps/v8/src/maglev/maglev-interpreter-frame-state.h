@@ -362,6 +362,7 @@ struct KnownNodeAspects {
     enum Type {
       // kName must be zero so that pointers are unaffected.
       kName = 0,
+      kElements,
       kTypedArrayLength
     };
     static constexpr int kTypeMask = 0x3;
@@ -370,6 +371,10 @@ struct KnownNodeAspects {
 
     static LoadedPropertyMapKey TypedArrayLength() {
       return LoadedPropertyMapKey(kTypedArrayLength);
+    }
+
+    static LoadedPropertyMapKey Elements() {
+      return LoadedPropertyMapKey(kElements);
     }
 
     // Allow implicit conversion from NameRef to key, so that callers in the
@@ -783,6 +788,11 @@ class MergePointInterpreterFrameState {
     // DCHECK_EQ(predecessors_so_far_, predecessor_count_);
     DCHECK_LT(i, predecessor_count_);
     return predecessors_[i];
+  }
+  void set_predecessor_at(int i, BasicBlock* val) {
+    // DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+    DCHECK_LT(i, predecessor_count_);
+    predecessors_[i] = val;
   }
 
   bool is_loop() const {

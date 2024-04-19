@@ -212,9 +212,9 @@ class V8FileLogger : public LogEventListener {
                          const char* kind, const char* reason);
 
   // Emits a code line info record event.
-  void CodeLinePosInfoRecordEvent(Address code_start,
-                                  Tagged<ByteArray> source_position_table,
-                                  JitCodeEvent::CodeType code_type);
+  void CodeLinePosInfoRecordEvent(
+      Address code_start, Tagged<TrustedByteArray> source_position_table,
+      JitCodeEvent::CodeType code_type);
 #if V8_ENABLE_WEBASSEMBLY
   void WasmCodeLinePosInfoRecordEvent(
       Address code_start, base::Vector<const uint8_t> source_position_table);

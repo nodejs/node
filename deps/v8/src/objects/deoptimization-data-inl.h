@@ -65,7 +65,7 @@ inline Tagged<Object> DeoptimizationLiteralArray::get(int index) const {
 
 inline Tagged<Object> DeoptimizationLiteralArray::get(
     PtrComprCageBase cage_base, int index) const {
-  MaybeObject maybe = WeakFixedArray::get(index);
+  Tagged<MaybeObject> maybe = WeakFixedArray::get(index);
 
   // Slots in the DeoptimizationLiteralArray should only be cleared when there
   // is no possible code path that could need that slot. This works because the
@@ -81,19 +81,20 @@ inline Tagged<Object> DeoptimizationLiteralArray::get(
   return maybe.GetHeapObjectOrSmi();
 }
 
-inline MaybeObject DeoptimizationLiteralArray::get_raw(int index) const {
+inline Tagged<MaybeObject> DeoptimizationLiteralArray::get_raw(
+    int index) const {
   return WeakFixedArray::get(index);
 }
 
 inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
-  MaybeObject maybe = MaybeObject::FromObject(value);
+  Tagged<MaybeObject> maybe = value;
   if (IsBytecodeArray(value)) {
     // The BytecodeArray lives in trusted space, so we cannot reference it from
     // a fixed array. However, we can use the BytecodeArray's wrapper object,
     // which exists for exactly this purpose.
-    maybe = MaybeObject::FromObject(BytecodeArray::cast(value)->wrapper());
+    maybe = BytecodeArray::cast(value)->wrapper();
   } else if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
-    maybe = MaybeObject::MakeWeak(maybe);
+    maybe = MakeWeak(maybe);
   }
   WeakFixedArray::set(index, maybe);
 }

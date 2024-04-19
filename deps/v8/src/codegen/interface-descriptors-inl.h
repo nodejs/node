@@ -627,6 +627,25 @@ constexpr auto KeyedLoadBaselineDescriptor::registers() {
 }
 
 // static
+constexpr auto EnumeratedKeyedLoadBaselineDescriptor::registers() {
+  return RegisterArray(KeyedLoadBaselineDescriptor::ReceiverRegister(),
+                       KeyedLoadBaselineDescriptor::NameRegister(),
+                       EnumIndexRegister(), CacheTypeRegister(),
+                       SlotRegister());
+}
+
+// static
+constexpr auto EnumeratedKeyedLoadDescriptor::registers() {
+  return RegisterArray(
+      KeyedLoadBaselineDescriptor::ReceiverRegister(),
+      KeyedLoadBaselineDescriptor::NameRegister(),
+      EnumeratedKeyedLoadBaselineDescriptor::EnumIndexRegister(),
+      EnumeratedKeyedLoadBaselineDescriptor::CacheTypeRegister(),
+      EnumeratedKeyedLoadBaselineDescriptor::SlotRegister(),
+      KeyedLoadWithVectorDescriptor::VectorRegister());
+}
+
+// static
 constexpr auto KeyedLoadDescriptor::registers() {
   return KeyedLoadBaselineDescriptor::registers();
 }
@@ -680,7 +699,7 @@ constexpr auto CallApiCallbackOptimizedDescriptor::registers() {
 constexpr auto CallApiCallbackGenericDescriptor::registers() {
   return RegisterArray(ActualArgumentsCountRegister(),
                        TopmostScriptHavingContextRegister(),
-                       CallHandlerInfoRegister(), HolderRegister());
+                       FunctionTemplateInfoRegister(), HolderRegister());
 }
 
 // static

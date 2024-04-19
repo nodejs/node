@@ -276,7 +276,7 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -295,8 +295,7 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   {
     HandleScope scope(i_isolate());
     Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-            .Build();
+        Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
     Handle<InstructionStream> foo_istream(foo_code->instruction_stream(),
                                           i_isolate());
 
@@ -395,7 +394,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -423,8 +422,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   {
     HandleScope scope(i_isolate());
     Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-            .Build();
+        Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
     Handle<InstructionStream> foo_istream(foo_code->instruction_stream(),
                                           i_isolate());
 
@@ -475,7 +473,7 @@ TEST_F(CodePagesTest, Sorted) {
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -503,7 +501,7 @@ TEST_F(CodePagesTest, Sorted) {
     Address code2_address;
 
     code1 =
-        handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
+        handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
                    .Build()
                    ->instruction_stream(),
                i_isolate());
@@ -514,17 +512,17 @@ TEST_F(CodePagesTest, Sorted) {
 
       // Create three large code objects, we'll delete the middle one and check
       // everything is still sorted.
-      Handle<InstructionStream> code2 = handle(
-          Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-              .Build()
-              ->instruction_stream(),
-          i_isolate());
+      Handle<InstructionStream> code2 =
+          handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
+                     .Build()
+                     ->instruction_stream(),
+                 i_isolate());
       EXPECT_TRUE(i_isolate()->heap()->InSpace(*code2, CODE_LO_SPACE));
-      code3 = handle(
-          Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-              .Build()
-              ->instruction_stream(),
-          i_isolate());
+      code3 =
+          handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
+                     .Build()
+                     ->instruction_stream(),
+                 i_isolate());
       EXPECT_TRUE(i_isolate()->heap()->InSpace(*code3, CODE_LO_SPACE));
 
       code2_address = code2->address();

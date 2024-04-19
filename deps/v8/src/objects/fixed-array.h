@@ -11,6 +11,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/objects/trusted-object.h"
 #include "src/roots/roots.h"
 #include "src/utils/memcopy.h"
@@ -24,39 +25,34 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
 // Derived: must have a Smi slot at kCapacityOffset.
-template <class Derived, class Shape, class Super = HeapObject>
+template <class Derived, class ShapeT, class Super = HeapObject>
 class TaggedArrayBase : public Super {
   static_assert(std::is_base_of<HeapObject, Super>::value);
   OBJECT_CONSTRUCTORS(TaggedArrayBase, Super);
 
-  using ElementT = typename Shape::ElementT;
-  static_assert(Shape::kElementSize == kTaggedSize);
-  static_assert(is_subtype_v<ElementT, Object> ||
-                is_subtype_v<ElementT, MaybeObject>);
+  using ElementT = typename ShapeT::ElementT;
+  static_assert(ShapeT::kElementSize == kTaggedSize);
+  static_assert(is_subtype_v<ElementT, MaybeObject>);
 
   using ElementFieldT =
-      TaggedField<ElementT, 0, typename Shape::CompressionScheme>;
+      TaggedField<ElementT, 0, typename ShapeT::CompressionScheme>;
 
+  template <typename ElementT>
   static constexpr bool kSupportsSmiElements =
       std::is_convertible_v<Smi, ElementT>;
+
   static constexpr WriteBarrierMode kDefaultMode =
       std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
 
  public:
-  static constexpr bool kElementsAreMaybeObject =
-      std::is_base_of_v<MaybeObject, ElementT>;
+  static constexpr bool kElementsAreMaybeObject = is_maybe_weak_v<ElementT>;
 
  private:
-  // Usually the PtrType is Tagged<T>, but for MaybeObject it's just the raw
-  // MaybeObject.
-  // TODO(leszeks): Clean this up to be more uniform.
-  using PtrType =
-      std::conditional_t<is_taggable_v<ElementT>, Tagged<ElementT>, ElementT>;
   using SlotType =
       std::conditional_t<kElementsAreMaybeObject, MaybeObjectSlot, ObjectSlot>;
 
  public:
-  using ShapeT = Shape;
+  using Shape = ShapeT;
 
   inline int capacity() const;
   inline int capacity(AcquireLoadTag) const;
@@ -65,42 +61,51 @@ class TaggedArrayBase : public Super {
 
   // For most arraylike objects, length equals capacity. Provide these
   // convenience accessors:
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline int length() const;
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline int length(AcquireLoadTag tag) const;
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline void set_length(int value);
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline void set_length(int value, ReleaseStoreTag tag);
 
-  inline PtrType get(int index) const;
-  inline PtrType get(int index, RelaxedLoadTag) const;
-  inline PtrType get(int index, AcquireLoadTag) const;
-  inline PtrType get(int index, SeqCstAccessTag) const;
+  inline Tagged<ElementT> get(int index) const;
+  inline Tagged<ElementT> get(int index, RelaxedLoadTag) const;
+  inline Tagged<ElementT> get(int index, AcquireLoadTag) const;
+  inline Tagged<ElementT> get(int index, SeqCstAccessTag) const;
 
-  inline void set(int index, PtrType value,
+  inline void set(int index, Tagged<ElementT> value,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value);
-  inline void set(int index, PtrType value, RelaxedStoreTag,
+  inline void set(int index, Tagged<ElementT> value, RelaxedStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
-  inline void set(int index, PtrType value, ReleaseStoreTag,
+  inline void set(int index, Tagged<ElementT> value, ReleaseStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
-  inline void set(int index, PtrType value, SeqCstAccessTag,
+  inline void set(int index, Tagged<ElementT> value, SeqCstAccessTag,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
 
-  inline PtrType swap(int index, PtrType value, SeqCstAccessTag,
-                      WriteBarrierMode mode = kDefaultMode);
-  inline PtrType compare_and_swap(int index, PtrType expected, PtrType value,
-                                  SeqCstAccessTag,
-                                  WriteBarrierMode mode = kDefaultMode);
+  inline Tagged<ElementT> swap(int index, Tagged<ElementT> value,
+                               SeqCstAccessTag,
+                               WriteBarrierMode mode = kDefaultMode);
+  inline Tagged<ElementT> compare_and_swap(
+      int index, Tagged<ElementT> expected, Tagged<ElementT> value,
+      SeqCstAccessTag, WriteBarrierMode mode = kDefaultMode);
 
   // Move vs. Copy behaves like memmove vs. memcpy: for Move, the memory
   // regions may overlap, for Copy they must not overlap.
@@ -159,7 +164,8 @@ class TaggedArrayBase : public Super {
   static constexpr int NewCapacityForIndex(int index, int old_capacity);
 
   inline void ConditionalWriteBarrier(Tagged<HeapObject> object, int offset,
-                                      PtrType value, WriteBarrierMode mode);
+                                      Tagged<ElementT> value,
+                                      WriteBarrierMode mode);
 
   inline bool IsInBounds(int index) const;
   inline bool IsCowArray() const;
@@ -187,7 +193,6 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
   OBJECT_CONSTRUCTORS(FixedArray, Super);
 
  public:
-  using HotfixShape = TaggedArrayShape;
   template <class IsolateT>
   static inline Handle<FixedArray> New(
       IsolateT* isolate, int capacity,
@@ -233,7 +238,7 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = ShapeT::kCapacityOffset;
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
   static constexpr int kMaxLength = FixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
@@ -284,7 +289,7 @@ class TrustedFixedArray
   class BodyDescriptor;
 
   static constexpr int kLengthOffset =
-      TrustedFixedArray::ShapeT::kCapacityOffset;
+      TrustedFixedArray::Shape::kCapacityOffset;
   static constexpr int kMaxLength = TrustedFixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       TrustedFixedArray::kMaxRegularCapacity;
@@ -332,7 +337,7 @@ class ProtectedFixedArray
   class BodyDescriptor;
 
   static constexpr int kLengthOffset =
-      ProtectedFixedArray::ShapeT::kCapacityOffset;
+      ProtectedFixedArray::Shape::kCapacityOffset;
   static constexpr int kMaxLength = ProtectedFixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       ProtectedFixedArray::kMaxRegularCapacity;
@@ -389,7 +394,6 @@ class PrimitiveArrayBase : public Super {
 
  public:
   using Shape = ShapeT;
-  using HotfixShape = ShapeT;
   static constexpr bool kElementsAreMaybeObject = false;
 
   inline int length() const;
@@ -457,9 +461,13 @@ class FixedDoubleArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kDoubleSize;
   using ElementT = double;
-  static constexpr int kLengthOffset = HeapObject::kHeaderSize;
-  static constexpr int kHeaderSize = kLengthOffset + kTaggedSize;
   static constexpr RootIndex kMapRootIndex = RootIndex::kFixedDoubleArrayMap;
+
+#define FIELD_LIST(V)           \
+  V(kLengthOffset, kTaggedSize) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
 };
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
@@ -518,15 +526,14 @@ class WeakFixedArrayShape final : public AllStatic {
 #undef FIELD_LIST
 };
 
-// WeakFixedArray describes fixed-sized arrays with element type MaybeObject.
+// WeakFixedArray describes fixed-sized arrays with element type
+// Tagged<MaybeObject>.
 class WeakFixedArray
     : public TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape> {
   using Super = TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape>;
   OBJECT_CONSTRUCTORS(WeakFixedArray, Super);
 
  public:
-  using Shape = WeakFixedArrayShape;
-  using HotfixShape = WeakFixedArrayShape;
   template <class IsolateT>
   static inline Handle<WeakFixedArray> New(
       IsolateT* isolate, int capacity,
@@ -538,7 +545,7 @@ class WeakFixedArray
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = ShapeT::kCapacityOffset;
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
@@ -571,16 +578,16 @@ class WeakArrayList
   // Compact weak references to the beginning of the array.
   V8_EXPORT_PRIVATE void Compact(Isolate* isolate);
 
-  inline MaybeObject Get(int index) const;
-  inline MaybeObject Get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<MaybeObject> Get(int index) const;
+  inline Tagged<MaybeObject> Get(PtrComprCageBase cage_base, int index) const;
   // TODO(jgruber): Remove this once it's no longer needed for compatibility
   // with WeakFixedArray.
-  inline MaybeObject get(int index) const;
+  inline Tagged<MaybeObject> get(int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method
   // instead.
-  inline void Set(int index, MaybeObject value,
+  inline void Set(int index, Tagged<MaybeObject> value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(int index, Tagged<Smi> value);
 
@@ -625,7 +632,7 @@ class WeakArrayList
   V8_EXPORT_PRIVATE bool RemoveOne(MaybeObjectHandle value);
 
   // Searches the array (linear time) and returns whether it contains the value.
-  V8_EXPORT_PRIVATE bool Contains(MaybeObject value);
+  V8_EXPORT_PRIVATE bool Contains(Tagged<MaybeObject> value);
 
   class Iterator;
 
@@ -675,7 +682,6 @@ class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
  public:
   using Shape = ArrayListShape;
-  using HotfixShape = ArrayListShape;
 
   template <class IsolateT>
   static inline Handle<ArrayList> New(
@@ -729,6 +735,7 @@ class ByteArrayShape final : public AllStatic {
   static constexpr int kElementSize = kUInt8Size;
   using ElementT = uint8_t;
   static constexpr RootIndex kMapRootIndex = RootIndex::kByteArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
 
 #define FIELD_LIST(V)                                                   \
   V(kLengthOffset, kTaggedSize)                                         \
@@ -747,7 +754,6 @@ class ByteArray : public PrimitiveArrayBase<ByteArray, ByteArrayShape> {
 
  public:
   using Shape = ByteArrayShape;
-  using HotfixShape = ByteArrayShape;
 
   template <class IsolateT>
   static inline Handle<ByteArray> New(
@@ -779,6 +785,7 @@ class TrustedByteArrayShape final : public AllStatic {
   static constexpr int kElementSize = kUInt8Size;
   using ElementT = uint8_t;
   static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedByteArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
 
 #define FIELD_LIST(V)                                                   \
   V(kLengthOffset, kTaggedSize)                                         \

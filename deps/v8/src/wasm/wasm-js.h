@@ -78,10 +78,12 @@ class WasmJs {
       Isolate* isolate, Handle<NativeContext> context);
 
   V8_EXPORT_PRIVATE static void InstallTypeReflection(
-      Isolate* isolate, Handle<NativeContext> context);
+      Isolate* isolate, Handle<NativeContext> context,
+      Handle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static void InstallSuspenderConstructor(
-      Isolate* isolate, Handle<NativeContext> context);
+      Isolate* isolate, Handle<NativeContext> context,
+      Handle<JSObject> webassembly);
 };
 
 }  // namespace v8::internal

@@ -1850,7 +1850,8 @@ TEST(NativeSnapshotObjectIdMoving) {
     auto local = v8::Local<v8::String>::New(isolate, wrapper);
     i::Handle<i::String> internal = i::Handle<i::String>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::String>::Cast(local)));
-    i::heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*internal));
+    i::heap::ForceEvacuationCandidate(
+        i::PageMetadata::FromHeapObject(*internal));
   }
   i::heap::InvokeMajorGC(CcTest::heap());
 
@@ -2061,7 +2062,13 @@ TEST(GetHeapValueForDeletedObject) {
     CHECK(heap_profiler->FindObjectById(prop->GetId())->IsObject());
   }
   CompileRun("delete a.p;");
-  CHECK(heap_profiler->FindObjectById(prop->GetId()).IsEmpty());
+  {
+    // Exclude the stack during object finding, so that conservative stack
+    // scanning may not accidentally mark the object as reachable.
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(env->GetIsolate())->heap();
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    CHECK(heap_profiler->FindObjectById(prop->GetId()).IsEmpty());
+  }
 }
 
 static int StringCmp(const char* ref, i::Tagged<i::String> act) {
@@ -4171,7 +4178,7 @@ TEST(WeakReference) {
 
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(code->wrapper()));
+  fv->set_maybe_optimized_code(i::MakeWeak(code->wrapper()));
   fv->set_flags(
       i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
       i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));

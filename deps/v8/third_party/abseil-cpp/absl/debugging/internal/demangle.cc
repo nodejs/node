@@ -1434,19 +1434,35 @@ static bool ParsePointerToMemberType(State *state) {
 
 // <template-param> ::= T_
 //                  ::= T <parameter-2 non-negative number> _
+//                  ::= TL <level-1> __
+//                  ::= TL <level-1> _ <parameter-2 non-negative number> _
 static bool ParseTemplateParam(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   if (ParseTwoCharToken(state, "T_")) {
     MaybeAppend(state, "?");  // We don't support template substitutions.
-    return true;
+    return true;              // ::= T_
   }
 
   ParseState copy = state->parse_state;
   if (ParseOneCharToken(state, 'T') && ParseNumber(state, nullptr) &&
       ParseOneCharToken(state, '_')) {
     MaybeAppend(state, "?");  // We don't support template substitutions.
-    return true;
+    return true;              // ::= T <parameter-2 non-negative number> _
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "TL") && ParseNumber(state, nullptr)) {
+    if (ParseTwoCharToken(state, "__")) {
+      MaybeAppend(state, "?");  // We don't support template substitutions.
+      return true;              // ::= TL <level-1> __
+    }
+
+    if (ParseOneCharToken(state, '_') && ParseNumber(state, nullptr) &&
+        ParseOneCharToken(state, '_')) {
+      MaybeAppend(state, "?");  // We don't support template substitutions.
+      return true;  // ::= TL <level-1> _ <parameter-2 non-negative number> _
+    }
   }
   state->parse_state = copy;
   return false;

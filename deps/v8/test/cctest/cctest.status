@@ -199,13 +199,18 @@
   'test-wasm-serialization/*': [SKIP],
   'test-streaming-compilation/SingleThreadedTestDeserializationBypassesCompilation': [SKIP],
   'test-streaming-compilation/SingleThreadedTestDeserializationFails': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
 
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-verify-type/*': [SKIP],
+
+  # Field representation tracking is disabled in nooptimization mode.
+  'test-field-type-tracking/*': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -456,6 +461,14 @@
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
 ##############################################################################
+['arch == s390 or arch == s390x', {
+
+  # Turboshaft not supported yet.
+  'turboshaft-test-branch-combine/*' : [SKIP],
+
+}],  # 'arch == s390 or arch == s390x'
+
+##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
 
@@ -555,6 +568,8 @@
   'test-concurrent-allocation/*': [SKIP],
   'test-sync-primitives-arm/*': [SKIP],
   'test-sync-primitives-arm64/*': [SKIP],
+  'turboshaft-test-branch-combine/*': [SKIP],
+  'turboshaft-test-select-combine/*': [SKIP],
 
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-heap-profiler/WeakReference': [SKIP],
@@ -1075,76 +1090,9 @@
 ['variant == turboshaft or variant == future', {
   # Revectorization is not supported yet in Turboshaft.
   # TODO(14108): Remove once supported.
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8Max': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8Min': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8Pmin': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8Pmax': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F64x4Pmin': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F64x4Min': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F64x4Pmax': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F64x4Max': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8GeS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8Ne': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8GeU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8GtU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4Ne': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4GeS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32GeS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32GeU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32GtU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32Ne': [SKIP],
-  'test-run-wasm-simd/WasmTurbofan_I16x16GeU': [SKIP],
-  'test-run-wasm-simd/WasmTurbofan_I16x16GeS': [SKIP],
-  'test-run-wasm-simd/WasmTurbofan_I16x16GtU': [SKIP],
-  'test-run-wasm-simd/WasmTurbofan_I16x16Ne': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8Abs': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8Sqrt': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_F32x8SConvertI32x8': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8UConvertI32x8': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8Neg': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16Abs': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_F64x4Sqrt': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16Neg': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8Neg': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8UConvertF32x8': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8Abs': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32Neg': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32Abs': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16AddSatS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16AddSatU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16SubSatS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16SubSatU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32AddSatS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32AddSatU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32SubSatS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I8x32SubSatU': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Const': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Not': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256And': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Or': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Xor': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256AndNot': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Select': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16ShrS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16Shl': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16ShrU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8Shl': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8ShrU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8ShrS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4Shl': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4ShrU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load8Splat': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load16Splat': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load32Splat': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load64Splat': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_ShuffleVpshufd': [SKIP],
-  'test-run-wasm-simd/S128Load8x8S': [SKIP],
-  'test-run-wasm-simd/S128Load8x8U': [SKIP],
-  'test-run-wasm-simd/S128Load16x4S': [SKIP],
-  'test-run-wasm-simd/S128Load16x4U': [SKIP],
-  'test-run-wasm-simd/S128Load32x2S': [SKIP],
-  'test-run-wasm-simd/S128Load32x2U': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_ExtractF128': [SKIP],
 }],  # variant == turboshaft or variant == future
 
 ##############################################################################
@@ -1185,6 +1133,7 @@
   'test-verify-type/TestVerifyType': [FAIL],
   # Maglev doesn't support FastApi calls.
   'test-api/FastApiCalls': [FAIL],
+  'test-api/FastApiCallWithAllocationAndGC': [FAIL],
   'test-api/FastApiSequenceOverloads': [FAIL],
   # Maglev doesn't produce optimized enough code to match heap tests
   # expectations.

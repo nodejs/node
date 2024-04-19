@@ -30,7 +30,10 @@ absl_source_set("log_severity") {
 
 absl_source_set("no_destructor") {
   public = [ "no_destructor.h" ]
-  deps = [ ":config" ]
+  deps = [
+    ":config",
+    ":nullability",
+  ]
 }
 
 absl_source_set("nullability") {

@@ -22,7 +22,7 @@ extern class WasmInstanceObject extends JSObject {
 // Represents the context of a function that is defined through the JS or C
 // APIs. Corresponds to the WasmInstanceObject passed to a Wasm function
 // reference.
-extern class WasmApiFunctionRef extends HeapObject {
+extern class WasmApiFunctionRef extends ExposedTrustedObject {
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
   // Present when compiling JSFastApiCall wrappers, needed
@@ -30,9 +30,14 @@ extern class WasmApiFunctionRef extends HeapObject {
   instance: WasmInstanceObject|Undefined;
   suspend: Smi;  // Boolean.
   wrapper_budget: Smi;
-  call_origin: Smi|WasmInternalFunction|Tuple2;
+  call_origin: Smi|WasmFuncRef|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: PodArrayOfWasmValueType;
+}
+
+class WasmFastApiCallData extends HeapObject {
+  signature: HeapObject;
+  cached_map: Weak<Map>|Null;
 }
 
 // This is the representation that is used internally by wasm to represent
@@ -40,15 +45,26 @@ extern class WasmApiFunctionRef extends HeapObject {
 extern class WasmInternalFunction extends HeapObject {
   // This is the "reference" value that must be passed along in the "instance"
   // register when calling the given function. It is either the target instance
-  // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
-  // through the JS or C APIs).
-  // For imported functions, this value equals the respective entry in
-  // the module's imported_function_refs array.
-  ref: WasmInstanceObject|WasmApiFunctionRef;
+  // data (for wasm functions), or a WasmApiFunctionRef object (for functions
+  // defined through the JS or C APIs). For imported functions, this value
+  // equals the respective entry in the module's imported_function_refs array.
+  // Note: torque code uses the "ref" macro defined below to load the reference.
+  // The indirect pointer currently uses the kUnknownIndirectPointerTag because
+  // it links to two different object types; this will be fixed once the
+  // WasmInternalFunction becomes a trusted object.
+  @if(V8_ENABLE_SANDBOX) indirect_ref:
+      IndirectPointer<WasmTrustedInstanceData|WasmApiFunctionRef>;
+  @ifnot(V8_ENABLE_SANDBOX) indirect_ref: WasmTrustedInstanceData
+      |WasmApiFunctionRef;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
   // The function index if ref is a WasmInstanceObject, -1 otherwise.
   function_index: Smi;
+  // The object representing a function reference to this function.
+  // TODO(14564): Remove this field, or disallow undefined which is only allowed
+  // so we can construct the two objects subsequently and satify any in-between
+  // heap verification.
+  func_ref: WasmFuncRef|Undefined;
   // This field is used when the call target is null.
   @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
   @ifnot(V8_ENABLE_SANDBOX) code: Code;
@@ -56,8 +72,19 @@ extern class WasmInternalFunction extends HeapObject {
   call_target: ExternalPointer;
 }
 
+extern operator '.ref' macro LoadRefFromWasmInternalFunction(
+    WasmInternalFunction): WasmTrustedInstanceData|WasmApiFunctionRef;
 extern operator '.call_target_ptr' macro LoadWasmInternalFunctionCallTargetPtr(
     WasmInternalFunction): RawPtr;
+
+// WasmFuncRef is the type of function references. They are stored on-heap and
+// link to a WasmInternalFunction which contains the actual information.
+// TODO(14564): Actually use this for function references.
+extern class WasmFuncRef extends HeapObject {
+  // TODO(14564): Move the WasmInternalFunction to the trusted space and store a
+  // trusted (indirect) pointer here.
+  internal: WasmInternalFunction;
+}
 
 extern class WasmFunctionData extends HeapObject {
   // Used for calling this function from JavaScript.
@@ -118,9 +145,7 @@ extern class WasmSuspenderObject extends JSObject {
   // Number of Wasm-to-JS frames in this suspender's stack.
   // If the value is non-zero, this means that there are JS frames on the stack
   // and trying to suspend should trap.
-  has_js_frames: uint32;  // Boolean.
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  has_js_frames: Smi;  // Boolean.
 }
 
 extern class WasmExceptionTag extends Struct {
@@ -147,7 +172,7 @@ extern class WasmTableObject extends JSObject {
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
   // Each element is either
-  //   - a WasmInternalFunction (Wasm function added from Wasm),
+  //   - a WasmFuncRef (Wasm function added from Wasm),
   //   - a WasmExportedFunction (exported Wasm function added from JS),
   //   - a WasmJSFunction (WebAssembly.Function created from JS), or
   //   - a Tuple2 (placeholder for lazy initialization), holding a

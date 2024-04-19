@@ -552,7 +552,7 @@ class InstructionSelectorT final : public Adapter {
   int GetEffectLevel(node_t node, FlagsContinuation* cont) const;
 
   int GetVirtualRegister(node_t node);
-  const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
+  const std::map<id_t, int> GetVirtualRegistersForTesting() const;
 
   // Check if we can generate loads and stores of ExternalConstants relative
   // to the roots register.
@@ -1023,6 +1023,11 @@ class InstructionSelectorT final : public Adapter {
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
   void SwapShuffleInputs(typename Adapter::SimdShuffleView& node);
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+  void VisitSimd256LoadTransform(node_t node);
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================

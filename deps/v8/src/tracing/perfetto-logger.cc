@@ -196,7 +196,6 @@ void WriteJsCode(const CodeTraceContext& ctx,
     case CodeKind::WASM_TO_CAPI_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
     case CodeKind::JS_TO_WASM_FUNCTION:
-    case CodeKind::JS_TO_JS_FUNCTION:
     case CodeKind::C_WASM_ENTRY:
       UNREACHABLE();
   }
@@ -282,9 +281,6 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag,
       break;
     case CodeKind::JS_TO_WASM_FUNCTION:
       type = V8InternalCode::TYPE_JS_TO_WASM_FUNCTION;
-      break;
-    case CodeKind::JS_TO_JS_FUNCTION:
-      type = V8InternalCode::TYPE_JS_TO_JS_FUNCTION;
       break;
     case CodeKind::C_WASM_ENTRY:
       type = V8InternalCode::TYPE_C_WASM_ENTRY;

@@ -317,10 +317,9 @@ class TranslatedFrame {
 
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
-  TranslatedFrame(Kind kind,
-                  Tagged<SharedFunctionInfo> shared_info = SharedFunctionInfo(),
-                  int height = 0, int return_value_offset = 0,
-                  int return_value_count = 0)
+  explicit TranslatedFrame(
+      Kind kind, Tagged<SharedFunctionInfo> shared_info = SharedFunctionInfo(),
+      int height = 0, int return_value_offset = 0, int return_value_count = 0)
       : kind_(kind),
         bytecode_offset_(BytecodeOffset::None()),
         raw_shared_info_(shared_info),

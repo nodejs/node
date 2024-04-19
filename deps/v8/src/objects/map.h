@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_MAP_H_
 #define V8_OBJECTS_MAP_H_
 
+#include "include/v8-memory-span.h"
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
@@ -40,7 +41,6 @@ enum InstanceType : uint16_t;
   V(AccessorInfo)                      \
   V(AllocationSite)                    \
   V(BytecodeWrapper)                   \
-  V(CallHandlerInfo)                   \
   V(CallSiteInfo)                      \
   V(Cell)                              \
   V(CodeWrapper)                       \
@@ -54,6 +54,7 @@ enum InstanceType : uint16_t;
   V(ExternalString)                    \
   V(FeedbackCell)                      \
   V(FreeSpace)                         \
+  V(FunctionTemplateInfo)              \
   V(Hole)                              \
   V(JSApiObject)                       \
   V(JSArrayBuffer)                     \
@@ -89,12 +90,12 @@ enum InstanceType : uint16_t;
   V(SyntheticModule)                   \
   V(ThinString)                        \
   V(TransitionArray)                   \
-  IF_WASM(V, WasmApiFunctionRef)       \
   IF_WASM(V, WasmArray)                \
   IF_WASM(V, WasmCapiFunctionData)     \
   IF_WASM(V, WasmContinuationObject)   \
   IF_WASM(V, WasmExportedFunctionData) \
   IF_WASM(V, WasmFunctionData)         \
+  IF_WASM(V, WasmFuncRef)              \
   IF_WASM(V, WasmInstanceObject)       \
   IF_WASM(V, WasmInternalFunction)     \
   IF_WASM(V, WasmJSFunctionData)       \
@@ -135,6 +136,7 @@ enum class ObjectFields {
 };
 
 using MapHandles = std::vector<Handle<Map>>;
+using MapHandlesSpan = v8::MemorySpan<Handle<Map>>;
 
 #include "torque-generated/src/objects/map-tq.inc"
 
@@ -475,7 +477,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions, MaybeObject)
+  DECL_ACCESSORS(raw_transitions, Tagged<MaybeObject>)
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(raw_transitions)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
@@ -745,7 +747,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   static MaybeObjectHandle WrapFieldType(Handle<FieldType> type);
   V8_EXPORT_PRIVATE static Tagged<FieldType> UnwrapFieldType(
-      MaybeObject wrapped_type);
+      Tagged<MaybeObject> wrapped_type);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
       Isolate* isolate, Handle<Map> map, Handle<Name> name,
@@ -803,6 +805,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> CopyForElementsTransition(Isolate* isolate,
                                                Handle<Map> map);
 
+  // Returns a copy of the map, prepared for inserting into the transition
+  // tree as a prototype transition.
+  static Handle<Map> CopyForPrototypeTransition(Isolate* isolate,
+                                                Handle<Map> map);
+
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Isolate* isolate, Handle<Map> map,
@@ -839,7 +846,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
   // found at all.
   V8_EXPORT_PRIVATE Tagged<Map> FindElementsKindTransitionedMap(
-      Isolate* isolate, MapHandles const& candidates, ConcurrencyMode cmode);
+      Isolate* isolate, MapHandlesSpan candidates, ConcurrencyMode cmode);
 
   inline bool CanTransition() const;
 
@@ -959,7 +966,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   static void ConnectTransition(Isolate* isolate, Handle<Map> parent,
                                 Handle<Map> child, Handle<Name> name,
-                                SimpleTransitionFlag flag);
+                                TransitionKindFlag transition_kind);
 
   bool EquivalentToForTransition(const Tagged<Map> other,
                                  ConcurrencyMode cmode) const;
@@ -984,7 +991,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                                             TransitionFlag flag,
                                             MaybeHandle<Name> maybe_name,
                                             const char* reason,
-                                            SimpleTransitionFlag simple_flag);
+                                            TransitionKindFlag transition_kind);
 
   static Handle<Map> CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,

@@ -14,7 +14,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -53,10 +53,28 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     return InputDoubleRegister(index).S();
   }
 
+  DoubleRegister InputFloat32OrFPZeroRegister(size_t index) {
+    if (instr_->InputAt(index)->IsImmediate()) {
+      DCHECK_EQ(0, base::bit_cast<int32_t>(InputFloat32(index)));
+      return fp_zero.S();
+    }
+    DCHECK(instr_->InputAt(index)->IsFPRegister());
+    return InputDoubleRegister(index).S();
+  }
+
   CPURegister InputFloat64OrZeroRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) {
       DCHECK_EQ(0, base::bit_cast<int64_t>(InputDouble(index)));
       return xzr;
+    }
+    DCHECK(instr_->InputAt(index)->IsDoubleRegister());
+    return InputDoubleRegister(index);
+  }
+
+  DoubleRegister InputFloat64OrFPZeroRegister(size_t index) {
+    if (instr_->InputAt(index)->IsImmediate()) {
+      DCHECK_EQ(0, base::bit_cast<int64_t>(InputDouble(index)));
+      return fp_zero;
     }
     DCHECK(instr_->InputAt(index)->IsDoubleRegister());
     return InputDoubleRegister(index);
@@ -2888,8 +2906,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Mov(temp, src1);
         src1 = temp;
       }
-      // Perform shuffle as a vmov per lane.
       int32_t shuffle = i.InputInt32(2);
+
+      // Check whether we can reduce the number of vmovs by performing a dup
+      // first.
+      if (src0 == src1) {
+        const std::array<int, 4> lanes{shuffle & 0x3, shuffle >> 8 & 0x3,
+                                       shuffle >> 16 & 0x3,
+                                       shuffle >> 24 & 0x3};
+        std::array<int, 4> lane_counts{};
+        for (int lane : lanes) {
+          ++lane_counts[lane];
+        }
+
+        int duplicate_lane = -1;
+        for (int lane = 0; lane < 4; ++lane) {
+          if (lane_counts[lane] > 1) {
+            duplicate_lane = lane;
+            break;
+          }
+        }
+
+        if (duplicate_lane != -1) {
+          __ Dup(dst, src0, duplicate_lane);
+          for (int i = 0; i < 4; ++i) {
+            int lane = lanes[i];
+            if (lane == duplicate_lane) continue;
+            __ Mov(dst, i, src0, lane);
+          }
+          break;
+        }
+      }
+
+      // Perform shuffle as a vmov per lane.
       for (int i = 0; i < 4; i++) {
         VRegister src = src0;
         int lane = shuffle & 0x7;
@@ -2954,6 +3003,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ Tbl(dst, src0, src1, temp.V16B());
       }
+      break;
+    }
+    case kArm64S32x4Reverse: {
+      Simd128Register dst = i.OutputSimd128Register().V16B(),
+                      src = i.InputSimd128Register(0).V16B();
+      __ Rev64(dst.V4S(), src.V4S());
+      __ Ext(dst.V16B(), dst.V16B(), dst.V16B(), 8);
       break;
     }
       SIMD_UNOP_CASE(kArm64S32x2Reverse, Rev64, 4S);
@@ -3033,6 +3089,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fmov(i.OutputRegister64(), temp.D());
       __ Cmp(i.OutputRegister64(), 0);
       __ Cset(i.OutputRegister32(), ne);
+      break;
+    }
+    case kArm64S32x4OneLaneSwizzle: {
+      Simd128Register dst = i.OutputSimd128Register().V4S(),
+                      src = i.InputSimd128Register(0).V4S();
+      int from = i.InputInt32(1);
+      int to = i.InputInt32(2);
+      if (dst != src) {
+        __ Mov(dst, src);
+      }
+      __ Mov(dst, to, src, from);
       break;
     }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
@@ -3171,21 +3238,21 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   size_t false_value_index = instr->InputCount() - 1;
   if (rep == MachineRepresentation::kFloat32) {
     __ Fcsel(i.OutputFloat32Register(output_index),
-             i.InputFloat32Register(true_value_index),
-             i.InputFloat32Register(false_value_index), cc);
+             i.InputFloat32OrFPZeroRegister(true_value_index),
+             i.InputFloat32OrFPZeroRegister(false_value_index), cc);
   } else if (rep == MachineRepresentation::kFloat64) {
     __ Fcsel(i.OutputFloat64Register(output_index),
-             i.InputFloat64Register(true_value_index),
-             i.InputFloat64Register(false_value_index), cc);
+             i.InputFloat64OrFPZeroRegister(true_value_index),
+             i.InputFloat64OrFPZeroRegister(false_value_index), cc);
   } else if (rep == MachineRepresentation::kWord32) {
     __ Csel(i.OutputRegister32(output_index),
-            i.InputRegister32(true_value_index),
-            i.InputRegister32(false_value_index), cc);
+            i.InputOrZeroRegister32(true_value_index),
+            i.InputOrZeroRegister32(false_value_index), cc);
   } else {
     DCHECK_EQ(rep, MachineRepresentation::kWord64);
     __ Csel(i.OutputRegister64(output_index),
-            i.InputRegister64(true_value_index),
-            i.InputRegister64(false_value_index), cc);
+            i.InputOrZeroRegister64(true_value_index),
+            i.InputOrZeroRegister64(false_value_index), cc);
   }
 }
 

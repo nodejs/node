@@ -114,10 +114,8 @@ bool CallOptimization::IsCompatibleReceiverMap(
 template <class IsolateT>
 void CallOptimization::Initialize(
     IsolateT* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  Tagged<HeapObject> call_code =
-      function_template_info->call_code(kAcquireLoad);
-  if (IsUndefined(call_code, isolate)) return;
-  api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
+  if (!function_template_info->has_callback(isolate)) return;
+  api_call_info_ = function_template_info;
 
   Tagged<HeapObject> signature = function_template_info->signature();
   if (!IsUndefined(signature, isolate)) {
@@ -141,21 +139,9 @@ template <class IsolateT>
 void CallOptimization::AnalyzePossibleApiFunction(IsolateT* isolate,
                                                   Handle<JSFunction> function) {
   if (!function->shared()->IsApiFunction()) return;
-  Handle<FunctionTemplateInfo> info(function->shared()->api_func_data(),
-                                    isolate);
-
-  // Require a C++ callback.
-  Tagged<HeapObject> call_code = info->call_code(kAcquireLoad);
-  if (IsUndefined(call_code, isolate)) return;
-  api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
-
-  if (!IsUndefined(info->signature(), isolate)) {
-    expected_receiver_type_ =
-        handle(FunctionTemplateInfo::cast(info->signature()), isolate);
-  }
-
-  is_simple_api_call_ = true;
-  accept_any_receiver_ = info->accept_any_receiver();
+  Handle<FunctionTemplateInfo> function_template_info(
+      function->shared()->api_func_data(), isolate);
+  Initialize(isolate, function_template_info);
 }
 }  // namespace internal
 }  // namespace v8

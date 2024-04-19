@@ -21,7 +21,7 @@ namespace v8::internal {
 class WasmModuleObject;
 }
 
-namespace v8::internal::wasm::fuzzer {
+namespace v8::internal::wasm::fuzzing {
 
 class AsyncFuzzerResolver : public CompilationResultResolver {
  public:
@@ -88,4 +88,4 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   return 0;
 }
 
-}  // namespace v8::internal::wasm::fuzzer
+}  // namespace v8::internal::wasm::fuzzing

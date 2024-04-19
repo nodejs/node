@@ -13,7 +13,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -839,7 +839,8 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
     // 1st GC moves `one_byte_seq` to old space and 2nd GC evacuates it within
     // old space.
     heap::InvokeMajorGC(heap);
-    heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*one_byte_seq));
+    heap::ForceEvacuationCandidate(
+        i::PageMetadata::FromHeapObject(*one_byte_seq));
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap::InvokeMajorGC(heap);
@@ -923,8 +924,10 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
 
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
-    CHECK(
-        RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+    CHECK(RememberedSet<OLD_TO_NEW>::Contains(
+        MutablePageMetadata::cast(
+            MutablePageMetadata::cast(old_object_chunk->Metadata())),
+        slot.address()));
 
     for (int i = 0; i < 2; i++) {
       heap::InvokeMinorGC(heap);
@@ -936,8 +939,9 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
 
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
-    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
-                                                 slot.address()));
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
   }
 }
 
@@ -974,8 +978,9 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
-    CHECK(
-        RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+    CHECK(RememberedSet<OLD_TO_NEW>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
 
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
@@ -987,8 +992,9 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
-    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
-                                                 slot.address()));
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
   }
 }
 
@@ -1037,10 +1043,11 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
 
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
-    CHECK(
-        !RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+    CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
 
-    heap::ForceEvacuationCandidate(Page::FromHeapObject(*one_byte_seq));
+    heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*one_byte_seq));
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap::InvokeMajorGC(heap);
@@ -1051,8 +1058,9 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
 
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
-    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
-                                                 slot.address()));
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
   }
 }
 
@@ -1104,7 +1112,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
     // create an OLD_TO_SHARED slot.
     ObjectSlot slot = young_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MemoryChunk::FromHeapObject(*young_object), slot.address()));
+        MutablePageMetadata::FromHeapObject(*young_object), slot.address()));
   }
 }
 
@@ -2138,7 +2146,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MemoryChunk::FromHeapObject(*young_object), slot.address()));
+          MutablePageMetadata::FromHeapObject(*young_object), slot.address()));
     }
 
     client->Dispose();
@@ -2222,7 +2230,7 @@ UNINITIALIZED_TEST(
 
   // Start an incremental shared GC such that shared_string resides on an
   // evacuation candidate.
-  heap::ForceEvacuationCandidate(Page::FromHeapObject(*shared_string));
+  heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*shared_string));
   i::IncrementalMarking* marking = shared_heap->incremental_marking();
   CHECK(marking->IsStopped());
   {
@@ -2313,7 +2321,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MemoryChunk::FromHeapObject(*young_object), slot.address()));
+          MutablePageMetadata::FromHeapObject(*young_object), slot.address()));
     }
 
     client_isolate_->Dispose();

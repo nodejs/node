@@ -35,7 +35,14 @@
 //                        [](double) -> absl::string_view { return "double"; }),
 //                     v) == "int");
 //
-// Note: This requires C++17.
+// One of the lambda may specify overload for several types via generic lambda.
+//
+// absl::variant<std::string, int32_t, int64_t> v(int32_t{1});
+// assert(std::visit(absl::Overload(
+//     [](const std::string& s) { return s.size(); },
+//     [](const auto& s) { return sizeof(s); }), v) == 4);
+//
+// Note: absl::Overload requires C++17.
 
 #ifndef ABSL_FUNCTIONAL_OVERLOAD_H_
 #define ABSL_FUNCTIONAL_OVERLOAD_H_

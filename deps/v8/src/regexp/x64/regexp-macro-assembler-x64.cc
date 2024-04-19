@@ -1141,6 +1141,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   masm_.GetCode(isolate, &code_desc);
   Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
                           .set_self_reference(masm_.CodeObject())
+                          .set_empty_source_position_table()
                           .Build();
   PROFILE(isolate,
           RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));

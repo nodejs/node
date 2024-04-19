@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-rab-gsab
+// Flags: --js-float16array
 
 d8.file.execute('test/mjsunit/typedarray-helpers.js');
 

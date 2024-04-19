@@ -557,7 +557,8 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
       Handle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
-      heap::ForceEvacuationCandidate(Page::FromHeapObject(*value_handle));
+      heap::ForceEvacuationCandidate(
+          PageMetadata::FromHeapObject(*value_handle));
       code = *code_handle;
       value = *value_handle;
     }
