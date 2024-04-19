@@ -537,6 +537,7 @@ class EmbedderSnapshotData {
   // If the snapshot is invalid, this returns an empty pointer.
   static Pointer FromFile(FILE* in);
   static Pointer FromBlob(const std::vector<char>& in);
+  static Pointer FromBlob(std::string_view in);
 
   // Write this EmbedderSnapshotData object to an output file.
   // Calling this method will not close the FILE* handle.
