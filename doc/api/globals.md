@@ -361,13 +361,15 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52564
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of {Crypto}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -380,13 +382,15 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52564
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of the [Web Crypto API][].
 
@@ -397,13 +401,15 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52564
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -981,8 +987,7 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -1147,7 +1152,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Web Crypto API]: webcrypto.md
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
-[`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
