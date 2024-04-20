@@ -147,18 +147,16 @@ bool SetOption(Environment* env,
 }
 }  // namespace
 
-std::shared_ptr<TLSContext> TLSContext::CreateClient(Environment* env,
-                                                     const Options& options) {
-  return std::make_shared<TLSContext>(env, Side::CLIENT, options);
+std::shared_ptr<TLSContext> TLSContext::CreateClient(const Options& options) {
+  return std::make_shared<TLSContext>(Side::CLIENT, options);
 }
 
-std::shared_ptr<TLSContext> TLSContext::CreateServer(Environment* env,
-                                                     const Options& options) {
-  return std::make_shared<TLSContext>(env, Side::SERVER, options);
+std::shared_ptr<TLSContext> TLSContext::CreateServer(const Options& options) {
+  return std::make_shared<TLSContext>(Side::SERVER, options);
 }
 
-TLSContext::TLSContext(Environment* env, Side side, const Options& options)
-    : env_(env), side_(side), options_(options), ctx_(Initialize()) {}
+TLSContext::TLSContext(Side side, const Options& options)
+    : side_(side), options_(options), ctx_(Initialize()) {}
 
 TLSContext::operator SSL_CTX*() const {
   DCHECK(ctx_);
