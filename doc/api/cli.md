@@ -1362,14 +1362,6 @@ added: v0.8.0
 
 Silence deprecation warnings.
 
-### `--no-experimental-fetch`
-
-<!-- YAML
-added: v18.0.0
--->
-
-Disable exposition of [Fetch API][] on the global scope.
-
 ### `--no-experimental-global-customevent`
 
 <!-- YAML
@@ -2688,7 +2680,6 @@ one is included in the list below.
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
 * `--no-deprecation`
-* `--no-experimental-fetch`
 * `--no-experimental-global-customevent`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
@@ -3164,7 +3155,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [DEP0025 warning]: deprecations.md#dep0025-requirenodesys
 [ECMAScript module]: esm.md#modules-ecmascript-modules
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
-[Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
