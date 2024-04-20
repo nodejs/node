@@ -21,6 +21,7 @@
 
 #include "node.h"
 #include "node_dotenv.h"
+#include "node_task_runner.h"
 
 // ========== local headers ==========
 
@@ -407,10 +408,6 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (env->options()->watch_mode) {
     return StartExecution(env, "internal/main/watch_mode");
-  }
-
-  if (!env->options()->run.empty()) {
-    return StartExecution(env, "internal/main/run");
   }
 
   if (!first_argv.empty() && first_argv != "-") {
@@ -1057,6 +1054,22 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     if (per_process::cli_options->use_largepages == "on" && lp_result != 0) {
       result->errors_.emplace_back(node::LargePagesError(lp_result));
     }
+  }
+
+  if (!per_process::cli_options->run.empty()) {
+    // TODO(@anonrig): Handle NODE_NO_WARNINGS, NODE_REDIRECT_WARNINGS,
+    //  --disable-warning and --redirect-warnings.
+    if (per_process::cli_options->per_isolate->per_env->warnings) {
+      fprintf(stderr,
+              "ExperimentalWarning: Task runner is an experimental feature and "
+              "might change at any time\n\n");
+    }
+
+    auto positional_args = task_runner::GetPositionalArgs(args);
+    result->early_return_ = true;
+    task_runner::RunTask(
+        &result, per_process::cli_options->run, positional_args);
+    return result;
   }
 
   if (!(flags & ProcessInitializationFlags::kNoPrintHelpOrVersionOutput)) {

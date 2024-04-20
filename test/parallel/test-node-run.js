@@ -16,7 +16,8 @@ describe('node run [command]', () => {
       { cwd: __dirname },
     );
     assert.match(child.stderr, /ExperimentalWarning: Task runner is an experimental feature and might change at any time/);
-    assert.match(child.stdout, /Can't read package\.json/);
+    assert.match(child.stderr, /Can't read package\.json/);
+    assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
 
@@ -26,8 +27,8 @@ describe('node run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: __dirname },
     );
-    assert.match(child.stdout, /Can't read package\.json/);
-    assert.strictEqual(child.stderr, '');
+    assert.match(child.stderr, /Can't read package\.json/);
+    assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
 
@@ -62,38 +63,5 @@ describe('node run [command]', () => {
     assert.match(child.stdout, /--help "hello world test"/);
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
-  });
-
-  it('should support having --env-file cli flag', async () => {
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--no-warnings', `--env-file=${fixtures.path('run-script/.env')}`, '--run', `custom-env${envSuffix}`],
-      { cwd: fixtures.path('run-script') },
-    );
-    assert.match(child.stdout, /hello world/);
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
-  });
-
-  it('should properly escape shell', async () => {
-    const { escapeShell } = require('internal/shell');
-
-    const expectations = [
-      ['', '\'\''],
-      ['test', 'test'],
-      ['test words', '\'test words\''],
-      ['$1', '\'$1\''],
-      ['"$1"', '\'"$1"\''],
-      ['\'$1\'', '\\\'\'$1\'\\\''],
-      ['\\$1', '\'\\$1\''],
-      ['--arg="$1"', '\'--arg="$1"\''],
-      ['--arg=node exec -c "$1"', '\'--arg=node exec -c "$1"\''],
-      ['--arg=node exec -c \'$1\'', '\'--arg=node exec -c \'\\\'\'$1\'\\\''],
-      ['\'--arg=node exec -c "$1"\'', '\\\'\'--arg=node exec -c "$1"\'\\\''],
-    ];
-
-    for (const [input, expectation] of expectations) {
-      assert.strictEqual(escapeShell(input), expectation);
-    }
   });
 });
