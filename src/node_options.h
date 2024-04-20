@@ -166,6 +166,7 @@ class EnvironmentOptions : public Options {
   std::string diagnostic_dir;
   std::string env_file;
   bool has_env_file_string = false;
+  std::string test_random_seed;
   bool test_runner = false;
   uint64_t test_runner_concurrency = 0;
   uint64_t test_runner_timeout = 0;

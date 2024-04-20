@@ -390,6 +390,18 @@ test('a test that creates asynchronous activity', (t) => {
 });
 ```
 
+## Randomness
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Every instance of `TestContext` contains a `.seed` getter, which contains a
+randomly generated seed, or the seed passed via `--test-random-seed`. While
+this seed may be helpful for configuring pseudorandom generators, it should not
+be relied on for cryptography.
+
 ## Watch mode
 
 <!-- YAML

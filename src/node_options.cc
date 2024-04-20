@@ -647,6 +647,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-name-pattern",
             "run tests whose name matches this regular expression",
             &EnvironmentOptions::test_name_pattern);
+  AddOption("--test-random-seed",
+            "supply a seed to the test runner",
+            &EnvironmentOptions::test_random_seed);
   AddOption("--test-reporter",
             "report test output using the given reporter",
             &EnvironmentOptions::test_reporter,

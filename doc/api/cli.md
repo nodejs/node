@@ -1992,6 +1992,16 @@ changes:
 Configures the test runner to only execute top level tests that have the `only`
 option set.
 
+### `--test-random-seed`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Passes a random seed to every test's `TestContext`. If this variable is not
+defined, a random seed will be passed.
+
 ### `--test-reporter`
 
 <!-- YAML
