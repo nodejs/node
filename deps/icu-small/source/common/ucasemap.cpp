@@ -41,7 +41,6 @@
 #include "uassert.h"
 #include "ucase.h"
 #include "ucasemap_imp.h"
-#include "ustr_imp.h"
 
 U_NAMESPACE_USE
 
@@ -917,21 +916,20 @@ ucasemap_mapUTF8(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_P
         return 0;
     }
 
-    CheckedArrayByteSink sink(dest, destCapacity);
     if (edits != nullptr && (options & U_EDITS_NO_RESET) == 0) {
         edits->reset();
     }
-    stringCaseMapper(caseLocale, options, UCASEMAP_BREAK_ITERATOR
-                     (const uint8_t *)src, srcLength, sink, edits, errorCode);
-    sink.Flush();
-    if (U_SUCCESS(errorCode)) {
-        if (sink.Overflowed()) {
-            errorCode = U_BUFFER_OVERFLOW_ERROR;
-        } else if (edits != nullptr) {
-            edits->copyErrorTo(errorCode);
-        }
+    int32_t reslen = ByteSinkUtil::viaByteSinkToTerminatedChars(
+        dest, destCapacity,
+        [&](ByteSink& sink, UErrorCode& status) {
+            stringCaseMapper(caseLocale, options, UCASEMAP_BREAK_ITERATOR
+                             (const uint8_t *)src, srcLength, sink, edits, status);
+        },
+        errorCode);
+    if (U_SUCCESS(errorCode) && edits != nullptr) {
+        edits->copyErrorTo(errorCode);
     }
-    return u_terminateChars(dest, destCapacity, sink.NumberOfBytesAppended(), &errorCode);
+    return reslen;
 }
 
 /* public API functions */

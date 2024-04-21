@@ -81,7 +81,10 @@ void  RBBITableBuilder::buildForwardTable() {
     // Walk through the tree, replacing any references to $variables with a copy of the
     //   parse tree for the substitution expression.
     //
-    fTree = fTree->flattenVariables();
+    fTree = fTree->flattenVariables(*fStatus, 0);
+    if (U_FAILURE(*fStatus)) {
+        return;
+    }
 #ifdef RBBI_DEBUG
     if (fRB->fDebugEnv && uprv_strstr(fRB->fDebugEnv, "ftree")) {
         RBBIDebugPuts("\nParse tree after flattening variable references.");
