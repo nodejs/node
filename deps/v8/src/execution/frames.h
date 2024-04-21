@@ -1260,11 +1260,11 @@ class WasmFrame : public TypedFrame {
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
   static WasmFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_wasm()
 #ifdef V8_ENABLE_DRUMBRAKE
-           && !frame->is_wasm_interpreter_entry()
+    DCHECK(frame->is_wasm() && !frame->is_wasm_interpreter_entry());
+#else
+    DCHECK(frame->is_wasm());
 #endif  // V8_ENABLE_DRUMBRAKE
-    );
     return static_cast<WasmFrame*>(frame);
   }
 

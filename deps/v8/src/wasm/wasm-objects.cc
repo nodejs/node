@@ -2578,14 +2578,19 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper) {
+#if V8_ENABLE_DRUMBRAKE
   DCHECK(CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
          (export_wrapper->is_builtin() &&
           (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-#if V8_ENABLE_DRUMBRAKE
            export_wrapper->builtin_id() ==
                Builtin::kGenericJSToWasmInterpreterWrapper ||
-#endif  // V8_ENABLE_DRUMBRAKE
            export_wrapper->builtin_id() == Builtin::kWasmPromising)));
+#else
+  DCHECK(CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+         (export_wrapper->is_builtin() &&
+          (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+           export_wrapper->builtin_id() == Builtin::kWasmPromising)));
+#endif  // V8_ENABLE_DRUMBRAKE
   int func_index = internal_function->function_index();
   Factory* factory = isolate->factory();
   const wasm::WasmModule* module = instance_data->module();
