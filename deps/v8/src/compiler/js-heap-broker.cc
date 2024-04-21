@@ -832,10 +832,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
       MapUpdaterGuardIfNeeded mumd_scope(this);
 
       transition_target = map.object()->FindElementsKindTransitionedMap(
-          isolate(),
-          MapHandlesSpan(possible_transition_targets.begin(),
-                         possible_transition_targets.end()),
-          ConcurrencyMode::kConcurrent);
+          isolate(), possible_transition_targets, ConcurrencyMode::kConcurrent);
     }
 
     if (transition_target.is_null()) {
