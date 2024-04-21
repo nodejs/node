@@ -153,19 +153,23 @@ until the maximum number of retries has been met.
 
 ```js
 test('hardcoded retries', { retries: 5 }, () => {
-  console.log(`Currently on attempt ${t.currentAttempt}`)
-})
+  console.log(`Currently on attempt ${t.currentAttempt}`);
+});
 
 test('dynamic retries', (t) => {
-  t.retries(5)
+  t.retries(5);
 
-  console.log(`Currently on attempt ${t.currentAttempt}`)
-})
+  console.log(`Currently on attempt ${t.currentAttempt}`);
+});
+
+test('dynamic and hardcoded retries', { retries: 3 }, (t) => {
+  t.retries(5);
+  // This will take precedence, as it was called
+  // most recently.
+
+  console.log(`Currently on attempt ${t.currentAttempt}`);
+});
 ```
-
-> **Note:** `beforeEach` and `afterEach` hooks *are* triggered after each
-> retry, while `before` and `after` hooks *are only* triggered after the
-> entire subtest
 
 ## Skipping tests
 
@@ -225,8 +229,6 @@ test('todo() method with message', (t) => {
   throw new Error('this does not fail the test');
 });
 ```
-
-## Retryable Tests
 
 ## `describe()` and `it()` aliases
 

@@ -1,41 +1,105 @@
 TAP version 13
-# Subtest: <anonymous>
-ok 1 - <anonymous>
+# Subtest: hardcoded retries
+    # Subtest: should retry 3 times (success)
+    ok 1 - should retry 3 times (success)
+      ---
+      duration_ms: *
+      ...
+    # Subtest: should retry 5 times (failure)
+    not ok 2 - should retry 5 times (failure)
+      ---
+      duration_ms: *
+      location: '/test/fixtures/test-runner/output/retryable.js:(LINE):3'
+      failureType: 'testCodeFailure'
+      error: 'fail'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        async Promise.all (index 0)
+        *
+        *
+      ...
+    1..2
+not ok 1 - hardcoded retries
   ---
   duration_ms: *
-  ...
-# Retrying test, attempt 1
-# Retrying test, attempt 2
-# Subtest: <anonymous>
-not ok 2 - <anonymous>
-  ---
-  duration_ms: *
-  location: '/test/fixtures/test-runner/output/retryable.js:(LINE):8'
-  failureType: 'testCodeFailure'
-  error: 'fail'
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/retryable.js:(LINE):6'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
-  stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
   ...
-# Retrying test, attempt 1
-# Retrying test, attempt 2
-# Retrying test, attempt 3
-# Retrying test, attempt 4
-# Retrying test, attempt 5
-1..2
-# tests 2
-# suites 0
-# pass 1
-# fail 1
+# Subtest: dynamic retries
+    # Subtest: should retry 3 times (success)
+    ok 1 - should retry 3 times (success)
+      ---
+      duration_ms: *
+      ...
+    # Subtest: should retry 3 times (failure)
+    not ok 2 - should retry 3 times (failure)
+      ---
+      duration_ms: *
+      location: '/test/fixtures/test-runner/output/retryable.js:(LINE):3'
+      failureType: 'testCodeFailure'
+      error: 'fail'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        async Promise.all (index 0)
+        *
+        *
+      ...
+    1..2
+not ok 2 - dynamic retries
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/retryable.js:(LINE):6'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: multiple retries
+    # Subtest: should retry 4 times (success)
+    ok 1 - should retry 4 times (success)
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 3 - multiple retries
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: hooks
+    # Subtest: should call before/after hooks (success)
+    ok 1 - should call before/after hooks (success)
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 4 - hooks
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..4
+# tests 6
+# suites 4
+# pass 4
+# fail 2
 # cancelled 0
 # skipped 0
 # todo 0

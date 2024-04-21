@@ -33,12 +33,22 @@ test.describe('dynamic retries', () => {
   }, 3));
 });
 
-test.describe('hooks', async () => {
-  test.beforeEach(common.mustCall(() => {}, 4));
-  test.afterEach(common.mustCall(() => {}, 4));
+test.describe('multiple retries', () => {
+  test('should retry 4 times (success)', {
+    retries: 3,
+  }, common.mustCallAtLeast((t) => {
+    t.retries(5);
+    if (t.currentAttempt < 4) {
+      throw new Error('fail');
+    }
+  }, 4));
+});
 
-  test.before(common.mustCall(() => {}, 1));
-  test.after(common.mustCall(() => {}, 1));
+test.describe('hooks', async () => {
+  test.beforeEach(common.mustCallAtLeast(() => {}, 4));
+  test.afterEach(common.mustCallAtLeast(() => {}, 4));
+  test.before(common.mustCallAtLeast(() => {}, 4));
+  test.after(common.mustCallAtLeast(() => {}, 4));
 
   test('should call before/after hooks (success)', {
     retries: 3,
