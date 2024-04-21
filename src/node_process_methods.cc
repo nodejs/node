@@ -471,9 +471,8 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_EQ(args.Length(), 2);
+  CHECK_EQ(args.Length(), 2);  // file_path, [should_override]
   CHECK(args[0]->IsString());
-  CHECK(args[1]->IsBoolean());
 
   Utf8Value path_value(args.GetIsolate(), args[0]);
   std::string path = path_value.ToString();
