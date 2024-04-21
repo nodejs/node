@@ -2886,30 +2886,33 @@ Accept: text/plain
 To parse the URL into its parts:
 
 ```js
-new URL(request.url, `http://${request.headers.host}`);
+new URL(`http://${process.env.HOST ?? 'localhost'}${request.url}`);
 ```
 
-When `request.url` is `'/status?name=ryan'` and `request.headers.host` is
-`'localhost:3000'`:
+When `request.url` is `'/status?name=ryan'` and `process.env.HOST` is undefined:
 
 ```console
 $ node
-> new URL(request.url, `http://${request.headers.host}`)
+> new URL(`http://${process.env.HOST ?? 'localhost'}${request.url}`);
 URL {
-  href: 'http://localhost:3000/status?name=ryan',
-  origin: 'http://localhost:3000',
+  href: 'http://localhost/status?name=ryan',
+  origin: 'http://localhost',
   protocol: 'http:',
   username: '',
   password: '',
-  host: 'localhost:3000',
+  host: 'localhost',
   hostname: 'localhost',
-  port: '3000',
+  port: '',
   pathname: '/status',
   search: '?name=ryan',
   searchParams: URLSearchParams { 'name' => 'ryan' },
   hash: ''
 }
 ```
+
+Ensure that you set `process.env.HOST` to the server's host name, or consider
+replacing this part entirely. If using `req.headers.host`, ensure proper
+validation is used, as clients may specify a custom `Host` header.
 
 ## Class: `http.OutgoingMessage`
 
