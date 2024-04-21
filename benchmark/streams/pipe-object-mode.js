@@ -20,5 +20,5 @@ function main({ n }) {
   bench.start();
 
   r.pipe(w);
-  w.onFinish(() => bench.end(n));
+  w.on('finish', () => bench.end(n));
 }

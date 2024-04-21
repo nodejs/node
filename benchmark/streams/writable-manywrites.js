@@ -41,6 +41,6 @@ function main({ n, sync, writev, callback, len }) {
       s.offDrain(run);
     }
   }
-  s.onDrain(run);
+  s.on('drain', run);
   run();
 }
