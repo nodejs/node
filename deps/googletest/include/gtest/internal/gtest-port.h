@@ -194,8 +194,6 @@
 //
 // Macros for basic C++ coding:
 //   GTEST_AMBIGUOUS_ELSE_BLOCKER_ - for disabling a gcc warning.
-//   GTEST_ATTRIBUTE_UNUSED_  - declares that a class' instances or a
-//                              variable don't have to be used.
 //   GTEST_MUST_USE_RESULT_   - declares that a function's result must be used.
 //   GTEST_INTENTIONAL_CONST_COND_PUSH_ - start code section where MSVC C4127 is
 //                                        suppressed (constant conditional).
@@ -749,6 +747,20 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #define GTEST_HAVE_ATTRIBUTE_(x) 0
 #endif
 
+// GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE
+//
+// A function-like feature checking macro that accepts C++11 style attributes.
+// It's a wrapper around `__has_cpp_attribute`, defined by ISO C++ SD-6
+// (https://en.cppreference.com/w/cpp/experimental/feature_test). If we don't
+// find `__has_cpp_attribute`, will evaluate to 0.
+#if defined(__has_cpp_attribute)
+// NOTE: requiring __cplusplus above should not be necessary, but
+// works around https://bugs.llvm.org/show_bug.cgi?id=23435.
+#define GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#else
+#define GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(x) 0
+#endif
+
 // GTEST_HAVE_FEATURE_
 //
 // A function-like feature checking macro that is a wrapper around
@@ -760,14 +772,22 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #endif
 
 // Use this annotation after a variable or parameter declaration to tell the
-// compiler the variable/parameter does not have to be used.
+// compiler the variable/parameter may be used.
 // Example:
 //
-//   GTEST_ATTRIBUTE_UNUSED_ int foo = bar();
-#if GTEST_HAVE_ATTRIBUTE_(unused)
-#define GTEST_ATTRIBUTE_UNUSED_ __attribute__((unused))
+//   GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED int foo = bar();
+//
+// This can be removed once we only support only C++17 or newer and
+// [[maybe_unused]] is available on all supported platforms.
+#if GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(maybe_unused)
+#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
+#elif GTEST_HAVE_ATTRIBUTE_(unused)
+// This is inferior to [[maybe_unused]] as it can produce a
+// -Wused-but-marked-unused warning on optionally used symbols, but it is all we
+// have.
+#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED __attribute__((__unused__))
 #else
-#define GTEST_ATTRIBUTE_UNUSED_
+#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED
 #endif
 
 // Use this annotation before a function that takes a printf format string.
