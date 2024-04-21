@@ -1501,7 +1501,8 @@ class NeverThrown {
                                                                                \
    private:                                                                    \
     void TestBody() override;                                                  \
-    static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;      \
+    GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED static ::testing::TestInfo* const    \
+        test_info_;                                                            \
   };                                                                           \
                                                                                \
   ::testing::TestInfo* const GTEST_TEST_CLASS_NAME_(test_suite_name,           \
