@@ -141,19 +141,31 @@ added:
   - REPLACEME
 -->
 
-Via the test context's `attempt()` method, individual tests can be retried any
-given number of times. The test will only fail if no successful execution
-occurs after the given number of attempts.
+Failed tests can be retried via a hardcoded `{ retries }` option, or
+via the dynamic `retries()` TestContext prototype method.
+
+Via the `.currentAttempt` property, the current attempt (the number of times
+the test has been been retried, zero-indexed) can be accessed. Via
+the `.retryCount` property, the number of retries can also be accessed.
+
+These tests will continue running until a successful execution, or
+until the maximum number of retries has been met.
 
 ```js
-attempt('attempt this test', { retries: 5 }, (t) => {
-  // This code will be executed up to 5 times, depending on the
-  // number of failures.
-});
+test('hardcoded retries', { retries: 5 }, () => {
+  console.log(`Currently on attempt ${t.currentAttempt}`)
+})
+
+test('dynamic retries', (t) => {
+  t.retries(5)
+
+  console.log(`Currently on attempt ${t.currentAttempt}`)
+})
 ```
 
-> **Note:** `beforeEach` and `afterEach` hooks are not triggered for each
-> retry, but rather before/after the entire test.
+> **Note:** `beforeEach` and `afterEach` hooks *are* triggered after each
+> retry, while `before` and `after` hooks *are only* triggered after the
+> entire subtest
 
 ## Skipping tests
 
