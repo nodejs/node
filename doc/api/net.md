@@ -726,7 +726,7 @@ added:
 * `ip` {string} The IP which the socket attempted to connect to.
 * `port` {number} The port which the socket attempted to connect to.
 * `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
-  \* `error` {Error} The error associated with the failure.
+* `error` {Error} The error associated with the failure.
 
 Emitted when a connection attempt failed. This may be emitted multiple times
 if the family autoselection algorithm is enabled in [`socket.connect(options)`][].
@@ -1729,7 +1729,7 @@ nc -U /tmp/echo.sock
 added: v19.4.0
 -->
 
-Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
+Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
 The initial default value is `true`, unless the command line option
 `--no-network-family-autoselection` is provided.
 
@@ -1741,9 +1741,9 @@ The initial default value is `true`, unless the command line option
 added: v19.4.0
 -->
 
-Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
+Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
 
-* `value` {boolean} The new default value. The initial default value is `false`.
+* `value` {boolean} The new default value. The initial default value is `false`.
 
 ## `net.getDefaultAutoSelectFamilyAttemptTimeout()`
 
@@ -1753,7 +1753,7 @@ added:
  - v18.18.0
 -->
 
-Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
+Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
 The initial default value is `250` or the value specified via the command line
 option `--network-family-autoselection-attempt-timeout`.
 
@@ -1767,9 +1767,9 @@ added:
  - v18.18.0
 -->
 
-Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
+Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
 
-* `value` {number} The new default value, which must be a positive number. If the number is less than `10`,
+* `value` {number} The new default value, which must be a positive number. If the number is less than `10`,
   the value `10` is used instead. The initial default value is `250` or the value specified via the command line
   option `--network-family-autoselection-attempt-timeout`.
 
