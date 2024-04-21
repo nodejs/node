@@ -185,6 +185,7 @@ rules:
     - groups: [['&&', '||']]
 
   # Custom rules in tools/eslint-rules
+  node-core/alphabetize-primordials: error
   node-core/avoid-prototype-pollution: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
@@ -266,3 +267,7 @@ globals:
   module: false
   internalBinding: false
   primordials: false
+overrides:
+  - files: [internal/per_context/primordials.js]
+    rules:
+      node-core/alphabetize-primordials: [error, {enforceTopPosition: false}]
