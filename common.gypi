@@ -286,7 +286,8 @@
       'VCCLCompilerTool': {
         'AdditionalOptions': [
           '/Zc:__cplusplus',
-          '-std:c++17'
+          # The following option enables c++20 on Windows. This is needed for V8 v12.4+
+          '-std:c++20',
         ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
