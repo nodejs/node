@@ -374,7 +374,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   OnFeedbackChanged(IsLoadGlobalIC() ? "LoadGlobal" : "Monomorphic");
 }
 
-void IC::ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
+void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
                               MaybeObjectHandles* handlers) {
   DCHECK(!IsGlobalIC());
   std::vector<MapAndHandler> maps_and_handlers;
@@ -740,9 +740,10 @@ bool IC::IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
       source_map->elements_kind(), target_elements_kind);
   Tagged<Map> transitioned_map;
   if (more_general_transition) {
-    Handle<Map> single_map[1] = {handle(target_map, isolate_)};
+    MapHandles map_list;
+    map_list.push_back(handle(target_map, isolate_));
     transitioned_map = source_map->FindElementsKindTransitionedMap(
-        isolate(), single_map, ConcurrencyMode::kSynchronous);
+        isolate(), map_list, ConcurrencyMode::kSynchronous);
   }
   return transitioned_map == target_map;
 }
@@ -1244,10 +1245,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
   } else {
-    ConfigureVectorState(Handle<Name>(),
-                         MapHandlesSpan(target_receiver_maps.begin(),
-                                        target_receiver_maps.end()),
-                         &handlers);
+    ConfigureVectorState(Handle<Name>(), target_receiver_maps, &handlers);
   }
 }
 
@@ -1444,9 +1442,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
       Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-          isolate(),
-          MapHandlesSpan(receiver_maps->begin(), receiver_maps->end()),
-          ConcurrencyMode::kSynchronous);
+          isolate(), *receiver_maps, ConcurrencyMode::kSynchronous);
       if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
@@ -2478,9 +2474,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     } else {
       {
         Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-            isolate(),
-            MapHandlesSpan(receiver_maps.begin(), receiver_maps.end()),
-            ConcurrencyMode::kSynchronous);
+            isolate(), receiver_maps, ConcurrencyMode::kSynchronous);
         if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());
