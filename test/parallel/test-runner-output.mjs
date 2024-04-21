@@ -122,6 +122,7 @@ const tests = [
   { name: 'test-runner/output/name_and_skip_patterns.js' },
   { name: 'test-runner/output/name_pattern.js' },
   { name: 'test-runner/output/name_pattern_with_only.js' },
+  { name: 'test-runner/output/retryable.js' },
   { name: 'test-runner/output/skip_pattern.js' },
   { name: 'test-runner/output/unfinished-suite-async-error.js' },
   { name: 'test-runner/output/unresolved_promise.js' },

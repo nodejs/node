@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: <anonymous>
+ok 1 - <anonymous>
+  ---
+  duration_ms: *
+  ...
+# Retrying test, attempt 1
+# Retrying test, attempt 2
+# Subtest: <anonymous>
+not ok 2 - <anonymous>
+  ---
+  duration_ms: *
+  location: '/test/fixtures/test-runner/output/retryable.js:(LINE):8'
+  failureType: 'testCodeFailure'
+  error: 'fail'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
+# Retrying test, attempt 1
+# Retrying test, attempt 2
+# Retrying test, attempt 3
+# Retrying test, attempt 4
+# Retrying test, attempt 5
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *

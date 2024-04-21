@@ -134,6 +134,27 @@ Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
 
+## Retrying tests
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Via the test context's `attempt()` method, individual tests can be retried any
+given number of times. The test will only fail if no successful execution
+occurs after the given number of attempts.
+
+```js
+attempt('attempt this test', { retries: 5 }, (t) => {
+  // This code will be executed up to 5 times, depending on the
+  // number of failures.
+});
+```
+
+> **Note:** `beforeEach` and `afterEach` hooks are not triggered for each
+> retry, but rather before/after the entire test.
+
 ## Skipping tests
 
 Individual tests can be skipped by passing the `skip` option to the test, or by
@@ -192,6 +213,8 @@ test('todo() method with message', (t) => {
   throw new Error('this does not fail the test');
 });
 ```
+
+## Retryable Tests
 
 ## `describe()` and `it()` aliases
 
