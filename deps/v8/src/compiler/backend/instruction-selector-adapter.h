@@ -858,12 +858,13 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
           *traps_on_null = load_->kind.trap_on_null;
 #if V8_ENABLE_WEBASSEMBLY
         } else {
-          DCHECK((load_transform_ && !load_transform_->load_kind.trap_on_null)
 #if V8_ENABLE_WASM_SIMD256_REVEC
+          DCHECK((load_transform_ && !load_transform_->load_kind.trap_on_null)
                  || (load_transform256_ &&
-                     !load_transform256_->load_kind.trap_on_null)
+                     !load_transform256_->load_kind.trap_on_null));
+#else
+          DCHECK((load_transform_ && !load_transform_->load_kind.trap_on_null));
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
-          );
           *traps_on_null = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
         }

@@ -848,10 +848,11 @@ DEFINE_INT(invocation_count_for_feedback_allocation, 8,
 // Tiering: Maglev.
 #if defined(ANDROID)
 DEFINE_INT(invocation_count_for_maglev, 1000,
+           "invocation count required for optimizing with Maglev")
 #else
 DEFINE_INT(invocation_count_for_maglev, 400,
-#endif  // ANDROID
            "invocation count required for optimizing with Maglev")
+#endif  // ANDROID
 DEFINE_INT(invocation_count_for_maglev_osr, 100,
            "invocation count required for maglev OSR")
 DEFINE_BOOL(osr_from_maglev, false,
