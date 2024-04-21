@@ -163,7 +163,7 @@ public:
      * @see getUnknown
      * @stable ICU 2.0
      */
-    static const TimeZone* U_EXPORT2 getGMT(void);
+    static const TimeZone* U_EXPORT2 getGMT();
 
     /**
      * Creates a <code>TimeZone</code> for the given ID.
@@ -364,7 +364,7 @@ public:
      * @see getUnknown
      * @stable ICU 2.0
      */
-    static TimeZone* U_EXPORT2 createDefault(void);
+    static TimeZone* U_EXPORT2 createDefault();
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -644,7 +644,7 @@ public:
      * @return   The TimeZone's raw GMT offset.
      * @stable ICU 2.0
      */
-    virtual int32_t getRawOffset(void) const = 0;
+    virtual int32_t getRawOffset() const = 0;
 
     /**
      * Fills in "ID" with the TimeZone's ID.
@@ -813,7 +813,7 @@ public:
      * 
      * @stable ICU 2.0
      */
-    virtual UBool useDaylightTime(void) const = 0;
+    virtual UBool useDaylightTime() const = 0;
 
 #ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
@@ -857,7 +857,7 @@ public:
      * @return The class ID for all objects of this class.
      * @stable ICU 2.0
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns a unique class ID POLYMORPHICALLY. This method is to
@@ -870,8 +870,8 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const override = 0;
-    
+    virtual UClassID getDynamicClassID() const override = 0;
+
     /**
      * Returns the amount of time to be added to local standard time
      * to get local wall clock time.

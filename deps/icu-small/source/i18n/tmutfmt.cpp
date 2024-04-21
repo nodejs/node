@@ -17,7 +17,6 @@
 #include "unicode/localpointer.h"
 #include "plurrule_impl.h"
 #include "uvector.h"
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
@@ -563,12 +562,7 @@ TimeUnitFormat::searchInLocaleChain(UTimeUnitFormatStyle style, const char* key,
     CharString parentLocale(localeName, status);
     U_ASSERT(countToPatterns != nullptr);
     for (;;) {
-        {
-            CharString tmp;
-            CharStringByteSink sink(&tmp);
-            ulocimp_getParent(parentLocale.data(), sink, &status);
-            parentLocale = std::move(tmp);
-        }
+        parentLocale = ulocimp_getParent(parentLocale.data(), status);
         // look for pattern for srcPluralCount in locale tree
         LocalUResourceBundlePointer rb(ures_open(U_ICUDATA_UNIT, parentLocale.data(), &status));
         LocalUResourceBundlePointer unitsRes(ures_getByKey(rb.getAlias(), key, nullptr, &status));

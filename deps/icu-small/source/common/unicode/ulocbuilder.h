@@ -74,7 +74,7 @@ typedef struct ULocaleBuilder ULocaleBuilder;
  * @draft ICU 74
  */
 U_CAPI ULocaleBuilder* U_EXPORT2
-ulocbld_open();
+ulocbld_open(void);
 
 /**
  * Close the builder and destroy it's internal states.
