@@ -18,7 +18,7 @@ env:
 
   WARN_MESSAGE: >
     It seems there has been no activity on this issue for a while,
-    and it is being closed **in 30 days**. If you believe this issue should
+    and it is being closed **in 14 days**. If you believe this issue should
     remain open, please leave a comment.
 
     If you need further assistance or have questions, you can
