@@ -396,11 +396,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::enable_source_maps,
             kAllowedInEnvvar);
   AddOption("--experimental-abortcontroller", "", NoOp{}, kAllowedInEnvvar);
-  AddOption("--experimental-fetch",
-            "experimental Fetch API",
-            &EnvironmentOptions::experimental_fetch,
-            kAllowedInEnvvar,
-            true);
+  AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             &EnvironmentOptions::experimental_websocket,
