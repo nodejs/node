@@ -1,26 +1,72 @@
-# Support
+# Node.js Support Guide
 
-Node.js contributors have limited availability to address general support
-questions. Please make sure you are using a [currently-supported version of
-Node.js](https://github.com/nodejs/Release#release-schedule).
+Node.js contributors have limited availability to address general support questions. Please make sure you are using a [currently-supported version of Node.js](https://github.com/nodejs/Release#release-schedule).
 
-When looking for support, please first search for your question in these venues:
+When seeking support, please first search for your question in these venues:
 
-* [Node.js Website](https://nodejs.org/en/), especially the
-  [API docs](https://nodejs.org/api/)
-* [Node.js Help](https://github.com/nodejs/help)
-* [Open or closed issues in the Node.js GitHub organization](https://github.com/issues?utf8=%E2%9C%93&q=sort%3Aupdated-desc+org%3Anodejs+is%3Aissue)
+- [Node.js Website](https://nodejs.org/en/), especially the [API docs](https://nodejs.org/api/)
+- [Node.js Help](https://github.com/nodejs/help)
+- [Open or closed issues in the Node.js GitHub organization](https://github.com/issues?utf8=%E2%9C%93&q=sort%3Aupdated-desc+org%3Anodejs+is%3Aissue)
 
-If you didn't find an answer in the resources above, try these unofficial
-resources:
+If you didn't find an answer in the resources above, try these unofficial resources:
 
-* [Questions tagged 'node.js' on Stack Overflow](https://stackoverflow.com/questions/tagged/node.js)
-* [#node.js channel on libera.chat](https://web.libera.chat?channels=node.js&uio=d4)
-* [Node.js Slack Community](https://node-js.slack.com/)
-  * To register: [nodeslackers.com](https://www.nodeslackers.com/)
+- [Questions tagged 'node.js' on Stack Overflow](https://stackoverflow.com/questions/tagged/node.js)
+- [#node.js channel on libera.chat](https://web.libera.chat?channels=node.js&uio=d4)
+- [Node.js Slack Community](https://node-js.slack.com/)
+  - To register: [nodeslackers.com](https://www.nodeslackers.com/)
 
 GitHub issues are for tracking enhancements and bugs, not general support.
 
-The open source license grants you the freedom to use Node.js. It does not
-guarantee commitments of other people's time. Please be respectful and manage
-your expectations.
+The open source license grants you the freedom to use Node.js. It does not guarantee commitments of other people's time. Please be respectful and manage your expectations.
+
+## Troubleshooting Steps
+
+When encountering issues with Node.js, follow these troubleshooting steps:
+
+1. **Check Node.js Version**: Ensure you are using a currently-supported version of Node.js. You can check the supported versions [here](https://github.com/nodejs/Release#release-schedule).
+
+2. **Review Documentation**: Consult the official [Node.js documentation](https://nodejs.org/en/) and the [API docs](https://nodejs.org/api/) for relevant information.
+
+3. **Search for Solutions**: Utilize the search functionality on the Node.js website, GitHub issues, Stack Overflow, or other community platforms to find solutions to your problem.
+
+4. **Check for Updates**: Ensure your Node.js dependencies and packages are up-to-date by running `npm update` or `npm outdated`.
+
+5. **Review Error Messages**: Pay attention to error messages and logs to identify the root cause of the issue.
+
+6. **Isolate the Problem**: Try to reproduce the issue in a minimal environment to isolate the problem. This helps in pinpointing the cause and finding a solution.
+
+7. **Debugging**: Use debugging tools such as Node.js built-in debugger, or third-party tools like `node-inspect`, to debug your application.
+
+8. **Community Forums**: If you're unable to resolve the issue on your own, seek help from the Node.js community through forums, chat channels, or Slack.
+
+## How to Ask a Good Question
+
+When asking for help with Node.js, follow these guidelines to increase the chances of receiving helpful responses:
+
+- **Provide Context**: Clearly explain what you are trying to accomplish, what you have attempted so far, and any relevant background information.
+
+- **Include Code**: If applicable, include a minimal, complete, and verifiable example of your code that reproduces the issue.
+
+- **Error Messages**: Include any error messages or stack traces you've encountered.
+
+- **Versions**: Specify the versions of Node.js, npm, and any relevant dependencies you are using.
+
+- **Be Polite**: Remember to be polite and respectful to those who are trying to help you.
+
+## What to Ask/Not to Ask
+
+### Do Ask:
+
+- Specific questions about Node.js features, APIs, or best practices.
+- Questions about troubleshooting specific errors or issues.
+- Clarification on concepts or documentation you don't understand.
+- Questions about performance optimization or code refactoring.
+
+### Don't Ask:
+
+- General programming questions unrelated to Node.js.
+- Questions asking for complete solutions without showing any effort.
+- Questions about third-party libraries without first consulting their documentation or community.
+- Questions that violate the Node.js code of conduct or are disrespectful to others.
+
+Remember, asking good questions leads to better answers and a more positive experience for everyone involved in the Node.js community.
