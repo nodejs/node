@@ -429,7 +429,7 @@ typedef void (*sigaction_cb)(int signo, siginfo_t* info, void* ucontext);
 #endif
 #if NODE_USE_V8_WASM_TRAP_HANDLER
 #if defined(_WIN32)
-static LONG TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
+static LONG WINAPI TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
   if (v8::TryHandleWebAssemblyTrapWindows(exception)) {
     return EXCEPTION_CONTINUE_EXECUTION;
   }
