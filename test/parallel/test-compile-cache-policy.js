@@ -2,7 +2,10 @@
 
 // This tests NODE_COMPILE_CACHE is disabled when policy is used.
 
-require('../common');
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const fs = require('fs');
