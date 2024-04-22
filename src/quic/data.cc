@@ -285,14 +285,14 @@ void QuicError::MemoryInfo(MemoryTracker* tracker) const {
 QuicError QuicError::ForTransport(error_code code, std::string reason) {
   QuicError error(std::move(reason));
   ngtcp2_ccerr_set_transport_error(
-      &error.error_, code, error.reason_c_str(), reason.length());
+      &error.error_, code, error.reason_c_str(), error.reason().length());
   return error;
 }
 
 QuicError QuicError::ForApplication(error_code code, std::string reason) {
   QuicError error(std::move(reason));
   ngtcp2_ccerr_set_application_error(
-      &error.error_, code, error.reason_c_str(), reason.length());
+      &error.error_, code, error.reason_c_str(), error.reason().length());
   return error;
 }
 
@@ -307,14 +307,14 @@ QuicError QuicError::ForIdleClose(std::string reason) {
 QuicError QuicError::ForNgtcp2Error(int code, std::string reason) {
   QuicError error(std::move(reason));
   ngtcp2_ccerr_set_liberr(
-      &error.error_, code, error.reason_c_str(), reason.length());
+      &error.error_, code, error.reason_c_str(), error.reason().length());
   return error;
 }
 
 QuicError QuicError::ForTlsAlert(int code, std::string reason) {
   QuicError error(std::move(reason));
   ngtcp2_ccerr_set_tls_alert(
-      &error.error_, code, error.reason_c_str(), reason.length());
+      &error.error_, code, error.reason_c_str(), error.reason().length());
   return error;
 }
 
