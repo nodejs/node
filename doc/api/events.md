@@ -2426,9 +2426,13 @@ Removes the `listener` from the list of handlers for event `type`.
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52618
+    description: CustomEvent is now stable.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 * Extends: {Event}
 
@@ -2441,9 +2445,13 @@ Instances are created internally by Node.js.
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52618
+    description: CustomEvent is now stable.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 * Type: {any} Returns custom data passed when initializing.
 
