@@ -1,0 +1,23 @@
+name: Remove Stale Labels on Close
+
+on:
+  issues:
+    types: [closed]
+  pull_request:
+    types: [closed]
+
+jobs:
+  remove-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Remove Stale Labels
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          issue_number: ${{ github.event.issue.number }}
+          labels: |
+            documentation
+            changelog
+          token: ${{ secrets.GITHUB_TOKEN }}
