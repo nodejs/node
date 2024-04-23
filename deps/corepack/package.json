@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.26.0",
+  "version": "0.28.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -16,7 +16,7 @@
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.1.0+sha224.bc24d7f5afc738464f3d4e95f4e6e7829a35cee54a0fd527ea5baa83",
+  "packageManager": "yarn@4.1.1+sha224.00f08619463229f8ba40c4ee90e8c2e4ced1f11c3115c26f3b98432e",
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",
@@ -45,12 +45,15 @@
     "proxy-from-env": "^1.1.0",
     "semver": "^7.5.2",
     "supports-color": "^9.0.0",
-    "tar": "^6.0.1",
+    "tar": "^6.2.1",
     "ts-node": "^10.0.0",
     "typescript": "^5.3.3",
     "undici": "^6.6.1",
     "v8-compile-cache": "^2.3.0",
     "which": "^4.0.0"
+  },
+  "resolutions": {
+    "undici-types": "6.x"
   },
   "scripts": {
     "build": "rm -rf dist shims && run build:bundle && ts-node ./mkshims.ts",
