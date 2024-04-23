@@ -18,6 +18,6 @@ jobs:
         with:
           issue_number: ${{ github.event.issue.number }}
           labels: |
-            documentation
-            changelog
+            stale
+            stalled
           token: ${{ secrets.GITHUB_TOKEN }}
