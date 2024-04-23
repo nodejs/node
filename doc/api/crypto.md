@@ -3078,10 +3078,9 @@ and initialization vector (`iv`).
 The `options` argument controls stream behavior and is optional except when a
 cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
-option is not required but can be used to restrict accepted authentication tags
-to those with the specified length.
-For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
+authentication tag in bytes, see [CCM mode][].
+For AES-GCM and `chacha20-poly1305`, the `authTagLength` option defaults to 16
+bytes and must be set to a different value if a different length is used.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will

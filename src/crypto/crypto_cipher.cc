@@ -698,8 +698,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (mode == EVP_CIPH_GCM_MODE && cipher->auth_tag_len_ == kNoAuthTagLength &&
-      tag_len != 16 && env->options()->pending_deprecation &&
-      env->EmitProcessEnvWarning()) {
+      tag_len != 16 && env->EmitProcessEnvWarning()) {
     if (ProcessEmitDeprecationWarning(
             env,
             "Using AES-GCM authentication tags of less than 128 bits without "

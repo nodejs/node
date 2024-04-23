@@ -3624,14 +3624,17 @@ Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52552
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/52345
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Applications that intend to use authentication tags that are shorter than the
-default authentication tag length should set the `authTagLength` option of the
+default authentication tag length must set the `authTagLength` option of the
 [`crypto.createDecipheriv()`][] function to the appropriate length.
 
 For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function accepts
