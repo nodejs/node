@@ -73,4 +73,4 @@
 
 <hr class="line"/>
 
-* [Code repository and issue tracker](https://github.com/nodejs/node)
+* [Code repository and issue tracker](https://github.com/Thales-de-Milet/node)
