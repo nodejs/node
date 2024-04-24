@@ -85,3 +85,8 @@ assert.strictEqual(path.win32.toNamespacedPath(true), true);
 assert.strictEqual(path.win32.toNamespacedPath(1), 1);
 assert.strictEqual(path.win32.toNamespacedPath(), undefined);
 assert.strictEqual(path.win32.toNamespacedPath(emptyObj), emptyObj);
+
+assert.strictEqual(path.posix.toNamespacedPath(new URL('file:///a/b/')), '/a/b/');
+assert.strictEqual(path.posix.toNamespacedPath(new URL('file:///a/b')), '/a/b');
+assert.strictEqual(path.win32.toNamespacedPath(new URL('file://C:\\a\\b\\')), '\\\\?\\C:\\a\\b');
+assert.strictEqual(path.win32.toNamespacedPath(new URL('file://C:\\a\\b')), '\\\\?\\C:\\a\\b');

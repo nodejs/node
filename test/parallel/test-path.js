@@ -71,3 +71,9 @@ if (common.isWindows)
   assert.strictEqual(path, path.win32);
 else
   assert.strictEqual(path, path.posix);
+
+
+// invalid URL tests
+assert.throws(() => {
+  path.posix.isAbsolute(new URL('http://example.com'));
+}, { code: 'ERR_INVALID_URL_SCHEME', name: 'TypeError' });

@@ -98,3 +98,9 @@ assert.strictEqual(path.posix.extname('file\\'), '');
 assert.strictEqual(path.posix.extname('file\\\\'), '');
 assert.strictEqual(path.posix.extname('file.\\'), '.\\');
 assert.strictEqual(path.posix.extname('file.\\\\'), '.\\\\');
+
+assert.strictEqual(path.posix.extname(new URL('file:///path/to/file.ext')), '.ext');
+assert.strictEqual(path.posix.extname(new URL('file:///path.to/file.ext')), '.ext');
+
+assert.strictEqual(path.win32.extname(new URL('file://C:/path/to/file.ext')), '.ext');
+assert.strictEqual(path.win32.extname(new URL('file://C:/path.to/file.ext')), '.ext');

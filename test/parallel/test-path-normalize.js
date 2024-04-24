@@ -70,3 +70,8 @@ assert.strictEqual(
   '../../../../baz'
 );
 assert.strictEqual(path.posix.normalize('foo/bar\\baz'), 'foo/bar\\baz');
+
+assert.strictEqual(path.posix.normalize(new URL('file:///foo/../../../bar')), '/bar');
+assert.strictEqual(path.posix.normalize(new URL('file:///a/b/c/../../../x/y/z')), '/x/y/z');
+assert.strictEqual(path.win32.normalize(new URL('file://C:/foo/../../../bar')), 'C:\\bar');
+assert.strictEqual(path.win32.normalize(new URL('file://C:/a/b/c/../../../x/y/z')), 'C:\\x\\y\\z');

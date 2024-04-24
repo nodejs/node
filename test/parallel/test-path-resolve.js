@@ -33,6 +33,9 @@ const resolveTests = [
      [['c:/', '///some//dir'], 'c:\\some\\dir'],
      [['C:\\foo\\tmp.3\\', '..\\tmp.3\\cycles\\root.js'],
       'C:\\foo\\tmp.3\\cycles\\root.js'],
+
+     [[new URL('file:///C:\\foo\\bar\\baz\\quux'), 'bar'], 'C:\\foo\\bar\\baz\\quux\\bar'],
+     [[new URL('file:///C:\\foo\\test'), 'bar'], 'C:\\foo\\test\\bar'],
     ],
   ],
   [ path.posix.resolve,
@@ -43,9 +46,12 @@ const resolveTests = [
      [['.'], posixyCwd],
      [['/some/dir', '.', '/absolute/'], '/absolute'],
      [['/foo/tmp.3/', '../tmp.3/cycles/root.js'], '/foo/tmp.3/cycles/root.js'],
+
+     [[new URL('file:///var/lib'), '../', 'file/'], '/var/file'],
     ],
   ],
 ];
+
 resolveTests.forEach(([resolve, tests]) => {
   tests.forEach(([test, expected]) => {
     const actual = resolve.apply(null, test);

@@ -67,12 +67,15 @@ example, `path.resolve('C:\\')` can potentially return a different result than
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5348
     description: Passing a non-string as the `path` argument will throw now.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * `suffix` {string} An optional suffix to remove
 * Returns: {string}
 
@@ -101,8 +104,8 @@ path.win32.basename('C:\\foo.HTML', '.html');
 // Returns: 'foo.HTML'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string or if `suffix` is given
-and is not a string.
+A [`TypeError`][] is thrown if `path` is not a string or an instance of [`URL`][],
+or if `suffix` is given and is not a string.
 
 ## `path.delimiter`
 
@@ -142,12 +145,15 @@ process.env.PATH.split(path.delimiter);
 <!-- YAML
 added: v0.1.16
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5348
     description: Passing a non-string as the `path` argument will throw now.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 The `path.dirname()` method returns the directory name of a `path`, similar to
@@ -159,19 +165,22 @@ path.dirname('/foo/bar/baz/asdf/quux');
 // Returns: '/foo/bar/baz/asdf'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string or an instance of [`URL`][]
 
 ## `path.extname(path)`
 
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5348
     description: Passing a non-string as the `path` argument will throw now.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 The `path.extname()` method returns the extension of the `path`, from the last
@@ -200,7 +209,7 @@ path.extname('.index.md');
 // Returns: '.md'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string or an instance of [`URL`][].
 
 ## `path.format(pathObject)`
 
@@ -283,9 +292,13 @@ path.format({
 
 <!-- YAML
 added: v0.11.2
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {boolean}
 
 The `path.isAbsolute()` method determines if `path` is an absolute path.
@@ -313,15 +326,19 @@ path.isAbsolute('bar/baz');     // false
 path.isAbsolute('.');           // false
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string or an instance of [`URL`][].
 
 ## `path.join([...paths])`
 
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
 -->
 
-* `...paths` {string} A sequence of path segments
+* `...paths` {string|URL} A sequence of path segments
 * Returns: {string}
 
 The `path.join()` method joins all given `path` segments together using the
@@ -339,15 +356,19 @@ path.join('foo', {}, 'bar');
 // Throws 'TypeError: Path must be a string. Received {}'
 ```
 
-A [`TypeError`][] is thrown if any of the path segments is not a string.
+A [`TypeError`][] is thrown if any of the path segments is not a string or an instance of [`URL`][].
 
 ## `path.normalize(path)`
 
 <!-- YAML
 added: v0.1.23
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 The `path.normalize()` method normalizes the given `path`, resolving `'..'` and
@@ -391,15 +412,19 @@ path.win32.normalize('C:////temp\\\\/\\/\\/foo/bar');
 // Returns: 'C:\\temp\\foo\\bar'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string or an instance of [`URL`][].
 
 ## `path.parse(path)`
 
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {Object}
 
 The `path.parse()` method returns an object whose properties represent
@@ -458,7 +483,7 @@ path.parse('C:\\path\\dir\\file.txt');
 (All spaces in the "" line should be ignored. They are purely for formatting.)
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string or an instance of [`URL`][].
 
 ## `path.posix`
 
@@ -482,14 +507,17 @@ The API is accessible via `require('node:path').posix` or `require('node:path/po
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
   - version: v6.8.0
     pr-url: https://github.com/nodejs/node/pull/8523
     description: On Windows, the leading slashes for UNC paths are now included
                  in the return value.
 -->
 
-* `from` {string}
-* `to` {string}
+* `from` {string|URL}
+* `to` {string|URL}
 * Returns: {string}
 
 The `path.relative()` method returns the relative path from `from` to `to` based
@@ -513,15 +541,19 @@ path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb');
 // Returns: '..\\..\\impl\\bbb'
 ```
 
-A [`TypeError`][] is thrown if either `from` or `to` is not a string.
+A [`TypeError`][] is thrown if either `from` or `to` is not a string or an instance of [`URL`][].
 
 ## `path.resolve([...paths])`
 
 <!-- YAML
 added: v0.3.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
 -->
 
-* `...paths` {string} A sequence of paths or path segments
+* `...paths` {string|URL} A sequence of paths or path segments
 * Returns: {string}
 
 The `path.resolve()` method resolves a sequence of paths or path segments into
@@ -556,7 +588,7 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif');
 // this returns '/home/myself/node/wwwroot/static_files/gif/image.gif'
 ```
 
-A [`TypeError`][] is thrown if any of the arguments is not a string.
+A [`TypeError`][] is thrown if any of the arguments is not a string or an instance of [`URL`][].
 
 ## `path.sep`
 
@@ -593,14 +625,18 @@ slashes (`\`).
 
 <!-- YAML
 added: v9.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52672
+    description: Passing a file URL as an argument is now supported.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 On Windows systems only, returns an equivalent [namespace-prefixed path][] for
-the given `path`. If `path` is not a string, `path` will be returned without
-modifications.
+the given `path`. If `path` is not a string or URL, `path` will be returned
+without modifications.
 
 This method is meaningful only on Windows systems. On POSIX systems, the
 method is non-operational and always returns `path` without modifications.
@@ -624,6 +660,7 @@ The API is accessible via `require('node:path').win32` or `require('node:path/wi
 
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [`TypeError`]: errors.md#class-typeerror
+[`URL`]: url.md#the-whatwg-url-api
 [`path.parse()`]: #pathparsepath
 [`path.posix`]: #pathposix
 [`path.sep`]: #pathsep

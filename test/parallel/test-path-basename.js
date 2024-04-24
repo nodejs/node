@@ -69,6 +69,11 @@ assert.strictEqual(path.posix.basename('basename.ext\\'), 'basename.ext\\');
 assert.strictEqual(path.posix.basename('basename.ext\\\\'), 'basename.ext\\\\');
 assert.strictEqual(path.posix.basename('foo'), 'foo');
 
+assert.strictEqual(path.posix.basename(new URL('file:///basename.ext')), 'basename.ext');
+assert.strictEqual(path.posix.basename(new URL('file:///basename.ext'), '.ext'), 'basename');
+assert.strictEqual(path.win32.basename(new URL('file://C:\\basename.ext')), 'basename.ext');
+assert.strictEqual(path.win32.basename(new URL('file://C:\\basename.ext'), '.ext'), 'basename');
+
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
 const controlCharFilename = `Icon${String.fromCharCode(13)}`;

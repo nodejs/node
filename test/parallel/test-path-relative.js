@@ -32,6 +32,9 @@ const relativeTests = [
      ['\\\\foo\\baz', '\\\\foo\\baz-quux', '..\\baz-quux'],
      ['C:\\baz', '\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz'],
      ['\\\\foo\\bar\\baz', 'C:\\baz', 'C:\\baz'],
+
+     [new URL('file://C:\\foo\\bar\\baz\\quux'), 'C:\\', '..\\..\\..\\..'],
+     [new URL('file://C:\\foo\\test'), 'C:\\foo\\test\\bar\\package.json', 'bar\\package.json'],
     ],
   ],
   [ path.posix.relative,
@@ -49,6 +52,9 @@ const relativeTests = [
      ['/baz-quux', '/baz', '../baz'],
      ['/baz', '/baz-quux', '../baz-quux'],
      ['/page1/page2/foo', '/', '../../..'],
+
+     [new URL('file:///var/lib'), '/var', '..'],
+     [new URL('file:///var/lib'), '/bin', '../../bin'],
     ],
   ],
 ];

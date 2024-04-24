@@ -57,3 +57,8 @@ assert.strictEqual(path.win32.dirname(''), '.');
 assert.strictEqual(path.win32.dirname('/'), '/');
 assert.strictEqual(path.win32.dirname('////'), '/');
 assert.strictEqual(path.win32.dirname('foo'), '.');
+
+assert.strictEqual(path.posix.dirname(new URL('file:///a/b/')), '/a');
+assert.strictEqual(path.posix.dirname(new URL('file:///a/b')), '/a');
+assert.strictEqual(path.win32.dirname(new URL('file://C:\\a\\b\\')), 'C:\\a');
+assert.strictEqual(path.win32.dirname(new URL('file://C:\\a\\b')), 'C:\\a');

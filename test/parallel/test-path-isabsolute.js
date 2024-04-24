@@ -26,3 +26,8 @@ assert.strictEqual(path.posix.isAbsolute('/home/foo'), true);
 assert.strictEqual(path.posix.isAbsolute('/home/foo/..'), true);
 assert.strictEqual(path.posix.isAbsolute('bar/'), false);
 assert.strictEqual(path.posix.isAbsolute('./baz'), false);
+
+assert.strictEqual(path.posix.isAbsolute(new URL('file:///home/foo')), true);
+assert.strictEqual(path.posix.isAbsolute(new URL('file:///home/foo/..')), true);
+assert.strictEqual(path.win32.isAbsolute(new URL('file://C:\\Users\\')), true);
+assert.strictEqual(path.win32.isAbsolute(new URL('file://C:/Users/')), true);
