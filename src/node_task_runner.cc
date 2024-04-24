@@ -180,7 +180,10 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
   if (scripts_object[command_id].get_string().get(command)) {
-    fprintf(stderr, "Missing script: \"%.*s\"\n\n", static_cast<int>(command_id.size()), command_id.data());
+    fprintf(stderr,
+            "Missing script: \"%.*s\"\n\n",
+            static_cast<int>(command_id.size()),
+            command_id.data());
     fprintf(stderr, "Available scripts are:\n");
 
     // Reset the object to iterate over it again
@@ -193,8 +196,10 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
           !value.get_string().get(value_str)) {
         fprintf(stderr,
                 "  %.*s: %.*s\n",
-                static_cast<int>(key_str.size()), key_str.data(),
-                static_cast<int>(value_str.size()), value_str.data());
+                static_cast<int>(key_str.size()),
+                key_str.data(),
+                static_cast<int>(value_str.size()),
+                value_str.data());
       }
     }
     result.get()->exit_code_ = ExitCode::kGenericUserError;
