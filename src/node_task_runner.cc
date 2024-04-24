@@ -85,7 +85,6 @@ ProcessRunner::ProcessRunner(
   }
   uv_os_free_environ(env_items, env_count);
 
-
   for (int i = 0; i < env_count; i++) {
     options_.env[i] = const_cast<char*>(env_vars_[i].c_str());
   }
