@@ -482,8 +482,20 @@
     },
 
     'conditions': [
+      # Pointer authentication for ARM64.
       ['target_arch=="arm64"', {
-        'cflags': ['-mbranch-protection=standard'],  # Pointer authentication.
+          'target_conditions': [
+              ['_toolset=="host"', {
+                  'conditions': [
+                      ['host_arch=="arm64"', {
+                          'cflags': ['-mbranch-protection=standard'],
+                      }],
+                  ],
+              }],
+              ['_toolset=="target"', {
+                  'cflags': ['-mbranch-protection=standard'],
+              }],
+          ],
       }],
       ['OS in "aix os400"', {
         'ldflags': [
