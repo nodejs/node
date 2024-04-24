@@ -641,7 +641,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
 
@@ -660,7 +660,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   // Reset the globally tracked mocks.
   mock.timers.reset();
 
-  // If you call reset mock instance, it'll also reset timers instance
+  // If you call reset mock instance, it will also reset timers instance
   mock.reset();
 });
 ```
@@ -688,7 +688,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
