@@ -386,3 +386,14 @@ const regularFile = __filename;
     resource: path.toNamespacedPath(blockedFile),
   }));
 }
+
+// process.chdir
+{
+  assert.throws(() => {
+    process.chdir(blockedFolder);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: blockedFolder,
+  }));
+}
