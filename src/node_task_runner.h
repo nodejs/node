@@ -16,7 +16,7 @@ namespace task_runner {
 
 class ProcessRunner {
  public:
-  ProcessRunner(std::unique_ptr<InitializationResultImpl>* result,
+  ProcessRunner(std::shared_ptr<InitializationResultImpl>& result,
                 std::string_view command_id,
                 const std::optional<std::string>& positional_args);
   void Run();
@@ -29,14 +29,14 @@ class ProcessRunner {
   uv_process_t process_{};
   uv_process_options_t options_{};
   uv_stdio_container_t child_stdio[3];
-  std::unique_ptr<InitializationResultImpl>* init_result;
+  std::shared_ptr<InitializationResultImpl> init_result;
   std::vector<std::string> command_args_{};
   std::vector<std::string> env_vars_{};
 
   void OnExit(int64_t exit_status, int term_signal);
 };
 
-void RunTask(std::unique_ptr<InitializationResultImpl>* result,
+void RunTask(std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::optional<std::string>& positional_args);
 std::optional<std::string> GetPositionalArgs(

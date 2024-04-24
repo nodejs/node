@@ -1022,11 +1022,11 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       InitializeNodeWithArgsInternal(argv, exec_argv, errors, flags));
 }
 
-static std::unique_ptr<InitializationResultImpl>
+static std::shared_ptr<InitializationResultImpl>
 InitializeOncePerProcessInternal(const std::vector<std::string>& args,
                                  ProcessInitializationFlags::Flags flags =
                                      ProcessInitializationFlags::kNoFlags) {
-  auto result = std::make_unique<InitializationResultImpl>();
+  auto result = std::make_shared<InitializationResultImpl>();
   result->args_ = args;
 
   if (!(flags & ProcessInitializationFlags::kNoParseGlobalDebugVariables)) {
@@ -1068,7 +1068,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
     task_runner::RunTask(
-        &result, per_process::cli_options->run, positional_args);
+        result, per_process::cli_options->run, positional_args);
     return result;
   }
 
@@ -1231,7 +1231,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   return result;
 }
 
-std::unique_ptr<InitializationResult> InitializeOncePerProcess(
+std::shared_ptr<InitializationResult> InitializeOncePerProcess(
     const std::vector<std::string>& args,
     ProcessInitializationFlags::Flags flags) {
   return InitializeOncePerProcessInternal(args, flags);
@@ -1437,7 +1437,7 @@ static ExitCode StartInternal(int argc, char** argv) {
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
-  std::unique_ptr<InitializationResultImpl> result =
+  std::shared_ptr<InitializationResultImpl> result =
       InitializeOncePerProcessInternal(
           std::vector<std::string>(argv, argv + argc));
   for (const std::string& error : result->errors()) {

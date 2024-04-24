@@ -16,7 +16,7 @@ static const char task_file[] = "/bin/sh";
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(
-    std::unique_ptr<InitializationResultImpl>* result,
+    std::shared_ptr<InitializationResultImpl>& result,
     std::string_view command,
     const std::optional<std::string>& positional_args) {
   memset(&options_, 0, sizeof(uv_process_options_t));
@@ -130,9 +130,9 @@ void ProcessRunner::ExitCallback(uv_process_t* handle,
 
 void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
   if (exit_status > 0) {
-    init_result->get()->exit_code_ = ExitCode::kGenericUserError;
+    init_result.get()->exit_code_ = ExitCode::kGenericUserError;
   } else {
-    init_result->get()->exit_code_ = ExitCode::kNoFailure;
+    init_result.get()->exit_code_ = ExitCode::kNoFailure;
   }
 }
 
@@ -144,7 +144,7 @@ void ProcessRunner::Run() {
   uv_run(loop_, UV_RUN_DEFAULT);
 }
 
-void RunTask(std::unique_ptr<InitializationResultImpl>* result,
+void RunTask(std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::optional<std::string>& positional_args) {
   std::string_view path = "package.json";
@@ -153,7 +153,7 @@ void RunTask(std::unique_ptr<InitializationResultImpl>* result,
   // No need to exclude BOM since simdjson will skip it.
   if (ReadFileSync(&raw_json, path.data()) < 0) {
     fprintf(stderr, "Can't read package.json\n");
-    result->get()->exit_code_ = ExitCode::kGenericUserError;
+    result.get()->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
@@ -165,22 +165,22 @@ void RunTask(std::unique_ptr<InitializationResultImpl>* result,
   // If document is not an object, throw an error.
   if (error || document.get_object().get(main_object)) {
     fprintf(stderr, "Can't parse package.json\n");
-    result->get()->exit_code_ = ExitCode::kGenericUserError;
+    result.get()->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
   // If package_json object doesn't have "scripts" field, throw an error.
   simdjson::ondemand::object scripts_object;
-  if (main_object.find_field("scripts").get_object().get(scripts_object)) {
+  if (main_object["scripts"].get_object().get(scripts_object)) {
     fprintf(stderr, "Can't find \"scripts\" field in package.json\n");
-    result->get()->exit_code_ = ExitCode::kGenericUserError;
+    result.get()->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
   // If the command_id is not found in the scripts object, throw an error.
   std::string_view command;
-  if (scripts_object.find_field(command_id).get_string().get(command)) {
-    fprintf(stderr, "Missing script: \"%s\"\n\n", command_id.data());
+  if (scripts_object[command_id].get_string().get(command)) {
+    fprintf(stderr, "Missing script: \"%.*s\"\n\n", static_cast<int>(command_id.size()), command_id.data());
     fprintf(stderr, "Available scripts are:\n");
 
     // Reset the object to iterate over it again
@@ -192,12 +192,12 @@ void RunTask(std::unique_ptr<InitializationResultImpl>* result,
       if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
           !value.get_string().get(value_str)) {
         fprintf(stderr,
-                "  %s: %s\n",
-                std::string(key_str).c_str(),
-                std::string(value_str).c_str());
+                "  %.*s: %.*s\n",
+                static_cast<int>(key_str.size()), key_str.data(),
+                static_cast<int>(value_str.size()), value_str.data());
       }
     }
-    result->get()->exit_code_ = ExitCode::kGenericUserError;
+    result.get()->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
