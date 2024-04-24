@@ -1,7 +1,13 @@
 'use strict';
-const common = require('../common');
+
+require('../common');
+const assert = require('assert');
+const tmpdir = require('../common/tmpdir');
 const repl = require('repl');
 
-var r = repl.start({});
-r.setupHistory(__dirname + '/history', () => { }); // Different results will occur here
+tmpdir.refresh();
+const r = repl.start({});
+const historyPath = tmpdir.resolve('.history');
+
+r.setupHistory(historyPath, () => { assert.strictEqual(r.closed, true); });
 r.close();
