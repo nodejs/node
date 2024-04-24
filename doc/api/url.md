@@ -1151,13 +1151,23 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 // Prints an empty string
 ```
 
-### `url.fileURLToPath(url)`
+### `url.fileURLToPath(url[, options])`
 
 <!-- YAML
 added: v10.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52509
+    description: The `options` argument can now be used to
+                 determine how to parse the `path` argument.
 -->
 
 * `url` {URL | string} The file URL string or URL object to convert to a path.
+* `options` {Object}
+  * `windows` {boolean|undefined} `true` if the `path` should be
+    return as a windows filepath, `false` for posix, and
+    `undefined` for the system default.
+    **Default:** `undefined`.
 * Returns: {string} The fully-resolved platform-specific Node.js file path.
 
 This function ensures the correct decodings of percent-encoded characters as
@@ -1251,13 +1261,23 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 // Prints 'https://測試/?abc'
 ```
 
-### `url.pathToFileURL(path)`
+### `url.pathToFileURL(path[, options])`
 
 <!-- YAML
 added: v10.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52509
+    description: The `options` argument can now be used to
+                 determine how to return the `path` value.
 -->
 
 * `path` {string} The path to convert to a File URL.
+* `options` {Object}
+  * `windows` {boolean|undefined} `true` if the `path` should be
+    treated as a windows filepath, `false` for posix, and
+    `undefined` for the system default.
+    **Default:** `undefined`.
 * Returns: {URL} The file URL object.
 
 This function ensures that `path` is resolved absolutely, and that the URL
