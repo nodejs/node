@@ -65,7 +65,8 @@ ProcessRunner::ProcessRunner(
   // Set environment variables
   uv_env_item_t* env_items;
   int env_count;
-  CHECK_EQ(uv_os_environ(&env_items, &env_count), 0);
+  int r = uv_os_environ(&env_items, &env_count);
+  CHECK_EQ(r, 0);
   options_.env =
       reinterpret_cast<char**>(malloc(sizeof(char*) * (env_count + 1)));
 
@@ -82,6 +83,8 @@ ProcessRunner::ProcessRunner(
     value.insert(0, name + "=");
     env_vars_.push_back(value);
   }
+  uv_os_free_environ(env_items, env_count);
+
 
   for (int i = 0; i < env_count; i++) {
     options_.env[i] = const_cast<char*>(env_vars_[i].c_str());
