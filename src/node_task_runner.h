@@ -16,7 +16,7 @@ namespace task_runner {
 
 class ProcessRunner {
  public:
-  ProcessRunner(std::shared_ptr<InitializationResultImpl>& result,
+  ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
                 std::string_view command_id,
                 const std::optional<std::string>& positional_args);
   void Run();
@@ -36,7 +36,7 @@ class ProcessRunner {
   void OnExit(int64_t exit_status, int term_signal);
 };
 
-void RunTask(std::shared_ptr<InitializationResultImpl>& result,
+void RunTask(std::shared_ptr<InitializationResultImpl> result,
              std::string_view command_id,
              const std::optional<std::string>& positional_args);
 std::optional<std::string> GetPositionalArgs(

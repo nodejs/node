@@ -16,7 +16,7 @@ static const char task_file[] = "/bin/sh";
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(
-    std::shared_ptr<InitializationResultImpl>& result,
+    std::shared_ptr<InitializationResultImpl> result,
     std::string_view command,
     const std::optional<std::string>& positional_args) {
   memset(&options_, 0, sizeof(uv_process_options_t));
@@ -144,7 +144,7 @@ void ProcessRunner::Run() {
   uv_run(loop_, UV_RUN_DEFAULT);
 }
 
-void RunTask(std::shared_ptr<InitializationResultImpl>& result,
+void RunTask(std::shared_ptr<InitializationResultImpl> result,
              std::string_view command_id,
              const std::optional<std::string>& positional_args) {
   std::string_view path = "package.json";
