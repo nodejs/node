@@ -32,8 +32,8 @@ class ProcessRunner {
   std::shared_ptr<InitializationResultImpl> init_result;
   std::vector<std::string> command_args_{};
   std::vector<std::string> env_vars_{};
-  std::unique_ptr<char*[]> env{}; // memory for options_.env
-  std::unique_ptr<char*[]> arg{}; // memory for options_.args
+  std::unique_ptr<char* []> env {};  // memory for options_.env
+  std::unique_ptr<char* []> arg {};  // memory for options_.args
 
   void OnExit(int64_t exit_status, int term_signal);
 };
