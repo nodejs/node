@@ -1120,6 +1120,12 @@ void Environment::InitializeCompileCache() {
       dir_from_env.empty()) {
     return;
   }
+  if (!options()->experimental_policy.empty()) {
+    Debug(this,
+          DebugCategory::COMPILE_CACHE,
+          "[compile cache] skipping cache because policy is enabled");
+    return;
+  }
   auto handler = std::make_unique<CompileCacheHandler>(this);
   if (handler->InitializeDirectory(this, dir_from_env)) {
     compile_cache_handler_ = std::move(handler);
