@@ -56,7 +56,8 @@ ProcessRunner::ProcessRunner(
   command_args_ = {options_.file, "-c", command_str};
   auto argc = command_args_.size();
   CHECK_GE(argc, 1);
-  options_.args = new char*[argc + 1];
+  arg = std::unique_ptr<char*[]>(new char*[argc + 1]);
+  options_.args = arg.get();
   for (size_t i = 0; i < argc; ++i) {
     options_.args[i] = const_cast<char*>(command_args_[i].c_str());
   }
@@ -67,8 +68,8 @@ ProcessRunner::ProcessRunner(
   int env_count;
   int r = uv_os_environ(&env_items, &env_count);
   CHECK_EQ(r, 0);
-  options_.env =
-      reinterpret_cast<char**>(malloc(sizeof(char*) * (env_count + 1)));
+  env = std::unique_ptr<char*[]>(new char*[env_count + 1]);
+  options_.env = env.get();
 
   // Iterate over environment variables once to store them in the current
   // ProcessRunner instance
