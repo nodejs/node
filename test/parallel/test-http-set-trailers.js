@@ -90,7 +90,8 @@ function testClientTrailers(port, callback) {
 }
 
 const server = http.createServer((req, res) => {
-  res.writeHead(200, [['content-type', 'text/plain']]);
+  res.writeHead(200, [['content-type', 'text/plain'], ['trailers', 'x-foo'] ['transfer-encoding', 'chunked']]);
+  res.write('stuff\n');
   res.addTrailers({ 'x-foo': 'bar' });
   res.end('stuff\n');
 });
