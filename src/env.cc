@@ -921,6 +921,9 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kWorkerThreads);
     }
+    if (!options_->allow_wasi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
+    }
 
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(this,

@@ -1,14 +1,15 @@
-#include "env-inl.h"
+#include "node_wasi.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
+#include "env-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_mem-inl.h"
-#include "util-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_mem-inl.h"
+#include "permission/permission.h"
+#include "util-inl.h"
 #include "uv.h"
 #include "uvwasi.h"
-#include "node_wasi.h"
 
 namespace node {
 namespace wasi {
@@ -77,6 +78,8 @@ static MaybeLocal<Value> WASIException(Local<Context> context,
 WASI::WASI(Environment* env,
            Local<Object> object,
            uvwasi_options_t* options) : BaseObject(env, object) {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kWASI, "");
   MakeWeak();
   alloc_info_ = MakeAllocator();
   options->allocator = &alloc_info_;
