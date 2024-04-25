@@ -46,6 +46,8 @@ const loadLogFile = async (t, { buffer = [], mocks, testdir = {}, ...options } =
   const MockLogFile = tmock(t, '{LIB}/utils/log-file.js', mocks)
   const logFile = new MockLogFile(Object.keys(options).length ? options : undefined)
 
+  // Create a fake public method since there is not one on logFile anymore
+  logFile.log = (...b) => process.emit('log', ...b)
   buffer.forEach((b) => logFile.log(...b))
 
   const id = getId()

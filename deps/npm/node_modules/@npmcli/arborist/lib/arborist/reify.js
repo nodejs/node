@@ -7,7 +7,7 @@ const npa = require('npm-package-arg')
 const semver = require('semver')
 const debug = require('../debug.js')
 const { walkUp } = require('walk-up-path')
-const log = require('proc-log')
+const { log, time } = require('proc-log')
 const hgi = require('hosted-git-info')
 const rpj = require('read-package-json-fast')
 
@@ -149,7 +149,7 @@ module.exports = cls => class Reifier extends cls {
 
     // start tracker block
     this.addTracker('reify')
-    process.emit('time', 'reify')
+    const timeEnd = time.start('reify')
     await this[_validatePath]()
     await this[_loadTrees](options)
 
@@ -174,7 +174,7 @@ module.exports = cls => class Reifier extends cls {
     this.auditReport = await this.auditReport
 
     this.finishTracker('reify')
-    process.emit('timeEnd', 'reify')
+    timeEnd()
     return treeCheck(this.actualTree)
   }
 
@@ -269,7 +269,7 @@ module.exports = cls => class Reifier extends cls {
   // when doing a local install, we load everything and figure it all out.
   // when doing a global install, we *only* care about the explicit requests.
   [_loadTrees] (options) {
-    process.emit('time', 'reify:loadTrees')
+    const timeEnd = time.start('reify:loadTrees')
     const bitOpt = {
       ...options,
       complete: this[_packageLockOnly] || this[_dryRun],
@@ -277,8 +277,7 @@ module.exports = cls => class Reifier extends cls {
 
     // if we're only writing a package lock, then it doesn't matter what's here
     if (this[_packageLockOnly]) {
-      return this.buildIdealTree(bitOpt)
-        .then(() => process.emit('timeEnd', 'reify:loadTrees'))
+      return this.buildIdealTree(bitOpt).then(timeEnd)
     }
 
     const actualOpt = this.options.global ? {
@@ -312,7 +311,7 @@ module.exports = cls => class Reifier extends cls {
       return Promise.all([
         this.loadActual(actualOpt),
         this.buildIdealTree(bitOpt),
-      ]).then(() => process.emit('timeEnd', 'reify:loadTrees'))
+      ]).then(timeEnd)
     }
 
     // the global install space tends to have a lot of stuff in it.  don't
@@ -322,7 +321,7 @@ module.exports = cls => class Reifier extends cls {
     // explicitRequests which is set during buildIdealTree
     return this.buildIdealTree(bitOpt)
       .then(() => this.loadActual(actualOpt))
-      .then(() => process.emit('timeEnd', 'reify:loadTrees'))
+      .then(timeEnd)
   }
 
   [_diffTrees] () {
@@ -330,7 +329,7 @@ module.exports = cls => class Reifier extends cls {
       return
     }
 
-    process.emit('time', 'reify:diffTrees')
+    const timeEnd = time.start('reify:diffTrees')
     // XXX if we have an existing diff already, there should be a way
     // to just invalidate the parts that changed, but avoid walking the
     // whole tree again.
@@ -397,7 +396,7 @@ module.exports = cls => class Reifier extends cls {
     // because if we remove node_modules/FOO on case-insensitive systems,
     // it will remove the dep that we *want* at node_modules/foo.
 
-    process.emit('timeEnd', 'reify:diffTrees')
+    timeEnd()
   }
 
   // add the node and all its bins to the list of things to be
@@ -422,7 +421,7 @@ module.exports = cls => class Reifier extends cls {
   // move aside the shallowest nodes in the tree that have to be
   // changed or removed, so that we can rollback if necessary.
   [_retireShallowNodes] () {
-    process.emit('time', 'reify:retireShallow')
+    const timeEnd = time.start('reify:retireShallow')
     const moves = this[_retiredPaths] = {}
     for (const diff of this.diff.children) {
       if (diff.action === 'CHANGE' || diff.action === 'REMOVE') {
@@ -433,8 +432,7 @@ module.exports = cls => class Reifier extends cls {
     log.silly('reify', 'moves', moves)
     const movePromises = Object.entries(moves)
       .map(([from, to]) => this[_renamePath](from, to))
-    return promiseAllRejectLate(movePromises)
-      .then(() => process.emit('timeEnd', 'reify:retireShallow'))
+    return promiseAllRejectLate(movePromises).then(timeEnd)
   }
 
   [_renamePath] (from, to, didMkdirp = false) {
@@ -456,14 +454,14 @@ module.exports = cls => class Reifier extends cls {
   }
 
   [_rollbackRetireShallowNodes] (er) {
-    process.emit('time', 'reify:rollback:retireShallow')
+    const timeEnd = time.start('reify:rollback:retireShallow')
     const moves = this[_retiredPaths]
     const movePromises = Object.entries(moves)
       .map(([from, to]) => this[_renamePath](to, from))
     return promiseAllRejectLate(movePromises)
       // ignore subsequent rollback errors
       .catch(er => {})
-      .then(() => process.emit('timeEnd', 'reify:rollback:retireShallow'))
+      .then(timeEnd)
       .then(() => {
         throw er
       })
@@ -476,7 +474,7 @@ module.exports = cls => class Reifier extends cls {
       return
     }
 
-    process.emit('time', 'reify:trashOmits')
+    const timeEnd = time.start('reify:trashOmits')
 
     for (const node of this.idealTree.inventory.values()) {
       const { top } = node
@@ -503,11 +501,11 @@ module.exports = cls => class Reifier extends cls {
       }
     }
 
-    process.emit('timeEnd', 'reify:trashOmits')
+    timeEnd()
   }
 
   [_createSparseTree] () {
-    process.emit('time', 'reify:createSparse')
+    const timeEnd = time.start('reify:createSparse')
     // if we call this fn again, we look for the previous list
     // so that we can avoid making the same directory multiple times
     const leaves = this.diff.leaves
@@ -550,12 +548,11 @@ module.exports = cls => class Reifier extends cls {
       if (made) {
         this[_sparseTreeRoots].add(made)
       }
-    }))
-      .then(() => process.emit('timeEnd', 'reify:createSparse'))
+    })).then(timeEnd)
   }
 
   [_rollbackCreateSparseTree] (er) {
-    process.emit('time', 'reify:rollback:createSparse')
+    const timeEnd = time.start('reify:rollback:createSparse')
     // cut the roots of the sparse tree that were created, not the leaves
     const roots = this[_sparseTreeRoots]
     // also delete the moves that we retired, so that we can move them back
@@ -569,7 +566,7 @@ module.exports = cls => class Reifier extends cls {
         log.warn('cleanup', 'Failed to remove some directories', failures)
       }
     })
-      .then(() => process.emit('timeEnd', 'reify:rollback:createSparse'))
+      .then(timeEnd)
       .then(() => this[_rollbackRetireShallowNodes](er))
   }
 
@@ -587,7 +584,7 @@ module.exports = cls => class Reifier extends cls {
       return
     }
 
-    process.emit('time', 'reify:loadShrinkwraps')
+    const timeEnd = time.start('reify:loadShrinkwraps')
 
     const Arborist = this.constructor
     return promiseAllRejectLate(shrinkwraps.map(diff => {
@@ -604,7 +601,7 @@ module.exports = cls => class Reifier extends cls {
       .then(() => this[_createSparseTree]())
       .then(() => this[_addOmitsToTrashList]())
       .then(() => this[_loadShrinkwrapsAndUpdateTrees]())
-      .then(() => process.emit('timeEnd', 'reify:loadShrinkwraps'))
+      .then(timeEnd)
   }
 
   // create a symlink for Links, extract for Nodes
@@ -619,8 +616,7 @@ module.exports = cls => class Reifier extends cls {
       return node
     }
 
-    const timer = `reifyNode:${node.location}`
-    process.emit('time', timer)
+    const timeEnd = time.start(`reifyNode:${node.location}`)
     this.addTracker('reify', node.name, node.location)
 
     const { npmVersion, nodeVersion, cpu, os, libc } = this.options
@@ -643,7 +639,7 @@ module.exports = cls => class Reifier extends cls {
     return this[_handleOptionalFailure](node, p)
       .then(() => {
         this.finishTracker('reify', node.name, node.location)
-        process.emit('timeEnd', timer)
+        timeEnd()
         return node
       })
   }
@@ -786,7 +782,7 @@ module.exports = cls => class Reifier extends cls {
     depth = 0, bundlesByDepth = this[_getBundlesByDepth]()
   ) {
     if (depth === 0) {
-      process.emit('time', 'reify:loadBundles')
+      time.start('reify:loadBundles')
     }
 
     const maxBundleDepth = bundlesByDepth.get('maxBundleDepth')
@@ -796,7 +792,7 @@ module.exports = cls => class Reifier extends cls {
         this[_pruneBundledMetadeps](bundlesByDepth)
         this[_diffTrees]()
       }
-      process.emit('timeEnd', 'reify:loadBundles')
+      time.end('reify:loadBundles')
       return
     }
 
@@ -981,7 +977,7 @@ module.exports = cls => class Reifier extends cls {
     // before finishing the reify() and returning the tree.  Thus, we do
     // NOT return the promise, as the intent is for this to run in parallel
     // with the reification, and be resolved at a later time.
-    process.emit('time', 'reify:audit')
+    const timeEnd = time.start('reify:audit')
     const options = { ...this.options }
     const tree = this.idealTree
 
@@ -995,7 +991,7 @@ module.exports = cls => class Reifier extends cls {
     }
 
     this.auditReport = AuditReport.load(tree, options).then(res => {
-      process.emit('timeEnd', 'reify:audit')
+      timeEnd()
       return res
     })
   }
@@ -1005,7 +1001,7 @@ module.exports = cls => class Reifier extends cls {
   // kicking off each unpack job.  If any fail, we rm the sparse
   // tree entirely and try to put everything back where it was.
   [_unpackNewModules] () {
-    process.emit('time', 'reify:unpack')
+    const timeEnd = time.start('reify:unpack')
     const unpacks = []
     dfwalk({
       tree: this.diff,
@@ -1038,8 +1034,7 @@ module.exports = cls => class Reifier extends cls {
       },
       getChildren: diff => diff.children,
     })
-    return promiseAllRejectLate(unpacks)
-      .then(() => process.emit('timeEnd', 'reify:unpack'))
+    return promiseAllRejectLate(unpacks).then(timeEnd)
   }
 
   // This is the part where we move back the unchanging nodes that were
@@ -1054,7 +1049,7 @@ module.exports = cls => class Reifier extends cls {
     // This is sort of an inverse diff tree, of all the nodes where
     // the actualTree and idealTree _don't_ differ, starting from the
     // shallowest nodes that we moved aside in the first place.
-    process.emit('time', 'reify:unretire')
+    const timeEnd = time.start('reify:unretire')
     const moves = this[_retiredPaths]
     this[_retiredUnchanged] = {}
     return promiseAllRejectLate(this.diff.children.map(diff => {
@@ -1102,8 +1097,7 @@ module.exports = cls => class Reifier extends cls {
         const dir = bd && bd.length ? node.path + '/node_modules' : node.path
         return mkdir(dir, { recursive: true }).then(() => this[_moveContents](node, fromPath))
       }))
-    }))
-      .then(() => process.emit('timeEnd', 'reify:unretire'))
+    })).then(timeEnd)
   }
 
   // move the contents from the fromPath to the node.path
@@ -1135,7 +1129,7 @@ module.exports = cls => class Reifier extends cls {
   }
 
   [_build] () {
-    process.emit('time', 'reify:build')
+    const timeEnd = time.start('reify:build')
 
     // for all the things being installed, run their appropriate scripts
     // run in tip->root order, so as to be more likely to build a node's
@@ -1167,8 +1161,7 @@ module.exports = cls => class Reifier extends cls {
       }
     }
 
-    return this.rebuild({ nodes, handleOptionalFailure: true })
-      .then(() => process.emit('timeEnd', 'reify:build'))
+    return this.rebuild({ nodes, handleOptionalFailure: true }).then(timeEnd)
   }
 
   // the tree is pretty much built now, so it's cleanup time.
@@ -1176,7 +1169,7 @@ module.exports = cls => class Reifier extends cls {
   // If this fails, there isn't much we can do but tell the user about it.
   // Thankfully, it's pretty unlikely that it'll fail, since rm is a node builtin.
   async [_removeTrash] () {
-    process.emit('time', 'reify:trash')
+    const timeEnd = time.start('reify:trash')
     const promises = []
     const failures = []
     const _rm = path => rm(path, { recursive: true, force: true }).catch(er => failures.push([path, er]))
@@ -1189,7 +1182,8 @@ module.exports = cls => class Reifier extends cls {
     if (failures.length) {
       log.warn('cleanup', 'Failed to remove some directories', failures)
     }
-    process.emit('timeEnd', 'reify:trash')
+
+    timeEnd()
   }
 
   // last but not least, we save the ideal tree metadata to the package-lock
@@ -1222,7 +1216,7 @@ module.exports = cls => class Reifier extends cls {
       return false
     }
 
-    process.emit('time', 'reify:save')
+    const timeEnd = time.start('reify:save')
 
     const updatedTrees = new Set()
     const updateNodes = nodes => {
@@ -1460,7 +1454,7 @@ module.exports = cls => class Reifier extends cls {
       })
     }
 
-    process.emit('timeEnd', 'reify:save')
+    timeEnd()
     return true
   }
 
@@ -1571,17 +1565,14 @@ module.exports = cls => class Reifier extends cls {
         const { scripts = {} } = pkg
         for (const event of ['predependencies', 'dependencies', 'postdependencies']) {
           if (Object.prototype.hasOwnProperty.call(scripts, event)) {
-            const timer = `reify:run:${event}`
-            process.emit('time', timer)
             log.info('run', pkg._id, event, scripts[event])
-            await runScript({
+            await time.start(`reify:run:${event}`, () => runScript({
               event,
               path,
               pkg,
               stdio,
               scriptShell: this.options.scriptShell,
-            })
-            process.emit('timeEnd', timer)
+            }))
           }
         }
       }

@@ -1,5 +1,5 @@
 const profile = require('npm-profile')
-const log = require('../utils/log-shim')
+const { log } = require('proc-log')
 const openUrlPrompt = require('../utils/open-url-prompt.js')
 const read = require('../utils/read-user-info.js')
 const otplease = require('../utils/otplease.js')

@@ -850,6 +850,12 @@ version of a package is used everywhere, then you may add an override.</p>
 <p>Overrides provide a way to replace a package in your dependency tree with
 another version, or another package entirely. These changes can be scoped as
 specific or as vague as desired.</p>
+<p>Overrides are only considered in the root <code>package.json</code> file for a project.
+Overrides in installed dependencies (including
+<a href="../using-npm/workspaces.html">workspaces</a>) are not considered in dependency tree
+resolution. Published packages may dictate their resolutions by pinning
+dependencies or using an
+<a href="../configuring-npm/npm-shrinkwrap-json.html"><code>npm-shrinkwrap.json</code></a> file.</p>
 <p>To make sure the package <code>foo</code> is always installed as version <code>1.0.0</code> no matter
 what version your dependencies rely on:</p>
 <pre><code class="language-json">{

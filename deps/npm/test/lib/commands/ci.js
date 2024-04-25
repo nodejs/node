@@ -164,7 +164,6 @@ t.test('lifecycle scripts', async t => {
     },
     mocks: {
       '@npmcli/run-script': (opts) => {
-        t.ok(opts.banner)
         scripts.push(opts.event)
       },
     },

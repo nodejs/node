@@ -5,7 +5,7 @@ const { HttpErrorBase } = require('npm-registry-fetch/lib/errors')
 const EventEmitter = require('events')
 const os = require('os')
 const { URL } = require('url')
-const log = require('proc-log')
+const { log } = require('proc-log')
 
 // try loginWeb, catch the "not supported" message and fall back to couch
 const login = (opener, prompter, opts = {}) => {

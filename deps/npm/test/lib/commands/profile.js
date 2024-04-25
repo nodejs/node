@@ -9,13 +9,6 @@ const mockProfile = async (t, { npmProfile, readUserInfo, qrcode, config, ...opt
       async createToken () {},
     },
     'qrcode-terminal': qrcode || { generate: (url, cb) => cb() },
-    'cli-table3': class extends Array {
-      toString () {
-        return this.filter(Boolean)
-          .map(i => [...Object.entries(i)].map(v => v.join(': ')))
-          .join('\n')
-      }
-    },
     '{LIB}/utils/read-user-info.js': readUserInfo || {
       async password () {},
       async otp () {},
@@ -94,16 +87,6 @@ t.test('profile get no args', async t => {
 
     await profile.exec(['get'])
     t.matchSnapshot(result(), 'should output all profile info as parseable result')
-  })
-
-  t.test('--color', async t => {
-    const { profile, result } = await mockProfile(t, {
-      npmProfile: defaultNpmProfile,
-      config: { color: 'always' },
-    })
-
-    await profile.exec(['get'])
-    t.matchSnapshot(result(), 'should output all profile info with color result')
   })
 
   t.test('no tfa enabled', async t => {
@@ -473,8 +456,8 @@ t.test('profile set <key> <value>', async t => {
     await profile.exec(['set', 'password'])
 
     t.equal(
-      logs.warn[0][1],
-      'Passwords do not match, please try again.',
+      logs.warn.byTitle('profile')[0],
+      'profile Passwords do not match, please try again.',
       'should log password mismatch message'
     )
 

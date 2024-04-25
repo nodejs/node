@@ -1,8 +1,7 @@
-// dedupe duplicated packages, or find them in the tree
 const reifyFinish = require('../utils/reify-finish.js')
-
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
+// dedupe duplicated packages, or find them in the tree
 class Dedupe extends ArboristWorkspaceCmd {
   static description = 'Reduce duplication in the package tree'
   static name = 'dedupe'

@@ -1,19 +1,16 @@
-const { format } = require('util')
-const { resolve } = require('path')
+const { format } = require('node:util')
+const { resolve } = require('node:path')
 const { redactLog: replaceInfo } = require('@npmcli/redact')
-const { report } = require('./explain-eresolve.js')
-const log = require('./log-shim')
+const { log } = require('proc-log')
 
 const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
 
 const jsonError = (er, npm, { summary, detail }) => {
   if (npm?.config.loaded && npm.config.get('json')) {
     return {
-      error: {
-        code: er.code,
-        summary: messageText(summary),
-        detail: messageText(detail),
-      },
+      code: er.code,
+      summary: messageText(summary),
+      detail: messageText(detail),
     }
   }
 }
@@ -32,6 +29,7 @@ const errorMessage = (er, npm) => {
 
   switch (er.code) {
     case 'ERESOLVE': {
+      const { report } = require('./explain-eresolve.js')
       short.push(['ERESOLVE', er.message])
       detail.push(['', ''])
       // XXX(display): error messages are logged so we use the logColor since that is based
@@ -77,9 +75,7 @@ const errorMessage = (er, npm) => {
         npm.config.loaded &&
         er.dest.startsWith(npm.config.get('cache'))
 
-      const { isWindows } = require('./is-windows.js')
-
-      if (!isWindows && (isCachePath || isCacheDest)) {
+      if (process.platform !== 'win32' && (isCachePath || isCacheDest)) {
         // user probably doesn't need this, but still add it to the debug log
         log.verbose(er.stack)
         short.push([
@@ -101,7 +97,7 @@ const errorMessage = (er, npm) => {
           '',
           [
             '\nThe operation was rejected by your operating system.',
-            isWindows
+            process.platform === 'win32'
               /* eslint-disable-next-line max-len */
               ? "It's possible that the file was already in use (by a text editor or antivirus),\n" +
                 'or that you lack permissions to access it.'

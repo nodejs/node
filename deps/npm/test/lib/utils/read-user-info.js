@@ -28,12 +28,10 @@ const npmUserValidate = {
 let logMsg = null
 const readUserInfo = tmock(t, '{LIB}/utils/read-user-info.js', {
   read,
-  npmlog: {
-    clearProgress: () => {},
-    showProgress: () => {},
-  },
   'proc-log': {
-    warn: (msg) => logMsg = msg,
+    log: {
+      warn: (msg) => logMsg = msg,
+    },
   },
   'npm-user-validate': npmUserValidate,
 })

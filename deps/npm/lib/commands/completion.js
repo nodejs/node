@@ -27,22 +27,22 @@
 // Matches are wrapped with ' to escape them, if necessary, and then printed
 // one per line for the shell completion method to consume in IFS=$'\n' mode
 // as an array.
-//
 
 const fs = require('fs/promises')
 const nopt = require('nopt')
 const { resolve } = require('path')
-
+const { output } = require('proc-log')
 const Npm = require('../npm.js')
 const { definitions, shorthands } = require('@npmcli/config/lib/definitions')
 const { commands, aliases, deref } = require('../utils/cmd-list.js')
+const { isWindowsShell } = require('../utils/is-windows.js')
+const BaseCommand = require('../base-cmd.js')
+
+const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => false)
+
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
-const { isWindowsShell } = require('../utils/is-windows.js')
-const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => false)
-
-const BaseCommand = require('../base-command.js')
 
 class Completion extends BaseCommand {
   static description = 'Tab Completion for npm'
@@ -185,7 +185,7 @@ class Completion extends BaseCommand {
     }
 
     if (compls.length > 0) {
-      this.npm.output(compls.join('\n'))
+      output.standard(compls.join('\n'))
     }
   }
 }

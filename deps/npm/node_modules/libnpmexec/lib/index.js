@@ -4,9 +4,8 @@ const { mkdir } = require('fs/promises')
 const Arborist = require('@npmcli/arborist')
 const ciInfo = require('ci-info')
 const crypto = require('crypto')
-const log = require('proc-log')
+const { log } = require('proc-log')
 const npa = require('npm-package-arg')
-const npmlog = require('npmlog')
 const pacote = require('pacote')
 const { read } = require('read')
 const semver = require('semver')
@@ -84,7 +83,6 @@ const exec = async (opts) => {
     locationMsg = undefined,
     globalBin = '',
     globalPath,
-    output,
     // dereference values because we manipulate it later
     packages: [...packages] = [],
     path = '.',
@@ -99,7 +97,6 @@ const exec = async (opts) => {
     call,
     flatOptions,
     locationMsg,
-    output,
     path,
     binPaths,
     runPath,
@@ -264,7 +261,6 @@ const exec = async (opts) => {
           const prompt = `Need to install the following packages:\n${
           addList
         }Ok to proceed? `
-          npmlog.clearProgress()
           const confirm = await read({ prompt, default: 'y' })
           if (confirm.trim().toLowerCase().charAt(0) !== 'y') {
             throw new Error('canceled')

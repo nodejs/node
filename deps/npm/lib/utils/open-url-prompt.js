@@ -1,4 +1,5 @@
 const readline = require('readline')
+const { output } = require('proc-log')
 const open = require('./open-url.js')
 
 function print (npm, title, url) {
@@ -6,7 +7,7 @@ function print (npm, title, url) {
 
   const message = json ? JSON.stringify({ title, url }) : `${title}:\n${url}`
 
-  npm.output(message)
+  output.standard(message)
 }
 
 // Prompt to open URL in browser if possible
@@ -48,7 +49,7 @@ const promptOpen = async (npm, url, title, prompt, emitter) => {
         rl.close()
 
         // clear the prompt line
-        npm.output('')
+        output.standard('')
 
         resolve(false)
       })

@@ -1,6 +1,6 @@
 const { read } = require('read')
 const userValidate = require('npm-user-validate')
-const log = require('./log-shim.js')
+const { log } = require('proc-log')
 
 exports.otp = readOTP
 exports.password = readPassword
@@ -16,17 +16,12 @@ const passwordPrompt = 'npm password: '
 const usernamePrompt = 'npm username: '
 const emailPrompt = 'email (this IS public): '
 
-function readWithProgress (opts) {
-  log.clearProgress()
-  return read(opts).finally(() => log.showProgress())
-}
-
 function readOTP (msg = otpPrompt, otp, isRetry) {
   if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp)) {
     return otp.replace(/\s+/g, '')
   }
 
-  return readWithProgress({ prompt: msg, default: otp || '' })
+  return read({ prompt: msg, default: otp || '' })
     .then((rOtp) => readOTP(msg, rOtp, true))
 }
 
@@ -35,7 +30,7 @@ function readPassword (msg = passwordPrompt, password, isRetry) {
     return password
   }
 
-  return readWithProgress({ prompt: msg, silent: true, default: password || '' })
+  return read({ prompt: msg, silent: true, default: password || '' })
     .then((rPassword) => readPassword(msg, rPassword, true))
 }
 
@@ -49,7 +44,7 @@ function readUsername (msg = usernamePrompt, username, isRetry) {
     }
   }
 
-  return readWithProgress({ prompt: msg, default: username || '' })
+  return read({ prompt: msg, default: username || '' })
     .then((rUsername) => readUsername(msg, rUsername, true))
 }
 
@@ -63,6 +58,6 @@ function readEmail (msg = emailPrompt, email, isRetry) {
     }
   }
 
-  return readWithProgress({ prompt: msg, default: email || '' })
+  return read({ prompt: msg, default: email || '' })
     .then((username) => readEmail(msg, username, true))
 }

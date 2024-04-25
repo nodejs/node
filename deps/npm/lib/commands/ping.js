@@ -1,7 +1,7 @@
 const { redact } = require('@npmcli/redact')
-const log = require('../utils/log-shim')
+const { log, output } = require('proc-log')
 const pingUtil = require('../utils/ping.js')
-const BaseCommand = require('../base-command.js')
+const BaseCommand = require('../base-cmd.js')
 
 class Ping extends BaseCommand {
   static description = 'Ping npm registry'
@@ -16,14 +16,15 @@ class Ping extends BaseCommand {
     const time = Date.now() - start
     log.notice('PONG', `${time}ms`)
     if (this.npm.config.get('json')) {
-      this.npm.output(JSON.stringify({
+      output.standard(JSON.stringify({
         registry: cleanRegistry,
         time,
         details,
       }, null, 2))
     } else if (Object.keys(details).length) {
-      log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
+      log.notice('PONG', JSON.stringify(details, null, 2))
     }
   }
 }
+
 module.exports = Ping

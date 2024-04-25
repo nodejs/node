@@ -30,7 +30,7 @@ const { resolve } = require('path')
 const { homedir } = require('os')
 const { depth } = require('treeverse')
 const mapWorkspaces = require('@npmcli/map-workspaces')
-const log = require('proc-log')
+const { log, time } = require('proc-log')
 
 const { saveTypeMap } = require('../add-rm-pkg-deps.js')
 const AuditReport = require('../audit-report.js')
@@ -66,7 +66,7 @@ const lockfileVersion = lfv => {
 
 class Arborist extends Base {
   constructor (options = {}) {
-    process.emit('time', 'arborist:ctor')
+    const timeEnd = time.start('arborist:ctor')
     super(options)
     this.options = {
       nodeVersion: process.version,
@@ -97,7 +97,7 @@ class Arborist extends Base {
     }
     this.cache = resolve(this.options.cache)
     this.path = resolve(this.options.path)
-    process.emit('timeEnd', 'arborist:ctor')
+    timeEnd()
   }
 
   // TODO: We should change these to static functions instead
@@ -223,7 +223,7 @@ class Arborist extends Base {
     // XXX: deprecate separate method options objects.
     options = { ...this.options, ...options }
 
-    process.emit('time', 'audit')
+    const timeEnd = time.start('audit')
     let tree
     if (options.packageLock === false) {
       // build ideal tree
@@ -246,7 +246,7 @@ class Arborist extends Base {
     }
     this.auditReport = await AuditReport.load(tree, options)
     const ret = options.fix ? this.reify(options) : this.auditReport
-    process.emit('timeEnd', 'audit')
+    timeEnd()
     this.finishTracker('audit')
     return ret
   }

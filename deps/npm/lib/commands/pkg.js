@@ -1,5 +1,6 @@
+const { output } = require('proc-log')
 const PackageJson = require('@npmcli/package-json')
-const BaseCommand = require('../base-command.js')
+const BaseCommand = require('../base-cmd.js')
 const Queryable = require('../utils/queryable.js')
 
 class Pkg extends BaseCommand {
@@ -62,7 +63,7 @@ class Pkg extends BaseCommand {
     }
     // when running in workspaces names, make sure to key by workspace
     // name the results of each value retrieved in each ws
-    this.npm.output(JSON.stringify(result, null, 2))
+    output.standard(JSON.stringify(result, null, 2))
   }
 
   async get (args) {
@@ -85,7 +86,7 @@ class Pkg extends BaseCommand {
     // only outputs if not running with workspaces config
     // execWorkspaces will handle the output otherwise
     if (!this.workspaces) {
-      this.npm.output(JSON.stringify(result, null, 2))
+      output.standard(JSON.stringify(result, null, 2))
     }
 
     return result

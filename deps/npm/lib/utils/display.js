@@ -1,214 +1,358 @@
-const { inspect } = require('util')
-const npmlog = require('npmlog')
-const log = require('./log-shim.js')
+const proggy = require('proggy')
+const { log, output, META } = require('proc-log')
 const { explain } = require('./explain-eresolve.js')
+const { formatWithOptions } = require('./format')
 
-const originalCustomInspect = Symbol('npm.display.original.util.inspect.custom')
+// This is the general approach to color:
+// Eventually this will be exposed somewhere we can refer to these by name.
+// Foreground colors only. Never set the background color.
+/*
+ * Black # (Don't use)
+ * Red # Danger
+ * Green # Success
+ * Yellow # Warning
+ * Blue # Accent
+ * Magenta # Done
+ * Cyan # Emphasis
+ * White # (Don't use)
+ */
 
-// These are most assuredly not a mistake
-// https://eslint.org/docs/latest/rules/no-control-regex
-/* eslint-disable no-control-regex */
-// \x00 through \x1f, \x7f through \x9f, not including \x09 \x0a \x0b \x0d
-const hasC01 = /[\x00-\x08\x0c\x0e-\x1f\x7f-\x9f]/
-// Allows everything up to '[38;5;255m' in 8 bit notation
-const allowedSGR = /^\[[0-9;]{0,8}m/
-// '[38;5;255m'.length
-const sgrMaxLen = 10
+// Translates log levels to chalk colors
+const COLOR_PALETTE = ({ chalk: c }) => ({
+  heading: c.bold,
+  title: c.blueBright,
+  timing: c.magentaBright,
+  // loglevels
+  error: c.red,
+  warn: c.yellow,
+  notice: c.cyanBright,
+  http: c.green,
+  info: c.cyan,
+  verbose: c.blue,
+  silly: c.blue.dim,
+})
 
-// Strips all ANSI C0 and C1 control characters (except for SGR up to 8 bit)
-function stripC01 (str) {
-  if (!hasC01.test(str)) {
-    return str
-  }
-  let result = ''
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i]
-    const code = char.charCodeAt(0)
-    if (!hasC01.test(char)) {
-      // Most characters are in this set so continue early if we can
-      result = `${result}${char}`
-    } else if (code === 27 && allowedSGR.test(str.slice(i + 1, i + sgrMaxLen + 1))) {
-      // \x1b with allowed SGR
-      result = `${result}\x1b`
-    } else if (code <= 31) {
-      // escape all other C0 control characters besides \x7f
-      result = `${result}^${String.fromCharCode(code + 64)}`
-    } else {
-      // hasC01 ensures this is now a C1 control character or \x7f
-      result = `${result}^${String.fromCharCode(code - 64)}`
+const LEVEL_OPTIONS = {
+  silent: {
+    index: 0,
+  },
+  error: {
+    index: 1,
+  },
+  warn: {
+    index: 2,
+  },
+  notice: {
+    index: 3,
+  },
+  http: {
+    index: 4,
+  },
+  info: {
+    index: 5,
+  },
+  verbose: {
+    index: 6,
+  },
+  silly: {
+    index: 7,
+  },
+}
+
+const LEVEL_METHODS = {
+  ...LEVEL_OPTIONS,
+  [log.KEYS.timing]: {
+    show: ({ timing, index }) => !!timing && index !== 0,
+  },
+}
+
+const tryJsonParse = (value) => {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return {}
     }
   }
-  return result
+  return value
+}
+
+const setBlocking = (stream) => {
+  // Copied from https://github.com/yargs/set-blocking
+  // https://raw.githubusercontent.com/yargs/set-blocking/master/LICENSE.txt
+  /* istanbul ignore next - we trust that this works */
+  if (stream._handle && stream.isTTY && typeof stream._handle.setBlocking === 'function') {
+    stream._handle.setBlocking(true)
+  }
+  return stream
+}
+
+const withMeta = (handler) => (level, ...args) => {
+  let meta = {}
+  const last = args.at(-1)
+  if (last && typeof last === 'object' && Object.hasOwn(last, META)) {
+    meta = args.pop()
+  }
+  return handler(level, meta, ...args)
 }
 
 class Display {
-  #chalk = null
-
-  constructor () {
-    // pause by default until config is loaded
-    this.on()
-    log.pause()
+  #logState = {
+    buffering: true,
+    buffer: [],
   }
 
-  static clean (output) {
-    if (typeof output === 'string') {
-      // Strings are cleaned inline
-      return stripC01(output)
-    }
-    if (!output || typeof output !== 'object') {
-      // Numbers, booleans, null all end up here and don't need cleaning
-      return output
-    }
-    // output && typeof output === 'object'
-    // We can't use hasOwn et al for detecting the original but we can use it
-    // for detecting the properties we set via defineProperty
-    if (
-      output[inspect.custom] &&
-      (!Object.hasOwn(output, originalCustomInspect))
-    ) {
-      // Save the old one if we didn't already do it.
-      Object.defineProperty(output, originalCustomInspect, {
-        value: output[inspect.custom],
-        writable: true,
-      })
-    }
-    if (!Object.hasOwn(output, originalCustomInspect)) {
-      // Put a dummy one in for when we run multiple times on the same object
-      Object.defineProperty(output, originalCustomInspect, {
-        value: function () {
-          return this
-        },
-        writable: true,
-      })
-    }
-    // Set the custom inspect to our own function
-    Object.defineProperty(output, inspect.custom, {
-      value: function () {
-        const toClean = this[originalCustomInspect]()
-        // Custom inspect can return things other than objects, check type again
-        if (typeof toClean === 'string') {
-          // Strings are cleaned inline
-          return stripC01(toClean)
-        }
-        if (!toClean || typeof toClean !== 'object') {
-          // Numbers, booleans, null all end up here and don't need cleaning
-          return toClean
-        }
-        return stripC01(inspect(toClean, { customInspect: false }))
-      },
-      writable: true,
-    })
-    return output
+  #outputState = {
+    buffering: true,
+    buffer: [],
   }
 
-  on () {
+  // colors
+  #noColorChalk
+  #stdoutChalk
+  #stdoutColor
+  #stderrChalk
+  #stderrColor
+  #logColors
+
+  // progress
+  #progress
+
+  // options
+  #levelIndex
+  #timing
+  #json
+  #heading
+  #silent
+
+  // display streams
+  #stdout
+  #stderr
+
+  constructor ({ stdout, stderr }) {
+    this.#stdout = setBlocking(stdout)
+    this.#stderr = setBlocking(stderr)
+
+    // Handlers are set immediately so they can buffer all events
     process.on('log', this.#logHandler)
+    process.on('output', this.#outputHandler)
   }
 
   off () {
     process.off('log', this.#logHandler)
-    // Unbalanced calls to enable/disable progress
-    // will leave change listeners on the tracker
-    // This pretty much only happens in tests but
-    // this removes the event emitter listener warnings
-    log.tracker.removeAllListeners()
+    this.#logState.buffer.length = 0
+
+    process.off('output', this.#outputHandler)
+    this.#outputState.buffer.length = 0
+
+    if (this.#progress) {
+      this.#progress.stop()
+    }
   }
 
-  load (config) {
-    const {
-      color,
-      chalk,
-      timing,
-      loglevel,
-      unicode,
-      progress,
-      silent,
-      heading = 'npm',
-    } = config
-
-    this.#chalk = chalk
-
-    // npmlog is still going away someday, so this is a hack to dynamically
-    // set the loglevel of timing based on the timing flag, instead of making
-    // a breaking change to npmlog. The result is that timing logs are never
-    // shown except when the --timing flag is set. We also need to change
-    // the index of the silly level since otherwise it is set to -Infinity
-    // and we can't go any lower than that. silent is still set to Infinify
-    // because we DO want silent to hide timing levels. This allows for the
-    // special case of getting timing information while hiding all CLI output
-    // in order to get perf information that might be affected by writing to
-    // a terminal. XXX(npmlog): this will be removed along with npmlog
-    log.levels.silly = -10000
-    log.levels.timing = log.levels[loglevel] + (timing ? 1 : -1)
-
-    log.level = loglevel
-    log.heading = heading
-
-    if (color) {
-      log.enableColor()
-    } else {
-      log.disableColor()
+  get chalk () {
+    return {
+      noColor: this.#noColorChalk,
+      stdout: this.#stdoutChalk,
+      stderr: this.#stderrChalk,
     }
+  }
 
-    if (unicode) {
-      log.enableUnicode()
-    } else {
-      log.disableUnicode()
-    }
+  async load ({
+    heading,
+    json,
+    loglevel,
+    progress,
+    stderrColor,
+    stdoutColor,
+    timing,
+    unicode,
+  }) {
+    // get createSupportsColor from chalk directly if this lands
+    // https://github.com/chalk/chalk/pull/600
+    const [{ Chalk }, { createSupportsColor }] = await Promise.all([
+      import('chalk'),
+      import('supports-color'),
+    ])
+    // we get the chalk level based on a null stream meaning chalk will only use
+    // what it knows about the environment to get color support since we already
+    // determined in our definitions that we want to show colors.
+    const level = Math.max(createSupportsColor(null).level, 1)
 
-    // if it's silent, don't show progress
-    if (progress && !silent) {
-      log.enableProgress()
-    } else {
-      log.disableProgress()
-    }
+    this.#noColorChalk = new Chalk({ level: 0 })
 
-    // Resume displaying logs now that we have config
+    this.#stdoutColor = stdoutColor
+    this.#stdoutChalk = stdoutColor ? new Chalk({ level }) : this.#noColorChalk
+
+    this.#stderrColor = stderrColor
+    this.#stderrChalk = stderrColor ? new Chalk({ level }) : this.#noColorChalk
+
+    this.#logColors = COLOR_PALETTE({ chalk: this.#stderrChalk })
+
+    this.#levelIndex = LEVEL_OPTIONS[loglevel].index
+    this.#timing = timing
+    this.#json = json
+    this.#heading = heading
+    this.#silent = this.#levelIndex <= 0
+
+    // Emit resume event on the logs which will flush output
     log.resume()
+    output.flush()
+    this.#startProgress({ progress, unicode })
   }
 
-  log (...args) {
-    this.#logHandler(...args)
+  // STREAM WRITES
+
+  // Write formatted and (non-)colorized output to streams
+  #stdoutWrite (options, ...args) {
+    this.#stdout.write(formatWithOptions({ colors: this.#stdoutColor, ...options }, ...args))
   }
 
-  #logHandler = (level, ...args) => {
+  #stderrWrite (options, ...args) {
+    this.#stderr.write(formatWithOptions({ colors: this.#stderrColor, ...options }, ...args))
+  }
+
+  // HANDLERS
+
+  // Arrow function assigned to a private class field so it can be passed
+  // directly as a listener and still reference "this"
+  #logHandler = withMeta((level, meta, ...args) => {
+    if (level === log.KEYS.resume) {
+      this.#logState.buffering = false
+      this.#logState.buffer.forEach((item) => this.#tryWriteLog(...item))
+      this.#logState.buffer.length = 0
+      return
+    }
+
+    if (level === log.KEYS.pause) {
+      this.#logState.buffering = true
+      return
+    }
+
+    if (this.#logState.buffering) {
+      this.#logState.buffer.push([level, meta, ...args])
+      return
+    }
+
+    this.#tryWriteLog(level, meta, ...args)
+  })
+
+  // Arrow function assigned to a private class field so it can be passed
+  // directly as a listener and still reference "this"
+  #outputHandler = withMeta((level, meta, ...args) => {
+    if (level === output.KEYS.flush) {
+      this.#outputState.buffering = false
+
+      if (meta.jsonError && this.#json) {
+        const json = {}
+        for (const item of this.#outputState.buffer) {
+          // index 2 skips the level and meta
+          Object.assign(json, tryJsonParse(item[2]))
+        }
+        this.#writeOutput(
+          output.KEYS.standard,
+          meta,
+          JSON.stringify({ ...json, error: meta.jsonError }, null, 2)
+        )
+      } else {
+        this.#outputState.buffer.forEach((item) => this.#writeOutput(...item))
+      }
+
+      this.#outputState.buffer.length = 0
+      return
+    }
+
+    if (level === output.KEYS.buffer) {
+      this.#outputState.buffer.push([output.KEYS.standard, meta, ...args])
+      return
+    }
+
+    if (this.#outputState.buffering) {
+      this.#outputState.buffer.push([level, meta, ...args])
+      return
+    }
+
+    // HACK: if it looks like the banner and we are silent do not print it.
+    // There's no other way to do this right now :(
+    // eslint-disable-next-line max-len
+    if (this.#silent && args.length === 1 && args[0].startsWith('\n> ') && args[0].endsWith('\n')) {
+      return
+    }
+
+    this.#writeOutput(level, meta, ...args)
+  })
+
+  // OUTPUT
+
+  #writeOutput (level, meta, ...args) {
+    if (level === output.KEYS.standard) {
+      this.#stdoutWrite({}, ...args)
+      return
+    }
+
+    if (level === output.KEYS.error) {
+      this.#stderrWrite({}, ...args)
+    }
+  }
+
+  // LOGS
+
+  #tryWriteLog (level, meta, ...args) {
     try {
-      this.#log(level, ...args)
+      // Also (and this is a really inexcusable kludge), we patch the
+      // log.warn() method so that when we see a peerDep override
+      // explanation from Arborist, we can replace the object with a
+      // highly abbreviated explanation of what's being overridden.
+      // TODO: this could probably be moved to arborist now that display is refactored
+      const [heading, message, expl] = args
+      if (level === log.KEYS.warn && heading === 'ERESOLVE' && expl && typeof expl === 'object') {
+        this.#writeLog(level, meta, heading, message)
+        this.#writeLog(level, meta, '', explain(expl, this.#stderrChalk, 2))
+        return
+      }
+      this.#writeLog(level, meta, ...args)
     } catch (ex) {
       try {
         // if it crashed once, it might again!
-        this.#npmlog('verbose', `attempt to log ${inspect(args)} crashed`, ex)
+        this.#writeLog(log.KEYS.verbose, meta, '', `attempt to log crashed`, ...args, ex)
       } catch (ex2) {
+        // This happens if the object has an inspect method that crashes so just console.error
+        // with the errors but don't do anything else that might error again.
         // eslint-disable-next-line no-console
-        console.error(`attempt to log ${inspect(args)} crashed`, ex, ex2)
+        console.error(`attempt to log crashed`, ex, ex2)
       }
     }
   }
 
-  #log (...args) {
-    return this.#eresolveWarn(...args) || this.#npmlog(...args)
-  }
+  #writeLog (level, meta, ...args) {
+    const levelOpts = LEVEL_METHODS[level]
+    const show = levelOpts.show ?? (({ index }) => levelOpts.index <= index)
+    const force = meta.force && !this.#silent
 
-  // Explicitly call these on npmlog and not log shim
-  // This is the final place we should call npmlog before removing it.
-  #npmlog (level, ...args) {
-    npmlog[level](...args.map(Display.clean))
-  }
-
-  // Also (and this is a really inexcusable kludge), we patch the
-  // log.warn() method so that when we see a peerDep override
-  // explanation from Arborist, we can replace the object with a
-  // highly abbreviated explanation of what's being overridden.
-  #eresolveWarn (level, heading, message, expl) {
-    if (level === 'warn' &&
-      heading === 'ERESOLVE' &&
-      expl && typeof expl === 'object'
-    ) {
-      this.#npmlog(level, heading, message)
-      this.#npmlog(level, '', explain(expl, this.#chalk, 2))
-      // Return true to short circuit other log in chain
-      return true
+    if (force || show({ index: this.#levelIndex, timing: this.#timing })) {
+      // this mutates the array so we can pass args directly to format later
+      const title = args.shift()
+      const prefix = [
+        this.#logColors.heading(this.#heading),
+        this.#logColors[level](level),
+        title ? this.#logColors.title(title) : null,
+      ]
+      this.#stderrWrite({ prefix }, ...args)
+    } else if (this.#progress) {
+      // TODO: make this display a single log line of filtered messages
     }
+  }
+
+  // PROGRESS
+
+  #startProgress ({ progress, unicode }) {
+    if (!progress || this.#silent) {
+      return
+    }
+    this.#progress = proggy.createClient({ normalize: true })
+    // TODO: implement proggy trackers in arborist/doctor
+    // TODO: listen to progress events here and build progress UI
+    // TODO: see deprecated gauge package for what unicode chars were used
   }
 }
 

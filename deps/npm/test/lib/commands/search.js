@@ -94,7 +94,7 @@ t.test('search <name>', async t => {
     keywords: [],
     date: null,
     author: { name: 'Foo', email: 'foo@npmjs.com' },
-    publisher: { name: 'Foo', email: 'foo@npmjs.com' },
+    publisher: { username: 'foo', email: 'foo@npmjs.com' },
     maintainers: [
       { username: 'foo', email: 'foo@npmjs.com' },
     ],
@@ -106,7 +106,7 @@ t.test('search <name>', async t => {
     keywords: [],
     date: null,
     author: { name: 'Foo', email: 'foo@npmjs.com' },
-    publisher: { name: 'Foo', email: 'foo@npmjs.com' },
+    publisher: { username: 'foo', email: 'foo@npmjs.com' },
     maintainers: [
       { username: 'foo', email: 'foo@npmjs.com' },
     ],
@@ -140,7 +140,7 @@ t.test('empty search results --json', async t => {
   registry.search({ results: [] })
 
   await npm.exec('search', ['foo'])
-  t.equal(joinedOutput(), '\n[]\n', 'should have expected empty square brackets')
+  t.equal(joinedOutput(), '\n[]', 'should have expected empty square brackets')
 })
 
 t.test('search api response error', async t => {
@@ -170,6 +170,22 @@ t.test('search exclude string', async t => {
   registry.search({ results: libnpmsearchResultFixture })
   await npm.exec('search', ['libnpm'])
   t.matchSnapshot(joinedOutput(), 'results should not have libnpmversion')
+})
+t.test('search exclude string json', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      json: true,
+      searchexclude: 'libnpmversion',
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  registry.search({ results: libnpmsearchResultFixture })
+  await npm.exec('search', ['libnpm'])
+  t.matchSnapshot(JSON.parse(joinedOutput()), 'results should not have libnpmversion')
 })
 
 t.test('search exclude username with upper case letters', async t => {

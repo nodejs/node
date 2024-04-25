@@ -1,6 +1,6 @@
-// dedupe duplicated packages, or find them in the tree
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
+// dedupe duplicated packages, or find them in the tree
 class FindDupes extends ArboristWorkspaceCmd {
   static description = 'Find duplication in the package tree'
   static name = 'find-dupes'
@@ -24,4 +24,5 @@ class FindDupes extends ArboristWorkspaceCmd {
     return this.npm.exec('dedupe', [])
   }
 }
+
 module.exports = FindDupes

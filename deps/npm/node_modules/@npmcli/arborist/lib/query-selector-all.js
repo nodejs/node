@@ -3,7 +3,7 @@
 const { resolve } = require('path')
 const { parser, arrayDelimiter } = require('@npmcli/query')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const log = require('proc-log')
+const { log } = require('proc-log')
 const { minimatch } = require('minimatch')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
