@@ -733,13 +733,13 @@ in data transmission. It's not suitable for cryptographic authentication.
 
 To be consistent with other APIs, if the `data` is a string, it will
 be encoded with UTF-8 before being used for computation. If users only
-uses Node.js to compute and check the checksums, this works well with
+use Node.js to compute and match the checksums, this works well with
 other APIs that uses the UTF-8 encoding by default.
 
-Some third-party JavaScript libraries that compute the checksum on a
+Some third-party JavaScript libraries compute the checksum on a
 string based on `str.charCodeAt()` so that it can be run in browsers.
 If users want to match the checksum computed with this kind of library
-from the browser, it's better to use the same library in Node.js
+in the browser, it's better to use the same library in Node.js
 if it also runs in Node.js. If users have to use `zlib.crc32()` to
 match the checksum produced by such a third-party library:
 
