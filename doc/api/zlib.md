@@ -712,6 +712,44 @@ The `zlib.bytesWritten` property specifies the number of bytes written to
 the engine, before the bytes are processed (compressed or decompressed,
 as appropriate for the derived class).
 
+### `zlib.crc32(data[, value])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {string|Buffer|TypedArray|DataView} When `data` is a string,
+  it will be encoded as UTF-8 before being used for computation.
+* `value` {integer} An optional starting value. It must be a 32-bit unsigned
+  integer. **Default:** `0`
+* Returns: {integer} A 32-bit unsigned integer containing the checksum.
+
+Computes a 32-bit [Cyclic Redundancy Check][] checksum of `data`. If
+`value` is specified, it is used as the starting value of the checksum,
+otherwise, 0 is used as the starting value.
+
+```mjs
+import zlib from 'node:zlib';
+import { Buffer } from 'node:buffer';
+
+let crc = zlib.crc32('hello');  // 907060870
+crc = zlib.crc32('world', crc);  // 4192936109
+
+crc = zlib.crc32(Buffer.from('hello'));  // 907060870
+crc = zlib.crc32(Buffer.from('world'), crc);  // 4192936109
+```
+
+```cjs
+const zlib = require('node:zlib');
+const { Buffer } = require('node:buffer');
+
+let crc = zlib.crc32('hello');  // 907060870
+crc = zlib.crc32('world', crc);  // 4192936109
+
+crc = zlib.crc32(Buffer.from('hello'));  // 907060870
+crc = zlib.crc32(Buffer.from('world'), crc);  // 4192936109
+```
+
 ### `zlib.close([callback])`
 
 <!-- YAML
@@ -1221,6 +1259,7 @@ changes:
 Decompress a chunk of data with [`Unzip`][].
 
 [Brotli parameters]: #brotli-constants
+[Cyclic redundancy check]: https://en.wikipedia.org/wiki/Cyclic_redundancy_check
 [Memory usage tuning]: #memory-usage-tuning
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
 [Streams API]: stream.md

@@ -1286,6 +1286,35 @@ struct MakeClass {
   }
 };
 
+template <typename T>
+T CallOnSequence(v8::Isolate* isolate,
+                 Local<Value> value,
+                 std::function<T(const char* data, size_t size)> callback) {
+  if (value->IsString()) {
+    Utf8Value data(isolate, value);
+    return callback(data.out(), data.length());
+  } else {
+    ArrayBufferViewContents<char> data(value);
+    return callback(data.data(), data.length());
+  }
+}
+
+// TODO(joyeecheung): use fast API
+static void CRC32(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
+  CHECK(args[1]->IsUint32());
+  uint32_t value = args[1].As<v8::Uint32>()->Value();
+
+  uint32_t result = CallOnSequence<uint32_t>(
+      args.GetIsolate(),
+      args[0],
+      [&](const char* data, size_t size) -> uint32_t {
+        return crc32(value, reinterpret_cast<const Bytef*>(data), size);
+      });
+
+  args.GetReturnValue().Set(result);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1296,6 +1325,7 @@ void Initialize(Local<Object> target,
   MakeClass<BrotliEncoderStream>::Make(env, target, "BrotliEncoder");
   MakeClass<BrotliDecoderStream>::Make(env, target, "BrotliDecoder");
 
+  SetMethod(context, target, "crc32", CRC32);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).Check();
