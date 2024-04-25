@@ -59,7 +59,7 @@ subSystemLabels:
   /^tools\/test/: tools, test
   /^tools\/(?:certdata|mkssldef|mk-ca-bundle)/: tools, openssl, tls
   /^tools\/msvs\//: tools, windows, install, needs-ci
-  /^tools\/[^/]+\.bat$/: tools, windows, needs-ci
+  /^tools\/[^\/]+\.bat$/: tools, windows, needs-ci
   /^tools\/make-v8/: tools, v8 engine, needs-ci
   /^tools\/v8_gypfiles/: tools, v8 engine, needs-ci
   /^tools\/snapshot/: needs-ci
@@ -80,13 +80,13 @@ subSystemLabels:
   /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
   /^deps\/nghttp2\//: http2
   /^deps\/ngtcp2\//: quic
-  /^deps\/([^/]+)/: dependencies, $1
+  /^deps\/([^\/]+)/: dependencies, $1
 
   ## JS subsystems
   # Oddities first
   /^lib\/(?:punycode|\w+\/freelist|sys\.js)/: ''
   /^lib\/constants\.js$/: lib / src
-  /^lib\/internal/debugger$/: debugger
+  /^lib\/internal\/debugger$/: debugger
   /^lib\/internal\/linkedlist\.js$/: timers
   /^lib\/internal\/bootstrap/: lib / src
   /^lib\/internal\/v8_prof_/: tools
@@ -150,7 +150,7 @@ exlusiveLabels:
   /^benchmark\/(?:misc|fixtures)\//: benchmark
   /^benchmark\/streams\//: benchmark, stream
   /^benchmark\/url\//: benchmark, url, whatwg-url
-  /^benchmark\/([^/]+)\//: benchmark, $1
+  /^benchmark\/([^\/]+)\//: benchmark, $1
 
   /^benchmark\//: benchmark, performance
 
