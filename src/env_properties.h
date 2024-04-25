@@ -71,6 +71,7 @@
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
+  V(attributes_string, "attributes")                                           \
   V(base_string, "base")                                                       \
   V(bits_string, "bits")                                                       \
   V(block_list_string, "blockList")                                            \
@@ -303,6 +304,7 @@
   V(sni_context_string, "sni_context")                                         \
   V(source_string, "source")                                                   \
   V(source_map_url_string, "sourceMapURL")                                     \
+  V(specifier_string, "specifier")                                             \
   V(stack_string, "stack")                                                     \
   V(standard_name_string, "standardName")                                      \
   V(start_time_string, "startTime")                                            \
@@ -377,6 +379,7 @@
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
+  V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
