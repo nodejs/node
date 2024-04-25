@@ -1,0 +1,17 @@
+name: Initialize Pull Request
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened]
+jobs:
+  find:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Initialize Pull Request
+        uses: redyetidev/node-actions-runner@v0.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
