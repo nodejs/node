@@ -403,6 +403,22 @@ inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 // headers than we really need to.
 void ThrowErrStringTooLong(v8::Isolate* isolate);
 
+v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
+                            v8::Local<v8::Array> js_array,
+                            std::vector<v8::Global<v8::Value>>* out) {
+  uint32_t count = js_array->Length();
+  out->reserve(count);
+  v8::Isolate* isolate = context->GetIsolate();
+  for (size_t i = 0; i < count; ++i) {
+    v8::Local<v8::Value> element;
+    if (!js_array->Get(context, i).ToLocal(&element)) {
+      return v8::Nothing<void>();
+    }
+    out->push_back(v8::Global<v8::Value>(isolate, element));
+  }
+  return v8::JustVoid();
+}
+
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     std::string_view str,
                                     v8::Isolate* isolate) {
