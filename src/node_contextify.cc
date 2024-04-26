@@ -1536,7 +1536,8 @@ static void CompileFunctionForCJSLoader(
 
   bool can_parse_as_esm = false;
   if (!cjs_exception.IsEmpty()) {
-    // Use the
+    // Use the URL to match what would be used in the origin if it's going to
+    // be reparsed as ESM.
     Utf8Value filename_utf8(isolate, filename);
     std::string url = url::FromFilePath(filename_utf8.ToStringView());
     Local<String> url_value;

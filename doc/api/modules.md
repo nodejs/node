@@ -180,12 +180,12 @@ regarding which files are parsed as ECMAScript modules.
 If `--experimental-require-module` is enabled, and the ECMAScript module being
 loaded by `require()` meets the following requirements:
 
+* The module is fully synchronous (contains no top-level `await`); and
 * One of these conditions are met:
   1. The file has a `.mjs` extension.
   2. The file has a `.js` extension, and the closest `package.json` contains `"type": "module"`
   3. The file has a `.js` extension, the closest `package.json` does not contain
      `"type": "commonjs"`, and `--experimental-detect-module` is enabled.
-* The module is fully synchronous (contains no top-level `await`).
 
 `require()` will load the requested module as an ES Module, and return
 the module name space object. In this case it is similar to dynamic
