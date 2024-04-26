@@ -1305,7 +1305,9 @@ void InitializeHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kLenientAll));
 
   Local<Array> methods = Array::New(env->isolate());
+  Local<Array> all_methods = Array::New(env->isolate());
   size_t method_index = -1;
+  size_t all_method_index = -1;
 #define V(num, name, string)                                                   \
   methods                                                                      \
       ->Set(env->context(),                                                    \
@@ -1314,9 +1316,23 @@ void InitializeHttpParser(Local<Object> target,
       .Check();
   HTTP_METHOD_MAP(V)
 #undef V
+#define V(num, name, string)                                                   \
+  all_methods                                                                  \
+      ->Set(env->context(),                                                    \
+            ++all_method_index,                                                \
+            FIXED_ONE_BYTE_STRING(env->isolate(), #string))                    \
+      .Check();
+  HTTP_ALL_METHOD_MAP(V)
+#undef V
+
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "methods"),
               methods).Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "allMethods"),
+            all_methods)
+      .Check();
 
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
   SetProtoMethod(isolate, t, "close", Parser::Close);
