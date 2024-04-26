@@ -195,10 +195,11 @@ fs.stat(__filename, common.mustSucceed((s) => {
 
 // Stat Date properties can be set after reading them
 fs.stat(__filename, common.mustSucceed((s) => {
-  s.atime;
-  s.mtime;
-  s.ctime;
-  s.birthtime;
+  var _;
+  _ = s.atime;
+  _ = s.mtime;
+  _ = s.ctime;
+  _ = s.birthtime;
 
   s.atime = 2;
   s.mtime = 3;
