@@ -508,8 +508,8 @@ used as an in depth coverage report.
 node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
 ```
 
-- No test results are reported by this reporter.
-- This reporter should ideally be used in conjunction with another reporter.
+* No test results are reported by this reporter.
+* This reporter should ideally be used in conjunction with another reporter.
 
 ### Limitations
 
