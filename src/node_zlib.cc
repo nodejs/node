@@ -1335,6 +1335,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   MakeClass<ZlibStream>::Make(registry);
   MakeClass<BrotliEncoderStream>::Make(registry);
   MakeClass<BrotliDecoderStream>::Make(registry);
+  registry->Register(CRC32);
 }
 
 }  // anonymous namespace
