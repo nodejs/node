@@ -1286,10 +1286,10 @@ struct MakeClass {
   }
 };
 
-template <typename T>
+template <typename T, typename F>
 T CallOnSequence(v8::Isolate* isolate,
                  Local<Value> value,
-                 std::function<T(const char* data, size_t size)> callback) {
+                 F callback) {
   if (value->IsString()) {
     Utf8Value data(isolate, value);
     return callback(data.out(), data.length());
