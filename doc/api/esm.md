@@ -262,6 +262,9 @@ added:
   - v17.1.0
   - v16.14.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52699
+    description: JSONC can now be used as a valid type attribute.
   - version:
     - v21.0.0
     - v20.10.0
@@ -289,9 +292,10 @@ const { default: barData } =
 Node.js supports the following `type` values, for which the attribute is
 mandatory:
 
-| Attribute `type` | Needed for       |
-| ---------------- | ---------------- |
-| `'json'`         | [JSON modules][] |
+| Attribute `type`                           | Used with        |
+| ------------------------------------------ | ---------------- |
+| `'json'`                                   | [JSON modules][] |
+| `'jsonc'` <sup><i>(Non-Standard)</i></sup> | [JSON modules][] |
 
 ## Builtin modules
 
