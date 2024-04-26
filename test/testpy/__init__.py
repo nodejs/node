@@ -34,6 +34,22 @@ from io import open
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 LS_RE = re.compile(r'^test-.*\.m?js$')
+ANY_RE = re.compile(r'^.*\.m?js$')
+
+def filter_files(path, pattern, recursive=True):
+    matching_files = []
+    
+    if recursive:
+        for root, dirs, files in os.walk(path):
+            for f in files:
+                if pattern.match(f):
+                    matching_files.append(os.path.join(root, f))
+    else:
+        for f in os.listdir(path):
+            if pattern.match(f):
+                matching_files.append(os.path.join(path, f))
+                
+    return matching_files
 
 class SimpleTestCase(test.TestCase):
 
@@ -101,11 +117,15 @@ class SimpleTestConfiguration(test.TestConfiguration):
     else:
       self.additional_flags = []
 
-  def Ls(self, path):
-    return [f for f in os.listdir(path) if LS_RE.match(f)]
+  def Ls(self, path, pattern=LS_RE, recursive=False):
+    return filter_files(path, pattern, recursive)
 
-  def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root))]
+  def ListTests(self, current_path, path, arch, mode, is_parallel=False):
+    if is_parallel:
+        all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root), pattern=ANY_RE, recursive=True)]
+    else:
+        all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root), recursive=False)]
+
     result = []
     for tst in all_tests:
       if self.Contains(path, tst):
@@ -125,7 +145,7 @@ class ParallelTestConfiguration(SimpleTestConfiguration):
 
   def ListTests(self, current_path, path, arch, mode):
     result = super(ParallelTestConfiguration, self).ListTests(
-         current_path, path, arch, mode)
+         current_path, path, arch, mode, is_parallel=True)
     for tst in result:
       tst.parallel = True
     return result

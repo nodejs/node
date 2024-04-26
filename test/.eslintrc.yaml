@@ -80,8 +80,8 @@ overrides:
   - files:
       - es-module/*.js
       - es-module/*.mjs
-      - parallel/*.js
-      - parallel/*.mjs
+      - parallel/**/*.js
+      - parallel/**/*.mjs
       - sequential/*.js
       - sequential/*.mjs
     rules:
