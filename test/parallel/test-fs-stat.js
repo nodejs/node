@@ -179,3 +179,34 @@ fs.lstat(__filename, undefined, common.mustCall());
     ]
   });
 }
+
+// Stat Date properties can be set before reading them
+fs.stat(__filename, common.mustSucceed((s) => {
+  s.atime = 2;
+  s.mtime = 3;
+  s.ctime = 4;
+  s.birthtime = 5;
+
+  assert.strictEqual(s.atime, 2);
+  assert.strictEqual(s.mtime, 3);
+  assert.strictEqual(s.ctime, 4);
+  assert.strictEqual(s.birthtime, 5);
+}));
+
+// Stat Date properties can be set after reading them
+fs.stat(__filename, common.mustSucceed((s) => {
+  s.atime;
+  s.mtime;
+  s.ctime;
+  s.birthtime;
+
+  s.atime = 2;
+  s.mtime = 3;
+  s.ctime = 4;
+  s.birthtime = 5;
+
+  assert.strictEqual(s.atime, 2);
+  assert.strictEqual(s.mtime, 3);
+  assert.strictEqual(s.ctime, 4);
+  assert.strictEqual(s.birthtime, 5);
+}));
