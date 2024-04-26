@@ -6,6 +6,9 @@ prefix parallel
 
 [true] # This section applies to all platforms
 
+# https://github.com/nodejs/node/issues/51862
+test-fs-read-stream-concurrent-reads: PASS, FLAKY
+
 [$system==win32]
 
 # Windows on x86
