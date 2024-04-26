@@ -607,7 +607,7 @@ for /d %%F in (test\addons\??_*) do (
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\addons"
+python "%~dp0tools\build_addons.py" "%~dp0test\addons" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 
@@ -624,7 +624,7 @@ for /d %%F in (test\js-native-api\??_*) do (
 )
 :: building js-native-api
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto build-node-api-tests
@@ -642,7 +642,7 @@ for /d %%F in (test\node-api\??_*) do (
 )
 :: building node-api
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\node-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\node-api" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
