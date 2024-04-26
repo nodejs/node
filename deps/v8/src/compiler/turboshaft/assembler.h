@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_H_
 
 #include <cstring>
+#include <iomanip>
 #include <iterator>
 #include <limits>
 #include <memory>
