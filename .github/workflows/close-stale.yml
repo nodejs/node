@@ -32,21 +32,15 @@ jobs:
       - uses: actions/stale@v9.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
           days-before-stale: 240
           days-before-close: 30
-
           close-issue-message: ${{ env.CLOSE_MESSAGE }}
           stale-issue-message: ${{ env.WARN_MESSAGE }}
-
           close-pr-message: ${{ env.CLOSE_MESSAGE }}
           stale-pr-message: ${{ env.WARN_MESSAGE }}
-
           exempt-issue-labels: never-stale
           exempt-pr-labels: never-stale
-
           stale-issue-label: stale
           stale-pr-label: stale
-
           operations-per-run: 500
           remove-stale-when-updated: true
