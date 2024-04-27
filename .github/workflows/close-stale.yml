@@ -13,7 +13,7 @@ env:
     decision, please leave a comment.
 
   WARN_MESSAGE: >
-    There hasn't been any activity on this issue/PR for over 8 months.
+    There hasn't been any activity on this issue/PR for over 7 months.
     We appreciate your contribution, but since there hasn't been any
     progress recently, we're closing it in **30 days**. If you
     disagree with this decision, please leave a comment.
