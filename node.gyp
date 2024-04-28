@@ -65,6 +65,7 @@
       'src/api/exceptions.cc',
       'src/api/hooks.cc',
       'src/api/utils.cc',
+      'src/async_context.cc',
       'src/async_wrap.cc',
       'src/base_object.cc',
       'src/cares_wrap.cc',
