@@ -15,6 +15,9 @@ test-worker-arraybuffer-zerofill: PASS, FLAKY
 # https://github.com/nodejs/node/issues/51862
 test-fs-read-stream-concurrent-reads: PASS, FLAKY
 
+# https://github.com/nodejs/node/issues/52630
+test-error-serdes: PASS, FLAKY
+
 [$system==win32]
 
 # Windows on x86
