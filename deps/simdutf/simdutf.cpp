@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-11 09:56:55 -0400. Do not edit! */
+/* auto-generated on 2024-04-24 01:28:18 -0400. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -5999,8 +5999,8 @@ static const implementation* get_single_implementation() {
  */
 class detect_best_supported_implementation_on_first_use final : public implementation {
 public:
-  const std::string &name() const noexcept final { return set_best()->name(); }
-  const std::string &description() const noexcept final { return set_best()->description(); }
+  std::string name() const noexcept final { return set_best()->name(); }
+  std::string description() const noexcept final { return set_best()->description(); }
   uint32_t required_instruction_sets() const noexcept final { return set_best()->required_instruction_sets(); }
 
   simdutf_warn_unused int detect_encodings(const char * input, size_t length) const noexcept override {
@@ -6332,6 +6332,8 @@ public:
 private:
   const implementation *set_best() const noexcept;
 };
+
+static_assert(std::is_trivially_destructible<detect_best_supported_implementation_on_first_use>::value, "detect_best_supported_implementation_on_first_use should be trivially destructible");
 
 static const std::initializer_list<const implementation *>& get_available_implementation_pointers() {
   static const std::initializer_list<const implementation *> available_implementation_pointers {
@@ -6695,7 +6697,11 @@ public:
   unsupported_implementation() : implementation("unsupported", "Unsupported CPU (no detected SIMD instructions)", 0) {}
 };
 
-const unsupported_implementation unsupported_singleton{};
+const unsupported_implementation* get_unsupported_singleton() {
+    static const unsupported_implementation unsupported_singleton{};
+    return &unsupported_singleton;
+}
+static_assert(std::is_trivially_destructible<unsupported_implementation>::value, "unsupported_singleton should be trivially destructible");
 
 size_t available_implementation_list::size() const noexcept {
   return internal::get_available_implementation_pointers().size();
@@ -6713,7 +6719,7 @@ const implementation *available_implementation_list::detect_best_supported() con
     uint32_t required_instruction_sets = impl->required_instruction_sets();
     if ((supported_instruction_sets & required_instruction_sets) == required_instruction_sets) { return impl; }
   }
-  return &unsupported_singleton; // this should never happen?
+  return get_unsupported_singleton(); // this should never happen?
 }
 
 const implementation *detect_best_supported_implementation_on_first_use::set_best() const noexcept {
@@ -6728,7 +6734,7 @@ const implementation *detect_best_supported_implementation_on_first_use::set_bes
       return get_active_implementation() = force_implementation;
     } else {
       // Note: abort() and stderr usage within the library is forbidden.
-      return get_active_implementation() = &unsupported_singleton;
+      return get_active_implementation() = get_unsupported_singleton();
     }
   }
   return get_active_implementation() = get_available_implementations().detect_best_supported();
@@ -6747,8 +6753,8 @@ SIMDUTF_DLLIMPORTEXPORT const internal::available_implementation_list& get_avail
 }
 
 /**
-  * The active implementation.
-  */
+ * The active implementation.
+ */
 SIMDUTF_DLLIMPORTEXPORT internal::atomic_ptr<const implementation>& get_active_implementation() {
 #if SIMDUTF_SINGLE_IMPLEMENTATION
     // skip runtime detection
@@ -26119,7 +26125,7 @@ std::pair<result, char*> avx2_convert_utf16_to_utf8_with_errors(const char16_t* 
     1. an input register contains no surrogates and each value
        is in range 0x0000 .. 0x07ff.
     2. an input register contains no surrogates and values are
-       is in range 0x0000 .. 0xffff.
+       in range 0x0000 .. 0xffff.
     3. an input register contains surrogates --- i.e. codepoints
        can have 16 or 32 bits.
 
@@ -32395,6 +32401,8 @@ simdutf_warn_unused size_t implementation::convert_valid_utf8_to_utf32(const cha
 
 /* end file src/rvv/rvv_utf8_to.inl.cpp */
 /* begin file src/rvv/rvv_utf16_to.inl.cpp */
+#include <cstdio>
+
 template<simdutf_ByteFlip bflip>
 simdutf_really_inline static result rvv_utf16_to_latin1_with_errors(const char16_t *src, size_t len, char *dst) {
   const char16_t *const beg = src;
@@ -32609,47 +32617,95 @@ simdutf_really_inline static result rvv_utf16_to_utf32_with_errors(const char16_
   const char16_t *const srcBeg = src;
   char32_t *const dstBeg = dst;
 
+  constexpr const uint16_t ANY_SURROGATE_MASK  = 0xf800;
+  constexpr const uint16_t ANY_SURROGATE_VALUE = 0xd800;
+  constexpr const uint16_t LO_SURROGATE_MASK  = 0xfc00;
+  constexpr const uint16_t LO_SURROGATE_VALUE = 0xdc00;
+  constexpr const uint16_t HI_SURROGATE_MASK  = 0xfc00;
+  constexpr const uint16_t HI_SURROGATE_VALUE = 0xd800;
+
   uint16_t last = 0;
-  for (size_t vl, vlOut; len > 0; len -= vl, src += vl, dst += vlOut, last = simdutf_byteflip<bflip>(src[-1])) {
-    vl = __riscv_vsetvl_e16m2(len);
-    vuint16m2_t v1 = __riscv_vle16_v_u16m2((uint16_t const*)src, vl);
-    v1 = simdutf_byteflip<bflip>(v1, vl);
-    vuint16m2_t v0 = __riscv_vslide1up_vx_u16m2(v1, last, vl);
+  while (len > 0) {
+    size_t vl = __riscv_vsetvl_e16m2(len);
+    vuint16m2_t v0 = __riscv_vle16_v_u16m2((uint16_t const*)src, vl);
+    v0 = simdutf_byteflip<bflip>(v0, vl);
 
-    vbool8_t surhi0 = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v0, 0xFC00, vl), 0xD800, vl);
-    vbool8_t surlo1 = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v1, 0xFC00, vl), 0xDC00, vl);
-
-    /* no surrogates */
-    if (__riscv_vfirst_m_b8(__riscv_vmor_mm_b8(surhi0, surlo1, vl), vl) < 0) {
-      vlOut = vl;
-      __riscv_vse32_v_u32m4((uint32_t*)dst, __riscv_vzext_vf2_u32m4(v1, vl), vl);
-      continue;
+    {   // check fast-path
+        const vuint16m2_t v = __riscv_vand_vx_u16m2(v0, ANY_SURROGATE_MASK, vl);
+        const vbool8_t any_surrogate = __riscv_vmseq_vx_u16m2_b8(v, ANY_SURROGATE_VALUE, vl);
+        if (__riscv_vfirst_m_b8(any_surrogate, vl) < 0) {
+            /* no surrogates */
+            __riscv_vse32_v_u32m4((uint32_t*)dst, __riscv_vzext_vf2_u32m4(v0, vl), vl);
+            len -= vl;
+            src += vl;
+            dst += vl;
+            continue;
+        }
     }
 
-    long idx = __riscv_vfirst_m_b8(__riscv_vmxor_mm_b8(surhi0, surlo1, vl), vl);
-    if (idx >= 0) {
-      last = idx > 0 ? simdutf_byteflip<bflip>(src[idx-1]) : last;
-      return result(error_code::SURROGATE, src - srcBeg + idx - (last - 0xD800u < 0x400u));
+    if ((simdutf_byteflip<bflip>(src[0]) & LO_SURROGATE_MASK) == LO_SURROGATE_VALUE) {
+      return result(error_code::SURROGATE, src - srcBeg);
     }
 
-    vbool8_t surhi1 = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v1, 0xFC00, vl), 0xD800, vl);
-    uint16_t next = vl < len ? simdutf_byteflip<bflip>(src[vl]) : 0;
+    // decode surrogates
+    vuint16m2_t v1 = __riscv_vslide1down_vx_u16m2(v0, 0, vl);
+    vl = __riscv_vsetvl_e16m2(vl - 1);
+    if (vl == 0) {
+        return result(error_code::SURROGATE, src - srcBeg);
+    }
 
-    vuint32m4_t wide    = __riscv_vzext_vf2_u32m4(v1, vl);
-    vuint32m4_t slided  = __riscv_vslide1down_vx_u32m4(wide, next, vl);
-    vuint32m4_t aligned = __riscv_vsll_vx_u32m4_mu(surhi1, wide, wide, 10, vl);
-    vuint32m4_t added   = __riscv_vadd_vv_u32m4_mu(surhi1, aligned, aligned, slided, vl);
-    vuint32m4_t utf32   = __riscv_vadd_vx_u32m4_mu(surhi1, added, added, 0xFCA02400, vl);
-    vbool8_t m = __riscv_vmnot_m_b8(surlo1, vl);
-    vlOut = __riscv_vcpop_m_b8(m, vl);
-    vuint32m4_t comp = __riscv_vcompress_vm_u32m4(utf32, m, vl);
+    const vbool8_t surhi  = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v0, HI_SURROGATE_MASK, vl), HI_SURROGATE_VALUE, vl);
+    const vbool8_t surlo  = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v1, LO_SURROGATE_MASK, vl), LO_SURROGATE_VALUE, vl);
+
+    // compress everything but lo surrogates
+    const vbool8_t compress = __riscv_vmsne_vx_u16m2_b8(__riscv_vand_vx_u16m2(v0, LO_SURROGATE_MASK, vl), LO_SURROGATE_VALUE, vl);
+
+    {
+        const vbool8_t diff = __riscv_vmxor_mm_b8(surhi, surlo, vl);
+        const long idx = __riscv_vfirst_m_b8(diff, vl);
+        if (idx >= 0) {
+          return result(error_code::SURROGATE, src - srcBeg + idx + 1);
+        }
+    }
+
+    last = simdutf_byteflip<bflip>(src[vl]);
+    vuint32m4_t utf32 = __riscv_vzext_vf2_u32m4(v0, vl);
+
+    // v0 = 110110yyyyyyyyyy (0xd800 + yyyyyyyyyy) --- hi surrogate
+    // v1 = 110111xxxxxxxxxx (0xdc00 + xxxxxxxxxx) --- lo surrogate
+
+    // t0 = u16(                    0000_00yy_yyyy_yyyy)
+    const vuint32m4_t t0 = __riscv_vzext_vf2_u32m4(__riscv_vand_vx_u16m2(v0, 0x03ff, vl), vl);
+    // t1 = u32(0000_0000_0000_yyyy_yyyy_yy00_0000_0000)
+    const vuint32m4_t t1 = __riscv_vsll_vx_u32m4(t0, 10, vl);
+
+    // t2 = u32(0000_0000_0000_0000_0000_00xx_xxxx_xxxx)
+    const vuint32m4_t t2   = __riscv_vzext_vf2_u32m4(__riscv_vand_vx_u16m2(v1, 0x03ff, vl), vl);
+
+    // t3 = u32(0000_0000_0000_yyyy_yyyy_yyxx_xxxx_xxxx)
+    const vuint32m4_t t3 = __riscv_vor_vv_u32m4(t1, t2, vl);
+
+    // t4 = utf32 from surrogate pairs
+    const vuint32m4_t t4 = __riscv_vadd_vx_u32m4(t3, 0x10000, vl);
+
+    const vuint32m4_t result = __riscv_vmerge_vvm_u32m4(utf32, t4, surhi, vl);
+
+    const vuint32m4_t comp = __riscv_vcompress_vm_u32m4(result, compress, vl);
+    const size_t vlOut = __riscv_vcpop_m_b8(compress, vl);
     __riscv_vse32_v_u32m4((uint32_t*)dst, comp, vlOut);
+
+    len -= vl;
+    src += vl;
+    dst += vlOut;
+
+    if ((last & LO_SURROGATE_MASK) == LO_SURROGATE_VALUE) {
+        // last item is lo surrogate and got already consumed
+        len -= 1;
+        src += 1;
+    }
   }
 
-  if (last - 0xD800u < 0x400u)
-    return result(error_code::SURROGATE, src - srcBeg - 1); /* end on high surrogate */
-  else
-    return result(error_code::SUCCESS, dst - dstBeg);
+  return result(error_code::SUCCESS, dst - dstBeg);
 }
 
 simdutf_warn_unused size_t implementation::convert_utf16le_to_utf32(const char16_t *src, size_t len, char32_t *dst) const noexcept {
