@@ -502,8 +502,7 @@ class Cache {
         const requestObject = fromInnerRequest(
           request,
           new AbortController().signal,
-          'immutable',
-          { settingsObject: request.client }
+          'immutable'
         )
         // 5.4.2.1
         requestList.push(requestObject)
@@ -779,7 +778,7 @@ class Cache {
     // 5.5.2
     for (const response of responses) {
       // 5.5.2.1
-      const responseObject = fromInnerResponse(response, 'immutable', { settingsObject: {} })
+      const responseObject = fromInnerResponse(response, 'immutable')
 
       responseList.push(responseObject.clone())
 

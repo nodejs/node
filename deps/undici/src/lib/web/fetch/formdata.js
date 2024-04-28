@@ -3,13 +3,13 @@
 const { isBlobLike, iteratorMixin } = require('./util')
 const { kState } = require('./symbols')
 const { kEnumerableProperty } = require('../../core/util')
-const { File: UndiciFile, FileLike, isFileLike } = require('./file')
+const { FileLike, isFileLike } = require('./file')
 const { webidl } = require('./webidl')
 const { File: NativeFile } = require('node:buffer')
 const nodeUtil = require('node:util')
 
 /** @type {globalThis['File']} */
-const File = NativeFile ?? UndiciFile
+const File = globalThis.File ?? NativeFile
 
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
@@ -231,7 +231,7 @@ function makeEntry (name, value, filename) {
         lastModified: value.lastModified
       }
 
-      value = (NativeFile && value instanceof NativeFile) || value instanceof UndiciFile
+      value = value instanceof NativeFile
         ? new File([value], filename, options)
         : new FileLike(value, filename, options)
     }

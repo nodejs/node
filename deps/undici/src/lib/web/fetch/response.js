@@ -12,16 +12,16 @@ const {
   isBlobLike,
   serializeJavascriptValueToJSONString,
   isErrorLike,
-  isomorphicEncode
+  isomorphicEncode,
+  environmentSettingsObject: relevantRealm
 } = require('./util')
 const {
   redirectStatusSet,
   nullBodyStatus
 } = require('./constants')
-const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
+const { kState, kHeaders, kGuard } = require('./symbols')
 const { webidl } = require('./webidl')
 const { FormData } = require('./formdata')
-const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./data-url')
 const { kHeadersList, kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
@@ -33,13 +33,10 @@ const textEncoder = new TextEncoder('utf-8')
 class Response {
   // Creates network error Response.
   static error () {
-    // TODO
-    const relevantRealm = { settingsObject: {} }
-
     // The static error() method steps are to return the result of creating a
     // Response object, given a new network error, "immutable", and this’s
     // relevant Realm.
-    const responseObject = fromInnerResponse(makeNetworkError(), 'immutable', relevantRealm)
+    const responseObject = fromInnerResponse(makeNetworkError(), 'immutable')
 
     return responseObject
   }
@@ -62,8 +59,7 @@ class Response {
 
     // 3. Let responseObject be the result of creating a Response object, given a new response,
     //    "response", and this’s relevant Realm.
-    const relevantRealm = { settingsObject: {} }
-    const responseObject = fromInnerResponse(makeResponse({}), 'response', relevantRealm)
+    const responseObject = fromInnerResponse(makeResponse({}), 'response')
 
     // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
     initializeResponse(responseObject, init, { body: body[0], type: 'application/json' })
@@ -74,8 +70,6 @@ class Response {
 
   // Creates a redirect Response that redirects to url with status status.
   static redirect (url, status = 302) {
-    const relevantRealm = { settingsObject: {} }
-
     webidl.argumentLengthCheck(arguments, 1, { header: 'Response.redirect' })
 
     url = webidl.converters.USVString(url)
@@ -87,7 +81,7 @@ class Response {
     // TODO: base-URL?
     let parsedURL
     try {
-      parsedURL = new URL(url, getGlobalOrigin())
+      parsedURL = new URL(url, relevantRealm.settingsObject.baseUrl)
     } catch (err) {
       throw new TypeError(`Failed to parse URL from ${url}`, { cause: err })
     }
@@ -99,7 +93,7 @@ class Response {
 
     // 4. Let responseObject be the result of creating a Response object,
     // given a new response, "immutable", and this’s relevant Realm.
-    const responseObject = fromInnerResponse(makeResponse({}), 'immutable', relevantRealm)
+    const responseObject = fromInnerResponse(makeResponse({}), 'immutable')
 
     // 5. Set responseObject’s response’s status to status.
     responseObject[kState].status = status
@@ -126,9 +120,6 @@ class Response {
 
     init = webidl.converters.ResponseInit(init)
 
-    // TODO
-    this[kRealm] = { settingsObject: {} }
-
     // 1. Set this’s response to a new response.
     this[kState] = makeResponse({})
 
@@ -138,7 +129,6 @@ class Response {
     this[kHeaders] = new Headers(kConstruct)
     this[kHeaders][kGuard] = 'response'
     this[kHeaders][kHeadersList] = this[kState].headersList
-    this[kHeaders][kRealm] = this[kRealm]
 
     // 3. Let bodyWithType be null.
     let bodyWithType = null
@@ -251,7 +241,7 @@ class Response {
 
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
-    return fromInnerResponse(clonedResponse, this[kHeaders][kGuard], this[kRealm])
+    return fromInnerResponse(clonedResponse, this[kHeaders][kGuard])
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -512,17 +502,14 @@ function initializeResponse (response, init, body) {
  * @see https://fetch.spec.whatwg.org/#response-create
  * @param {any} innerResponse
  * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
- * @param {any} [realm]
  * @returns {Response}
  */
-function fromInnerResponse (innerResponse, guard, realm) {
+function fromInnerResponse (innerResponse, guard) {
   const response = new Response(kConstruct)
   response[kState] = innerResponse
-  response[kRealm] = realm
   response[kHeaders] = new Headers(kConstruct)
   response[kHeaders][kHeadersList] = innerResponse.headersList
   response[kHeaders][kGuard] = guard
-  response[kHeaders][kRealm] = realm
   return response
 }
 

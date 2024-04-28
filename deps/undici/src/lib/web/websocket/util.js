@@ -211,19 +211,12 @@ const fatalDecoder = hasIntl ? new TextDecoder('utf-8', { fatal: true }) : undef
  */
 const utf8Decode = hasIntl
   ? fatalDecoder.decode.bind(fatalDecoder)
-  : !isUtf8
-      ? function () { // TODO: remove once node 18 or < node v18.14.0 is dropped
-        process.emitWarning('ICU is not supported and no fallback exists. Please upgrade to at least Node v18.14.0.', {
-          code: 'UNDICI-WS-NO-ICU'
-        })
-        throw new TypeError('Invalid utf-8 received.')
-      }
-      : function (buffer) {
-        if (isUtf8(buffer)) {
-          return buffer.toString('utf-8')
-        }
-        throw new TypeError('Invalid utf-8 received.')
-      }
+  : function (buffer) {
+    if (isUtf8(buffer)) {
+      return buffer.toString('utf-8')
+    }
+    throw new TypeError('Invalid utf-8 received.')
+  }
 
 module.exports = {
   isConnecting,

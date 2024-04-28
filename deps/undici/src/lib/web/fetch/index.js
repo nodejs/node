@@ -59,7 +59,7 @@ const {
 } = require('./constants')
 const EE = require('node:events')
 const { Readable, pipeline, finished } = require('node:stream')
-const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor, bufferToLowerCasedHeaderName } = require('../../core/util')
+const { addAbortListener, isErrored, isReadable, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('./webidl')
@@ -165,7 +165,6 @@ function fetch (input, init = undefined) {
   let responseObject = null
 
   // 8. Let relevantRealm be this’s relevant Realm.
-  const relevantRealm = null
 
   // 9. Let locallyAborted be false.
   let locallyAborted = false
@@ -229,7 +228,7 @@ function fetch (input, init = undefined) {
 
     // 4. Set responseObject to the result of creating a Response object,
     // given response, "immutable", and relevantRealm.
-    responseObject = fromInnerResponse(response, 'immutable', relevantRealm)
+    responseObject = fromInnerResponse(response, 'immutable')
 
     // 5. Resolve p with responseObject.
     p.resolve(responseObject)
@@ -310,9 +309,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
-const markResourceTiming = (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2))
-  ? performance.markResourceTiming
-  : () => {}
+const markResourceTiming = performance.markResourceTiming
 
 // https://fetch.spec.whatwg.org/#abort-fetch
 function abortFetch (p, request, responseObject, error) {

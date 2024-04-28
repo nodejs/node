@@ -6,6 +6,5 @@ module.exports = {
   kSignal: Symbol('signal'),
   kState: Symbol('state'),
   kGuard: Symbol('guard'),
-  kRealm: Symbol('realm'),
   kDispatcher: Symbol('dispatcher')
 }

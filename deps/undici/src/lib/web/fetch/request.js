@@ -11,7 +11,7 @@ const {
   isValidHTTPToken,
   sameOrigin,
   normalizeMethod,
-  makePolicyContainer,
+  environmentSettingsObject,
   normalizeMethodRecord
 } = require('./util')
 const {
@@ -25,9 +25,8 @@ const {
   requestDuplex
 } = require('./constants')
 const { kEnumerableProperty } = util
-const { kHeaders, kSignal, kState, kGuard, kRealm, kDispatcher } = require('./symbols')
+const { kHeaders, kSignal, kState, kGuard, kDispatcher } = require('./symbols')
 const { webidl } = require('./webidl')
-const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./data-url')
 const { kHeadersList, kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
@@ -54,17 +53,6 @@ class Request {
     input = webidl.converters.RequestInfo(input)
     init = webidl.converters.RequestInit(init)
 
-    // https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object
-    this[kRealm] = {
-      settingsObject: {
-        baseUrl: getGlobalOrigin(),
-        get origin () {
-          return this.baseUrl?.origin
-        },
-        policyContainer: makePolicyContainer()
-      }
-    }
-
     // 1. Let request be null.
     let request = null
 
@@ -72,7 +60,7 @@ class Request {
     let fallbackMode = null
 
     // 3. Let baseURL be this’s relevant settings object’s API base URL.
-    const baseUrl = this[kRealm].settingsObject.baseUrl
+    const baseUrl = environmentSettingsObject.settingsObject.baseUrl
 
     // 4. Let signal be null.
     let signal = null
@@ -119,7 +107,7 @@ class Request {
     }
 
     // 7. Let origin be this’s relevant settings object’s origin.
-    const origin = this[kRealm].settingsObject.origin
+    const origin = environmentSettingsObject.settingsObject.origin
 
     // 8. Let window be "client".
     let window = 'client'
@@ -155,7 +143,7 @@ class Request {
       // unsafe-request flag Set.
       unsafeRequest: request.unsafeRequest,
       // client This’s relevant settings object.
-      client: this[kRealm].settingsObject,
+      client: environmentSettingsObject.settingsObject,
       // window window.
       window,
       // priority request’s priority.
@@ -244,7 +232,7 @@ class Request {
         // then set request’s referrer to "client".
         if (
           (parsedReferrer.protocol === 'about:' && parsedReferrer.hostname === 'client') ||
-          (origin && !sameOrigin(parsedReferrer, this[kRealm].settingsObject.baseUrl))
+          (origin && !sameOrigin(parsedReferrer, environmentSettingsObject.settingsObject.baseUrl))
         ) {
           request.referrer = 'client'
         } else {
@@ -366,7 +354,6 @@ class Request {
     // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
     const ac = new AbortController()
     this[kSignal] = ac.signal
-    this[kSignal][kRealm] = this[kRealm]
 
     // 29. If signal is not null, then make this’s signal follow signal.
     if (signal != null) {
@@ -436,7 +423,6 @@ class Request {
     this[kHeaders] = new Headers(kConstruct)
     this[kHeaders][kHeadersList] = request.headersList
     this[kHeaders][kGuard] = 'request'
-    this[kHeaders][kRealm] = this[kRealm]
 
     // 31. If this’s request’s mode is "no-cors", then:
     if (mode === 'no-cors') {
@@ -770,7 +756,7 @@ class Request {
     }
 
     // 4. Return clonedRequestObject.
-    return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard], this[kRealm])
+    return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard])
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -873,19 +859,15 @@ function cloneRequest (request) {
  * @param {any} innerRequest
  * @param {AbortSignal} signal
  * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
- * @param {any} [realm]
  * @returns {Request}
  */
-function fromInnerRequest (innerRequest, signal, guard, realm) {
+function fromInnerRequest (innerRequest, signal, guard) {
   const request = new Request(kConstruct)
   request[kState] = innerRequest
-  request[kRealm] = realm
   request[kSignal] = signal
-  request[kSignal][kRealm] = realm
   request[kHeaders] = new Headers(kConstruct)
   request[kHeaders][kHeadersList] = innerRequest.headersList
   request[kHeaders][kGuard] = guard
-  request[kHeaders][kRealm] = realm
   return request
 }
 
