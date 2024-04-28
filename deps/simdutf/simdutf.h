@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-11 09:56:55 -0400. Do not edit! */
+/* auto-generated on 2024-04-24 01:28:18 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -149,7 +149,7 @@
 #define SIMDUTF_HAS_RVV_TARGET_REGION 1
 #endif
 
-#if __riscv_v_intrinsic >= 11000 && !(__GNUC__ == 13 && __GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ == 0)
+#if __riscv_v_intrinsic >= 11000
 #define SIMDUTF_HAS_RVV_INTRINSICS 1
 #endif
 
@@ -594,7 +594,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "5.2.4"
+#define SIMDUTF_VERSION "5.2.6"
 
 namespace simdutf {
 enum {
@@ -609,7 +609,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 4
+  SIMDUTF_VERSION_REVISION = 6
 };
 } // namespace simdutf
 
@@ -717,6 +717,7 @@ static inline uint32_t detect_supported_architectures() {
 #elif SIMDUTF_IS_RISCV64
 
 #if defined(__linux__)
+
 #include <unistd.h>
 // We define these our selfs, for backwards compatibility
 struct simdutf_riscv_hwprobe { int64_t key; uint64_t value; };
@@ -744,6 +745,10 @@ static inline uint32_t detect_supported_architectures() {
     if (extensions & SIMDUTF_RISCV_HWPROBE_EXT_ZVBB)
       host_isa |= instruction_set::ZVBB;
   }
+#endif
+#if defined(RUN_IN_SPIKE_SIMULATOR)
+  // Proxy Kernel does not implement yet hwprobe syscall
+  host_isa |= instruction_set::RVV;
 #endif
   return host_isa;
 }
@@ -2454,7 +2459,7 @@ public:
    *
    * @return the name of the implementation, e.g. "haswell", "westmere", "arm64"
    */
-  virtual const std::string &name() const { return _name; }
+  virtual std::string name() const { return std::string(_name); }
 
   /**
    * The description of this implementation.
@@ -2464,7 +2469,7 @@ public:
    *
    * @return the name of the implementation, e.g. "haswell", "westmere", "arm64"
    */
-  virtual const std::string &description() const { return _description; }
+  virtual std::string description() const { return std::string(_description); }
 
   /**
    * The instruction sets this implementation is compiled against
@@ -3602,8 +3607,8 @@ public:
 protected:
   /** @private Construct an implementation with the given name and description. For subclasses. */
   simdutf_really_inline implementation(
-    std::string name,
-    std::string description,
+    const char* name,
+    const char* description,
     uint32_t required_instruction_sets
   ) :
     _name(name),
@@ -3611,18 +3616,18 @@ protected:
     _required_instruction_sets(required_instruction_sets)
   {
   }
-  virtual ~implementation()=default;
-
+protected:
+  ~implementation() = default;
 private:
   /**
    * The name of this implementation.
    */
-  const std::string _name;
+  const char* _name;
 
   /**
    * The description of this implementation.
    */
-  const std::string _description;
+  const char* _description;
 
   /**
    * Instruction sets required for this implementation.
