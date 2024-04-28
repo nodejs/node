@@ -100,8 +100,9 @@ Permission::Permission() : enabled_(false) {
 #undef V
 }
 
-Local<Value> CreateAccessDeniedError(Environment* env, PermissionScope perm,
-    const std::string_view& res) {
+Local<Value> CreateAccessDeniedError(Environment* env,
+                                     PermissionScope perm,
+                                     const std::string_view& res) {
   Local<Value> err = ERR_ACCESS_DENIED(env->isolate());
   CHECK(err->IsObject());
   if (err.As<Object>()
@@ -133,9 +134,9 @@ void Permission::ThrowAccessDenied(Environment* env,
 }
 
 void Permission::AsyncThrowAccessDenied(Environment* env,
-                     fs::FSReqBase* req_wrap,
-                                   PermissionScope perm,
-                                   const std::string_view& res) {
+                                        fs::FSReqBase* req_wrap,
+                                        PermissionScope perm,
+                                        const std::string_view& res) {
   Local<Value> err = CreateAccessDeniedError(env, perm, res);
   if (err.IsEmpty()) return;
   return req_wrap->Reject(err);

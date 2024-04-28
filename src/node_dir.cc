@@ -373,7 +373,10 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
   FSReqBase* req_wrap_async = GetReqWrap(args, 2);
   if (req_wrap_async != nullptr) {  // openDir(path, encoding, req)
     ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, req_wrap_async, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+        env,
+        req_wrap_async,
+        permission::PermissionScope::kFileSystemRead,
+        path.ToStringView());
     FS_DIR_ASYNC_TRACE_BEGIN1(
         UV_FS_OPENDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "opendir", encoding, AfterOpenDir,

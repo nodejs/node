@@ -20,7 +20,7 @@ namespace node {
 class Environment;
 
 namespace fs {
-  class FSReqBase;
+class FSReqBase;
 }
 
 namespace permission {
@@ -34,11 +34,12 @@ namespace permission {
     }                                                                          \
   } while (0)
 
-#define ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(env, wrap, perm_, resource_, ...)          \
+#define ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(                               \
+    env, wrap, perm_, resource_, ...)                                          \
   do {                                                                         \
     if (UNLIKELY(!(env)->permission()->is_granted(perm_, resource_))) {        \
-      node::permission::Permission::AsyncThrowAccessDenied(                         \
-          (env), wrap, perm_, resource_);                                            \
+      node::permission::Permission::AsyncThrowAccessDenied(                    \
+          (env), wrap, perm_, resource_);                                      \
       return __VA_ARGS__;                                                      \
     }                                                                          \
   } while (0)
@@ -61,9 +62,9 @@ class Permission {
                                 PermissionScope perm,
                                 const std::string_view& res);
   static void AsyncThrowAccessDenied(Environment* env,
-                               fs::FSReqBase* req_wrap,
-                                PermissionScope perm,
-                                const std::string_view& res);
+                                     fs::FSReqBase* req_wrap,
+                                     PermissionScope perm,
+                                     const std::string_view& res);
 
   // CLI Call
   void Apply(Environment* env,
