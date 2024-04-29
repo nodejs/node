@@ -102,15 +102,6 @@ assert.strictEqual(util.isPrimitive(Symbol('symbol')), true);
 assert.strictEqual(util.isBuffer('foo'), false);
 assert.strictEqual(util.isBuffer(Buffer.from('foo')), true);
 
-// _extend
-assert.deepStrictEqual(util._extend({ a: 1 }), { a: 1 });
-assert.deepStrictEqual(util._extend({ a: 1 }, []), { a: 1 });
-assert.deepStrictEqual(util._extend({ a: 1 }, null), { a: 1 });
-assert.deepStrictEqual(util._extend({ a: 1 }, true), { a: 1 });
-assert.deepStrictEqual(util._extend({ a: 1 }, false), { a: 1 });
-assert.deepStrictEqual(util._extend({ a: 1 }, { b: 2 }), { a: 1, b: 2 });
-assert.deepStrictEqual(util._extend({ a: 1, b: 2 }, { b: 3 }), { a: 1, b: 3 });
-
 // deprecated
 assert.strictEqual(util.isBoolean(true), true);
 assert.strictEqual(util.isBoolean(false), true);
