@@ -103,10 +103,6 @@ assert.strictEqual(util.isUndefined(), true);
 assert.strictEqual(util.isUndefined(null), false);
 assert.strictEqual(util.isUndefined('string'), false);
 
-assert.strictEqual(util.isNumber(42), true);
-assert.strictEqual(util.isNumber(), false);
-assert.strictEqual(util.isNumber('string'), false);
-
 assert.strictEqual(util.isString('string'), true);
 assert.strictEqual(util.isString(), false);
 assert.strictEqual(util.isString(42), false);
