@@ -1041,6 +1041,9 @@ class Operation(Expression):
       return self.left.Evaluate(env, defs) or self.right.Evaluate(env, defs)
     elif self.op == 'if':
       return False
+    elif self.op == '!=':
+      inter = self.left.GetOutcomes(env, defs) != self.right.GetOutcomes(env, defs)
+      return bool(inter)
     elif self.op == '==':
       inter = self.left.GetOutcomes(env, defs) & self.right.GetOutcomes(env, defs)
       return bool(inter)
@@ -1128,6 +1131,9 @@ class Tokenizer(object):
       elif self.Current(2) == '==':
         self.AddToken('==')
         self.Advance(2)
+      elif self.Current(2) == '!=':
+        self.AddToken('!=')
+        self.Advance(2)
       else:
         return None
     return self.tokens
@@ -1180,7 +1186,7 @@ def ParseAtomicExpression(scan):
     return None
 
 
-BINARIES = ['==']
+BINARIES = ['==', '!=']
 def ParseOperatorExpression(scan):
   left = ParseAtomicExpression(scan)
   if not left: return None
