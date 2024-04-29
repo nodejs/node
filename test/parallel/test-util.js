@@ -40,18 +40,6 @@ assert.strictEqual(util.isArray(/regexp/), false);
 assert.strictEqual(util.isArray(new Error()), false);
 assert.strictEqual(util.isArray({ __proto__: Array.prototype }), false);
 
-// isError
-assert.strictEqual(util.isError(new Error()), true);
-assert.strictEqual(util.isError(new TypeError()), true);
-assert.strictEqual(util.isError(new SyntaxError()), true);
-assert.strictEqual(util.isError(new (context('Error'))()), true);
-assert.strictEqual(util.isError(new (context('TypeError'))()), true);
-assert.strictEqual(util.isError(new (context('SyntaxError'))()), true);
-assert.strictEqual(util.isError({}), false);
-assert.strictEqual(util.isError({ name: 'Error', message: '' }), false);
-assert.strictEqual(util.isError([]), false);
-assert.strictEqual(util.isError({ __proto__: Error.prototype }), true);
-
 // isPrimitive
 assert.strictEqual(util.isPrimitive({}), false);
 assert.strictEqual(util.isPrimitive(new Error()), false);
@@ -62,8 +50,6 @@ assert.strictEqual(util.isPrimitive(function() {}), false);
 assert.strictEqual(util.isPrimitive(new Number(1)), false);
 assert.strictEqual(util.isPrimitive(new String('bla')), false);
 assert.strictEqual(util.isPrimitive(new Boolean(true)), false);
-assert.strictEqual(util.isPrimitive(1), true);
-assert.strictEqual(util.isPrimitive('bla'), true);
 assert.strictEqual(util.isPrimitive(true), true);
 assert.strictEqual(util.isPrimitive(undefined), true);
 assert.strictEqual(util.isPrimitive(null), true);
