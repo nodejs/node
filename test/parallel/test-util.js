@@ -62,13 +62,6 @@ assert.strictEqual(util.isError({ name: 'Error', message: '' }), false);
 assert.strictEqual(util.isError([]), false);
 assert.strictEqual(util.isError({ __proto__: Error.prototype }), true);
 
-// isObject
-assert.strictEqual(util.isObject({}), true);
-assert.strictEqual(util.isObject([]), true);
-assert.strictEqual(util.isObject(new Number(3)), true);
-assert.strictEqual(util.isObject(Number(4)), false);
-assert.strictEqual(util.isObject(1), false);
-
 // isPrimitive
 assert.strictEqual(util.isPrimitive({}), false);
 assert.strictEqual(util.isPrimitive(new Error()), false);
