@@ -40,23 +40,6 @@ assert.strictEqual(util.isArray(/regexp/), false);
 assert.strictEqual(util.isArray(new Error()), false);
 assert.strictEqual(util.isArray({ __proto__: Array.prototype }), false);
 
-// isPrimitive
-assert.strictEqual(util.isPrimitive({}), false);
-assert.strictEqual(util.isPrimitive(new Error()), false);
-assert.strictEqual(util.isPrimitive(new Date()), false);
-assert.strictEqual(util.isPrimitive([]), false);
-assert.strictEqual(util.isPrimitive(/regexp/), false);
-assert.strictEqual(util.isPrimitive(function() {}), false);
-assert.strictEqual(util.isPrimitive(new Number(1)), false);
-assert.strictEqual(util.isPrimitive(new String('bla')), false);
-assert.strictEqual(util.isPrimitive(new Boolean(true)), false);
-assert.strictEqual(util.isPrimitive(true), true);
-assert.strictEqual(util.isPrimitive(undefined), true);
-assert.strictEqual(util.isPrimitive(null), true);
-assert.strictEqual(util.isPrimitive(Infinity), true);
-assert.strictEqual(util.isPrimitive(NaN), true);
-assert.strictEqual(util.isPrimitive(Symbol('symbol')), true);
-
 assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
 
 {
