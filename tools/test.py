@@ -46,7 +46,6 @@ import errno
 import copy
 import io
 
-
 if sys.version_info >= (3, 5):
   from importlib import machinery, util
   def get_module(name, path):
@@ -572,6 +571,7 @@ class TestCase(object):
     self.mode = mode
     self.parallel = False
     self.disable_core_files = False
+    self.max_virtual_memory = None
     self.serial_id = 0
     self.thread_id = 0
 
@@ -595,7 +595,8 @@ class TestCase(object):
                      self.context,
                      self.context.GetTimeout(self.mode, self.config.section),
                      env,
-                     disable_core_files = self.disable_core_files)
+                     disable_core_files = self.disable_core_files,
+                     max_virtual_memory = self.max_virtual_memory)
     return TestOutput(self,
                       full_command,
                       output,
@@ -759,7 +760,8 @@ def CheckedUnlink(name):
       PrintError("os.unlink() " + str(e))
     break
 
-def Execute(args, context, timeout=None, env=None, disable_core_files=False, stdin=None):
+def Execute(args, context, timeout=None, env=None, disable_core_files=False,
+            stdin=None, max_virtual_memory=None):
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
 
@@ -781,11 +783,27 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False, std
 
   preexec_fn = None
 
+  def disableCoreFiles():
+    import resource
+    resource.setrlimit(resource.RLIMIT_CORE, (0,0))
+
   if disable_core_files and not utils.IsWindows():
-    def disableCoreFiles():
+    preexec_fn = disableCoreFiles
+
+  if max_virtual_memory is not None and utils.GuessOS() == 'linux':
+    def setMaxVirtualMemory():
       import resource
       resource.setrlimit(resource.RLIMIT_CORE, (0,0))
-    preexec_fn = disableCoreFiles
+      resource.setrlimit(resource.RLIMIT_AS, (max_virtual_memory,max_virtual_memory + 1))
+
+    if preexec_fn is not None:
+      prev_preexec_fn = preexec_fn
+      def setResourceLimits():
+        setMaxVirtualMemory()
+        prev_preexec_fn()
+      preexec_fn = setResourceLimits
+    else:
+      preexec_fn = setMaxVirtualMemory
 
   (process, exit_code, timed_out) = RunProcess(
     context,
