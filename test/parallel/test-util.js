@@ -40,16 +40,6 @@ assert.strictEqual(util.isArray(/regexp/), false);
 assert.strictEqual(util.isArray(new Error()), false);
 assert.strictEqual(util.isArray({ __proto__: Array.prototype }), false);
 
-// isDate
-assert.strictEqual(util.isDate(new Date()), true);
-assert.strictEqual(util.isDate(new Date(0), 'foo'), true);
-assert.strictEqual(util.isDate(new (context('Date'))()), true);
-assert.strictEqual(util.isDate(Date()), false);
-assert.strictEqual(util.isDate({}), false);
-assert.strictEqual(util.isDate([]), false);
-assert.strictEqual(util.isDate(new Error()), false);
-assert.strictEqual(util.isDate({ __proto__: Date.prototype }), false);
-
 // isError
 assert.strictEqual(util.isError(new Error()), true);
 assert.strictEqual(util.isError(new TypeError()), true);

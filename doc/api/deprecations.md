@@ -1050,6 +1050,9 @@ The `util.isBuffer()` API has been removed. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52744
+    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
@@ -1065,9 +1068,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`util.isDate()`][] API is deprecated. Please use
+The `util.isDate()` API has been removed. Please use
 `arg instanceof Date` instead.
 
 ### DEP0048: `util.isError()`
