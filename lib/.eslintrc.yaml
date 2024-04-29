@@ -67,7 +67,7 @@ rules:
     - name: MessageChannel
       message: Use `const { MessageChannel } = require('internal/worker/io');` instead of the global.
     - name: MessageEvent
-      message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
+      message: Use `const { MessageEvent } = require('internal/deps/undici/undici');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
     - name: Navigator
