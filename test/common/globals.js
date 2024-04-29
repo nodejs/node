@@ -79,6 +79,7 @@ const webIdlExposedWildcard = new Set([
   'TextDecoder',
   'AbortController',
   'AbortSignal',
+  'CustomEvent',
   'EventTarget',
   'Event',
   'URL',
