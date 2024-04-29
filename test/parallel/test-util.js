@@ -98,10 +98,6 @@ assert.strictEqual(util.isPrimitive(Infinity), true);
 assert.strictEqual(util.isPrimitive(NaN), true);
 assert.strictEqual(util.isPrimitive(Symbol('symbol')), true);
 
-// isBuffer
-assert.strictEqual(util.isBuffer('foo'), false);
-assert.strictEqual(util.isBuffer(Buffer.from('foo')), true);
-
 assert.strictEqual(util.isNull(null), true);
 assert.strictEqual(util.isNull(undefined), false);
 assert.strictEqual(util.isNull(), false);
