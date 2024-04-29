@@ -1150,6 +1150,9 @@ The `util.isNull()` API has been removed. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52744
+    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
@@ -1165,9 +1168,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`util.isNullOrUndefined()`][] API is deprecated. Please use
+The `util.isNullOrUndefined()` API has been removed. Please use
 `arg === null || arg === undefined` instead.
 
 ### DEP0052: `util.isNumber()`
@@ -3782,7 +3785,6 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 [`util.isArray()`]: util.md#utilisarrayobject
 [`util.isError()`]: util.md#utiliserrorobject
 [`util.isFunction()`]: util.md#utilisfunctionobject
-[`util.isNullOrUndefined()`]: util.md#utilisnullorundefinedobject
 [`util.isNumber()`]: util.md#utilisnumberobject
 [`util.isObject()`]: util.md#utilisobjectobject
 [`util.isPrimitive()`]: util.md#utilisprimitiveobject
