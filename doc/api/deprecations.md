@@ -996,6 +996,9 @@ instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52744
+    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
@@ -1011,9 +1014,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`util.isBoolean()`][] API is deprecated. Please use
+The `util.isBoolean()` API has been removed. Please use
 `typeof arg === 'boolean'` instead.
 
 ### DEP0046: `util.isBuffer()`
@@ -3776,7 +3779,6 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.inspect.custom`]: util.md#utilinspectcustom
 [`util.isArray()`]: util.md#utilisarrayobject
-[`util.isBoolean()`]: util.md#utilisbooleanobject
 [`util.isBuffer()`]: util.md#utilisbufferobject
 [`util.isDate()`]: util.md#utilisdateobject
 [`util.isError()`]: util.md#utiliserrorobject

@@ -102,11 +102,6 @@ assert.strictEqual(util.isPrimitive(Symbol('symbol')), true);
 assert.strictEqual(util.isBuffer('foo'), false);
 assert.strictEqual(util.isBuffer(Buffer.from('foo')), true);
 
-// deprecated
-assert.strictEqual(util.isBoolean(true), true);
-assert.strictEqual(util.isBoolean(false), true);
-assert.strictEqual(util.isBoolean('string'), false);
-
 assert.strictEqual(util.isNull(null), true);
 assert.strictEqual(util.isNull(undefined), false);
 assert.strictEqual(util.isNull(), false);
