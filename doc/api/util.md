@@ -2950,26 +2950,6 @@ util.isArray({});
 // Returns: false
 ```
 
-### `util.log(string)`
-
-<!-- YAML
-added: v0.3.0
-deprecated: v6.0.0
--->
-
-> Stability: 0 - Deprecated: Use a third party module instead.
-
-* `string` {string}
-
-The `util.log()` method prints the given `string` to `stdout` with an included
-timestamp.
-
-```js
-const util = require('node:util');
-
-util.log('Timestamped message.');
-```
-
 [Common System Errors]: errors.md#common-system-errors
 [Custom inspection functions on objects]: #custom-inspection-functions-on-objects
 [Custom promisified functions]: #custom-promisified-functions
