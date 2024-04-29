@@ -1363,6 +1363,9 @@ requirements and complexity of your application.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52744
+    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
@@ -1374,9 +1377,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`util._extend()`][] API is deprecated because it's an unmaintained
+The `util._extend()` API has been removed because it's an unmaintained
 legacy API that was exposed to user land by accident.
 Please use `target = Object.assign(target, source)` instead.
 
@@ -3764,7 +3767,6 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 [`url.format()`]: url.md#urlformaturlobject
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`url.resolve()`]: url.md#urlresolvefrom-to
-[`util._extend()`]: util.md#util_extendtarget-source
 [`util.getSystemErrorName()`]: util.md#utilgetsystemerrornameerr
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.inspect.custom`]: util.md#utilinspectcustom
