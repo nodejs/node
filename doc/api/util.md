@@ -2950,31 +2950,6 @@ util.isArray({});
 // Returns: false
 ```
 
-### `util.isDate(object)`
-
-<!-- YAML
-added: v0.6.0
-deprecated: v4.0.0
--->
-
-> Stability: 0 - Deprecated: Use [`util.types.isDate()`][] instead.
-
-* `object` {any}
-* Returns: {boolean}
-
-Returns `true` if the given `object` is a `Date`. Otherwise, returns `false`.
-
-```js
-const util = require('node:util');
-
-util.isDate(new Date());
-// Returns: true
-util.isDate(Date());
-// false (without 'new' returns a String)
-util.isDate({});
-// Returns: false
-```
-
 ### `util.isError(object)`
 
 <!-- YAML
@@ -3152,7 +3127,6 @@ util.log('Timestamped message.');
 [`util.promisify()`]: #utilpromisifyoriginal
 [`util.types.isAnyArrayBuffer()`]: #utiltypesisanyarraybuffervalue
 [`util.types.isArrayBuffer()`]: #utiltypesisarraybuffervalue
-[`util.types.isDate()`]: #utiltypesisdatevalue
 [`util.types.isNativeError()`]: #utiltypesisnativeerrorvalue
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
