@@ -1105,6 +1105,9 @@ instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52744
+    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
@@ -1120,9 +1123,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`util.isFunction()`][] API is deprecated. Please use
+The `util.isFunction()` API has been removed. Please use
 `typeof arg === 'function'` instead.
 
 ### DEP0050: `util.isNull()`
