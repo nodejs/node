@@ -35,4 +35,40 @@ describe('off-thread hooks', { concurrency: true }, () => {
     strictEqual(code, 0);
     strictEqual(signal, null);
   });
+
+  it('propagates the exit code from worker thread import exiting from resolve hook', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--import',
+      `data:text/javascript,${encodeURIComponent(`
+        import { register } from 'node:module';
+        register(${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-exit-worker.mjs'))});
+      `)}`,
+      fixtures.path('es-module-loaders/worker-log-fail-worker-resolve.mjs'),
+    ]);
+
+    strictEqual(stderr, '');
+    strictEqual(stdout.split('\n').filter((line) => line.startsWith('resolve process-exit-module-resolve')).length, 1);
+    strictEqual(code, 42);
+    strictEqual(signal, null);
+  });
+
+  it('propagates the exit code from worker thread import exiting from load hook', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--import',
+      `data:text/javascript,${encodeURIComponent(`
+        import { register } from 'node:module';
+        register(${JSON.stringify(fixtures.fileURL('es-module-loaders/hooks-exit-worker.mjs'))});
+      `)}`,
+      fixtures.path('es-module-loaders/worker-log-fail-worker-load.mjs'),
+    ]);
+
+    strictEqual(stderr, '');
+    strictEqual(stdout.split('\n').filter((line) => line.startsWith('resolve process-exit-module-load')).length, 1);
+    strictEqual(stdout.split('\n').filter((line) => line.startsWith('load process-exit-on-load:///')).length, 1);
+    strictEqual(code, 43);
+    strictEqual(signal, null);
+  });
+
 });
