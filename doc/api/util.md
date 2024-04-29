@@ -2950,47 +2950,6 @@ util.isArray({});
 // Returns: false
 ```
 
-### `util.isError(object)`
-
-<!-- YAML
-added: v0.6.0
-deprecated: v4.0.0
--->
-
-> Stability: 0 - Deprecated: Use [`util.types.isNativeError()`][] instead.
-
-* `object` {any}
-* Returns: {boolean}
-
-Returns `true` if the given `object` is an [`Error`][]. Otherwise, returns
-`false`.
-
-```js
-const util = require('node:util');
-
-util.isError(new Error());
-// Returns: true
-util.isError(new TypeError());
-// Returns: true
-util.isError({ name: 'Error', message: 'an error occurred' });
-// Returns: false
-```
-
-This method relies on `Object.prototype.toString()` behavior. It is
-possible to obtain an incorrect result when the `object` argument manipulates
-`@@toStringTag`.
-
-```js
-const util = require('node:util');
-const obj = { name: 'Error', message: 'an error occurred' };
-
-util.isError(obj);
-// Returns: false
-obj[Symbol.toStringTag] = 'Error';
-util.isError(obj);
-// Returns: true
-```
-
 ### `util.isFunction(object)`
 
 <!-- YAML
@@ -3094,7 +3053,6 @@ util.log('Timestamped message.');
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`Date`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
-[`Error`]: errors.md#class-error
 [`Float32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array
 [`Float64Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
 [`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
@@ -3127,7 +3085,6 @@ util.log('Timestamped message.');
 [`util.promisify()`]: #utilpromisifyoriginal
 [`util.types.isAnyArrayBuffer()`]: #utiltypesisanyarraybuffervalue
 [`util.types.isArrayBuffer()`]: #utiltypesisarraybuffervalue
-[`util.types.isNativeError()`]: #utiltypesisnativeerrorvalue
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [built-in `Error` type]: https://tc39.es/ecma262/#sec-error-objects
