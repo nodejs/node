@@ -40,16 +40,6 @@ assert.strictEqual(util.isArray(/regexp/), false);
 assert.strictEqual(util.isArray(new Error()), false);
 assert.strictEqual(util.isArray({ __proto__: Array.prototype }), false);
 
-// isRegExp
-assert.strictEqual(util.isRegExp(/regexp/), true);
-assert.strictEqual(util.isRegExp(RegExp(), 'foo'), true);
-assert.strictEqual(util.isRegExp(new RegExp()), true);
-assert.strictEqual(util.isRegExp(context('RegExp')()), true);
-assert.strictEqual(util.isRegExp({}), false);
-assert.strictEqual(util.isRegExp([]), false);
-assert.strictEqual(util.isRegExp(new Date()), false);
-assert.strictEqual(util.isRegExp({ __proto__: RegExp.prototype }), false);
-
 // isDate
 assert.strictEqual(util.isDate(new Date()), true);
 assert.strictEqual(util.isDate(new Date(0), 'foo'), true);
