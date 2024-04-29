@@ -43,7 +43,7 @@ class Response {
 
   // https://fetch.spec.whatwg.org/#dom-response-json
   static json (data, init = {}) {
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Response.json' })
+    webidl.argumentLengthCheck(arguments, 1, 'Response.json')
 
     if (init !== null) {
       init = webidl.converters.ResponseInit(init)
@@ -70,7 +70,7 @@ class Response {
 
   // Creates a redirect Response that redirects to url with status status.
   static redirect (url, status = 302) {
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Response.redirect' })
+    webidl.argumentLengthCheck(arguments, 1, 'Response.redirect')
 
     url = webidl.converters.USVString(url)
     status = webidl.converters['unsigned short'](status)
@@ -526,34 +526,34 @@ webidl.converters.URLSearchParams = webidl.interfaceConverter(
 )
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
-webidl.converters.XMLHttpRequestBodyInit = function (V) {
+webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
   if (typeof V === 'string') {
-    return webidl.converters.USVString(V)
+    return webidl.converters.USVString(V, prefix, name)
   }
 
   if (isBlobLike(V)) {
-    return webidl.converters.Blob(V, { strict: false })
+    return webidl.converters.Blob(V, prefix, name, { strict: false })
   }
 
   if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
-    return webidl.converters.BufferSource(V)
+    return webidl.converters.BufferSource(V, prefix, name)
   }
 
   if (util.isFormDataLike(V)) {
-    return webidl.converters.FormData(V, { strict: false })
+    return webidl.converters.FormData(V, prefix, name, { strict: false })
   }
 
   if (V instanceof URLSearchParams) {
-    return webidl.converters.URLSearchParams(V)
+    return webidl.converters.URLSearchParams(V, prefix, name)
   }
 
-  return webidl.converters.DOMString(V)
+  return webidl.converters.DOMString(V, prefix, name)
 }
 
 // https://fetch.spec.whatwg.org/#bodyinit
-webidl.converters.BodyInit = function (V) {
+webidl.converters.BodyInit = function (V, prefix, argument) {
   if (V instanceof ReadableStream) {
-    return webidl.converters.ReadableStream(V)
+    return webidl.converters.ReadableStream(V, prefix, argument)
   }
 
   // Note: the spec doesn't include async iterables,
@@ -562,19 +562,19 @@ webidl.converters.BodyInit = function (V) {
     return V
   }
 
-  return webidl.converters.XMLHttpRequestBodyInit(V)
+  return webidl.converters.XMLHttpRequestBodyInit(V, prefix, argument)
 }
 
 webidl.converters.ResponseInit = webidl.dictionaryConverter([
   {
     key: 'status',
     converter: webidl.converters['unsigned short'],
-    defaultValue: 200
+    defaultValue: () => 200
   },
   {
     key: 'statusText',
     converter: webidl.converters.ByteString,
-    defaultValue: ''
+    defaultValue: () => ''
   },
   {
     key: 'headers',

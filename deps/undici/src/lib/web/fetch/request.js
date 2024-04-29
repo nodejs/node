@@ -38,6 +38,46 @@ const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
   signal.removeEventListener('abort', abort)
 })
 
+const dependentControllerMap = new WeakMap()
+
+function buildAbort (acRef) {
+  return abort
+
+  function abort () {
+    const ac = acRef.deref()
+    if (ac !== undefined) {
+      // Currently, there is a problem with FinalizationRegistry.
+      // https://github.com/nodejs/node/issues/49344
+      // https://github.com/nodejs/node/issues/47748
+      // In the case of abort, the first step is to unregister from it.
+      // If the controller can refer to it, it is still registered.
+      // It will be removed in the future.
+      requestFinalizer.unregister(abort)
+
+      // Unsubscribe a listener.
+      // FinalizationRegistry will no longer be called, so this must be done.
+      this.removeEventListener('abort', abort)
+
+      ac.abort(this.reason)
+
+      const controllerList = dependentControllerMap.get(ac.signal)
+
+      if (controllerList !== undefined) {
+        if (controllerList.size !== 0) {
+          for (const ref of controllerList) {
+            const ctrl = ref.deref()
+            if (ctrl !== undefined) {
+              ctrl.abort(this.reason)
+            }
+          }
+          controllerList.clear()
+        }
+        dependentControllerMap.delete(ac.signal)
+      }
+    }
+  }
+}
+
 let patchMethodWarning = false
 
 // https://fetch.spec.whatwg.org/#request-class
@@ -48,10 +88,11 @@ class Request {
       return
     }
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Request constructor' })
+    const prefix = 'Request constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    input = webidl.converters.RequestInfo(input)
-    init = webidl.converters.RequestInit(init)
+    input = webidl.converters.RequestInfo(input, prefix, 'input')
+    init = webidl.converters.RequestInit(init, prefix, 'init')
 
     // 1. Let request be null.
     let request = null
@@ -377,24 +418,7 @@ class Request {
         this[kAbortController] = ac
 
         const acRef = new WeakRef(ac)
-        const abort = function () {
-          const ac = acRef.deref()
-          if (ac !== undefined) {
-            // Currently, there is a problem with FinalizationRegistry.
-            // https://github.com/nodejs/node/issues/49344
-            // https://github.com/nodejs/node/issues/47748
-            // In the case of abort, the first step is to unregister from it.
-            // If the controller can refer to it, it is still registered.
-            // It will be removed in the future.
-            requestFinalizer.unregister(abort)
-
-            // Unsubscribe a listener.
-            // FinalizationRegistry will no longer be called, so this must be done.
-            this.removeEventListener('abort', abort)
-
-            ac.abort(this.reason)
-          }
-        }
+        const abort = buildAbort(acRef)
 
         // Third-party AbortControllers may not work with these.
         // See, https://github.com/nodejs/undici/pull/1910#issuecomment-1464495619.
@@ -402,9 +426,9 @@ class Request {
           // If the max amount of listeners is equal to the default, increase it
           // This is only available in node >= v19.9.0
           if (typeof getMaxListeners === 'function' && getMaxListeners(signal) === defaultMaxListeners) {
-            setMaxListeners(100, signal)
+            setMaxListeners(1500, signal)
           } else if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
-            setMaxListeners(100, signal)
+            setMaxListeners(1500, signal)
           }
         } catch {}
 
@@ -453,8 +477,9 @@ class Request {
       // 4. If headers is a Headers object, then for each header in its header
       // list, append header’s name/header’s value to this’s headers.
       if (headers instanceof HeadersList) {
-        for (const [key, val] of headers) {
-          headersList.append(key, val)
+        for (const { 0: key, 1: val } of headers) {
+          // Note: The header names are already in lowercase.
+          headersList.append(key, val, true)
         }
         // Note: Copy the `set-cookie` meta-data.
         headersList.cookies = headers.cookies
@@ -747,11 +772,16 @@ class Request {
     if (this.signal.aborted) {
       ac.abort(this.signal.reason)
     } else {
+      let list = dependentControllerMap.get(this.signal)
+      if (list === undefined) {
+        list = new Set()
+        dependentControllerMap.set(this.signal, list)
+      }
+      const acRef = new WeakRef(ac)
+      list.add(acRef)
       util.addAbortListener(
-        this.signal,
-        () => {
-          ac.abort(this.signal.reason)
-        }
+        ac.signal,
+        buildAbort(acRef)
       )
     }
 
@@ -903,16 +933,16 @@ webidl.converters.Request = webidl.interfaceConverter(
 )
 
 // https://fetch.spec.whatwg.org/#requestinfo
-webidl.converters.RequestInfo = function (V) {
+webidl.converters.RequestInfo = function (V, prefix, argument) {
   if (typeof V === 'string') {
-    return webidl.converters.USVString(V)
+    return webidl.converters.USVString(V, prefix, argument)
   }
 
   if (V instanceof Request) {
-    return webidl.converters.Request(V)
+    return webidl.converters.Request(V, prefix, argument)
   }
 
-  return webidl.converters.USVString(V)
+  return webidl.converters.USVString(V, prefix, argument)
 }
 
 webidl.converters.AbortSignal = webidl.interfaceConverter(
@@ -982,6 +1012,8 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
     converter: webidl.nullableConverter(
       (signal) => webidl.converters.AbortSignal(
         signal,
+        'RequestInit',
+        'signal',
         { strict: false }
       )
     )

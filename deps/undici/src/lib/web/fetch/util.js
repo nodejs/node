@@ -1016,7 +1016,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
       configurable: true,
       value: function forEach (callbackfn, thisArg = globalThis) {
         webidl.brandCheck(this, object)
-        webidl.argumentLengthCheck(arguments, 1, { header: `${name}.forEach` })
+        webidl.argumentLengthCheck(arguments, 1, `${name}.forEach`)
         if (typeof callbackfn !== 'function') {
           throw new TypeError(
             `Failed to execute 'forEach' on '${name}': parameter 1 is not of type 'Function'.`

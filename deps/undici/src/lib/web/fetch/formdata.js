@@ -28,7 +28,8 @@ class FormData {
   append (name, value, filename = undefined) {
     webidl.brandCheck(this, FormData)
 
-    webidl.argumentLengthCheck(arguments, 2, { header: 'FormData.append' })
+    const prefix = 'FormData.append'
+    webidl.argumentLengthCheck(arguments, 2, prefix)
 
     if (arguments.length === 3 && !isBlobLike(value)) {
       throw new TypeError(
@@ -38,12 +39,12 @@ class FormData {
 
     // 1. Let value be value if given; otherwise blobValue.
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
     value = isBlobLike(value)
-      ? webidl.converters.Blob(value, { strict: false })
-      : webidl.converters.USVString(value)
+      ? webidl.converters.Blob(value, prefix, 'value', { strict: false })
+      : webidl.converters.USVString(value, prefix, 'value')
     filename = arguments.length === 3
-      ? webidl.converters.USVString(filename)
+      ? webidl.converters.USVString(filename, prefix, 'filename')
       : undefined
 
     // 2. Let entry be the result of creating an entry with
@@ -57,9 +58,10 @@ class FormData {
   delete (name) {
     webidl.brandCheck(this, FormData)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.delete' })
+    const prefix = 'FormData.delete'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // The delete(name) method steps are to remove all entries whose name
     // is name from this’s entry list.
@@ -69,9 +71,10 @@ class FormData {
   get (name) {
     webidl.brandCheck(this, FormData)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.get' })
+    const prefix = 'FormData.get'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // 1. If there is no entry whose name is name in this’s entry list,
     // then return null.
@@ -88,9 +91,10 @@ class FormData {
   getAll (name) {
     webidl.brandCheck(this, FormData)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.getAll' })
+    const prefix = 'FormData.getAll'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // 1. If there is no entry whose name is name in this’s entry list,
     // then return the empty list.
@@ -104,9 +108,10 @@ class FormData {
   has (name) {
     webidl.brandCheck(this, FormData)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.has' })
+    const prefix = 'FormData.has'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // The has(name) method steps are to return true if there is an entry
     // whose name is name in this’s entry list; otherwise false.
@@ -116,7 +121,8 @@ class FormData {
   set (name, value, filename = undefined) {
     webidl.brandCheck(this, FormData)
 
-    webidl.argumentLengthCheck(arguments, 2, { header: 'FormData.set' })
+    const prefix = 'FormData.set'
+    webidl.argumentLengthCheck(arguments, 2, prefix)
 
     if (arguments.length === 3 && !isBlobLike(value)) {
       throw new TypeError(
@@ -129,12 +135,12 @@ class FormData {
 
     // 1. Let value be value if given; otherwise blobValue.
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
     value = isBlobLike(value)
-      ? webidl.converters.Blob(value, { strict: false })
-      : webidl.converters.USVString(value)
+      ? webidl.converters.Blob(value, prefix, 'name', { strict: false })
+      : webidl.converters.USVString(value, prefix, 'name')
     filename = arguments.length === 3
-      ? webidl.converters.USVString(filename)
+      ? webidl.converters.USVString(filename, prefix, 'name')
       : undefined
 
     // 2. Let entry be the result of creating an entry with name, value, and

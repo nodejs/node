@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "6.14.1",
+  "version": "6.15.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -100,6 +100,7 @@
     "prepare": "husky install && node ./scripts/platform-shell.js"
   },
   "devDependencies": {
+    "@fastify/busboy": "2.1.1",
     "@matteo.collina/tspl": "^0.1.1",
     "@sinonjs/fake-timers": "^11.1.0",
     "@types/node": "^18.0.3",

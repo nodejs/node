@@ -6,7 +6,7 @@ const { makeRequest } = require('../fetch/request')
 const { webidl } = require('../fetch/webidl')
 const { EventSourceStream } = require('./eventsource-stream')
 const { parseMIMEType } = require('../fetch/data-url')
-const { MessageEvent } = require('../websocket/events')
+const { createFastMessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
 const { delay } = require('./util')
 const { kEnumerableProperty } = require('../../core/util')
@@ -105,7 +105,8 @@ class EventSource extends EventTarget {
     // 1. Let ev be a new EventSource object.
     super()
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'EventSource constructor' })
+    const prefix = 'EventSource constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
     if (!experimentalWarned) {
       experimentalWarned = true
@@ -114,8 +115,8 @@ class EventSource extends EventTarget {
       })
     }
 
-    url = webidl.converters.USVString(url)
-    eventSourceInitDict = webidl.converters.EventSourceInitDict(eventSourceInitDict)
+    url = webidl.converters.USVString(url, prefix, 'url')
+    eventSourceInitDict = webidl.converters.EventSourceInitDict(eventSourceInitDict, prefix, 'eventSourceInitDict')
 
     this.#dispatcher = eventSourceInitDict.dispatcher
     this.#state = {
@@ -290,7 +291,7 @@ class EventSource extends EventTarget {
       const eventSourceStream = new EventSourceStream({
         eventSourceSettings: this.#state,
         push: (event) => {
-          this.dispatchEvent(new MessageEvent(
+          this.dispatchEvent(createFastMessageEvent(
             event.type,
             event.options
           ))
@@ -463,7 +464,7 @@ webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
   {
     key: 'withCredentials',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'dispatcher', // undici only

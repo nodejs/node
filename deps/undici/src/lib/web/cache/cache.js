@@ -42,10 +42,12 @@ class Cache {
 
   async match (request, options = {}) {
     webidl.brandCheck(this, Cache)
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Cache.match' })
 
-    request = webidl.converters.RequestInfo(request)
-    options = webidl.converters.CacheQueryOptions(options)
+    const prefix = 'Cache.match'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
+
+    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     const p = this.#internalMatchAll(request, options, 1)
 
@@ -59,17 +61,20 @@ class Cache {
   async matchAll (request = undefined, options = {}) {
     webidl.brandCheck(this, Cache)
 
-    if (request !== undefined) request = webidl.converters.RequestInfo(request)
-    options = webidl.converters.CacheQueryOptions(options)
+    const prefix = 'Cache.matchAll'
+    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     return this.#internalMatchAll(request, options)
   }
 
   async add (request) {
     webidl.brandCheck(this, Cache)
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Cache.add' })
 
-    request = webidl.converters.RequestInfo(request)
+    const prefix = 'Cache.add'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
+
+    request = webidl.converters.RequestInfo(request, prefix, 'request')
 
     // 1.
     const requests = [request]
@@ -83,7 +88,9 @@ class Cache {
 
   async addAll (requests) {
     webidl.brandCheck(this, Cache)
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Cache.addAll' })
+
+    const prefix = 'Cache.addAll'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
     // 1.
     const responsePromises = []
@@ -95,7 +102,7 @@ class Cache {
     for (let request of requests) {
       if (request === undefined) {
         throw webidl.errors.conversionFailed({
-          prefix: 'Cache.addAll',
+          prefix,
           argument: 'Argument 1',
           types: ['undefined is not allowed']
         })
@@ -113,7 +120,7 @@ class Cache {
       // 3.2
       if (!urlIsHttpHttpsScheme(r.url) || r.method !== 'GET') {
         throw webidl.errors.exception({
-          header: 'Cache.addAll',
+          header: prefix,
           message: 'Expected http/s scheme when method is not GET.'
         })
       }
@@ -131,7 +138,7 @@ class Cache {
       // 5.2
       if (!urlIsHttpHttpsScheme(r.url)) {
         throw webidl.errors.exception({
-          header: 'Cache.addAll',
+          header: prefix,
           message: 'Expected http/s scheme.'
         })
       }
@@ -251,10 +258,12 @@ class Cache {
 
   async put (request, response) {
     webidl.brandCheck(this, Cache)
-    webidl.argumentLengthCheck(arguments, 2, { header: 'Cache.put' })
 
-    request = webidl.converters.RequestInfo(request)
-    response = webidl.converters.Response(response)
+    const prefix = 'Cache.put'
+    webidl.argumentLengthCheck(arguments, 2, prefix)
+
+    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    response = webidl.converters.Response(response, prefix, 'response')
 
     // 1.
     let innerRequest = null
@@ -269,7 +278,7 @@ class Cache {
     // 4.
     if (!urlIsHttpHttpsScheme(innerRequest.url) || innerRequest.method !== 'GET') {
       throw webidl.errors.exception({
-        header: 'Cache.put',
+        header: prefix,
         message: 'Expected an http/s scheme when method is not GET'
       })
     }
@@ -280,7 +289,7 @@ class Cache {
     // 6.
     if (innerResponse.status === 206) {
       throw webidl.errors.exception({
-        header: 'Cache.put',
+        header: prefix,
         message: 'Got 206 status'
       })
     }
@@ -295,7 +304,7 @@ class Cache {
         // 7.2.1
         if (fieldValue === '*') {
           throw webidl.errors.exception({
-            header: 'Cache.put',
+            header: prefix,
             message: 'Got * vary field value'
           })
         }
@@ -305,7 +314,7 @@ class Cache {
     // 8.
     if (innerResponse.body && (isDisturbed(innerResponse.body.stream) || innerResponse.body.stream.locked)) {
       throw webidl.errors.exception({
-        header: 'Cache.put',
+        header: prefix,
         message: 'Response body is locked or disturbed'
       })
     }
@@ -380,10 +389,12 @@ class Cache {
 
   async delete (request, options = {}) {
     webidl.brandCheck(this, Cache)
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Cache.delete' })
 
-    request = webidl.converters.RequestInfo(request)
-    options = webidl.converters.CacheQueryOptions(options)
+    const prefix = 'Cache.delete'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
+
+    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     /**
      * @type {Request}
@@ -445,8 +456,10 @@ class Cache {
   async keys (request = undefined, options = {}) {
     webidl.brandCheck(this, Cache)
 
-    if (request !== undefined) request = webidl.converters.RequestInfo(request)
-    options = webidl.converters.CacheQueryOptions(options)
+    const prefix = 'Cache.keys'
+
+    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     // 1.
     let r = null
@@ -810,17 +823,17 @@ const cacheQueryOptionConverters = [
   {
     key: 'ignoreSearch',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'ignoreMethod',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'ignoreVary',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   }
 ]
 

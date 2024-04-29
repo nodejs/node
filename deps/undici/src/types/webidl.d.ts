@@ -55,7 +55,9 @@ interface WebidlUtil {
     V: unknown,
     bitLength: number,
     signedness: 'signed' | 'unsigned',
-    opts?: ConvertToIntOpts
+    opts?: ConvertToIntOpts,
+    prefix: string,
+    argument: string
   ): number
 
   /**
@@ -73,14 +75,14 @@ interface WebidlConverters {
   /**
    * @see https://webidl.spec.whatwg.org/#es-DOMString
    */
-  DOMString (V: unknown, opts?: {
+  DOMString (V: unknown, prefix: string, argument: string, opts?: {
     legacyNullToEmptyString: boolean
   }): string
 
   /**
    * @see https://webidl.spec.whatwg.org/#es-ByteString
    */
-  ByteString (V: unknown): string
+  ByteString (V: unknown, prefix: string, argument: string): string
 
   /**
    * @see https://webidl.spec.whatwg.org/#es-USVString
@@ -204,7 +206,7 @@ export interface Webidl {
    */
   dictionaryConverter (converters: {
     key: string,
-    defaultValue?: unknown,
+    defaultValue?: () => unknown,
     required?: boolean,
     converter: (...args: unknown[]) => unknown,
     allowedValues?: unknown[]
@@ -218,8 +220,5 @@ export interface Webidl {
     converter: Converter<T>
   ): (V: unknown) => ReturnType<typeof converter> | null
 
-  argumentLengthCheck (args: { length: number }, min: number, context: {
-    header: string
-    message?: string
-  }): void
+  argumentLengthCheck (args: { length: number }, min: number, context: string): void
 }
