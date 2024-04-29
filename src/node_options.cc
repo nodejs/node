@@ -402,11 +402,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_websocket,
             kAllowedInEnvvar,
             true);
-  AddOption("--experimental-global-customevent",
-            "expose experimental CustomEvent on the global scope",
-            &EnvironmentOptions::experimental_global_customevent,
-            kAllowedInEnvvar,
-            true);
+  AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-global-navigator",
             "expose experimental Navigator API on the global scope",
             &EnvironmentOptions::experimental_global_navigator,

@@ -111,7 +111,6 @@ class EnvironmentOptions : public Options {
   bool enable_source_maps = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
-  bool experimental_global_customevent = true;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
