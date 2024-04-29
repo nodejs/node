@@ -98,11 +98,6 @@ assert.strictEqual(util.isPrimitive(Infinity), true);
 assert.strictEqual(util.isPrimitive(NaN), true);
 assert.strictEqual(util.isPrimitive(Symbol('symbol')), true);
 
-assert.strictEqual(util.isUndefined(undefined), true);
-assert.strictEqual(util.isUndefined(), true);
-assert.strictEqual(util.isUndefined(null), false);
-assert.strictEqual(util.isUndefined('string'), false);
-
 assert.strictEqual(util.isFunction(() => {}), true);
 assert.strictEqual(util.isFunction(function() {}), true);
 assert.strictEqual(util.isFunction(), false);
