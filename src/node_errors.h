@@ -302,6 +302,9 @@ void PerIsolateMessageListener(v8::Local<v8::Message> message,
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch);
+void DecorateErrorStack(Environment* env,
+                        v8::Local<v8::Value> error,
+                        v8::Local<v8::Message> message);
 
 class PrinterTryCatch : public v8::TryCatch {
  public:

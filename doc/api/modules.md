@@ -187,9 +187,12 @@ regarding which files are parsed as ECMAScript modules.
 If `--experimental-require-module` is enabled, and the ECMAScript module being
 loaded by `require()` meets the following requirements:
 
-* Explicitly marked as an ES module with a `"type": "module"` field in
-  the closest package.json or a `.mjs` extension.
-* Fully synchronous (contains no top-level `await`).
+* The module is fully synchronous (contains no top-level `await`); and
+* One of these conditions are met:
+  1. The file has a `.mjs` extension.
+  2. The file has a `.js` extension, and the closest `package.json` contains `"type": "module"`
+  3. The file has a `.js` extension, the closest `package.json` does not contain
+     `"type": "commonjs"`, and `--experimental-detect-module` is enabled.
 
 `require()` will load the requested module as an ES Module, and return
 the module name space object. In this case it is similar to dynamic
@@ -256,18 +259,27 @@ require(X) from module at path Y
 6. LOAD_NODE_MODULES(X, dirname(Y))
 7. THROW "not found"
 
+MAYBE_DETECT_AND_LOAD(X)
+1. If X parses as a CommonJS module, load X as a CommonJS module. STOP.
+2. Else, if `--experimental-require-module` and `--experimental-detect-module` are
+  enabled, and the source code of X can be parsed as ECMAScript module using
+  <a href="esm.md#resolver-algorithm-specification">DETECT_MODULE_SYNTAX defined in
+  the ESM resolver</a>,
+  a. Load X as an ECMAScript module. STOP.
+3. THROW the SyntaxError from attempting to parse X as CommonJS in 1. STOP.
+
 LOAD_AS_FILE(X)
 1. If X is a file, load X as its file extension format. STOP
 2. If X.js is a file,
     a. Find the closest package scope SCOPE to X.
-    b. If no scope was found, load X.js as a CommonJS module. STOP.
+    b. If no scope was found
+      1. MAYBE_DETECT_AND_LOAD(X.js)
     c. If the SCOPE/package.json contains "type" field,
       1. If the "type" field is "module", load X.js as an ECMAScript module. STOP.
-      2. Else, load X.js as an CommonJS module. STOP.
+      2. If the "type" field is "commonjs", load X.js as an CommonJS module. STOP.
+    d. MAYBE_DETECT_AND_LOAD(X.js)
 3. If X.json is a file, load X.json to a JavaScript Object. STOP
 4. If X.node is a file, load X.node as binary addon. STOP
-5. If X.mjs is a file, and `--experimental-require-module` is enabled,
-   load X.mjs as an ECMAScript module. STOP
 
 LOAD_INDEX(X)
 1. If X/index.js is a file

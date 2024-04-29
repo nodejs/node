@@ -1141,15 +1141,19 @@ void Initialize(Local<Object> target,
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch) {
-  Local<Value> exception = try_catch.Exception();
+  DecorateErrorStack(env, try_catch.Exception(), try_catch.Message());
+}
 
+void DecorateErrorStack(Environment* env,
+                        Local<Value> exception,
+                        Local<Message> message) {
   if (!exception->IsObject()) return;
 
   Local<Object> err_obj = exception.As<Object>();
 
   if (IsExceptionDecorated(env, err_obj)) return;
 
-  AppendExceptionLine(env, exception, try_catch.Message(), CONTEXTIFY_ERROR);
+  AppendExceptionLine(env, exception, message, CONTEXTIFY_ERROR);
   TryCatchScope try_catch_scope(env);  // Ignore exceptions below.
   MaybeLocal<Value> stack = err_obj->Get(env->context(), env->stack_string());
   MaybeLocal<Value> maybe_value =

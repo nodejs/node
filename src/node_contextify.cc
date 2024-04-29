@@ -28,8 +28,10 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_process.h"
 #include "node_sea.h"
 #include "node_snapshot_builder.h"
+#include "node_url.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
 
@@ -56,6 +58,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::MeasureMemoryExecution;
 using v8::MeasureMemoryMode;
+using v8::Message;
 using v8::MicrotaskQueue;
 using v8::MicrotasksPolicy;
 using v8::Name;
@@ -1526,50 +1529,109 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(Environment* env,
   return scope.Escape(fn);
 }
 
+static bool warned_about_require_esm = false;
+// TODO(joyeecheung): this was copied from the warning previously emitted in the
+// JS land, but it's not very helpful. There should be specific information
+// about which file or which package.json to update.
+const char* require_esm_warning =
+    "To load an ES module, set \"type\": \"module\" in the package.json or use "
+    "the .mjs extension.";
+
+static bool ShouldRetryAsESM(Realm* realm,
+                             Local<String> message,
+                             Local<String> code,
+                             Local<String> resource_name);
+
 static void CompileFunctionForCJSLoader(
     const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsString());
+  CHECK(args[2]->IsBoolean());
+  CHECK(args[3]->IsBoolean());
   Local<String> code = args[0].As<String>();
   Local<String> filename = args[1].As<String>();
+  bool should_detect_module = args[3].As<Boolean>()->Value();
+
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
 
   bool cache_rejected = false;
   Local<Function> fn;
+  Local<Value> cjs_exception;
+  Local<Message> cjs_message;
+
   {
+    ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
     TryCatchScope try_catch(env);
     if (!CompileFunctionForCJSLoader(
              env, context, code, filename, &cache_rejected)
              .ToLocal(&fn)) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.HasTerminated());
-      errors::DecorateErrorStack(env, try_catch);
-      try_catch.ReThrow();
+      cjs_exception = try_catch.Exception();
+      cjs_message = try_catch.Message();
+      errors::DecorateErrorStack(env, cjs_exception, cjs_message);
+    }
+  }
+
+  bool can_parse_as_esm = false;
+  if (!cjs_exception.IsEmpty()) {
+    // Use the URL to match what would be used in the origin if it's going to
+    // be reparsed as ESM.
+    Utf8Value filename_utf8(isolate, filename);
+    std::string url = url::FromFilePath(filename_utf8.ToStringView());
+    Local<String> url_value;
+    if (!String::NewFromUtf8(isolate, url.c_str()).ToLocal(&url_value)) {
+      return;
+    }
+    can_parse_as_esm =
+        ShouldRetryAsESM(realm, cjs_message->Get(), code, url_value);
+    if (!can_parse_as_esm) {
+      // The syntax error is not related to ESM, throw the original error.
+      isolate->ThrowException(cjs_exception);
+      return;
+    }
+
+    if (!should_detect_module) {
+      bool should_throw = true;
+      if (!warned_about_require_esm) {
+        // This needs to call process.emit('warning') in JS which can throw if
+        // the user listener throws. In that case, don't try to throw the syntax
+        // error.
+        should_throw =
+            ProcessEmitWarningSync(env, require_esm_warning).IsJust();
+      }
+      if (should_throw) {
+        isolate->ThrowException(cjs_exception);
+      }
       return;
     }
   }
 
+  Local<Value> undefined = v8::Undefined(isolate);
   std::vector<Local<Name>> names = {
       env->cached_data_rejected_string(),
       env->source_map_url_string(),
       env->function_string(),
+      FIXED_ONE_BYTE_STRING(isolate, "canParseAsESM"),
   };
   std::vector<Local<Value>> values = {
       Boolean::New(isolate, cache_rejected),
-      fn->GetScriptOrigin().SourceMapUrl(),
-      fn,
+      fn.IsEmpty() ? undefined : fn->GetScriptOrigin().SourceMapUrl(),
+      fn.IsEmpty() ? undefined : fn.As<Value>(),
+      Boolean::New(isolate, can_parse_as_esm),
   };
   Local<Object> result = Object::New(
       isolate, v8::Null(isolate), names.data(), values.data(), names.size());
   args.GetReturnValue().Set(result);
 }
 
-static bool ShouldRetryAsESM(Realm* realm,
-                             Local<String> message,
-                             Local<String> code,
-                             Local<String> resource_name) {
+bool ShouldRetryAsESM(Realm* realm,
+                      Local<String> message,
+                      Local<String> code,
+                      Local<String> resource_name) {
   Isolate* isolate = realm->isolate();
 
   Utf8Value message_value(isolate, message);
@@ -1603,7 +1665,7 @@ static bool ShouldRetryAsESM(Realm* realm,
   Local<PrimitiveArray> hdo = loader::ModuleWrap::GetHostDefinedOptions(
       isolate, realm->isolate_data()->source_text_module_default_hdo());
   if (loader::ModuleWrap::CompileSourceTextModule(
-          realm, code, resource_name, 0, 0, hdo, nullptr, &cache_rejected)
+          realm, code, resource_name, 0, 0, hdo, std::nullopt, &cache_rejected)
           .ToLocal(&module)) {
     return true;
   }
