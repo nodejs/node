@@ -1507,7 +1507,6 @@ static void CompileFunctionForCJSLoader(
   CHECK(args[3]->IsBoolean());
   Local<String> code = args[0].As<String>();
   Local<String> filename = args[1].As<String>();
-  bool is_main = args[2].As<Boolean>()->Value();
   bool should_detect_module = args[3].As<Boolean>()->Value();
 
   Isolate* isolate = args.GetIsolate();
