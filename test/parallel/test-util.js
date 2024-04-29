@@ -57,11 +57,6 @@ assert.strictEqual(util.isPrimitive(Infinity), true);
 assert.strictEqual(util.isPrimitive(NaN), true);
 assert.strictEqual(util.isPrimitive(Symbol('symbol')), true);
 
-assert.strictEqual(util.isFunction(() => {}), true);
-assert.strictEqual(util.isFunction(function() {}), true);
-assert.strictEqual(util.isFunction(), false);
-assert.strictEqual(util.isFunction('string'), false);
-
 assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
 
 {
