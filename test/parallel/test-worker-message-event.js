@@ -62,30 +62,30 @@ const dummyPort = new MessageChannel().port1;
     new MessageEvent('message', { source: 1 });
   }, {
     name: 'TypeError',
-    message: /MessageEvent constructor: Expected eventInitDict.source \("1"\) to be an instance of MessagePort./,
+    message: /MessageEvent constructor: Expected eventInitDict\.source \("1"\) to be an instance of MessagePort\./,
   });
   assert.throws(() => {
     new MessageEvent('message', { source: {} });
   }, {
     name: 'TypeError',
-    message: /MessageEvent constructor: Expected eventInitDict.source \("\{\}"\) to be an instance of MessagePort./,
+    message: /MessageEvent constructor: Expected eventInitDict\.source \("\{\}"\) to be an instance of MessagePort\./,
   });
   assert.throws(() => {
     new MessageEvent('message', { ports: 0 });
   }, {
-    message: /MessageEvent constructor: eventInitDict.ports \(0\) is not iterable./,
+    message: /MessageEvent constructor: eventInitDict\.ports \(0\) is not iterable\./,
   });
   assert.throws(() => {
     new MessageEvent('message', { ports: [ null ] });
   }, {
     name: 'TypeError',
-    message: /MessageEvent constructor: Expected eventInitDict.ports(\[0\])? \("null"\) to be an instance of MessagePort./,
+    message: /MessageEvent constructor: Expected eventInitDict\.ports(\[0\])? \("null"\) to be an instance of MessagePort\./,
   });
   assert.throws(() => {
     new MessageEvent('message', { ports: [ {} ] });
   }, {
     name: 'TypeError',
-    message: /MessageEvent constructor: Expected eventInitDict.ports(\[0\])? \("\{\}"\) to be an instance of MessagePort./,
+    message: /MessageEvent constructor: Expected eventInitDict\.ports(\[0\])? \("\{\}"\) to be an instance of MessagePort\./,
   });
 }
 
