@@ -16,7 +16,6 @@ on:
           - acorn
           - acorn-walk
           - ada
-          - base64
           - brotli
           - c-ares
           - cjs-module-lexer
@@ -77,14 +76,6 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-ada.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: base64
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-base64.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
