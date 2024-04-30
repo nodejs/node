@@ -149,9 +149,8 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
   }
 }
 
-bool FSPermission::is_granted(
-    Environment* env,
-    PermissionScope perm,
+bool FSPermission::is_granted(Environment* env,
+                              PermissionScope perm,
                               const std::string_view& param = "") const {
   switch (perm) {
     case PermissionScope::kFileSystem:

@@ -27,7 +27,7 @@ namespace permission {
 
 #define THROW_IF_INSUFFICIENT_PERMISSIONS(env, perm_, resource_, ...)          \
   do {                                                                         \
-    if (UNLIKELY(!(env)->permission()->is_granted(env, perm_, resource_))) {        \
+    if (UNLIKELY(!(env)->permission()->is_granted(env, perm_, resource_))) {   \
       node::permission::Permission::ThrowAccessDenied(                         \
           (env), perm_, resource_);                                            \
       return __VA_ARGS__;                                                      \
@@ -37,7 +37,7 @@ namespace permission {
 #define ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(                               \
     env, wrap, perm_, resource_, ...)                                          \
   do {                                                                         \
-    if (UNLIKELY(!(env)->permission()->is_granted(env, perm_, resource_))) {        \
+    if (UNLIKELY(!(env)->permission()->is_granted(env, perm_, resource_))) {   \
       node::permission::Permission::AsyncThrowAccessDenied(                    \
           (env), wrap, perm_, resource_);                                      \
       return __VA_ARGS__;                                                      \
@@ -74,9 +74,8 @@ class Permission {
   void EnablePermissions();
 
  private:
-  COLD_NOINLINE bool is_scope_granted(
-      Environment* env,
-      const PermissionScope permission,
+  COLD_NOINLINE bool is_scope_granted(Environment* env,
+                                      const PermissionScope permission,
                                       const std::string_view& res = "") const {
     auto perm_node = nodes_.find(permission);
     if (perm_node != nodes_.end()) {
