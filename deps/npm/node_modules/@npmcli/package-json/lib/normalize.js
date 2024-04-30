@@ -2,7 +2,7 @@ const valid = require('semver/functions/valid')
 const clean = require('semver/functions/clean')
 const fs = require('fs/promises')
 const path = require('path')
-const log = require('proc-log')
+const { log } = require('proc-log')
 
 /**
  * @type {import('hosted-git-info')}

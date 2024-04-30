@@ -283,7 +283,7 @@ module.exports = cls => class VirtualLoader extends cls {
     return node
   }
 
-  #loadLink (location, targetLoc, target, meta) {
+  #loadLink (location, targetLoc, target) {
     const path = resolve(this.path, location)
     const link = new Link({
       installLinks: this.installLinks,

@@ -142,7 +142,7 @@ t.test('--no-audit and --ignore-scripts', async t => {
       'package-lock.json': JSON.stringify(packageLock),
     },
   })
-  require('nock').emitter.on('no match', req => {
+  require('nock').emitter.on('no match', () => {
     t.fail('Should not audit')
   })
   const manifest = registry.manifest({ name: 'abbrev' })
@@ -164,7 +164,6 @@ t.test('lifecycle scripts', async t => {
     },
     mocks: {
       '@npmcli/run-script': (opts) => {
-        t.ok(opts.banner)
         scripts.push(opts.event)
       },
     },

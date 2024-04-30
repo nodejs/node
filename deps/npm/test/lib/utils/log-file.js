@@ -46,6 +46,8 @@ const loadLogFile = async (t, { buffer = [], mocks, testdir = {}, ...options } =
   const MockLogFile = tmock(t, '{LIB}/utils/log-file.js', mocks)
   const logFile = new MockLogFile(Object.keys(options).length ? options : undefined)
 
+  // Create a fake public method since there is not one on logFile anymore
+  logFile.log = (...b) => process.emit('log', ...b)
   buffer.forEach((b) => logFile.log(...b))
 
   const id = getId()
@@ -165,7 +167,7 @@ t.test('initial stream error', async t => {
     mocks: {
       'fs-minipass': {
         WriteStreamSync: class {
-          constructor (...args) {
+          constructor () {
             throw new Error('no stream')
           }
         },
