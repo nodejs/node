@@ -32,7 +32,8 @@ ProcessRunner::ProcessRunner(
   options_.stdio = child_stdio;
   options_.exit_cb = ExitCallback;
   options_.file = task_file;
-  options_.flags = UV_PROCESS_DETACHED;
+  // We could request verbatim arguments if needed:
+  // options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
 
   init_result = result;
   process_.data = this;
@@ -54,7 +55,11 @@ ProcessRunner::ProcessRunner(
   }
 
   // Example: "/bin/sh -c 'node test.js'"
+#ifdef _WIN32
+  command_args_ = {options_.file, "/C", command_str};
+#else
   command_args_ = {options_.file, "-c", command_str};
+#endif
   auto argc = command_args_.size();
   CHECK_GE(argc, 1);
   arg = std::unique_ptr<char*[]>(new char*[argc + 1]);
