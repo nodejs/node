@@ -1287,9 +1287,7 @@ struct MakeClass {
 };
 
 template <typename T, typename F>
-T CallOnSequence(v8::Isolate* isolate,
-                 Local<Value> value,
-                 F callback) {
+T CallOnSequence(v8::Isolate* isolate, Local<Value> value, F callback) {
   if (value->IsString()) {
     Utf8Value data(isolate, value);
     return callback(data.out(), data.length());
