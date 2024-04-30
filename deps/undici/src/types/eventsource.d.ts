@@ -1,4 +1,5 @@
 import { MessageEvent, ErrorEvent } from './websocket'
+import Dispatcher from './dispatcher'
 
 import {
   EventTarget,
@@ -50,12 +51,13 @@ interface EventSource extends EventTarget {
 
 export declare const EventSource: {
   prototype: EventSource
-  new (url: string | URL, init: EventSourceInit): EventSource
+  new (url: string | URL, init?: EventSourceInit): EventSource
   readonly CLOSED: 2
   readonly CONNECTING: 0
   readonly OPEN: 1
 }
 
 interface EventSourceInit {
-  withCredentials?: boolean
+  withCredentials?: boolean,
+  dispatcher?: Dispatcher
 }
