@@ -2427,7 +2427,7 @@ added:
   - v18.7.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v22.1.0
     pr-url: https://github.com/nodejs/node/pull/52618
     description: CustomEvent is now stable.
 -->
@@ -2446,7 +2446,7 @@ added:
   - v18.7.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v22.1.0
     pr-url: https://github.com/nodejs/node/pull/52618
     description: CustomEvent is now stable.
 -->

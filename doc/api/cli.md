@@ -594,7 +594,7 @@ added:
   - v16.4.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version: v22.1.0
     pr-url: https://github.com/nodejs/node/pull/52492
     description: The `ipv6first` is supported now.
   - version: v17.0.0
@@ -1338,7 +1338,7 @@ This option is a no-op. It is kept for compatibility.
 ### `--network-family-autoselection-attempt-timeout`
 
 <!-- YAML
-added: REPLACEME
+added: v22.1.0
 -->
 
 Sets the default value for the network family autoselection attempt timeout.
@@ -2035,7 +2035,7 @@ node --test --test-shard=3/3
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.1.0
 -->
 
 A regular expression that configures the test runner to skip tests
@@ -2464,7 +2464,7 @@ environment variable is arbitrary.
 ### `NODE_COMPILE_CACHE=dir`
 
 <!-- YAML
-added: REPLACEME
+added: v22.1.0
 -->
 
 > Stability: 1.1 - Active Development
