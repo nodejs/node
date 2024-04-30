@@ -32,7 +32,7 @@ ProcessRunner::ProcessRunner(
   options_.stdio = child_stdio;
   options_.exit_cb = ExitCallback;
   options_.file = task_file;
-  options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  options_.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
 
   init_result = result;
   process_.data = this;
