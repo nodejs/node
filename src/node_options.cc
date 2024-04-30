@@ -1164,7 +1164,7 @@ std::string GetBashCompletion() {
 }
 
 struct IterateCLIOptionsScope {
-  IterateCLIOptionsScope(Environment* env) {
+  explicit IterateCLIOptionsScope(Environment* env) {
     // Temporarily act as if the current Environment's/IsolateData's options
     // were the default options, i.e. like they are the ones we'd access for
     // global options parsing, so that all options are available from the main
