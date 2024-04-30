@@ -535,8 +535,8 @@ console.log(values.random);
 
   it('should run when `--watch --inspect`', async () => {
     const file = createTmpFile();
-    const args = ['--inspect', file];
-    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, args });
+    const args = ['--watch', '--inspect', file];
+    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '', args });
 
     assert.match(stderr, /listening on ws:\/\//);
     assert.deepStrictEqual(stdout, [
