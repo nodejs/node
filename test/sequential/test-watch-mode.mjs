@@ -39,7 +39,9 @@ async function runWriteSucceed({
   options = {},
   shouldFail = false
 }) {
-  const child = spawn(execPath, [watchFlag, '--no-warnings', ...args], { encoding: 'utf8', stdio: 'pipe', ...options });
+  args.unshift('--no-warnings');
+  if (watchFlag !== null) args.unshift(watchFlag);
+  const child = spawn(execPath, args, { encoding: 'utf8', stdio: 'pipe', ...options });
   let completes = 0;
   let cancelRestarts = () => {};
   let stderr = '';
@@ -536,7 +538,7 @@ console.log(values.random);
   it('should run when `--watch --inspect`', async () => {
     const file = createTmpFile();
     const args = ['--watch', '--inspect', file];
-    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '', args });
+    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: null, args });
 
     assert.match(stderr, /listening on ws:\/\//);
     assert.deepStrictEqual(stdout, [
