@@ -531,4 +531,20 @@ console.log(values.random);
       `Completed running ${inspect(file)}`,
     ]);
   });
+
+
+  it('should run when `--watch --inspect`', async () => {
+    const file = createTmpFile();
+    const args = ['--inspect', file];
+    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, args });
+
+    assert.match(stderr, /listening on ws:\/\//);
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
 });
