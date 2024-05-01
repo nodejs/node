@@ -1082,6 +1082,8 @@ added: v22.0.0
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `overrides` {Object} override the default `minimatch` behavior with
+    the options specified. **Default:** `{}`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
   that match the pattern.
 
@@ -3119,6 +3121,8 @@ added: v22.0.0
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `overrides` {Object} override the default `minimatch` behavior with
+    the options specified. **Default:** `{}`.
 
 * `callback` {Function}
   * `err` {Error}
