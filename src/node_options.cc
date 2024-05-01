@@ -664,10 +664,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "throw an exception on deprecations",
             &EnvironmentOptions::throw_deprecation,
             kAllowedInEnvvar);
-  AddOption("--trace-atomics-wait",
-            "(deprecated) trace Atomics.wait() operations",
-            &EnvironmentOptions::trace_atomics_wait,
-            kAllowedInEnvvar);
   AddOption("--trace-deprecation",
             "show stack traces on deprecations",
             &EnvironmentOptions::trace_deprecation,
