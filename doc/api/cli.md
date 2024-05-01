@@ -1284,6 +1284,15 @@ Specify ways of the inspector web socket url exposure.
 By default inspector websocket url is available in stderr and under `/json/list`
 endpoint on `http://host:port/json/list`.
 
+### `--inspect-wait[=[host:]port]`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Activate inspector on `host:port` and wait for debugger to be attached.
+Default `host:port` is `127.0.0.1:9229`.
+
 ### `-i`, `--interactive`
 
 <!-- YAML
@@ -2622,6 +2631,7 @@ one is included in the list below.
 * `--inspect-brk`
 * `--inspect-port`, `--debug-port`
 * `--inspect-publish-uid`
+* `--inspect-wait`
 * `--inspect`
 * `--max-http-header-size`
 * `--napi-modules`

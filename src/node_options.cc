@@ -331,6 +331,14 @@ DebugOptionsParser::DebugOptionsParser() {
   Implies("--inspect-brk-node", "--inspect");
   AddAlias("--inspect-brk-node=", { "--inspect-port", "--inspect-brk-node" });
 
+  AddOption(
+      "--inspect-wait",
+      "activate inspector on host:port and wait for debugger to be attached",
+      &DebugOptions::inspect_wait,
+      kAllowedInEnvvar);
+  Implies("--inspect-wait", "--inspect");
+  AddAlias("--inspect-wait=", {"--inspect-port", "--inspect-wait"});
+
   AddOption("--inspect-publish-uid",
             "comma separated list of destinations for inspector uid"
             "(default: stderr,http)",
