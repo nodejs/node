@@ -6,7 +6,7 @@ const t = require('tap')
 const util = require('util')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const { commands } = require('../../lib/utils/cmd-list.js')
-const BaseCommand = require('../../lib/base-command.js')
+const BaseCommand = require('../../lib/base-cmd.js')
 
 const isAsyncFn = (v) => typeof v === 'function' && /^\[AsyncFunction:/.test(util.inspect(v))
 
@@ -72,8 +72,8 @@ t.test('load each command', async t => {
       // usage
       t.match(impl.usage, cmd, 'usage contains the command')
       await npm.exec(cmd, [])
-      t.match(outputs[0][0], impl.usage, 'usage is what is output')
-      t.match(outputs[0][0], ctor.describeUsage, 'usage is what is output')
+      t.match(outputs[0], impl.usage, 'usage is what is output')
+      t.match(outputs[0], ctor.describeUsage, 'usage is what is output')
       t.notOk(impl.describeUsage, 'describe usage is only static')
     })
   }

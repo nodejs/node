@@ -10,7 +10,6 @@ npm home:
 https://www.npmjs.com
 Browser unavailable.  Please open the URL manually:
   https://www.npmjs.com
-
 `
 
 exports[`test/lib/utils/open-url-prompt.js TAP opens a url > must match snapshot 1`] = `

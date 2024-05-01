@@ -1,12 +1,11 @@
-const os = require('node:os')
 const { resolve } = require('node:path')
 const { stripVTControlCharacters } = require('node:util')
 const pacote = require('pacote')
 const table = require('text-table')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
+const { output } = require('proc-log')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Outdated extends ArboristWorkspaceCmd {
@@ -84,9 +83,9 @@ class Outdated extends ArboristWorkspaceCmd {
 
     // display results
     if (this.npm.config.get('json')) {
-      this.npm.output(this.makeJSON(outdated))
+      output.standard(this.makeJSON(outdated))
     } else if (this.npm.config.get('parseable')) {
-      this.npm.output(this.makeParseable(outdated))
+      output.standard(this.makeParseable(outdated))
     } else {
       const outList = outdated.map(x => this.makePretty(x))
       const outHead = ['Package',
@@ -102,13 +101,13 @@ class Outdated extends ArboristWorkspaceCmd {
       }
       const outTable = [outHead].concat(outList)
 
-      outTable[0] = outTable[0].map(heading => this.npm.chalk.underline(heading))
+      outTable[0] = outTable[0].map(heading => this.npm.chalk.bold.underline(heading))
 
       const tableOpts = {
         align: ['l', 'r', 'r', 'r', 'l'],
         stringLength: s => stripVTControlCharacters(s).length,
       }
-      this.npm.output(table(outTable, tableOpts))
+      output.standard(table(outTable, tableOpts))
     }
   }
 
@@ -161,7 +160,7 @@ class Outdated extends ArboristWorkspaceCmd {
     this.edges.add(edge)
   }
 
-  getWorkspacesEdges (node) {
+  getWorkspacesEdges () {
     if (this.npm.global) {
       return
     }
@@ -278,7 +277,7 @@ class Outdated extends ArboristWorkspaceCmd {
         : node.name
 
     return humanOutput
-      ? this.npm.chalk.green(workspaceName)
+      ? this.npm.chalk.blue(workspaceName)
       : workspaceName
   }
 
@@ -295,16 +294,19 @@ class Outdated extends ArboristWorkspaceCmd {
       dependent,
     } = dep
 
-    const columns = [name, current, wanted, latest, location, dependent]
+    const columns = [
+      this.npm.chalk[current === wanted ? 'yellow' : 'red'](name),
+      current,
+      this.npm.chalk.cyan(wanted),
+      this.npm.chalk.blue(latest),
+      location,
+      dependent,
+    ]
 
     if (this.npm.config.get('long')) {
       columns[6] = type
-      columns[7] = homepage
+      columns[7] = this.npm.chalk.blue(homepage)
     }
-
-    columns[0] = this.npm.chalk[current === wanted ? 'yellow' : 'red'](columns[0]) // current
-    columns[2] = this.npm.chalk.green(columns[2]) // wanted
-    columns[3] = this.npm.chalk.magenta(columns[3]) // latest
 
     return columns
   }
@@ -335,7 +337,7 @@ class Outdated extends ArboristWorkspaceCmd {
       }
 
       return out.join(':')
-    }).join(os.EOL)
+    }).join('\n')
   }
 
   makeJSON (list) {
@@ -366,4 +368,5 @@ class Outdated extends ArboristWorkspaceCmd {
     return JSON.stringify(out, null, 2)
   }
 }
+
 module.exports = Outdated

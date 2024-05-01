@@ -133,7 +133,7 @@ function readTree (tree, opts) {
     })
 
     return directDepsWithFunding.reduce(
-      (res, { node, fundingItem }, i) => {
+      (res, { node, fundingItem }) => {
         if (!fundingItem ||
           fundingItem.length === 0 ||
           !node) {

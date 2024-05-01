@@ -928,6 +928,13 @@ Overrides provide a way to replace a package in your dependency tree with
 another version, or another package entirely. These changes can be scoped as
 specific or as vague as desired.
 
+Overrides are only considered in the root `package.json` file for a project.
+Overrides in installed dependencies (including
+[workspaces](/using-npm/workspaces)) are not considered in dependency tree
+resolution. Published packages may dictate their resolutions by pinning
+dependencies or using an
+[`npm-shrinkwrap.json`](/configuring-npm/npm-shrinkwrap-json) file.
+
 To make sure the package `foo` is always installed as version `1.0.0` no matter
 what version your dependencies rely on:
 
