@@ -549,7 +549,7 @@ console.log(values.random);
     ]);
   });
 
-  it('should run when `--watch -r=./foo.js`', async () => {
+  it('should run when `--watch -r ./foo.js`', async () => {
     const projectDir = tmpdir.resolve('project7');
     mkdirSync(projectDir);
 
