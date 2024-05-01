@@ -47,12 +47,16 @@ ProcessRunner::ProcessRunner(
 #endif
 
   init_result = std::move(result);
+
+  // Set the process handle data to this class instance.
+  // This is used to access the class instance from the OnExit callback.
+  // It is required because libuv doesn't allow passing lambda functions as a
+  // callback.
   process_.data = this;
 
   std::string command_str(command);
-  // Conditionally append the positional arguments to the command string
+
   if (positional_args.has_value()) {
-    // Properly escape the positional arguments
     command_str += " " + EscapeShell(positional_args.value());
   }
 
@@ -64,7 +68,7 @@ ProcessRunner::ProcessRunner(
   options_.env = env.get();
 
   // Iterate over environment variables once to store them in the current
-  // ProcessRunner instance
+  // ProcessRunner instance.
   for (int i = 0; i < env_count; i++) {
     std::string name = env_items[i].name;
     std::string value = env_items[i].value;
@@ -91,7 +95,11 @@ ProcessRunner::ProcessRunner(
 
 #ifdef _WIN32
   if (file.find("cmd.exe") != std::string::npos) {
-    // /d /s /c are only used for cmd.exe
+    // If the file is cmd.exe, use the following command line arguments:
+    // "/c" Carries out the command and exit.
+    // "/d"	Disables execution of AutoRun commands.
+    // "/s" Strip the first and last quotes (") around the <string> but leaves
+    // the rest of the command unchanged.
     command_args_ = {
         options_.file, "/d", "/s", "/c", "\"" + command_str + "\""};
   } else {
@@ -116,6 +124,9 @@ ProcessRunner::ProcessRunner(
   options_.env[env_count] = nullptr;
 }
 
+// EscapeShell escapes a string to be used as a command line argument.
+// It replaces single quotes with "\\'" and double quotes with "\\\"".
+// It also removes excessive quote pairs and handles edge cases.
 std::string EscapeShell(const std::string& input) {
   // If the input is an empty string, return a pair of quotes
   if (input.empty()) {
@@ -147,6 +158,9 @@ std::string EscapeShell(const std::string& input) {
   return escaped;
 }
 
+// ExitCallback is the callback function that is called when the process exits.
+// It closes the process handle and calls the OnExit function.
+// It is defined as a static function due to the limitations of libuv.
 void ProcessRunner::ExitCallback(uv_process_t* handle,
                                  int64_t exit_status,
                                  int term_signal) {
@@ -157,9 +171,9 @@ void ProcessRunner::ExitCallback(uv_process_t* handle,
 
 void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
   if (exit_status > 0) {
-    init_result.get()->exit_code_ = ExitCode::kGenericUserError;
+    init_result->exit_code_ = ExitCode::kGenericUserError;
   } else {
-    init_result.get()->exit_code_ = ExitCode::kNoFailure;
+    init_result->exit_code_ = ExitCode::kNoFailure;
   }
 }
 
@@ -180,7 +194,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   // No need to exclude BOM since simdjson will skip it.
   if (ReadFileSync(&raw_json, path.data()) < 0) {
     fprintf(stderr, "Can't read package.json\n");
-    result.get()->exit_code_ = ExitCode::kGenericUserError;
+    result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
@@ -192,7 +206,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   // If document is not an object, throw an error.
   if (error || document.get_object().get(main_object)) {
     fprintf(stderr, "Can't parse package.json\n");
-    result.get()->exit_code_ = ExitCode::kGenericUserError;
+    result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
@@ -200,7 +214,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   simdjson::ondemand::object scripts_object;
   if (main_object["scripts"].get_object().get(scripts_object)) {
     fprintf(stderr, "Can't find \"scripts\" field in package.json\n");
-    result.get()->exit_code_ = ExitCode::kGenericUserError;
+    result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
@@ -229,7 +243,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
                 value_str.data());
       }
     }
-    result.get()->exit_code_ = ExitCode::kGenericUserError;
+    result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
@@ -237,6 +251,10 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   runner.Run();
 }
 
+// GetPositionalArgs returns the positional arguments from the command line.
+// If the "--" flag is not found, it returns an empty optional.
+// Otherwise, it returns the positional arguments as a single string.
+// Example: "node -- script.js arg1 arg2" returns "arg1 arg2".
 std::optional<std::string> GetPositionalArgs(
     const std::vector<std::string>& args) {
   // If the "--" flag is not found, return an empty optional

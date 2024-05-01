@@ -14,6 +14,10 @@
 namespace node {
 namespace task_runner {
 
+// ProcessRunner is the class responsible for running a process.
+// A class instance is created for each process to be run.
+// The class is responsible for spawning the process and handling its exit.
+// The class also handles the environment variables and arguments.
 class ProcessRunner {
  public:
   ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
@@ -35,6 +39,7 @@ class ProcessRunner {
   std::unique_ptr<char* []> env {};  // memory for options_.env
   std::unique_ptr<char* []> arg {};  // memory for options_.args
 
+  // OnExit is the callback function that is called when the process exits.
   void OnExit(int64_t exit_status, int term_signal);
 };
 
