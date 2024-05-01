@@ -119,7 +119,7 @@ const replaceConfig = (src, { path }) => {
   }
 
   const allConfig = Object.entries(definitions).sort(sort)
-    .map(([_, def]) => def.describe())
+    .map(([, def]) => def.describe())
     .join('\n\n')
 
   return src.replace(replacer, allConfig)

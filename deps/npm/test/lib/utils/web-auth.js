@@ -21,8 +21,8 @@ t.test('returns token on success', async (t) => {
 
 t.test('closes opener when auth check finishes', async (t) => {
   const opener = (_url, emitter) => {
-    return new Promise((resolve, reject) => {
-      // the only way to finish this promise is to emit aboter on the emitter
+    return new Promise((resolve) => {
+      // the only way to finish this promise is to emit abort on the emitter
       emitter.addListener('abort', () => {
         resolve()
       })
