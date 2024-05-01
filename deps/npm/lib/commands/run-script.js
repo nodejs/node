@@ -1,22 +1,7 @@
-const runScript = require('@npmcli/run-script')
-const { isServerPackage } = runScript
+const { log, output } = require('proc-log')
 const pkgJson = require('@npmcli/package-json')
-const log = require('../utils/log-shim.js')
-const didYouMean = require('../utils/did-you-mean.js')
-const { isWindowsShell } = require('../utils/is-windows.js')
+const BaseCommand = require('../base-cmd.js')
 
-const cmdList = [
-  'publish',
-  'install',
-  'uninstall',
-  'test',
-  'stop',
-  'start',
-  'restart',
-  'version',
-].reduce((l, p) => l.concat(['pre' + p, p, 'post' + p]), [])
-
-const BaseCommand = require('../base-command.js')
 class RunScript extends BaseCommand {
   static description = 'Run arbitrary package scripts'
   static params = [
@@ -39,7 +24,7 @@ class RunScript extends BaseCommand {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
       const { content: { scripts = {} } } = await pkgJson.normalize(npm.localPrefix)
-        .catch(er => ({ content: {} }))
+        .catch(() => ({ content: {} }))
       if (opts.isFish) {
         return Object.keys(scripts).map(s => `${s}\t${scripts[s].slice(0, 30)}`)
       }
@@ -64,9 +49,7 @@ class RunScript extends BaseCommand {
   }
 
   async run ([event, ...args], { path = this.npm.localPrefix, pkg } = {}) {
-    // this || undefined is because runScript will be unhappy with the default
-    // null value
-    const scriptShell = this.npm.config.get('script-shell') || undefined
+    const runScript = require('@npmcli/run-script')
 
     if (!pkg) {
       const { content } = await pkgJson.normalize(path)
@@ -77,6 +60,7 @@ class RunScript extends BaseCommand {
     if (event === 'restart' && !scripts.restart) {
       scripts.restart = 'npm stop --if-present && npm start'
     } else if (event === 'env' && !scripts.env) {
+      const { isWindowsShell } = require('../utils/is-windows.js')
       scripts.env = isWindowsShell ? 'SET' : 'env'
     }
 
@@ -84,12 +68,13 @@ class RunScript extends BaseCommand {
 
     if (
       !Object.prototype.hasOwnProperty.call(scripts, event) &&
-      !(event === 'start' && (await isServerPackage(path)))
+      !(event === 'start' && (await runScript.isServerPackage(path)))
     ) {
       if (this.npm.config.get('if-present')) {
         return
       }
 
+      const didYouMean = require('../utils/did-you-mean.js')
       const suggestions = await didYouMean(path, event)
       throw new Error(
         `Missing script: "${event}"${suggestions}\n\nTo see a list of scripts, run:\n  npm run`
@@ -108,18 +93,14 @@ class RunScript extends BaseCommand {
       }
     }
 
-    const opts = {
-      path,
-      args,
-      scriptShell,
-      stdio: 'inherit',
-      pkg,
-      banner: !this.npm.silent,
-    }
-
     for (const [ev, evArgs] of events) {
       await runScript({
-        ...opts,
+        path,
+        // this || undefined is because runScript will be unhappy with the
+        // default null value
+        scriptShell: this.npm.config.get('script-shell') || undefined,
+        stdio: 'inherit',
+        pkg,
         event: ev,
         args: evArgs,
       })
@@ -141,18 +122,29 @@ class RunScript extends BaseCommand {
     }
 
     if (this.npm.config.get('json')) {
-      this.npm.output(JSON.stringify(scripts, null, 2))
+      output.standard(JSON.stringify(scripts, null, 2))
       return allScripts
     }
 
     if (this.npm.config.get('parseable')) {
       for (const [script, cmd] of Object.entries(scripts)) {
-        this.npm.output(`${script}:${cmd}`)
+        output.standard(`${script}:${cmd}`)
       }
 
       return allScripts
     }
 
+    // TODO this is missing things like prepare, prepublishOnly, and dependencies
+    const cmdList = [
+      'preinstall', 'install', 'postinstall',
+      'prepublish', 'publish', 'postpublish',
+      'prerestart', 'restart', 'postrestart',
+      'prestart', 'start', 'poststart',
+      'prestop', 'stop', 'poststop',
+      'pretest', 'test', 'posttest',
+      'preuninstall', 'uninstall', 'postuninstall',
+      'preversion', 'version', 'postversion',
+    ]
     const indent = '\n    '
     const prefix = '  '
     const cmds = []
@@ -164,7 +156,7 @@ class RunScript extends BaseCommand {
     const colorize = this.npm.chalk
 
     if (cmds.length) {
-      this.npm.output(
+      output.standard(
         `${colorize.reset(colorize.bold('Lifecycle scripts'))} included in ${colorize.green(
           pkgid
         )}:`
@@ -172,28 +164,28 @@ class RunScript extends BaseCommand {
     }
 
     for (const script of cmds) {
-      this.npm.output(prefix + script + indent + colorize.dim(scripts[script]))
+      output.standard(prefix + script + indent + colorize.dim(scripts[script]))
     }
 
     if (!cmds.length && runScripts.length) {
-      this.npm.output(
+      output.standard(
         `${colorize.bold('Scripts')} available in ${colorize.green(pkgid)} via \`${colorize.blue(
           'npm run-script'
         )}\`:`
       )
     } else if (runScripts.length) {
-      this.npm.output(`\navailable via \`${colorize.blue('npm run-script')}\`:`)
+      output.standard(`\navailable via \`${colorize.blue('npm run-script')}\`:`)
     }
 
     for (const script of runScripts) {
-      this.npm.output(prefix + script + indent + colorize.dim(scripts[script]))
+      output.standard(prefix + script + indent + colorize.dim(scripts[script]))
     }
 
-    this.npm.output('')
+    output.standard('')
     return allScripts
   }
 
-  async runWorkspaces (args, filters) {
+  async runWorkspaces (args) {
     const res = []
     await this.setWorkspaces()
 
@@ -213,7 +205,7 @@ class RunScript extends BaseCommand {
     }
   }
 
-  async listWorkspaces (args, filters) {
+  async listWorkspaces (args) {
     await this.setWorkspaces()
 
     if (this.npm.silent) {
@@ -226,7 +218,7 @@ class RunScript extends BaseCommand {
         const { content: { scripts, name } } = await pkgJson.normalize(workspacePath)
         res[name] = { ...scripts }
       }
-      this.npm.output(JSON.stringify(res, null, 2))
+      output.standard(JSON.stringify(res, null, 2))
       return
     }
 
@@ -234,7 +226,7 @@ class RunScript extends BaseCommand {
       for (const workspacePath of this.workspacePaths) {
         const { content: { scripts, name } } = await pkgJson.normalize(workspacePath)
         for (const [script, cmd] of Object.entries(scripts || {})) {
-          this.npm.output(`${name}:${script}:${cmd}`)
+          output.standard(`${name}:${script}:${cmd}`)
         }
       }
       return

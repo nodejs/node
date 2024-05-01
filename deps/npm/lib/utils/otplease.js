@@ -1,4 +1,3 @@
-const log = require('./log-shim')
 async function otplease (npm, opts, fn) {
   try {
     return await fn(opts)
@@ -8,7 +7,6 @@ async function otplease (npm, opts, fn) {
     }
 
     if (isWebOTP(err)) {
-      log.disableProgress()
       const webAuth = require('./web-auth')
       const openUrlPrompt = require('./open-url-prompt')
 

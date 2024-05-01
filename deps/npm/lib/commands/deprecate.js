@@ -4,7 +4,7 @@ const npa = require('npm-package-arg')
 const semver = require('semver')
 const getIdentity = require('../utils/get-identity.js')
 const libaccess = require('libnpmaccess')
-const BaseCommand = require('../base-command.js')
+const BaseCommand = require('../base-cmd.js')
 
 class Deprecate extends BaseCommand {
   static description = 'Deprecate a version of a package'
