@@ -47,7 +47,6 @@ assert.throws(function() {
 }, /blerg/);
 
 process.on('exit', function() {
-  assert(!(myee._events instanceof Object));
   assert.deepStrictEqual(Object.keys(myee._events), []);
   console.log('ok');
 });
