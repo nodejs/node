@@ -1,4 +1,5 @@
 const promiseSpawn = require('@npmcli/promise-spawn')
+const { output } = require('proc-log')
 
 const { URL } = require('url')
 
@@ -16,7 +17,7 @@ const open = async (npm, url, errMsg, isFile) => {
       }, null, 2)
       : `${errMsg}:\n  ${url}\n`
 
-    npm.output(alternateMsg)
+    output.standard(alternateMsg)
   }
 
   if (browser === false) {

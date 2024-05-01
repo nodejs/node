@@ -336,8 +336,8 @@ module.exports = cls => class ActualLoader extends cls {
       await this.#loadFSChildren(node.target)
       return Promise.all(
         [...node.target.children.entries()]
-          .filter(([name, kid]) => !did.has(kid.realpath))
-          .map(([name, kid]) => this.#loadFSTree(kid))
+          .filter(([, kid]) => !did.has(kid.realpath))
+          .map(([, kid]) => this.#loadFSTree(kid))
       )
     }
   }

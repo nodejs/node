@@ -1,10 +1,12 @@
 const { resolve, relative, sep } = require('path')
-const relativePrefix = `.${sep}`
-const { EOL } = require('os')
-
 const archy = require('archy')
 const { breadth } = require('treeverse')
 const npa = require('npm-package-arg')
+const { output } = require('proc-log')
+const ArboristWorkspaceCmd = require('../arborist-cmd.js')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
+
+const relativePrefix = `.${sep}`
 
 const _depth = Symbol('depth')
 const _dedupe = Symbol('dedupe')
@@ -17,8 +19,6 @@ const _parent = Symbol('parent')
 const _problems = Symbol('problems')
 const _required = Symbol('required')
 const _type = Symbol('type')
-const ArboristWorkspaceCmd = require('../arborist-cmd.js')
-const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 class LS extends ArboristWorkspaceCmd {
   static description = 'List installed packages'
@@ -42,7 +42,7 @@ class LS extends ArboristWorkspaceCmd {
   // TODO
   /* istanbul ignore next */
   static async completion (opts, npm) {
-    const completion = require('../utils/completion/installed-deep.js')
+    const completion = require('../utils/installed-deep.js')
     return completion(npm, opts)
   }
 
@@ -177,7 +177,7 @@ class LS extends ArboristWorkspaceCmd {
     const [rootError] = tree.errors.filter(e =>
       e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
 
-    this.npm.outputBuffer(
+    output.buffer(
       json ? jsonOutput({ path, problems, result, rootError, seenItems }) :
       parseable ? parseableOutput({ seenNodes, global, long }) :
       humanOutput({ chalk, result, seenItems, unicode })
@@ -200,7 +200,7 @@ class LS extends ArboristWorkspaceCmd {
 
     if (shouldThrow) {
       throw Object.assign(
-        new Error([...problems].join(EOL)),
+        new Error([...problems].join('\n')),
         { code: 'ELSPROBLEMS' }
       )
     }
@@ -219,6 +219,7 @@ class LS extends ArboristWorkspaceCmd {
     return tree
   }
 }
+
 module.exports = LS
 
 const isGitNode = (node) => {
@@ -280,7 +281,7 @@ const augmentItemWithIncludeMetadata = (node, item) => {
 
 const getHumanOutputItem = (node, { args, chalk, global, long }) => {
   const { pkgid, path } = node
-  const workspacePkgId = chalk.green(pkgid)
+  const workspacePkgId = chalk.blueBright(pkgid)
   let printable = node.isWorkspace ? workspacePkgId : pkgid
 
   // special formatting for top-level package name
@@ -289,14 +290,16 @@ const getHumanOutputItem = (node, { args, chalk, global, long }) => {
     if (hasNoPackageJson || global) {
       printable = path
     } else {
-      printable += `${long ? EOL : ' '}${path}`
+      printable += `${long ? '\n' : ' '}${path}`
     }
   }
 
+  // TODO there is a LOT of overlap with lib/utils/explain-dep.js here
+
   const highlightDepName = args.length && node[_filteredBy]
   const missingColor = isOptional(node)
-    ? chalk.yellow.bgBlack
-    : chalk.red.bgBlack
+    ? chalk.yellow
+    : chalk.red
   const missingMsg = `UNMET ${isOptional(node) ? 'OPTIONAL ' : ''}DEPENDENCY`
   const targetLocation = node.root
     ? relative(node.root.realpath, node.realpath)
@@ -310,30 +313,30 @@ const getHumanOutputItem = (node, { args, chalk, global, long }) => {
         ? missingColor(missingMsg) + ' '
         : ''
     ) +
-    `${highlightDepName ? chalk.yellow.bgBlack(printable) : printable}` +
+    `${highlightDepName ? chalk.yellow(printable) : printable}` +
     (
       node[_dedupe]
-        ? ' ' + chalk.gray('deduped')
+        ? ' ' + chalk.dim('deduped')
         : ''
     ) +
     (
       invalid
-        ? ' ' + chalk.red.bgBlack(invalid)
+        ? ' ' + chalk.red(invalid)
         : ''
     ) +
     (
       isExtraneous(node, { global })
-        ? ' ' + chalk.green.bgBlack('extraneous')
+        ? ' ' + chalk.red('extraneous')
         : ''
     ) +
     (
       node.overridden
-        ? ' ' + chalk.gray('overridden')
+        ? ' ' + chalk.dim('overridden')
         : ''
     ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
     (node.isLink ? ` -> ${relativePrefix}${targetLocation}` : '') +
-    (long ? `${EOL}${node.package.description || ''}` : '')
+    (long ? `\n${node.package.description || ''}` : '')
 
   return augmentItemWithIncludeMetadata(node, { label, nodes: [] })
 }
@@ -566,7 +569,7 @@ const parseableOutput = ({ global, long, seenNodes }) => {
         out += node[_invalid] ? ':INVALID' : ''
         out += node.overridden ? ':OVERRIDDEN' : ''
       }
-      out += EOL
+      out += '\n'
     }
   }
   return out.trim()

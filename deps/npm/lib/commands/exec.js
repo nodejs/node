@@ -1,6 +1,6 @@
 const { resolve } = require('path')
 const libexec = require('libnpmexec')
-const BaseCommand = require('../base-command.js')
+const BaseCommand = require('../base-cmd.js')
 
 class Exec extends BaseCommand {
   static description = 'Run a command from a local or remote npm package'
@@ -65,7 +65,6 @@ class Exec extends BaseCommand {
       globalDir,
       chalk,
     } = this.npm
-    const output = this.npm.output.bind(this.npm)
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const packages = this.npm.config.get('package')
     const yes = this.npm.config.get('yes')
@@ -93,7 +92,6 @@ class Exec extends BaseCommand {
       globalPath,
       localBin,
       locationMsg,
-      output,
       packages,
       path,
       runPath,
