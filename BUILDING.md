@@ -272,7 +272,7 @@ To build Node.js:
 
 ```bash
 ./configure
-make -j4
+python3 build.py node
 ```
 
 We can speed up the builds by using [Ninja](https://ninja-build.org/). For more
@@ -302,7 +302,7 @@ sudo ./tools/macos-firewall.sh
 To install this version of Node.js into a system directory:
 
 ```bash
-[sudo] make install
+[sudo] python3 build.py install
 ```
 
 #### Running tests
@@ -310,7 +310,7 @@ To install this version of Node.js into a system directory:
 To verify the build:
 
 ```bash
-make test-only
+python3 build.py test-only
 ```
 
 At this point, you are ready to make code changes and re-run the tests.
@@ -318,16 +318,16 @@ At this point, you are ready to make code changes and re-run the tests.
 If you are running tests before submitting a pull request, use:
 
 ```bash
-make -j4 test
+python3 build.py test -j4
 ```
 
-`make -j4 test` does a full check on the codebase, including running linters and
+`python3 build.py test -j4` does a full check on the codebase, including running linters and
 documentation tests.
 
 To run the linter without running tests, use
-`make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
+`python3 build.py lint`. It will lint JavaScript, C++, and Markdown files.
 
-To fix auto fixable JavaScript linting errors, use `make lint-js-fix`.
+To fix auto fixable JavaScript linting errors, use `pyhon3 build.py lint-js --fix`.
 
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
@@ -368,7 +368,7 @@ You can usually run tests directly with node:
 
 > Info: `./node` points to your local Node.js build.
 
-Remember to recompile with `make -j4` in between test runs if you change code in
+Remember to recompile with `-j4` in between test runs if you change code in
 the `lib` or `src` directories.
 
 The tests attempt to detect support for IPv6 and exclude IPv6 tests if
@@ -392,43 +392,43 @@ You can do so by running the test suite with coverage enabled:
 
 ```bash
 ./configure --coverage
-make coverage
+python3 build.py coverage
 ```
 
 A detailed coverage report will be written to `coverage/index.html` for
 JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage.
 
 If you only want to run the JavaScript tests then you do not need to run
-the first command (`./configure --coverage`). Run `make coverage-run-js`,
+the first command (`./configure --coverage`). Run `python3 build.py coverage-run-js`,
 to execute JavaScript tests independently of the C++ test suite:
 
 ```bash
-make coverage-run-js
+python3 build.py coverage-run-js
 ```
 
 If you are updating tests and want to collect coverage for a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
 ```bash
-make coverage-clean
+python3 build.py coverage-clean
 NODE_V8_COVERAGE=coverage/tmp tools/test.py test/parallel/test-stream2-transform.js
-make coverage-report-js
+python3 build.py coverage-report-js
 ```
 
 You can collect coverage for the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```bash
-make coverage-clean
+python3 build.py coverage-clean
 NODE_V8_COVERAGE=coverage/tmp tools/test.py --mode=release child-process
-make coverage-report-js
+python3 build.py coverage-report-js
 ```
 
-The `make coverage` command downloads some tools to the project root directory.
+The `coverage` command downloads some tools to the project root directory.
 To clean up after generating the coverage reports:
 
 ```bash
-make coverage-clean
+python3 build.py coverage-clean
 ```
 
 #### Building the documentation
@@ -438,13 +438,13 @@ To build the documentation:
 This will build Node.js first (if necessary) and then use it to build the docs:
 
 ```bash
-make doc
+python3 build.py doc
 ```
 
 If you have an existing Node.js build, you can build just the docs with:
 
 ```bash
-NODE=/path/to/node make doc-only
+NODE=/path/to/node python3 build.py doc-only
 ```
 
 To read the man page:
@@ -456,7 +456,7 @@ man doc/node.1
 If you prefer to read the full documentation in a browser, run the following.
 
 ```bash
-make docserve
+python3 build.py docserve
 ```
 
 This will spin up a static file server and provide a URL to where you may browse
@@ -466,14 +466,14 @@ If you're comfortable viewing the documentation using the program your operating
 system has associated with the default web browser, run the following.
 
 ```bash
-make docopen
+python3 build.py docopen
 ```
 
 This will open a file URL to a one-page version of all the browsable HTML
 documents using the default browser.
 
 ```bash
-make docclean
+python3 build.py docclean
 ```
 
 This will clean previously built doc.
@@ -492,18 +492,18 @@ can try to build a debug enabled binary:
 
 ```bash
 ./configure --debug
-make -j4
+python3 build.py all -j4
 ```
 
-`make` with `./configure --debug` generates two binaries, the regular release
+`python3 build.py` with `./configure --debug` generates two binaries, the regular release
 one in `out/Release/node` and a debug binary in `out/Debug/node`, only the
-release version is actually installed when you run `make install`.
+release version is actually installed when you run `python3 build.py install`.
 
 To use the debug build with all the normal dependencies overwrite the release
 version in the install directory:
 
 ```bash
-make install PREFIX=/opt/node-debug/
+python3 build.py install PREFIX=/opt/node-debug/
 cp -a -f out/Debug/node /opt/node-debug/node
 ```
 
@@ -535,8 +535,8 @@ The `--debug` is not necessary and will slow down build and testing, but it can
 show clear stacktrace if ASan hits an issue.
 
 ```bash
-./configure --debug --enable-asan && make -j4
-make test-only
+./configure --debug --enable-asan && python3 build.py all -j4
+python3 build.py test-only
 ```
 
 #### Speeding up frequent rebuilds when developing
@@ -590,13 +590,13 @@ Refs:
 #### Troubleshooting Unix and macOS builds
 
 Stale builds can sometimes result in `file not found` errors while building.
-This and some other problems can be resolved with `make distclean`. The
+This and some other problems can be resolved with `python3 build.py distclean`. The
 `distclean` recipe aggressively removes build artifacts. You will need to
-build again (`make -j4`). Since all build artifacts have been removed, this
+build again (`python3 build.py all -j4`). Since all build artifacts have been removed, this
 rebuild may take a lot more time than previous builds. Additionally,
 `distclean` removes the file that stores the results of `./configure`. If you
 ran `./configure` with non-default options (such as `--debug`), you will need
-to run it again before invoking `make -j4`.
+to run it again before invoking `python3 build.py all -j4`.
 
 ### Windows
 
@@ -723,7 +723,7 @@ a folder. Then run:
 
 ```bash
 ./android-configure <path to the Android NDK> <Android SDK version> <target architecture>
-make -j4
+python3 build.py all -j4
 ```
 
 The Android SDK version should be at least 24 (Android 7.0) and the target

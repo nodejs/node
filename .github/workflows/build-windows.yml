@@ -50,4 +50,4 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat
+        run: ./build.py

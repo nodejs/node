@@ -8,7 +8,7 @@ Before submitting a pull request, please read:
 For code changes:
 1. Include tests for any bug fixes or new features.
 2. Update documentation if relevant.
-3. Ensure that `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes.
+3. Ensure that `python3 build.py -j4 test` passes.
 
 If you believe this PR should be highlighted in the Node.js CHANGELOG
 please add the `notable-change` label.

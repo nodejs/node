@@ -52,12 +52,12 @@ jobs:
       # The `npm ci` for this step fails a lot as part of the Test step. Run it
       # now so that we don't have to wait 2 hours for the Build step to pass
       # first before that failure happens. (And if there's something about
-      # `make run-ci -j3` that is causing the failure and the failure doesn't
+      # `python3 build.py run-ci -j3` that is causing the failure and the failure doesn't
       # happen anymore running this step here first, that's also useful
       # information.)
       - name: tools/doc/node_modules workaround
-        run: make tools/doc/node_modules
+        run: python3 build.py tools/doc/node_modules
       - name: Build
-        run: make build-ci -j$(getconf _NPROCESSORS_ONLN) V=1 CONFIG_FLAGS="--error-on-warn"
+        run: python3 build.py build-ci -j$(getconf _NPROCESSORS_ONLN) V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
-        run: make run-ci -j$(getconf _NPROCESSORS_ONLN) V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"
+        run: python3 build.py run-ci -j$(getconf _NPROCESSORS_ONLN) V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"

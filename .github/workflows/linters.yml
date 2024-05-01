@@ -35,7 +35,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Lint addon docs
-        run: NODE=$(command -v node) make lint-addon-docs
+        run: NODE=$(command -v node) python3 build.py lint-addon-docs
   lint-cpp:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Lint C/C++ files
-        run: make lint-cpp
+        run: python3 build.py lint-cpp
   format-cpp:
     if: ${{ github.event.pull_request && github.event.pull_request.draft == false && github.base_ref == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
@@ -71,20 +71,20 @@ jobs:
         run: npx envinfo
       - name: Format C/C++ files
         run: |
-          make format-cpp-build
-          # The `make format-cpp` error code is intentionally ignored here
+          python3 build.py format-cpp-build
+          # The `python3 build.py format-cpp` error code is intentionally ignored here
           # because it is irrelevant. We already check if the formatter produced
           # a diff in the next line.
           # Refs: https://github.com/nodejs/node/pull/42764
           CLANG_FORMAT_START="$(git merge-base HEAD refs/remotes/origin/$GITHUB_BASE_REF)" \
-            make format-cpp || true
+          python3 build.py format-cpp || true
           git --no-pager diff --exit-code && EXIT_CODE="$?" || EXIT_CODE="$?"
           if [ "$EXIT_CODE" != "0" ]
           then
             echo
             echo 'ERROR: Please run:'
             echo
-            echo "  CLANG_FORMAT_START="$\(git merge-base HEAD ${GITHUB_BASE_REF}\)" make format-cpp"
+            echo "  CLANG_FORMAT_START="$\(git merge-base HEAD ${GITHUB_BASE_REF}\)" python3 build.py format-cpp"
             echo
             echo 'to format the commits in your branch.'
             exit "$EXIT_CODE"
@@ -103,7 +103,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Lint JavaScript files
-        run: NODE=$(command -v node) make lint-js
+        run: NODE=$(command -v node) python3 build.py lint-js
       - name: Get release version numbers
         if: ${{ github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch }}
         id: get-released-versions
@@ -111,7 +111,7 @@ jobs:
       - name: Lint markdown files
         run: |
           echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
-          NODE=$(command -v node) make lint-md
+          NODE=$(command -v node) python3 build.py lint-md
         env:
           NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
   lint-py:
@@ -129,8 +129,8 @@ jobs:
         run: npx envinfo
       - name: Lint Python
         run: |
-          make lint-py-build
-          make lint-py
+          python3 build.py lint-py-build
+          python3 build.py lint-py
   lint-yaml:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
@@ -146,8 +146,8 @@ jobs:
         run: npx envinfo
       - name: Lint YAML
         run: |
-          make lint-yaml-build || true
-          make lint-yaml
+          python3 build.py lint-yaml-build || true
+          python3 build.py lint-yaml
 
   lint-sh:
     if: github.event.pull_request.draft == false

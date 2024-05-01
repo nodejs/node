@@ -84,7 +84,7 @@ jobs:
       # Node.js WPT Runner
       - name: Run WPT and generate report
         run: |
-          make test-wpt-report || true
+          python3 build.py test-wpt-report || true
           if [ -e out/wpt/wptreport.json ]; then
             echo "WPT_REPORT=$(pwd)/out/wpt/wptreport.json" >> $GITHUB_ENV
           fi

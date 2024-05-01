@@ -50,6 +50,6 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
+        run: python3 build.py build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test Internet
-        run: make test-internet -j4 V=1;
+        run: python3 build.py test-internet -j4 V=1;

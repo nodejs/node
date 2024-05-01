@@ -117,7 +117,7 @@ jobs:
             subsystem: deps
             label: dependencies
             run: |
-              make corepack-update
+              python3 build.py corepack-update
               echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
           - id: doc
             subsystem: tools
@@ -210,7 +210,7 @@ jobs:
                 npm install --ignore-scripts $NEW_VERSION
                 npm install --ignore-scripts
                 cd ../..
-                make lint-md-rollup
+                python3 build.py lint-md-rollup
               fi
           - id: llhttp
             subsystem: deps

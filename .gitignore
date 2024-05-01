@@ -146,9 +146,6 @@ tools/*/*.i.tmp
 # Ignore dependencies fetched by tools/v8/fetch_deps.py
 /deps/.cipd
 
-# === Rules for Windows vcbuild.bat ===
-/temp-vcbuild
-
 # === Rules for CMake ===
 cmake-build-debug/
 CMakeCache.txt
