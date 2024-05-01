@@ -281,7 +281,7 @@ function test_rsa(padding, encryptOaepHash, decryptOaepHash) {
           }, encryptedBuffer);
           assert.deepStrictEqual(decryptedBuffer, input);
         } else {
-          // There was an exception but it not the one we expect if implicit
+          // There was an exception but it is not the one we expect if implicit
           // rejection is not supported so there was some other failure,
           // re-throw it so the test fails
           throw e;
