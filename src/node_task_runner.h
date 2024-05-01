@@ -28,7 +28,7 @@ class ProcessRunner {
   uv_loop_t* loop_ = uv_default_loop();
   uv_process_t process_{};
   uv_process_options_t options_{};
-  uv_stdio_container_t child_stdio[3];
+  uv_stdio_container_t child_stdio[3]{};
   std::shared_ptr<InitializationResultImpl> init_result;
   std::vector<std::string> command_args_{};
   std::vector<std::string> env_vars_{};

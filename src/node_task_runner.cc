@@ -6,13 +6,9 @@
 namespace node::task_runner {
 
 #ifdef _WIN32
-static const char separator[] = "\\";
-static const char bin_path[] = "node_modules\\.bin";
-static const char task_file[] = "cmd.exe";
+static const char bin_path[] = "\\node_modules\\.bin";
 #else
-static const char separator[] = "/";
-static const char bin_path[] = "node_modules/.bin";
-static const char task_file[] = "/bin/sh";
+static const char bin_path[] = "/node_modules/.bin";
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(
@@ -20,6 +16,20 @@ ProcessRunner::ProcessRunner(
     std::string_view command,
     const std::optional<std::string>& positional_args) {
   memset(&options_, 0, sizeof(uv_process_options_t));
+
+  // Get the current working directory.
+  char cwd[PATH_MAX_BYTES];
+  size_t cwd_size = PATH_MAX_BYTES;
+  CHECK_EQ(uv_cwd(cwd, &cwd_size), 0);
+  CHECK_GT(cwd_size, 0);
+
+#ifdef _WIN32
+  options_.file = "cmd.exe";
+  std::string current_bin_path = cwd + std::string(bin_path) + ";";
+#else
+  options_.file = "/bin/sh";
+  std::string current_bin_path = cwd + std::string(bin_path) + ":";
+#endif
 
   // Inherit stdin, stdout, and stderr from the parent process.
   options_.stdio_count = 3;
@@ -31,20 +41,13 @@ ProcessRunner::ProcessRunner(
   child_stdio[2].data.fd = 2;
   options_.stdio = child_stdio;
   options_.exit_cb = ExitCallback;
-  options_.file = task_file;
+
+#ifdef _WIN32
   options_.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+#endif
 
-  init_result = result;
+  init_result = std::move(result);
   process_.data = this;
-
-  // Get the current working directory.
-  char cwd[PATH_MAX_BYTES];
-  size_t cwd_size = PATH_MAX_BYTES;
-  CHECK_EQ(uv_cwd(cwd, &cwd_size), 0);
-  CHECK_GT(cwd_size, 0);
-
-  // Example: "/Users/user/project/node_modules/.bin"
-  std::string current_bin_path = cwd + std::string(separator) + bin_path;
 
   std::string command_str(command);
   // Conditionally append the positional arguments to the command string
@@ -53,26 +56,10 @@ ProcessRunner::ProcessRunner(
     command_str += " " + EscapeShell(positional_args.value());
   }
 
-  // Example: "/bin/sh -c 'node test.js'"
-#ifdef _WIN32
-  command_args_ = {options_.file, "/C", command_str};
-#else
-  command_args_ = {options_.file, "-c", command_str};
-#endif
-  auto argc = command_args_.size();
-  CHECK_GE(argc, 1);
-  arg = std::unique_ptr<char*[]>(new char*[argc + 1]);
-  options_.args = arg.get();
-  for (size_t i = 0; i < argc; ++i) {
-    options_.args[i] = const_cast<char*>(command_args_[i].c_str());
-  }
-  options_.args[argc] = nullptr;
-
   // Set environment variables
   uv_env_item_t* env_items;
   int env_count;
-  int r = uv_os_environ(&env_items, &env_count);
-  CHECK_EQ(r, 0);
+  CHECK_EQ(0, uv_os_environ(&env_items, &env_count));
   env = std::unique_ptr<char*[]>(new char*[env_count + 1]);
   options_.env = env.get();
 
@@ -81,15 +68,47 @@ ProcessRunner::ProcessRunner(
   for (int i = 0; i < env_count; i++) {
     std::string name = env_items[i].name;
     std::string value = env_items[i].value;
+
+#ifdef _WIN32
+    // We use comspec environment variable to find cmd.exe path on Windows
+    // Example: 'C:\\Windows\\system32\\cmd.exe'
+    // If we don't find it, we fallback to 'cmd.exe' for Windows
+    if (name.size() == 7 && StringEqualNoCaseN(name.c_str(), "comspec", 7)) {
+      options_.file = value.c_str();
+    }
+#endif
+
     // Check if environment variable key is matching case-insensitive "path"
     if (name.size() == 4 && StringEqualNoCaseN(name.c_str(), "path", 4)) {
-      value.insert(0, current_bin_path + ":");
+      value.insert(0, current_bin_path);
     }
+
     // Environment variables should be in "KEY=value" format
     value.insert(0, name + "=");
     env_vars_.push_back(value);
   }
   uv_os_free_environ(env_items, env_count);
+
+#ifdef _WIN32
+  if (file.find("cmd.exe") != std::string::npos) {
+    // /d /s /c are only used for cmd.exe
+    command_args_ = {
+        options_.file, "/d", "/s", "/c", "\"" + command_str + "\""};
+  } else {
+    command_args_ = {options_.file, "-c", command_str};
+  }
+#else
+  command_args_ = {options_.file, "-c", command_str};
+#endif
+
+  auto argc = command_args_.size();
+  CHECK_GE(argc, 1);
+  arg = std::unique_ptr<char*[]>(new char*[argc + 1]);
+  options_.args = arg.get();
+  for (size_t i = 0; i < argc; ++i) {
+    options_.args[i] = const_cast<char*>(command_args_[i].c_str());
+  }
+  options_.args[argc] = nullptr;
 
   for (int i = 0; i < env_count; i++) {
     options_.env[i] = const_cast<char*>(env_vars_[i].c_str());
