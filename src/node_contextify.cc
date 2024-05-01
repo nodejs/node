@@ -51,6 +51,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
 using v8::Int32;
+using v8::Intercepted;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
@@ -458,14 +459,15 @@ bool ContextifyContext::IsStillInitializing(const ContextifyContext* ctx) {
 }
 
 // static
-void ContextifyContext::PropertyGetterCallback(
-    Local<Name> property,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::PropertyGetterCallback(
+    Local<Name> property, const PropertyCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
   Local<Object> sandbox = ctx->sandbox();
@@ -487,18 +489,22 @@ void ContextifyContext::PropertyGetterCallback(
       rv = ctx->global_proxy();
 
     args.GetReturnValue().Set(rv);
+    return Intercepted::kYes;
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertySetterCallback(
+Intercepted ContextifyContext::PropertySetterCallback(
     Local<Name> property,
     Local<Value> value,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
   PropertyAttribute attributes = PropertyAttribute::None;
@@ -516,8 +522,9 @@ void ContextifyContext::PropertySetterCallback(
       (static_cast<int>(attributes) &
       static_cast<int>(PropertyAttribute::ReadOnly));
 
-  if (read_only)
-    return;
+  if (read_only) {
+    return Intercepted::kNo;
+  }
 
   // true for x = 5
   // false for this.x = 5
@@ -536,11 +543,16 @@ void ContextifyContext::PropertySetterCallback(
 
   bool is_declared = is_declared_on_global_proxy || is_declared_on_sandbox;
   if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
-      !is_function)
-    return;
+      !is_function) {
+    return Intercepted::kNo;
+  }
 
-  if (!is_declared && property->IsSymbol()) return;
-  if (ctx->sandbox()->Set(context, property, value).IsNothing()) return;
+  if (!is_declared && property->IsSymbol()) {
+    return Intercepted::kNo;
+  }
+  if (ctx->sandbox()->Set(context, property, value).IsNothing()) {
+    return Intercepted::kNo;
+  }
 
   Local<Value> desc;
   if (is_declared_on_sandbox &&
@@ -554,19 +566,23 @@ void ContextifyContext::PropertySetterCallback(
     // We have to specify the return value for any contextual or get/set
     // property
     if (desc_obj->HasOwnProperty(context, env->get_string()).FromMaybe(false) ||
-        desc_obj->HasOwnProperty(context, env->set_string()).FromMaybe(false))
+        desc_obj->HasOwnProperty(context, env->set_string()).FromMaybe(false)) {
       args.GetReturnValue().Set(value);
+      return Intercepted::kYes;
+    }
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertyDescriptorCallback(
-    Local<Name> property,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::PropertyDescriptorCallback(
+    Local<Name> property, const PropertyCallbackInfo<Value>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
 
@@ -576,19 +592,23 @@ void ContextifyContext::PropertyDescriptorCallback(
     Local<Value> desc;
     if (sandbox->GetOwnPropertyDescriptor(context, property).ToLocal(&desc)) {
       args.GetReturnValue().Set(desc);
+      return Intercepted::kYes;
     }
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertyDefinerCallback(
+Intercepted ContextifyContext::PropertyDefinerCallback(
     Local<Name> property,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
   Isolate* isolate = context->GetIsolate();
@@ -607,7 +627,7 @@ void ContextifyContext::PropertyDefinerCallback(
   // If the property is set on the global as neither writable nor
   // configurable, don't change it on the global or sandbox.
   if (is_declared && read_only && dont_delete) {
-    return;
+    return Intercepted::kNo;
   }
 
   Local<Object> sandbox = ctx->sandbox();
@@ -630,6 +650,9 @@ void ContextifyContext::PropertyDefinerCallback(
         desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
 
     define_prop_on_sandbox(&desc_for_sandbox);
+    // TODO(https://github.com/nodejs/node/issues/52634): this should return
+    // kYes to behave according to the expected semantics.
+    return Intercepted::kNo;
   } else {
     Local<Value> value =
         desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
@@ -641,26 +664,33 @@ void ContextifyContext::PropertyDefinerCallback(
       PropertyDescriptor desc_for_sandbox(value);
       define_prop_on_sandbox(&desc_for_sandbox);
     }
+    // TODO(https://github.com/nodejs/node/issues/52634): this should return
+    // kYes to behave according to the expected semantics.
+    return Intercepted::kNo;
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertyDeleterCallback(
-    Local<Name> property,
-    const PropertyCallbackInfo<Boolean>& args) {
+Intercepted ContextifyContext::PropertyDeleterCallback(
+    Local<Name> property, const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), property);
 
-  if (success.FromMaybe(false))
-    return;
+  if (success.FromMaybe(false)) {
+    return Intercepted::kNo;
+  }
 
   // Delete failed on the sandbox, intercept and do not delete on
   // the global object.
   args.GetReturnValue().Set(false);
+  return Intercepted::kYes;
 }
 
 // static
@@ -680,76 +710,83 @@ void ContextifyContext::PropertyEnumeratorCallback(
 }
 
 // static
-void ContextifyContext::IndexedPropertyGetterCallback(
-    uint32_t index,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::IndexedPropertyGetterCallback(
+    uint32_t index, const PropertyCallbackInfo<Value>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertyGetterCallback(
+  return ContextifyContext::PropertyGetterCallback(
       Uint32ToName(ctx->context(), index), args);
 }
 
-
-void ContextifyContext::IndexedPropertySetterCallback(
+Intercepted ContextifyContext::IndexedPropertySetterCallback(
     uint32_t index,
     Local<Value> value,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertySetterCallback(
+  return ContextifyContext::PropertySetterCallback(
       Uint32ToName(ctx->context(), index), value, args);
 }
 
 // static
-void ContextifyContext::IndexedPropertyDescriptorCallback(
-    uint32_t index,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::IndexedPropertyDescriptorCallback(
+    uint32_t index, const PropertyCallbackInfo<Value>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertyDescriptorCallback(
+  return ContextifyContext::PropertyDescriptorCallback(
       Uint32ToName(ctx->context(), index), args);
 }
 
-
-void ContextifyContext::IndexedPropertyDefinerCallback(
+Intercepted ContextifyContext::IndexedPropertyDefinerCallback(
     uint32_t index,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertyDefinerCallback(
+  return ContextifyContext::PropertyDefinerCallback(
       Uint32ToName(ctx->context(), index), desc, args);
 }
 
 // static
-void ContextifyContext::IndexedPropertyDeleterCallback(
-    uint32_t index,
-    const PropertyCallbackInfo<Boolean>& args) {
+Intercepted ContextifyContext::IndexedPropertyDeleterCallback(
+    uint32_t index, const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), index);
 
-  if (success.FromMaybe(false))
-    return;
+  if (success.FromMaybe(false)) {
+    return Intercepted::kNo;
+  }
 
   // Delete failed on the sandbox, intercept and do not delete on
   // the global object.
   args.GetReturnValue().Set(false);
+  return Intercepted::kYes;
 }
 
 void ContextifyScript::CreatePerIsolateProperties(
