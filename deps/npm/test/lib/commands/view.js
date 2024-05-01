@@ -48,9 +48,7 @@ const packument = (nv, opts) => {
           dist: {
             shasum: '123',
             tarball: 'http://hm.blue.com/1.0.0.tgz',
-            integrity: '---',
             fileCount: 1,
-            unpackedSize: 1,
           },
         },
         '1.0.1': {
@@ -282,81 +280,81 @@ const loadMockNpm = async function (t, opts = {}) {
 }
 
 t.test('package from git', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['https://github.com/npm/green'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('deprecated package with license, bugs, repository and other fields', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['green@1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('deprecated package with unicode', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: true } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: true } })
   await view.exec(['green@1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with more than 25 deps', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['black@1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with maintainers info as object', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['pink@1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with homepage', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['orange@1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with invalid version', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['orange', 'versions'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with no versions', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['brown'])
-  t.equal(outputs.join('\n'), '', 'no info to display')
+  t.equal(joinedOutput(), '', 'no info to display')
 })
 
 t.test('package with no repo or homepage', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['blue@1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with semver range', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['blue@^1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with no modified time', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['cyan@1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with --json and semver range', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { json: true } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
   await view.exec(['cyan@^1.0.0'])
-  t.matchSnapshot(outputs.join('\n'))
+  t.matchSnapshot(joinedOutput())
 })
 
 t.test('package with --json and no versions', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { json: true } })
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
   await view.exec(['brown'])
-  t.equal(outputs.join('\n'), '', 'no info to display')
+  t.equal(joinedOutput(), '', 'no info to display')
 })
 
 t.test('package in cwd', async t => {
@@ -368,76 +366,76 @@ t.test('package in cwd', async t => {
   }
 
   t.test('specific version', async t => {
-    const { view, outputs } = await loadMockNpm(t, { prefixDir })
+    const { view, joinedOutput } = await loadMockNpm(t, { prefixDir })
     await view.exec(['.@1.0.0'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('non-specific version', async t => {
-    const { view, outputs } = await loadMockNpm(t, { prefixDir })
+    const { view, joinedOutput } = await loadMockNpm(t, { prefixDir })
     await view.exec(['.'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('directory', async t => {
-    const { view, outputs } = await loadMockNpm(t, { prefixDir })
+    const { view, joinedOutput } = await loadMockNpm(t, { prefixDir })
     await view.exec(['./blue'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 })
 
 t.test('specific field names', async t => {
-  const { view, outputs } = await loadMockNpm(t, { config: { color: false } })
-  t.afterEach(() => outputs.length = 0)
+  const { view, joinedOutput, clearOutput } = await loadMockNpm(t, { config: { color: false } })
+  t.afterEach(() => clearOutput())
 
   t.test('readme', async t => {
     await view.exec(['yellow@1.0.0', 'readme'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('several fields', async t => {
     await view.exec(['yellow@1.0.0', 'name', 'version', 'foo[bar]'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('several fields with several versions', async t => {
     await view.exec(['yellow@1.x.x', 'author'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('nested field with brackets', async t => {
     await view.exec(['orange@1.0.0', 'dist[shasum]'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('maintainers with email', async t => {
     await view.exec(['yellow@1.0.0', 'maintainers', 'name'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('maintainers with url', async t => {
     await view.exec(['pink@1.0.0', 'maintainers'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('unknown nested field ', async t => {
     await view.exec(['yellow@1.0.0', 'dist.foobar'])
-    t.equal(outputs.join('\n'), '', 'no info to display')
+    t.equal(joinedOutput(), '', 'no info to display')
   })
 
   t.test('array field - 1 element', async t => {
     await view.exec(['purple@1.0.0', 'maintainers.name'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('array field - 2 elements', async t => {
     await view.exec(['yellow@1.x.x', 'maintainers.name'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('fields with empty values', async t => {
     await view.exec(['yellow', 'empty'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 })
 
@@ -507,84 +505,84 @@ t.test('workspaces', async t => {
   }
 
   t.test('all workspaces', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspaces: true },
     })
     await view.exec([])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('one specific workspace', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspace: ['green'] },
     })
     await view.exec([])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('all workspaces --json', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspaces: true, json: true },
     })
     await view.exec([])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('all workspaces single field', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspaces: true },
     })
     await view.exec(['.', 'name'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('all workspaces nonexistent field', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspaces: true },
     })
     await view.exec(['.', 'foo'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('all workspaces nonexistent field --json', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspaces: true, json: true },
     })
     await view.exec(['.', 'foo'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('all workspaces single field --json', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspaces: true, json: true },
     })
     await view.exec(['.', 'name'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('single workspace --json', async t => {
-    const { view, outputs } = await loadMockNpm(t, {
+    const { view, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspace: ['green'], json: true },
     })
     await view.exec([])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
   })
 
   t.test('remote package name', async t => {
-    const { view, logs, outputs } = await loadMockNpm(t, {
+    const { view, logs, joinedOutput } = await loadMockNpm(t, {
       prefixDir,
       config: { unicode: false, workspaces: true },
     })
     await view.exec(['pink'])
-    t.matchSnapshot(outputs.join('\n'))
+    t.matchSnapshot(joinedOutput())
     t.matchSnapshot(logs.warn, 'should have warning of ignoring workspaces')
   })
 })

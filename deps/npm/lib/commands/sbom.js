@@ -1,9 +1,6 @@
-'use strict'
-
-const { EOL } = require('os')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const BaseCommand = require('../base-command.js')
-const log = require('../utils/log-shim.js')
+const BaseCommand = require('../base-cmd.js')
+const { log, output } = require('proc-log')
 const { cyclonedxOutput } = require('../utils/sbom-cyclonedx.js')
 const { spdxOutput } = require('../utils/sbom-spdx.js')
 
@@ -77,7 +74,7 @@ class SBOM extends BaseCommand {
 
     if (errors.size > 0) {
       throw Object.assign(
-        new Error([...errors].join(EOL)),
+        new Error([...errors].join('\n')),
         { code: 'ESBOMPROBLEMS' }
       )
     }
@@ -87,7 +84,7 @@ class SBOM extends BaseCommand {
       items
         .sort((a, b) => localeCompare(a.location, b.location))
     )
-    this.npm.output(this.#parsedResponse)
+    output.standard(this.#parsedResponse)
   }
 
   async execWorkspaces (args) {

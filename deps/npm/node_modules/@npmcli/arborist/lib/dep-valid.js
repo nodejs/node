@@ -124,7 +124,7 @@ const linkValid = (child, requested, requestor) => {
   return isLink && relative(child.realpath, requested.fetchSpec) === ''
 }
 
-const tarballValid = (child, requested, requestor) => {
+const tarballValid = (child, requested) => {
   if (child.isLink) {
     return false
   }

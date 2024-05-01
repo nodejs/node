@@ -7,10 +7,10 @@ const { join } = require('node:path')
 const isWindows = process.platform === 'win32'
 
 // used by cafile flattening to flatOptions.ca
-const fs = require('fs')
+const { readFileSync } = require('fs')
 const maybeReadFile = file => {
   try {
-    return fs.readFileSync(file, 'utf8')
+    return readFileSync(file, 'utf8')
   } catch (er) {
     if (er.code !== 'ENOENT') {
       throw er

@@ -1,8 +1,6 @@
-'use strict'
-
-const { resolve } = require('path')
-const BaseCommand = require('../base-command.js')
-const log = require('../utils/log-shim.js')
+const { resolve } = require('node:path')
+const BaseCommand = require('../base-cmd.js')
+const { log, output } = require('proc-log')
 
 class QuerySelectorItem {
   constructor (node) {
@@ -83,7 +81,7 @@ class Query extends BaseCommand {
     this.buildResponse(items)
 
     this.checkExpected(this.#response.length)
-    this.npm.output(this.parsedResponse)
+    output.standard(this.parsedResponse)
   }
 
   async execWorkspaces (args) {
@@ -107,7 +105,7 @@ class Query extends BaseCommand {
       this.buildResponse(items)
     }
     this.checkExpected(this.#response.length)
-    this.npm.output(this.parsedResponse)
+    output.standard(this.parsedResponse)
   }
 
   // builds a normalized inventory
