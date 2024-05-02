@@ -3,12 +3,12 @@
 const { isUSVString, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { utf8DecodeBytes } = require('./util')
 const { HTTP_TOKEN_CODEPOINTS, isomorphicDecode } = require('./data-url')
-const { isFileLike, File: UndiciFile } = require('./file')
+const { isFileLike } = require('./file')
 const { makeEntry } = require('./formdata')
 const assert = require('node:assert')
 const { File: NodeFile } = require('node:buffer')
 
-const File = globalThis.File ?? NodeFile ?? UndiciFile
+const File = globalThis.File ?? NodeFile
 
 const formDataNameBuffer = Buffer.from('form-data; name="')
 const filenameBuffer = Buffer.from('; filename')
