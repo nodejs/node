@@ -3645,7 +3645,7 @@ changes:
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52067
     description: Runtime deprecation.
-  - version: v22.0.0
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51879
     description: Documentation-only deprecation.
 -->
@@ -3662,7 +3662,7 @@ changes:
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52071
     description: Runtime deprecation.
-  - version: v22.0.0
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51881
     description: Documentation-only deprecation.
 -->
@@ -3680,7 +3680,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/52552
     description: Runtime deprecation.
-  - version: v22.0.0
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52345
     description: Documentation-only deprecation.
 -->
