@@ -59,7 +59,7 @@ const {
 } = require('./constants')
 const EE = require('node:events')
 const { Readable, pipeline, finished } = require('node:stream')
-const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor, bufferToLowerCasedHeaderName } = require('../../core/util')
+const { addAbortListener, isErrored, isReadable, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('./webidl')
@@ -122,7 +122,7 @@ class Fetch extends EE {
 
 // https://fetch.spec.whatwg.org/#fetch-method
 function fetch (input, init = undefined) {
-  webidl.argumentLengthCheck(arguments, 1, { header: 'globalThis.fetch' })
+  webidl.argumentLengthCheck(arguments, 1, 'globalThis.fetch')
 
   // 1. Let p be a new promise.
   const p = createDeferredPromise()
@@ -165,7 +165,6 @@ function fetch (input, init = undefined) {
   let responseObject = null
 
   // 8. Let relevantRealm be this’s relevant Realm.
-  const relevantRealm = null
 
   // 9. Let locallyAborted be false.
   let locallyAborted = false
@@ -229,7 +228,7 @@ function fetch (input, init = undefined) {
 
     // 4. Set responseObject to the result of creating a Response object,
     // given response, "immutable", and relevantRealm.
-    responseObject = fromInnerResponse(response, 'immutable', relevantRealm)
+    responseObject = fromInnerResponse(response, 'immutable')
 
     // 5. Resolve p with responseObject.
     p.resolve(responseObject)
@@ -310,9 +309,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
-const markResourceTiming = (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2))
-  ? performance.markResourceTiming
-  : () => {}
+const markResourceTiming = performance.markResourceTiming
 
 // https://fetch.spec.whatwg.org/#abort-fetch
 function abortFetch (p, request, responseObject, error) {
@@ -1540,7 +1537,7 @@ async function httpNetworkOrCacheFetch (
 
   //    24. If httpRequest’s cache mode is neither "no-store" nor "reload",
   //    then:
-  if (httpRequest.mode !== 'no-store' && httpRequest.mode !== 'reload') {
+  if (httpRequest.cache !== 'no-store' && httpRequest.cache !== 'reload') {
     // TODO: cache
   }
 
@@ -1551,7 +1548,7 @@ async function httpNetworkOrCacheFetch (
   if (response == null) {
     // 1. If httpRequest’s cache mode is "only-if-cached", then return a
     // network error.
-    if (httpRequest.mode === 'only-if-cached') {
+    if (httpRequest.cache === 'only-if-cached') {
       return makeNetworkError('only if cached')
     }
 
