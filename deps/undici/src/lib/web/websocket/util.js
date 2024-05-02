@@ -2,7 +2,7 @@
 
 const { kReadyState, kController, kResponse, kBinaryType, kWebSocketURL } = require('./symbols')
 const { states, opcodes } = require('./constants')
-const { MessageEvent, ErrorEvent } = require('./events')
+const { ErrorEvent, createFastMessageEvent } = require('./events')
 const { isUtf8 } = require('node:buffer')
 
 /* globals Blob */
@@ -51,15 +51,16 @@ function isClosed (ws) {
  * @see https://dom.spec.whatwg.org/#concept-event-fire
  * @param {string} e
  * @param {EventTarget} target
+ * @param {(...args: ConstructorParameters<typeof Event>) => Event} eventFactory
  * @param {EventInit | undefined} eventInitDict
  */
-function fireEvent (e, target, eventConstructor = Event, eventInitDict = {}) {
+function fireEvent (e, target, eventFactory = (type, init) => new Event(type, init), eventInitDict = {}) {
   // 1. If eventConstructor is not given, then let eventConstructor be Event.
 
   // 2. Let event be the result of creating an event given eventConstructor,
   //    in the relevant realm of target.
   // 3. Initialize event’s type attribute to e.
-  const event = new eventConstructor(e, eventInitDict) // eslint-disable-line new-cap
+  const event = eventFactory(e, eventInitDict)
 
   // 4. Initialize any other IDL attributes of event as described in the
   //    invocation of this algorithm.
@@ -110,7 +111,7 @@ function websocketMessageReceived (ws, type, data) {
   // 3. Fire an event named message at the WebSocket object, using MessageEvent,
   //    with the origin attribute initialized to the serialization of the WebSocket
   //    object’s url's origin, and the data attribute initialized to dataForEvent.
-  fireEvent('message', ws, MessageEvent, {
+  fireEvent('message', ws, createFastMessageEvent, {
     origin: ws[kWebSocketURL].origin,
     data: dataForEvent
   })
@@ -195,7 +196,7 @@ function failWebsocketConnection (ws, reason) {
 
   if (reason) {
     // TODO: process.nextTick
-    fireEvent('error', ws, ErrorEvent, {
+    fireEvent('error', ws, (type, init) => new ErrorEvent(type, init), {
       error: new Error(reason)
     })
   }
@@ -211,19 +212,12 @@ const fatalDecoder = hasIntl ? new TextDecoder('utf-8', { fatal: true }) : undef
  */
 const utf8Decode = hasIntl
   ? fatalDecoder.decode.bind(fatalDecoder)
-  : !isUtf8
-      ? function () { // TODO: remove once node 18 or < node v18.14.0 is dropped
-        process.emitWarning('ICU is not supported and no fallback exists. Please upgrade to at least Node v18.14.0.', {
-          code: 'UNDICI-WS-NO-ICU'
-        })
-        throw new TypeError('Invalid utf-8 received.')
-      }
-      : function (buffer) {
-        if (isUtf8(buffer)) {
-          return buffer.toString('utf-8')
-        }
-        throw new TypeError('Invalid utf-8 received.')
-      }
+  : function (buffer) {
+    if (isUtf8(buffer)) {
+      return buffer.toString('utf-8')
+    }
+    throw new TypeError('Invalid utf-8 received.')
+  }
 
 module.exports = {
   isConnecting,

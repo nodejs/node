@@ -51,7 +51,8 @@ class WebSocket extends EventTarget {
   constructor (url, protocols = []) {
     super()
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'WebSocket constructor' })
+    const prefix = 'WebSocket constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
     if (!experimentalWarned) {
       experimentalWarned = true
@@ -60,9 +61,9 @@ class WebSocket extends EventTarget {
       })
     }
 
-    const options = webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'](protocols)
+    const options = webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'](protocols, prefix, 'options')
 
-    url = webidl.converters.USVString(url)
+    url = webidl.converters.USVString(url, prefix, 'url')
     protocols = options.protocols
 
     // 1. Let baseURL be this's relevant settings object's API base URL.
@@ -159,12 +160,14 @@ class WebSocket extends EventTarget {
   close (code = undefined, reason = undefined) {
     webidl.brandCheck(this, WebSocket)
 
+    const prefix = 'WebSocket.close'
+
     if (code !== undefined) {
-      code = webidl.converters['unsigned short'](code, { clamp: true })
+      code = webidl.converters['unsigned short'](code, prefix, 'code', { clamp: true })
     }
 
     if (reason !== undefined) {
-      reason = webidl.converters.USVString(reason)
+      reason = webidl.converters.USVString(reason, prefix, 'reason')
     }
 
     // 1. If code is present, but is neither an integer equal to 1000 nor an
@@ -264,9 +267,10 @@ class WebSocket extends EventTarget {
   send (data) {
     webidl.brandCheck(this, WebSocket)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'WebSocket.send' })
+    const prefix = 'WebSocket.send'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    data = webidl.converters.WebSocketSendData(data)
+    data = webidl.converters.WebSocketSendData(data, prefix, 'data')
 
     // 1. If this's ready state is CONNECTING, then throw an
     //    "InvalidStateError" DOMException.
@@ -595,12 +599,12 @@ webidl.converters['sequence<DOMString>'] = webidl.sequenceConverter(
   webidl.converters.DOMString
 )
 
-webidl.converters['DOMString or sequence<DOMString>'] = function (V) {
+webidl.converters['DOMString or sequence<DOMString>'] = function (V, prefix, argument) {
   if (webidl.util.Type(V) === 'Object' && Symbol.iterator in V) {
     return webidl.converters['sequence<DOMString>'](V)
   }
 
-  return webidl.converters.DOMString(V)
+  return webidl.converters.DOMString(V, prefix, argument)
 }
 
 // This implements the propsal made in https://github.com/whatwg/websockets/issues/42
@@ -608,16 +612,12 @@ webidl.converters.WebSocketInit = webidl.dictionaryConverter([
   {
     key: 'protocols',
     converter: webidl.converters['DOMString or sequence<DOMString>'],
-    get defaultValue () {
-      return []
-    }
+    defaultValue: () => new Array(0)
   },
   {
     key: 'dispatcher',
     converter: (V) => V,
-    get defaultValue () {
-      return getGlobalDispatcher()
-    }
+    defaultValue: () => getGlobalDispatcher()
   },
   {
     key: 'headers',

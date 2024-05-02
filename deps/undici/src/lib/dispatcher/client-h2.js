@@ -208,10 +208,9 @@ function onHttp2SessionEnd () {
  * This is the root cause of #3011
  * We need to handle GOAWAY frames properly, and trigger the session close
  * along with the socket right away
- * Find a way to trigger the close cycle from here on.
  */
 function onHTTP2GoAway (code) {
-  const err = new InformationalError(`HTTP/2: "GOAWAY" frame received with code ${code}`)
+  const err = new RequestAbortedError(`HTTP/2: "GOAWAY" frame received with code ${code}`)
 
   // We need to trigger the close cycle right away
   // We need to destroy the session and the socket
@@ -220,8 +219,7 @@ function onHTTP2GoAway (code) {
   this[kClient][kOnError](err)
 
   this.unref()
-  // We send the GOAWAY frame response as no error
-  this.destroy()
+
   util.destroy(this[kSocket], err)
 }
 

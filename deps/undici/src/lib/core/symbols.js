@@ -60,5 +60,8 @@ module.exports = {
   kConstruct: Symbol('constructable'),
   kListeners: Symbol('listeners'),
   kHTTPContext: Symbol('http context'),
-  kMaxConcurrentStreams: Symbol('max concurrent streams')
+  kMaxConcurrentStreams: Symbol('max concurrent streams'),
+  kNoProxyAgent: Symbol('no proxy agent'),
+  kHttpProxyAgent: Symbol('http proxy agent'),
+  kHttpsProxyAgent: Symbol('https proxy agent')
 }

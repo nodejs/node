@@ -267,7 +267,7 @@ function onSocketClose () {
   //    decode without BOM to the WebSocket connection close
   //    reason.
   // TODO: process.nextTick
-  fireEvent('close', ws, CloseEvent, {
+  fireEvent('close', ws, (type, init) => new CloseEvent(type, init), {
     wasClean, code, reason
   })
 

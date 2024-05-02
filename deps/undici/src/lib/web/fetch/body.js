@@ -309,7 +309,7 @@ function bodyMixinMethods (instance) {
         // Return a Blob whose contents are bytes and type attribute
         // is mimeType.
         return new Blob([bytes], { type: mimeType })
-      }, instance)
+      }, instance, false)
     },
 
     arrayBuffer () {
@@ -318,20 +318,21 @@ function bodyMixinMethods (instance) {
       // given a byte sequence bytes: return a new ArrayBuffer
       // whose contents are bytes.
       return consumeBody(this, (bytes) => {
-        return new Uint8Array(bytes).buffer
-      }, instance)
+        // Note: arrayBuffer already cloned.
+        return bytes.buffer
+      }, instance, true)
     },
 
     text () {
       // The text() method steps are to return the result of running
       // consume body with this and UTF-8 decode.
-      return consumeBody(this, utf8DecodeBytes, instance)
+      return consumeBody(this, utf8DecodeBytes, instance, false)
     },
 
     json () {
       // The json() method steps are to return the result of running
       // consume body with this and parse JSON from bytes.
-      return consumeBody(this, parseJSONFromBytes, instance)
+      return consumeBody(this, parseJSONFromBytes, instance, false)
     },
 
     formData () {
@@ -383,7 +384,7 @@ function bodyMixinMethods (instance) {
         throw new TypeError(
           'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
         )
-      }, instance)
+      }, instance, false)
     }
   }
 
@@ -399,14 +400,15 @@ function mixinBody (prototype) {
  * @param {Response|Request} object
  * @param {(value: unknown) => unknown} convertBytesToJSValue
  * @param {Response|Request} instance
+ * @param {boolean} [shouldClone]
  */
-async function consumeBody (object, convertBytesToJSValue, instance) {
+async function consumeBody (object, convertBytesToJSValue, instance, shouldClone) {
   webidl.brandCheck(object, instance)
 
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
   if (bodyUnusable(object[kState].body)) {
-    throw new TypeError('Body is unusable')
+    throw new TypeError('Body is unusable: Body has already been read')
   }
 
   throwIfAborted(object[kState])
@@ -432,13 +434,13 @@ async function consumeBody (object, convertBytesToJSValue, instance) {
   // 5. If object’s body is null, then run successSteps with an
   //    empty byte sequence.
   if (object[kState].body == null) {
-    successSteps(new Uint8Array())
+    successSteps(Buffer.allocUnsafe(0))
     return promise.promise
   }
 
   // 6. Otherwise, fully read object’s body given successSteps,
   //    errorSteps, and object’s relevant global object.
-  await fullyReadBody(object[kState].body, successSteps, errorSteps)
+  await fullyReadBody(object[kState].body, successSteps, errorSteps, shouldClone)
 
   // 7. Return promise.
   return promise.promise

@@ -2,6 +2,7 @@
 
 const { webidl } = require('../fetch/webidl')
 const { kEnumerableProperty } = require('../../core/util')
+const { kConstruct } = require('../../core/symbols')
 const { MessagePort } = require('node:worker_threads')
 
 /**
@@ -11,10 +12,16 @@ class MessageEvent extends Event {
   #eventInit
 
   constructor (type, eventInitDict = {}) {
-    webidl.argumentLengthCheck(arguments, 1, { header: 'MessageEvent constructor' })
+    if (type === kConstruct) {
+      super(arguments[1], arguments[2])
+      return
+    }
 
-    type = webidl.converters.DOMString(type)
-    eventInitDict = webidl.converters.MessageEventInit(eventInitDict)
+    const prefix = 'MessageEvent constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
+
+    type = webidl.converters.DOMString(type, prefix, 'type')
+    eventInitDict = webidl.converters.MessageEventInit(eventInitDict, prefix, 'eventInitDict')
 
     super(type, eventInitDict)
 
@@ -67,13 +74,27 @@ class MessageEvent extends Event {
   ) {
     webidl.brandCheck(this, MessageEvent)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'MessageEvent.initMessageEvent' })
+    webidl.argumentLengthCheck(arguments, 1, 'MessageEvent.initMessageEvent')
 
     return new MessageEvent(type, {
       bubbles, cancelable, data, origin, lastEventId, source, ports
     })
   }
+
+  static createFastMessageEvent (type, init) {
+    const messageEvent = new MessageEvent(kConstruct, type, init)
+    messageEvent.#eventInit = init
+    messageEvent.#eventInit.data ??= null
+    messageEvent.#eventInit.origin ??= ''
+    messageEvent.#eventInit.lastEventId ??= ''
+    messageEvent.#eventInit.source ??= null
+    messageEvent.#eventInit.ports ??= []
+    return messageEvent
+  }
 }
+
+const { createFastMessageEvent } = MessageEvent
+delete MessageEvent.createFastMessageEvent
 
 /**
  * @see https://websockets.spec.whatwg.org/#the-closeevent-interface
@@ -82,9 +103,10 @@ class CloseEvent extends Event {
   #eventInit
 
   constructor (type, eventInitDict = {}) {
-    webidl.argumentLengthCheck(arguments, 1, { header: 'CloseEvent constructor' })
+    const prefix = 'CloseEvent constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    type = webidl.converters.DOMString(type)
+    type = webidl.converters.DOMString(type, prefix, 'type')
     eventInitDict = webidl.converters.CloseEventInit(eventInitDict)
 
     super(type, eventInitDict)
@@ -116,11 +138,12 @@ class ErrorEvent extends Event {
   #eventInit
 
   constructor (type, eventInitDict) {
-    webidl.argumentLengthCheck(arguments, 1, { header: 'ErrorEvent constructor' })
+    const prefix = 'ErrorEvent constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
     super(type, eventInitDict)
 
-    type = webidl.converters.DOMString(type)
+    type = webidl.converters.DOMString(type, prefix, 'type')
     eventInitDict = webidl.converters.ErrorEventInit(eventInitDict ?? {})
 
     this.#eventInit = eventInitDict
@@ -202,17 +225,17 @@ const eventInit = [
   {
     key: 'bubbles',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'cancelable',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'composed',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   }
 ]
 
@@ -221,31 +244,29 @@ webidl.converters.MessageEventInit = webidl.dictionaryConverter([
   {
     key: 'data',
     converter: webidl.converters.any,
-    defaultValue: null
+    defaultValue: () => null
   },
   {
     key: 'origin',
     converter: webidl.converters.USVString,
-    defaultValue: ''
+    defaultValue: () => ''
   },
   {
     key: 'lastEventId',
     converter: webidl.converters.DOMString,
-    defaultValue: ''
+    defaultValue: () => ''
   },
   {
     key: 'source',
     // Node doesn't implement WindowProxy or ServiceWorker, so the only
     // valid value for source is a MessagePort.
     converter: webidl.nullableConverter(webidl.converters.MessagePort),
-    defaultValue: null
+    defaultValue: () => null
   },
   {
     key: 'ports',
     converter: webidl.converters['sequence<MessagePort>'],
-    get defaultValue () {
-      return []
-    }
+    defaultValue: () => new Array(0)
   }
 ])
 
@@ -254,17 +275,17 @@ webidl.converters.CloseEventInit = webidl.dictionaryConverter([
   {
     key: 'wasClean',
     converter: webidl.converters.boolean,
-    defaultValue: false
+    defaultValue: () => false
   },
   {
     key: 'code',
     converter: webidl.converters['unsigned short'],
-    defaultValue: 0
+    defaultValue: () => 0
   },
   {
     key: 'reason',
     converter: webidl.converters.USVString,
-    defaultValue: ''
+    defaultValue: () => ''
   }
 ])
 
@@ -273,22 +294,22 @@ webidl.converters.ErrorEventInit = webidl.dictionaryConverter([
   {
     key: 'message',
     converter: webidl.converters.DOMString,
-    defaultValue: ''
+    defaultValue: () => ''
   },
   {
     key: 'filename',
     converter: webidl.converters.USVString,
-    defaultValue: ''
+    defaultValue: () => ''
   },
   {
     key: 'lineno',
     converter: webidl.converters['unsigned long'],
-    defaultValue: 0
+    defaultValue: () => 0
   },
   {
     key: 'colno',
     converter: webidl.converters['unsigned long'],
-    defaultValue: 0
+    defaultValue: () => 0
   },
   {
     key: 'error',
@@ -299,5 +320,6 @@ webidl.converters.ErrorEventInit = webidl.dictionaryConverter([
 module.exports = {
   MessageEvent,
   CloseEvent,
-  ErrorEvent
+  ErrorEvent,
+  createFastMessageEvent
 }

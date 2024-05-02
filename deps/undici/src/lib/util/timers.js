@@ -1,5 +1,7 @@
 'use strict'
 
+const TICK_MS = 499
+
 let fastNow = Date.now()
 let fastNowTimeout
 
@@ -14,7 +16,7 @@ function onTimeout () {
     const timer = fastTimers[idx]
 
     if (timer.state === 0) {
-      timer.state = fastNow + timer.delay
+      timer.state = fastNow + timer.delay - TICK_MS
     } else if (timer.state > 0 && fastNow >= timer.state) {
       timer.state = -1
       timer.callback(timer.opaque)
@@ -43,7 +45,7 @@ function refreshTimeout () {
     fastNowTimeout.refresh()
   } else {
     clearTimeout(fastNowTimeout)
-    fastNowTimeout = setTimeout(onTimeout, 1e3)
+    fastNowTimeout = setTimeout(onTimeout, TICK_MS)
     if (fastNowTimeout.unref) {
       fastNowTimeout.unref()
     }
@@ -83,7 +85,7 @@ class Timeout {
 
 module.exports = {
   setTimeout (callback, delay, opaque) {
-    return delay < 1e3
+    return delay <= 1e3
       ? setTimeout(callback, delay, opaque)
       : new Timeout(callback, delay, opaque)
   },

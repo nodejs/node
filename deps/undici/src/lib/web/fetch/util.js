@@ -1015,7 +1015,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
       configurable: true,
       value: function forEach (callbackfn, thisArg = globalThis) {
         webidl.brandCheck(this, object)
-        webidl.argumentLengthCheck(arguments, 1, { header: `${name}.forEach` })
+        webidl.argumentLengthCheck(arguments, 1, `${name}.forEach`)
         if (typeof callbackfn !== 'function') {
           throw new TypeError(
             `Failed to execute 'forEach' on '${name}': parameter 1 is not of type 'Function'.`
@@ -1042,7 +1042,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
 /**
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-async function fullyReadBody (body, processBody, processBodyError) {
+async function fullyReadBody (body, processBody, processBodyError, shouldClone) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
@@ -1068,8 +1068,7 @@ async function fullyReadBody (body, processBody, processBodyError) {
 
   // 5. Read all bytes from reader, given successSteps and errorSteps.
   try {
-    const result = await readAllBytes(reader)
-    successSteps(result)
+    successSteps(await readAllBytes(reader, shouldClone))
   } catch (e) {
     errorSteps(e)
   }
@@ -1097,15 +1096,15 @@ function readableStreamClose (controller) {
   }
 }
 
+const invalidIsomorphicEncodeValueRegex = /[^\x00-\xFF]/ // eslint-disable-line
+
 /**
  * @see https://infra.spec.whatwg.org/#isomorphic-encode
  * @param {string} input
  */
 function isomorphicEncode (input) {
   // 1. Assert: input contains no code points greater than U+00FF.
-  for (let i = 0; i < input.length; i++) {
-    assert(input.charCodeAt(i) <= 0xFF)
-  }
+  assert(!invalidIsomorphicEncodeValueRegex.test(input))
 
   // 2. Return a byte sequence whose length is equal to input’s code
   //    point length and whose bytes have the same values as the
@@ -1117,8 +1116,9 @@ function isomorphicEncode (input) {
  * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
  * @see https://streams.spec.whatwg.org/#read-loop
  * @param {ReadableStreamDefaultReader} reader
+ * @param {boolean} [shouldClone]
  */
-async function readAllBytes (reader) {
+async function readAllBytes (reader, shouldClone) {
   const bytes = []
   let byteLength = 0
 
@@ -1127,6 +1127,13 @@ async function readAllBytes (reader) {
 
     if (done) {
       // 1. Call successSteps with bytes.
+      if (bytes.length === 1) {
+        const { buffer, byteOffset, byteLength } = bytes[0]
+        if (shouldClone === false) {
+          return Buffer.from(buffer, byteOffset, byteLength)
+        }
+        return Buffer.from(buffer.slice(byteOffset, byteOffset + byteLength), 0, byteLength)
+      }
       return Buffer.concat(bytes, byteLength)
     }
 
@@ -1561,6 +1568,24 @@ function utf8DecodeBytes (buffer) {
   return output
 }
 
+class EnvironmentSettingsObjectBase {
+  get baseUrl () {
+    return getGlobalOrigin()
+  }
+
+  get origin () {
+    return this.baseUrl?.origin
+  }
+
+  policyContainer = makePolicyContainer()
+}
+
+class EnvironmentSettingsObject {
+  settingsObject = new EnvironmentSettingsObjectBase()
+}
+
+const environmentSettingsObject = new EnvironmentSettingsObject()
+
 module.exports = {
   isAborted,
   isCancelled,
@@ -1612,5 +1637,6 @@ module.exports = {
   createInflate,
   extractMimeType,
   getDecodeSplit,
-  utf8DecodeBytes
+  utf8DecodeBytes,
+  environmentSettingsObject
 }
