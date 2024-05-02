@@ -32,3 +32,11 @@ process.on('__proto__', common.mustCall(function(val) {
   assert.strictEqual(val, 1);
 }));
 process.emit('__proto__', 1);
+
+const objectPrototypeKeys = Object.getOwnPropertyNames(Object.getPrototypeOf({}));
+
+assert.notDeepStrictEqual(objectPrototypeKeys, []);
+for (const key of objectPrototypeKeys) {
+  const ee2 = new EventEmitter();
+  ee2.emit(key, 1);
+}
