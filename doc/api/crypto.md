@@ -891,7 +891,9 @@ When passing a string as the `buffer`, please consider
 <!-- YAML
 added: v1.0.0
 changes:
-  - version: v22.0.0
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52345
     description: Using GCM tag lengths other than 128 bits without specifying
                  the `authTagLength` option when creating `decipher` is

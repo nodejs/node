@@ -1115,7 +1115,9 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
-  - version: v22.0.0
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52039
     description: Aligned return value with `uv_get_constrained_memory`.
 -->
@@ -1134,7 +1136,9 @@ information.
 ## `process.availableMemory()`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 > Stability: 1 - Experimental

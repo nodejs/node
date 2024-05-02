@@ -594,7 +594,9 @@ added:
   - v16.4.0
   - v14.18.0
 changes:
-  - version: v22.1.0
+  - version:
+    - v22.1.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52492
     description: The `ipv6first` is supported now.
   - version: v17.0.0
@@ -1338,7 +1340,9 @@ This option is a no-op. It is kept for compatibility.
 ### `--network-family-autoselection-attempt-timeout`
 
 <!-- YAML
-added: v22.1.0
+added:
+  - v22.1.0
+  - v20.13.0
 -->
 
 Sets the default value for the network family autoselection attempt timeout.
@@ -1777,7 +1781,9 @@ native stack and other runtime environment data.
 ### `--report-exclude-network`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Exclude `header.networkInterfaces` from the diagnostic report. By default
@@ -2366,7 +2372,9 @@ added:
   - v18.11.0
   - v16.19.0
 changes:
-  - version: v22.0.0
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52074
     description: Watch mode is now stable.
   - version:
@@ -2399,7 +2407,9 @@ added:
   - v18.11.0
   - v16.19.0
 changes:
-  - version: v22.0.0
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52074
     description: Watch mode is now stable.
 -->
