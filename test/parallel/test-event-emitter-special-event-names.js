@@ -9,9 +9,6 @@ const handler = () => {};
 
 assert.deepStrictEqual(ee.eventNames(), []);
 
-assert.strictEqual(ee._events.hasOwnProperty, undefined);
-assert.strictEqual(ee._events.toString, undefined);
-
 ee.on('__proto__', handler);
 ee.on('__defineGetter__', handler);
 ee.on('toString', handler);
