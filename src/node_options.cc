@@ -566,10 +566,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
   // Options after --prof-process are passed through to the prof processor.
-  AddAlias("--prof-process", { "--prof-process", "--" });
-  AddOption("--run",
-            "Run a script specified in package.json",
-            &EnvironmentOptions::run);
+  AddAlias("--prof-process", {"--prof-process", "--"});
 #if HAVE_INSPECTOR
   AddOption("--cpu-prof",
             "Start the V8 CPU profiler on start up, and write the CPU profile "
@@ -1069,6 +1066,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "Generate a blob that can be embedded into the single executable "
             "application",
             &PerProcessOptions::experimental_sea_config);
+
+  AddOption("--run",
+            "Run a script specified in package.json",
+            &PerProcessOptions::run);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {

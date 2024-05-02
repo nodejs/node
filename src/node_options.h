@@ -161,7 +161,6 @@ class EnvironmentOptions : public Options {
   bool heap_prof = false;
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
-  std::string run;
   std::string diagnostic_dir;
   std::string env_file;
   bool has_env_file_string = false;
@@ -280,6 +279,7 @@ class PerProcessOptions : public Options {
   bool print_v8_help = false;
   bool print_version = false;
   std::string experimental_sea_config;
+  std::string run;
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   std::string icu_data_dir;
