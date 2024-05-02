@@ -458,6 +458,10 @@
           '_HAS_EXCEPTIONS=0',
           'BUILDING_V8_SHARED=1',
           'BUILDING_UV_SHARED=1',
+          # Stop <windows.h> from defining macros that conflict with
+          # std::min() and std::max().  We don't use <windows.h> (much)
+          # but we still inherit it from uv.h.
+          'NOMINMAX',
         ],
       }],
       [ 'OS in "linux freebsd openbsd solaris aix os400"', {
