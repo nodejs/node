@@ -6,9 +6,9 @@
 namespace node::task_runner {
 
 #ifdef _WIN32
-static const char bin_path[] = "\\node_modules\\.bin";
+static constexpr char bin_path[] = "\\node_modules\\.bin";
 #else
-static const char bin_path[] = "/node_modules/.bin";
+static constexpr char bin_path[] = "/node_modules/.bin";
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(
@@ -24,12 +24,10 @@ ProcessRunner::ProcessRunner(
   CHECK_GT(cwd_size, 0);
 
 #ifdef _WIN32
-  options_.file = "cmd.exe";
   std::string current_bin_path = cwd + std::string(bin_path) + ";";
 #else
-  options_.file = "/bin/sh";
   std::string current_bin_path = cwd + std::string(bin_path) + ":";
-#endif
+#endif  // _WIN32
 
   // Inherit stdin, stdout, and stderr from the parent process.
   options_.stdio_count = 3;
@@ -78,9 +76,9 @@ ProcessRunner::ProcessRunner(
     // Example: 'C:\\Windows\\system32\\cmd.exe'
     // If we don't find it, we fallback to 'cmd.exe' for Windows
     if (name.size() == 7 && StringEqualNoCaseN(name.c_str(), "comspec", 7)) {
-      options_.file = value.c_str();
+      file_ = value;
     }
-#endif
+#endif  // _WIN32
 
     // Check if environment variable key is matching case-insensitive "path"
     if (name.size() == 4 && StringEqualNoCaseN(name.c_str(), "path", 4)) {
@@ -93,11 +91,14 @@ ProcessRunner::ProcessRunner(
   }
   uv_os_free_environ(env_items, env_count);
 
+  // Use the stored reference on the instance.
+  options_.file = file_.c_str();
+
 #ifdef _WIN32
-  if (file.find("cmd.exe") != std::string::npos) {
+  if (file_.find("cmd.exe") != std::string::npos) {
     // If the file is cmd.exe, use the following command line arguments:
     // "/c" Carries out the command and exit.
-    // "/d"	Disables execution of AutoRun commands.
+    // "/d" Disables execution of AutoRun commands.
     // "/s" Strip the first and last quotes (") around the <string> but leaves
     // the rest of the command unchanged.
     command_args_ = {
@@ -107,7 +108,7 @@ ProcessRunner::ProcessRunner(
   }
 #else
   command_args_ = {options_.file, "-c", command_str};
-#endif
+#endif  // _WIN32
 
   auto argc = command_args_.size();
   CHECK_GE(argc, 1);

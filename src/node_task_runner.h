@@ -41,6 +41,12 @@ class ProcessRunner {
 
   // OnExit is the callback function that is called when the process exits.
   void OnExit(int64_t exit_status, int term_signal);
+
+#ifdef _WIN32
+  std::string file_ = "cmd.exe";
+#else
+  std::string file_ = "/bin/sh";
+#endif  // _WIN32
 };
 
 void RunTask(std::shared_ptr<InitializationResultImpl> result,
