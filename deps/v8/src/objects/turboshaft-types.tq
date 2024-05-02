@@ -1,0 +1,253 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/objects/turboshaft-types.h"
+
+extern enum AbortReason { kTurboshaftTypeAssertionFailed, ...}
+
+extern macro Abort(constexpr AbortReason): never;
+
+bitfield struct TurboshaftFloatSpecialValues extends uint32 {
+  nan: bool: 1 bit;
+  minus_zero: bool: 1 bit;
+  _unused: uint32: 30 bit;
+}
+
+@abstract
+extern class TurboshaftType extends HeapObject {}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftWord32Type extends TurboshaftType {}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftWord32RangeType extends TurboshaftWord32Type {
+  from: uint32;
+  to: uint32;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftWord32SetType extends TurboshaftWord32Type {
+  const set_size: uint32;
+  elements[set_size]: uint32;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftWord64Type extends TurboshaftType {}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftWord64RangeType extends TurboshaftWord64Type {
+  from_high: uint32;
+  from_low: uint32;
+  to_high: uint32;
+  to_low: uint32;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftWord64SetType extends TurboshaftWord64Type {
+  const set_size: uint32;
+  elements_high[set_size]: uint32;
+  elements_low[set_size]: uint32;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftFloat64Type extends TurboshaftType {
+  special_values: TurboshaftFloatSpecialValues;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftFloat64RangeType extends TurboshaftFloat64Type {
+  _padding: uint32;
+  min: float64;
+  max: float64;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class TurboshaftFloat64SetType extends TurboshaftFloat64Type {
+  const set_size: uint32;
+  elements[set_size]: float64;
+}
+
+macro TestTurboshaftWord32Type(
+    value: uint32, expected: TurboshaftWord32Type): bool {
+  typeswitch (expected) {
+    case (range: TurboshaftWord32RangeType): {
+      if (range.from > range.to) {
+        return value <= range.to || range.from <= value;
+      }
+      return range.from <= value && value <= range.to;
+    }
+    case (set: TurboshaftWord32SetType): {
+      for (let i: uint32 = 0; i < set.set_size; ++i) {
+        if (set.elements[i] == value) return true;
+      }
+      return false;
+    }
+    case (TurboshaftWord32Type): {
+      unreachable;
+    }
+  }
+}
+
+macro CompareUint64HighLow(
+    lhsHigh: uint32, lhsLow: uint32, rhsHigh: uint32, rhsLow: uint32): int32 {
+  if (lhsHigh == rhsHigh) {
+    if (lhsLow == rhsLow) return 0;
+    return lhsLow < rhsLow ? Convert<int32>(-1) : 1;
+  } else {
+    return lhsHigh < rhsHigh ? Convert<int32>(-1) : 1;
+  }
+}
+
+macro TestTurboshaftWord64Type(
+    valueHigh: uint32, valueLow: uint32, expected: TurboshaftWord64Type): bool {
+  typeswitch (expected) {
+    case (range: TurboshaftWord64RangeType): {
+      const greaterThanOrEqualFrom =
+          CompareUint64HighLow(
+              valueHigh, valueLow, range.from_high, range.from_low) >= 0;
+      const lessThanOrEqualTo =
+          CompareUint64HighLow(
+              valueHigh, valueLow, range.to_high, range.to_low) <= 0;
+      const isWrapping =
+          CompareUint64HighLow(
+              range.from_high, range.from_low, range.to_high, range.to_low) > 0;
+
+      return (isWrapping && (greaterThanOrEqualFrom || lessThanOrEqualTo)) ||
+          (greaterThanOrEqualFrom && lessThanOrEqualTo);
+    }
+    case (set: TurboshaftWord64SetType): {
+      for (let i: uint32 = 0; i < set.set_size; ++i) {
+        if (CompareUint64HighLow(
+                set.elements_high[i], set.elements_low[i], valueHigh,
+                valueLow) == 0) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case (TurboshaftWord64Type): {
+      unreachable;
+    }
+  }
+}
+
+macro TestTurboshaftFloat64Type(
+    value: float64, expected: TurboshaftFloat64Type): bool {
+  if (Float64IsNaN(value)) return expected.special_values.nan;
+  if (IsMinusZero(value)) return expected.special_values.minus_zero;
+  const kMaxRelativeError = 0.0000001;
+  typeswitch (expected) {
+    case (range: TurboshaftFloat64RangeType): {
+      return (range.min < value ||
+              Float64AlmostEqual(range.min, value, kMaxRelativeError)) &&
+          (value < range.max ||
+           Float64AlmostEqual(value, range.max, kMaxRelativeError));
+    }
+    case (set: TurboshaftFloat64SetType): {
+      for (let i: uint32 = 0; i < set.set_size; ++i) {
+        if (Float64AlmostEqual(set.elements[i], value, kMaxRelativeError)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case (TurboshaftFloat64Type): {
+      unreachable;
+    }
+  }
+}
+
+builtin CheckTurboshaftWord32Type(
+    implicit context: Context)(value: uint32,
+    expectedType: TurboshaftWord32Type, nodeId: Smi): Undefined {
+  if (TestTurboshaftWord32Type(value, expectedType)) {
+    return Undefined;
+  }
+
+  Print('Type assertion failed!');
+  Print('Node id', nodeId);
+  Print('Actual value', Convert<Number>(value));
+  Print('Expected type', expectedType);
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
+}
+
+builtin CheckTurboshaftWord64Type(
+    implicit context: Context)(valueHigh: uint32, valueLow: uint32,
+    expectedType: TurboshaftWord64Type, nodeId: Smi): Undefined {
+  if (TestTurboshaftWord64Type(valueHigh, valueLow, expectedType)) {
+    return Undefined;
+  }
+
+  Print('Type assertion failed!');
+  Print('Node id', nodeId);
+  Print('Actual value (high)', Convert<Number>(valueHigh));
+  Print('Actual vlaue (low)', Convert<Number>(valueLow));
+  Print('Expected type', expectedType);
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
+}
+
+// Builtin needs custom interface descriptor to allow float32 argument type.
+@customInterfaceDescriptor
+builtin CheckTurboshaftFloat32Type(
+    implicit context: Context)(value: float32,
+    expectedType: TurboshaftFloat64Type, nodeId: Smi): Undefined {
+  const v = Convert<float64>(value);
+  if (TestTurboshaftFloat64Type(v, expectedType)) {
+    return Undefined;
+  }
+
+  Print('Type assertion failed!');
+  Print('Node id', nodeId);
+  Print('Actual value', v);
+  Print('Expected type', expectedType);
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
+}
+
+// Builtin needs custom interface descriptor to allow float64 argument type.
+@customInterfaceDescriptor
+builtin CheckTurboshaftFloat64Type(
+    implicit context: Context)(value: float64,
+    expectedType: TurboshaftFloat64Type, nodeId: Smi): Undefined {
+  if (TestTurboshaftFloat64Type(value, expectedType)) {
+    return Undefined;
+  }
+
+  Print('Type assertion failed!');
+  Print('Node id', nodeId);
+  Print('Actual value', value);
+  Print('Expected type', expectedType);
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
+}
+
+@customInterfaceDescriptor
+builtin DebugPrintWordPtr(
+    implicit context: Context)(value: uintptr): Undefined {
+  Print('DebugPrint (word): ', value);
+  return Undefined;
+}
+
+@customInterfaceDescriptor
+builtin DebugPrintFloat64(
+    implicit context: Context)(value: float64): Undefined {
+  Print('DebugPrint (float64): ', value);
+  return Undefined;
+}

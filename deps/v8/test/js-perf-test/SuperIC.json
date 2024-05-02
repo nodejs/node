@@ -1,0 +1,214 @@
+{
+  "owners": ["marja@chromium.org"],
+  "name": "SuperIC",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "timeout_arm64": 240,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Compare-Monomorphic-1-opt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-opt", "normal_1", "opt"]
+        },
+        {
+          "name": "super-baseline-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-opt", "super_1", "opt"]
+        },
+        {
+          "name": "super-super-ic-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-opt", "super_1", "opt"]
+        }
+      ]
+    },
+    {
+      "name": "Compare-Monomorphic-1-noopt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-noopt", "normal_1", "noopt"]
+        },
+        {
+          "name": "super-baseline-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-noopt", "super_1", "noopt"]
+        },
+        {
+          "name": "super-super-ic-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-noopt", "super_1", "noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Compare-Monomorphic-2-opt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-opt", "normal_2", "opt"]
+        },
+        {
+          "name": "super-baseline-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-opt", "super_2", "opt"]
+        },
+        {
+          "name": "super-super-ic-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-opt", "super_2", "opt"]
+        }
+      ]
+    },
+    {
+      "name": "Compare-Monomorphic-2-noopt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-noopt", "normal_2", "noopt"]
+        },
+        {
+          "name": "super-baseline-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-noopt", "super_2", "noopt"]
+        },
+        {
+          "name": "super-super-ic-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-noopt", "super_2", "noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Compare-Megamorphic-1-opt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-opt", "normal_3", "opt"]
+        },
+        {
+          "name": "super-baseline-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-opt", "super_3", "opt"]
+        },
+        {
+          "name": "super-super-ic-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-opt", "super_3", "opt"]
+        }
+      ]
+    },
+    {
+      "name": "Compare-Megamorphic-1-noopt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-noopt", "normal_3", "noopt"]
+        },
+        {
+          "name": "super-baseline-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-noopt", "super_3", "noopt"]
+        },
+        {
+          "name": "super-super-ic-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-noopt", "super_3", "noopt"]
+        }
+      ]
+    },
+    {
+      "name": "Compare-Megamorphic-2-opt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-opt", "normal_4", "opt"]
+        },
+        {
+          "name": "super-baseline-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-opt", "super_4", "opt"]
+        },
+        {
+          "name": "super-super-ic-opt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-opt", "super_4", "opt"]
+        }
+      ]
+    },
+    {
+      "name": "Compare-Megamorphic-2-noopt",
+      "path": ["SuperIC"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "resources": ["compare-super-and-normal-property-access.js"],
+      "flags": ["--allow-natives-syntax"],
+      "tests": [
+        {
+          "name": "normal-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["normal-noopt", "normal_4", "noopt"]
+        },
+        {
+          "name": "super-baseline-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "test_flags": ["super-baseline-noopt", "super_4", "noopt"]
+        },
+        {
+          "name": "super-super-ic-noopt",
+          "main": "compare-super-and-normal-property-access.js",
+          "flags": ["--super-ic"],
+          "test_flags": ["super-super-ic-noopt", "super_4", "noopt"]
+        }
+      ]
+    }
+  ]
+}

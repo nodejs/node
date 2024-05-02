@@ -1,0 +1,10 @@
+@import "resource_timing_test0.css?id=n1";
+
+@font-face {
+    font-family: remoteFont;
+    src: url('/fonts/Ahem.ttf?id=n1');
+}
+ol {
+    font-family: remoteFont;
+    list-style-image: url('blue.png?id=n1');
+}

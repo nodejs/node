@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>non-passive mousewheel event listener on root</title>
+<link rel="help" href="https://w3c.github.io/uievents/#cancelability-of-wheel-events">
+<link rel="help" href="https://github.com/w3c/uievents/issues/331">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="resources/scrolling.js"></script>
+<div class=remove-on-cleanup style="height: 200vh"></div>
+<script>
+  document.body.onload = () => runTest({
+    target: document.documentElement,
+    eventName: 'mousewheel',
+    passive: false,
+    expectCancelable: true,
+  });
+</script>

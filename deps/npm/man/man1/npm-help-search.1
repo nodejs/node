@@ -1,0 +1,37 @@
+.TH "NPM-HELP-SEARCH" "1" "April 2024" "" ""
+.SH "NAME"
+\fBnpm-help-search\fR - Search npm help documentation
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm help-search <text>
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+This command will search the npm markdown documentation files for the terms provided, and then list the results, sorted by relevance.
+.P
+If only one result is found, then it will show that help topic.
+.P
+If the argument to \fBnpm help\fR is not a known help topic, then it will call \fBhelp-search\fR. It is rarely if ever necessary to call this command directly.
+.SS "Configuration"
+.SS "\fBlong\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show extended information in \fBls\fR, \fBsearch\fR, and \fBhelp-search\fR.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help npm
+.IP \(bu 4
+npm help help
+.RE 0

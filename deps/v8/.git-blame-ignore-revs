@@ -1,0 +1,123 @@
+# git hyper-blame master ignore list.
+#
+# This file contains a list of git hashes of revisions to be ignored by git
+# hyper-blame (in depot_tools). These revisions are considered "unimportant" in
+# that they are unlikely to be what you are interested in when blaming.
+#
+# Instructions:
+# - Only large (generally automated) reformatting or renaming CLs should be
+#   added to this list. Do not put things here just because you feel they are
+#   trivial or unimportant. If in doubt, do not put it on this list.
+# - Precede each revision with a comment containing the first line of its log.
+#   For bulk work over many commits, place all commits in a block with a single
+#   comment at the top describing the work done in those commits.
+# - Only put full 40-character hashes on this list (not short hashes or any
+#   other revision reference).
+# - Append to the bottom of the file (revisions should be in chronological order
+#   from oldest to newest).
+# - Because you must use a hash, you need to append to this list in a follow-up
+#   CL to the actual reformatting CL that you are trying to ignore.
+
+# objects.h splitting
+0604031eb1d01c52b6c1c9ae3012d80b23d74a68
+09e405453359000d66cc0faaa102854e626bebeb
+766ef168fbcac6bd0728cc2c9bb3ae7cbd74278a
+b5a2839b927be04bdb50a236071c11764e4d6400
+c911f91b5b6219e038c0117b05a8375bdf3db0b0
+1bb48bf91ba8c887884a0fbd674c91f64964d8a5
+19da9f24df7b59fec72b9dd8a979ad0ce5639c87
+b090d7e7468236ffce0afdb55bb496bf0073f2ee
+f40638d148b7a435522d5b714993908061e3b10d
+e8a1c25f6afae9b77921abb70fad49da252eb6f0
+6fa8283d0e031c9585d190f751907ed45bf85de0
+9aa861c4bcfed612039259f93c2cd2b01337e99e
+8175648018bd9f70af866f9fa433f1d79644d86b
+c7b1ceb801ec7f639a093468d8e6424212cc197c
+e39d2cbe1b1baa6513ddce2d73c981e335cc34fb
+eda00a5c499b7a83479115eb275a816b8a2ed104
+68deca9b418976ca8b3375e81058a9e0a815357f
+0525e17847f39f80e3fd163021a58f68d8fcaf06
+81a3c699d6eef936452ac3d10c7c59a2c1e38c0c
+01452bedfca2b5447a7f62bda87edbbb76259a6e
+1baf1050113a5418696839c273e05ea5ad1b5c4d
+4b39fe3d608916b1cfea015de287511a1623fc7f
+c6effdbba9b301244475553538f6eb1b3d9670b9
+71e4c573199466ea4541e3d6b307c9b33d7bb785
+efc92f0d4aa77bb90f5b56606b6f0d0819fba4af
+a9db2c74b5bae2345ac52be404748954a3b5050d
+0a01b6202226bbe99c0b83acf6c5a80344f5fb6a
+a6c44361c8f2dc07b935e3f2bb3e0d3ad4f4a383
+10d8aab1de430695a69e9d75af6ea42c2cdc9d6d
+dd3c4fca2f0a2761b8b95cd47fcd62836d714890
+e9c932233980866074025e65051003d1f298516c
+2b1f79881c3f0b69bfb9274bda57ea50f7304982
+7f031160d71a3d836667dc98288eaff4c94e6f56
+490fabb4578f8a3c4096fdccff688c17ed5ed00d
+d953b2ab726acca0b3abe90ce090a16d7ccc2ae3
+bb514c426b9438cfb1149d219ac4ec2d8d1c8458
+dfb453d713d8a05e76f720a6aae2871eec210276
+b490fd66b873c89fca37b21eab58502b6367a864
+9a71683d9c8ff9470eda6be5b2b11babac7b9863
+37945f731c4d800ef788e3c32f8663773a93450e
+b90c98fc29a8d896354de4a22c055f6d98376171
+35f3e9d0e654e84646a0b98f29e4a2786cdca4b1
+260eb5bb9b62ea3d5fa6ad0b0e8c2de75d48bad4
+cc2c11441ce352360acce8638a19f58edf361f7d
+7be0159e4b1e0b064e215ae4ced34d649cb2552e
+95a7cfe0eaabbcff0f730ed60e1805779f6cfe41
+8f54d18ba4ad10770e9537a2803459feccfe79a3
+f44759d9ff52a3e5563e5f2bb23ee2c08222fcfd
+09050c8a967f5f2956305e5d016b304d7bf5e669
+c769745d5856a7eb3a0dbe6af5376c7638944364
+a1547aa914aeedd7862f74124c18d2bbaf432c36
+5f950698c0dc7c36b855961feb929022f74102fb
+4aedeb1bd50c12ebcd6cf954c4cbef1205fff5ac
+7366d8954cb1bd277d3283241da2fae62b886c48
+bc35251f5e55a65c3a4acf7cba52cee505c86a46
+4fb60b215801db70c694a799e735b64bfead59bb
+03762b8488de0e393077e3f40fe7b63e675b3af3
+a8a45d875f0a98b192cf0063ceda12aaf75ddfaf
+a48e5ab8804e9e97b5ea577d6f2667bacee92eb2
+
+# Update of quotations in DEPS file.
+e50b49a0e38b34e2b28e026f4d1c7e0da0c7bb1a
+
+# Rewrite code base to use "." instead of "->" to access Object members.
+878ccb33bd3cf0e6dc018ff8d15843f585ac07be
+
+# Splitting src/ into subfolders
+632239011db501e76475d82ff6492f37fa8c1edc
+f455f86d899716df3b9550950ce172f5b867619a
+24a51e1eee4e286165dd0bba6afb4c35e8177a25
+f9a88acbc928f0fc5e9a3acbcd3b4ece52355f3d
+dec3298d9cfbe95759774a0e00302a08836b5f3d
+a0c3797461810e3159662851e64946e17654236e
+b72941e8b0d2843adf768442024d8950da798db1
+4c986c625f19e35c95f3492c662822f4695218b4
+0fa243af7096ee5b748b194476be2e4efecaec59
+786ce26341b7ab11b4d42f1c77202530d5138ad2
+a6eeea35cb7ff0c29b6cfdd1c786f382110241ce
+be014256adea1552d4a044ef80616cdab6a7d549
+93d3b7173fec7d010539057cdbd78d497f09fa9b
+5bfe84a0dab60289b3470c080908ce83ac2212d4
+a7695520556665ba73ab02c497ab73b162a5fb13
+61523c45a335fe3be76498e0b16bf8e7aec0d058
+bf372a73d8a5f4029fc9f4f69b675ef0cad80ada
+8ad6b335376c6275ffb3361c662a1a45c853f4fc
+06bf8261cf2c94fc071652652600b5790f719c05
+81a0102fe8586071cc68e9595b26c5c1207ee5b3
+5f28539599f6a6a265e18b8c897cc96ccbeec9c4
+3253767622a784866dc34aeb7b5d0f02ebdff61e
+9ac8b20086f95f1158a1901eefe12e25fd0333e4
+3cb560adfe26edb586a0e6e655e5a7c4755cad1a
+7bbd0bfe5161d57bcf268716ce4d1ce14d6786e6
+c39cabbcbea26891558b81fd2236c38a7aeada08
+a3187716d31a0ab9d7051adde6be9bd2b2c6fec1
+
+# Move test/mjsunit/regress-*.js => test/mjsunit/regress/
+cb67be1a3842fcf6a0da18aee444e3b7ea789e04
+
+# [include] Split out v8.h
+d1b27019d3bf86360ea838c317f8505fac6d3a7e
+44fe02ced6e4c6b49d627807e3b3fd0edbbeb36e
+ec06bb6ce5641cf65e400ec55b7421f87d04b999

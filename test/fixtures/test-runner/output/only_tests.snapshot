@@ -1,0 +1,166 @@
+TAP version 13
+# Subtest: only = true, skip = string
+ok 1 - only = true, skip = string # SKIP skip message
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = true, skip = true
+ok 2 - only = true, skip = true # SKIP
+  ---
+  duration_ms: *
+  ...
+# Subtest: only = true, with subtests
+    # Subtest: running subtest 1
+    ok 1 - running subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: running subtest 2
+    ok 2 - running subtest 2
+      ---
+      duration_ms: *
+      ...
+    # Subtest: running subtest 3
+    ok 3 - running subtest 3
+      ---
+      duration_ms: *
+      ...
+    # Subtest: running subtest 4
+        # Subtest: running sub-subtest 1
+        ok 1 - running sub-subtest 1
+          ---
+          duration_ms: *
+          ...
+        # Subtest: running sub-subtest 2
+        ok 2 - running sub-subtest 2
+          ---
+          duration_ms: *
+          ...
+        1..2
+    ok 4 - running subtest 4
+      ---
+      duration_ms: *
+      ...
+    # Subtest: skipped subtest 4
+    ok 5 - skipped subtest 4 # SKIP
+      ---
+      duration_ms: *
+      ...
+    1..5
+ok 3 - only = true, with subtests
+  ---
+  duration_ms: *
+  ...
+# Subtest: describe only = true, with subtests
+    # Subtest: `it` subtest 1 should run
+    ok 1 - `it` subtest 1 should run
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 4 - describe only = true, with subtests
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: describe only = true, with a mixture of subtests
+    # Subtest: `it` subtest 1
+    ok 1 - `it` subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `it` async subtest 1
+    ok 2 - `it` async subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `it` subtest 2 only=true
+    ok 3 - `it` subtest 2 only=true
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` subtest 1
+    ok 4 - `test` subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` async subtest 1
+    ok 5 - `test` async subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` subtest 2 only=true
+    ok 6 - `test` subtest 2 only=true
+      ---
+      duration_ms: *
+      ...
+    1..6
+ok 5 - describe only = true, with a mixture of subtests
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: describe only = true, with subtests
+    # Subtest: subtest should run
+    ok 1 - subtest should run
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 6 - describe only = true, with subtests
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: describe only = undefined, with nested only subtest
+    # Subtest: nested describe
+        # Subtest: nested test should run
+        ok 1 - nested test should run
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 1 - nested describe
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..1
+ok 7 - describe only = undefined, with nested only subtest
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: describe only = true, with nested subtests
+    # Subtest: async subtest should run
+    ok 1 - async subtest should run
+      ---
+      duration_ms: *
+      ...
+    # Subtest: nested describe
+        # Subtest: nested test should run
+        ok 1 - nested test should run
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 2 - nested describe
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..2
+ok 8 - describe only = true, with nested subtests
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..8
+# tests 21
+# suites 7
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 3
+# todo 0
+# duration_ms *

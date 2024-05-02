@@ -1,0 +1,175 @@
+Tests for break on exception.
+
+Running test: testPauseOnInitialState
+
+evaluate 'caught()'..
+
+evaluate 'uncaught()'..
+
+evaluate 'uncaughtFinally()'..
+
+evaluate 'caughtFinally()'..
+
+Running test: testPauseOnExceptionOff
+
+evaluate 'caught()'..
+
+evaluate 'uncaught()'..
+
+evaluate 'uncaughtFinally()'..
+
+evaluate 'caughtFinally()'..
+
+Running test: testBreakOnCaughtException
+
+evaluate 'caught()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : false
+    value : 1
+}
+
+evaluate 'uncaught()'..
+
+evaluate 'uncaughtFinally()'..
+
+evaluate 'caughtFinally()'..
+
+Running test: testBreakOnUncaughtException
+
+evaluate 'caught()'..
+
+evaluate 'uncaught()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : true
+    value : 1
+}
+
+evaluate 'uncaughtFinally()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : true
+    value : 1
+}
+
+evaluate 'caughtFinally()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : true
+    value : 1
+}
+
+Running test: testBreakOnAll
+
+evaluate 'caught()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : false
+    value : 1
+}
+
+evaluate 'uncaught()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : true
+    value : 1
+}
+
+evaluate 'uncaughtFinally()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : true
+    value : 1
+}
+
+evaluate 'caughtFinally()'..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : true
+    value : 1
+}
+
+Running test: testTryFinallyOriginalMessage
+
+evaluate '
+      try {
+        throw 1;
+      } finally {
+      }
+    '..
+paused on exception:
+{
+    description : 1
+    type : number
+    uncaught : true
+    value : 1
+}
+
+Running test: testPromiseRejectedByCallback
+
+evaluate '
+      function fun() { eval("throw 'rejection';") }
+      var p = new Promise(function(res, rej) { fun(); res(); });
+      var r;
+      p.then(() => { r = 'resolved'; }, (e) => { r = 'rejected' + e; });
+    '..
+paused on exception:
+{
+    type : string
+    uncaught : true
+    value : rejection
+}
+r = 
+{
+    type : string
+    value : rejectedrejection
+}
+
+Running test: testBreakOnExceptionAfterReconnect
+
+evaluate 'f()'..
+paused on exception:
+{
+    className : Error
+    description : Error     at f (<anonymous>:115:153)     at <anonymous>:146:163
+    objectId : <objectId>
+    subtype : error
+    type : object
+    uncaught : true
+}
+
+reconnect..
+
+evaluate 'f()'..
+paused on exception:
+{
+    className : Error
+    description : Error     at f (<anonymous>:115:153)     at <anonymous>:146:163
+    objectId : <objectId>
+    subtype : error
+    type : object
+    uncaught : true
+}
+
+Running test: testBreakOnExceptionInSilentMode
+evaluate 'caught()'
+evaluate 'uncaught()'
+evaluate 'uncaughtFinally()'
+evaluate 'caughtFinally()'

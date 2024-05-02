@@ -1,0 +1,66 @@
+Checks if we can set a breakpoint on a one-line inline functions.
+Setting breakpoint on `class X`
+
+function foo() {}
+var bar = "bar";
+
+class X {
+  constructor() {
+    |_|this.x = 1;
+  }
+  [bar] = 2;
+  baz = foo();
+}
+new X();
+
+Setting breakpoint on constructor, should resolve to same location
+
+function foo() {}
+var bar = "bar";
+
+class X {
+  constructor() {
+    |_|this.x = 1;
+  }
+  [bar] = 2;
+  baz = foo();
+}
+new X();
+
+Setting breakpoint on computed properties in class
+
+function foo() {}
+var bar = "bar";
+
+class X {
+  constructor() {
+    this.x = 1;
+  }
+  [|_|bar] = 2;
+  baz = foo();
+}
+new X();
+
+Setting breakpoint on initializer function
+
+function foo() {}
+var bar = "bar";
+
+class X {
+  constructor() {
+    this.x = 1;
+  }
+  [bar] = 2;
+  baz = |_|foo();
+}
+new X();
+
+Paused on location:
+(anonymous) (testInitializer.js:8:3)
+Paused on location:
+<instance_members_initializer> (testInitializer.js:9:8)
+X (testInitializer.js:5:13)
+(anonymous) (testInitializer.js:11:0)
+Paused on location:
+X (testInitializer.js:6:4)
+(anonymous) (testInitializer.js:11:0)

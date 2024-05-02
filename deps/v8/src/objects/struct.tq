@@ -1,0 +1,21 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+extern class Struct extends HeapObject {}
+
+extern class Tuple2 extends Struct {
+  value1: Object;
+  value2: Object;
+}
+
+extern class ClassPositions extends Struct {
+  start: Smi;
+  end: Smi;
+}
+
+extern class AccessorPair extends Struct {
+  getter: Object;
+  setter: Object;
+}

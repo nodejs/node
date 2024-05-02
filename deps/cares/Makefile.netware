@@ -1,0 +1,431 @@
+#################################################################
+#
+# Makefile for building libcares (NetWare version - gnu make)
+# Use: make -f Makefile.netware
+#
+# Copyright (C) Guenter Knauf
+# SPDX-License-Identifier: MIT
+#
+#################################################################
+
+# Edit the path below to point to the base of your Novell NDK.
+ifndef NDKBASE
+NDKBASE	= c:/novell
+endif
+
+ifndef INSTDIR
+INSTDIR	= ../ares-$(LIBCARES_VERSION_STR)-bin-nw
+endif
+
+# Edit the vars below to change NLM target settings.
+TARGETS = adig.nlm ahost.nlm
+LTARGET = libcares.$(LIBEXT)
+VERSION	= $(LIBCARES_VERSION)
+COPYR	= $(LIBCARES_COPYRIGHT_STR)
+DESCR	= cURL $(subst .def,,$(notdir $@)) $(LIBCARES_VERSION_STR) - http://curl.haxx.se
+MTSAFE	= YES
+STACK	= 64000
+SCREEN	= none
+#EXPORTS	=
+# Comment the line below if you dont want to load protected automatically.
+#LDRING	= 3
+
+# Edit the var below to point to your lib architecture.
+ifndef LIBARCH
+LIBARCH = LIBC
+endif
+
+# must be equal to NDEBUG or DEBUG
+ifndef DB
+DB	= NDEBUG
+endif
+# Optimization: -O<n> or debugging: -g
+ifeq ($(DB),NDEBUG)
+	OPT	= -O2
+	OBJDIR	= release
+else
+	OPT	= -g
+	OBJDIR	= debug
+endif
+
+# Include the version info retrieved from curlver.h
+-include $(OBJDIR)/version.inc
+
+# The following lines defines your compiler.
+ifdef CWFolder
+	METROWERKS = $(CWFolder)
+endif
+ifdef METROWERKS
+	# MWCW_PATH = $(subst \,/,$(METROWERKS))/Novell Support
+	MWCW_PATH = $(subst \,/,$(METROWERKS))/Novell Support/Metrowerks Support
+	CC = mwccnlm
+else
+	CC = gcc
+endif
+# a native win32 awk can be downloaded from here:
+# http://www.gknw.net/development/prgtools/awk-20070501.zip
+AWK	= awk
+YACC	= bison -y
+CP	= cp -afv
+MKDIR	= mkdir
+# RM	= rm -f
+# if you want to mark the target as MTSAFE you will need a tool for
+# generating the xdc data for the linker; here's a minimal tool:
+# http://www.gknw.net/development/prgtools/mkxdc.zip
+MPKXDC	= mkxdc
+
+# Global flags for all compilers
+CFLAGS	+= $(OPT) -D$(DB) -DNETWARE -DHAVE_CONFIG_H -nostdinc
+
+ifeq ($(CC),mwccnlm)
+LD	= mwldnlm
+LDFLAGS	= -nostdlib $(PRELUDE) $(OBJEXE) $(<:.def=.o) -o $@ -commandfile
+AR	= mwldnlm
+ARFLAGS	= -nostdlib -type library -o
+LIBEXT	= lib
+#RANLIB	=
+CFLAGS	+= -msgstyle gcc -gccinc -inline off -opt nointrinsics -proc 586
+CFLAGS	+= -relax_pointers
+#CFLAGS	+= -w on
+ifeq ($(LIBARCH),LIBC)
+	PRELUDE = $(SDK_LIBC)/imports/libcpre.o
+	CFLAGS += -align 4
+else
+	# PRELUDE = $(SDK_CLIB)/imports/clibpre.o
+	# to avoid the __init_* / __deinit_* whose dont use prelude from NDK
+	PRELUDE = "$(MWCW_PATH)/libraries/runtime/prelude.obj"
+	# CFLAGS += -include "$(MWCW_PATH)/headers/nlm_clib_prefix.h"
+	CFLAGS += -align 1
+endif
+else
+LD	= nlmconv
+LDFLAGS	= -T
+AR	= ar
+ARFLAGS	= -cq
+LIBEXT	= a
+RANLIB	= ranlib
+CFLAGS  += -m32
+CFLAGS  += -fno-builtin -fno-strict-aliasing
+ifeq ($(findstring gcc,$(CC)),gcc)
+CFLAGS  += -fpcc-struct-return
+endif
+CFLAGS  += -Wall # -pedantic
+ifeq ($(LIBARCH),LIBC)
+	PRELUDE = $(SDK_LIBC)/imports/libcpre.gcc.o
+else
+	# PRELUDE = $(SDK_CLIB)/imports/clibpre.gcc.o
+	# to avoid the __init_* / __deinit_* whose dont use prelude from NDK
+	# http://www.gknw.net/development/mk_nlm/gcc_pre.zip
+	PRELUDE = $(NDK_ROOT)/pre/prelude.o
+	CFLAGS += -include $(NDKBASE)/nlmconv/genlm.h
+endif
+endif
+
+NDK_ROOT = $(NDKBASE)/ndk
+SDK_CLIB = $(NDK_ROOT)/nwsdk
+SDK_LIBC = $(NDK_ROOT)/libc
+
+ifeq ($(LIBARCH),LIBC)
+	INCLUDES += -I$(SDK_LIBC)/include
+	# INCLUDES += -I$(SDK_LIBC)/include/nks
+	# INCLUDES += -I$(SDK_LIBC)/include/winsock
+	CFLAGS += -D_POSIX_SOURCE
+else
+	INCLUDES += -I$(SDK_CLIB)/include/nlm
+	# INCLUDES += -I$(SDK_CLIB)/include/nlm/obsolete
+	# INCLUDES += -I$(SDK_CLIB)/include
+endif
+
+CFLAGS	+= -I. $(INCLUDES)
+
+ifeq ($(MTSAFE),YES)
+	XDCOPT = -n
+endif
+ifeq ($(MTSAFE),NO)
+	XDCOPT = -u
+endif
+
+ifeq ($(findstring /sh,$(SHELL)),/sh)
+DL	= '
+#-include $(NDKBASE)/nlmconv/ncpfs.inc
+endif
+
+# Makefile.inc provides the CSOURCES and HHEADERS defines
+include Makefile.inc
+
+OBJLIB	:= $(patsubst %.c,$(OBJDIR)/%.o,$(strip $(CSOURCES)))
+OBJEXE	= $(OBJLIB) $(OBJDIR)/ares_getopt.o
+
+.PHONY: lib nlm prebuild dist install clean
+
+lib: prebuild $(LTARGET)
+
+nlm: prebuild $(TARGETS)
+
+prebuild: $(OBJDIR) ares_build.h $(OBJDIR)/version.inc ares_config.h
+
+install: $(INSTDIR) all
+	@$(CP) *.nlm $(INSTDIR)
+	@$(CP) ../CHANGES $(INSTDIR)
+	@$(CP) ../COPYING $(INSTDIR)
+	@$(CP) ../README $(INSTDIR)
+	@$(CP) ../RELEASE-NOTES $(INSTDIR)
+
+clean:
+	-$(RM) $(LTARGET) $(TARGETS) ares_config.h
+	-$(RM) -r $(OBJDIR)
+	-$(RM) -r arpa
+
+%.$(LIBEXT): $(OBJLIB)
+	@echo Creating $@
+	@-$(RM) $@
+	@$(AR) $(ARFLAGS) $@ $^
+ifdef RANLIB
+	@$(RANLIB) $@
+endif
+
+%.nlm: $(OBJDIR)/%.def $(OBJDIR)/%.o $(OBJDIR)/%.xdc $(OBJEXE)
+	@echo Linking $@
+	@-$(RM) $@
+	@$(LD) $(LDFLAGS) $<
+
+$(OBJDIR) $(INSTDIR):
+	@$(MKDIR) $@
+
+$(OBJDIR)/%.o: %.c
+#	@echo Compiling $<
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR)/version.inc: ares_version.h $(OBJDIR)
+	@echo Creating $@
+	@$(AWK) -f get_ver.awk $< > $@
+
+$(OBJDIR)/%.xdc: Makefile.netware
+	@echo Creating $@
+	@$(MPKXDC) $(XDCOPT) $@
+
+$(OBJDIR)/%.def: Makefile.netware
+	@echo Creating $@
+	@echo $(DL)# DEF file for linking with $(LD)$(DL) > $@
+	@echo $(DL)# Do not edit this file - it is created by make!$(DL) >> $@
+	@echo $(DL)# All your changes will be lost!!$(DL) >> $@
+	@echo $(DL)#$(DL) >> $@
+	@echo $(DL)copyright "$(COPYR)"$(DL) >> $@
+	@echo $(DL)description "$(DESCR)"$(DL) >> $@
+	@echo $(DL)version $(VERSION)$(DL) >> $@
+ifdef NLMTYPE
+	@echo $(DL)type $(NLMTYPE)$(DL) >> $@
+endif
+ifdef STACK
+	@echo $(DL)stack $(STACK)$(DL) >> $@
+endif
+ifdef SCREEN
+	@echo $(DL)screenname "$(SCREEN)"$(DL) >> $@
+else
+	@echo $(DL)screenname "DEFAULT"$(DL) >> $@
+endif
+ifeq ($(DB),DEBUG)
+	@echo $(DL)debug$(DL) >> $@
+endif
+	@echo $(DL)threadname "$^"$(DL) >> $@
+ifdef XDCOPT
+	@echo $(DL)xdcdata $(@:.def=.xdc)$(DL) >> $@
+endif
+ifeq ($(LDRING),0)
+	@echo $(DL)flag_on 16$(DL) >> $@
+endif
+ifeq ($(LDRING),3)
+	@echo $(DL)flag_on 512$(DL) >> $@
+endif
+ifeq ($(LIBARCH),CLIB)
+	@echo $(DL)start _Prelude$(DL) >> $@
+	@echo $(DL)exit _Stop$(DL) >> $@
+	@echo $(DL)import @$(SDK_CLIB)/imports/clib.imp$(DL) >> $@
+	@echo $(DL)import @$(SDK_CLIB)/imports/threads.imp$(DL) >> $@
+	@echo $(DL)import @$(SDK_CLIB)/imports/nlmlib.imp$(DL) >> $@
+	@echo $(DL)import @$(SDK_CLIB)/imports/socklib.imp$(DL) >> $@
+	@echo $(DL)module clib$(DL) >> $@
+else
+	@echo $(DL)flag_on 64$(DL) >> $@
+	@echo $(DL)pseudopreemption$(DL) >> $@
+	@echo $(DL)start _LibCPrelude$(DL) >> $@
+	@echo $(DL)exit _LibCPostlude$(DL) >> $@
+	@echo $(DL)check _LibCCheckUnload$(DL) >> $@
+	@echo $(DL)import @$(SDK_LIBC)/imports/libc.imp$(DL) >> $@
+	@echo $(DL)import @$(SDK_LIBC)/imports/netware.imp$(DL) >> $@
+	@echo $(DL)module libc$(DL) >> $@
+endif
+ifdef MODULES
+	@echo $(DL)module $(MODULES)$(DL) >> $@
+endif
+ifdef EXPORTS
+	@echo $(DL)export $(EXPORTS)$(DL) >> $@
+endif
+ifdef IMPORTS
+	@echo $(DL)import $(IMPORTS)$(DL) >> $@
+endif
+ifeq ($(LD),nlmconv)
+	@echo $(DL)input $(PRELUDE)$(DL) >> $@
+	@echo $(DL)input $(OBJEXE)$(DL) >> $@
+	@echo $(DL)input $(@:.def=.o)$(DL) >> $@
+	@echo $(DL)output $(notdir $(@:.def=.nlm))$(DL) >> $@
+endif
+
+ares_config.h: Makefile.netware
+	@echo Creating $@
+	@echo $(DL)/* $@ for NetWare target.$(DL) > $@
+	@echo $(DL)** Do not edit this file - it is created by make!$(DL) >> $@
+	@echo $(DL)** All your changes will be lost!!$(DL) >> $@
+	@echo $(DL)*/$(DL) >> $@
+	@echo $(DL)#ifndef NETWARE$(DL) >> $@
+	@echo $(DL)#error This $(notdir $@) is created for NetWare platform!$(DL) >> $@
+	@echo $(DL)#endif$(DL) >> $@
+	@echo $(DL)#define VERSION "$(LIBCARES_VERSION_STR)"$(DL) >> $@
+	@echo $(DL)#define PACKAGE_BUGREPORT "a suitable curl mailing list => http://curl.haxx.se/mail/"$(DL) >> $@
+ifeq ($(LIBARCH),CLIB)
+	@echo $(DL)#define OS "i586-pc-clib-NetWare"$(DL) >> $@
+	@echo $(DL)#define HAVE_STRICMP 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRNICMP 1$(DL) >> $@
+	@echo $(DL)#define NETDB_USE_INTERNET 1$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG1 int$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG2 char *$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG3 int$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG4 int$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_RETV int$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG1 int$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG2 char$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG3 int$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG4 int$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG5 struct sockaddr$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG6 int$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_RETV int$(DL) >> $@
+	@echo $(DL)#define SEND_QUAL_ARG2$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG1 int$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG2 char *$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG3 int$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG4 int$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_RETV int$(DL) >> $@
+else
+	@echo $(DL)#define OS "i586-pc-libc-NetWare"$(DL) >> $@
+	@echo $(DL)#define HAVE_DLFCN_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_DLOPEN 1$(DL) >> $@
+	@echo $(DL)#define HAVE_FTRUNCATE 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GETTIMEOFDAY 1$(DL) >> $@
+	@echo $(DL)#define HAVE_INTTYPES_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_LONGLONG 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STDINT_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRCASECMP 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRLCAT 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRLCPY 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRTOLL 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SYS_PARAM_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SYS_SELECT_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_TERMIOS_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_AF_INET6 1$(DL) >> $@
+	@echo $(DL)#define HAVE_PF_INET6 1$(DL) >> $@
+	@echo $(DL)#define HAVE_FREEADDRINFO 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GETADDRINFO 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRUCT_IN6_ADDR 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRUCT_SOCKADDR_IN6 1$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG1 int$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG2 void *$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG3 size_t$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_ARG4 int$(DL) >> $@
+	@echo $(DL)#define RECV_TYPE_RETV ssize_t$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG1 int$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG2 void$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG3 size_t$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG4 int$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG5 struct sockaddr$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG6 size_t$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_RETV ssize_t$(DL) >> $@
+	@echo $(DL)#define RECVFROM_TYPE_ARG2_IS_VOID 1$(DL) >> $@
+	@echo $(DL)#define SEND_QUAL_ARG2$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG1 int$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG2 void *$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG3 size_t$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_ARG4 int$(DL) >> $@
+	@echo $(DL)#define SEND_TYPE_RETV ssize_t$(DL) >> $@
+endif
+	@echo $(DL)#define HAVE_ARPA_INET_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_ASSERT_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_ERRNO_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_ERR_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_FCNTL_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GETENV 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GETHOSTBYADDR 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GETHOSTBYNAME 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GETHOSTNAME 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GETPROTOBYNAME 1$(DL) >> $@
+	@echo $(DL)#define HAVE_GMTIME_R 1$(DL) >> $@
+	@echo $(DL)#define HAVE_INET_ADDR 1$(DL) >> $@
+	@echo $(DL)#define HAVE_IOCTL 1$(DL) >> $@
+	@echo $(DL)#define HAVE_IOCTL_FIONBIO 1$(DL) >> $@
+	@echo $(DL)#define HAVE_LIMITS_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_LL 1$(DL) >> $@
+	@echo $(DL)#define HAVE_LOCALTIME_R 1$(DL) >> $@
+	@echo $(DL)#define HAVE_MALLOC_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_NETINET_IN_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_RECV 1$(DL) >> $@
+	@echo $(DL)#define HAVE_RECVFROM 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SELECT 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SEND 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SETJMP_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SIGNAL 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SIGNAL_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SIG_ATOMIC_T 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SOCKET 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STDLIB_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRDUP 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRFTIME 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRING_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRSTR 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRUCT_ADDRINFO 1$(DL) >> $@
+	@echo $(DL)#define HAVE_STRUCT_TIMEVAL 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SYS_IOCTL_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SYS_STAT_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SYS_TIME_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_TIME_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_UNAME 1$(DL) >> $@
+	@echo $(DL)#define HAVE_UNISTD_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_UTIME 1$(DL) >> $@
+	@echo $(DL)#define HAVE_UTIME_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_WRITEV 1$(DL) >> $@
+	@echo $(DL)#define RETSIGTYPE void$(DL) >> $@
+	@echo $(DL)#define STDC_HEADERS 1$(DL) >> $@
+	@echo $(DL)#define TIME_WITH_SYS_TIME 1$(DL) >> $@
+ifdef NW_WINSOCK
+	@echo $(DL)#define HAVE_CLOSESOCKET 1$(DL) >> $@
+else
+	@echo $(DL)#define HAVE_SYS_TYPES_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SYS_SOCKET_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_SYS_SOCKIO_H 1$(DL) >> $@
+	@echo $(DL)#define HAVE_NETDB_H 1$(DL) >> $@
+endif
+	@echo $(DL)#ifdef __GNUC__$(DL) >> $@
+	@echo $(DL)#define HAVE_VARIADIC_MACROS_GCC 1$(DL) >> $@
+	@echo $(DL)#else$(DL) >> $@
+	@echo $(DL)#define HAVE_VARIADIC_MACROS_C99 1$(DL) >> $@
+	@echo $(DL)#endif$(DL) >> $@
+
+FORCE: ;
+
+ares_build.h: Makefile.netware FORCE
+	@echo Creating $@
+	@echo $(DL)/* $@ intended for NetWare target.$(DL) > $@
+	@echo $(DL)** Do not edit this file - it is created by make!$(DL) >> $@
+	@echo $(DL)** All your changes will be lost!!$(DL) >> $@
+	@echo $(DL)*/$(DL) >> $@
+	@echo $(DL)#ifndef NETWARE$(DL) >> $@
+	@echo $(DL)#error This $(notdir $@) is created for NetWare platform!$(DL) >> $@
+	@echo $(DL)#endif$(DL) >> $@
+	@echo $(DL)#ifndef __CARES_BUILD_H$(DL) >> $@
+	@echo $(DL)#define __CARES_BUILD_H$(DL) >> $@
+ifeq ($(LIBARCH),CLIB)
+	@echo $(DL)#define CARES_TYPEOF_ARES_SOCKLEN_T int$(DL) >> $@
+else
+	@echo $(DL)#define CARES_TYPEOF_ARES_SOCKLEN_T unsigned int$(DL) >> $@
+endif
+	@echo $(DL)typedef CARES_TYPEOF_ARES_SOCKLEN_T ares_socklen_t;$(DL) >> $@
+	@echo $(DL)#endif /* __CARES_BUILD_H */$(DL) >> $@

@@ -1,0 +1,70 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace ic {
+
+// --- The public interface (forwards to the actual implementation).
+
+@export
+macro CollectCallFeedback(
+    maybeTarget: JSAny, maybeReceiver: Lazy<JSAny>, context: Context,
+    maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+  callable::CollectCallFeedback(
+      maybeTarget, maybeReceiver, context, maybeFeedbackVector, slotId);
+}
+
+@export
+macro CollectInstanceOfFeedback(
+    maybeTarget: JSAny, context: Context,
+    maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+  callable::CollectInstanceOfFeedback(
+      maybeTarget, context, maybeFeedbackVector, slotId);
+}
+
+@export
+macro CollectConstructFeedback(
+    implicit context: Context)(target: JSAny, newTarget: JSAny,
+    maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr,
+    updateFeedbackMode: constexpr UpdateFeedbackMode):
+    never labels ConstructGeneric,
+    ConstructArray(AllocationSite) {
+  callable::CollectConstructFeedback(
+      target, newTarget, maybeFeedbackVector, slotId, updateFeedbackMode)
+      otherwise ConstructGeneric, ConstructArray;
+}
+
+// --- Common functionality.
+
+extern macro MegamorphicSymbolConstant(): Symbol;
+extern macro UninitializedSymbolConstant(): Symbol;
+
+const kMegamorphicSymbol: Symbol = MegamorphicSymbolConstant();
+const kUninitializedSymbol: Symbol = UninitializedSymbolConstant();
+
+macro IsMegamorphic(feedback: MaybeObject): bool {
+  return TaggedEqual(feedback, kMegamorphicSymbol);
+}
+
+macro IsUninitialized(feedback: MaybeObject): bool {
+  return TaggedEqual(feedback, kUninitializedSymbol);
+}
+
+extern macro LoadFeedbackVectorSlot(FeedbackVector, uintptr): MaybeObject;
+extern macro LoadFeedbackVectorSlot(FeedbackVector, uintptr, constexpr int32):
+    MaybeObject;
+extern operator '[]' macro LoadFeedbackVectorSlot(FeedbackVector, intptr):
+    MaybeObject;
+extern macro StoreFeedbackVectorSlot(FeedbackVector, uintptr, MaybeObject):
+    void;
+extern macro StoreFeedbackVectorSlot(
+    FeedbackVector, uintptr, MaybeObject, constexpr WriteBarrierMode,
+    constexpr int32): void;
+extern macro StoreWeakReferenceInFeedbackVector(
+    FeedbackVector, uintptr, HeapObject): MaybeObject;
+extern macro ReportFeedbackUpdate(FeedbackVector, uintptr, constexpr string):
+    void;
+extern operator '.length_intptr' macro LoadFeedbackVectorLength(FeedbackVector):
+    intptr;
+
+}  // namespace ic

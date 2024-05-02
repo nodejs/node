@@ -1,0 +1,60 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-string-gen.h'
+
+namespace runtime {
+extern runtime StringToWellFormed(Context, String): String;
+}
+
+namespace string {
+
+extern macro StringBuiltinsAssembler::ReplaceUnpairedSurrogates(
+    String, String): void labels Indirect;
+
+transitioning javascript builtin StringPrototypeToWellFormed(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
+  const methodName: constexpr string = 'String.prototype.toWellFormed';
+
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const s = ToThisString(receiver, methodName);
+
+  // Fast path: one-byte strings cannot have unpaired surrogates and are
+  // definitionally well-formed.
+  if (s.StringInstanceType().is_one_byte) return s;
+
+  // 3. Let strLen be the length of S.
+  const strLen = s.length_uint32;
+
+  // 4. Let k be 0.
+  // 5. Let result be the empty String.
+  const flat = Flatten(s);
+  if (flat.IsOneByteRepresentationUnderneath()) return flat;
+  let result = flat;
+
+  // 6. Repeat, while k < strLen,
+  //   a. Let cp be CodePointAt(S, k).
+  //   b. If cp.[[IsUnpairedSurrogate]] is true, then
+  //     i. Set result to the string-concatenation of result and
+  //        0xFFFD (REPLACEMENT CHARACTER).
+  //   c. Else,
+  //     i. Set result to the string-concatenation of result and
+  //        UTF16EncodeCodePoint(cp.[[CodePoint]]).
+  //   d. Set k to k + cp.[[CodeUnitCount]].
+  try {
+    const illFormed = HasUnpairedSurrogate(flat) otherwise Indirect;
+    if (illFormed) {
+      result = AllocateSeqTwoByteString(strLen);
+      ReplaceUnpairedSurrogates(flat, result) otherwise Indirect;
+    }
+
+    // 7. Return result.
+    return result;
+  } label Indirect deferred {
+    return runtime::StringToWellFormed(context, flat);
+  }
+}
+}

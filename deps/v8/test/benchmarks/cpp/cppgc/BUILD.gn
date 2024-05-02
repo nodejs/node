@@ -1,0 +1,77 @@
+# Copyright 2020 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../gni/v8.gni")
+
+group("gn_all") {
+  testonly = true
+
+  deps = []
+
+  if (v8_enable_google_benchmark) {
+    deps += [ ":cppgc_basic_benchmarks" ]
+  }
+}
+
+if (v8_enable_google_benchmark) {
+  v8_source_set("cppgc_benchmark_support") {
+    testonly = true
+
+    configs = [
+      "../../../..:external_config",
+      "../../../..:internal_config_base",
+      "../../../..:cppgc_base_config",
+    ]
+    sources = [
+      "../../../../test/unittests/heap/cppgc/test-platform.cc",
+      "../../../../test/unittests/heap/cppgc/test-platform.h",
+      "benchmark_main.cc",
+      "benchmark_utils.cc",
+      "benchmark_utils.h",
+    ]
+    public_deps = [ "//third_party/google_benchmark_chrome:google_benchmark" ]
+    if (cppgc_is_standalone) {
+      deps = [ "../../../..:cppgc_for_testing" ]
+    } else {
+      deps = [ "../../../..:v8_for_testing" ]
+    }
+  }
+
+  v8_executable("cppgc_basic_benchmarks") {
+    testonly = true
+
+    configs = [
+      "../../../..:external_config",
+      "../../../..:internal_config_base",
+      "../../../..:cppgc_base_config",
+    ]
+    sources = [
+      "allocation_perf.cc",
+      "trace_perf.cc",
+    ]
+    deps = [ ":cppgc_benchmark_support" ]
+    if (cppgc_is_standalone) {
+      deps += [ "../../../..:cppgc_for_testing" ]
+    } else {
+      deps += [ "../../../..:v8_for_testing" ]
+    }
+  }
+
+  v8_executable("cppgc_binary_trees_perf") {
+    testonly = true
+
+    configs = [
+      "../../../..:external_config",
+      "../../../..:internal_config_base",
+      "../../../..:cppgc_base_config",
+    ]
+    sources = [ "binary-trees_perf.cc" ]
+    deps = [ ":cppgc_benchmark_support" ]
+    if (cppgc_is_standalone) {
+      deps += [ "../../../..:cppgc_for_testing" ]
+    } else {
+      deps += [ "../../../..:v8_for_testing" ]
+    }
+  }
+}

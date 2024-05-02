@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test URL parser failure consistency</title>
+<meta name=timeout content=long>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+promise_test(() => fetch("resources/urltestdata.json").then(res => res.json()).then(runTests), "Loading data…")
+
+function runTests(testData) {
+  for (const test of testData) {
+
+    // skip comments, inputs we expect to pass and relative URLs
+    if (typeof test === "string" || !test.failure || test.base !== null) {
+      continue;
+    }
+
+    const name = test.input + " should throw"
+
+    self.test(() => {
+      // URL's constructor's first argument is tested by url-constructor.html
+      // If a URL fails to parse with any valid base, it must also fail to parse with no base, i.e.
+      // when used as a base URL itself.
+      assert_throws_js(TypeError, () => new URL("about:blank", test.input));
+    }, "URL's constructor's base argument: " + name)
+
+    self.test(() => {
+      const url = new URL("about:blank")
+      assert_throws_js(TypeError, () => url.href = test.input)
+    }, "URL's href: " + name)
+
+    // The following use cases resolve the URL input relative to the current
+    // document's URL. If this test input could be construed as a valid URL
+    // when resolved against a base URL, skip these cases.
+    if (test.relativeTo === undefined) {
+      self.test(() => {
+        const client = new XMLHttpRequest()
+        assert_throws_dom("SyntaxError", () => client.open("GET", test.input))
+      }, "XHR: " + name)
+
+      self.test(() => {
+        assert_throws_js(TypeError, () => self.navigator.sendBeacon(test.input))
+      }, "sendBeacon(): " + name)
+
+      self.test(t => {
+        const frame = document.body.appendChild(document.createElement("iframe"));
+        t.add_cleanup(() => frame.remove());
+        assert_throws_dom("SyntaxError", frame.contentWindow.DOMException, () => frame.contentWindow.location = test.input);
+      }, "Location's href: " + name);
+
+      self.test(() => {
+        assert_throws_dom("SyntaxError", () => self.open(test.input).close())
+      }, "window.open(): " + name)
+    }
+  }
+}
+</script>

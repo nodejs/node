@@ -1,0 +1,116 @@
+# Copyright 2020 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+config("v8windbg_config") {
+  include_dirs = [ "../.." ]
+}
+
+# Basic support for WinDbg extensions, with nothing specific to V8.
+source_set("v8windbg_base") {
+  testonly = true
+
+  sources = [
+    "base/dbgext.cc",
+    "base/dbgext.h",
+    "base/utilities.cc",
+    "base/utilities.h",
+  ]
+
+  libs = [
+    "DbgEng.lib",
+    "DbgModel.lib",
+    "RuntimeObject.lib",
+    "comsuppwd.lib",
+  ]
+
+  public_configs = [ ":v8windbg_config" ]
+}
+
+# An extension DLL that can be loaded into WinDbg with `.load v8windbg`.
+v8_shared_library("v8windbg") {
+  testonly = true
+
+  sources = [
+    "base/dbgext.def",
+    "src/cur-isolate.cc",
+    "src/cur-isolate.h",
+    "src/js-stack.cc",
+    "src/js-stack.h",
+    "src/local-variables.cc",
+    "src/local-variables.h",
+    "src/object-inspection.cc",
+    "src/object-inspection.h",
+    "src/v8-debug-helper-interop.cc",
+    "src/v8-debug-helper-interop.h",
+    "src/v8windbg-extension.cc",
+    "src/v8windbg-extension.h",
+  ]
+
+  deps = [
+    ":v8windbg_base",
+    "../../:v8_flags",
+    "../../:v8_libbase",
+    "../../:v8_shared_internal_headers",
+    "../debug_helper:v8_debug_helper",
+  ]
+}
+
+# Copies Windows SDK files that v8windbg_test needs.
+action("copy_prereqs") {
+  testonly = true
+
+  script = "copy-prereqs.py"
+
+  inputs = [
+    script,
+    "//build/vs_toolchain.py",
+  ]
+
+  outputs = [ "$root_out_dir/dbgeng.dll" ]
+
+  args = [
+    rebase_path("//build", root_build_dir),
+    rebase_path(root_out_dir, root_build_dir),
+    target_cpu,
+  ]
+}
+
+# A test that launches a separate d8 process and debugs it using v8windbg.
+v8_source_set("v8windbg_test") {
+  testonly = true
+
+  sources = [
+    "test/debug-callbacks.cc",
+    "test/debug-callbacks.h",
+    "test/v8windbg-test.cc",
+    "test/v8windbg-test.h",
+  ]
+
+  deps = [ "../..:v8_libbase" ]  # For CHECK macro.
+
+  data_deps = [
+    ":copy_prereqs",
+    ":v8windbg",
+    ":v8windbg_test_script",
+    "../..:d8",
+  ]
+
+  libs = [
+    "DbgEng.lib",
+    "DbgModel.lib",
+    "Pathcch.lib",
+    "RuntimeObject.lib",
+  ]
+
+  configs = [ ":v8windbg_config" ]
+}
+
+# Copies the JavaScript file used by v8windbg_test.
+copy("v8windbg_test_script") {
+  testonly = true
+  sources = [ "test/script.js" ]
+  outputs = [ "$target_out_dir/v8windbg-test-script.js" ]
+}

@@ -1,0 +1,271 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+
+// Continuation for lazy deopt triggered by allocation of the result array.
+transitioning javascript builtin ArrayMapPreLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, length: JSAny, result: JSAny): JSAny {
+  const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+  const outputArray = Cast<JSReceiver>(result) otherwise unreachable;
+  const numberLength = Cast<Number>(length) otherwise unreachable;
+
+  const callbackfn = Cast<Callable>(callback)
+      otherwise ThrowCalledNonCallable(callback);
+  return ArrayMapLoopContinuation(
+      jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, kZero,
+      numberLength);
+}
+
+transitioning javascript builtin ArrayMapLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, array: JSAny, initialK: JSAny, length: JSAny): JSAny {
+  const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+  const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+  const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
+  const numberK = Cast<Number>(initialK) otherwise unreachable;
+  const numberLength = Cast<Number>(length) otherwise unreachable;
+
+  return ArrayMapLoopContinuation(
+      jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
+      numberLength);
+}
+
+transitioning javascript builtin ArrayMapLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, array: JSAny, initialK: JSAny, length: JSAny,
+    result: JSAny): JSAny {
+  const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+  const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+  const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
+  let numberK = Cast<Number>(initialK) otherwise unreachable;
+  const numberLength = Cast<Number>(length) otherwise unreachable;
+
+  // This custom lazy deopt point is right after the callback. The continuation
+  // needs to pick up at the next step, which is setting the callback result in
+  // the output array. After incrementing k, we can glide into the loop
+  // continuation builtin.
+
+  // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+  FastCreateDataProperty(outputArray, numberK, result);
+
+  // 7d. Increase k by 1.
+  numberK = numberK + 1;
+
+  return ArrayMapLoopContinuation(
+      jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
+      numberLength);
+}
+
+transitioning builtin ArrayMapLoopContinuation(
+    implicit context: Context)(_receiver: JSReceiver, callbackfn: Callable,
+    thisArg: JSAny, array: JSReceiver, o: JSReceiver, initialK: Number,
+    length: Number): JSAny {
+  // 6. Let k be 0.
+  // 7. Repeat, while k < len
+  for (let k: Number = initialK; k < length; k++) {
+    // 7a. Let Pk be ! ToString(k).
+    // k is guaranteed to be a positive integer, hence ToString is
+    // side-effect free and HasProperty/GetProperty do the conversion inline.
+
+    // 7b. Let kPresent be ? HasProperty(O, Pk).
+    const kPresent: Boolean = HasProperty_Inline(o, k);
+
+    // 7c. If kPresent is true, then:
+    if (kPresent == True) {
+      //  i. Let kValue be ? Get(O, Pk).
+      const kValue: JSAny = GetProperty(o, k);
+
+      // ii. Let mapped_value be ? Call(callbackfn, T, kValue, k, O).
+      const mappedValue: JSAny =
+          Call(context, callbackfn, thisArg, kValue, k, o);
+
+      // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mapped_value).
+      FastCreateDataProperty(array, k, mappedValue);
+    }
+
+    // 7d. Increase k by 1. (done by the loop).
+  }
+
+  // 8. Return A.
+  return array;
+}
+
+struct Vector {
+  macro ReportSkippedElement(): void {
+    this.skippedElements = true;
+  }
+
+  macro CreateJSArray(implicit context: Context)(validLength: Smi):
+      JSArray {
+    const length: Smi = this.fixedArray.length;
+    dcheck(validLength <= length);
+    let kind: ElementsKind = ElementsKind::PACKED_SMI_ELEMENTS;
+    if (!this.onlySmis) {
+      if (this.onlyNumbers) {
+        kind = ElementsKind::PACKED_DOUBLE_ELEMENTS;
+      } else {
+        kind = ElementsKind::PACKED_ELEMENTS;
+      }
+    }
+
+    if (this.skippedElements || validLength < length) {
+      // We also need to create a holey output array if we are
+      // bailing out of the fast path partway through the array.
+      // This is indicated by {validLength} < {length}.
+      // Who knows if the bailout condition will continue to fill in
+      // every element?
+      kind = FastHoleyElementsKind(kind);
+    }
+
+    const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+    let a: JSArray;
+
+    if (IsDoubleElementsKind(kind)) {
+      // We need to allocate and copy.
+      // First, initialize the elements field before allocation to prevent
+      // heap corruption.
+      const elements: FixedDoubleArray =
+          AllocateFixedDoubleArrayWithHoles(SmiUntag(length));
+      a = NewJSArray(map, this.fixedArray);
+      for (let i: Smi = 0; i < validLength; i++) {
+        typeswitch (
+            UnsafeCast<(Number | TheHole)>(this.fixedArray.objects[i])) {
+          case (n: Number): {
+            elements.floats[i] = Convert<float64_or_hole>(n);
+          }
+          case (TheHole): {
+          }
+        }
+      }
+      a.elements = elements;
+    } else {
+      // Simply install the given fixedArray in {vector}.
+      a = NewJSArray(map, this.fixedArray);
+    }
+
+    // Paranoia. the FixedArray now "belongs" to JSArray {a}.
+    this.fixedArray = kEmptyFixedArray;
+    return a;
+  }
+
+  macro StoreResult(implicit context: Context)(index: Smi, result: JSAny):
+      void {
+    typeswitch (result) {
+      case (s: Smi): {
+        this.fixedArray.objects[index] = s;
+      }
+      case (s: HeapNumber): {
+        this.onlySmis = false;
+        this.fixedArray.objects[index] = s;
+      }
+      case (s: JSAnyNotNumber): {
+        this.onlySmis = false;
+        this.onlyNumbers = false;
+        this.fixedArray.objects[index] = s;
+      }
+    }
+  }
+
+  fixedArray: FixedArray;
+  onlySmis: bool;         // initially true.
+  onlyNumbers: bool;      // initially true.
+  skippedElements: bool;  // initially false.
+}
+
+macro NewVector(implicit context: Context)(length: Smi): Vector {
+  const fixedArray = length > 0 ?
+      AllocateFixedArrayWithHoles(SmiUntag(length)) :
+      kEmptyFixedArray;
+  return Vector{
+    fixedArray,
+    onlySmis: true,
+    onlyNumbers: true,
+    skippedElements: false
+  };
+}
+
+transitioning macro FastArrayMap(
+    implicit context: Context)(fastO: FastJSArrayForRead, len: Smi,
+    callbackfn: Callable, thisArg: JSAny): JSArray
+    labels Bailout(JSArray, Smi) {
+  let k: Smi = 0;
+  let fastOW = NewFastJSArrayForReadWitness(fastO);
+  let vector = NewVector(len);
+
+  // Build a fast loop over the smi array.
+  // 7. Repeat, while k < len.
+  try {
+    for (; k < len; k++) {
+      fastOW.Recheck() otherwise goto PrepareBailout(k);
+
+      // Ensure that we haven't walked beyond a possibly updated length.
+      if (k >= fastOW.Get().length) goto PrepareBailout(k);
+
+      try {
+        const value: JSAny = fastOW.LoadElementNoHole(k)
+            otherwise FoundHole;
+        const result: JSAny =
+            Call(context, callbackfn, thisArg, value, k, fastOW.Get());
+        vector.StoreResult(k, result);
+      } label FoundHole {
+        // Our output array must necessarily be holey because of holes in
+        // the input array.
+        vector.ReportSkippedElement();
+      }
+    }
+  } label PrepareBailout(k: Smi) deferred {
+    // Transform {vector} into a JSArray and bail out.
+    goto Bailout(vector.CreateJSArray(k), k);
+  }
+
+  return vector.CreateJSArray(len);
+}
+
+// https://tc39.github.io/ecma262/#sec-array.prototype.map
+transitioning javascript builtin ArrayMap(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    RequireObjectCoercible(receiver, 'Array.prototype.map');
+
+    // 1. Let O be ? ToObject(this value).
+    const o: JSReceiver = ToObject_Inline(context, receiver);
+
+    // 2. Let len be ? ToLength(? Get(O, "length")).
+    const len: Number = GetLengthProperty(o);
+
+    // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    if (arguments.length == 0) goto TypeError;
+
+    const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
+
+    // 4. If thisArg is present, let T be thisArg; else let T be undefined.
+    const thisArg: JSAny = arguments[1];
+
+    let array: JSReceiver;
+    let k: Number = 0;
+    try {
+      // 5. Let A be ? ArraySpeciesCreate(O, len).
+      if (IsArraySpeciesProtectorCellInvalid()) goto SlowSpeciesCreate;
+      const o: FastJSArrayForRead = Cast<FastJSArrayForRead>(receiver)
+          otherwise SlowSpeciesCreate;
+      const smiLength: Smi = Cast<Smi>(len)
+          otherwise SlowSpeciesCreate;
+
+      return FastArrayMap(o, smiLength, callbackfn, thisArg)
+          otherwise Bailout;
+    } label SlowSpeciesCreate {
+      array = ArraySpeciesCreate(context, receiver, len);
+    } label Bailout(output: JSArray, kValue: Smi) deferred {
+      array = output;
+      k = kValue;
+    }
+
+    return ArrayMapLoopContinuation(o, callbackfn, thisArg, array, o, k, len);
+  } label TypeError deferred {
+    ThrowCalledNonCallable(arguments[0]);
+  }
+}
+}

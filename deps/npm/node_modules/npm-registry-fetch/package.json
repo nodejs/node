@@ -1,0 +1,68 @@
+{
+  "name": "npm-registry-fetch",
+  "version": "17.0.0",
+  "description": "Fetch-based http client for use with npm registry APIs",
+  "main": "lib",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "scripts": {
+    "eslint": "eslint",
+    "lint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "lintfix": "npm run lint -- --fix",
+    "test": "tap",
+    "posttest": "npm run lint",
+    "npmclilint": "npmcli-lint",
+    "postsnap": "npm run lintfix --",
+    "postlint": "template-oss-check",
+    "snap": "tap",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/npm-registry-fetch.git"
+  },
+  "keywords": [
+    "npm",
+    "registry",
+    "fetch"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "dependencies": {
+    "@npmcli/redact": "^2.0.0",
+    "make-fetch-happen": "^13.0.0",
+    "minipass": "^7.0.2",
+    "minipass-fetch": "^3.0.0",
+    "minipass-json-stream": "^1.0.1",
+    "minizlib": "^2.1.2",
+    "npm-package-arg": "^11.0.0",
+    "proc-log": "^4.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.21.4",
+    "cacache": "^18.0.0",
+    "nock": "^13.2.4",
+    "require-inject": "^1.4.4",
+    "ssri": "^10.0.0",
+    "tap": "^16.0.1"
+  },
+  "tap": {
+    "check-coverage": true,
+    "test-ignore": "test[\\\\/](util|cache)[\\\\/]",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.21.4",
+    "publish": "true"
+  }
+}

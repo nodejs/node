@@ -1,0 +1,34 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Console Standard (https://console.spec.whatwg.org/)
+
+[Exposed=*]
+namespace console { // but see namespace object requirements below
+  // Logging
+  undefined assert(optional boolean condition = false, any... data);
+  undefined clear();
+  undefined debug(any... data);
+  undefined error(any... data);
+  undefined info(any... data);
+  undefined log(any... data);
+  undefined table(optional any tabularData, optional sequence<DOMString> properties);
+  undefined trace(any... data);
+  undefined warn(any... data);
+  undefined dir(optional any item, optional object? options);
+  undefined dirxml(any... data);
+
+  // Counting
+  undefined count(optional DOMString label = "default");
+  undefined countReset(optional DOMString label = "default");
+
+  // Grouping
+  undefined group(any... data);
+  undefined groupCollapsed(any... data);
+  undefined groupEnd();
+
+  // Timing
+  undefined time(optional DOMString label = "default");
+  undefined timeLog(optional DOMString label = "default", any... data);
+  undefined timeEnd(optional DOMString label = "default");
+};

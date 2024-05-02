@@ -1,0 +1,16 @@
+{
+  "case-sensitivity.any.js": {
+    "fail": {
+      "note": "self.location is not available",
+      "expected": [
+        "getEntriesByName values are case sensitive"
+      ]
+    }
+  },
+  "navigation-id.helper.js": {
+    "skip": "This is not a test file."
+  },
+  "webtiming-resolution.any.js": {
+    "skip": "flaky"
+  }
+}

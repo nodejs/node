@@ -1,0 +1,271 @@
+Checks Debugger.getPossibleBreakpoints
+// Copyright 2017 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+function testEval() {
+  |C|eval('// comment only');
+  |C|eval('// comment only\n');
+|R|}
+
+// function without return
+function procedure() {
+  var a = |_|1;
+  var b = |_|2;
+|R|}
+
+function testProcedure() {
+  |C|procedure();
+|R|}
+
+function returnTrue() {
+  |_|return true;|R|
+}
+
+function testIf() {
+  var a;
+  if (true) |_|a = true;
+  |_|if (!a) {
+    |_|a = true;
+  } else {
+    |_|a = false;
+  }
+  |_|if (|C|returnTrue()) {
+    |_|a = false;
+  } else {
+    |_|a = true;
+  }
+|R|}
+
+function emptyFunction() {|R|}
+
+function testEmptyFunction() {
+  |C|emptyFunction();
+|R|}
+
+function twoArguments(a1, a2) {
+|R|}
+
+function testCallArguments() {
+  |C|twoArguments(|C|emptyFunction(), |C|emptyFunction());
+|R|}
+
+function testNested() {
+  function nested1() {
+    function nested2() {
+      function nested3() {
+      |R|}
+      |C|nested3();
+      |_|return;|R|
+    }
+    return |C|nested2();|R|
+  }
+  |C|nested1();
+|R|}
+
+function return42() {
+  |_|return 42;|R|
+}
+
+function returnCall() {
+  |_|return |C|return42();|R|
+}
+
+function testCallAtReturn() {
+  |_|return |C|returnCall();|R|
+}
+
+function returnObject() {
+  |_|return ({ foo: () => |_|42|R| });|R|
+}
+
+function testWith() {
+  |_|with (|C|returnObject()) {
+    |C|foo();
+  }
+  |_|with({}) {
+    |_|return;|R|
+  }
+}
+
+function testForLoop() {
+  for (var i = |_|0; i |_|< 1; ++|_|i) {}
+  for (var i = |_|0; i |_|< 1; ++|_|i) i;
+  for (var i = |_|0; i |_|< 0; ++|_|i) {}
+|R|}
+
+function testForOfLoop() {
+  for (var |C|k of |_|[]) {}
+  for (var |C|k of |_|[1]) |_|k;
+  var a = |_|[];
+  for (var |C|k of |_|a) {}
+|R|}
+
+function testForInLoop() {
+  var o = |_|{};
+  for (var |_|k in |_|o) {}
+  for (var |_|k in |_|o) |_|k;
+  for (var |_|k in |_|{ a:1 }) {}
+  for (var |_|k in |_|{ a:1 }) |_|k;
+|R|}
+
+function testSimpleExpressions() {
+  1 + 2 + 3;
+  var a = |_|1;
+  |_|++a;
+  |_|a--;
+|R|}
+
+|_|Object.|C|defineProperty(this, 'getterFoo', {
+  get: () => |_|return42|R|
+});
+
+function testGetter() {
+  |C|getterFoo();
+|R|}
+
+var obj = |_|{
+  foo: () => (|_|{
+    boo: () => |_|return42|R|
+  })|R|
+};
+
+function testChainedCalls() {
+  |_|obj.|C|foo().|C|boo()|C|();
+|R|}
+
+function testChainedWithNative() {
+  |_|Array.|C|from([1]).|C|concat([2]).|C|map(v => v |_|* 2|R|);
+|R|}
+
+function testPromiseThen() {
+  |_|return Promise.|C|resolve().|C|then(v => v |_|* 2|R|).|C|then(v => v |_|* 2|R|);|R|
+}
+
+function testSwitch() {
+  for (var i = |_|0; i |_|< 3; ++|_|i) {
+    |_|switch(i) {
+      case 0: |_|continue;
+      case 1: |C|return42(); |_|break;
+      default: |_|return;|R|
+    }
+  }
+|R|}
+
+function* idMaker() {
+  |_|yield 1;
+  |_|yield 2;
+  |_|yield 3;
+|R|}
+
+function testGenerator() {
+  var gen = |C|idMaker();
+  |C|return42();
+  gen.|C|next().value;
+  |D|debugger;
+  gen.|C|next().value;
+  |C|return42();
+  gen.|C|next().value;
+  |C|return42();
+  gen.|C|next().value;
+|R|}
+
+function throwException() {
+  |_|throw |C|new Error();
+}
+
+function testCaughtException() {
+  try {
+    |C|throwException()
+  } catch (e) {
+    |_|return;|R|
+  }
+|R|}
+
+function testClasses() {
+  class Cat {
+    constructor(name) {
+      |_|this.name = name;
+    |R|}
+
+    speak() {
+    |R|}
+  }
+  class Lion extends Cat {
+    constructor(name) {
+      |C|super(name);
+    |R|}
+
+    speak() {
+      |_|super.|C|speak();
+    |R|}
+  }
+  |C|new Lion().|C|speak();
+|R|}
+
+async function asyncFoo() {
+  |_|await Promise.|C|resolve().|C|then(v => v |_|* 2|R|);
+  |C|return42();
+  |_|await |C|asyncBoo();
+|R|}
+
+async function asyncBoo() {
+  |_|await Promise.|C|resolve();
+|R|}
+
+async function testAsyncAwait() {
+  |_|await |C|asyncFoo();
+  |_|await |C|awaitBoo();
+|R|}
+
+// TODO(kozyatinskiy): fix this.
+async function testPromiseAsyncWithCode() {
+  var nextTest;
+  var testPromise = |C|new Promise(resolve => nextTest |_|= resolve|R|);
+  async function main() {
+    async function foo() {
+      var resolveNested;
+      var p = |C|new Promise(resolve => resolveNested |_|= resolve|R|);
+      |C|setTimeout(resolveNested, 0);
+      |_|await p;
+    |R|}
+    |C|setTimeout(returnCall, 0);
+    await |C|foo();
+    await |C|foo();
+    |C|nextTest();
+  |R|}
+  |C|main();
+  |_|return testPromise;|R|
+}
+
+function returnFunction() {
+  |_|return returnObject;|R|
+}
+
+async function testPromiseComplex() {
+  var nextTest;
+  var testPromise = |C|new Promise(resolve => nextTest |_|= resolve|R|);
+  async function main() {
+    async function foo() {
+      |_|await Promise.|C|resolve();
+      |_|return 42;|R|
+    }
+    var x = |_|1;
+    var y = |_|2;
+    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = await |C|foo((a => 2 |_|*a|R|)|C|(5));
+    |C|nextTest();
+  |R|}
+  |C|main();
+  |_|return testPromise;|R|
+}
+
+function twiceDefined() {
+  |_|return a + b;|R|
+}
+
+function twiceDefined() {
+  |_|return a + b;|R|
+}
+
+|R|
+

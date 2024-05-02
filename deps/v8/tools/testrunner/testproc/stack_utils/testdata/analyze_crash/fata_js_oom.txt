@@ -1,0 +1,48 @@
+
+<--- Last few GCs --->
+
+
+<--- JS stacktrace --->
+
+
+#
+# Fatal javascript OOM in GC during deserialization
+#
+
+Received signal 6
+
+==== C stack trace ===============================
+
+ [0x7f31c97776b7]
+ [0x7f31c631b980]
+ [0x7f31c5bb8e87]
+ [0x7f31c5bba7f1]
+ [0x7f31c9775332]
+ [0x7f31c7c8daf5]
+ [0x7f31c7c8d97d]
+ [0x7f31c81a33a5]
+ [0x7f31c81a15ed]
+ [0x7f31c81914df]
+ [0x7f31c81915c1]
+ [0x7f31c8134c33]
+ [0x7f31c8adbc18]
+ [0x7f31c8ad7af1]
+ [0x7f31c8ada0d5]
+ [0x7f31c8ad7fdd]
+ [0x7f31c8adb0be]
+ [0x7f31c8ad9c46]
+ [0x7f31c81b4499]
+ [0x7f31c81adcc9]
+ [0x7f31c8b16d0e]
+ [0x7f31c809ed03]
+ [0x7f31c809fcb1]
+ [0x7f31c8b114b7]
+ [0x7f31c7d02526]
+ [0x7f31c7d02b2d]
+ [0x565117ee00ed]
+ [0x565117ee0008]
+ [0x7f31c9776470]
+ [0x7f31c63106db]
+ [0x7f31c5c9b61f]
+[end of stack trace]
+Aborted (core dumped)

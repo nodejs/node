@@ -1,0 +1,144 @@
+Tests that creating multiple sessions works.
+Connecting session 1
+From session 1
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 1
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+Connecting session 2
+From session 2
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 1
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+Reconnecting session 2
+From session 2
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 1
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+Reconnecting session 1
+From session 1
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 1
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+Connecting session 3
+From session 3
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 1
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+Destroying and creating context
+From session 2
+{
+    method : Runtime.executionContextDestroyed
+    params : {
+        executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
+    }
+}
+id matching: true
+From session 1
+{
+    method : Runtime.executionContextDestroyed
+    params : {
+        executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
+    }
+}
+id matching: true
+From session 3
+{
+    method : Runtime.executionContextDestroyed
+    params : {
+        executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
+    }
+}
+id matching: true
+From session 2
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 2
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+From session 1
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 2
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+From session 3
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 2
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}
+Disconnecting all sessions
+Connecting session 4
+From session 4
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 2
+            name : 
+            origin : 
+            uniqueId : <uniqueId>
+        }
+    }
+}

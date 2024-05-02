@@ -1,0 +1,33 @@
+name: Node.js daily job
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 0 * * *
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  build-lto:
+    runs-on: ubuntu-latest
+    # not working on gcc-8 and gcc-9 see https://github.com/nodejs/node/issues/38570
+    container: gcc:11
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          persist-credentials: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build lto
+        run: |
+          apt-get update && apt-get install ninja-build python-is-python3 -y
+          ./configure --enable-lto --ninja
+          ninja -C out/Release

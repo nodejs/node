@@ -1,0 +1,170 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
+#
+#  Watcom / OpenWatcom / Win32 makefile for cares.
+#  Quick hack by Guenter; comments to: /dev/nul
+#  Updated by Douglas R. Reno, comments to: renodr2002@gmail.com. 2023
+#
+
+!ifndef %watcom
+!error WATCOM environment variable not set!
+!else
+SYS_INCL = -I$(%watcom)\h\nt -I$(%watcom)\h
+SYS_LIBS = $(%watcom)\lib386\nt;$(%watcom)\lib386
+!endif
+
+!ifdef %libname
+LIBNAME = $(%libname)
+!else
+LIBNAME	= cares
+!endif
+TARGETS = $(LIBNAME).dll $(LIBNAME)_imp.lib $(LIBNAME).lib
+DEMOS   = adig.exe ahost.exe
+
+CC = wcc386
+LD = wlink
+AR = wlib
+RC = wrc
+
+!ifdef __LOADDLL__
+!  loaddll wcc386  wccd386
+!  loaddll wpp386  wppd386
+!  loaddll wlib    wlibd
+!endif
+
+!if $(__VERSION__) < 1250
+RM = del /q /f 2>NUL
+!else
+RM = rm -f
+!endif
+MD = mkdir
+RD = rmdir /q /s 2>NUL
+CP = copy
+
+CFLAGS = -3r -mf -hc -zff -zgf -zq -zm -zc -s -fr=con -w2 -fpi -oilrtfm -aa   &
+         -wcd=201 -bt=nt -d+ -dWIN32 -dCARES_BUILDING_LIBRARY &
+         -dNTDDI_VERSION=0x06020000 -I. -I.\include -I.\src\lib $(SYS_INCL)
+
+LFLAGS = option quiet, map, caseexact, eliminate
+
+!ifdef %debug
+DEBUG  = -dDEBUG=1 -dDEBUGBUILD
+CFLAGS += -d3 $(DEBUG)
+LFLAGS += debug all
+!else
+CFLAGS += -d0
+!endif
+
+CFLAGS += -d_WIN32_WINNT=0x0602
+
+#
+# Change to suite.
+#
+!ifdef %use_watt32
+CFLAGS += -dWATT32 -I$(%watt_root)\inc
+!endif
+
+OBJ_BASE = WC_Win32.obj
+LINK_ARG = $(OBJ_BASE)\dyn\wlink.arg
+LIB_ARG  = $(OBJ_BASE)\stat\wlib.arg
+
+# In order to process Makefile.inc wmake must be called with -u switch!
+!ifneq __MAKEOPTS__ -u
+!error You MUST call wmake with the -u switch!
+!else
+!include src\lib\Makefile.inc
+!endif
+
+OBJS = $(CSOURCES:.c=.obj)
+OBJS = $OBJ_DIR\$(OBJS: = $OBJ_DIR\)
+
+#
+# Use $(OBJS) as a template to generate $(OBJS_STAT) and $(OBJS_DYN).
+#
+OBJ_DIR    = $(OBJ_BASE)\stat
+OBJS_STAT  = $+ $(OBJS) $-
+
+OBJ_DIR    = $(OBJ_BASE)\dyn
+OBJS_DYN   += $(OBJS) $-
+
+ARESBUILDH = ares_build.h
+RESOURCE   = $(OBJ_BASE)\dyn\cares.res
+ARESBUILDH = include\ares_build.h
+
+all: $(ARESBUILDH) $(OBJ_BASE) $(TARGETS) $(DEMOS) .SYMBOLIC
+	@echo Welcome to cares
+
+$(OBJ_BASE):
+	-$(MD) $^@
+	-$(MD) $^@\stat
+	-$(MD) $^@\dyn
+	-$(MD) $^@\tools
+
+$(ARESBUILDH): .EXISTSONLY
+	@echo Make sure to run buildconf.bat!
+
+$(LIBNAME).dll: $(OBJS_DYN) $(RESOURCE) $(LINK_ARG)
+	$(LD) name $^@ @$]@
+
+$(LIBNAME).lib: $(OBJS_STAT) $(LIB_ARG)
+	$(AR) -q -b -c $^@ @$]@
+
+$(OBJ_BASE)\tools\ares_getopt.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\tools\ares_getopt.c -fo=$^@
+
+adig.exe: $(OBJ_BASE)\tools\ares_getopt.obj $(LIBNAME).lib
+	$(CC) $(CFLAGS) src\tools\adig.c -fo=$(OBJ_BASE)\tools\adig.obj
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\tools\adig.obj $[@ } library $]@, ws2_32.lib, iphlpapi.lib
+
+ahost.exe: $(OBJ_BASE)\tools\ares_getopt.obj $(LIBNAME).lib
+	$(CC) $(CFLAGS) src\tools\ahost.c -fo=$(OBJ_BASE)\tools\ahost.obj
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\tools\ahost.obj $[@ } library $]@, ws2_32.lib, iphlpapi.lib
+
+clean: .SYMBOLIC
+	-$(RM) $(OBJS_STAT)
+	-$(RM) $(OBJS_DYN)
+	-$(RM) $(RESOURCE) $(LINK_ARG) $(LIB_ARG)
+
+vclean realclean: clean .SYMBOLIC
+	-$(RM) $(TARGETS) $(LIBNAME).map
+	-$(RM) $(DEMOS) $(DEMOS:.exe=.map)
+	-$(RD) $(OBJ_BASE)\stat
+	-$(RD) $(OBJ_BASE)\dyn
+	-$(RD) $(OBJ_BASE)\tools
+	-$(RD) $(OBJ_BASE)
+
+.ERASE
+.c: .\src\lib
+
+.ERASE
+$(RESOURCE): src\lib\cares.rc .AUTODEPEND
+	$(RC) $(DEBUG) -q -r -zm -I..\include $(SYS_INCL) $[@ -fo=$^@
+
+.ERASE
+.c{$(OBJ_BASE)\dyn}.obj:
+	$(CC) $(CFLAGS) -bd .\src\lib\$^& -fo=$^@
+
+.ERASE
+.c{$(OBJ_BASE)\stat}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\$^& -fo=$^@
+
+$(LINK_ARG): $(__MAKEFILES__)
+	%create $^@
+	@%append $^@ system nt dll
+	@%append $^@ file { $(OBJS_DYN) }
+	@%append $^@ option res=$(RESOURCE), implib=$(LIBNAME)_imp.lib 
+	@%append $^@ $(LFLAGS)
+	@%append $^@ libpath $(SYS_LIBS)
+#	@%append $^@ library clib3r.lib
+!ifdef %use_watt32
+	@%append $^@ library $(%watt_root)\lib\wattcpw_imp.lib
+!else
+	@%append $^@ library ws2_32.lib
+	@%append $^@ library iphlpapi.lib
+!endif
+
+$(LIB_ARG): $(__MAKEFILES__)
+	%create $^@
+	@for %f in ($(OBJS_STAT)) do @%append $^@ +- %f
+
+

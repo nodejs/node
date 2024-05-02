@@ -1,0 +1,90 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+@cppObjectLayoutDefinition
+extern class Name extends PrimitiveHeapObject {
+  raw_hash_field: NameHash;
+}
+
+bitfield struct NameHash extends uint32 {
+  hash_field_type: HashFieldType: 2 bit;
+  array_index_value: uint32: 24 bit;
+  array_index_length: uint32: 6 bit;
+}
+
+// This is the same as Name, but with the information that there are no other
+// kinds of names.
+type AnyName = PrivateSymbol|PublicSymbol|String;
+
+bitfield struct SymbolFlags extends uint32 {
+  is_private: bool: 1 bit;
+  is_well_known_symbol: bool: 1 bit;
+  is_in_public_symbol_table: bool: 1 bit;
+  is_interesting_symbol: bool: 1 bit;
+  is_private_name: bool: 1 bit;
+  is_private_brand: bool: 1 bit;
+}
+
+@cppObjectLayoutDefinition
+extern class Symbol extends Name {
+  flags: SymbolFlags;
+  description: String|Undefined;
+}
+
+type PublicSymbol extends Symbol;
+type PrivateSymbol extends Symbol;
+
+const kMaxCachedArrayIndexLength: constexpr uint32
+    generates 'Name::kMaxCachedArrayIndexLength';
+const kMaxArrayIndexSize: constexpr uint32
+    generates 'Name::kMaxArrayIndexSize';
+const kNofHashBitFields: constexpr int31
+    generates 'Name::HashFieldTypeBits::kSize';
+const kArrayIndexValueBits: constexpr int31
+    generates 'Name::kArrayIndexValueBits';
+const kDoesNotContainCachedArrayIndexMask: constexpr uint32
+    generates 'Name::kDoesNotContainCachedArrayIndexMask';
+const kNameEmptyHashField: NameHash = NameHash{
+  hash_field_type: HashFieldType::kEmpty,
+  array_index_value: 0,
+  array_index_length: 0
+};
+
+macro ContainsCachedArrayIndex(hash: uint32): bool {
+  return (hash & kDoesNotContainCachedArrayIndexMask) == 0;
+}
+
+const kArrayIndexValueBitsShift: uint32 = kNofHashBitFields;
+const kArrayIndexLengthBitsShift: uint32 =
+    kNofHashBitFields + kArrayIndexValueBits;
+
+macro TenToThe(exponent: uint32): uint32 {
+  dcheck(exponent <= 9);
+  let answer: int32 = 1;
+  for (let i: int32 = 0; i < Signed(exponent); i++) {
+    answer = answer * 10;
+  }
+  return Unsigned(answer);
+}
+
+macro IsIntegerIndex(hash: NameHash): bool {
+  return hash.hash_field_type == HashFieldType::kIntegerIndex;
+}
+
+macro MakeArrayIndexHash(value: uint32, length: uint32): NameHash {
+  // This is in sync with StringHasher::MakeArrayIndexHash.
+  dcheck(length <= kMaxArrayIndexSize);
+  const one: uint32 = 1;
+  dcheck(TenToThe(kMaxCachedArrayIndexLength) < (one << kArrayIndexValueBits));
+  let rawHash: uint32 = value;
+  rawHash = (rawHash << kArrayIndexValueBitsShift) |
+      (length << kArrayIndexLengthBitsShift);
+  dcheck(
+      (length <= kMaxCachedArrayIndexLength) ==
+      ContainsCachedArrayIndex(rawHash));
+  const hash: NameHash = %RawDownCast<NameHash>(rawHash);
+  dcheck(IsIntegerIndex(hash));
+  return hash;
+}

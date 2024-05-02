@@ -1,0 +1,62 @@
+#
+# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = PKCS12 tests
+
+PBE = pkcs12
+id = 1
+iter = 1
+MD = SHA1
+Password = 0073006D006500670000
+Salt = 0A58CF64530D823F
+Key = 8AAAE6297B6CB04642AB5B077851284EB7128F1A2A7FBCA3
+
+PBE = pkcs12
+id = 2
+iter = 1
+MD = SHA1
+Password = 0073006D006500670000
+Salt = 0A58CF64530D823F
+Key = 79993DFE048D3B76
+
+PBE = pkcs12
+id = 3
+iter = 1
+MD = SHA1
+Password = 0073006D006500670000
+Salt = 3D83C0E4546AC140
+Key = 8D967D88F6CAA9D714800AB3D48051D63F73A312
+
+PBE = pkcs12
+id = 1
+iter = 1000
+MD = SHA1
+Password = 007100750065006500670000
+Salt = 1682C0FC5B3F7EC5
+Key = 483DD6E919D7DE2E8E648BA8F862F3FBFBDC2BCB2C02957F
+
+PBE = pkcs12
+id = 2
+iter = 1000
+MD = SHA1
+Password = 007100750065006500670000
+Salt = 1682C0FC5B3F7EC5
+Key = 9D461D1B00355C50
+
+PBE = pkcs12
+id = 3
+iter = 1000
+MD = SHA1
+Password = 007100750065006500670000
+Salt = 263216FCC2FAB31C
+Key = 5EC4C7A80DF652294C3925B6489A7AB857C83476

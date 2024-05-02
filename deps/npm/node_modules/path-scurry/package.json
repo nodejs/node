@@ -1,0 +1,85 @@
+{
+  "name": "path-scurry",
+  "version": "1.10.2",
+  "description": "walk paths fast and efficiently",
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://blog.izs.me)",
+  "main": "./dist/commonjs/index.js",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/commonjs/index.d.ts",
+        "default": "./dist/commonjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "BlueOak-1.0.0",
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "preprepare": "rm -rf dist",
+    "prepare": "tshy",
+    "pretest": "npm run prepare",
+    "presnap": "npm run prepare",
+    "test": "tap",
+    "snap": "tap",
+    "format": "prettier --write . --loglevel warn",
+    "typedoc": "typedoc --tsconfig tsconfig-esm.json ./src/*.ts",
+    "bench": "bash ./scripts/bench.sh"
+  },
+  "prettier": {
+    "semi": false,
+    "printWidth": 75,
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "jsxSingleQuote": false,
+    "bracketSameLine": true,
+    "arrowParens": "avoid",
+    "endOfLine": "lf"
+  },
+  "devDependencies": {
+    "@nodelib/fs.walk": "^1.2.8",
+    "@types/node": "^20.11.30",
+    "c8": "^7.12.0",
+    "eslint-config-prettier": "^8.6.0",
+    "mkdirp": "^3.0.0",
+    "prettier": "^2.8.3",
+    "rimraf": "^5.0.1",
+    "tap": "^18.7.2",
+    "ts-node": "^10.9.2",
+    "tshy": "^1.12.0",
+    "typedoc": "^0.25.12",
+    "typescript": "^5.4.3"
+  },
+  "engines": {
+    "node": ">=16 || 14 >=14.17"
+  },
+  "funding": {
+    "url": "https://github.com/sponsors/isaacs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/path-scurry"
+  },
+  "dependencies": {
+    "lru-cache": "^10.2.0",
+    "minipass": "^5.0.0 || ^6.0.2 || ^7.0.0"
+  },
+  "tshy": {
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./src/index.ts"
+    }
+  },
+  "types": "./dist/commonjs/index.d.ts"
+}

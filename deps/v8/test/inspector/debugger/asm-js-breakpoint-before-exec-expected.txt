@@ -1,0 +1,64 @@
+This test runs asm.js which calls back to JS. Before executing (after the script is parsed) we set breakpoints in the asm.js code.
+
+Running test: enableDebugger
+
+Running test: addScript
+Script nr 1 parsed!
+First script; assuming testFunction.
+Flooding script with breakpoints for the lines 3 to 19...
+Setting breakpoint on line 3
+error: undefined
+Setting breakpoint on line 4
+error: undefined
+Setting breakpoint on line 5
+error: undefined
+Setting breakpoint on line 6
+error: undefined
+Setting breakpoint on line 7
+error: undefined
+Setting breakpoint on line 8
+error: undefined
+Setting breakpoint on line 9
+error: undefined
+Setting breakpoint on line 10
+error: undefined
+Setting breakpoint on line 11
+error: undefined
+Setting breakpoint on line 12
+error: undefined
+Setting breakpoint on line 13
+error: undefined
+Setting breakpoint on line 14
+error: undefined
+Setting breakpoint on line 15
+error: undefined
+Setting breakpoint on line 16
+error: undefined
+Setting breakpoint on line 17
+error: undefined
+Setting breakpoint on line 18
+error: undefined
+
+Running test: runTestFunction
+Script nr 2 parsed!
+Paused #1
+  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":17,"columnNumber":12}
+  - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
+Paused #2
+  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
+  - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
+Paused #3
+  - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":14,"columnNumber":4}
+  - [1] {"functionName":"callDebugger","function_lineNumber":0,"function_columnNumber":105,"lineNumber":5,"columnNumber":6}
+  - [2] {"functionName":"redirectFun","function_lineNumber":0,"function_columnNumber":110,"lineNumber":8,"columnNumber":6}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
+  - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
+Paused #4
+  - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":15,"columnNumber":2}
+  - [1] {"functionName":"callDebugger","function_lineNumber":0,"function_columnNumber":105,"lineNumber":5,"columnNumber":6}
+  - [2] {"functionName":"redirectFun","function_lineNumber":0,"function_columnNumber":110,"lineNumber":8,"columnNumber":6}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
+  - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
+
+Running test: finished
+Finished TestSuite.

@@ -1,0 +1,15 @@
+Name: cpu_features
+Short Name: cpu_features
+URL: https://github.com/google/cpu_features
+Version: v0.8.0
+Date: 2023/05/17
+License: Apache 2.0
+License File: src/LICENSE
+Security Critical: yes
+Shipped: yes
+
+Description:
+cpu_features is a library to retrieve CPU features at runtime. It is used to
+make decisions about performance optimization and features a drop-in replacement
+for Android's cpu-features.h. It is Android's recommended replacement for libraries
+that utilize cpu-features.h.

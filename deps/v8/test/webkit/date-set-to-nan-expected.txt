@@ -1,0 +1,129 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This tests if the Date setters handle invalid parameters correctly resulting in a NaN date and if a recovery from such a NaN date is only possible by using the date.setTime() and date.set[[UTC]Full]Year() functions.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS date.setTime(arg0)
+PASS date.setTime()
+PASS recover from NaN date using date.setTime()
+PASS date.setTime passed all tests
+PASS date.setMilliseconds(arg0)
+PASS date.setMilliseconds()
+PASS no recovering from NaN date using date.setMilliseconds(arg0)
+PASS date.setMilliseconds passed all tests
+PASS date.setUTCMilliseconds(arg0)
+PASS date.setUTCMilliseconds()
+PASS no recovering from NaN date using date.setUTCMilliseconds(arg0)
+PASS date.setUTCMilliseconds passed all tests
+PASS date.setSeconds(arg0, arg1)
+PASS no recovering from NaN date using date.setSeconds(arg0, 0)
+PASS date.setSeconds(arg0)
+PASS date.setSeconds()
+PASS no recovering from NaN date using date.setSeconds(arg0)
+PASS date.setSeconds passed all tests
+PASS date.setUTCSeconds(arg0, arg1)
+PASS no recovering from NaN date using date.setUTCSeconds(arg0, 0)
+PASS date.setUTCSeconds(arg0)
+PASS date.setUTCSeconds()
+PASS no recovering from NaN date using date.setUTCSeconds(arg0)
+PASS date.setUTCSeconds passed all tests
+PASS date.setMinutes(arg0, arg1, arg2)
+PASS no recovering from NaN date using date.setMinutes(arg0, 0, 0)
+PASS date.setMinutes(arg0, arg1)
+PASS no recovering from NaN date using date.setMinutes(arg0, 0)
+PASS date.setMinutes(arg0)
+PASS date.setMinutes()
+PASS no recovering from NaN date using date.setMinutes(arg0)
+PASS date.setMinutes passed all tests
+PASS date.setUTCMinutes(arg0, arg1, arg2)
+PASS no recovering from NaN date using date.setUTCMinutes(arg0, 0, 0)
+PASS date.setUTCMinutes(arg0, arg1)
+PASS no recovering from NaN date using date.setUTCMinutes(arg0, 0)
+PASS date.setUTCMinutes(arg0)
+PASS date.setUTCMinutes()
+PASS no recovering from NaN date using date.setUTCMinutes(arg0)
+PASS date.setUTCMinutes passed all tests
+PASS date.setHours(arg0, arg1, arg2, arg3)
+PASS no recovering from NaN date using date.setHours(arg0, 0, 0, 0)
+PASS date.setHours(arg0, arg1, arg2)
+PASS no recovering from NaN date using date.setHours(arg0, 0, 0)
+PASS date.setHours(arg0, arg1)
+PASS no recovering from NaN date using date.setHours(arg0, 0)
+PASS date.setHours(arg0)
+PASS date.setHours()
+PASS no recovering from NaN date using date.setHours(arg0)
+PASS date.setHours passed all tests
+PASS date.setUTCHours(arg0, arg1, arg2, arg3)
+PASS no recovering from NaN date using date.setUTCHours(arg0, 0, 0, 0)
+PASS date.setUTCHours(arg0, arg1, arg2)
+PASS no recovering from NaN date using date.setUTCHours(arg0, 0, 0)
+PASS date.setUTCHours(arg0, arg1)
+PASS no recovering from NaN date using date.setUTCHours(arg0, 0)
+PASS date.setUTCHours(arg0)
+PASS date.setUTCHours()
+PASS no recovering from NaN date using date.setUTCHours(arg0)
+PASS date.setUTCHours passed all tests
+PASS date.setDate(arg0)
+PASS date.setDate()
+PASS no recovering from NaN date using date.setDate(arg0)
+PASS date.setDate passed all tests
+PASS date.setUTCDate(arg0)
+PASS date.setUTCDate()
+PASS no recovering from NaN date using date.setUTCDate(arg0)
+PASS date.setUTCDate passed all tests
+PASS date.setMonth(arg0, arg1)
+PASS no recovering from NaN date using date.setMonth(arg0, 0)
+PASS date.setMonth(arg0)
+PASS date.setMonth()
+PASS no recovering from NaN date using date.setMonth(arg0)
+PASS date.setMonth passed all tests
+PASS date.setUTCMonth(arg0, arg1)
+PASS no recovering from NaN date using date.setUTCMonth(arg0, 0)
+PASS date.setUTCMonth(arg0)
+PASS date.setUTCMonth()
+PASS no recovering from NaN date using date.setUTCMonth(arg0)
+PASS date.setUTCMonth passed all tests
+PASS date.setFullYear(arg0, arg1, arg2)
+PASS date.setFullYear(arg0, arg1)
+PASS date.setFullYear(arg0)
+PASS date.setFullYear()
+PASS recover from NaN date using date.setFullYear()
+PASS date.setFullYear passed all tests
+PASS date.setUTCFullYear(arg0, arg1, arg2)
+PASS date.setUTCFullYear(arg0, arg1)
+PASS date.setUTCFullYear(arg0)
+PASS date.setUTCFullYear()
+PASS recover from NaN date using date.setUTCFullYear()
+PASS date.setUTCFullYear passed all tests
+PASS date.setYear(arg0)
+PASS date.setYear()
+PASS date.getYear() is compatible to JavaScript 1.3 and later
+PASS recover from NaN date using date.setUTCFullYear()
+PASS date.setYear passed all tests
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

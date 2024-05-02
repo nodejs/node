@@ -1,0 +1,5 @@
+LIBRARY "custom_actions"
+
+EXPORTS
+SetInstallScope
+GetLocalizedUserNames

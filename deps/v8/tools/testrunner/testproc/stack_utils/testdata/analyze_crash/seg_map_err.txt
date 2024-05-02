@@ -1,0 +1,13 @@
+Received signal 11 SEGV_MAPERR 000000000030
+
+==== C stack trace ===============================
+
+ [0x55b2023882a7]
+ [0x7f044e972980]
+ [0x7f044e969fd0]
+ [0x55b201949b84]
+ [0x55b20194b6da]
+ [0x55b201cf7206]
+ [0x0ad7000b4778]
+[end of stack trace]
+Segmentation fault (core dumped)

@@ -1,0 +1,10 @@
+# Copyright 2022 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+declare_args() {
+  # TODO(liviurau): Remove old name after Chromium config update
+  # https://crbug.com/1476977.
+  is_on_release_branch = false
+  v8_is_on_release_branch = true
+}

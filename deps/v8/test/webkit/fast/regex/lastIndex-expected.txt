@@ -1,0 +1,53 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This page tests that a RegExp object's lastIndex behaves like a regular property.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS delete /x/.lastIndex is false
+PASS 'use strict'; delete /x/.lastIndex threw exception TypeError: Cannot delete property 'lastIndex' of [object RegExp].
+PASS 'lastIndex' in /x/ is true
+PASS for (property in /x/) if (property === 'lastIndex') throw false; true is true
+PASS var re = /x/; re.lastIndex = re; re.lastIndex === re is true
+PASS Object.defineProperty(/x/, {get:function(){}}) threw exception TypeError: Property description must be an object: undefined.
+PASS Object.defineProperty(/x/, 'lastIndex', {enumerable:true}); true threw exception TypeError: Cannot redefine property: lastIndex.
+PASS Object.defineProperty(/x/, 'lastIndex', {enumerable:false}); true is true
+PASS Object.defineProperty(/x/, 'lastIndex', {configurable:true}); true threw exception TypeError: Cannot redefine property: lastIndex.
+PASS Object.defineProperty(/x/, 'lastIndex', {configurable:false}); true is true
+PASS var re = Object.defineProperty(/x/, 'lastIndex', {writable:true}); re.lastIndex = 42; re.lastIndex is 42
+PASS var re = Object.defineProperty(/x/, 'lastIndex', {writable:false}); re.lastIndex = 42; re.lastIndex is 0
+PASS var re = Object.defineProperty(/x/, 'lastIndex', {value:42}); re.lastIndex is 42
+PASS Object.defineProperty(Object.defineProperty(/x/, 'lastIndex', {writable:false}), 'lastIndex', {writable:true}); true threw exception TypeError: Cannot redefine property: lastIndex.
+PASS Object.defineProperty(Object.defineProperty(/x/, 'lastIndex', {writable:false}), 'lastIndex', {value:42}); true threw exception TypeError: Cannot redefine property: lastIndex.
+PASS Object.defineProperty(Object.defineProperty(/x/, 'lastIndex', {writable:false}), 'lastIndex', {value:0}); true is true
+PASS Object.defineProperty(/x/, 'lastIndex', {writable:false}).exec('') is null
+PASS Object.defineProperty(/x/, 'lastIndex', {writable:false}).exec('x') is ["x"]
+PASS Object.defineProperty(/x/g, 'lastIndex', {writable:false}).exec('') threw exception TypeError: Cannot assign to read only property 'lastIndex' of object '[object RegExp]'.
+PASS Object.defineProperty(/x/g, 'lastIndex', {writable:false}).exec('x') threw exception TypeError: Cannot assign to read only property 'lastIndex' of object '[object RegExp]'.
+PASS var re = /x/; Object.freeze(re); Object.isFrozen(re); is true
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

@@ -1,0 +1,406 @@
+=pod
+
+=head1 NAME
+
+DECLARE_ASN1_FUNCTIONS,
+IMPLEMENT_ASN1_FUNCTIONS,
+ASN1_ITEM,
+ACCESS_DESCRIPTION_free,
+ACCESS_DESCRIPTION_new,
+ADMISSIONS_free,
+ADMISSIONS_new,
+ADMISSION_SYNTAX_free,
+ADMISSION_SYNTAX_new,
+ASIdOrRange_free,
+ASIdOrRange_new,
+ASIdentifierChoice_free,
+ASIdentifierChoice_new,
+ASIdentifiers_free,
+ASIdentifiers_new,
+ASRange_free,
+ASRange_new,
+AUTHORITY_INFO_ACCESS_free,
+AUTHORITY_INFO_ACCESS_new,
+AUTHORITY_KEYID_free,
+AUTHORITY_KEYID_new,
+BASIC_CONSTRAINTS_free,
+BASIC_CONSTRAINTS_new,
+CERTIFICATEPOLICIES_free,
+CERTIFICATEPOLICIES_new,
+CMS_ContentInfo_free,
+CMS_ContentInfo_new,
+CMS_ContentInfo_new_ex,
+CMS_ContentInfo_print_ctx,
+CMS_ReceiptRequest_free,
+CMS_ReceiptRequest_new,
+CRL_DIST_POINTS_free,
+CRL_DIST_POINTS_new,
+DIRECTORYSTRING_free,
+DIRECTORYSTRING_new,
+DISPLAYTEXT_free,
+DISPLAYTEXT_new,
+DIST_POINT_NAME_free,
+DIST_POINT_NAME_new,
+DIST_POINT_free,
+DIST_POINT_new,
+DSAparams_dup,
+ECPARAMETERS_free,
+ECPARAMETERS_new,
+ECPKPARAMETERS_free,
+ECPKPARAMETERS_new,
+EDIPARTYNAME_free,
+EDIPARTYNAME_new,
+ESS_CERT_ID_dup,
+ESS_CERT_ID_free,
+ESS_CERT_ID_new,
+ESS_CERT_ID_V2_dup,
+ESS_CERT_ID_V2_free,
+ESS_CERT_ID_V2_new,
+ESS_ISSUER_SERIAL_dup,
+ESS_ISSUER_SERIAL_free,
+ESS_ISSUER_SERIAL_new,
+ESS_SIGNING_CERT_dup,
+ESS_SIGNING_CERT_free,
+ESS_SIGNING_CERT_it,
+ESS_SIGNING_CERT_new,
+ESS_SIGNING_CERT_V2_dup,
+ESS_SIGNING_CERT_V2_free,
+ESS_SIGNING_CERT_V2_it,
+ESS_SIGNING_CERT_V2_new,
+EXTENDED_KEY_USAGE_free,
+EXTENDED_KEY_USAGE_new,
+GENERAL_NAMES_free,
+GENERAL_NAMES_new,
+GENERAL_NAME_dup,
+GENERAL_NAME_free,
+GENERAL_NAME_new,
+GENERAL_SUBTREE_free,
+GENERAL_SUBTREE_new,
+IPAddressChoice_free,
+IPAddressChoice_new,
+IPAddressFamily_free,
+IPAddressFamily_new,
+IPAddressOrRange_free,
+IPAddressOrRange_new,
+IPAddressRange_free,
+IPAddressRange_new,
+ISSUER_SIGN_TOOL_free,
+ISSUER_SIGN_TOOL_it,
+ISSUER_SIGN_TOOL_new,
+ISSUING_DIST_POINT_free,
+ISSUING_DIST_POINT_it,
+ISSUING_DIST_POINT_new,
+NAME_CONSTRAINTS_free,
+NAME_CONSTRAINTS_new,
+NAMING_AUTHORITY_free,
+NAMING_AUTHORITY_new,
+NETSCAPE_CERT_SEQUENCE_free,
+NETSCAPE_CERT_SEQUENCE_new,
+NETSCAPE_SPKAC_free,
+NETSCAPE_SPKAC_new,
+NETSCAPE_SPKI_free,
+NETSCAPE_SPKI_new,
+NOTICEREF_free,
+NOTICEREF_new,
+OCSP_BASICRESP_free,
+OCSP_BASICRESP_new,
+OCSP_CERTID_dup,
+OCSP_CERTID_new,
+OCSP_CERTSTATUS_free,
+OCSP_CERTSTATUS_new,
+OCSP_CRLID_free,
+OCSP_CRLID_new,
+OCSP_ONEREQ_free,
+OCSP_ONEREQ_new,
+OCSP_REQINFO_free,
+OCSP_REQINFO_new,
+OCSP_RESPBYTES_free,
+OCSP_RESPBYTES_new,
+OCSP_RESPDATA_free,
+OCSP_RESPDATA_new,
+OCSP_RESPID_free,
+OCSP_RESPID_new,
+OCSP_RESPONSE_new,
+OCSP_REVOKEDINFO_free,
+OCSP_REVOKEDINFO_new,
+OCSP_SERVICELOC_free,
+OCSP_SERVICELOC_new,
+OCSP_SIGNATURE_free,
+OCSP_SIGNATURE_new,
+OCSP_SINGLERESP_free,
+OCSP_SINGLERESP_new,
+OSSL_CMP_ITAV_dup,
+OSSL_CMP_ITAV_free,
+OSSL_CMP_MSG_dup,
+OSSL_CMP_MSG_it,
+OSSL_CMP_MSG_free,
+OSSL_CMP_PKIHEADER_free,
+OSSL_CMP_PKIHEADER_it,
+OSSL_CMP_PKIHEADER_new,
+OSSL_CMP_PKISI_dup,
+OSSL_CMP_PKISI_free,
+OSSL_CMP_PKISI_it,
+OSSL_CMP_PKISI_new,
+OSSL_CMP_PKISTATUS_it,
+OSSL_CRMF_CERTID_dup,
+OSSL_CRMF_CERTID_free,
+OSSL_CRMF_CERTID_it,
+OSSL_CRMF_CERTID_new,
+OSSL_CRMF_CERTTEMPLATE_free,
+OSSL_CRMF_CERTTEMPLATE_it,
+OSSL_CRMF_CERTTEMPLATE_new,
+OSSL_CRMF_ENCRYPTEDVALUE_free,
+OSSL_CRMF_ENCRYPTEDVALUE_it,
+OSSL_CRMF_ENCRYPTEDVALUE_new,
+OSSL_CRMF_MSGS_free,
+OSSL_CRMF_MSGS_it,
+OSSL_CRMF_MSGS_new,
+OSSL_CRMF_MSG_dup,
+OSSL_CRMF_MSG_free,
+OSSL_CRMF_MSG_it,
+OSSL_CRMF_MSG_new,
+OSSL_CRMF_PBMPARAMETER_free,
+OSSL_CRMF_PBMPARAMETER_it,
+OSSL_CRMF_PBMPARAMETER_new,
+OSSL_CRMF_PKIPUBLICATIONINFO_free,
+OSSL_CRMF_PKIPUBLICATIONINFO_it,
+OSSL_CRMF_PKIPUBLICATIONINFO_new,
+OSSL_CRMF_SINGLEPUBINFO_free,
+OSSL_CRMF_SINGLEPUBINFO_it,
+OSSL_CRMF_SINGLEPUBINFO_new,
+OTHERNAME_free,
+OTHERNAME_new,
+PBE2PARAM_free,
+PBE2PARAM_new,
+PBEPARAM_free,
+PBEPARAM_new,
+PBKDF2PARAM_free,
+PBKDF2PARAM_new,
+PKCS12_BAGS_free,
+PKCS12_BAGS_new,
+PKCS12_MAC_DATA_free,
+PKCS12_MAC_DATA_new,
+PKCS12_SAFEBAG_free,
+PKCS12_SAFEBAG_new,
+PKCS12_free,
+PKCS12_new,
+PKCS7_DIGEST_free,
+PKCS7_DIGEST_new,
+PKCS7_ENCRYPT_free,
+PKCS7_ENCRYPT_new,
+PKCS7_ENC_CONTENT_free,
+PKCS7_ENC_CONTENT_new,
+PKCS7_ENVELOPE_free,
+PKCS7_ENVELOPE_new,
+PKCS7_ISSUER_AND_SERIAL_free,
+PKCS7_ISSUER_AND_SERIAL_new,
+PKCS7_RECIP_INFO_free,
+PKCS7_RECIP_INFO_new,
+PKCS7_SIGNED_free,
+PKCS7_SIGNED_new,
+PKCS7_SIGNER_INFO_free,
+PKCS7_SIGNER_INFO_new,
+PKCS7_SIGN_ENVELOPE_free,
+PKCS7_SIGN_ENVELOPE_new,
+PKCS7_dup,
+PKCS7_free,
+PKCS7_new_ex,
+PKCS7_new,
+PKCS7_print_ctx,
+PKCS8_PRIV_KEY_INFO_free,
+PKCS8_PRIV_KEY_INFO_new,
+PKEY_USAGE_PERIOD_free,
+PKEY_USAGE_PERIOD_new,
+POLICYINFO_free,
+POLICYINFO_new,
+POLICYQUALINFO_free,
+POLICYQUALINFO_new,
+POLICY_CONSTRAINTS_free,
+POLICY_CONSTRAINTS_new,
+POLICY_MAPPING_free,
+POLICY_MAPPING_new,
+PROFESSION_INFOS_free,
+PROFESSION_INFOS_new,
+PROFESSION_INFO_free,
+PROFESSION_INFO_new,
+PROXY_CERT_INFO_EXTENSION_free,
+PROXY_CERT_INFO_EXTENSION_new,
+PROXY_POLICY_free,
+PROXY_POLICY_new,
+RSAPrivateKey_dup,
+RSAPublicKey_dup,
+RSA_OAEP_PARAMS_free,
+RSA_OAEP_PARAMS_new,
+RSA_PSS_PARAMS_free,
+RSA_PSS_PARAMS_new,
+RSA_PSS_PARAMS_dup,
+SCRYPT_PARAMS_free,
+SCRYPT_PARAMS_new,
+SXNETID_free,
+SXNETID_new,
+SXNET_free,
+SXNET_new,
+TLS_FEATURE_free,
+TLS_FEATURE_new,
+TS_ACCURACY_dup,
+TS_ACCURACY_free,
+TS_ACCURACY_new,
+TS_MSG_IMPRINT_dup,
+TS_MSG_IMPRINT_free,
+TS_MSG_IMPRINT_new,
+TS_REQ_dup,
+TS_REQ_free,
+TS_REQ_new,
+TS_RESP_dup,
+TS_RESP_free,
+TS_RESP_new,
+TS_STATUS_INFO_dup,
+TS_STATUS_INFO_free,
+TS_STATUS_INFO_new,
+TS_TST_INFO_dup,
+TS_TST_INFO_free,
+TS_TST_INFO_new,
+USERNOTICE_free,
+USERNOTICE_new,
+X509_ALGOR_free,
+X509_ALGOR_it,
+X509_ALGOR_new,
+X509_ATTRIBUTE_dup,
+X509_ATTRIBUTE_free,
+X509_ATTRIBUTE_new,
+X509_CERT_AUX_free,
+X509_CERT_AUX_new,
+X509_CINF_free,
+X509_CINF_new,
+X509_CRL_INFO_free,
+X509_CRL_INFO_new,
+X509_CRL_dup,
+X509_CRL_free,
+X509_CRL_new_ex,
+X509_CRL_new,
+X509_EXTENSION_dup,
+X509_EXTENSION_free,
+X509_EXTENSION_new,
+X509_NAME_ENTRY_dup,
+X509_NAME_ENTRY_free,
+X509_NAME_ENTRY_new,
+X509_NAME_dup,
+X509_NAME_free,
+X509_NAME_new,
+X509_REQ_INFO_free,
+X509_REQ_INFO_new,
+X509_REQ_dup,
+X509_REQ_free,
+X509_REQ_new,
+X509_REQ_new_ex,
+X509_REVOKED_dup,
+X509_REVOKED_free,
+X509_REVOKED_new,
+X509_SIG_free,
+X509_SIG_new,
+X509_VAL_free,
+X509_VAL_new,
+X509_dup,
+- ASN1 object utilities
+
+=head1 SYNOPSIS
+
+=for openssl generic
+
+ #include <openssl/asn1t.h>
+
+ DECLARE_ASN1_FUNCTIONS(type)
+ IMPLEMENT_ASN1_FUNCTIONS(stname)
+
+ typedef struct ASN1_ITEM_st ASN1_ITEM;
+
+ extern const ASN1_ITEM TYPE_it;
+ TYPE *TYPE_new(void);
+ TYPE *TYPE_dup(const TYPE *a);
+ void TYPE_free(TYPE *a);
+ int TYPE_print_ctx(BIO *out, TYPE *a, int indent, const ASN1_PCTX *pctx);
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ DSA *DSAparams_dup(const DSA *dsa);
+ RSA *RSAPrivateKey_dup(const RSA *rsa);
+ RSA *RSAPublicKey_dup(const RSA *rsa);
+
+=head1 DESCRIPTION
+
+In the description below, B<I<TYPE>> is used
+as a placeholder for any of the OpenSSL datatypes, such as B<X509>.
+
+The OpenSSL ASN1 parsing library templates are like a data-driven bytecode
+interpreter.
+Every ASN1 object as a global variable, TYPE_it, that describes the item
+such as its fields.  (On systems which cannot export variables from shared
+libraries, the global is instead a function which returns a pointer to a
+static variable.
+
+The macro DECLARE_ASN1_FUNCTIONS() is typically used in header files
+to generate the function declarations.
+
+The macro IMPLEMENT_ASN1_FUNCTIONS() is used once in a source file
+to generate the function bodies.
+
+
+B<I<TYPE>_new>() allocates an empty object of the indicated type.
+The object returned must be released by calling B<I<TYPE>_free>().
+
+B<I<TYPE>_new_ex>() is similar to B<I<TYPE>_new>() but also passes the
+library context I<libctx> and the property query I<propq> to use when retrieving
+algorithms from providers. This created object can then be used when loading
+binary data using B<d2i_I<TYPE>>().
+
+B<I<TYPE>_dup>() copies an existing object, leaving it untouched.
+Note, however, that the internal representation of the object
+may contain (besides the ASN.1 structure) further data, which is not copied.
+For instance, an B<X509> object usually is augmented by cached information
+on X.509v3 extensions, etc., and losing it can lead to wrong validation results.
+To avoid such situations, better use B<I<TYPE>_up_ref>() if available.
+For the case of B<X509> objects, an alternative to using L<X509_up_ref(3)>
+may be to still call B<I<TYPE>_dup>(), e.g., I<copied_cert = X509_dup(cert)>,
+followed by I<X509_check_purpose(copied_cert, -1, 0)>,
+which re-builds the cached data.
+
+B<I<TYPE>_free>() releases the object and all pointers and sub-objects
+within it.
+
+B<I<TYPE>_print_ctx>() prints the object I<a> on the specified BIO I<out>.
+Each line will be prefixed with I<indent> spaces.
+The I<pctx> specifies the printing context and is for internal
+use; use NULL to get the default behavior.  If a print function is
+user-defined, then pass in any I<pctx> down to any nested calls.
+
+=head1 RETURN VALUES
+
+B<I<TYPE>_new>(), B<I<TYPE>_new_ex>() and B<I<TYPE>_dup>() return a pointer to
+the object or NULL on failure.
+
+B<I<TYPE>_print_ctx>() returns 1 on success or zero on failure.
+
+=head1 SEE ALSO
+
+L<X509_up_ref(3)>
+
+=head1 HISTORY
+
+The functions X509_REQ_new_ex(), X509_CRL_new_ex(), PKCS7_new_ex() and
+CMS_ContentInfo_new_ex() were added in OpenSSL 3.0.
+
+The functions DSAparams_dup(), RSAPrivateKey_dup() and RSAPublicKey_dup() were
+deprecated in 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

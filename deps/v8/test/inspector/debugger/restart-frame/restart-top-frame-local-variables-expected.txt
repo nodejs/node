@@ -1,0 +1,108 @@
+Checks that after restarting the top frame, local variables are reset
+Paused at (after evaluation):
+  let z = 'some let';
+  #debugger;
+}
+
+Pause stack:
+  foo:5 (canBeRestarted = true)
+
+Evaluating x:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some var
+        }
+    }
+}
+Evaluating y:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some const
+        }
+    }
+}
+Evaluating z:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some let
+        }
+    }
+}
+Restarting function "foo" ...
+Paused at (after restart):
+function foo() {
+  var x = #'some var';
+  const y = 'some const';
+
+Evaluating x:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Evaluating y:
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: Cannot access 'y' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : ReferenceError
+            description : ReferenceError: Cannot access 'y' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+Evaluating z:
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: Cannot access 'z' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : ReferenceError
+            description : ReferenceError: Cannot access 'z' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}

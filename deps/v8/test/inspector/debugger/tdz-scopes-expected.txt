@@ -1,0 +1,53 @@
+Test scopes with variables in TDZ.
+Debug break
+  Scope type: block
+    blockLet : <value_unavailable>
+    blockConst : <value_unavailable>
+    contextBlockLet : <value_unavailable>
+    contextBlockConst : <value_unavailable>
+  Scope type: script
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
+Debug break
+  Scope type: local
+  Scope type: block
+    contextBlockLet : <value_unavailable>
+    contextBlockConst : <value_unavailable>
+  Scope type: script
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
+Debug break
+  Scope type: block
+    blockLet : 1
+    blockConst : 2
+    contextBlockLet : 3
+    contextBlockConst : 4
+  Scope type: script
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
+Debug break
+  Scope type: local
+  Scope type: block
+    contextBlockLet : 3
+    contextBlockConst : 4
+  Scope type: script
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
+Debug break
+  Scope type: script
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
+Debug break
+  Scope type: local
+  Scope type: script
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
+Debug break
+  Scope type: script
+    scriptLet : 1
+    scriptConst : 2
+Debug break
+  Scope type: local
+  Scope type: script
+    scriptLet : 1
+    scriptConst : 2

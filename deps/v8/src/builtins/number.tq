@@ -1,0 +1,882 @@
+// Copyright 2019 the V8 project authors. All rights reserved. Use of this
+// source code is governed by a BSD-style license that can be found in the
+// LICENSE file.
+
+#include 'src/ic/binary-op-assembler.h'
+
+extern enum Operation extends uint31 {
+  // Binary operations.
+  kAdd,
+  kSubtract,
+  kMultiply,
+  kDivide,
+  kModulus,
+  kExponentiate,
+  kBitwiseAnd,
+  kBitwiseOr,
+  kBitwiseXor,
+  kShiftLeft,
+  kShiftRight,
+  kShiftRightLogical,
+  // Unary operations.
+  kBitwiseNot,
+  kNegate,
+  kIncrement,
+  kDecrement,
+  // Compare operations.
+  kEqual,
+  kStrictEqual,
+  kLessThan,
+  kLessThanOrEqual,
+  kGreaterThan,
+  kGreaterThanOrEqual
+}
+
+namespace runtime {
+extern transitioning runtime DoubleToStringWithRadix(
+    implicit context: Context)(Number, Number): String;
+
+extern transitioning runtime StringParseFloat(
+    implicit context: Context)(String): Number;
+extern transitioning runtime StringParseInt(
+    implicit context: Context)(JSAny, JSAny): Number;
+
+extern runtime BigIntUnaryOp(Context, BigInt, SmiTagged<Operation>): BigInt;
+extern runtime BigIntBinaryOp(Context, Numeric, Numeric, SmiTagged<Operation>):
+    BigInt;
+}  // namespace runtime
+
+namespace number {
+extern macro NaNStringConstant(): String;
+extern macro ZeroStringConstant(): String;
+extern macro InfinityStringConstant(): String;
+extern macro MinusInfinityStringConstant(): String;
+extern macro Log10OffsetTable(): RawPtr<uint64>;
+
+transitioning macro ThisNumberValue(
+    implicit context: Context)(receiver: JSAny,
+    method: constexpr string): Number {
+  return UnsafeCast<Number>(
+      ToThisValue(receiver, PrimitiveType::kNumber, method));
+}
+
+macro ToCharCode(input: uint32): char8 {
+  dcheck(input < 36);
+  // 48 == '0', 97 == 'a'.
+  return input < 10 ? %RawDownCast<char8>(input + 48) :
+                      %RawDownCast<char8>(input - 10 + 97);
+}
+
+macro IntToDecimalStringImpl(
+    x: int32, log10OffsetsTable: RawPtr<uint64>,
+    isPositive: constexpr bool): String {
+  dcheck(isPositive == (x >= 0));
+  let n: uint32 = isPositive ? Unsigned(x) : Unsigned(0 - x);
+  const log2: int32 = 31 - math::Word32Clz(Signed(n) | 1);
+  const tableEntry: uint64 = log10OffsetsTable[Convert<intptr>(log2)];
+  const digitCount: uint64 = (Convert<uint64>(n) + tableEntry) >>> 32;
+  let length = Convert<uint32>(digitCount);
+  if constexpr (!isPositive) length++;  // For the '-'.
+  const string = AllocateNonEmptySeqOneByteString(length);
+  if constexpr (isPositive) {
+    string.raw_hash_field = MakeArrayIndexHash(n, length);
+  }
+  const lengthIntptr = Convert<intptr>(Signed(length));
+  let cursor: intptr = lengthIntptr - 1;
+  const rawChars = &string.chars;
+  while (true) {
+    const kInverse: uint64 = 0xcccccccd;
+    const quotient = Convert<uint32>((Convert<uint64>(n) * kInverse) >>> 35);
+    const remainder = n - quotient * 10;
+    const nextChar = %RawDownCast<char8>(remainder | 48);  // 48 == '0'
+    // Writing to string.chars[cursor] directly would implicitly emit a
+    // bounds check, and we don't want no bounds check, thank you very much.
+    *UnsafeConstCast(rawChars.UncheckedAtIndex(cursor)) = nextChar;
+    cursor--;
+    n = quotient;
+    if (n == 0) break;
+  }
+  if constexpr (!isPositive) {
+    *UnsafeConstCast(rawChars.UncheckedAtIndex(0)) = 45;  // 45 == '-'
+  }
+  return string;
+}
+
+@export
+macro IntToDecimalString(x: int32): String {
+  if constexpr (Is64()) {
+    const log10OffsetsTable: RawPtr<uint64> = Log10OffsetTable();
+    if (x >= 0) {
+      if (x < 10) {
+        if (x == 0) {
+          return ZeroStringConstant();
+        }
+        return StringFromSingleCharCode(ToCharCode(Unsigned(x)));
+      }
+      return IntToDecimalStringImpl(x, log10OffsetsTable, true);
+    } else {
+      return IntToDecimalStringImpl(x, log10OffsetsTable, false);
+    }
+  } else {
+    // The generic implementation doesn't rely on 64-bit instructions.
+    return IntToString(x, 10);
+  }
+}
+
+macro IntToString(x: int32, radix: uint32): String {
+  if constexpr (Is64()) {
+    dcheck(radix != 10);  // Use IntToDecimalString otherwise.
+  }
+  const isNegative: bool = x < 0;
+  let n: uint32;
+  if (!isNegative) {
+    // Fast case where the result is a one character string.
+    n = Unsigned(x);
+    if (n < radix) {
+      if (n == 0) {
+        return ZeroStringConstant();
+      }
+      return StringFromSingleCharCode(ToCharCode(n));
+    }
+  } else {
+    dcheck(isNegative);
+    n = Unsigned(0 - x);
+  }
+
+  // Calculate length and pre-allocate the result string.
+  let temp: uint32 = n;
+  let length: int32 = isNegative ? Convert<int32>(1) : Convert<int32>(0);
+  while (temp > 0) {
+    temp = temp / radix;
+    length = length + 1;
+  }
+  dcheck(length > 0);
+  const strSeq = AllocateNonEmptySeqOneByteString(Unsigned(length));
+  let cursor: intptr = Convert<intptr>(length) - 1;
+  while (n > 0) {
+    const digit: uint32 = n % radix;
+    n = n / radix;
+    *UnsafeConstCast(&strSeq.chars[cursor]) = ToCharCode(digit);
+    cursor = cursor - 1;
+  }
+  if (isNegative) {
+    dcheck(cursor == 0);
+    // Insert '-' to result.
+    *UnsafeConstCast(&strSeq.chars[0]) = 45;
+  } else {
+    dcheck(cursor == -1);
+    if constexpr (!Is64()) {
+      if (radix == 10) {
+        dcheck(strSeq.raw_hash_field == kNameEmptyHashField);
+        strSeq.raw_hash_field =
+            MakeArrayIndexHash(Unsigned(x), Unsigned(length));
+      }
+    }
+  }
+  return strSeq;
+}
+
+// https://tc39.github.io/ecma262/#sec-number.prototype.tostring
+transitioning javascript builtin NumberPrototypeToString(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
+  // 1. Let x be ? thisNumberValue(this value).
+  const x = ThisNumberValue(receiver, 'Number.prototype.toString');
+
+  // 2. If radix is not present, let radixNumber be 10.
+  // 3. Else if radix is undefined, let radixNumber be 10.
+  // 4. Else, let radixNumber be ? ToInteger(radix).
+  const radix: JSAny = arguments[0];
+  const radixNumber: Number = radix == Undefined ? 10 : ToInteger_Inline(radix);
+
+  // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
+  if (radixNumber < 2 || radixNumber > 36) {
+    ThrowRangeError(MessageTemplate::kToRadixFormatRange);
+  }
+
+  // 6. If radixNumber = 10, return ! ToString(x).
+  if (radixNumber == 10) {
+    return NumberToString(x);
+  }
+
+  // 7. Return the String representation of this Number
+  //    value using the radix specified by radixNumber.
+
+  if (TaggedIsSmi(x)) {
+    return IntToString(
+        Convert<int32>(x), Unsigned(Convert<int32>(radixNumber)));
+  }
+
+  if (x == -0) {
+    return ZeroStringConstant();
+  } else if (::NumberIsNaN(x)) {
+    return NaNStringConstant();
+  } else if (x == V8_INFINITY) {
+    return InfinityStringConstant();
+  } else if (x == MINUS_V8_INFINITY) {
+    return MinusInfinityStringConstant();
+  }
+
+  return runtime::DoubleToStringWithRadix(x, radixNumber);
+}
+
+// ES6 #sec-number.isfinite
+javascript builtin NumberIsFinite(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    value: JSAny): Boolean {
+  typeswitch (value) {
+    case (Smi): {
+      return True;
+    }
+    case (h: HeapNumber): {
+      const number: float64 = Convert<float64>(h);
+      const infiniteOrNaN: bool = Float64IsNaN(number - number);
+      return Convert<Boolean>(!infiniteOrNaN);
+    }
+    case (JSAnyNotNumber): {
+      return False;
+    }
+  }
+}
+
+// ES6 #sec-number.isinteger
+javascript builtin NumberIsInteger(
+    js-implicit context: NativeContext)(value: JSAny): Boolean {
+  return SelectBooleanConstant(IsInteger(value));
+}
+
+// ES6 #sec-number.isnan
+javascript builtin NumberIsNaN(
+    js-implicit context: NativeContext)(value: JSAny): Boolean {
+  typeswitch (value) {
+    case (Smi): {
+      return False;
+    }
+    case (h: HeapNumber): {
+      const number: float64 = Convert<float64>(h);
+      return Convert<Boolean>(Float64IsNaN(number));
+    }
+    case (JSAnyNotNumber): {
+      return False;
+    }
+  }
+}
+
+// ES6 #sec-number.issafeinteger
+javascript builtin NumberIsSafeInteger(
+    js-implicit context: NativeContext)(value: JSAny): Boolean {
+  return SelectBooleanConstant(IsSafeInteger(value));
+}
+
+// ES6 #sec-number.prototype.valueof
+transitioning javascript builtin NumberPrototypeValueOf(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  return ToThisValue(
+      receiver, PrimitiveType::kNumber, 'Number.prototype.valueOf');
+}
+
+// ES6 #sec-number.parsefloat
+transitioning javascript builtin NumberParseFloat(
+    js-implicit context: NativeContext)(value: JSAny): Number {
+  try {
+    typeswitch (value) {
+      case (s: Smi): {
+        return s;
+      }
+      case (h: HeapNumber): {
+        // The input is already a Number. Take care of -0.
+        // The sense of comparison is important for the NaN case.
+        return (Convert<float64>(h) == 0) ? SmiConstant(0) : h;
+      }
+      case (s: String): {
+        goto String(s);
+      }
+      case (HeapObject): {
+        goto String(string::ToString(context, value));
+      }
+    }
+  } label String(s: String) {
+    // Check if the string is a cached array index.
+    const hash: NameHash = s.raw_hash_field;
+    if (IsIntegerIndex(hash) &&
+        hash.array_index_length < kMaxCachedArrayIndexLength) {
+      const arrayIndex: uint32 = hash.array_index_value;
+      return SmiFromUint32(arrayIndex);
+    }
+    // Fall back to the runtime to convert string to a number.
+    return runtime::StringParseFloat(s);
+  }
+}
+
+extern macro TruncateFloat64ToWord32(float64): uint32;
+
+transitioning builtin ParseInt(
+    implicit context: Context)(input: JSAny, radix: JSAny): Number {
+  try {
+    // Check if radix should be 10 (i.e. undefined, 0 or 10).
+    if (radix != Undefined && !TaggedEqual(radix, SmiConstant(10)) &&
+        !TaggedEqual(radix, SmiConstant(0))) {
+      goto CallRuntime;
+    }
+
+    typeswitch (input) {
+      case (s: Smi): {
+        return s;
+      }
+      case (h: HeapNumber): {
+        // Check if the input value is in Signed32 range.
+        const asFloat64: float64 = Convert<float64>(h);
+        const asInt32: int32 = Signed(TruncateFloat64ToWord32(asFloat64));
+        // The sense of comparison is important for the NaN case.
+        if (asFloat64 == ChangeInt32ToFloat64(asInt32)) goto Int32(asInt32);
+
+        // Check if the absolute value of input is in the [1,1<<31[ range. Call
+        // the runtime for the range [0,1[ because the result could be -0.
+        const kMaxAbsValue: float64 = 2147483648.0;
+        const absInput: float64 = math::Float64Abs(asFloat64);
+        if (absInput < kMaxAbsValue && absInput >= 1.0) goto Int32(asInt32);
+        goto CallRuntime;
+      }
+      case (s: String): {
+        goto String(s);
+      }
+      case (HeapObject): {
+        goto CallRuntime;
+      }
+    }
+  } label Int32(i: int32) {
+    return ChangeInt32ToTagged(i);
+  } label String(s: String) {
+    // Check if the string is a cached array index.
+    const hash: NameHash = s.raw_hash_field;
+    if (IsIntegerIndex(hash) &&
+        hash.array_index_length < kMaxCachedArrayIndexLength) {
+      const arrayIndex: uint32 = hash.array_index_value;
+      return SmiFromUint32(arrayIndex);
+    }
+    // Fall back to the runtime.
+    goto CallRuntime;
+  } label CallRuntime {
+    tail runtime::StringParseInt(input, radix);
+  }
+}
+
+// ES6 #sec-number.parseint
+transitioning javascript builtin NumberParseInt(
+    js-implicit context: NativeContext)(value: JSAny, radix: JSAny): Number {
+  return ParseInt(value, radix);
+}
+
+extern builtin NonNumberToNumeric(implicit context: Context)(JSAny): Numeric;
+extern builtin Subtract(implicit context: Context)(Number, Number): Number;
+extern builtin Add(implicit context: Context)(Number, Number): Number;
+extern builtin StringAddConvertLeft(implicit context: Context)(JSAny, String):
+    JSAny;
+extern builtin StringAddConvertRight(implicit context: Context)(String, JSAny):
+    JSAny;
+
+extern macro BitwiseOp(int32, int32, constexpr Operation): Number;
+extern macro RelationalComparison(constexpr Operation, JSAny, JSAny, Context):
+    Boolean;
+extern macro TruncateNumberToWord32(Number): int32;
+
+// TODO(bbudge) Use a simpler macro structure that doesn't loop when converting
+// non-numbers, if such a code sequence doesn't make the builtin bigger.
+
+transitioning macro ToNumericOrPrimitive(
+    implicit context: Context)(value: JSAny): JSAny {
+  typeswitch (value) {
+    case (v: JSReceiver): {
+      return NonPrimitiveToPrimitive_Default(context, v);
+    }
+    case (v: JSPrimitive): {
+      return NonNumberToNumeric(v);
+    }
+  }
+}
+
+transitioning builtin Add(
+    implicit context: Context)(leftArg: JSAny, rightArg: JSAny): JSAny {
+  let left: JSAny = leftArg;
+  let right: JSAny = rightArg;
+  try {
+    while (true) {
+      typeswitch (left) {
+        case (left: Smi): {
+          typeswitch (right) {
+            case (right: Smi): {
+              return math::TrySmiAdd(left, right) otherwise goto Float64s(
+                  SmiToFloat64(left), SmiToFloat64(right));
+            }
+            case (right: HeapNumber): {
+              goto Float64s(SmiToFloat64(left), Convert<float64>(right));
+            }
+            case (right: BigInt): {
+              goto Numerics(left, right);
+            }
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (HeapObject): {
+              right = ToNumericOrPrimitive(right);
+              continue;
+            }
+          }
+        }
+        case (left: HeapNumber): {
+          typeswitch (right) {
+            case (right: Smi): {
+              goto Float64s(Convert<float64>(left), SmiToFloat64(right));
+            }
+            case (right: HeapNumber): {
+              goto Float64s(Convert<float64>(left), Convert<float64>(right));
+            }
+            case (right: BigInt): {
+              goto Numerics(left, right);
+            }
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (HeapObject): {
+              right = ToNumericOrPrimitive(right);
+              continue;
+            }
+          }
+        }
+        case (left: BigInt): {
+          typeswitch (right) {
+            case (right: Numeric): {
+              goto Numerics(left, right);
+            }
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (HeapObject): {
+              right = ToNumericOrPrimitive(right);
+              continue;
+            }
+          }
+        }
+        case (left: String): {
+          goto StringAddConvertRight(left, right);
+        }
+        case (leftReceiver: JSReceiver): {
+          left = ToPrimitiveDefault(leftReceiver);
+        }
+        case (HeapObject): {
+          // left: HeapObject
+          typeswitch (right) {
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (rightReceiver: JSReceiver): {
+              // left is JSPrimitive and right is JSReceiver, convert right
+              // with priority.
+              right = ToPrimitiveDefault(rightReceiver);
+              continue;
+            }
+            case (JSPrimitive): {
+              // Neither left or right is JSReceiver, convert left.
+              left = NonNumberToNumeric(left);
+              continue;
+            }
+          }
+        }
+      }
+    }
+  } label StringAddConvertLeft(left: JSAny, right: String) {
+    tail StringAddConvertLeft(left, right);
+  } label StringAddConvertRight(left: String, right: JSAny) {
+    tail StringAddConvertRight(left, right);
+  } label Numerics(left: Numeric, right: Numeric) {
+    tail bigint::BigIntAdd(left, right);
+  } label Float64s(left: float64, right: float64) {
+    return AllocateHeapNumberWithValue(left + right);
+  }
+  unreachable;
+}
+
+// Unary type switch on Number | BigInt.
+macro UnaryOp1(implicit context: Context)(value: JSAny): never labels
+Number(Number), BigInt(BigInt) {
+  let x: JSAny = value;
+  while (true) {
+    typeswitch (x) {
+      case (n: Number): {
+        goto Number(n);
+      }
+      case (b: BigInt): {
+        goto BigInt(b);
+      }
+      case (JSAnyNotNumeric): {
+        x = NonNumberToNumeric(x);
+      }
+    }
+  }
+  unreachable;
+}
+
+// Unary type switch on Smi | HeapNumber | BigInt.
+macro UnaryOp2(implicit context: Context)(value: JSAny): never labels
+Smi(Smi), HeapNumber(HeapNumber), BigInt(BigInt) {
+  let x: JSAny = value;
+  while (true) {
+    typeswitch (x) {
+      case (s: Smi): {
+        goto Smi(s);
+      }
+      case (h: HeapNumber): {
+        goto HeapNumber(h);
+      }
+      case (b: BigInt): {
+        goto BigInt(b);
+      }
+      case (JSAnyNotNumeric): {
+        x = NonNumberToNumeric(x);
+      }
+    }
+  }
+  unreachable;
+}
+
+// Binary type switch on Number | BigInt.
+macro BinaryOp1(implicit context: Context)(leftVal: JSAny, rightVal: JSAny):
+    never labels
+Number(Number, Number), AtLeastOneBigInt(Numeric, Numeric) {
+  let left: JSAny = leftVal;
+  let right: JSAny = rightVal;
+  while (true) {
+    try {
+      typeswitch (left) {
+        case (left: Number): {
+          typeswitch (right) {
+            case (right: Number): {
+              goto Number(left, right);
+            }
+            case (right: BigInt): {
+              goto AtLeastOneBigInt(left, right);
+            }
+            case (JSAnyNotNumeric): {
+              goto RightNotNumeric;
+            }
+          }
+        }
+        case (left: BigInt): {
+          typeswitch (right) {
+            case (right: Numeric): {
+              goto AtLeastOneBigInt(left, right);
+            }
+            case (JSAnyNotNumeric): {
+              goto RightNotNumeric;
+            }
+          }
+        }
+        case (JSAnyNotNumeric): {
+          left = NonNumberToNumeric(left);
+        }
+      }
+    } label RightNotNumeric {
+      right = NonNumberToNumeric(right);
+    }
+  }
+  unreachable;
+}
+
+// Binary type switch on Smi | HeapNumber | BigInt.
+macro BinaryOp2(implicit context: Context)(leftVal: JSAny, rightVal: JSAny):
+    never labels Smis(Smi, Smi), Float64s(float64, float64),
+    AtLeastOneBigInt(Numeric, Numeric) {
+  let left: JSAny = leftVal;
+  let right: JSAny = rightVal;
+  while (true) {
+    try {
+      typeswitch (left) {
+        case (left: Smi): {
+          typeswitch (right) {
+            case (right: Smi): {
+              goto Smis(left, right);
+            }
+            case (right: HeapNumber): {
+              goto Float64s(SmiToFloat64(left), Convert<float64>(right));
+            }
+            case (right: BigInt): {
+              goto AtLeastOneBigInt(left, right);
+            }
+            case (JSAnyNotNumeric): {
+              goto RightNotNumeric;
+            }
+          }
+        }
+        case (left: HeapNumber): {
+          typeswitch (right) {
+            case (right: Smi): {
+              goto Float64s(Convert<float64>(left), SmiToFloat64(right));
+            }
+            case (right: HeapNumber): {
+              goto Float64s(Convert<float64>(left), Convert<float64>(right));
+            }
+            case (right: BigInt): {
+              goto AtLeastOneBigInt(left, right);
+            }
+            case (JSAnyNotNumeric): {
+              goto RightNotNumeric;
+            }
+          }
+        }
+        case (left: BigInt): {
+          typeswitch (right) {
+            case (right: Numeric): {
+              goto AtLeastOneBigInt(left, right);
+            }
+            case (JSAnyNotNumeric): {
+              goto RightNotNumeric;
+            }
+          }
+        }
+        case (JSAnyNotNumeric): {
+          left = NonNumberToNumeric(left);
+        }
+      }
+    } label RightNotNumeric {
+      right = NonNumberToNumeric(right);
+    }
+  }
+  unreachable;
+}
+
+builtin Subtract(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
+  } label Smis(left: Smi, right: Smi) {
+    try {
+      return math::TrySmiSub(left, right) otherwise Overflow;
+    } label Overflow {
+      goto Float64s(SmiToFloat64(left), SmiToFloat64(right));
+    }
+  } label Float64s(left: float64, right: float64) {
+    return AllocateHeapNumberWithValue(left - right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntSubtract(left, right);
+  }
+}
+
+builtin Multiply(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
+  } label Smis(left: Smi, right: Smi) {
+    // The result is not necessarily a smi, in case of overflow.
+    return SmiMul(left, right);
+  } label Float64s(left: float64, right: float64) {
+    return AllocateHeapNumberWithValue(left * right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntMultiply(left, right);
+  }
+}
+
+const kSmiValueSize: constexpr int32 generates 'kSmiValueSize';
+const kMinInt32: constexpr int32 generates 'kMinInt';
+const kMinInt31: constexpr int32 generates 'kMinInt31';
+const kMinimumDividend: int32 = (kSmiValueSize == 32) ? kMinInt32 : kMinInt31;
+
+builtin Divide(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
+  } label Smis(left: Smi, right: Smi) {
+    // TODO(jkummerow): Consider just always doing a double division.
+    // Bail out if {divisor} is zero.
+    if (right == 0) goto SmiBailout(left, right);
+
+    // Bail out if dividend is zero and divisor is negative.
+    if (left == 0 && right < 0) goto SmiBailout(left, right);
+
+    const dividend: int32 = SmiToInt32(left);
+    const divisor: int32 = SmiToInt32(right);
+
+    // Bail out if dividend is kMinInt31 (or kMinInt32 if Smis are 32 bits)
+    // and divisor is -1.
+    if (divisor == -1 && dividend == kMinimumDividend) {
+      goto SmiBailout(left, right);
+    }
+    // TODO(epertoso): consider adding a machine instruction that returns
+    // both the result and the remainder.
+    const result: int32 = dividend / divisor;
+    const truncated: int32 = result * divisor;
+    if (dividend != truncated) goto SmiBailout(left, right);
+    return SmiFromInt32(result);
+  } label SmiBailout(left: Smi, right: Smi) {
+    goto Float64s(SmiToFloat64(left), SmiToFloat64(right));
+  } label Float64s(left: float64, right: float64) {
+    return AllocateHeapNumberWithValue(left / right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntDivide(left, right);
+  }
+}
+
+builtin Modulus(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
+  } label Smis(left: Smi, right: Smi) {
+    return SmiMod(left, right);
+  } label Float64s(left: float64, right: float64) {
+    return AllocateHeapNumberWithValue(left % right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntModulus(left, right);
+  }
+}
+
+builtin Exponentiate(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Numbers, AtLeastOneBigInt;
+  } label Numbers(left: Number, right: Number) {
+    return math::MathPowImpl(left, right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail runtime::BigIntBinaryOp(
+        context, left, right, SmiTag<Operation>(Operation::kExponentiate));
+  }
+}
+
+builtin Negate(implicit context: Context)(value: JSAny): Numeric {
+  try {
+    UnaryOp2(value) otherwise Smi, HeapNumber, BigInt;
+  } label Smi(s: Smi) {
+    return SmiMul(s, -1);
+  } label HeapNumber(h: HeapNumber) {
+    return AllocateHeapNumberWithValue(Convert<float64>(h) * -1.0);
+  } label BigInt(b: BigInt) {
+    tail runtime::BigIntUnaryOp(
+        context, b, SmiTag<Operation>(Operation::kNegate));
+  }
+}
+
+builtin BitwiseNot(implicit context: Context)(value: JSAny): Numeric {
+  try {
+    UnaryOp1(value) otherwise Number, BigInt;
+  } label Number(n: Number) {
+    return BitwiseOp(TruncateNumberToWord32(n), -1, Operation::kBitwiseXor);
+  } label BigInt(b: BigInt) {
+    return runtime::BigIntUnaryOp(
+        context, b, SmiTag<Operation>(Operation::kBitwiseNot));
+  }
+}
+
+builtin Decrement(implicit context: Context)(value: JSAny): Numeric {
+  try {
+    UnaryOp1(value) otherwise Number, BigInt;
+  } label Number(n: Number) {
+    tail Subtract(n, 1);
+  } label BigInt(b: BigInt) {
+    return runtime::BigIntUnaryOp(
+        context, b, SmiTag<Operation>(Operation::kDecrement));
+  }
+}
+
+builtin Increment(implicit context: Context)(value: JSAny): Numeric {
+  try {
+    UnaryOp1(value) otherwise Number, BigInt;
+  } label Number(n: Number) {
+    tail Add(n, 1);
+  } label BigInt(b: BigInt) {
+    return runtime::BigIntUnaryOp(
+        context, b, SmiTag<Operation>(Operation::kIncrement));
+  }
+}
+
+// Bitwise binary operations.
+
+extern macro BinaryOpAssembler::Generate_BitwiseBinaryOp(
+    constexpr Operation, JSAny, JSAny, Context): Object;
+
+builtin ShiftLeft(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
+  return Generate_BitwiseBinaryOp(Operation::kShiftLeft, left, right, context);
+}
+
+builtin ShiftRight(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
+  return Generate_BitwiseBinaryOp(Operation::kShiftRight, left, right, context);
+}
+
+builtin ShiftRightLogical(
+    implicit context: Context)(left: JSAny, right: JSAny): Object {
+  return Generate_BitwiseBinaryOp(
+      Operation::kShiftRightLogical, left, right, context);
+}
+
+builtin BitwiseAnd(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    return BitwiseOp(
+        TruncateNumberToWord32(left), TruncateNumberToWord32(right),
+        Operation::kBitwiseAnd);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseAnd(left, right);
+  }
+}
+
+builtin BitwiseOr(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    return BitwiseOp(
+        TruncateNumberToWord32(left), TruncateNumberToWord32(right),
+        Operation::kBitwiseOr);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseOr(left, right);
+  }
+}
+
+builtin BitwiseXor(implicit context: Context)(left: JSAny, right: JSAny):
+    Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    return BitwiseOp(
+        TruncateNumberToWord32(left), TruncateNumberToWord32(right),
+        Operation::kBitwiseXor);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseXor(left, right);
+  }
+}
+
+// Relational builtins.
+
+builtin LessThan(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
+  return RelationalComparison(Operation::kLessThan, left, right, context);
+}
+
+builtin LessThanOrEqual(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
+  return RelationalComparison(
+      Operation::kLessThanOrEqual, left, right, context);
+}
+
+builtin GreaterThan(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
+  return RelationalComparison(Operation::kGreaterThan, left, right, context);
+}
+
+builtin GreaterThanOrEqual(
+    implicit context: Context)(left: JSAny, right: JSAny): Object {
+  return RelationalComparison(
+      Operation::kGreaterThanOrEqual, left, right, context);
+}
+
+builtin Equal(implicit context: Context)(left: JSAny, right: JSAny): Object {
+  return Equal(left, right, context);
+}
+
+builtin StrictEqual(implicit context: Context)(left: JSAny, right: JSAny):
+    Object {
+  return ::StrictEqual(left, right);
+}
+
+}  // namespace number

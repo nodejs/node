@@ -1,0 +1,33 @@
+{
+  "name": "cidr-regex",
+  "version": "4.0.5",
+  "description": "Regular expression for matching IP addresses in CIDR notation",
+  "author": "silverwind <me@silverwind.io>",
+  "contributors": [
+    "Felipe Apostol <flipjs.io@gmail.com> (http://flipjs.io/)"
+  ],
+  "repository": "silverwind/cidr-regex",
+  "license": "BSD-2-Clause",
+  "type": "module",
+  "exports": "./index.js",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=14"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
+  "dependencies": {
+    "ip-regex": "^5.0.0"
+  },
+  "devDependencies": {
+    "eslint": "8.57.0",
+    "eslint-config-silverwind": "83.0.1",
+    "tsd": "0.31.0",
+    "updates": "16.0.0",
+    "versions": "12.0.1",
+    "vitest": "1.4.0",
+    "vitest-config-silverwind": "7.0.3"
+  }
+}

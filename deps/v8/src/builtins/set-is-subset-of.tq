@@ -1,0 +1,99 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace collections {
+
+// https://tc39.es/proposal-set-methods/#sec-set.prototype.issubsetof
+transitioning javascript builtin SetPrototypeIsSubsetOf(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    other: JSAny): Boolean {
+  const methodName: constexpr string = 'Set.prototype.isSubsetOf';
+
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+  const o = Cast<JSSet>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
+
+  // 3. Let otherRec be ? GetSetRecord(other).
+  let otherRec = GetSetRecord(other, methodName);
+
+  const table = NewStableBackingTableWitness(o);
+
+  // 4. Let thisSize be the number of elements in O.[[SetData]].
+  const thisSize = table.LoadSize();
+
+  // 5. If thisSize > otherRec.[[Size]], return false.
+  if (thisSize > Convert<int32>(otherRec.size)) {
+    return False;
+  }
+
+  // 6. Let index be 0.
+
+  try {
+    typeswitch (other) {
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
+
+        const otherTable = NewStableBackingTableWitness(otherSet);
+
+        let thisIter =
+            collections::NewUnmodifiedOrderedHashSetIterator(table.GetTable());
+        while (true) {
+          const key = thisIter.Next() otherwise Done;
+
+          if (!otherTable.HasKey(key)) {
+            return False;
+          }
+        }
+      }
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
+
+        const otherTable = NewStableBackingTableWitness(otherMap);
+
+        let thisIter =
+            collections::NewUnmodifiedOrderedHashSetIterator(table.GetTable());
+        while (true) {
+          const key = thisIter.Next() otherwise Done;
+
+          if (!otherTable.HasKey(key)) {
+            return False;
+          }
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
+    // 7. Repeat, while index < thisSize,
+    let thisIter = collections::NewOrderedHashSetIterator(table.GetTable());
+    while (true) {
+      // a. Let e be O.[[SetData]][index].
+      const key = thisIter.Next() otherwise Done;
+
+      // b. Set index to index + 1.
+      // c. Let inOther be ToBoolean(? Call(otherRec.[[Has]], otherRec.[[Set]],
+      // « e »)).
+      const inOther =
+          ToBoolean(Call(context, otherRec.has, otherRec.object, key));
+
+      // d. If inOther is false, return false.
+      if (!inOther) {
+        return False;
+      }
+      // e. NOTE: The number of elements in O.[[SetData]] may have increased
+      // during execution of otherRec.[[Has]].
+      // f. Set thisSize to the number of elements of O.[[SetData]].
+      // We have used `collections::NewOrderedHashSetIterator` which allows
+      // changes on the table.
+    }
+  } label Done {
+    // 8. Return true.
+    return True;
+  }
+  unreachable;
+}
+}

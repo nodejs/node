@@ -1,0 +1,161 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace collections {
+
+// https://tc39.es/proposal-set-methods/#sec-set.prototype.isdisjointfrom
+transitioning javascript builtin SetPrototypeIsDisjointFrom(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    other: JSAny): Boolean {
+  const methodName: constexpr string = 'Set.prototype.isDisjointFrom';
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+  const o = Cast<JSSet>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
+
+  // 3. Let otherRec be ? GetSetRecord(other).
+  let otherRec = GetSetRecord(other, methodName);
+
+  let table = NewStableBackingTableWitness(o);
+
+  // 4. Let thisSize be the number of elements in O.[[SetData]].
+  const thisSize = table.LoadSize();
+
+  try {
+    typeswitch (other) {
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
+
+        const otherTable = NewStableBackingTableWitness(otherSet);
+
+        const otherSize = otherTable.LoadSize();
+
+        if (thisSize <= otherSize) {
+          return FastIsDisjointFrom<StableJSSetBackingTableWitness>(
+              table, otherTable);
+        }
+
+        return FastIsDisjointFrom<StableJSSetBackingTableWitness>(
+            otherTable, table);
+      }
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
+
+        const otherTable = NewStableBackingTableWitness(otherMap);
+
+        const otherSize = otherTable.LoadSize();
+
+        if (thisSize <= otherSize) {
+          return FastIsDisjointFrom<StableJSMapBackingTableWitness>(
+              table, otherTable);
+        }
+
+        // TODO(v8:13556): Change `FastIsDisjointFrom` macro to be able to
+        // handle this case as well.
+        let otherIterator = collections::NewUnmodifiedOrderedHashMapIterator(
+            otherTable.GetTable());
+
+        while (true) {
+          const nextValue = otherIterator.Next() otherwise Done;
+
+          if (table.HasKey(nextValue.key)) {
+            return False;
+          }
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
+    // 5. If thisSize ≤ otherRec.[[Size]], then
+    if (thisSize <= Convert<int32>(otherRec.size)) {
+      // a. Let index be 0.
+      let thisIter = collections::NewOrderedHashSetIterator(table.GetTable());
+
+      // b. Repeat, while index < thisSize,
+      while (true) {
+        // i. Let e be O.[[SetData]][index].
+        const key = thisIter.Next() otherwise Done;
+
+        // ii. Set index to index + 1.
+        // iii. If e is not empty, then
+        //   1. Let inOther be ToBoolean(? Call(otherRec.[[Has]],
+        // otherRec.[[Set]], « e »)).
+        const inOther =
+            ToBoolean(Call(context, otherRec.has, otherRec.object, key));
+
+        //   2. If inOther is true, return false
+        if (inOther) {
+          return False;
+        }
+
+        // 3. NOTE: The number of elements in O.[[SetData]] may have increased
+        // during execution of otherRec.[[Has]].
+        // 4. Set thisSize to the number of elements of O.[[SetData]].
+        // We used iterator so we do not need to update thisSize and index.
+      }
+    } else {
+      // a. Let keysIter be ? GetKeysIterator(otherRec).
+      let keysIter =
+          GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
+
+      // b. Let next be true.
+      let nextRecord: JSReceiver;
+
+      // c. Repeat, while next is not false,
+      while (true) {
+        // i. Set next to ? IteratorStep(keysIter).
+        nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
+            otherwise Done;
+
+        // ii. If next is not false, then
+        // 1. Let nextValue be ? IteratorValue(next).
+        const nextValue =
+            iterator::IteratorValue(nextRecord, fastIteratorResultMap);
+
+        // 2. If SetDataHas(O.[[SetData]], nextValue) is true, then
+        table.ReloadTable();
+        if (table.HasKey(nextValue)) {
+          //   a. Perform ? IteratorClose(keysIter, NormalCompletion(unused)).
+          //   b. Return false.
+          iterator::IteratorClose(keysIter);
+          return False;
+        }
+      }
+    }
+  } label Done {
+    // 7. Return true.
+    return True;
+  }
+  unreachable;
+}
+
+// This macro creates an iterator from a collection that needs to be iterated
+// (collectionToIterate), lookup each value of the iterator in a table that
+// needs to be checked (tableToLookup), and return if the two collections
+// are disjoint from each other or not.
+macro FastIsDisjointFrom<T: type>(
+    implicit context: Context)(
+    collectionToIterate: StableJSSetBackingTableWitness,
+    tableToLookup: T): Boolean {
+  let iter = collections::NewUnmodifiedOrderedHashSetIterator(
+      collectionToIterate.GetTable());
+  try {
+    while (true) {
+      const nextValue = iter.Next() otherwise Done;
+
+      if (tableToLookup.HasKey(nextValue)) {
+        return False;
+      }
+    }
+  } label Done {
+    return True;
+  }
+  unreachable;
+}
+}

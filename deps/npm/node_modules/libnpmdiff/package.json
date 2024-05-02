@@ -1,0 +1,69 @@
+{
+  "name": "libnpmdiff",
+  "version": "6.1.1",
+  "description": "The registry diff",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmdiff"
+  },
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  },
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "diff"
+  ],
+  "author": "GitHub Inc.",
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "lintfix": "npm run lint -- --fix",
+    "test": "tap",
+    "posttest": "npm run lint",
+    "snap": "tap",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.21.3",
+    "tap": "^16.3.8"
+  },
+  "dependencies": {
+    "@npmcli/arborist": "^7.2.1",
+    "@npmcli/installed-package-contents": "^2.1.0",
+    "binary-extensions": "^2.3.0",
+    "diff": "^5.1.0",
+    "minimatch": "^9.0.4",
+    "npm-package-arg": "^11.0.2",
+    "pacote": "^18.0.1",
+    "tar": "^6.2.1"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.21.3",
+    "content": "../../scripts/template-oss/index.js"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

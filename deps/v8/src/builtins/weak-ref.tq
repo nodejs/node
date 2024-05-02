@@ -1,0 +1,65 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-collections-gen.h'
+
+namespace runtime {
+
+extern runtime JSWeakRefAddToKeptObjects(
+    implicit context: Context)(JSReceiver|Symbol): void;
+
+}  // namespace runtime
+
+namespace weakref {
+
+// https://tc39.es/ecma262/#sec-weak-ref-target
+transitioning javascript builtin WeakRefConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(weakTarget: JSAny): JSWeakRef {
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (newTarget == Undefined) {
+    ThrowTypeError(MessageTemplate::kConstructorNotFunction, 'WeakRef');
+  }
+
+  // 2. If CanBeHeldWeakly(weakTarget) is false, throw a TypeError exception.
+  GotoIfCannotBeHeldWeakly(weakTarget) otherwise ThrowTypeError(
+      MessageTemplate::kInvalidWeakRefsWeakRefConstructorTarget);
+
+  // 3. Let weakRef be ? OrdinaryCreateFromConstructor(NewTarget,
+  // "%WeakRefPrototype%", « [[WeakRefTarget]] »).
+  const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
+  const weakRef = UnsafeCast<JSWeakRef>(AllocateFastOrSlowJSObjectFromMap(map));
+  // 4. Perfom ! AddToKeptObjects(target).
+  const weakTarget = UnsafeCast<(JSReceiver | Symbol)>(weakTarget);
+  runtime::JSWeakRefAddToKeptObjects(weakTarget);
+  // 5. Set weakRef.[[WeakRefTarget]] to target.
+  weakRef.target = weakTarget;
+  // 6. Return weakRef.
+  return weakRef;
+}
+
+transitioning javascript builtin WeakRefDeref(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  // 1. Let weakRef be the this value.
+  // 2. Perform ? RequireInternalSlot(weakRef, [[WeakRefTarget]]).
+  const weakRef = Cast<JSWeakRef>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, 'WeakRef.prototype.deref',
+      receiver);
+  // 3. Let target be the value of weakRef.[[WeakRefTarget]].
+  const target = weakRef.target;
+  // 4. If target is not empty,
+  //   a. Perform ! AddToKeptObjects(target).
+  //   b. Return target.
+  // 5. Return undefined.
+  if (target != Undefined) {
+    // JSWeakRefAddToKeptObjects might allocate and cause a GC, but it
+    // won't clear `target` since we hold it here on the stack.
+    runtime::JSWeakRefAddToKeptObjects(
+        UnsafeCast<(JSReceiver | Symbol)>(target));
+  }
+  return target;
+}
+
+}  // namespace weakrefs

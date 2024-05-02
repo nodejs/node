@@ -1,0 +1,40 @@
+LIBS=../../libcrypto
+
+$CHACHAASM=chacha_enc.c
+IF[{- !$disabled{asm} -}]
+  $CHACHAASM_x86=chacha-x86.S
+  $CHACHAASM_x86_64=chacha-x86_64.s
+
+  $CHACHAASM_ia64=chacha-ia64.s
+
+  $CHACHAASM_s390x=chacha-s390x.S
+
+  $CHACHAASM_armv4=chacha-armv4.S
+  $CHACHAASM_aarch64=chacha-armv8.S
+
+  $CHACHAASM_ppc32=chacha_ppc.c chacha-ppc.s
+  $CHACHAASM_ppc64=$CHACHAASM_ppc32
+
+  $CHACHAASM_c64xplus=chacha-c64xplus.s
+
+  # Now that we have defined all the arch specific variables, use the
+  # appropriate one
+  IF[$CHACHAASM_{- $target{asm_arch} -}]
+    $CHACHAASM=$CHACHAASM_{- $target{asm_arch} -}
+  ENDIF
+ENDIF
+
+SOURCE[../../libcrypto]=$CHACHAASM
+
+GENERATE[chacha-x86.S]=asm/chacha-x86.pl
+GENERATE[chacha-x86_64.s]=asm/chacha-x86_64.pl
+GENERATE[chacha-ppc.s]=asm/chacha-ppc.pl
+GENERATE[chacha-armv4.S]=asm/chacha-armv4.pl
+INCLUDE[chacha-armv4.o]=..
+GENERATE[chacha-armv8.S]=asm/chacha-armv8.pl
+INCLUDE[chacha-armv8.o]=..
+INCLUDE[chacha-s390x.o]=..
+GENERATE[chacha-c64xplus.S]=asm/chacha-c64xplus.pl
+GENERATE[chacha-s390x.S]=asm/chacha-s390x.pl
+GENERATE[chacha-ia64.S]=asm/chacha-ia64.pl
+GENERATE[chacha-ia64.s]=chacha-ia64.S

@@ -1,0 +1,32 @@
+.TH "NPM-SHRINKWRAP" "1" "April 2024" "" ""
+.SH "NAME"
+\fBnpm-shrinkwrap\fR - Lock down dependency versions for publication
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm shrinkwrap
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+This command repurposes \fBpackage-lock.json\fR into a publishable \fBnpm-shrinkwrap.json\fR or simply creates a new one. The file created and updated by this command will then take precedence over any other existing or future \fBpackage-lock.json\fR files. For a detailed explanation of the design and purpose of package locks in npm, see npm help package-lock-json.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help run-script
+.IP \(bu 4
+npm help scripts
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+\fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR
+.IP \(bu 4
+\fBnpm-shrinkwrap.json\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR
+.IP \(bu 4
+npm help ls
+.RE 0
