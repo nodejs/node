@@ -1613,7 +1613,7 @@ def get_env_type(vm, options_type, context):
 
 
 def get_asan_state(vm, context):
-  asan = Execute([vm, '-p', 'process.config.variables.asan'], context).stdout
+  asan = Execute([vm, '-p', 'process.config.variables.asan'], context).stdout.strip()
   return "on" if asan == "1" else "off"
 
 
