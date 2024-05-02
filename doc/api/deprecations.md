@@ -3482,7 +3482,7 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51879
     description: Documentation-only deprecation.
 -->
@@ -3496,7 +3496,7 @@ deprecated due to being internals, not intended for public use.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51881
     description: Documentation-only deprecation.
 -->
@@ -3511,7 +3511,7 @@ Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52345
     description: Documentation-only deprecation.
 -->

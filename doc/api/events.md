@@ -1658,7 +1658,7 @@ added:
  - v13.6.0
  - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52080
     description: Support `highWaterMark` and `lowWaterMark` options,
                  For consistency. Old options are still supported.
@@ -2421,7 +2421,7 @@ added:
   - v18.7.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52618
     description: CustomEvent is now stable.
 -->
@@ -2440,7 +2440,7 @@ added:
   - v18.7.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52618
     description: CustomEvent is now stable.
 -->

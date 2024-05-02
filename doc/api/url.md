@@ -1142,7 +1142,7 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52509
     description: The `options` argument can now be used to
                  determine how to parse the `path` argument.
@@ -1252,7 +1252,7 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52509
     description: The `options` argument can now be used to
                  determine how to return the `path` value.
