@@ -4872,7 +4872,7 @@ v5.0.0 release.
 * Cluster
   * Worker emitted as first argument in 'message' event
     [#5361](https://github.com/nodejs/node/pull/5361).
-  * The `worker.exitedAfterDisconnect` property replaces `worker.suicide`
+  * The `worker.exitedAfterDisconnect` property replaces `worker.▇▇▇▇▇▇▇`
     [#3743](https://github.com/nodejs/node/pull/3743).
 * Console
   * Calling `console.timeEnd()` with an unknown label now emits a process
@@ -5002,7 +5002,7 @@ Semver-major Changes since v5.0.0
 * \[[`3b27dd5ce1`](https://github.com/nodejs/node/commit/3b27dd5ce1)] - **(SEMVER-MAJOR)** **buffer**: throw if both length and enc are passed (Mathias Buus) [#4514](https://github.com/nodejs/node/pull/4514)
 * \[[`ce864ef502`](https://github.com/nodejs/node/commit/ce864ef502)] - **(SEMVER-MAJOR)** **build**: Bump MACOSX\_DEPLOYMENT\_TARGET to 10.7 (Сковорода Никита Андреевич) [#6402](https://github.com/nodejs/node/pull/6402)
 * \[[`90a5fc20be`](https://github.com/nodejs/node/commit/90a5fc20be)] - **(SEMVER-MAJOR)** **build**: remove lint/dotfiles from release tarball (Johan Bergström) [#5695](https://github.com/nodejs/node/pull/5695)
-* \[[`66f048af6f`](https://github.com/nodejs/node/commit/66f048af6f)] - **(SEMVER-MAJOR)** **cluster**: migrate from worker.suicide (Evan Lucas) [#3743](https://github.com/nodejs/node/pull/3743)
+* \[[`66f048af6f`](https://github.com/nodejs/node/commit/66f048af6f)] - **(SEMVER-MAJOR)** **cluster**: migrate from worker.▇▇▇▇▇▇▇ (Evan Lucas) [#3743](https://github.com/nodejs/node/pull/3743)
 * \[[`66f4586dd0`](https://github.com/nodejs/node/commit/66f4586dd0)] - **(SEMVER-MAJOR)** **cluster**: emit worker as first 'message' event arg (Ben Noordhuis) [#5361](https://github.com/nodejs/node/pull/5361)
 * \[[`30507951d9`](https://github.com/nodejs/node/commit/30507951d9)] - **(SEMVER-MAJOR)** **console**: timeEnd() with no label emits warning (Eugene Obrezkov) [#5901](https://github.com/nodejs/node/pull/5901)
 * \[[`a5cce79ec3`](https://github.com/nodejs/node/commit/a5cce79ec3)] - **(SEMVER-MAJOR)** **console**: delete timers that have ended (Vladimir Varankin) [#3562](https://github.com/nodejs/node/pull/3562)

@@ -2050,7 +2050,7 @@ _This is a security release impacting Windows 10 users._
 * Child Process
   * The fork and execFile methods now have stronger argument validation [#7399](https://github.com/nodejs/node/pull/7399).
 * Cluster
-  * The worker.suicide method is deprecated and will emit a process warning [#3747](https://github.com/nodejs/node/pull/3747).
+  * The worker.▇▇▇▇▇▇▇ method is deprecated and will emit a process warning [#3747](https://github.com/nodejs/node/pull/3747).
 * Deps
   * V8 has been updated to 5.4.500.36 [#8317](https://github.com/nodejs/node/pull/8317), [#8852](https://github.com/nodejs/node/pull/8852),
     [#9253](https://github.com/nodejs/node/pull/9253).
@@ -2109,7 +2109,7 @@ _This is a security release impacting Windows 10 users._
 * \[[`6eece7773e`](https://github.com/nodejs/node/commit/6eece7773e)] - **child\_process**: update outdated comment (Tanuja-Sawant)
 * \[[`0548e5d12a`](https://github.com/nodejs/node/commit/0548e5d12a)] - **(SEMVER-MAJOR)** **child\_process**: add fork/execFile arg validation (Rich Trott) [#7399](https://github.com/nodejs/node/pull/7399)
 * \[[`b90f3da9de`](https://github.com/nodejs/node/commit/b90f3da9de)] - **(SEMVER-MAJOR)** **child\_process, win**: fix shell spawn with AutoRun (Bartosz Sosnowski) [#8063](https://github.com/nodejs/node/pull/8063)
-* \[[`f44b18f010`](https://github.com/nodejs/node/commit/f44b18f010)] - **(SEMVER-MAJOR)** **cluster**: deprecate worker.suicide (Evan Lucas) [#3747](https://github.com/nodejs/node/pull/3747)
+* \[[`f44b18f010`](https://github.com/nodejs/node/commit/f44b18f010)] - **(SEMVER-MAJOR)** **cluster**: deprecate worker.▇▇▇▇▇▇▇ (Evan Lucas) [#3747](https://github.com/nodejs/node/pull/3747)
 * \[[`bd7d7a7e17`](https://github.com/nodejs/node/commit/bd7d7a7e17)] - **console**: name anonymous functions (Tyler Brazier) [#9047](https://github.com/nodejs/node/pull/9047)
 * \[[`c60d43b6d9`](https://github.com/nodejs/node/commit/c60d43b6d9)] - **crypto**: fix faulty logic in iv size check (Ben Noordhuis) [#9032](https://github.com/nodejs/node/pull/9032)
 * \[[`72f1c41fb6`](https://github.com/nodejs/node/commit/72f1c41fb6)] - **crypto**: naming anonymous functions (solebox) [#8993](https://github.com/nodejs/node/pull/8993)
