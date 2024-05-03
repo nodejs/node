@@ -898,11 +898,11 @@ try {
 }
 ```
 
-Using `fsPromises.access()` to check for the accessibility of a file before
-calling `fsPromises.open()` is not recommended. Doing so introduces a race
-condition, since other processes may change the file's state between the two
-calls. Instead, user code should open/read/write the file directly and handle
-the error raised if the file is not accessible.
+> Warning: Using `fsPromises.access()` to check for the accessibility of a file before
+> calling `fsPromises.open()` is not recommended. Doing so introduces a race
+> condition, since other processes may change the file's state between the two
+> calls. Instead, user code should open/read/write the file directly and handle
+> the error raised if the file is not accessible.
 
 ### `fsPromises.appendFile(path, data[, options])`
 
@@ -1981,11 +1981,11 @@ access(file, constants.R_OK | constants.W_OK, (err) => {
 });
 ```
 
-Do not use `fs.access()` to check for the accessibility of a file before calling
-`fs.open()`, `fs.readFile()`, or `fs.writeFile()`. Doing
-so introduces a race condition, since other processes may change the file's
-state between the two calls. Instead, user code should open/read/write the
-file directly and handle the error raised if the file is not accessible.
+> Warning: Do not use `fs.access()` to check for the accessibility of a file before calling
+> `fs.open()`, `fs.readFile()`, or `fs.writeFile()`. Doing
+> so introduces a race condition, since other processes may change the file's
+> state between the two calls. Instead, user code should open/read/write the
+> file directly and handle the error raised if the file is not accessible.
 
 **write (NOT RECOMMENDED)**
 
@@ -2741,11 +2741,11 @@ parameter, optionally followed by other parameters. The `fs.exists()` callback
 has only one boolean parameter. This is one reason `fs.access()` is recommended
 instead of `fs.exists()`.
 
-Using `fs.exists()` to check for the existence of a file before calling
-`fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended. Doing
-so introduces a race condition, since other processes may change the file's
-state between the two calls. Instead, user code should open/read/write the
-file directly and handle the error raised if the file does not exist.
+> Warning: Using `fs.exists()` to check for the existence of a file before calling
+> `fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended. Doing
+> so introduces a race condition, since other processes may change the file's
+> state between the two calls. Instead, user code should open/read/write the
+> file directly and handle the error raised if the file does not exist.
 
 **write (NOT RECOMMENDED)**
 
@@ -4310,10 +4310,10 @@ In case of an error, the `err.code` will be one of [Common System Errors][].
 [`fs.stat()`][] follows symbolic links. Use [`fs.lstat()`][] to look at the
 links themselves.
 
-Using `fs.stat()` to check for the existence of a file before calling
-`fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended.
-Instead, user code should open/read/write the file directly and handle the
-error raised if the file is not available.
+> Warning: Using `fs.stat()` to check for the existence of a file before calling
+> `fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended.
+> Instead, user code should open/read/write the file directly and handle the
+> error raised if the file is not available.
 
 To check if a file exists without manipulating it afterwards, [`fs.access()`][]
 is recommended.

@@ -276,44 +276,57 @@ export function preprocessElements({ filename }) {
           node.children[0];
         const text = paragraph && paragraph.children[0].type === 'text' &&
           paragraph.children[0];
-        if (text && text.value.includes('Stability:')) {
-          const [, prefix, number, explication] =
-            text.value.match(STABILITY_RE);
+        if (text) {
+          if (text.value.includes('Stability:')) {
+            const [, prefix, number, explication] =
+              text.value.match(STABILITY_RE);
 
-          // Stability indices are never more than 3 nodes away from their
-          // heading.
-          const isStabilityIndex = index - headingIndex <= 3;
+            // Stability indices are never more than 3 nodes away from their
+            // heading.
+            const isStabilityIndex = index - headingIndex <= 3;
 
-          if (heading && isStabilityIndex) {
-            heading.stability = number;
-            headingIndex = -1;
-            heading = null;
+            if (heading && isStabilityIndex) {
+              heading.stability = number;
+              headingIndex = -1;
+              heading = null;
+            }
+
+            // Do not link to the section we are already in.
+            const noLinking = filename.includes('documentation') &&
+              heading !== null && heading.children[0].value === 'Stability index';
+
+            // Collapse blockquote and paragraph into a single node
+            node.type = 'paragraph';
+            node.children.shift();
+            node.children.unshift(...paragraph.children);
+
+            // Insert div with prefix and number
+            node.children.unshift({
+              type: 'html',
+              value: `<div class="api_stability api_stability_${number}">` +
+                (noLinking ? '' :
+                  '<a href="documentation.html#stability-index">') +
+                `${prefix} ${number}${noLinking ? '' : '</a>'}`
+                  .replace(/\n/g, ' '),
+            });
+
+            // Remove prefix and number from text
+            text.value = explication;
+
+            // close div
+            node.children.push({ type: 'html', value: '</div>' });
+          } else if (text.value.includes('Warning:')) {
+            node.type = 'paragraph';
+            node.children.shift();
+            node.children.unshift(...paragraph.children);
+            text.value = text.value.replace(/^Warning:\s*/, '');
+            node.children.unshift({ type: 'html', value: '<strong>Warning:</strong> ' });
+            node.children.unshift({
+              type: 'html',
+              value: '<div class="api_warning">',
+            });
+            node.children.push({ type: 'html', value: '</div>' });
           }
-
-          // Do not link to the section we are already in.
-          const noLinking = filename.includes('documentation') &&
-            heading !== null && heading.children[0].value === 'Stability index';
-
-          // Collapse blockquote and paragraph into a single node
-          node.type = 'paragraph';
-          node.children.shift();
-          node.children.unshift(...paragraph.children);
-
-          // Insert div with prefix and number
-          node.children.unshift({
-            type: 'html',
-            value: `<div class="api_stability api_stability_${number}">` +
-              (noLinking ? '' :
-                '<a href="documentation.html#stability-index">') +
-              `${prefix} ${number}${noLinking ? '' : '</a>'}`
-                .replace(/\n/g, ' '),
-          });
-
-          // Remove prefix and number from text
-          text.value = explication;
-
-          // close div
-          node.children.push({ type: 'html', value: '</div>' });
         }
       }
     });
