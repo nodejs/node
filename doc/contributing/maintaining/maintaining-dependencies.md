@@ -15,6 +15,7 @@ This a list of all the dependencies:
 * [c-ares][]
 * [cjs-module-lexer][]
 * [corepack][]
+* [emphasize][]
 * [googletest][]
 * [histogram][]
 * [icu-small][]
@@ -183,6 +184,11 @@ In practical terms, Corepack will let you use Yarn and pnpm without having to
 install them - just like what currently happens with npm, which is shipped
 by Node.js by default.
 
+### emphasize
+
+The [emphasize](https://github.com/wooorm/emphasize) dependency is an ANSI
+syntax highlighting utility
+
 ### googletest
 
 The [googletest](https://github.com/google/googletest) dependency is Google’s
@@ -325,6 +331,7 @@ performance improvements not currently available in standard zlib.
 [cjs-module-lexer]: #cjs-module-lexer
 [corepack]: #corepack
 [dependency-update-action]: ../../../.github/workflows/tools.yml
+[emphasize]: #emphasize
 [googletest]: #googletest
 [histogram]: #histogram
 [icu-small]: #icu-small

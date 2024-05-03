@@ -87,6 +87,8 @@ licenseText="$(curl -sL https://raw.githubusercontent.com/ada-url/ada/HEAD/LICEN
 addlicense "ada" "deps/ada" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/minimatch/LICENSE")"
 addlicense "minimatch" "deps/minimatch" "$licenseText"
+licenseText="$(cat "${rootdir}/deps/emphasize/license")"
+addlicense "emphasize" "deps/emphasize" "$licenseText"
 
 # npm
 licenseText="$(cat "${rootdir}/deps/npm/LICENSE")"
