@@ -1029,7 +1029,7 @@ changes:
     description: This class is now exposed on the global object.
 -->
 
-The `WritableStreamDefaultController` manage's the {WritableStream}'s
+The `WritableStreamDefaultController` manages the {WritableStream}'s
 internal state.
 
 #### `writableStreamDefaultController.error([error])`
