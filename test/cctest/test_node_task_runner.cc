@@ -35,7 +35,7 @@ TEST_F(TaskRunnerTest, EscapeShell) {
       {"--arg=node exec -c '$1'", "'--arg=node exec -c \\'$1\\''"},
       {"'--arg=node exec -c \"$1\"'", "'\\'--arg=node exec -c \"$1\"\\''"}
 #endif
-};
+  };
 
   for (const auto& [input, expected] : expectations) {
     EXPECT_EQ(node::task_runner::EscapeShell(input), expected);
