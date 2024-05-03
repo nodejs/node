@@ -583,8 +583,6 @@ There are constraints you need to know before using this system:
 
 #### Limitations and Known Issues
 
-* When the permission model is enabled, Node.js may resolve some paths
-  differently than when it is disabled.
 * Symbolic links will be followed even to locations outside of the set of paths
   that access has been granted to. Relative symbolic links may allow access to
   arbitrary files and directories. When starting applications with the
