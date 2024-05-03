@@ -169,6 +169,7 @@ QuicError::QuicError(const std::string& reason)
 
 QuicError::QuicError(const ngtcp2_ccerr* ptr)
     : reason_(reinterpret_cast<const char*>(ptr->reason), ptr->reasonlen),
+      error_(),
       ptr_(ptr) {}
 
 QuicError::QuicError(const ngtcp2_ccerr& error)
