@@ -9,7 +9,7 @@ BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 
 cd "$BASE_DIR"
 
-CAN_UPDATE=$(git node v8 minor --v8-dir /Users/duhamean/Documents/v8/v8/ | grep -q "V8 is up-to-date" || echo "1")
+CAN_UPDATE=$(git node v8 minor | grep -q "V8 is up-to-date" || echo "1")
 
 if [ -z "$CAN_UPDATE" ]; then
   echo "Skipped because V8 is on the latest version."
