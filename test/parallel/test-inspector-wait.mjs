@@ -7,7 +7,7 @@ import { NodeInstance } from '../common/inspector-helper.js';
 
 
 async function runTests() {
-  const child = new NodeInstance(['--inspect-wait'], 'console.log(0);');
+  const child = new NodeInstance(['--inspect-wait=0'], 'console.log(0);');
   const session = await child.connectInspectorSession();
   await session.send({ method: 'NodeRuntime.enable' });
   await session.waitForNotification('NodeRuntime.waitingForDebugger');
