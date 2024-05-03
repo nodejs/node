@@ -153,12 +153,19 @@ std::string EscapeShell(const std::string_view input) {
     return std::string(input);
   }
 
+#ifdef _WIN32
+  // Wrap the result in double quotes
+  // Passing "--help "sdfsd"" to a batch script
+  // will be considered as a single argument made
+  // of --help "sdfsd". However, there are corner cases.
+  std::string escaped = "\"" + escaped + "\"";
+#else
   // Replace single quotes("'") with "\\'"
   std::string escaped =
       std::regex_replace(std::string(input), std::regex("'"), "\\'");
-
   // Wrap the result in single quotes
   escaped = "'" + escaped + "'";
+#endif
 
   // Remove excessive quote pairs and handle edge cases
   static const std::regex leadingQuotePairs("^(?:'')+(?!$)");
