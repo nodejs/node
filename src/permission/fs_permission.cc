@@ -1,6 +1,7 @@
 #include "fs_permission.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
+#include "env.h"
 #include "path.h"
 #include "v8.h"
 
@@ -51,21 +52,23 @@ void FreeRecursivelyNode(
 }
 
 bool is_tree_granted(
+    node::Environment* env,
     const node::permission::FSPermission::RadixTree* granted_tree,
     const std::string_view& param) {
+  std::string resolved_param = node::PathResolve(env, {param});
 #ifdef _WIN32
   // is UNC file path
-  if (param.rfind("\\\\", 0) == 0) {
+  if (resolved_param.rfind("\\\\", 0) == 0) {
     // return lookup with normalized param
     size_t starting_pos = 4;  // "\\?\"
-    if (param.rfind("\\\\?\\UNC\\") == 0) {
+    if (resolved_param.rfind("\\\\?\\UNC\\") == 0) {
       starting_pos += 4;  // "UNC\"
     }
     auto normalized = param.substr(starting_pos);
     return granted_tree->Lookup(normalized, true);
   }
 #endif
-  return granted_tree->Lookup(param, true);
+  return granted_tree->Lookup(resolved_param, true);
 }
 
 void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
@@ -146,7 +149,8 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
   }
 }
 
-bool FSPermission::is_granted(PermissionScope perm,
+bool FSPermission::is_granted(Environment* env,
+                              PermissionScope perm,
                               const std::string_view& param = "") const {
   switch (perm) {
     case PermissionScope::kFileSystem:
@@ -154,11 +158,11 @@ bool FSPermission::is_granted(PermissionScope perm,
     case PermissionScope::kFileSystemRead:
       return !deny_all_in_ &&
              ((param.empty() && allow_all_in_) || allow_all_in_ ||
-              is_tree_granted(&granted_in_fs_, param));
+              is_tree_granted(env, &granted_in_fs_, param));
     case PermissionScope::kFileSystemWrite:
       return !deny_all_out_ &&
              ((param.empty() && allow_all_out_) || allow_all_out_ ||
-              is_tree_granted(&granted_out_fs_, param));
+              is_tree_granted(env, &granted_out_fs_, param));
     default:
       return false;
   }
