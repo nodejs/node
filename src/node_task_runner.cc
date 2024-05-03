@@ -136,12 +136,19 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
 }
 
 // EscapeShell escapes a string to be used as a command line argument.
+// Under Windows, we follow:
+// https://daviddeley.com/autohotkey/parameters/parameters.htm
+// Elsewhere:
 // It replaces single quotes with "\\'" and double quotes with "\\\"".
 // It also removes excessive quote pairs and handles edge cases.
 std::string EscapeShell(const std::string_view input) {
   // If the input is an empty string, return a pair of quotes
   if (input.empty()) {
+#ifdef _WIN32
+    return "\"\"";
+#else
     return "''";
+#endif
   }
 
   static const std::string_view forbidden_characters =
