@@ -44,7 +44,8 @@ class PermissionBase {
   virtual void Apply(Environment* env,
                      const std::vector<std::string>& allow,
                      PermissionScope scope) = 0;
-  virtual bool is_granted(PermissionScope perm,
+  virtual bool is_granted(Environment* env,
+                          PermissionScope perm,
                           const std::string_view& param = "") const = 0;
 };
 

@@ -50,10 +50,10 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     return args.GetReturnValue().Set(
-        env->permission()->is_granted(scope, *utf8_arg));
+        env->permission()->is_granted(env, scope, *utf8_arg));
   }
 
-  return args.GetReturnValue().Set(env->permission()->is_granted(scope));
+  return args.GetReturnValue().Set(env->permission()->is_granted(env, scope));
 }
 
 }  // namespace
