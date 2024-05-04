@@ -767,14 +767,30 @@ not ok 24 - run after when before throws
     *
     *
   ...
-1..24
+# Subtest: test hooks - async
+    # Subtest: 1
+    ok 1 - 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: 2
+    ok 2 - 2
+      ---
+      duration_ms: *
+      ...
+    1..2
+ok 25 - test hooks - async
+  ---
+  duration_ms: *
+  ...
+1..25
 # before 1 called
 # before 2 called
 # after 1 called
 # after 2 called
-# tests 49
+# tests 52
 # suites 12
-# pass 19
+# pass 22
 # fail 27
 # cancelled 3
 # skipped 0
