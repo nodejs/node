@@ -9,7 +9,10 @@ Related to #XXXX
 -->
 
 ## Code Changes Checklist
-
+<!--
+Not every checkbox will apply to your PR, but check off as much as you
+think applies.
+-->
 - [ ] Includes tests for bug fixes or new features.
 - [ ] Updates relevant documentation.
 - [ ] Passes linting (`make -j4 lint` for UNIX, `vcbuild lint` for Windows).
