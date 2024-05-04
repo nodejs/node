@@ -103,3 +103,25 @@ class MyWritable extends stream.Writable {
   m.write({ foo: 'bar' }, 'utf8');
   m.end();
 }
+
+{
+  const w = new stream.Writable({
+    decodeStrings: false,
+    write() {}
+  });
+
+  w.write('€');
+
+  assert.strictEqual(w.writableLength, 3);
+}
+
+{
+  const w = new stream.Writable({
+    decodeStrings: false,
+    write() {}
+  });
+
+  w.write('aGVsbG8=', 'base64');
+
+  assert.strictEqual(w.writableLength, 5);
+}
