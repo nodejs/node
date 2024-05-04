@@ -64,4 +64,15 @@ describe('node run [command]', () => {
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
+
+  it('should set PATH environment variable to node_modules/.bin', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--no-warnings', '--run', `path-env${envSuffix}`],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.ok(child.stdout.includes(fixtures.path('run-script/node_modules/.bin')));
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
 });
