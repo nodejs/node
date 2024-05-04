@@ -392,13 +392,17 @@
       *
       *
 
+ test hooks - async
+   1 (*ms)
+   2 (*ms)
+ test hooks - async (*ms)
  before 1 called
  before 2 called
  after 1 called
  after 2 called
- tests 49
+ tests 52
  suites 12
- pass 19
+ pass 22
  fail 27
  cancelled 3
  skipped 0
