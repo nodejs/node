@@ -165,7 +165,7 @@ std::string EscapeShell(const std::string_view input) {
   // Passing "--help "sdfsd"" to a batch script
   // will be considered as a single argument made
   // of --help "sdfsd". However, there are corner cases.
-  std::string escaped = "\"" + escaped + "\"";
+  std::string escaped = "\"" + std::string(input) + "\"";
 #else
   // Replace single quotes("'") with "\\'"
   std::string escaped =
