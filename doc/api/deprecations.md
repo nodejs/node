@@ -3554,6 +3554,9 @@ Please use `value instanceof WebAssembly.Module` instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51050
+    description: Runtime deprecation.
   - version:
     - v21.5.0
     - v20.12.0
@@ -3562,7 +3565,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`dirent.path`][] is deprecated due to its lack of consistency across
 release lines. Please use [`dirent.parentPath`][] instead.
