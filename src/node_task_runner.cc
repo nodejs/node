@@ -160,26 +160,29 @@ std::string EscapeShell(const std::string_view input) {
     return std::string(input);
   }
 
+  static const std::regex leadingQuotePairs("^(?:'')+(?!$)");
+
 #ifdef _WIN32
-  // Wrap the result in double quotes
-  // Passing "--help "sdfsd"" to a batch script
-  // will be considered as a single argument made
-  // of --help "sdfsd". However, there are corner cases.
-  std::string escaped = "\"" + std::string(input) + "\"";
+  // Replace double quotes with single quotes and surround the string
+  // with double quotes for Windows.
+  std::string escaped =
+      std::regex_replace(std::string(input), std::regex("\""), "\"\"");
+  escaped = "\"" + escaped + "\"";
+  // Remove excessive quote pairs and handle edge cases
+  static const std::regex tripleSingleQuote("\\\\\"\"\"");
+  escaped = std::regex_replace(escaped, leadingQuotePairs, "");
+  escaped = std::regex_replace(escaped, tripleSingleQuote, "\\\"");
 #else
-  // Replace single quotes("'") with "\\'"
+  // Replace single quotes("'") with "\\'" and wrap the result
+  // in single quotes.
   std::string escaped =
       std::regex_replace(std::string(input), std::regex("'"), "\\'");
-  // Wrap the result in single quotes
   escaped = "'" + escaped + "'";
-#endif
-
   // Remove excessive quote pairs and handle edge cases
-  static const std::regex leadingQuotePairs("^(?:'')+(?!$)");
   static const std::regex tripleSingleQuote("\\\\'''");
-
   escaped = std::regex_replace(escaped, leadingQuotePairs, "");
   escaped = std::regex_replace(escaped, tripleSingleQuote, "\\'");
+#endif  // _WIN32
 
   return escaped;
 }

@@ -60,7 +60,11 @@ describe('node run [command]', () => {
       [ '--no-warnings', '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C'],
       { cwd: fixtures.path('run-script') },
     );
-    assert.match(child.stdout, /Arguments: '--help "hello world test" A B C'/);
+    if (common.isWindows) {
+      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C'/);
+    } else {
+      assert.match(child.stdout, /Arguments: '--help "hello world test" A B C'/);
+    }
     assert.match(child.stdout, /The total number of arguments are: 4/);
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
