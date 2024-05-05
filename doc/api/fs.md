@@ -1073,6 +1073,10 @@ behavior is similar to `cp dir1/ dir2/`.
 
 <!-- YAML
 added: v22.0.0
+changes:
+  - version: REPLACEME
+    pr-url: TODO
+    description: Add support 'withFileTypes' as an option.
 -->
 
 > Stability: 1 - Experimental
@@ -1082,6 +1086,8 @@ added: v22.0.0
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
   that match the pattern.
 
@@ -3109,6 +3115,10 @@ descriptor. See [`fs.utimes()`][].
 
 <!-- YAML
 added: v22.0.0
+changes:
+  - version: REPLACEME
+    pr-url: TODO
+    description: Add support for 'withFileTypes' as an option.
 -->
 
 > Stability: 1 - Experimental
@@ -3119,6 +3129,8 @@ added: v22.0.0
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
 
 * `callback` {Function}
   * `err` {Error}
@@ -5603,6 +5615,10 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
 <!-- YAML
 added: v22.0.0
+changes:
+  - version: REPLACEME
+    pr-url: TODO
+    description: Add support for 'withFileTypes' as an option.
 -->
 
 > Stability: 1 - Experimental
@@ -5612,6 +5628,8 @@ added: v22.0.0
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
 * Returns: {string\[]} paths of files that match the pattern.
 
 ```mjs
