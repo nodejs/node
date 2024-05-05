@@ -8,9 +8,7 @@ import { promisify } from 'node:util';
 import assert from 'node:assert';
 
 function assertDirents(dirents) {
-  dirents.forEach((dirent) => {
-    assert(dirent instanceof Dirent);
-  });
+  assert.ok(dirents.every((dirent) => dirent instanceof Dirent));
 }
 
 tmpdir.refresh();
