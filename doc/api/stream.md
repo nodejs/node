@@ -317,7 +317,9 @@ buffer.
 The amount of data potentially buffered depends on the `highWaterMark` option
 passed into the stream's constructor. For normal streams, the `highWaterMark`
 option specifies a [total number of bytes][hwm-gotcha]. For streams operating
-in object mode, the `highWaterMark` specifies a total number of objects.
+in object mode, the `highWaterMark` specifies a total number of objects. For
+streams operating on (but not decoding) strings, the `highWaterMark` specifies
+a total number of UTF-16 code units.
 
 Data is buffered in `Readable` streams when the implementation calls
 [`stream.push(chunk)`][stream-push]. If the consumer of the Stream does not
