@@ -6763,13 +6763,17 @@ deprecated:
   - v21.5.0
   - v20.12.0
   - v18.20.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51050
+    description: Accessing this property emits a warning. It is now read-only.
 -->
 
 > Stability: 0 - Deprecated: Use [`dirent.parentPath`][] instead.
 
 * {string}
 
-Alias for `dirent.parentPath`.
+Alias for `dirent.parentPath`. Read-only.
 
 ### Class: `fs.FSWatcher`
 
