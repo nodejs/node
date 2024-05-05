@@ -860,6 +860,7 @@
         '<@(deps_files)',
         # node.gyp is added by default, common.gypi is added for change detection
         'common.gypi',
+        'common_node.gypi',
       ],
 
       'variables': {
@@ -1347,6 +1348,7 @@
             '<@(library_files)',
             '<@(deps_files)',
             'common.gypi',
+            'common_node.gypi',
           ],
           'direct_dependent_settings': {
             'ldflags': [ '-Wl,-brtl' ],
