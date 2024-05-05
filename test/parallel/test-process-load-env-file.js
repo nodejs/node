@@ -58,13 +58,17 @@ describe('process.loadEnvFile()', () => {
     const originalCwd = process.cwd();
 
     try {
-      process.chdir(join(originalCwd, 'lib'));
+      if (common.isMainThread) {
+        process.chdir(join(originalCwd, 'lib'));
+      }
 
       assert.throws(() => {
         process.loadEnvFile();
       }, { code: 'ENOENT', syscall: 'open', path: '.env' });
     } finally {
-      process.chdir(originalCwd);
+      if (common.isMainThread) {
+        process.chdir(originalCwd);
+      }
     }
   });
 
