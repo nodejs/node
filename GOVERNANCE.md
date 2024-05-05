@@ -138,15 +138,11 @@ organization.
 
 Contributions can be:
 
-* Commits
-* Pull requests
-* Comments
-* Reviews
-* Helping others
-* Issues
+* Opening pull requests.
+* Comments and reviews.
+* Opening new issues.
 * Participation in other projects, teams, and working groups of the Node.js
-  organization
-* Other participation in the wider Node.js community
+  organization.
 
 ### Nominating a new Collaborator
 
