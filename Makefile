@@ -171,7 +171,7 @@ endif
 with-code-cache test-code-cache:
 	$(warning '$@' target is a noop)
 
-out/Makefile: config.gypi common.gypi node.gyp \
+out/Makefile: config.gypi common.gypi common_node.gypi node.gyp \
 	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
 	deps/simdutf/simdutf.gyp deps/ada/ada.gyp \
 	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \

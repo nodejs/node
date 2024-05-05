@@ -37,6 +37,7 @@ export GYP_DEFINES
 
 ./deps/npm/node_modules/node-gyp/gyp/gyp \
     -Icommon.gypi \
+    -Icommon_node.gypi \
     -Iconfig.gypi \
     --depth=. \
     -Dcomponent=static_library \
