@@ -140,6 +140,7 @@ template("node_gn_build") {
       "deps/ada",
       "deps/uv",
       "deps/base64",
+      "deps/simdjson",
       "$node_v8_path",
     ]
     deps = [
@@ -151,7 +152,6 @@ template("node_gn_build") {
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
-      "deps/simdjson",
       "deps/simdutf",
       "deps/uvwasi",
       "//third_party/zlib",
