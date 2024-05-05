@@ -57,7 +57,7 @@ This file documents various terms and definitions used throughout the Node.js co
   write and for machines to parse and generate. It is commonly used for transmitting data between a server and a
   web application.
 * **LE**: Little [Endian][] - A Byte Order where the smallest bit comes first. The opposite of **BE**.
-* **LGTM/SGTM**: Looks/Sounds good to me - Commonly used to approve a code review.
+* **LGTM/SGTM**: Looks/Sounds good to me.
 * **LTS**: [Long Term Support][] - Support provided for a software version for an extended period.
 * **MDN**: [Mozilla Development Network][] - Resource for web developers.
 * **MVC**: [Model-View-Controller][] - A software design pattern commonly used for developing user interfaces. It
