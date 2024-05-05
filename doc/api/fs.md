@@ -1075,7 +1075,7 @@ behavior is similar to `cp dir1/ dir2/`.
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support 'withFileTypes' as an option.
 -->
 
@@ -3117,7 +3117,7 @@ descriptor. See [`fs.utimes()`][].
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for 'withFileTypes' as an option.
 -->
 
@@ -5617,7 +5617,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for 'withFileTypes' as an option.
 -->
 
