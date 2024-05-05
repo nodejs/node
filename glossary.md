@@ -1,6 +1,6 @@
 # Glossary
 
-This file documents various terms and definitions that are used throughout the Node.js community.
+This file documents various terms and definitions used throughout the Node.js community.
 
 * **ABI**: [Application Binary Interface][] - Defines the interface between two binary program modules.
 * **AFAICT**: As Far As I Can Tell.
@@ -13,7 +13,7 @@ This file documents various terms and definitions that are used throughout the N
   modules.
 * **CI**: [Continuous Integration][] - Development practice where code changes are frequently merged into a shared
   repository.
-* **CITGM**: Canary In The Gold Mine - A smoke test which tests the code change with popular npm packages.
+* **CITGM**: Canary In The Gold Mine - A smoke test that tests the code change with popular npm packages.
 * **CJS**: [CommonJS][] - Standard for JavaScript modules, and in most cases, [CommonJS Modules][].
 * **CLDR**: [Common Locale Data Repository][] - A repository of locale data used in software engineering.
 * **CLI**: [Command Line Interface][] - A way to interact with a computer program using text commands.
@@ -21,9 +21,10 @@ This file documents various terms and definitions that are used throughout the N
 * **CVE**: [Common Vulnerabilities and Exposures][] - Database maintaining reported security vulnerabilities.
 * **Deps**: Dependencies - Upstream projects that this project depends on.
 * **DOM**: [Document Object Model][] - A programming interface for web documents. It represents the structure of a
-  document as a tree of objects, allowing programmers to manipulate the content and structure of a web page dynamically.
-* **ECMA**: [ECMA][] - Governing body over JavaScript's specification.
-* **ECMA-262**: **ECMA**'s [standard for ECMAScript][].
+  document as a tree of objects, allowing programmers to dynamically manipulate the content and structure of a web page.
+* **ECMA**: [Ecma International][] - A nonprofit standards organization that develops and publishes international standards,
+  including **ECMA-262**.
+* **ECMA-262**: **Ecma**'s [specification document for **ECMAScript**][], maintained and updated by the **TC39**.
 * **ECMAScript**: A standard for scripting languages, including **JavaScript**.
 * **EOF**: [End-of-File][] - Indicates the end of a file or stream.
 * **EOL**: [End-of-Life][] (when used within project documents), [End-of-Line][] (when used within a program),
@@ -52,8 +53,8 @@ This file documents various terms and definitions that are used throughout the N
   specification.
 * **JS/C++ boundary**: Boundary between V8's runtime and JS code execution, often crossed when calling JS functions
   with C++ linkage.
-* **JSON**: [JavaScript Object Notation][] - A lightweight data interchange format that is easy for humans to read and
-  write, and easy for machines to parse and generate. It is commonly used for transmitting data between a server and a
+* **JSON**: [JavaScript Object Notation][] - A lightweight data-interchange format that is easy for humans to read and
+  write and for machines to parse and generate. It is commonly used for transmitting data between a server and a
   web application.
 * **LE**: Little [Endian][] - A Byte Order where the smallest bit comes first. The opposite of **BE**.
 * **LGTM/SGTM**: Looks/Sounds good to me - Commonly used to approve a code review.
@@ -62,8 +63,9 @@ This file documents various terms and definitions that are used throughout the N
 * **MVC**: [Model-View-Controller][] - A software design pattern commonly used for developing user interfaces. It
   separates the application into three interconnected components: the model (data), the view (presentation), and the
   controller (logic).
-* **Native modules/addons**: Modules implemented in C/C++ that expose interfaces callable from JS.
-* **npm**: [npm][] - A package manager and registry, widely used for managing dependencies in
+* **Native modules/addons**: Modules implemented in native code, such as C or C++, that expose interfaces callable
+  from JS.
+* **npm**: [npm][] - A package manager and registry widely used for managing dependencies in
   Node.js projects and for sharing code with others.
 * **OOB**: Out Of Bounds - Used in the context of array access.
 * **OOM**: Out Of Memory - Situation where a computer program exceeds its memory allocation.
@@ -72,15 +74,16 @@ This file documents various terms and definitions that are used throughout the N
   and polymorphism.
 * **PPC**: [PowerPC][] - A type of microprocessor architecture.
 * **Primordials**: Pristine built-ins in JavaScript that are not affected by prototype pollution.
-* **Prototype Pollution**: Process in which user mutating object prototypes affects other code.
+* **Prototype Pollution**: Process in which a user mutating object prototypes affects other code.
 * **RAII**: [Resource Acquisition Is Initialization][] - Programming idiom used to manage resources in C++.
 * **REPL**: [Read Evaluate Print Loop][] - Environment for interactive programming.
 * **RFC**: [Request For Comments][] - A Document used in standardization processes.
-* **RSLGTM/RSSGTM**: Rubber-Stamp Looks/Sounds Good To Me - The reviewer approves without doing a full code review.
+* **RSLGTM/RSSGTM**: Rubber-Stamp Looks/Sounds Good To Me - The reviewer approves without a full code review.
 * **RSS**: [Resident Set Size][] - Amount of memory occupied by a process in RAM.
 * **SMP**: [Symmetric Multi-Processor][] - Architecture where multiple processors share the same memory.
 * **Snapshot**: Chunk of bytes containing data serialized from a V8 heap.
 * **TBH**: To Be Honest.
+* **TC39**: [Ecma Technical Committee 39][], governing body over **ECMAScript**.
 * **TSC**: Technical Steering Committee - Governing body within a project.
 * **UI**: [User Interface][] - The point of interaction between a user and a computer program. It includes elements
   such as buttons, menus, and other graphical elements that allow users to interact with the software.
@@ -110,8 +113,9 @@ This file documents various terms and definitions that are used throughout the N
 [Compiler Explorer]: https://godbolt.org/
 [Continuous Integration]: https://en.wikipedia.org/wiki/Continuous_integration
 [Document Object Model]: https://en.wikipedia.org/wiki/Document_Object_Model
-[ECMA]: https://ecma.org
 [ECMAScript Module]: https://nodejs.org/api/esm.html#modules-ecmascript-modules
+[Ecma International]: https://ecma.org
+[Ecma Technical Committee 39]: https://tc39.es/
 [End-of-File]: https://en.wikipedia.org/wiki/End-of-file
 [End-of-Life]: https://en.wikipedia.org/wiki/End-of-life_product
 [End-of-Line]: https://en.wikipedia.org/wiki/Newline
@@ -145,5 +149,5 @@ This file documents various terms and definitions that are used throughout the N
 [Web Assembly System Interface]: https://github.com/WebAssembly/WASI
 [Web Hypertext Application Technology Working Group]: https://en.wikipedia.org/wiki/WHATWG
 [World Wide Web Consortium]: https://www.w3.org/
-[standard for ECMAScript]: https://ecma-international.org/publications-and-standards/standards/ecma-262/
+[specification document for **ECMAScript**]: https://ecma-international.org/publications-and-standards/standards/ecma-262/
 [web-platform-tests]: https://github.com/web-platform-tests/wpt
