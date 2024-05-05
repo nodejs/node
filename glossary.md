@@ -22,8 +22,8 @@ This file documents various terms and definitions used throughout the Node.js co
 * **Deps**: Dependencies - Upstream projects that this project depends on.
 * **DOM**: [Document Object Model][] - A programming interface for web documents. It represents the structure of a
   document as a tree of objects, allowing programmers to dynamically manipulate the content and structure of a web page.
-* **ECMA**: [Ecma International][] - A nonprofit standards organization that develops and publishes international standards,
-  including **ECMA-262**.
+* **ECMA**: [Ecma International][] - A nonprofit standards organization that develops and publishes international
+  standards, including **ECMA-262**.
 * **ECMA-262**: **Ecma**'s [specification document for **ECMAScript**][], maintained and updated by the **TC39**.
 * **ECMAScript**: A standard for scripting languages, including **JavaScript**.
 * **EOF**: [End-of-File][] - Indicates the end of a file or stream.
