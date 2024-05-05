@@ -63,8 +63,8 @@ This file documents various terms and definitions used throughout the Node.js co
 * **MVC**: [Model-View-Controller][] - A software design pattern commonly used for developing user interfaces. It
   separates the application into three interconnected components: the model (data), the view (presentation), and the
   controller (logic).
-* **Native modules/addons**: Modules implemented in native code, such as C or C++, that expose interfaces callable
-  from JS.
+* **Native modules/addons**: Modules compiled to native code from a non-JavaScript language,
+  such as C or C++, that expose interfaces callable from JavaScript.
 * **npm**: [npm][] - A package manager and registry widely used for managing dependencies in
   Node.js projects and for sharing code with others.
 * **OOB**: Out Of Bounds - Used in the context of array access.
