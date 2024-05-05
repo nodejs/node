@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gyp-next"
-version = "0.16.2"
+version = "0.17.0"
 authors = [
   { name="Node.js contributors", email="ryzokuken@disroot.org" },
 ]
@@ -29,7 +29,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["flake8", "ruff == 0.3.0", "pytest"]
+dev = ["flake8", "ruff == 0.4.2", "pytest"]
 
 [project.scripts]
 gyp = "gyp:script_main"
@@ -38,6 +38,11 @@ gyp = "gyp:script_main"
 "Homepage" = "https://github.com/nodejs/gyp-next"
 
 [tool.ruff]
+extend-exclude = ["pylib/packaging"]
+line-length = 88
+target-version = "py37"
+
+[tool.ruff.lint]
 select = [
   "C4",   # flake8-comprehensions
   "C90",  # McCabe cyclomatic complexity
@@ -101,14 +106,11 @@ ignore = [
   "RUF012",
   "UP031",
 ]
-extend-exclude = ["pylib/packaging"]
-line-length = 88
-target-version = "py37"
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 101
 
-[tool.ruff.pylint]
+[tool.ruff.lint.pylint]
 max-args = 11
 max-branches = 108
 max-returns = 10
