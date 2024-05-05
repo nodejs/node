@@ -1076,7 +1076,7 @@ added: v22.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/52837
-    description: Add support 'withFileTypes' as an option.
+    description: Add support for `withFileTypes` as an option.
 -->
 
 > Stability: 1 - Experimental
