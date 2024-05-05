@@ -78,7 +78,7 @@ This file documents various terms and definitions used throughout the Node.js co
 * **RAII**: [Resource Acquisition Is Initialization][] - Programming idiom used to manage resources in C++.
 * **REPL**: [Read Evaluate Print Loop][] - Environment for interactive programming.
 * **RFC**: [Request For Comments][] - A Document used in standardization processes.
-* **RSLGTM/RSSGTM**: Rubber-Stamp Looks/Sounds Good To Me - The reviewer approves without a full code review.
+* **RSLGTM**: Rubber-Stamp Looks Good To Me - The reviewer approves without a full code review.
 * **RSS**: [Resident Set Size][] - Amount of memory occupied by a process in RAM.
 * **SMP**: [Symmetric Multi-Processor][] - Architecture where multiple processors share the same memory.
 * **Snapshot**: Chunk of bytes containing data serialized from a V8 heap.
