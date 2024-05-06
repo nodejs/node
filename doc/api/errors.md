@@ -1377,13 +1377,6 @@ Path is a directory.
 An attempt has been made to read a file whose size is larger than the maximum
 allowed size for a `Buffer`.
 
-<a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
-
-### `ERR_FS_INVALID_SYMLINK_TYPE`
-
-An invalid symlink type was passed to the [`fs.symlink()`][] or
-[`fs.symlinkSync()`][] methods.
-
 <a id="ERR_HTTP_HEADERS_SENT"></a>
 
 ### `ERR_HTTP_HEADERS_SENT`
@@ -3275,6 +3268,17 @@ The UTF-16 encoding was used with [`hash.digest()`][]. While the
 `hash.digest()` method does allow an `encoding` argument to be passed in,
 causing the method to return a string rather than a `Buffer`, the UTF-16
 encoding (e.g. `ucs` or `utf16le`) is not supported.
+
+<a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
+
+### `ERR_FS_INVALID_SYMLINK_TYPE`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An invalid symlink type was passed to the [`fs.symlink()`][] or
+[`fs.symlinkSync()`][] methods.
 
 <a id="ERR_HTTP2_FRAME_ERROR"></a>
 
