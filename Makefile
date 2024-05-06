@@ -12,11 +12,26 @@ CLOUDFLARE_ENDPOINT ?= https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflaresto
 CLOUDFLARE_BUCKET ?= dist-staging
 CLOUDFLARE_PROFILE ?= worker
 LOGLEVEL ?= silent
-OSTYPE := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-ifeq ($(findstring os/390,$OSTYPE),os/390)
-OSTYPE ?= os390
+ifeq ($(OS),Windows_NT)
+  OSTYPE := windows
+
+  ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
+    ARCHTYPE := arm64
+  else
+    ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
+      ARCHTYPE := arm64
+    else ifeq ($(PROCESSOR_ARCHITECTURE),x86)
+      ARCHTYPE := x86
+    endif
+  endif
+else
+  ARCHTYPE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
+  OSTYPE := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+
+  ifeq ($(findstring os/390,$OSTYPE),os/390)
+    OSTYPE ?= os390
+  endif
 endif
-ARCHTYPE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
 COVTESTS ?= test-cov
 COV_SKIP_TESTS ?= core_line_numbers.js,testFinalizer.js,test_function/test.js
 GTEST_FILTER ?= "*"
