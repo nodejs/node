@@ -139,7 +139,6 @@ template("node_gn_build") {
     public_deps = [
       "deps/ada",
       "deps/uv",
-      "deps/base64",
       "deps/simdjson",
       "$node_v8_path",
     ]
