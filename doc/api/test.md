@@ -1364,7 +1364,7 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
-  * `plan` {number} The number of assertions expected to be run in the test.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
     If the number of assertions run in the test does not match the number
     specified in the plan, the test will fail.
     **Default:** `undefined`.
@@ -2976,19 +2976,44 @@ added:
   - REPLACEME
 -->
 
-* `count` {number} The number of assertions that are expected to run.
+> Stability: 1 - Experimental
 
-This function is used to set the number of assertions that are expected to run
-within the test. If the number of assertions that run does not match the
+* `count` {number} The number of assertions and subtests that are expected to run.
+
+This function is used to set the number of assertions and subtests that are expected to run
+within the test. If the number of assertions and subtests that run does not match the
 expected count, the test will fail.
 
-> Note: To make sure assertion are tracked, it must be used `t.assert` instead of `assert` directly.
+> Note: To make sure assertions are tracked, `t.assert` must be used instead of `assert` directly.
 
 ```js
 test('top level test', (t) => {
   t.plan(2);
   t.assert.ok('some relevant assertion here');
-  t.assert.ok('another relevant assertion here');
+  t.subtest('subtest', () => {});
+});
+```
+
+When working with asynchronous code, the `plan` function can be used to ensure that the
+correct number of assertions are run:
+
+```js
+test('planning with streams', (t, done) => {
+  function* generate() {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+  }
+  const expected = ['a', 'b', 'c'];
+  t.plan(expected.length);
+  const stream = Readable.from(generate());
+  stream.on('data', (chunk) => {
+    t.assert.strictEqual(chunk, expected.shift());
+  });
+
+  stream.on('end', () => {
+    done();
+  });
 });
 ```
 
@@ -3122,7 +3147,7 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
-  * `plan` {number} The number of assertions expected to be run in the test.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
     If the number of assertions run in the test does not match the number
     specified in the plan, the test will fail.
     **Default:** `undefined`.
