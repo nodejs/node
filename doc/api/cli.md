@@ -567,6 +567,10 @@ vm.measureMemory();
 
 ### `--disable-wasm-trap-handler`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 By default, Node.js enables trap-handler-based WebAssembly bound
 checks. As a result, V8 does not need to insert inline bound checks
 int the code compiled from WebAssembly which may speedup WebAssembly
