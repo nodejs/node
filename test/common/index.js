@@ -32,6 +32,7 @@ const net = require('net');
 const path = require('path');
 const { inspect } = require('util');
 const { isMainThread } = require('worker_threads');
+const { isModuleNamespaceObject } = require('util/types');
 
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
@@ -938,6 +939,18 @@ function getPrintedStackTrace(stderr) {
   return result;
 }
 
+/**
+ * Check the exports of require(esm).
+ * TODO(joyeecheung): use it in all the test-require-module-* tests to minimize changes
+ * if/when we change the layout of the result returned by require(esm).
+ * @param {object} mod result returned by require()
+ * @param {object} expectation shape of expected namespace.
+ */
+function expectRequiredModule(mod, expectation) {
+  assert(isModuleNamespaceObject(mod));
+  assert.deepStrictEqual({ ...mod }, { ...expectation });
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -946,6 +959,7 @@ const common = {
   createZeroFilledFile,
   defaultAutoSelectFamilyAttemptTimeout,
   expectsError,
+  expectRequiredModule,
   expectWarning,
   gcUntil,
   getArrayBufferViews,
