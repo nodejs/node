@@ -152,6 +152,9 @@
             'cflags': [ '-fPIC' ],
             'ldflags': [ '-fPIC' ]
           }],
+          ['clang==1', {
+            'msbuild_toolset': 'ClangCL',
+          }],
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -240,6 +243,9 @@
             'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
             'ldflags': [ '-fPIC' ]
           }],
+          ['clang==1', {
+            'msbuild_toolset': 'ClangCL',
+          }],
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -282,12 +288,26 @@
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
-        'AdditionalOptions': [
-          '/Zc:__cplusplus',
-          # The following option enables c++20 on Windows. This is needed for V8 v12.4+
-          '-std:c++20',
-          # The following option reduces the "error C1060: compiler is out of heap space"
-          '/Zm2000',
+        # TODO(targos): Remove condition and always use LanguageStandard options
+        # once node-gyp supports them.
+        'conditions': [
+          ['clang==1', {
+            'LanguageStandard': 'stdcpp20',
+            'LanguageStandard_C': 'stdc11',
+            'AdditionalOptions': [
+              '/Zc:__cplusplus',
+              # The following option reduces the "error C1060: compiler is out of heap space"
+              '/Zm2000',
+            ],
+          }, {
+            'AdditionalOptions': [
+              '/Zc:__cplusplus',
+              # The following option enables c++20 on Windows. This is needed for V8 v12.4+
+              '-std:c++20',
+              # The following option reduces the "error C1060: compiler is out of heap space"
+              '/Zm2000',
+            ],
+          }],
         ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
