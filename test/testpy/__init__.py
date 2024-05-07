@@ -102,7 +102,12 @@ class SimpleTestConfiguration(test.TestConfiguration):
       self.additional_flags = []
 
   def Ls(self, path):
-    return [f for f in os.listdir(path) if LS_RE.match(f)]
+    suites = []
+    for root, dirs, files in os.walk(path):
+      for f in files:
+        if LS_RE.match(f):
+          suites.append(os.path.relpath(os.path.join(root, f), path))
+    return suites
 
   def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root))]
