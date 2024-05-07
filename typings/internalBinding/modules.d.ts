@@ -20,11 +20,7 @@ export type SerializedPackageConfig = [
 export interface ModulesBinding {
   readPackageJSON(path: string): SerializedPackageConfig | undefined;
   getNearestParentPackageJSON(path: string): PackageConfig | undefined
-  getNearestParentPackageJSONType(path: string): [
-    PackageConfig['type'],
-    string, // package.json path
-    string, // raw content
-  ]
+  getNearestParentPackageJSONType(path: string): PackageConfig['type']
   getPackageScopeConfig(path: string): SerializedPackageConfig | undefined
   getPackageJSONScripts(): string | undefined
 }

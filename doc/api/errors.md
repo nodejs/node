@@ -2159,68 +2159,6 @@ added:
 An ESM loader hook returned without calling `next()` and without explicitly
 signaling a short circuit.
 
-<a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
-
-### `ERR_MANIFEST_ASSERT_INTEGRITY`
-
-An attempt was made to load a resource, but the resource did not match the
-integrity defined by the policy manifest. See the documentation for [policy][]
-manifests for more information.
-
-<a id="ERR_MANIFEST_DEPENDENCY_MISSING"></a>
-
-### `ERR_MANIFEST_DEPENDENCY_MISSING`
-
-An attempt was made to load a resource, but the resource was not listed as a
-dependency from the location that attempted to load it. See the documentation
-for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_INTEGRITY_MISMATCH"></a>
-
-### `ERR_MANIFEST_INTEGRITY_MISMATCH`
-
-An attempt was made to load a policy manifest, but the manifest had multiple
-entries for a resource which did not match each other. Update the manifest
-entries to match in order to resolve this error. See the documentation for
-[policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_INVALID_RESOURCE_FIELD"></a>
-
-### `ERR_MANIFEST_INVALID_RESOURCE_FIELD`
-
-A policy manifest resource had an invalid value for one of its fields. Update
-the manifest entry to match in order to resolve this error. See the
-documentation for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_INVALID_SPECIFIER"></a>
-
-### `ERR_MANIFEST_INVALID_SPECIFIER`
-
-A policy manifest resource had an invalid value for one of its dependency
-mappings. Update the manifest entry to match to resolve this error. See the
-documentation for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_PARSE_POLICY"></a>
-
-### `ERR_MANIFEST_PARSE_POLICY`
-
-An attempt was made to load a policy manifest, but the manifest was unable to
-be parsed. See the documentation for [policy][] manifests for more information.
-
-<a id="ERR_MANIFEST_TDZ"></a>
-
-### `ERR_MANIFEST_TDZ`
-
-An attempt was made to read from a policy manifest, but the manifest
-initialization has not yet taken place. This is likely a bug in Node.js.
-
-<a id="ERR_MANIFEST_UNKNOWN_ONERROR"></a>
-
-### `ERR_MANIFEST_UNKNOWN_ONERROR`
-
-A policy manifest was loaded, but had an unknown value for its "onerror"
-behavior. See the documentation for [policy][] manifests for more information.
-
 <a id="ERR_MEMORY_ALLOCATION_FAILED"></a>
 
 ### `ERR_MEMORY_ALLOCATION_FAILED`
@@ -3436,6 +3374,100 @@ removed: v21.1.0
 
 An import attribute is not supported by this version of Node.js.
 
+<a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
+
+### `ERR_MANIFEST_ASSERT_INTEGRITY`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An attempt was made to load a resource, but the resource did not match the
+integrity defined by the policy manifest. See the documentation for policy
+manifests for more information.
+
+<a id="ERR_MANIFEST_DEPENDENCY_MISSING"></a>
+
+### `ERR_MANIFEST_DEPENDENCY_MISSING`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An attempt was made to load a resource, but the resource was not listed as a
+dependency from the location that attempted to load it. See the documentation
+for policy manifests for more information.
+
+<a id="ERR_MANIFEST_INTEGRITY_MISMATCH"></a>
+
+### `ERR_MANIFEST_INTEGRITY_MISMATCH`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An attempt was made to load a policy manifest, but the manifest had multiple
+entries for a resource which did not match each other. Update the manifest
+entries to match in order to resolve this error. See the documentation for
+policy manifests for more information.
+
+<a id="ERR_MANIFEST_INVALID_RESOURCE_FIELD"></a>
+
+### `ERR_MANIFEST_INVALID_RESOURCE_FIELD`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+A policy manifest resource had an invalid value for one of its fields. Update
+the manifest entry to match in order to resolve this error. See the
+documentation for policy manifests for more information.
+
+<a id="ERR_MANIFEST_INVALID_SPECIFIER"></a>
+
+### `ERR_MANIFEST_INVALID_SPECIFIER`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+A policy manifest resource had an invalid value for one of its dependency
+mappings. Update the manifest entry to match to resolve this error. See the
+documentation for policy manifests for more information.
+
+<a id="ERR_MANIFEST_PARSE_POLICY"></a>
+
+### `ERR_MANIFEST_PARSE_POLICY`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An attempt was made to load a policy manifest, but the manifest was unable to
+be parsed. See the documentation for policy manifests for more information.
+
+<a id="ERR_MANIFEST_TDZ"></a>
+
+### `ERR_MANIFEST_TDZ`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An attempt was made to read from a policy manifest, but the manifest
+initialization has not yet taken place. This is likely a bug in Node.js.
+
+<a id="ERR_MANIFEST_UNKNOWN_ONERROR"></a>
+
+### `ERR_MANIFEST_UNKNOWN_ONERROR`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+A policy manifest was loaded, but had an unknown value for its "onerror"
+behavior. See the documentation for policy manifests for more information.
+
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 
 ### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
@@ -4016,7 +4048,6 @@ An error occurred trying to allocate memory. This should never happen.
 [domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
-[policy]: permissions.md#policies
 [relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
 [special scheme]: https://url.spec.whatwg.org/#special-scheme

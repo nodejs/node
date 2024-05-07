@@ -2354,7 +2354,7 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 `process.binding()` is for use by Node.js internal code only.
 
 While `process.binding()` has not reached End-of-Life status in general, it is
-unavailable when [policies][] or the [permission model][] are enabled.
+unavailable when the [permission model][] is enabled.
 
 ### DEP0112: `dgram` private APIs
 
@@ -3836,7 +3836,6 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 [legacy URL API]: url.md#legacy-url-api
 [legacy `urlObject`]: url.md#legacy-urlobject
 [permission model]: permissions.md#permission-model
-[policies]: permissions.md#policies
 [static methods of `crypto.Certificate()`]: crypto.md#class-certificate
 [subpath exports]: packages.md#subpath-exports
 [subpath imports]: packages.md#subpath-imports
