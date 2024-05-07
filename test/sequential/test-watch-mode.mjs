@@ -343,7 +343,6 @@ console.log(values.random);
     ]);
   });
 
-
   // TODO: Remove skip after https://github.com/nodejs/node/pull/45271 lands
   it('should not watch when running an missing file', {
     skip: !supportsRecursive
@@ -576,6 +575,7 @@ console.log(values.random);
       `Completed running ${inspect(file)}`,
     ]);
   });
+
   it('should pass IPC messages from a spawning parent to the child and back', async () => {
     const file = createTmpFile(`console.log('running');
 process.on('message', (message) => {
