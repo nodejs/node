@@ -279,6 +279,29 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
+## `path.matchGlob(path, pattern)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `path` {string} The path to glob-match against.
+* `pattern` {string} The glob to check the path against.
+* Returns: {boolean} Whether or not the `path` matched the `pattern`.
+
+The `path.matchGlob()` method determines if `path` matches the `pattern`.
+
+For example:
+
+```js
+path.matchGlob('/foo/bar', '/foo/*'); // true
+path.matchGlob('/foo/bar*', 'foo/bird'); // false
+```
+
+A [`TypeError`][] is thrown if `path` or `pattern` are not strings.
+
 ## `path.isAbsolute(path)`
 
 <!-- YAML
