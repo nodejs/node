@@ -134,7 +134,7 @@
       '<(V8_ROOT)/include',
     ],
     'conditions': [
-      ['clang', {
+      ['clang==1', {
         'cflags': [ '-Werror', '-Wno-unknown-pragmas' ],
       },{
         'cflags!': [ '-Wall', '-Wextra' ],
@@ -144,7 +144,7 @@
           '-flax-vector-conversions',
         ],
       }],
-      ['clang or OS!="win"', {
+      ['clang==1 or OS!="win"', {
         'cflags': [ '-Wno-invalid-offsetof' ],
         'xcode_settings': {
           'WARNING_CFLAGS': ['-Wno-invalid-offsetof']
