@@ -107,14 +107,6 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
                                       std::vector<std::string>* argv) {
-  if (has_policy_integrity_string && experimental_policy.empty()) {
-    errors->push_back("--policy-integrity requires "
-                      "--experimental-policy be enabled");
-  }
-  if (has_policy_integrity_string && experimental_policy_integrity.empty()) {
-    errors->push_back("--policy-integrity cannot be empty");
-  }
-
   if (!input_type.empty()) {
     if (input_type != "commonjs" && input_type != "module") {
       errors->push_back("--input-type must be \"module\" or \"commonjs\"");
@@ -435,20 +427,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_permission,
             kAllowedInEnvvar,
             false);
-  AddOption("--experimental-policy",
-            "use the specified file as a "
-            "security policy",
-            &EnvironmentOptions::experimental_policy,
-            kAllowedInEnvvar);
-  AddOption("[has_policy_integrity_string]",
-            "",
-            &EnvironmentOptions::has_policy_integrity_string);
-  AddOption("--policy-integrity",
-            "ensure the security policy contents match "
-            "the specified integrity",
-            &EnvironmentOptions::experimental_policy_integrity,
-            kAllowedInEnvvar);
-  Implies("--policy-integrity", "[has_policy_integrity_string]");
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
