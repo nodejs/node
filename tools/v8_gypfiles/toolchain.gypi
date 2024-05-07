@@ -134,7 +134,7 @@
       '<(V8_ROOT)/include',
     ],
     'conditions': [
-      ['clang', {
+      ['clang==1', {
         'cflags': [ '-Werror', '-Wno-unknown-pragmas' ],
       },{
         'cflags!': [ '-Wall', '-Wextra' ],

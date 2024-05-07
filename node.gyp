@@ -488,7 +488,7 @@
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS == "linux" and llvm_version != "0.0"', {
+      ['OS=="linux" and clang==1', {
         'libraries': ['-latomic'],
       }],
     ],

@@ -7,7 +7,6 @@
     'ZLIB_ROOT': '.',
     'use_system_zlib%': 0,
     'arm_fpu%': '',
-    'llvm_version%': '0.0',
   },
   'conditions': [
     ['use_system_zlib==0', {
@@ -24,7 +23,7 @@
                 },{
                   'defines': [ 'X86_NOT_WINDOWS' ],
                 }],
-                ['OS!="win" or llvm_version!="0.0"', {
+                ['OS!="win" or clang==1', {
                   'cflags': [ '-mssse3' ],
                   'xcode_settings': {
                     'OTHER_CFLAGS': [ '-mssse3' ],
@@ -65,7 +64,7 @@
           'conditions': [
             ['OS!="ios"', {
               'conditions': [
-                ['OS!="win" and llvm_version=="0.0"', {
+                ['OS!="win" and clang==0', {
                   'cflags': [ '-march=armv8-a+aes+crc' ],
                 }],
                 ['OS=="android"', {
@@ -111,7 +110,7 @@
         #   'target_name': 'zlib_crc32_simd',
         #   'type': 'static_library',
         #   'conditions': [
-        #     ['OS!="win" or llvm_version!="0.0"', {
+        #     ['OS!="win" or clang==1', {
         #       'cflags': [
         #         '-msse4.2',
         #         '-mpclmul',
