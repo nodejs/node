@@ -23409,6 +23409,7 @@ const plugins = [
         "markdown",
         "mjs",
         "powershell",
+        "pre",
         "r",
         "text",
         "ts",

@@ -205,6 +205,7 @@ function linkJsTypeDocs(text) {
 }
 
 const isJSFlavorSnippet = (node) => node.lang === 'cjs' || node.lang === 'mjs';
+const isPreSnippet = (node) => node.lang === 'pre';
 
 // Preprocess headers, stability blockquotes, and YAML blocks.
 export function preprocessElements({ filename }) {
@@ -265,6 +266,8 @@ export function preprocessElements({ filename }) {
             // Isolated JS snippet, no need to add the checkbox.
             node.value = `<pre>${highlighted} ${copyButton}</pre>`;
           }
+        } else if (isPreSnippet(node)) {
+          node.value = `<pre>${node.value}</pre>`;
         } else {
           node.value = `<pre>${highlighted} ${copyButton}</pre>`;
         }
