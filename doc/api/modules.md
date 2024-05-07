@@ -380,7 +380,7 @@ them as different modules and will reload the file multiple times. For example,
 `require('./foo')` and `require('./FOO')` return two different objects,
 irrespective of whether or not `./foo` and `./FOO` are the same file.
 
-## Core modules
+## Built-in modules
 
 <!--type=misc-->
 
@@ -396,19 +396,30 @@ changes:
 Node.js has several modules compiled into the binary. These modules are
 described in greater detail elsewhere in this documentation.
 
-The core modules are defined within the Node.js source and are located in the
+The built-in modules are defined within the Node.js source and are located in the
 `lib/` folder.
 
-Core modules can be identified using the `node:` prefix, in which case
+built-in modules can be identified using the `node:` prefix, in which case
 it bypasses the `require` cache. For instance, `require('node:http')` will
 always return the built in HTTP module, even if there is `require.cache` entry
 by that name.
 
-Some core modules are always preferentially loaded if their identifier is
+Some built-in modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
 return the built-in HTTP module, even if there is a file by that name. The list
-of core modules that can be loaded without using the `node:` prefix is exposed
+of built-in modules that can be loaded without using the `node:` prefix is exposed
 as [`module.builtinModules`][].
+
+### Built-in modules with mandatory `node:` prefix
+
+When being loaded by `require()`, some built-in modules must be requested with the
+`node:` prefix. This requirement exists to prevent newly introduced built-in
+modules from having a conflict with user land packages that already have
+taken the name. Currently the built-in modules that requires the `node:` prefix are:
+
+* [`node:sea`][]
+* [`node:test`][]
+* [`node:test/reporters`][]
 
 ## Cycles
 
@@ -552,7 +563,7 @@ folders as modules, and work for both `require` and `import`.
 <!--type=misc-->
 
 If the module identifier passed to `require()` is not a
-[core](#core-modules) module, and does not begin with `'/'`, `'../'`, or
+[built-in](#built-in-modules) module, and does not begin with `'/'`, `'../'`, or
 `'./'`, then Node.js starts at the directory of the current module, and
 adds `/node_modules`, and attempts to load the module from that location.
 Node.js will not append `node_modules` to a path already ending in
@@ -1166,6 +1177,9 @@ This section was moved to
 [`module.id`]: #moduleid
 [`module` core module]: module.md
 [`module` object]: #the-module-object
+[`node:sea`]: single-executable-applications.md#single-executable-application-api
+[`node:test/reporters`]: test.md#test-reporters
+[`node:test`]: test.md
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`require.main`]: #requiremain
