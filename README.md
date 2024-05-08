@@ -1,4 +1,11 @@
-# Node.js
+<p align="center">
+  <a href="https://nodejs.org/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://nodejs.org/static/logos/nodejsStackedLight.svg">
+      <img src="https://nodejs.org/static/logos/nodejsStackedDark.svg" width="200px">
+    </picture>
+  </a>
+</p>
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
