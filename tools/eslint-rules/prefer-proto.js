@@ -7,8 +7,8 @@
 'use strict';
 
 // Cribbed from `eslint-module-utils/declaredScope`
-function declaredScope(context, name) {
-  const references = context.sourceCode.getScope().references;
+function declaredScope(context, node, name) {
+  const references = context.sourceCode.getScope(node).references;
   const reference = references.find((x) => x.identifier.name === name);
   if (!reference) return undefined;
   return reference.resolved.scope.type;
@@ -33,7 +33,7 @@ module.exports = {
         [callee.type="MemberExpression"][callee.object.name="Object"][callee.property.name="create"]\
       )'(node) {
         if (node.callee.type === 'MemberExpression') {
-          const scope = declaredScope(context, node.callee.object);
+          const scope = declaredScope(context, node, node.callee.object);
           if (scope && scope !== 'module' && scope !== 'global') {
             return;
           }
