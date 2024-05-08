@@ -8,7 +8,7 @@ const Countdown = require('../../common/countdown');
 // Test that certain response header fields do not repeat.
 // 'content-length' should also be in this list but it is
 // handled differently because multiple content-lengths are
-// an error (see test-http-response-multi-content-length.js).
+// an error (see http/test-response-multi-content-length.js).
 const norepeat = [
   'content-type',
   'user-agent',

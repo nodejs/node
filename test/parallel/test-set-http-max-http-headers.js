@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const { spawn } = require('child_process');
 const path = require('path');
-const testName = path.join(__dirname, 'test-http-max-http-headers.js');
+const testName = path.join(__dirname, 'http', 'test-max-http-headers.js');
 
 const timeout = common.platformTimeout(100);
 

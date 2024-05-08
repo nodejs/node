@@ -26,7 +26,7 @@ const http = require('http');
 const url = require('url');
 
 //
-// Slight variation on test-http-client-race to test for another race
+// Slight variation on http/test-client-race to test for another race
 // condition involving the parsers FreeList used internally by http.Client.
 //
 
