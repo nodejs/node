@@ -34,7 +34,7 @@ const globs = {
 
 for (const [platform, platformGlobs] of Object.entries(globs)) {
   for (const [pathStr, glob, expected] of platformGlobs) {
-    const actual = path[platform].glob(pathStr, glob);
+    const actual = path[platform].matchGlob(pathStr, glob);
     assert.strictEqual(actual, expected, `Expected ${pathStr} to ` + (expected ? '' : 'not ') + `match ${glob} on ${platform}`);
   }
 }
