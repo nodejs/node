@@ -712,7 +712,15 @@ npm install -g git-secure-tag
 
 > Ensure to disable `--follow-tags` in your git settings using: `git config push.followTags false`
 
-Create a tag using the following command:
+If your GPG key is protected by a password, you might need to run:
+
+```console
+$ export GPG_TTY=$(tty)
+```
+
+before creating the tag.
+
+To create a tag use the following command:
 
 ```bash
 git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-type>) Release"
