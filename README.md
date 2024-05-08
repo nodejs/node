@@ -1,3 +1,4 @@
+<!-- lint disable -->
 <p align="center">
   <a href="https://nodejs.org/">
     <picture>
@@ -6,6 +7,7 @@
     </picture>
   </a>
 </p>
+<!-- lint enable -->
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
