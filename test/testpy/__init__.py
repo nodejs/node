@@ -105,7 +105,7 @@ class SimpleTestConfiguration(test.TestConfiguration):
     return [f for f in os.listdir(path) if LS_RE.match(f)]
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root))]
+    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(os.path.join(self.root))]
     result = []
     for tst in all_tests:
       if self.Contains(path, tst):
