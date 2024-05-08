@@ -6,15 +6,14 @@
 namespace node::task_runner {
 
 #ifdef _WIN32
-static constexpr char bin_path[] = "\\node_modules\\.bin";
+static constexpr const char* bin_path = "\\node_modules\\.bin";
 #else
-static constexpr char bin_path[] = "/node_modules/.bin";
+static constexpr const char* bin_path = "/node_modules/.bin";
 #endif  // _WIN32
 
-ProcessRunner::ProcessRunner(
-    std::shared_ptr<InitializationResultImpl> result,
-    std::string_view command,
-    const std::optional<std::string>& positional_args) {
+ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
+                             std::string_view command,
+                             const PositionalArgs& positional_args) {
   memset(&options_, 0, sizeof(uv_process_options_t));
 
   // Get the current working directory.
@@ -54,10 +53,6 @@ ProcessRunner::ProcessRunner(
 
   std::string command_str(command);
 
-  if (positional_args.has_value()) {
-    command_str += " " + EscapeShell(positional_args.value());
-  }
-
   // Set environment variables
   uv_env_item_t* env_items;
   int env_count;
@@ -69,33 +64,45 @@ ProcessRunner::ProcessRunner(
   // ProcessRunner instance.
   for (int i = 0; i < env_count; i++) {
     std::string name = env_items[i].name;
-    std::string value = env_items[i].value;
+    auto value = env_items[i].value;
 
 #ifdef _WIN32
     // We use comspec environment variable to find cmd.exe path on Windows
     // Example: 'C:\\Windows\\system32\\cmd.exe'
     // If we don't find it, we fallback to 'cmd.exe' for Windows
-    if (name.size() == 7 && StringEqualNoCaseN(name.c_str(), "comspec", 7)) {
+    if (StringEqualNoCase(name.c_str(), "comspec")) {
       file_ = value;
     }
 #endif  // _WIN32
 
     // Check if environment variable key is matching case-insensitive "path"
-    if (name.size() == 4 && StringEqualNoCaseN(name.c_str(), "path", 4)) {
-      value.insert(0, current_bin_path);
+    if (StringEqualNoCase(name.c_str(), "path")) {
+      env_vars_.push_back(name + "=" + current_bin_path + value);
+    } else {
+      // Environment variables should be in "KEY=value" format
+      env_vars_.push_back(name + "=" + value);
     }
-
-    // Environment variables should be in "KEY=value" format
-    value.insert(0, name + "=");
-    env_vars_.push_back(value);
   }
   uv_os_free_environ(env_items, env_count);
 
   // Use the stored reference on the instance.
   options_.file = file_.c_str();
 
+  // Add positional arguments to the command string.
+  // Note that each argument needs to be escaped.
+  if (!positional_args.empty()) {
+    for (const auto& arg : positional_args) {
+      command_str += " " + EscapeShell(arg);
+    }
+  }
+
 #ifdef _WIN32
-  if (file_.find("cmd.exe") != std::string::npos) {
+  // We check whether file_ ends with cmd.exe in a case-insensitive manner.
+  // C++20 provides ends_with, but we roll our own for compatibility.
+  const char* cmdexe = "cmd.exe";
+  if (file_.size() >= strlen(cmdexe) &&
+      StringEqualNoCase(cmdexe,
+                        file_.c_str() + file_.size() - strlen(cmdexe))) {
     // If the file is cmd.exe, use the following command line arguments:
     // "/c" Carries out the command and exit.
     // "/d" Disables execution of AutoRun commands.
@@ -104,6 +111,9 @@ ProcessRunner::ProcessRunner(
     command_args_ = {
         options_.file, "/d", "/s", "/c", "\"" + command_str + "\""};
   } else {
+    // If the file is not cmd.exe, and it is unclear wich shell is being used,
+    // so assume -c is the correct syntax (Unix-like shells use -c for this
+    // purpose).
     command_args_ = {options_.file, "-c", command_str};
   }
 #else
@@ -126,12 +136,19 @@ ProcessRunner::ProcessRunner(
 }
 
 // EscapeShell escapes a string to be used as a command line argument.
+// Under Windows, we follow:
+// https://daviddeley.com/autohotkey/parameters/parameters.htm
+// Elsewhere:
 // It replaces single quotes with "\\'" and double quotes with "\\\"".
 // It also removes excessive quote pairs and handles edge cases.
-std::string EscapeShell(const std::string& input) {
+std::string EscapeShell(const std::string_view input) {
   // If the input is an empty string, return a pair of quotes
   if (input.empty()) {
+#ifdef _WIN32
+    return "\"\"";
+#else
     return "''";
+#endif
   }
 
   static const std::string_view forbidden_characters =
@@ -140,21 +157,32 @@ std::string EscapeShell(const std::string& input) {
   // Check if input contains any forbidden characters
   // If it doesn't, return the input as is.
   if (input.find_first_of(forbidden_characters) == std::string::npos) {
-    return input;
+    return std::string(input);
   }
 
-  // Replace single quotes("'") with "\\'"
-  std::string escaped = std::regex_replace(input, std::regex("'"), "\\'");
-
-  // Wrap the result in single quotes
-  escaped = "'" + escaped + "'";
-
-  // Remove excessive quote pairs and handle edge cases
   static const std::regex leadingQuotePairs("^(?:'')+(?!$)");
-  static const std::regex tripleSingleQuote("\\\\'''");
 
+#ifdef _WIN32
+  // Replace double quotes with single quotes and surround the string
+  // with double quotes for Windows.
+  std::string escaped =
+      std::regex_replace(std::string(input), std::regex("\""), "\"\"");
+  escaped = "\"" + escaped + "\"";
+  // Remove excessive quote pairs and handle edge cases
+  static const std::regex tripleSingleQuote("\\\\\"\"\"");
+  escaped = std::regex_replace(escaped, leadingQuotePairs, "");
+  escaped = std::regex_replace(escaped, tripleSingleQuote, "\\\"");
+#else
+  // Replace single quotes("'") with "\\'" and wrap the result
+  // in single quotes.
+  std::string escaped =
+      std::regex_replace(std::string(input), std::regex("'"), "\\'");
+  escaped = "'" + escaped + "'";
+  // Remove excessive quote pairs and handle edge cases
+  static const std::regex tripleSingleQuote("\\\\'''");
   escaped = std::regex_replace(escaped, leadingQuotePairs, "");
   escaped = std::regex_replace(escaped, tripleSingleQuote, "\\'");
+#endif  // _WIN32
 
   return escaped;
 }
@@ -188,7 +216,7 @@ void ProcessRunner::Run() {
 
 void RunTask(std::shared_ptr<InitializationResultImpl> result,
              std::string_view command_id,
-             const std::optional<std::string>& positional_args) {
+             const std::vector<std::string_view>& positional_args) {
   std::string_view path = "package.json";
   std::string raw_json;
 
@@ -256,20 +284,21 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
 // If the "--" flag is not found, it returns an empty optional.
 // Otherwise, it returns the positional arguments as a single string.
 // Example: "node -- script.js arg1 arg2" returns "arg1 arg2".
-std::optional<std::string> GetPositionalArgs(
-    const std::vector<std::string>& args) {
+PositionalArgs GetPositionalArgs(const std::vector<std::string>& args) {
   // If the "--" flag is not found, return an empty optional
   // Otherwise, return the positional arguments as a single string
   if (auto dash_dash = std::find(args.begin(), args.end(), "--");
       dash_dash != args.end()) {
-    std::string positional_args;
+    PositionalArgs positional_args{};
     for (auto it = dash_dash + 1; it != args.end(); ++it) {
-      positional_args += it->c_str();
+      // SAFETY: The following code is safe because the lifetime of the
+      // arguments is guaranteed to be valid until the end of the task runner.
+      positional_args.push_back(std::string_view(it->c_str(), it->size()));
     }
     return positional_args;
   }
 
-  return std::nullopt;
+  return {};
 }
 
 }  // namespace node::task_runner
