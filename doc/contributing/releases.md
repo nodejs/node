@@ -710,6 +710,8 @@ Install `git-secure-tag` npm module:
 npm install -g git-secure-tag
 ```
 
+> Ensure to disable `--follow-tags` in your git settings using: `git config push.followTags false`
+
 Create a tag using the following command:
 
 ```bash
