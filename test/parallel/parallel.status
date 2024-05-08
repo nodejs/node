@@ -23,7 +23,7 @@ test-worker-nearheaplimit-deadlock: PASS, FLAKY
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/43465
-test-http-server-request-timeouts-mixed: PASS, FLAKY
+http/test-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
@@ -31,10 +31,10 @@ test-runner-watch-mode: PASS,FLAKY
 
 [$system==macos]
 # https://github.com/nodejs/node/issues/42741
-test-http-server-headers-timeout-keepalive: PASS,FLAKY
-test-http-server-request-timeout-keepalive: PASS,FLAKY
+http/test-server-headers-timeout-keepalive: PASS,FLAKY
+http/test-server-request-timeout-keepalive: PASS,FLAKY
 # https://github.com/nodejs/node/issues/43465
-test-http-server-request-timeouts-mixed: PASS,FLAKY
+http/test-server-request-timeouts-mixed: PASS,FLAKY
 # https://github.com/nodejs/node/issues/50243
 test-inspector-async-stack-traces-set-interval: PASS, FLAKY
 
@@ -65,7 +65,7 @@ test-domain-with-abort-on-uncaught-exception: PASS, FLAKY
 test-child-process-fork-net-server: SKIP
 test-cli-node-options: SKIP
 test-cluster-shared-leak: SKIP
-test-http-writable-true-after-close: SKIP
+http/test-writable-true-after-close: SKIP
 test-http2-connect-method: SKIP
 test-net-error-twice: SKIP
 # https://github.com/libuv/libuv/pull/2782
@@ -84,15 +84,15 @@ test-dgram-error-message-address: SKIP
 test-crypto-secure-heap: SKIP
 # https://github.com/nodejs/node/issues/39683
 test-dgram-connect: PASS, FLAKY
-test-http-client-parse-error: PASS, FLAKY
-test-http-multi-line-headers: PASS, FLAKY
-test-http-pipeline-requests-connection-leak: PASS, FLAKY
-test-http-server-unconsume: PASS, FLAKY
-test-http-upgrade-advertise: PASS, FLAKY
+http/test-client-parse-error: PASS, FLAKY
+http/test-multi-line-headers: PASS, FLAKY
+http/test-pipeline-requests-connection-leak: PASS, FLAKY
+http/test-server-unconsume: PASS, FLAKY
+http/test-upgrade-advertise: PASS, FLAKY
 test-tls-client-mindhsize: PASS, FLAKY
 test-tls-write-error: PASS, FLAKY
 # https://github.com/nodejs/node/issues/48047
-test-http-pipeline-flood: SKIP
+http/test-pipeline-flood: SKIP
 
 [$asan==on]
 # https://github.com/nodejs/node/issues/39655
@@ -104,4 +104,4 @@ test-inspector-async-hook-setup-at-inspect-brk: PASS, FLAKY
 
 [$arch==loong64]
 # https://github.com/nodejs/node/issues/51662
-test-http-correct-hostname: SKIP
+http/test-correct-hostname: SKIP
