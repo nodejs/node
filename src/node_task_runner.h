@@ -14,6 +14,8 @@
 namespace node {
 namespace task_runner {
 
+using PositionalArgs = std::vector<std::string_view>;
+
 // ProcessRunner is the class responsible for running a process.
 // A class instance is created for each process to be run.
 // The class is responsible for spawning the process and handling its exit.
@@ -22,7 +24,7 @@ class ProcessRunner {
  public:
   ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
                 std::string_view command_id,
-                const std::optional<std::string>& positional_args);
+                const PositionalArgs& positional_args);
   void Run();
   static void ExitCallback(uv_process_t* req,
                            int64_t exit_status,
@@ -51,10 +53,9 @@ class ProcessRunner {
 
 void RunTask(std::shared_ptr<InitializationResultImpl> result,
              std::string_view command_id,
-             const std::optional<std::string>& positional_args);
-std::optional<std::string> GetPositionalArgs(
-    const std::vector<std::string>& args);
-std::string EscapeShell(const std::string& command);
+             const PositionalArgs& positional_args);
+PositionalArgs GetPositionalArgs(const std::vector<std::string>& args);
+std::string EscapeShell(const std::string_view command);
 
 }  // namespace task_runner
 }  // namespace node
