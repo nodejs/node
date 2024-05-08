@@ -118,7 +118,7 @@ jobs:
               npm ci
               NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
               if [ "$NEW_VERSION" != "" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                echo "NEW_VERSION=new version" >> $GITHUB_ENV
                 rm -rf package-lock.json node_modules
                 # Include $NEW_VERSION to explicitly update the package.json
                 # entry for the dependency and also so that semver-major updates
