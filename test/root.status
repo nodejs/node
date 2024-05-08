@@ -51,9 +51,9 @@ parallel/test-heapdump-inspector: SLOW
 parallel/test-heapdump-tls: SLOW
 parallel/test-heapdump-worker: SLOW
 parallel/test-heapdump-zlib: SLOW
-parallel/test-http-client-timeout-option-with-agent: SLOW
-parallel/test-http-pipeline-flood: SLOW
-parallel/test-http-pipeline-requests-connection-leak: SLOW
+parallel/http/test-client-timeout-option-with-agent: SLOW
+parallel/http/test-pipeline-flood: SLOW
+parallel/http/test-pipeline-requests-connection-leak: SLOW
 parallel/test-http2-forget-closed-streams: SLOW
 parallel/test-http2-multiplex: SLOW
 parallel/test-inspector-tracing-domain: SLOW
