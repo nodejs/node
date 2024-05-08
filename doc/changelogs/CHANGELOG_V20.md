@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.13.1">20.13.1</a><br/>
 <a href="#20.13.0">20.13.0</a><br/>
 <a href="#20.12.2">20.12.2</a><br/>
 <a href="#20.12.1">20.12.1</a><br/>
@@ -59,6 +60,18 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.13.1"></a>
+
+## 2024-05-09, Version 20.13.1 'Iron' (LTS), @marco-ippolito
+
+### Revert "tools: install npm PowerShell scripts on Windows"
+
+Due to a regression in the npm installation on Windows, this commit reverts the change that installed npm PowerShell scripts on Windows.
+
+### Commits
+
+* \[[`b7d80802cc`](https://github.com/nodejs/node/commit/b7d80802cc)] - _**Revert**_ "**tools**: install npm PowerShell scripts on Windows" (marco-ippolito) [#52897](https://github.com/nodejs/node/pull/52897)
 
 <a id="20.13.0"></a>
 
