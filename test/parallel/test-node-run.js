@@ -57,10 +57,15 @@ describe('node run [command]', () => {
   it('appends positional arguments', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"'],
+      [ '--no-warnings', '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C'],
       { cwd: fixtures.path('run-script') },
     );
-    assert.match(child.stdout, /--help "hello world test"/);
+    if (common.isWindows) {
+      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C'/);
+    } else {
+      assert.match(child.stdout, /Arguments: '--help "hello world test" A B C'/);
+    }
+    assert.match(child.stdout, /The total number of arguments are: 4/);
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
