@@ -8,7 +8,7 @@
 
 // Cribbed from `eslint-module-utils/declaredScope`
 function declaredScope(context, name) {
-  const references = context.getScope().references;
+  const references = context.sourceCode.getScope().references;
   const reference = references.find((x) => x.identifier.name === name);
   if (!reference) return undefined;
   return reference.resolved.scope.type;
@@ -38,7 +38,7 @@ module.exports = {
             return;
           }
         }
-        const value = context.getSourceCode().getText(node.arguments[0]);
+        const value = context.sourceCode.getText(node.arguments[0]);
         context.report({
           node,
           messageId: 'error',
