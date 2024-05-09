@@ -441,7 +441,7 @@ shared_optgroup.add_argument('--shared-simdutf-includes',
 shared_optgroup.add_argument('--shared-simdutf-libname',
     action='store',
     dest='shared_simdutf_libname',
-    default='z',
+    default='simdutf',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-simdutf-libpath',
