@@ -228,14 +228,6 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: emphasize
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-emphasize.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: nghttp2
             subsystem: deps
             label: dependencies

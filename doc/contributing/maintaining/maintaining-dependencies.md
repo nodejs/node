@@ -13,7 +13,6 @@ This a list of all the dependencies:
 * [base64][]
 * [brotli][]
 * [c-ares][]
-* [emphasize][]
 * [cjs-module-lexer][]
 * [corepack][]
 * [googletest][]
@@ -168,11 +167,6 @@ length-delimited strings.
 
 The [brotli](https://github.com/google/brotli) dependency is
 used for the homonym generic-purpose lossless compression algorithm.
-
-### emphasize
-
-The [emphasize](https://github.com/wooorm/emphasize) dependency is an ANSI
-syntax highlighting utility
 
 ### c-ares
 
@@ -338,7 +332,6 @@ performance improvements not currently available in standard zlib.
 [cjs-module-lexer]: #cjs-module-lexer
 [corepack]: #corepack
 [dependency-update-action]: ../../../.github/workflows/tools.yml
-[emphasize]: #emphasize
 [googletest]: #googletest
 [histogram]: #histogram
 [icu-small]: #icu-small
