@@ -279,7 +279,7 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
-## `path.matchGlob(path, pattern)`
+## `path.matchesGlob(path, pattern)`
 
 <!-- YAML
 added: REPLACEME
@@ -291,13 +291,13 @@ added: REPLACEME
 * `pattern` {string} The glob to check the path against.
 * Returns: {boolean} Whether or not the `path` matched the `pattern`.
 
-The `path.matchGlob()` method determines if `path` matches the `pattern`.
+The `path.matchesGlob()` method determines if `path` matches the `pattern`.
 
 For example:
 
 ```js
-path.matchGlob('/foo/bar', '/foo/*'); // true
-path.matchGlob('/foo/bar*', 'foo/bird'); // false
+path.matchesGlob('/foo/bar', '/foo/*'); // true
+path.matchesGlob('/foo/bar*', 'foo/bird'); // false
 ```
 
 A [`TypeError`][] is thrown if `path` or `pattern` are not strings.

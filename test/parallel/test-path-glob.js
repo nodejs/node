@@ -34,11 +34,11 @@ const globs = {
 
 for (const [platform, platformGlobs] of Object.entries(globs)) {
   for (const [pathStr, glob, expected] of platformGlobs) {
-    const actual = path[platform].matchGlob(pathStr, glob);
+    const actual = path[platform].matchesGlob(pathStr, glob);
     assert.strictEqual(actual, expected, `Expected ${pathStr} to ` + (expected ? '' : 'not ') + `match ${glob} on ${platform}`);
   }
 }
 
 // Test for non-string input
-assert.throws(() => path.matchGlob(123, 'foo/bar/baz'), /.*must be of type string.*/);
-assert.throws(() => path.matchGlob('foo/bar/baz', 123), /.*must be of type string.*/);
+assert.throws(() => path.matchesGlob(123, 'foo/bar/baz'), /.*must be of type string.*/);
+assert.throws(() => path.matchesGlob('foo/bar/baz', 123), /.*must be of type string.*/);
