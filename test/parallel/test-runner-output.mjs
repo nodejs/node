@@ -138,6 +138,7 @@ const tests = [
       replaceTestDuration,
     ),
   },
+  { name: 'test-runner/output/test-runner-plan.js' },
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
 ]
 .filter(Boolean)
