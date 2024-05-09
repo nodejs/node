@@ -422,13 +422,15 @@ added:
   - v18.7.0
   - v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52723
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44860
     description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-customevent`][] CLI flag.
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1150,7 +1152,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
-[`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController

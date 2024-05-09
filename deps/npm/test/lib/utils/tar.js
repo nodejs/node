@@ -9,14 +9,16 @@ t.cleanSnapshot = data => cleanZlib(data)
 
 const mockTar = ({ notice }) => tmock(t, '{LIB}/utils/tar.js', {
   'proc-log': {
-    notice,
+    log: {
+      notice,
+    },
   },
 })
 
 const printLogs = (tarball, options) => {
   const logs = []
   const { logTar } = mockTar({
-    notice: (...args) => args.map(el => logs.push(el)),
+    notice: (...args) => logs.push(...args),
   })
   logTar(tarball, options)
   return logs.join('\n')

@@ -14,15 +14,20 @@ const regularFile = __filename;
 
 // fs.readFile
 {
+  fs.readFile(blockedFile, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
-    fs.readFile(blockedFile, () => {});
+    fs.readFileSync(blockedFile);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
-    fs.readFile(blockedFileURL, () => {});
+    fs.readFileSync(blockedFileURL);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -67,23 +72,26 @@ const regularFile = __filename;
 
 // fs.stat
 {
+  fs.stat(blockedFile, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
-    fs.stat(blockedFile, () => {});
+    fs.statSync(blockedFile);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
-    fs.stat(blockedFileURL, () => {});
+    fs.statSync(blockedFileURL);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
-  assert.throws(() => {
-    fs.stat(path.join(blockedFolder, 'anyfile'), () => {});
-  }, common.expectsError({
+  fs.stat(path.join(blockedFolder, 'anyfile'), common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(path.join(blockedFolder, 'anyfile')),
@@ -97,22 +105,20 @@ const regularFile = __filename;
 
 // fs.access
 {
+  fs.access(blockedFile, fs.constants.R_OK, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
-    fs.access(blockedFile, fs.constants.R_OK, () => {});
+    fs.accessSync(blockedFileURL, fs.constants.R_OK);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
-    fs.access(blockedFileURL, fs.constants.R_OK, () => {});
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(blockedFile),
-  }));
-  assert.throws(() => {
-    fs.access(path.join(blockedFolder, 'anyfile'), fs.constants.R_OK, () => {});
+    fs.accessSync(path.join(blockedFolder, 'anyfile'), fs.constants.R_OK);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -127,22 +133,20 @@ const regularFile = __filename;
 
 // fs.copyFile
 {
+  fs.copyFile(blockedFile, path.join(blockedFolder, 'any-other-file'), common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
-    fs.copyFile(blockedFile, path.join(blockedFolder, 'any-other-file'), () => {});
+    fs.copyFileSync(blockedFileURL, path.join(blockedFolder, 'any-other-file'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
-    fs.copyFile(blockedFileURL, path.join(blockedFolder, 'any-other-file'), () => {});
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(blockedFile),
-  }));
-  assert.throws(() => {
-    fs.copyFile(blockedFile, path.join(__dirname, 'any-other-file'), () => {});
+    fs.copyFileSync(blockedFile, path.join(__dirname, 'any-other-file'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -179,22 +183,20 @@ const regularFile = __filename;
 
 // fs.open
 {
+  fs.open(blockedFile, 'r', common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
-    fs.open(blockedFile, 'r', () => {});
+    fs.openSync(blockedFileURL, 'r');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
-    fs.open(blockedFileURL, 'r', () => {});
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(blockedFile),
-  }));
-  assert.throws(() => {
-    fs.open(path.join(blockedFolder, 'anyfile'), 'r', () => {});
+    fs.openSync(path.join(blockedFolder, 'anyfile'), 'r');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -214,20 +216,21 @@ const regularFile = __filename;
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
   });
-  assert.throws(() => {
-    fs.open(blockedFile, fs.constants.O_RDWR | 0x10000000, common.mustNotCall());
-  }, {
+  fs.open(blockedFile, fs.constants.O_RDWR | 0x10000000, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-  });
+  }));
 }
 
 // fs.opendir
 {
+  fs.opendir(blockedFolder, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFolder),
+  }));
   assert.throws(() => {
-    fs.opendir(blockedFolder, (err) => {
-      assert.ifError(err);
-    });
+    fs.opendirSync(blockedFolder);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -242,8 +245,13 @@ const regularFile = __filename;
 
 // fs.readdir
 {
+  fs.readdir(blockedFolder, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFolder),
+  }));
   assert.throws(() => {
-    fs.readdir(blockedFolder, () => {});
+    fs.readdirSync(blockedFolder);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -299,15 +307,20 @@ const regularFile = __filename;
 
 // fs.rename
 {
+  fs.rename(blockedFile, 'newfile', common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
-    fs.rename(blockedFile, 'newfile', () => {});
+    fs.renameSync(blockedFile, 'newfile');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
-    fs.rename(blockedFileURL, 'newfile', () => {});
+    fs.renameSync(blockedFileURL, 'newfile');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
@@ -342,19 +355,31 @@ const regularFile = __filename;
   fs.exists(blockedFileURL, (exists) => {
     assert.equal(exists, false);
   });
+  assert.throws(() => {
+    fs.existsSync(blockedFile);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
 }
 
 // fs.statfs
 {
+  fs.statfs(blockedFile, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
-    fs.statfs(blockedFile, () => {});
+    fs.statfsSync(blockedFile);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
-    fs.statfs(blockedFileURL, () => {});
+    fs.statfsSync(blockedFileURL);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',

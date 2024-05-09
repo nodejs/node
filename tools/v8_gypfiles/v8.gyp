@@ -1879,7 +1879,7 @@
           ['enable_lto=="true"', {
             'cflags_cc': [ '-fno-lto' ],
           }],
-          ['clang or OS!="win"', {
+          ['clang==1 or OS!="win"', {
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
@@ -2132,12 +2132,6 @@
           ]
         }],
       ],
-      # -Wno-invalid-offsetof flag is not valid for C.
-      # The flag is initially set in `toolchain.gypi` for all targets.
-      'cflags!': [ '-Wno-invalid-offsetof' ],
-      'xcode_settings': {
-        'WARNING_CFLAGS!': ['-Wno-invalid-offsetof']
-      },
       'direct_dependent_settings': {
         'include_dirs': [
           '<(V8_ROOT)/third_party/zlib',

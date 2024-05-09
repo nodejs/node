@@ -16,7 +16,8 @@ describe('node run [command]', () => {
       { cwd: __dirname },
     );
     assert.match(child.stderr, /ExperimentalWarning: Task runner is an experimental feature and might change at any time/);
-    assert.match(child.stdout, /Can't read package\.json/);
+    assert.match(child.stderr, /Can't read package\.json/);
+    assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
 
@@ -26,8 +27,8 @@ describe('node run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: __dirname },
     );
-    assert.match(child.stdout, /Can't read package\.json/);
-    assert.strictEqual(child.stderr, '');
+    assert.match(child.stderr, /Can't read package\.json/);
+    assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
 
@@ -56,44 +57,27 @@ describe('node run [command]', () => {
   it('appends positional arguments', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"'],
+      [ '--no-warnings', '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C'],
       { cwd: fixtures.path('run-script') },
     );
-    assert.match(child.stdout, /--help "hello world test"/);
+    if (common.isWindows) {
+      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C'/);
+    } else {
+      assert.match(child.stdout, /Arguments: '--help "hello world test" A B C'/);
+    }
+    assert.match(child.stdout, /The total number of arguments are: 4/);
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
 
-  it('should support having --env-file cli flag', async () => {
+  it('should set PATH environment variable to node_modules/.bin', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', `--env-file=${fixtures.path('run-script/.env')}`, '--run', `custom-env${envSuffix}`],
+      [ '--no-warnings', '--run', `path-env${envSuffix}`],
       { cwd: fixtures.path('run-script') },
     );
-    assert.match(child.stdout, /hello world/);
+    assert.ok(child.stdout.includes(fixtures.path('run-script/node_modules/.bin')));
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
-  });
-
-  it('should properly escape shell', async () => {
-    const { escapeShell } = require('internal/shell');
-
-    const expectations = [
-      ['', '\'\''],
-      ['test', 'test'],
-      ['test words', '\'test words\''],
-      ['$1', '\'$1\''],
-      ['"$1"', '\'"$1"\''],
-      ['\'$1\'', '\\\'\'$1\'\\\''],
-      ['\\$1', '\'\\$1\''],
-      ['--arg="$1"', '\'--arg="$1"\''],
-      ['--arg=node exec -c "$1"', '\'--arg=node exec -c "$1"\''],
-      ['--arg=node exec -c \'$1\'', '\'--arg=node exec -c \'\\\'\'$1\'\\\''],
-      ['\'--arg=node exec -c "$1"\'', '\\\'\'--arg=node exec -c "$1"\'\\\''],
-    ];
-
-    for (const [input, expectation] of expectations) {
-      assert.strictEqual(escapeShell(input), expectation);
-    }
   });
 });

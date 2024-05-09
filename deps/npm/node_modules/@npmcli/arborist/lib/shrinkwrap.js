@@ -33,7 +33,7 @@ const mismatch = (a, b) => a && b && a !== b
 // After calling this.commit(), any nodes not present in the tree will have
 // been removed from the shrinkwrap data as well.
 
-const log = require('proc-log')
+const { log } = require('proc-log')
 const YarnLock = require('./yarn-lock.js')
 const {
   readFile,
@@ -1145,6 +1145,7 @@ class Shrinkwrap {
       throw new Error('run load() before saving data')
     }
 
+    // This must be called before the lockfile conversion check below since it sets properties as part of `commit()`
     const json = this.toString(options)
     if (
       !this.hiddenLockfile
@@ -1155,6 +1156,7 @@ class Shrinkwrap {
       `Converting lock file (${relative(process.cwd(), this.filename)}) from v${this.originalLockfileVersion} -> v${this.lockfileVersion}`
       )
     }
+
     return Promise.all([
       writeFile(this.filename, json).catch(er => {
         if (this.hiddenLockfile) {

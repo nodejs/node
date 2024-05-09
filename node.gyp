@@ -136,6 +136,7 @@
       'src/node_stat_watcher.cc',
       'src/node_symbols.cc',
       'src/node_task_queue.cc',
+      'src/node_task_runner.cc',
       'src/node_trace_events.cc',
       'src/node_types.cc',
       'src/node_url.cc',
@@ -197,7 +198,7 @@
       'src/dataqueue/queue.h',
       'src/debug_utils.h',
       'src/debug_utils-inl.h',
-      'src/embeded_data.h',
+      'src/embedded_data.h',
       'src/encoding_binding.h',
       'src/env_properties.h',
       'src/env.h',
@@ -397,6 +398,7 @@
       'test/cctest/test_base_object_ptr.cc',
       'test/cctest/test_cppgc.cc',
       'test/cctest/test_node_postmortem_metadata.cc',
+      'test/cctest/test_node_task_runner.cc',
       'test/cctest/test_environment.cc',
       'test/cctest/test_linked_binding.cc',
       'test/cctest/test_node_api.cc',
@@ -502,7 +504,7 @@
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS == "linux" and llvm_version != "0.0"', {
+      ['OS=="linux" and clang==1', {
         'libraries': ['-latomic'],
       }],
     ],
@@ -841,7 +843,6 @@
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
-        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
@@ -1072,7 +1073,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest',
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',

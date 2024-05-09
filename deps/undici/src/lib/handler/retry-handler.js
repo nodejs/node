@@ -7,9 +7,7 @@ const { isDisturbed, parseHeaders, parseRangeHeader } = require('../core/util')
 
 function calculateRetryAfterHeader (retryAfter) {
   const current = Date.now()
-  const diff = new Date(retryAfter).getTime() - current
-
-  return diff
+  return new Date(retryAfter).getTime() - current
 }
 
 class RetryHandler {
@@ -116,11 +114,7 @@ class RetryHandler {
     const { counter } = state
 
     // Any code that is not a Undici's originated and allowed to retry
-    if (
-      code &&
-      code !== 'UND_ERR_REQ_RETRY' &&
-      !errorCodes.includes(code)
-    ) {
+    if (code && code !== 'UND_ERR_REQ_RETRY' && !errorCodes.includes(code)) {
       cb(err)
       return
     }
@@ -246,10 +240,7 @@ class RetryHandler {
           start != null && Number.isFinite(start),
           'content-range mismatch'
         )
-        assert(
-          end != null && Number.isFinite(end),
-          'invalid content-length'
-        )
+        assert(end != null && Number.isFinite(end), 'invalid content-length')
 
         this.start = start
         this.end = end
@@ -269,6 +260,13 @@ class RetryHandler {
 
       this.resume = resume
       this.etag = headers.etag != null ? headers.etag : null
+
+      // Weak etags are not useful for comparison nor cache
+      // for instance not safe to assume if the response is byte-per-byte
+      // equal
+      if (this.etag != null && this.etag.startsWith('W/')) {
+        this.etag = null
+      }
 
       return this.handler.onHeaders(
         statusCode,
@@ -308,7 +306,9 @@ class RetryHandler {
     // and server error response
     if (this.retryCount - this.retryCountCheckpoint > 0) {
       // We count the difference between the last checkpoint and the current retry count
-      this.retryCount = this.retryCountCheckpoint + (this.retryCount - this.retryCountCheckpoint)
+      this.retryCount =
+        this.retryCountCheckpoint +
+        (this.retryCount - this.retryCountCheckpoint)
     } else {
       this.retryCount += 1
     }
@@ -328,11 +328,18 @@ class RetryHandler {
       }
 
       if (this.start !== 0) {
+        const headers = { range: `bytes=${this.start}-${this.end ?? ''}` }
+
+        // Weak etag check - weak etags will make comparison algorithms never match
+        if (this.etag != null) {
+          headers['if-match'] = this.etag
+        }
+
         this.opts = {
           ...this.opts,
           headers: {
             ...this.opts.headers,
-            range: `bytes=${this.start}-${this.end ?? ''}`
+            ...headers
           }
         }
       }

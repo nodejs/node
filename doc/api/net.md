@@ -37,11 +37,11 @@ sockets on other operating systems.
 [`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
 
 On Unix, the local domain is also known as the Unix domain. The path is a
-file system pathname. It gets truncated to an OS-dependent length of
-`sizeof(sockaddr_un.sun_path) - 1`. Typical values are 107 bytes on Linux and
-103 bytes on macOS. If a Node.js API abstraction creates the Unix domain socket,
-it will unlink the Unix domain socket as well. For example,
-[`net.createServer()`][] may create a Unix domain socket and
+file system pathname. It will throw an error when the length of pathname is
+greater than the length of `sizeof(sockaddr_un.sun_path)`. Typical values are
+107 bytes on Linux and 103 bytes on macOS. If a Node.js API abstraction creates
+the Unix domain socket, it will unlink the Unix domain socket as well. For
+example, [`net.createServer()`][] may create a Unix domain socket and
 [`server.close()`][] will unlink it. But if a user creates the Unix domain
 socket outside of these abstractions, the user will need to remove it. The same
 applies when a Node.js API creates a Unix domain socket but the program then

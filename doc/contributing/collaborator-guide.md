@@ -847,6 +847,7 @@ might impact an LTS release.
 | `lib/net`                                                                  | @bnoordhuis, @indutny, @nodejs/streams                                        |
 | `lib/repl`                                                                 | @nodejs/repl                                                                  |
 | `lib/{_}stream{*}`                                                         | @nodejs/streams                                                               |
+| `lib/internal/test_runner`                                                 | @nodejs/test\_runner                                                          |
 | `lib/timers`                                                               | @nodejs/timers                                                                |
 | `lib/util`                                                                 | @nodejs/util                                                                  |
 | `lib/zlib`                                                                 | @nodejs/zlib                                                                  |

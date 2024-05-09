@@ -57,7 +57,7 @@ jobs:
           SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
           echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b  # v4.1.4
         with:
           persist-credentials: false
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
@@ -73,7 +73,7 @@ jobs:
         run: rm -rf wpt
         working-directory: test/fixtures
       - name: Checkout epochs/daily WPT
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b  # v4.1.4
         with:
           repository: web-platform-tests/wpt
           persist-credentials: false
@@ -98,7 +98,7 @@ jobs:
         run: rm -rf deps/undici
       - name: Checkout undici
         if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b  # v4.1.4
         with:
           repository: nodejs/undici
           persist-credentials: false
@@ -121,7 +121,7 @@ jobs:
         run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
       - name: Upload GitHub Actions artifact
         if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3  # v4.3.1
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808  # v4.3.3
         with:
           path: out/wpt/wptreport-*.json
           name: WPT Report for ${{ steps.setup-node.outputs.node-version }}

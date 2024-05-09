@@ -1274,7 +1274,9 @@ run({ files: [path.resolve('./tests/test.js')] })
 ## `suite([name][, options][, fn])`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 * `name` {string} The name of the suite, which is displayed when reporting test
@@ -1292,7 +1294,9 @@ The `suite()` function is imported from the `node:test` module.
 ## `suite.skip([name][, options][, fn])`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for skipping a suite. This is the same as
@@ -1301,7 +1305,9 @@ Shorthand for skipping a suite. This is the same as
 ## `suite.todo([name][, options][, fn])`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for marking a suite as `TODO`. This is the same as
@@ -1310,7 +1316,9 @@ Shorthand for marking a suite as `TODO`. This is the same as
 ## `suite.only([name][, options][, fn])`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for marking a suite as `only`. This is the same as
@@ -1364,6 +1372,10 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+    If the number of assertions run in the test does not match the number
+    specified in the plan, the test will fail.
+    **Default:** `undefined`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -2965,6 +2977,54 @@ added:
 
 The name of the test.
 
+### `context.plan(count)`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `count` {number} The number of assertions and subtests that are expected to run.
+
+This function is used to set the number of assertions and subtests that are expected to run
+within the test. If the number of assertions and subtests that run does not match the
+expected count, the test will fail.
+
+> Note: To make sure assertions are tracked, `t.assert` must be used instead of `assert` directly.
+
+```js
+test('top level test', (t) => {
+  t.plan(2);
+  t.assert.ok('some relevant assertion here');
+  t.subtest('subtest', () => {});
+});
+```
+
+When working with asynchronous code, the `plan` function can be used to ensure that the
+correct number of assertions are run:
+
+```js
+test('planning with streams', (t, done) => {
+  function* generate() {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+  }
+  const expected = ['a', 'b', 'c'];
+  t.plan(expected.length);
+  const stream = Readable.from(generate());
+  stream.on('data', (chunk) => {
+    t.assert.strictEqual(chunk, expected.shift());
+  });
+
+  stream.on('end', () => {
+    done();
+  });
+});
+```
+
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
@@ -3095,6 +3155,10 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+    If the number of assertions run in the test does not match the number
+    specified in the plan, the test will fail.
+    **Default:** `undefined`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -3108,7 +3172,7 @@ behaves in the same fashion as the top level [`test()`][] function.
 test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
-    { only: false, skip: false, concurrency: 1, todo: false },
+    { only: false, skip: false, concurrency: 1, todo: false, plan: 4 },
     (t) => {
       assert.ok('some relevant assertion here');
     },
