@@ -1019,6 +1019,15 @@ under this flag.
 To allow polyfills to be added,
 [`--require`][] and [`--import`][] both run before freezing intrinsics.
 
+### `--full-assert-diff`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When an [`AssertionError`][] occurs, display the entire `diff`, rather than
+a truncated version.
+
 ### `--heap-prof`
 
 <!-- YAML
@@ -2612,6 +2621,7 @@ one is included in the list below.
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
 * `--frozen-intrinsics`
+* `--full-assert-diff`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`
 * `--http-parser`
@@ -3132,6 +3142,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
+[`AssertionError`]: assert.md#class-assertassertionerror
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #node_optionsoptions
