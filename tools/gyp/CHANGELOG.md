@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/nodejs/gyp-next/compare/v0.17.0...v0.18.0) (2024-05-08)
+
+
+### Features
+
+* support language standard keys in msvs_settings ([#252](https://github.com/nodejs/gyp-next/issues/252)) ([322f6d5](https://github.com/nodejs/gyp-next/commit/322f6d5d5233967522f3e55c623a8e7d7281e024))
+
 ## [0.17.0](https://github.com/nodejs/gyp-next/compare/v0.16.2...v0.17.0) (2024-04-29)
 
 
