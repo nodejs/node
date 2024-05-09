@@ -124,7 +124,6 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "_tls_wrap", "internal/tls/secure-pair",
         "internal/tls/parse-cert-string", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
-        "internal/policy/manifest", "internal/process/policy",
         "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
         "sys",   // Deprecated.

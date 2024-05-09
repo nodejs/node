@@ -8,7 +8,6 @@
 exports[`test/lib/utils/open-url.js TAP prints where to go when browser is disabled > printed expected message 1`] = `
 npm home:
   https://www.npmjs.com
-
 `
 
 exports[`test/lib/utils/open-url.js TAP prints where to go when browser is disabled and json is enabled > printed expected message 1`] = `
@@ -21,5 +20,4 @@ exports[`test/lib/utils/open-url.js TAP prints where to go when browser is disab
 exports[`test/lib/utils/open-url.js TAP prints where to go when given browser does not exist > printed expected message 1`] = `
 npm home:
   https://www.npmjs.com
-
 `

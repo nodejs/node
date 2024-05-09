@@ -11,6 +11,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <limits>
 #include <sstream>
@@ -23,11 +24,12 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Map;
+using v8::Name;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::Undefined;
 using v8::Value;
-
 namespace node {
 
 namespace per_process {
@@ -105,14 +107,6 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
                                       std::vector<std::string>* argv) {
-  if (has_policy_integrity_string && experimental_policy.empty()) {
-    errors->push_back("--policy-integrity requires "
-                      "--experimental-policy be enabled");
-  }
-  if (has_policy_integrity_string && experimental_policy_integrity.empty()) {
-    errors->push_back("--policy-integrity cannot be empty");
-  }
-
   if (!input_type.empty()) {
     if (input_type != "commonjs" && input_type != "module") {
       errors->push_back("--input-type must be \"module\" or \"commonjs\"");
@@ -406,11 +400,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_websocket,
             kAllowedInEnvvar,
             true);
-  AddOption("--experimental-global-customevent",
-            "expose experimental CustomEvent on the global scope",
-            &EnvironmentOptions::experimental_global_customevent,
-            kAllowedInEnvvar,
-            true);
+  AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-global-navigator",
             "expose experimental Navigator API on the global scope",
             &EnvironmentOptions::experimental_global_navigator,
@@ -441,20 +431,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_permission,
             kAllowedInEnvvar,
             false);
-  AddOption("--experimental-policy",
-            "use the specified file as a "
-            "security policy",
-            &EnvironmentOptions::experimental_policy,
-            kAllowedInEnvvar);
-  AddOption("[has_policy_integrity_string]",
-            "",
-            &EnvironmentOptions::has_policy_integrity_string);
-  AddOption("--policy-integrity",
-            "ensure the security policy contents match "
-            "the specified integrity",
-            &EnvironmentOptions::experimental_policy_integrity,
-            kAllowedInEnvvar);
-  Implies("--policy-integrity", "[has_policy_integrity_string]");
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
@@ -574,10 +550,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
   // Options after --prof-process are passed through to the prof processor.
-  AddAlias("--prof-process", { "--prof-process", "--" });
-  AddOption("--run",
-            "Run a script specified in package.json",
-            &EnvironmentOptions::run);
+  AddAlias("--prof-process", {"--prof-process", "--"});
 #if HAVE_INSPECTOR
   AddOption("--cpu-prof",
             "Start the V8 CPU profiler on start up, and write the CPU profile "
@@ -671,10 +644,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--throw-deprecation",
             "throw an exception on deprecations",
             &EnvironmentOptions::throw_deprecation,
-            kAllowedInEnvvar);
-  AddOption("--trace-atomics-wait",
-            "(deprecated) trace Atomics.wait() operations",
-            &EnvironmentOptions::trace_atomics_wait,
             kAllowedInEnvvar);
   AddOption("--trace-deprecation",
             "show stack traces on deprecations",
@@ -1081,6 +1050,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "Generate a blob that can be embedded into the single executable "
             "application",
             &PerProcessOptions::experimental_sea_config);
+
+  AddOption("--run",
+            "Run a script specified in package.json",
+            &PerProcessOptions::run);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {
@@ -1165,11 +1138,32 @@ std::string GetBashCompletion() {
   return out.str();
 }
 
+struct IterateCLIOptionsScope {
+  explicit IterateCLIOptionsScope(Environment* env) {
+    // Temporarily act as if the current Environment's/IsolateData's options
+    // were the default options, i.e. like they are the ones we'd access for
+    // global options parsing, so that all options are available from the main
+    // parser.
+    original_per_isolate = per_process::cli_options->per_isolate;
+    per_process::cli_options->per_isolate = env->isolate_data()->options();
+    original_per_env = per_process::cli_options->per_isolate->per_env;
+    per_process::cli_options->per_isolate->per_env = env->options();
+  }
+  ~IterateCLIOptionsScope() {
+    per_process::cli_options->per_isolate->per_env = original_per_env;
+    per_process::cli_options->per_isolate = original_per_isolate;
+  }
+  std::shared_ptr<node::EnvironmentOptions> original_per_env;
+  std::shared_ptr<node::PerIsolateOptions> original_per_isolate;
+};
+
 // Return a map containing all the options and their metadata as well
 // as the aliases
-void GetCLIOptions(const FunctionCallbackInfo<Value>& args) {
-  Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Environment* env = Environment::GetCurrent(args);
+void GetCLIOptionsValues(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
   if (!env->has_run_bootstrapping_code()) {
     // No code because this is an assertion.
     return env->ThrowError(
@@ -1177,49 +1171,49 @@ void GetCLIOptions(const FunctionCallbackInfo<Value>& args) {
   }
   env->set_has_serialized_options(true);
 
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  IterateCLIOptionsScope s(env);
 
-  // Temporarily act as if the current Environment's/IsolateData's options were
-  // the default options, i.e. like they are the ones we'd access for global
-  // options parsing, so that all options are available from the main parser.
-  auto original_per_isolate = per_process::cli_options->per_isolate;
-  per_process::cli_options->per_isolate = env->isolate_data()->options();
-  auto original_per_env = per_process::cli_options->per_isolate->per_env;
-  per_process::cli_options->per_isolate->per_env = env->options();
-  auto on_scope_leave = OnScopeLeave([&]() {
-    per_process::cli_options->per_isolate->per_env = original_per_env;
-    per_process::cli_options->per_isolate = original_per_isolate;
-  });
+  std::vector<Local<Name>> option_names;
+  std::vector<Local<Value>> option_values;
+  option_names.reserve(_ppop_instance.options_.size() * 2);
+  option_values.reserve(_ppop_instance.options_.size() * 2);
 
-  Local<Map> options = Map::New(isolate);
-  if (options
-          ->SetPrototype(context, env->primordials_safe_map_prototype_object())
-          .IsNothing()) {
-    return;
-  }
+  Local<Value> undefined_value = Undefined(isolate);
+  Local<Value> null_value = Null(isolate);
 
   for (const auto& item : _ppop_instance.options_) {
     Local<Value> value;
     const auto& option_info = item.second;
     auto field = option_info.field;
     PerProcessOptions* opts = per_process::cli_options.get();
+
     switch (option_info.type) {
       case kNoOp:
       case kV8Option:
         // Special case for --abort-on-uncaught-exception which is also
         // respected by Node.js internals
         if (item.first == "--abort-on-uncaught-exception") {
-          value = Boolean::New(
-            isolate, original_per_env->abort_on_uncaught_exception);
+          value = Boolean::New(isolate,
+                               s.original_per_env->abort_on_uncaught_exception);
         } else {
-          value = Undefined(isolate);
+          value = undefined_value;
         }
         break;
-      case kBoolean:
-        value = Boolean::New(isolate,
-                             *_ppop_instance.Lookup<bool>(field, opts));
+      case kBoolean: {
+        bool original_value = *_ppop_instance.Lookup<bool>(field, opts);
+        value = Boolean::New(isolate, original_value);
+
+        // Add --no-* entries.
+        std::string negated_name =
+            "--no" + item.first.substr(1, item.first.size());
+        Local<Value> negated_value = Boolean::New(isolate, !original_value);
+        Local<Name> negated_name_v8 =
+            ToV8Value(context, negated_name).ToLocalChecked().As<Name>();
+        option_names.push_back(negated_name_v8);
+        option_values.push_back(negated_value);
         break;
+      }
       case kInteger:
         value = Number::New(
             isolate,
@@ -1246,46 +1240,86 @@ void GetCLIOptions(const FunctionCallbackInfo<Value>& args) {
         break;
       case kHostPort: {
         const HostPort& host_port =
-          *_ppop_instance.Lookup<HostPort>(field, opts);
-        Local<Object> obj = Object::New(isolate);
+            *_ppop_instance.Lookup<HostPort>(field, opts);
         Local<Value> host;
-        if (!ToV8Value(context, host_port.host()).ToLocal(&host) ||
-            obj->Set(context, env->host_string(), host).IsNothing() ||
-            obj->Set(context,
-                     env->port_string(),
-                     Integer::New(isolate, host_port.port()))
-                .IsNothing()) {
+        if (!ToV8Value(context, host_port.host()).ToLocal(&host)) {
           return;
         }
-        value = obj;
+        constexpr size_t kHostPortLength = 2;
+        std::array<Local<Name>, kHostPortLength> names = {env->host_string(),
+                                                          env->port_string()};
+        std::array<Local<Value>, kHostPortLength> values = {
+            host, Integer::New(isolate, host_port.port())};
+        value = Object::New(
+            isolate, null_value, names.data(), values.data(), kHostPortLength);
         break;
       }
       default:
         UNREACHABLE();
     }
     CHECK(!value.IsEmpty());
+    Local<Name> name =
+        ToV8Value(context, item.first).ToLocalChecked().As<Name>();
+    option_names.push_back(name);
+    option_values.push_back(value);
+  }
 
-    Local<Value> name = ToV8Value(context, item.first).ToLocalChecked();
-    Local<Object> info = Object::New(isolate);
+  Local<Object> options = Object::New(isolate,
+                                      null_value,
+                                      option_names.data(),
+                                      option_values.data(),
+                                      option_values.size());
+  args.GetReturnValue().Set(options);
+}
+
+void GetCLIOptionsInfo(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  if (!env->has_run_bootstrapping_code()) {
+    // No code because this is an assertion.
+    return env->ThrowError(
+        "Should not query options before bootstrapping is done");
+  }
+
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  IterateCLIOptionsScope s(env);
+
+  Local<Map> options = Map::New(isolate);
+  if (options
+          ->SetPrototype(context, env->primordials_safe_map_prototype_object())
+          .IsNothing()) {
+    return;
+  }
+
+  Local<Value> null_value = Null(isolate);
+  for (const auto& item : _ppop_instance.options_) {
+    const auto& option_info = item.second;
+    auto field = option_info.field;
+
+    Local<Name> name =
+        ToV8Value(context, item.first).ToLocalChecked().As<Name>();
     Local<Value> help_text;
-    if (!ToV8Value(context, option_info.help_text).ToLocal(&help_text) ||
-        !info->Set(context, env->help_text_string(), help_text)
-             .FromMaybe(false) ||
-        !info->Set(context,
-                   env->env_var_settings_string(),
-                   Integer::New(isolate,
-                                static_cast<int>(option_info.env_setting)))
-             .FromMaybe(false) ||
-        !info->Set(context,
-                   env->type_string(),
-                   Integer::New(isolate, static_cast<int>(option_info.type)))
-             .FromMaybe(false) ||
-        !info->Set(context,
-                   env->default_is_true_string(),
-                   Boolean::New(isolate, option_info.default_is_true))
-             .FromMaybe(false) ||
-        info->Set(context, env->value_string(), value).IsNothing() ||
-        options->Set(context, name, info).IsEmpty()) {
+    if (!ToV8Value(context, option_info.help_text).ToLocal(&help_text)) {
+      return;
+    }
+    constexpr size_t kInfoSize = 4;
+    std::array<Local<Name>, kInfoSize> names = {
+        env->help_text_string(),
+        env->env_var_settings_string(),
+        env->type_string(),
+        env->default_is_true_string(),
+    };
+    std::array<Local<Value>, kInfoSize> values = {
+        help_text,
+        Integer::New(isolate, static_cast<int>(option_info.env_setting)),
+        Integer::New(isolate, static_cast<int>(option_info.type)),
+        Boolean::New(isolate, option_info.default_is_true),
+    };
+    Local<Object> info = Object::New(
+        isolate, null_value, names.data(), values.data(), kInfoSize);
+    if (options->Set(context, name, info).IsEmpty()) {
       return;
     }
   }
@@ -1299,12 +1333,12 @@ void GetCLIOptions(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Object> ret = Object::New(isolate);
-  if (ret->Set(context, env->options_string(), options).IsNothing() ||
-      ret->Set(context, env->aliases_string(), aliases).IsNothing()) {
-    return;
-  }
-
+  constexpr size_t kRetLength = 2;
+  std::array<Local<Name>, kRetLength> names = {env->options_string(),
+                                               env->aliases_string()};
+  std::array<Local<Value>, kRetLength> values = {options, aliases};
+  Local<Value> ret =
+      Object::New(isolate, null_value, names.data(), values.data(), kRetLength);
   args.GetReturnValue().Set(ret);
 }
 
@@ -1316,30 +1350,22 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
         "Should not query options before bootstrapping is done");
   }
   Isolate* isolate = args.GetIsolate();
-  Local<Context> context = env->context();
-  Local<Object> ret = Object::New(isolate);
 
-  if (ret->Set(context,
-           FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
-           Boolean::New(isolate, env->should_not_register_esm_loader()))
-      .IsNothing()) return;
+  constexpr size_t kOptionsSize = 4;
+  std::array<Local<Name>, kOptionsSize> names = {
+      FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "noGlobalSearchPaths"),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "noBrowserGlobals"),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "hasEmbedderPreload")};
 
-  if (ret->Set(context,
-           FIXED_ONE_BYTE_STRING(env->isolate(), "noGlobalSearchPaths"),
-           Boolean::New(isolate, env->no_global_search_paths()))
-      .IsNothing()) return;
+  std::array<Local<Value>, kOptionsSize> values = {
+      Boolean::New(isolate, env->should_not_register_esm_loader()),
+      Boolean::New(isolate, env->no_global_search_paths()),
+      Boolean::New(isolate, env->no_browser_globals()),
+      Boolean::New(isolate, env->embedder_preload() != nullptr)};
 
-  if (ret->Set(context,
-               FIXED_ONE_BYTE_STRING(env->isolate(), "noBrowserGlobals"),
-               Boolean::New(isolate, env->no_browser_globals()))
-          .IsNothing())
-    return;
-
-  if (ret->Set(context,
-               FIXED_ONE_BYTE_STRING(env->isolate(), "hasEmbedderPreload"),
-               Boolean::New(isolate, env->embedder_preload() != nullptr))
-          .IsNothing())
-    return;
+  Local<Object> ret = Object::New(
+      isolate, Null(isolate), names.data(), values.data(), kOptionsSize);
 
   args.GetReturnValue().Set(ret);
 }
@@ -1350,7 +1376,10 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  SetMethodNoSideEffect(context, target, "getCLIOptions", GetCLIOptions);
+  SetMethodNoSideEffect(
+      context, target, "getCLIOptionsValues", GetCLIOptionsValues);
+  SetMethodNoSideEffect(
+      context, target, "getCLIOptionsInfo", GetCLIOptionsInfo);
   SetMethodNoSideEffect(
       context, target, "getEmbedderOptions", GetEmbedderOptions);
 
@@ -1376,7 +1405,8 @@ void Initialize(Local<Object> target,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetCLIOptions);
+  registry->Register(GetCLIOptionsValues);
+  registry->Register(GetCLIOptionsInfo);
   registry->Register(GetEmbedderOptions);
 }
 }  // namespace options_parser

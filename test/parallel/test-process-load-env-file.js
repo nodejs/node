@@ -4,6 +4,7 @@ const common = require('../common');
 const fixtures = require('../../test/common/fixtures');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
+const { join } = require('node:path');
 
 const basicValidEnvFilePath = fixtures.path('dotenv/basic-valid.env');
 const validEnvFilePath = fixtures.path('dotenv/valid.env');
@@ -48,10 +49,27 @@ describe('process.loadEnvFile()', () => {
     }, { code: 'ENOENT', syscall: 'open', path: missingEnvFile });
   });
 
+  // The whole chdir flow here is to address a case where a developer
+  // has a .env in the worktree which is probably in the global .gitignore.
+  // In that case this test would fail. To avoid confusion, chdir to lib will
+  // make this way less likely to happen. Probably a temporary directory would
+  // be the best choice but given how edge this case is this is fine.
   it('should throw when `.env` does not exist', async () => {
-    assert.throws(() => {
-      process.loadEnvFile();
-    }, { code: 'ENOENT', syscall: 'open', path: '.env' });
+    const originalCwd = process.cwd();
+
+    try {
+      if (common.isMainThread) {
+        process.chdir(join(originalCwd, 'lib'));
+      }
+
+      assert.throws(() => {
+        process.loadEnvFile();
+      }, { code: 'ENOENT', syscall: 'open', path: '.env' });
+    } finally {
+      if (common.isMainThread) {
+        process.chdir(originalCwd);
+      }
+    }
   });
 
   it('should check for permissions', async () => {

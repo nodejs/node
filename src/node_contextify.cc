@@ -28,8 +28,10 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_process.h"
 #include "node_sea.h"
 #include "node_snapshot_builder.h"
+#include "node_url.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
 
@@ -49,6 +51,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
 using v8::Int32;
+using v8::Intercepted;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
@@ -56,6 +59,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::MeasureMemoryExecution;
 using v8::MeasureMemoryMode;
+using v8::Message;
 using v8::MicrotaskQueue;
 using v8::MicrotasksPolicy;
 using v8::Name;
@@ -455,14 +459,15 @@ bool ContextifyContext::IsStillInitializing(const ContextifyContext* ctx) {
 }
 
 // static
-void ContextifyContext::PropertyGetterCallback(
-    Local<Name> property,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::PropertyGetterCallback(
+    Local<Name> property, const PropertyCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
   Local<Object> sandbox = ctx->sandbox();
@@ -484,18 +489,22 @@ void ContextifyContext::PropertyGetterCallback(
       rv = ctx->global_proxy();
 
     args.GetReturnValue().Set(rv);
+    return Intercepted::kYes;
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertySetterCallback(
+Intercepted ContextifyContext::PropertySetterCallback(
     Local<Name> property,
     Local<Value> value,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
   PropertyAttribute attributes = PropertyAttribute::None;
@@ -513,8 +522,9 @@ void ContextifyContext::PropertySetterCallback(
       (static_cast<int>(attributes) &
       static_cast<int>(PropertyAttribute::ReadOnly));
 
-  if (read_only)
-    return;
+  if (read_only) {
+    return Intercepted::kNo;
+  }
 
   // true for x = 5
   // false for this.x = 5
@@ -533,11 +543,16 @@ void ContextifyContext::PropertySetterCallback(
 
   bool is_declared = is_declared_on_global_proxy || is_declared_on_sandbox;
   if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
-      !is_function)
-    return;
+      !is_function) {
+    return Intercepted::kNo;
+  }
 
-  if (!is_declared && property->IsSymbol()) return;
-  if (ctx->sandbox()->Set(context, property, value).IsNothing()) return;
+  if (!is_declared && property->IsSymbol()) {
+    return Intercepted::kNo;
+  }
+  if (ctx->sandbox()->Set(context, property, value).IsNothing()) {
+    return Intercepted::kNo;
+  }
 
   Local<Value> desc;
   if (is_declared_on_sandbox &&
@@ -551,19 +566,23 @@ void ContextifyContext::PropertySetterCallback(
     // We have to specify the return value for any contextual or get/set
     // property
     if (desc_obj->HasOwnProperty(context, env->get_string()).FromMaybe(false) ||
-        desc_obj->HasOwnProperty(context, env->set_string()).FromMaybe(false))
+        desc_obj->HasOwnProperty(context, env->set_string()).FromMaybe(false)) {
       args.GetReturnValue().Set(value);
+      return Intercepted::kYes;
+    }
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertyDescriptorCallback(
-    Local<Name> property,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::PropertyDescriptorCallback(
+    Local<Name> property, const PropertyCallbackInfo<Value>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
 
@@ -573,19 +592,23 @@ void ContextifyContext::PropertyDescriptorCallback(
     Local<Value> desc;
     if (sandbox->GetOwnPropertyDescriptor(context, property).ToLocal(&desc)) {
       args.GetReturnValue().Set(desc);
+      return Intercepted::kYes;
     }
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertyDefinerCallback(
+Intercepted ContextifyContext::PropertyDefinerCallback(
     Local<Name> property,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Local<Context> context = ctx->context();
   Isolate* isolate = context->GetIsolate();
@@ -604,7 +627,7 @@ void ContextifyContext::PropertyDefinerCallback(
   // If the property is set on the global as neither writable nor
   // configurable, don't change it on the global or sandbox.
   if (is_declared && read_only && dont_delete) {
-    return;
+    return Intercepted::kNo;
   }
 
   Local<Object> sandbox = ctx->sandbox();
@@ -627,6 +650,9 @@ void ContextifyContext::PropertyDefinerCallback(
         desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
 
     define_prop_on_sandbox(&desc_for_sandbox);
+    // TODO(https://github.com/nodejs/node/issues/52634): this should return
+    // kYes to behave according to the expected semantics.
+    return Intercepted::kNo;
   } else {
     Local<Value> value =
         desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
@@ -638,26 +664,33 @@ void ContextifyContext::PropertyDefinerCallback(
       PropertyDescriptor desc_for_sandbox(value);
       define_prop_on_sandbox(&desc_for_sandbox);
     }
+    // TODO(https://github.com/nodejs/node/issues/52634): this should return
+    // kYes to behave according to the expected semantics.
+    return Intercepted::kNo;
   }
+  return Intercepted::kNo;
 }
 
 // static
-void ContextifyContext::PropertyDeleterCallback(
-    Local<Name> property,
-    const PropertyCallbackInfo<Boolean>& args) {
+Intercepted ContextifyContext::PropertyDeleterCallback(
+    Local<Name> property, const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), property);
 
-  if (success.FromMaybe(false))
-    return;
+  if (success.FromMaybe(false)) {
+    return Intercepted::kNo;
+  }
 
   // Delete failed on the sandbox, intercept and do not delete on
   // the global object.
   args.GetReturnValue().Set(false);
+  return Intercepted::kYes;
 }
 
 // static
@@ -677,76 +710,83 @@ void ContextifyContext::PropertyEnumeratorCallback(
 }
 
 // static
-void ContextifyContext::IndexedPropertyGetterCallback(
-    uint32_t index,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::IndexedPropertyGetterCallback(
+    uint32_t index, const PropertyCallbackInfo<Value>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertyGetterCallback(
+  return ContextifyContext::PropertyGetterCallback(
       Uint32ToName(ctx->context(), index), args);
 }
 
-
-void ContextifyContext::IndexedPropertySetterCallback(
+Intercepted ContextifyContext::IndexedPropertySetterCallback(
     uint32_t index,
     Local<Value> value,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertySetterCallback(
+  return ContextifyContext::PropertySetterCallback(
       Uint32ToName(ctx->context(), index), value, args);
 }
 
 // static
-void ContextifyContext::IndexedPropertyDescriptorCallback(
-    uint32_t index,
-    const PropertyCallbackInfo<Value>& args) {
+Intercepted ContextifyContext::IndexedPropertyDescriptorCallback(
+    uint32_t index, const PropertyCallbackInfo<Value>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertyDescriptorCallback(
+  return ContextifyContext::PropertyDescriptorCallback(
       Uint32ToName(ctx->context(), index), args);
 }
 
-
-void ContextifyContext::IndexedPropertyDefinerCallback(
+Intercepted ContextifyContext::IndexedPropertyDefinerCallback(
     uint32_t index,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<Value>& args) {
+    const PropertyCallbackInfo<void>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
-  ContextifyContext::PropertyDefinerCallback(
+  return ContextifyContext::PropertyDefinerCallback(
       Uint32ToName(ctx->context(), index), desc, args);
 }
 
 // static
-void ContextifyContext::IndexedPropertyDeleterCallback(
-    uint32_t index,
-    const PropertyCallbackInfo<Boolean>& args) {
+Intercepted ContextifyContext::IndexedPropertyDeleterCallback(
+    uint32_t index, const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
-  if (IsStillInitializing(ctx)) return;
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
 
   Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), index);
 
-  if (success.FromMaybe(false))
-    return;
+  if (success.FromMaybe(false)) {
+    return Intercepted::kNo;
+  }
 
   // Delete failed on the sandbox, intercept and do not delete on
   // the global object.
   args.GetReturnValue().Set(false);
+  return Intercepted::kYes;
 }
 
 void ContextifyScript::CreatePerIsolateProperties(
@@ -1483,50 +1523,109 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(Environment* env,
   return scope.Escape(fn);
 }
 
+static bool warned_about_require_esm = false;
+// TODO(joyeecheung): this was copied from the warning previously emitted in the
+// JS land, but it's not very helpful. There should be specific information
+// about which file or which package.json to update.
+const char* require_esm_warning =
+    "To load an ES module, set \"type\": \"module\" in the package.json or use "
+    "the .mjs extension.";
+
+static bool ShouldRetryAsESM(Realm* realm,
+                             Local<String> message,
+                             Local<String> code,
+                             Local<String> resource_name);
+
 static void CompileFunctionForCJSLoader(
     const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsString());
+  CHECK(args[2]->IsBoolean());
+  CHECK(args[3]->IsBoolean());
   Local<String> code = args[0].As<String>();
   Local<String> filename = args[1].As<String>();
+  bool should_detect_module = args[3].As<Boolean>()->Value();
+
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
 
   bool cache_rejected = false;
   Local<Function> fn;
+  Local<Value> cjs_exception;
+  Local<Message> cjs_message;
+
   {
+    ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
     TryCatchScope try_catch(env);
     if (!CompileFunctionForCJSLoader(
              env, context, code, filename, &cache_rejected)
              .ToLocal(&fn)) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.HasTerminated());
-      errors::DecorateErrorStack(env, try_catch);
-      try_catch.ReThrow();
+      cjs_exception = try_catch.Exception();
+      cjs_message = try_catch.Message();
+      errors::DecorateErrorStack(env, cjs_exception, cjs_message);
+    }
+  }
+
+  bool can_parse_as_esm = false;
+  if (!cjs_exception.IsEmpty()) {
+    // Use the URL to match what would be used in the origin if it's going to
+    // be reparsed as ESM.
+    Utf8Value filename_utf8(isolate, filename);
+    std::string url = url::FromFilePath(filename_utf8.ToStringView());
+    Local<String> url_value;
+    if (!String::NewFromUtf8(isolate, url.c_str()).ToLocal(&url_value)) {
+      return;
+    }
+    can_parse_as_esm =
+        ShouldRetryAsESM(realm, cjs_message->Get(), code, url_value);
+    if (!can_parse_as_esm) {
+      // The syntax error is not related to ESM, throw the original error.
+      isolate->ThrowException(cjs_exception);
+      return;
+    }
+
+    if (!should_detect_module) {
+      bool should_throw = true;
+      if (!warned_about_require_esm) {
+        // This needs to call process.emit('warning') in JS which can throw if
+        // the user listener throws. In that case, don't try to throw the syntax
+        // error.
+        should_throw =
+            ProcessEmitWarningSync(env, require_esm_warning).IsJust();
+      }
+      if (should_throw) {
+        isolate->ThrowException(cjs_exception);
+      }
       return;
     }
   }
 
+  Local<Value> undefined = v8::Undefined(isolate);
   std::vector<Local<Name>> names = {
       env->cached_data_rejected_string(),
       env->source_map_url_string(),
       env->function_string(),
+      FIXED_ONE_BYTE_STRING(isolate, "canParseAsESM"),
   };
   std::vector<Local<Value>> values = {
       Boolean::New(isolate, cache_rejected),
-      fn->GetScriptOrigin().SourceMapUrl(),
-      fn,
+      fn.IsEmpty() ? undefined : fn->GetScriptOrigin().SourceMapUrl(),
+      fn.IsEmpty() ? undefined : fn.As<Value>(),
+      Boolean::New(isolate, can_parse_as_esm),
   };
   Local<Object> result = Object::New(
       isolate, v8::Null(isolate), names.data(), values.data(), names.size());
   args.GetReturnValue().Set(result);
 }
 
-static bool ShouldRetryAsESM(Realm* realm,
-                             Local<String> message,
-                             Local<String> code,
-                             Local<String> resource_name) {
+bool ShouldRetryAsESM(Realm* realm,
+                      Local<String> message,
+                      Local<String> code,
+                      Local<String> resource_name) {
   Isolate* isolate = realm->isolate();
 
   Utf8Value message_value(isolate, message);
@@ -1560,7 +1659,7 @@ static bool ShouldRetryAsESM(Realm* realm,
   Local<PrimitiveArray> hdo = loader::ModuleWrap::GetHostDefinedOptions(
       isolate, realm->isolate_data()->source_text_module_default_hdo());
   if (loader::ModuleWrap::CompileSourceTextModule(
-          realm, code, resource_name, 0, 0, hdo, nullptr, &cache_rejected)
+          realm, code, resource_name, 0, 0, hdo, std::nullopt, &cache_rejected)
           .ToLocal(&module)) {
     return true;
   }

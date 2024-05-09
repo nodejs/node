@@ -41,7 +41,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b  # v4.1.4
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -67,7 +67,7 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@c16abc29c95fcf9174b58eb7e1abf4c866893bc8  # v4.1.1
+        uses: codecov/codecov-action@5ecb98a3c6b747ed38dc09f787459979aebb39be  # v4.3.1
         with:
           directory: ./coverage
           token: ${{ secrets.CODECOV_TOKEN }}

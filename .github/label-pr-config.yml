@@ -86,7 +86,7 @@ subSystemLabels:
   # Oddities first
   /^lib\/(?:punycode|\w+\/freelist|sys\.js)/: ''
   /^lib\/constants\.js$/: lib / src
-  /^lib\/internal/debugger$/: debugger
+  /^lib\/internal\/debugger$/: debugger
   /^lib\/internal\/linkedlist\.js$/: timers
   /^lib\/internal\/bootstrap/: lib / src
   /^lib\/internal\/v8_prof_/: tools

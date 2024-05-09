@@ -30,7 +30,7 @@ const mockRs = async (t, { windows = false, runScript, ...opts } = {}) => {
     ...mock,
     RUN_SCRIPTS: () => RUN_SCRIPTS,
     runScript: mock['run-script'],
-    cleanLogs: () => mock.logs.error.flat().map(v => v.toString()).map(cleanCwd),
+    cleanLogs: () => mock.logs.error.map(cleanCwd),
   }
 }
 
@@ -347,7 +347,6 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
           env: 'env',
         },
       },
-      banner: true,
       event: 'env',
     },
   ])
@@ -388,7 +387,6 @@ t.test('run silent', async t => {
         },
       },
       event: 'env',
-      banner: false,
     },
     {
       event: 'postenv',
@@ -428,14 +426,14 @@ t.test('list scripts', async t => {
     t.strictSame(
       output,
       [
-        ['Lifecycle scripts included in x@1.2.3:'],
-        ['  test\n    exit 2'],
-        ['  start\n    node server.js'],
-        ['  stop\n    node kill-server.js'],
-        ['\navailable via `npm run-script`:'],
-        ['  preenv\n    echo before the env'],
-        ['  postenv\n    echo after the env'],
-        [''],
+        'Lifecycle scripts included in x@1.2.3:',
+        '  test\n    exit 2',
+        '  start\n    node server.js',
+        '  stop\n    node kill-server.js',
+        '\navailable via `npm run-script`:',
+        '  preenv\n    echo before the env',
+        '  postenv\n    echo after the env',
+        '',
       ],
       'basic report'
     )
@@ -447,17 +445,17 @@ t.test('list scripts', async t => {
   })
   t.test('warn json', async t => {
     const outputs = await mockList(t, { json: true })
-    t.strictSame(outputs, [[JSON.stringify(scripts, 0, 2)]], 'json report')
+    t.strictSame(outputs, [JSON.stringify(scripts, 0, 2)], 'json report')
   })
 
   t.test('parseable', async t => {
     const outputs = await mockList(t, { parseable: true })
     t.strictSame(outputs, [
-      ['test:exit 2'],
-      ['start:node server.js'],
-      ['stop:node kill-server.js'],
-      ['preenv:echo before the env'],
-      ['postenv:echo after the env'],
+      'test:exit 2',
+      'start:node server.js',
+      'stop:node kill-server.js',
+      'preenv:echo before the env',
+      'postenv:echo after the env',
     ])
   })
 })
@@ -489,9 +487,9 @@ t.test('list scripts, only commands', async t => {
 
   await runScript.exec([])
   t.strictSame(outputs, [
-    ['Lifecycle scripts included in x@1.2.3:'],
-    ['  preversion\n    echo doing the version dance'],
-    [''],
+    'Lifecycle scripts included in x@1.2.3:',
+    '  preversion\n    echo doing the version dance',
+    '',
   ])
 })
 
@@ -508,9 +506,9 @@ t.test('list scripts, only non-commands', async t => {
 
   await runScript.exec([])
   t.strictSame(outputs, [
-    ['Scripts available in x@1.2.3 via `npm run-script`:'],
-    ['  glorp\n    echo doing the glerp glop'],
-    [''],
+    'Scripts available in x@1.2.3 via `npm run-script`:',
+    '  glorp\n    echo doing the glerp glop',
+    '',
   ])
 })
 
@@ -594,113 +592,109 @@ t.test('workspaces', async t => {
   t.test('list all scripts', async t => {
     const { outputs } = await mockWorkspaces(t)
     t.strictSame(outputs, [
-      ['Scripts available in a@1.0.0 via `npm run-script`:'],
-      ['  glorp\n    echo a doing the glerp glop'],
-      [''],
-      ['Scripts available in b@2.0.0 via `npm run-script`:'],
-      ['  glorp\n    echo b doing the glerp glop'],
-      [''],
-      ['Lifecycle scripts included in c@1.0.0:'],
-      ['  test\n    exit 0'],
-      ['  posttest\n    echo posttest'],
-      ['\navailable via `npm run-script`:'],
-      ['  lorem\n    echo c lorem'],
-      [''],
-      ['Lifecycle scripts included in d@1.0.0:'],
-      ['  test\n    exit 0'],
-      ['  posttest\n    echo posttest'],
-      [''],
-      ['Lifecycle scripts included in e:'],
-      ['  test\n    exit 0'],
-      ['  start\n    echo start something'],
-      [''],
+      'Scripts available in a@1.0.0 via `npm run-script`:',
+      '  glorp\n    echo a doing the glerp glop',
+      '',
+      'Scripts available in b@2.0.0 via `npm run-script`:',
+      '  glorp\n    echo b doing the glerp glop',
+      '',
+      'Lifecycle scripts included in c@1.0.0:',
+      '  test\n    exit 0',
+      '  posttest\n    echo posttest',
+      '\navailable via `npm run-script`:',
+      '  lorem\n    echo c lorem',
+      '',
+      'Lifecycle scripts included in d@1.0.0:',
+      '  test\n    exit 0',
+      '  posttest\n    echo posttest',
+      '',
+      'Lifecycle scripts included in e:',
+      '  test\n    exit 0',
+      '  start\n    echo start something',
+      '',
     ])
   })
 
   t.test('list regular scripts, filtered by name', async t => {
     const { outputs } = await mockWorkspaces(t, { workspaces: ['a', 'b'] })
     t.strictSame(outputs, [
-      ['Scripts available in a@1.0.0 via `npm run-script`:'],
-      ['  glorp\n    echo a doing the glerp glop'],
-      [''],
-      ['Scripts available in b@2.0.0 via `npm run-script`:'],
-      ['  glorp\n    echo b doing the glerp glop'],
-      [''],
+      'Scripts available in a@1.0.0 via `npm run-script`:',
+      '  glorp\n    echo a doing the glerp glop',
+      '',
+      'Scripts available in b@2.0.0 via `npm run-script`:',
+      '  glorp\n    echo b doing the glerp glop',
+      '',
     ])
   })
 
   t.test('list regular scripts, filtered by path', async t => {
     const { outputs } = await mockWorkspaces(t, { workspaces: ['./packages/a'] })
     t.strictSame(outputs, [
-      ['Scripts available in a@1.0.0 via `npm run-script`:'],
-      ['  glorp\n    echo a doing the glerp glop'],
-      [''],
+      'Scripts available in a@1.0.0 via `npm run-script`:',
+      '  glorp\n    echo a doing the glerp glop',
+      '',
     ])
   })
 
   t.test('list regular scripts, filtered by parent folder', async t => {
     const { outputs } = await mockWorkspaces(t, { workspaces: ['./packages'] })
     t.strictSame(outputs, [
-      ['Scripts available in a@1.0.0 via `npm run-script`:'],
-      ['  glorp\n    echo a doing the glerp glop'],
-      [''],
-      ['Scripts available in b@2.0.0 via `npm run-script`:'],
-      ['  glorp\n    echo b doing the glerp glop'],
-      [''],
-      ['Lifecycle scripts included in c@1.0.0:'],
-      ['  test\n    exit 0'],
-      ['  posttest\n    echo posttest'],
-      ['\navailable via `npm run-script`:'],
-      ['  lorem\n    echo c lorem'],
-      [''],
-      ['Lifecycle scripts included in d@1.0.0:'],
-      ['  test\n    exit 0'],
-      ['  posttest\n    echo posttest'],
-      [''],
-      ['Lifecycle scripts included in e:'],
-      ['  test\n    exit 0'],
-      ['  start\n    echo start something'],
-      [''],
+      'Scripts available in a@1.0.0 via `npm run-script`:',
+      '  glorp\n    echo a doing the glerp glop',
+      '',
+      'Scripts available in b@2.0.0 via `npm run-script`:',
+      '  glorp\n    echo b doing the glerp glop',
+      '',
+      'Lifecycle scripts included in c@1.0.0:',
+      '  test\n    exit 0',
+      '  posttest\n    echo posttest',
+      '\navailable via `npm run-script`:',
+      '  lorem\n    echo c lorem',
+      '',
+      'Lifecycle scripts included in d@1.0.0:',
+      '  test\n    exit 0',
+      '  posttest\n    echo posttest',
+      '',
+      'Lifecycle scripts included in e:',
+      '  test\n    exit 0',
+      '  start\n    echo start something',
+      '',
     ])
   })
 
   t.test('list all scripts with colors', async t => {
     const { outputs } = await mockWorkspaces(t, { color: 'always' })
     t.strictSame(outputs, [
-      [
-        /* eslint-disable-next-line max-len */
-        '\u001b[1mScripts\u001b[22m available in \x1B[32ma@1.0.0\x1B[39m via `\x1B[34mnpm run-script\x1B[39m`:',
-      ],
-      ['  glorp\n    \x1B[2mecho a doing the glerp glop\x1B[22m'],
-      [''],
-      [
-        /* eslint-disable-next-line max-len */
-        '\u001b[1mScripts\u001b[22m available in \x1B[32mb@2.0.0\x1B[39m via `\x1B[34mnpm run-script\x1B[39m`:',
-      ],
-      ['  glorp\n    \x1B[2mecho b doing the glerp glop\x1B[22m'],
-      [''],
-      ['\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32mc@1.0.0\x1B[39m:'],
-      ['  test\n    \x1B[2mexit 0\x1B[22m'],
-      ['  posttest\n    \x1B[2mecho posttest\x1B[22m'],
-      ['\navailable via `\x1B[34mnpm run-script\x1B[39m`:'],
-      ['  lorem\n    \x1B[2mecho c lorem\x1B[22m'],
-      [''],
-      ['\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32md@1.0.0\x1B[39m:'],
-      ['  test\n    \x1B[2mexit 0\x1B[22m'],
-      ['  posttest\n    \x1B[2mecho posttest\x1B[22m'],
-      [''],
-      ['\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32me\x1B[39m:'],
-      ['  test\n    \x1B[2mexit 0\x1B[22m'],
-      ['  start\n    \x1B[2mecho start something\x1B[22m'],
-      [''],
+      /* eslint-disable-next-line max-len */
+      '\u001b[1mScripts\u001b[22m available in \x1B[32ma@1.0.0\x1B[39m via `\x1B[34mnpm run-script\x1B[39m`:',
+      '  glorp\n    \x1B[2mecho a doing the glerp glop\x1B[22m',
+      '',
+      /* eslint-disable-next-line max-len */
+      '\u001b[1mScripts\u001b[22m available in \x1B[32mb@2.0.0\x1B[39m via `\x1B[34mnpm run-script\x1B[39m`:',
+      '  glorp\n    \x1B[2mecho b doing the glerp glop\x1B[22m',
+      '',
+      '\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32mc@1.0.0\x1B[39m:',
+      '  test\n    \x1B[2mexit 0\x1B[22m',
+      '  posttest\n    \x1B[2mecho posttest\x1B[22m',
+      '\navailable via `\x1B[34mnpm run-script\x1B[39m`:',
+      '  lorem\n    \x1B[2mecho c lorem\x1B[22m',
+      '',
+      '\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32md@1.0.0\x1B[39m:',
+      '  test\n    \x1B[2mexit 0\x1B[22m',
+      '  posttest\n    \x1B[2mecho posttest\x1B[22m',
+      '',
+      '\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32me\x1B[39m:',
+      '  test\n    \x1B[2mexit 0\x1B[22m',
+      '  start\n    \x1B[2mecho start something\x1B[22m',
+      '',
     ])
   })
 
   t.test('list all scripts --json', async t => {
     const { outputs } = await mockWorkspaces(t, { json: true })
     t.strictSame(outputs, [
-      [
-        '{\n' +
+
+      '{\n' +
           '  "a": {\n' +
           '    "glorp": "echo a doing the glerp glop"\n' +
           '  },\n' +
@@ -722,22 +716,22 @@ t.test('workspaces', async t => {
           '  },\n' +
           '  "noscripts": {}\n' +
           '}',
-      ],
+
     ])
   })
 
   t.test('list all scripts --parseable', async t => {
     const { outputs } = await mockWorkspaces(t, { parseable: true })
     t.strictSame(outputs, [
-      ['a:glorp:echo a doing the glerp glop'],
-      ['b:glorp:echo b doing the glerp glop'],
-      ['c:test:exit 0'],
-      ['c:posttest:echo posttest'],
-      ['c:lorem:echo c lorem'],
-      ['d:test:exit 0'],
-      ['d:posttest:echo posttest'],
-      ['e:test:exit 0'],
-      ['e:start:echo start something'],
+      'a:glorp:echo a doing the glerp glop',
+      'b:glorp:echo b doing the glerp glop',
+      'c:test:exit 0',
+      'c:posttest:echo posttest',
+      'c:lorem:echo c lorem',
+      'd:test:exit 0',
+      'd:posttest:echo posttest',
+      'e:test:exit 0',
+      'e:start:echo start something',
     ])
   })
 

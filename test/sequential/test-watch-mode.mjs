@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import { once } from 'node:events';
 import { createInterface } from 'node:readline';
 
 if (common.isIBMi)
@@ -39,7 +40,9 @@ async function runWriteSucceed({
   options = {},
   shouldFail = false
 }) {
-  const child = spawn(execPath, [watchFlag, '--no-warnings', ...args], { encoding: 'utf8', stdio: 'pipe', ...options });
+  args.unshift('--no-warnings');
+  if (watchFlag !== null) args.unshift(watchFlag);
+  const child = spawn(execPath, args, { encoding: 'utf8', stdio: 'pipe', ...options });
   let completes = 0;
   let cancelRestarts = () => {};
   let stderr = '';
@@ -528,6 +531,127 @@ console.log(values.random);
       `Restarting ${inspect(file)}`,
       'hello',
       'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
+  it('should run when `--watch --inspect`', async () => {
+    const file = createTmpFile();
+    const args = ['--watch', '--inspect', file];
+    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: null, args });
+
+    assert.match(stderr, /listening on ws:\/\//);
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
+  it('should run when `--watch -r ./foo.js`', async () => {
+    const projectDir = tmpdir.resolve('project7');
+    mkdirSync(projectDir);
+
+    const dir = path.join(projectDir, 'watched-dir');
+    mkdirSync(dir);
+    writeFileSync(path.join(projectDir, 'some.js'), "console.log('hello')");
+
+    const file = createTmpFile("console.log('running');", '.js', projectDir);
+    const args = ['--watch', '-r', './some.js', file];
+    const { stdout, stderr } = await runWriteSucceed({
+      file, watchedFile: file, watchFlag: null, args, options: { cwd: projectDir }
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
+  it('should pass IPC messages from a spawning parent to the child and back', async () => {
+    const file = createTmpFile(`console.log('running');
+process.on('message', (message) => {
+  if (message === 'exit') {
+    process.exit(0);
+  } else {
+    console.log('Received:', message);
+    process.send(message);
+  }
+})`);
+
+    const child = spawn(
+      execPath,
+      [
+        '--watch',
+        '--no-warnings',
+        file,
+      ],
+      {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      },
+    );
+
+    let stderr = '';
+    let stdout = '';
+
+    child.stdout.on('data', (data) => stdout += data);
+    child.stderr.on('data', (data) => stderr += data);
+    async function waitForEcho(msg) {
+      const receivedPromise = new Promise((resolve) => {
+        const fn = (message) => {
+          if (message === msg) {
+            child.off('message', fn);
+            resolve();
+          }
+        };
+        child.on('message', fn);
+      });
+      child.send(msg);
+      await receivedPromise;
+    }
+
+    async function waitForText(text) {
+      const seenPromise = new Promise((resolve) => {
+        const fn = (data) => {
+          if (data.toString().includes(text)) {
+            resolve();
+            child.stdout.off('data', fn);
+          }
+        };
+        child.stdout.on('data', fn);
+      });
+      await seenPromise;
+    }
+
+    await waitForText('running');
+    await waitForEcho('first message');
+    const stopRestarts = restart(file);
+    await waitForText('running');
+    stopRestarts();
+    await waitForEcho('second message');
+    const exitedPromise = once(child, 'exit');
+    child.send('exit');
+    await waitForText('Completed');
+    child.disconnect();
+    child.kill();
+    await exitedPromise;
+    assert.strictEqual(stderr, '');
+    const lines = stdout.split(/\r?\n/).filter(Boolean);
+    assert.deepStrictEqual(lines, [
+      'running',
+      'Received: first message',
+      `Restarting ${inspect(file)}`,
+      'running',
+      'Received: second message',
       `Completed running ${inspect(file)}`,
     ]);
   });

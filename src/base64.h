@@ -37,14 +37,10 @@ template <typename TypeName>
 size_t base64_decoded_size(const TypeName* src, size_t size);
 
 template <typename TypeName>
-size_t base64_decode(char* const dst, const size_t dstlen,
-                     const TypeName* const src, const size_t srclen);
-
-inline size_t base64_encode(const char* src,
-                            size_t slen,
-                            char* dst,
-                            size_t dlen,
-                            Base64Mode mode = Base64Mode::NORMAL);
+size_t base64_decode(char* const dst,
+                     const size_t dstlen,
+                     const TypeName* const src,
+                     const size_t srclen);
 }  // namespace node
 
 

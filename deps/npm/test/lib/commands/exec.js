@@ -76,7 +76,7 @@ t.test('--prefix', async t => {
   })
 
   // This is what `--prefix` does
-  npm.globalPrefix = npm.localPrefix
+  npm.config.globalPrefix = npm.config.localPrefix
 
   await registry.package({
     manifest,

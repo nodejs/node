@@ -58,7 +58,7 @@ class Pool extends PoolBase {
         allowH2,
         socketPath,
         timeout: connectTimeout,
-        ...(util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
+        ...(autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
       })
     }

@@ -119,7 +119,7 @@ t.test('prompts for otp for 401', async (t) => {
 })
 
 t.test('does not prompt for non-otp errors', async (t) => {
-  const fn = async (opts) => {
+  const fn = async () => {
     throw new Error('nope')
   }
 
@@ -132,7 +132,7 @@ t.test('does not prompt for non-otp errors', async (t) => {
 })
 
 t.test('does not prompt if stdin or stdout is not a tty', async (t) => {
-  const fn = async (opts) => {
+  const fn = async () => {
     throw Object.assign(new Error('nope'), { code: 'EOTP' })
   }
 

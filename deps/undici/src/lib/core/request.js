@@ -7,7 +7,7 @@ const {
 const assert = require('node:assert')
 const {
   isValidHTTPToken,
-  isValidHeaderChar,
+  isValidHeaderValue,
   isStream,
   destroy,
   isBuffer,
@@ -336,7 +336,7 @@ function processHeader (request, key, val) {
     const arr = []
     for (let i = 0; i < val.length; i++) {
       if (typeof val[i] === 'string') {
-        if (!isValidHeaderChar(val[i])) {
+        if (!isValidHeaderValue(val[i])) {
           throw new InvalidArgumentError(`invalid ${key} header`)
         }
         arr.push(val[i])
@@ -350,13 +350,11 @@ function processHeader (request, key, val) {
     }
     val = arr
   } else if (typeof val === 'string') {
-    if (!isValidHeaderChar(val)) {
+    if (!isValidHeaderValue(val)) {
       throw new InvalidArgumentError(`invalid ${key} header`)
     }
   } else if (val === null) {
     val = ''
-  } else if (typeof val === 'object') {
-    throw new InvalidArgumentError(`invalid ${key} header`)
   } else {
     val = `${val}`
   }

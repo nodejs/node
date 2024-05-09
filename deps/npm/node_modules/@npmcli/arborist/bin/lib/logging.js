@@ -1,4 +1,4 @@
-const log = require('proc-log')
+const { log } = require('proc-log')
 const fs = require('fs')
 const { dirname } = require('path')
 const os = require('os')

@@ -82,7 +82,6 @@
     'v8_toolset_for_shell%': 'target',
 
     'host_os%': '<(OS)',
-    'werror%': '-Werror',
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
 
@@ -133,21 +132,33 @@
       '<(V8_ROOT)',
       '<(V8_ROOT)/include',
     ],
+    'cflags!': ['-Wall', '-Wextra'],
     'conditions': [
-      ['clang', {
-        'cflags': [ '-Werror', '-Wno-unknown-pragmas' ],
-      },{
-        'cflags!': [ '-Wall', '-Wextra' ],
+      ['clang==0 and OS!="win"', {
         'cflags': [
+          # In deps/v8/BUILD.gn: if (!is_clang && !is_win) { cflags += [...] }
+          '-Wno-strict-overflow',
           '-Wno-return-type',
+          '-Wno-int-in-bool-context',
+          '-Wno-deprecated',
+          '-Wno-stringop-overflow',
+          '-Wno-stringop-overread',
+          '-Wno-restrict',
+          '-Wno-array-bounds',
+          '-Wno-nonnull',
+          '-Wno-dangling-pointer',
           # On by default in Clang and V8 requires it at least for arm64.
           '-flax-vector-conversions',
         ],
       }],
-      ['clang or OS!="win"', {
-        'cflags': [ '-Wno-invalid-offsetof' ],
+      ['clang==1 or OS!="win"', {
+        'cflags_cc': [
+          # In deps/v8/BUILD.gn: if (is_clang || !is_win) { cflags += [...] }
+          '-Wno-invalid-offsetof',
+        ],
         'xcode_settings': {
-          'WARNING_CFLAGS': ['-Wno-invalid-offsetof']
+          # -Wno-invalid-offsetof
+          'GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO': 'NO',
         },
       }],
       ['v8_target_arch=="arm"', {
@@ -434,9 +445,6 @@
           ['_toolset=="target"', {
             'conditions': [
               ['v8_target_arch==target_arch', {
-                'cflags': [
-                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
-                ],
                 'conditions': [
                   ['v8_target_arch=="mips64el"', {
                     'cflags': ['-EL'],

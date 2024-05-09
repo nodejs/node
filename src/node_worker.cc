@@ -89,7 +89,7 @@ Worker::Worker(Environment* env,
   // Without this check, to use the permission model with
   // workers (--allow-worker) one would need to pass --allow-inspector as well
   if (env->permission()->is_granted(
-          node::permission::PermissionScope::kInspector)) {
+          env, node::permission::PermissionScope::kInspector)) {
     inspector_parent_handle_ =
         GetInspectorParentHandle(env, thread_id_, url.c_str(), name.c_str());
   }

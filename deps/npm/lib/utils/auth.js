@@ -1,5 +1,5 @@
 const profile = require('npm-profile')
-const log = require('../utils/log-shim')
+const { log } = require('proc-log')
 const openUrlPrompt = require('../utils/open-url-prompt.js')
 const read = require('../utils/read-user-info.js')
 const otplease = require('../utils/otplease.js')
@@ -36,7 +36,7 @@ const adduser = async (npm, { creds, ...opts }) => {
     // password, it's effectively a login, and if that account has otp you'll
     // be prompted for it.
     res = await otplease(npm, opts, (reqOpts) =>
-      profile.adduserCouch(username, email, password, opts)
+      profile.adduserCouch(username, email, password, reqOpts)
     )
   }
 

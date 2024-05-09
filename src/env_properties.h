@@ -35,8 +35,7 @@
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
   V(exit_info_private_symbol, "node:exit_info_private_symbol")                 \
-  V(promise_trace_id, "node:promise_trace_id")                                 \
-  V(require_private_symbol, "node:require_private_symbol")
+  V(promise_trace_id, "node:promise_trace_id")
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.

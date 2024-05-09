@@ -167,6 +167,12 @@ class PackageJson {
     return this
   }
 
+  fromContent (data) {
+    this.#manifest = data
+    this.#canSave = false
+    return this
+  }
+
   // Load data from a comment
   // /**package { "name": "foo", "version": "1.2.3", ... } **/
   fromComment (data) {
