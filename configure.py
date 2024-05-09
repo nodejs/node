@@ -418,7 +418,7 @@ shared_optgroup.add_argument('--shared-simdjson-includes',
 shared_optgroup.add_argument('--shared-simdjson-libname',
     action='store',
     dest='shared_simdjson_libname',
-    default='z',
+    default='simdjson',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-simdjson-libpath',
