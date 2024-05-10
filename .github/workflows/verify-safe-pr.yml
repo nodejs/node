@@ -1,0 +1,45 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check PR values for unsafe characters
+      id: check_values
+      uses: actions/github-script@v5
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const valuesToCheck = [
+            context.payload.pull_request.user.email,
+            context.payload.pull_request.head.ref,
+            context.payload.pull_request.base.ref,
+            context.payload.pull_request.base.user.login,
+            context.payload.pull_request.head.repo.full_name
+          ];
+          const regex = /[<>'"&;{}]/;
+          const unsafeValues = valuesToCheck.filter(value => regex.test(value));
+          if (unsafeValues.length > 0) {
+            core.setOutput('unsafeValues', unsafeValues.join(', '));
+            core.setFailed('One of the PR values contains potentially unsafe characters');
+          } else {
+            console.log('All values are safe.');
+          }
+
+    - name: Leave comment on PR
+      if: steps.check_values.outputs.unsafeValues != ''
+      run: |
+        const unsafeValues = process.env.UNSAFE_VALUES.split(', ');
+        const commentBody = `Potential security issue: The following values contain potentially unsafe characters: ${unsafeValues.join(', ')}`;
+        
+        github.issues.createComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issue_number: context.issue.number,
+          body: commentBody
+        });
