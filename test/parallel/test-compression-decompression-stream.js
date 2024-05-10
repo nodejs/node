@@ -8,7 +8,7 @@ const { describe, it } = require('node:test');
 const {
   CompressionStream,
   DecompressionStream,
-} = require('stream/web');
+} = require('node:stream/web');
 
 const {
   customInspectSymbol: kInspect,
