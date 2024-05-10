@@ -1953,8 +1953,9 @@ is returned.
 `process.getBuiltinModule(id)` accept built-in module IDs that are recognized
 by [`module.isBuiltin(id)`][]. Some built-in modules must be loaded with the
 `node:` prefix, see [built-in modules with mandatory `node:` prefix][].
-The built-in modules returned by `process.getBuiltinModule(id)` are always the
-original modules - that is, it's not affected by [`require.cache`][].
+The references returned by `process.getBuiltinModule(id)` always point to
+the built-in module corresponding to `id` even if users modify
+[`require.cache`][] in a way for `require(id)` to return something else.
 
 ## `process.getegid()`
 
