@@ -3,7 +3,7 @@
 
 require('../common');
 
-const assert = require('assert');
+const assert = require('node:assert');
 const { describe, it } = require('node:test');
 const {
   CompressionStream,
