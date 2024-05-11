@@ -628,7 +628,7 @@ size_t StringBytes::hex_encode(
     size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
   CHECK(dlen >= MultiplyWithOverflowCheck<size_t>(slen, 2u) &&
-      "not enough space provided for hex encode");
+        "not enough space provided for hex encode");
 
   dlen = slen * 2;
   for (size_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
