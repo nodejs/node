@@ -404,6 +404,74 @@ shared_optgroup.add_argument('--shared-zlib-libpath',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
 
+shared_optgroup.add_argument('--shared-simdjson',
+    action='store_true',
+    dest='shared_simdjson',
+    default=None,
+    help='link to a shared simdjson DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-simdjson-includes',
+    action='store',
+    dest='shared_simdjson_includes',
+    help='directory containing simdjson header files')
+
+shared_optgroup.add_argument('--shared-simdjson-libname',
+    action='store',
+    dest='shared_simdjson_libname',
+    default='simdjson',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-simdjson-libpath',
+    action='store',
+    dest='shared_simdjson_libpath',
+    help='a directory to search for the shared simdjson DLL')
+
+
+shared_optgroup.add_argument('--shared-simdutf',
+    action='store_true',
+    dest='shared_simdutf',
+    default=None,
+    help='link to a shared simdutf DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-simdutf-includes',
+    action='store',
+    dest='shared_simdutf_includes',
+    help='directory containing simdutf header files')
+
+shared_optgroup.add_argument('--shared-simdutf-libname',
+    action='store',
+    dest='shared_simdutf_libname',
+    default='simdutf',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-simdutf-libpath',
+    action='store',
+    dest='shared_simdutf_libpath',
+    help='a directory to search for the shared simdutf DLL')
+
+
+shared_optgroup.add_argument('--shared-ada',
+    action='store_true',
+    dest='shared_ada',
+    default=None,
+    help='link to a shared ada DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-ada-includes',
+    action='store',
+    dest='shared_ada_includes',
+    help='directory containing ada header files')
+
+shared_optgroup.add_argument('--shared-ada-libname',
+    action='store',
+    dest='shared_ada_libname',
+    default='ada',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-ada-libpath',
+    action='store',
+    dest='shared_ada_libpath',
+    help='a directory to search for the shared ada DLL')
+
 shared_optgroup.add_argument('--shared-brotli',
     action='store_true',
     dest='shared_brotli',
@@ -2046,6 +2114,9 @@ configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
+configure_library('ada', output)
+configure_library('simdjson', output)
+configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
