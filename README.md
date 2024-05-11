@@ -164,8 +164,6 @@ For information about the governance of the Node.js project, see
 
 * [aduh95](https://github.com/aduh95) -
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
-* [anonrig](https://github.com/anonrig) -
-  **Yagiz Nizipli** <<yagiz.nizipli@sentry.io>> (he/him)
 * [apapirovski](https://github.com/apapirovski) -
   **Anatoli Papirovski** <<apapirovski@mac.com>> (he/him)
 * [benjamingr](https://github.com/benjamingr) -
@@ -205,6 +203,8 @@ For information about the governance of the Node.js project, see
 
 #### TSC regular members
 
+* [anonrig](https://github.com/anonrig) -
+  **Yagiz Nizipli** <<yagiz.nizipli@sentry.io>> (he/him)
 * [BethGriggs](https://github.com/BethGriggs) -
   **Beth Griggs** <<bethanyngriggs@gmail.com>> (she/her)
 * [bnoordhuis](https://github.com/bnoordhuis) -
