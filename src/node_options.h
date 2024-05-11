@@ -71,6 +71,8 @@ class DebugOptions : public Options {
   bool allow_attaching_debugger = true;
   // --inspect
   bool inspector_enabled = false;
+  // --inspect-wait
+  bool inspect_wait = false;
   // --debug
   bool deprecated_debug = false;
   // --inspect-brk
@@ -93,6 +95,10 @@ class DebugOptions : public Options {
   }
 
   bool wait_for_connect() const {
+    return break_first_line || break_node_first_line || inspect_wait;
+  }
+
+  bool should_break_first_line() const {
     return break_first_line || break_node_first_line;
   }
 
