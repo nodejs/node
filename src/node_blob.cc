@@ -100,7 +100,7 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   auto entry = DataQueue::CreateFdEntry(env, args[0]);
   if (entry == nullptr) {
-    return THROW_ERR_INVALID_ARG_VALUE(env, "Unabled to open file as blob");
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Unable to open file as blob");
   }
 
   std::vector<std::unique_ptr<DataQueue::Entry>> entries;
