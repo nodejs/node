@@ -1272,6 +1272,7 @@ Activate inspector on `host:port`. Default is `127.0.0.1:9229`.
 V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
+See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
 
 <!-- Anchor to make sure old links find a target -->
 
@@ -1302,6 +1303,8 @@ added: v7.6.0
 Activate inspector on `host:port` and break at start of user script.
 Default `host:port` is `127.0.0.1:9229`.
 
+See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
+
 ### `--inspect-port=[host:]port`
 
 <!-- YAML
@@ -1322,6 +1325,17 @@ Specify ways of the inspector web socket url exposure.
 
 By default inspector websocket url is available in stderr and under `/json/list`
 endpoint on `http://host:port/json/list`.
+
+### `--inspect-wait[=[host:]port]`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Activate inspector on `host:port` and wait for debugger to be attached.
+Default `host:port` is `127.0.0.1:9229`.
+
+See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
 
 ### `-i`, `--interactive`
 
@@ -2662,6 +2676,7 @@ one is included in the list below.
 * `--inspect-brk`
 * `--inspect-port`, `--debug-port`
 * `--inspect-publish-uid`
+* `--inspect-wait`
 * `--inspect`
 * `--max-http-header-size`
 * `--napi-modules`
@@ -3152,6 +3167,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://sourcemaps.info/spec.html
+[V8 Inspector integration for Node.js]: debugger.md#v8-inspector-integration-for-nodejs
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [V8 code cache]: https://v8.dev/blog/code-caching-for-devs
 [`"type"`]: packages.md#type

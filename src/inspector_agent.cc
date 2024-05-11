@@ -743,20 +743,24 @@ bool Agent::Start(const std::string& path,
   }, parent_env_);
 
   bool wait_for_connect = options.wait_for_connect();
+  bool should_break_first_line = options.should_break_first_line();
   if (parent_handle_) {
-    wait_for_connect = parent_handle_->WaitForConnect();
-    parent_handle_->WorkerStarted(client_->getThreadHandle(), wait_for_connect);
+    should_break_first_line = parent_handle_->WaitForConnect();
+    parent_handle_->WorkerStarted(client_->getThreadHandle(),
+                                  should_break_first_line);
   } else if (!options.inspector_enabled || !options.allow_attaching_debugger ||
              !StartIoThread()) {
     return false;
   }
 
-  // Patch the debug options to implement waitForDebuggerOnStart for
-  // the NodeWorker.enable method.
-  if (wait_for_connect) {
-    CHECK(!parent_env_->has_serialized_options());
-    debug_options_.EnableBreakFirstLine();
-    parent_env_->options()->get_debug_options()->EnableBreakFirstLine();
+  if (wait_for_connect || should_break_first_line) {
+    // Patch the debug options to implement waitForDebuggerOnStart for
+    // the NodeWorker.enable method.
+    if (should_break_first_line) {
+      CHECK(!parent_env_->has_serialized_options());
+      debug_options_.EnableBreakFirstLine();
+      parent_env_->options()->get_debug_options()->EnableBreakFirstLine();
+    }
     client_->waitForFrontend();
   }
   return true;
