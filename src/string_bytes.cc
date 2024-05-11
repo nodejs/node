@@ -627,11 +627,11 @@ size_t StringBytes::hex_encode(
     char* dst,
     size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
-  CHECK(dlen >= slen * 2 &&
-      "not enough space provided for hex encode");
+  CHECK(dlen >= MultiplyWithOverflowCheck<size_t>(slen, 2u) &&
+        "not enough space provided for hex encode");
 
   dlen = slen * 2;
-  for (uint32_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
+  for (size_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
     static const char hex[] = "0123456789abcdef";
     uint8_t val = static_cast<uint8_t>(src[i]);
     dst[k + 0] = hex[val >> 4];
