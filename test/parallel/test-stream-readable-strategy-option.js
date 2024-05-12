@@ -1,8 +1,10 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
 const { strictEqual } = require('assert');
+const { kState } = require('internal/webstreams/util');
 
 {
   // Strategy 2
@@ -72,4 +74,17 @@ const { strictEqual } = require('assert');
     strictEqual(value, undefined);
     strictEqual(done, true);
   });
+}
+
+{
+  const readable = new Readable({
+    read: common.mustCall(() => {
+      readable.push(null);
+    }),
+  });
+
+  const readableStream = Readable.toWeb(readable);
+  const { sizeAlgorithm: size } = readableStream[kState].controller[kState];
+
+  assert.strictEqual(size(new ArrayBuffer(19)), 19);
 }
