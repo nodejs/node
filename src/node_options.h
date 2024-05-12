@@ -130,6 +130,7 @@ class EnvironmentOptions : public Options {
   bool allow_addons = false;
   bool allow_child_process = false;
   bool allow_worker_threads = false;
+  bool experimental_repl = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
   bool expose_internals = false;

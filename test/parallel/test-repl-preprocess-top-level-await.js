@@ -2,7 +2,7 @@
 
 require('../common');
 const assert = require('assert');
-const { processTopLevelAwait } = require('internal/repl/await');
+const { processTopLevelAwait } = require('internal/repl/stable/await');
 
 // Flags: --expose-internals
 

@@ -920,6 +920,16 @@ following permissions are restricted:
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 
+### `--experimental-repl`
+
+<!--
+added: REPLACME
+-->
+
+> Stability: 1 - Experimental
+
+Enables the experimental REPL.
+
 ### `--experimental-require-module`
 
 <!-- YAML
