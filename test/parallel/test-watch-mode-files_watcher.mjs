@@ -6,7 +6,7 @@ import path from 'node:path';
 import assert from 'node:assert';
 import process from 'node:process';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
@@ -158,5 +158,48 @@ describe('watch mode file watcher', () => {
       expected = expected.map((file) => path.dirname(file));
     }
     assert.deepStrictEqual(watcher.watchedPaths, expected);
+  });
+
+  it('should capture changes of a renamed file when re-written within the timeout', async () => {
+    watcher = new FilesWatcher({ debounce: 100, renameInterval: 100, renameTimeout: 400, mode: 'all' });
+    watcher.on('changed', () => changesCount++);
+
+    const file = tmpdir.resolve('file5');
+    writeFileSync(file, 'changed');
+    watcher.watchPath(file, false);
+
+    let changed = once(watcher, 'changed');
+    rmSync(file);
+    await setTimeout(200); // debounce * 2
+    await changed;
+    changed = once(watcher, 'changed');
+    writeFileSync(file, 'changed1');
+    await setTimeout(200); // debounce * 2
+    await changed;
+    changed = once(watcher, 'changed');
+    writeFileSync(file, 'changed1');
+    await setTimeout(200); // debounce * 2
+    await changed;
+    assert.strictEqual(changesCount, 3);
+  });
+
+  it('should NOT capture changes of a renamed file when re-written after the timeout', async () => {
+    watcher = new FilesWatcher({ debounce: 100, renameInterval: 200, renameTimeout: 100, mode: 'all' });
+    watcher.on('changed', () => changesCount++);
+
+    const file = tmpdir.resolve('file5');
+    writeFileSync(file, 'changed');
+    watcher.watchPath(file, false);
+
+    const changed = once(watcher, 'changed');
+
+    rmSync(file);
+    await setTimeout(200); // debounce * 2
+    await changed;
+    writeFileSync(file, 'changed1');
+    await setTimeout(5);
+    writeFileSync(file, 'changed2');
+    await setTimeout(5);
+    assert.strictEqual(changesCount, 1);
   });
 });

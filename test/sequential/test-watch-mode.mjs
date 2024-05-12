@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync, rmSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { once } from 'node:events';
@@ -38,7 +38,8 @@ async function runWriteSucceed({
   completed = 'Completed running',
   restarts = 2,
   options = {},
-  shouldFail = false
+  shouldFail = false,
+  restartFn = restart
 }) {
   args.unshift('--no-warnings');
   if (watchFlag !== null) args.unshift(watchFlag);
@@ -64,7 +65,7 @@ async function runWriteSucceed({
           break;
         }
         if (completes === 1) {
-          cancelRestarts = restart(watchedFile);
+          cancelRestarts = restartFn(watchedFile);
         }
       }
 
@@ -652,6 +653,40 @@ process.on('message', (message) => {
       `Restarting ${inspect(file)}`,
       'running',
       'Received: second message',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
+  it('should watch changes to removed and readded files', async () => {
+    const file = createTmpFile();
+    let restartCount = 0;
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: file,
+      watchFlag: '--watch=true',
+      options: {
+        timeout: 10000
+      },
+      restarts: 3,
+      restartFn(fileName) {
+        const content = readFileSync(fileName);
+        if (restartCount === 0) {
+          rmSync(fileName);
+        }
+        restartCount++;
+        return restart(fileName, content);
+      }
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
       `Completed running ${inspect(file)}`,
     ]);
   });
