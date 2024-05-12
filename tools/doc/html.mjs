@@ -394,8 +394,8 @@ function versionSort(a, b) {
   b = minVersion(b).trim();
   let i = 0; // Common prefix length.
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  a = a.substr(i);
-  b = b.substr(i);
+  a = a.substring(i);
+  b = b.substring(i);
   return +b.match(numberRe)[0] - +a.match(numberRe)[0];
 }
 
