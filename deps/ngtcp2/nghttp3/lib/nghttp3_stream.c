@@ -73,7 +73,6 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
 
   stream->qpack_blocked_pe.index = NGHTTP3_PQ_BAD_INDEX;
   stream->mem = mem;
-  stream->tx.offset = 0;
   stream->rx.http.status_code = -1;
   stream->rx.http.content_length = -1;
   stream->rx.http.pri.urgency = NGHTTP3_DEFAULT_URGENCY;
@@ -928,9 +927,8 @@ static void stream_pop_outq_entry(nghttp3_stream *stream,
   nghttp3_ringbuf_pop_front(&stream->outq);
 }
 
-int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, uint64_t n) {
+int nghttp3_stream_update_ack_offset(nghttp3_stream *stream, uint64_t offset) {
   nghttp3_ringbuf *outq = &stream->outq;
-  uint64_t offset = stream->ack_offset + n;
   size_t buflen;
   size_t npopped = 0;
   uint64_t nack;
@@ -941,24 +939,25 @@ int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, uint64_t n) {
     tbuf = nghttp3_ringbuf_get(outq, 0);
     buflen = nghttp3_buf_len(&tbuf->buf);
 
-    if (tbuf->type == NGHTTP3_BUF_TYPE_ALIEN) {
-      nack = nghttp3_min(offset, (uint64_t)buflen) - stream->ack_done;
-      if (stream->callbacks.acked_data) {
-        rv = stream->callbacks.acked_data(stream, stream->node.id, nack,
-                                          stream->user_data);
-        if (rv != 0) {
-          return NGHTTP3_ERR_CALLBACK_FAILURE;
-        }
+    /* For NGHTTP3_BUF_TYPE_ALIEN, we never add 0 length buffer. */
+    if (tbuf->type == NGHTTP3_BUF_TYPE_ALIEN && stream->ack_offset < offset &&
+        stream->callbacks.acked_data) {
+      nack =
+          nghttp3_min(offset, stream->ack_base + buflen) - stream->ack_offset;
+
+      rv = stream->callbacks.acked_data(stream, stream->node.id, nack,
+                                        stream->user_data);
+      if (rv != 0) {
+        return NGHTTP3_ERR_CALLBACK_FAILURE;
       }
-      stream->ack_done += nack;
     }
 
-    if (offset >= buflen) {
+    if (offset >= stream->ack_base + buflen) {
       stream_pop_outq_entry(stream, tbuf);
 
-      offset -= buflen;
+      stream->ack_base += buflen;
+      stream->ack_offset = stream->ack_base;
       ++npopped;
-      stream->ack_done = 0;
 
       if (stream->outq_idx + 1 == npopped) {
         stream->outq_offset = 0;

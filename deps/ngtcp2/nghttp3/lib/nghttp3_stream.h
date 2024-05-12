@@ -226,16 +226,12 @@ struct nghttp3_stream {
       /* outq_offset is write offset relative to the element at outq_idx
          in outq. */
       uint64_t outq_offset;
-      /* ack_offset is offset acknowledged by peer relative to the first
-         element in outq. */
+      /* ack_base is the number of bytes acknowledged by a remote
+         endpoint where the first element in outq is positioned at. */
+      uint64_t ack_base;
+      /* ack_offset is the number of bytes acknowledged by a remote
+         endpoint so far. */
       uint64_t ack_offset;
-      /* ack_done is the number of bytes notified to an application that
-         they are acknowledged inside the first outq element if it is of
-         type NGHTTP3_BUF_TYPE_ALIEN. */
-      uint64_t ack_done;
-      /* ack_total is the cumulative number of bytes acknowledged so
-         far. */
-      uint64_t ack_total;
       uint64_t unscheduled_nwrite;
       nghttp3_stream_type type;
       nghttp3_stream_read_state rstate;
@@ -339,7 +335,11 @@ void nghttp3_stream_add_outq_offset(nghttp3_stream *stream, size_t n);
  */
 int nghttp3_stream_outq_write_done(nghttp3_stream *stream);
 
-int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, uint64_t n);
+/*
+ * nghttp2_stream_update_ack_offset updates the last acknowledged
+ * offset to |offset|.
+ */
+int nghttp3_stream_update_ack_offset(nghttp3_stream *stream, uint64_t offset);
 
 /*
  * nghttp3_stream_is_active returns nonzero if |stream| is active.  In

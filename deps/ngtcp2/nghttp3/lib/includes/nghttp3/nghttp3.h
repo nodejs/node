@@ -2118,9 +2118,10 @@ NGHTTP3_EXTERN int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed.
  *
- * It may return the other error codes.  In general, the negative
- * error code means that |conn| encountered a connection error, and
- * the connection should be closed.
+ * It may return the other error codes.  The negative error code means
+ * that |conn| encountered a connection error, and the connection must
+ * be closed.  Calling nghttp3 API other than `nghttp3_conn_del`
+ * causes undefined behavior.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn,
                                                       int64_t stream_id,
@@ -2152,9 +2153,10 @@ NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed.
  *
- * It may return the other error codes.  In general, the negative
- * error code means that |conn| encountered a connection error, and
- * the connection should be closed.
+ * It may return the other error codes.  The negative error code means
+ * that |conn| encountered a connection error, and the connection must
+ * be closed.  Calling nghttp3 API other than `nghttp3_conn_del`
+ * causes undefined behavior.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_writev_stream(nghttp3_conn *conn,
                                                         int64_t *pstream_id,
@@ -2339,9 +2341,9 @@ NGHTTP3_EXTERN int nghttp3_conn_resume_stream(nghttp3_conn *conn,
 /**
  * @function
  *
- * `nghttp3_conn_close_stream` closes stream identified by
- * |stream_id|.  QUIC application error code |app_error_code| is the
- * reason of the closure.
+ * `nghttp3_conn_close_stream` tells the library that a stream
+ * identified by |stream_id| has been closed.  QUIC application error
+ * code |app_error_code| is the reason of the closure.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
