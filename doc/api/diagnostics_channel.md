@@ -236,6 +236,7 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -466,6 +467,7 @@ channel.unsubscribe(onMessage);
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -510,6 +512,7 @@ channel.bindStore(store, (data) => {
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -549,6 +552,7 @@ channel.unbindStore(store);
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -610,6 +614,7 @@ channel.runStores({ some: 'message' }, () => {
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -627,6 +632,7 @@ dynamically.
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -695,6 +701,7 @@ channels.subscribe({
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -765,6 +772,7 @@ channels.unsubscribe({
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -780,6 +788,11 @@ and [`end` event][] around the execution and may produce an [`error` event][]
 if the given function throws an error. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -810,6 +823,7 @@ channels.traceSync(() => {
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -828,6 +842,11 @@ produce an [`error` event][] if the given function throws an error or the
 returned promise rejects. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -853,33 +872,39 @@ channels.tracePromise(async () => {
 });
 ```
 
-#### `tracingChannel.traceCallback(fn[, position[, context[, thisArg[, ...args]]]])`
+#### `tracingChannel.traceCallback(fn, position, context, thisArg, ...args)`
 
 <!-- YAML
 added:
  - v19.9.0
+ - v18.19.0
 -->
 
 > Stability: 1 - Experimental
 
 * `fn` {Function} callback using function to wrap a trace around
 * `position` {number} Zero-indexed argument position of expected callback
-* `context` {Object} Shared object to correlate trace events through
+  (defaults to last argument if `undefined` is passed)
+* `context` {Object} Shared object to correlate trace events through (defaults
+  to `{}` if `undefined` is passed)
 * `thisArg` {any} The receiver to be used for the function call
-* `...args` {any} Optional arguments to pass to the function
+* `...args` {any} arguments to pass to the function (must include the callback)
 * Returns: {any} The return value of the given function
 
-Trace a callback-receiving function call. This will always produce a
+Trace a callback-receiving function call. The callback is expected to follow
+the error as first arg convention typically used. This will always produce a
 [`start` event][] and [`end` event][] around the synchronous portion of the
 function execution, and will produce a [`asyncStart` event][] and
 [`asyncEnd` event][] around the callback execution. It may also produce an
-[`error` event][] if the given function throws an error or the returned
-promise rejects. This will run the given function using
+[`error` event][] if the given function throws or the first argument passed to
+the callback is set. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
-The `position` will be -1 by default to indicate the final argument should
-be used as the callback.
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -968,6 +993,11 @@ With callback-based async functions the `result` will be the second argument
 of the callback while the `error` will either be a thrown error visible in the
 `end` event or the first callback argument in either of the `asyncStart` or
 `asyncEnd` events.
+
+To ensure only correct trace graphs are formed, events should only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins should not receive future events from that trace,
+only future traces will be seen.
 
 Tracing channels should follow a naming pattern of:
 

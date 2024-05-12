@@ -1053,6 +1053,7 @@ class ConfigArrayFactory {
         if (plugin) {
             return new ConfigDependency({
                 definition: normalizePlugin(plugin),
+                original: plugin,
                 filePath: "", // It's unknown where the plugin came from.
                 id,
                 importerName: ctx.name,
@@ -1089,6 +1090,7 @@ class ConfigArrayFactory {
 
                 return new ConfigDependency({
                     definition: normalizePlugin(pluginDefinition),
+                    original: pluginDefinition,
                     filePath,
                     id,
                     importerName: ctx.name,

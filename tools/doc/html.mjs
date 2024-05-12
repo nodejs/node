@@ -528,7 +528,7 @@ function altDocs(filename, docCreated, versions) {
   return list ? `
     <li class="picker-header">
       <a href="#">
-        <span class="collapsed-arrow">&#x25ba;</span><span class="expanded-arrow">&#x25bc;</span>
+        <span class="picker-arrow"></span>
         Other versions
       </a>
       <div class="picker"><ol id="alt-docs">${list}</ol></div>
@@ -558,7 +558,7 @@ function gtocPicker(id) {
   return `
     <li class="picker-header">
       <a href="#">
-        <span class="collapsed-arrow">&#x25ba;</span><span class="expanded-arrow">&#x25bc;</span>
+        <span class="picker-arrow"></span>
         Index
       </a>
 
@@ -575,7 +575,7 @@ function tocPicker(id, content) {
   return `
     <li class="picker-header">
       <a href="#">
-        <span class="collapsed-arrow">&#x25ba;</span><span class="expanded-arrow">&#x25bc;</span>
+        <span class="picker-arrow"></span>
         Table of contents
       </a>
 

@@ -1,11 +1,12 @@
-c-ares
-======
+# [![c-ares logo](https://c-ares.org/art/c-ares-logo.svg)](https://c-ares.org/)
 
-[![Build Status](https://api.cirrus-ci.com/github/c-ares/c-ares.svg)](https://cirrus-ci.com/github/c-ares/c-ares)
+[![Build Status](https://api.cirrus-ci.com/github/c-ares/c-ares.svg?branch=main)](https://cirrus-ci.com/github/c-ares/c-ares)
 [![Windows Build Status](https://ci.appveyor.com/api/projects/status/aevgc5914tm72pvs/branch/master?svg=true)](https://ci.appveyor.com/project/c-ares/c-ares/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/c-ares/c-ares/badge.svg)](https://coveralls.io/github/c-ares/c-ares)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/291/badge)](https://bestpractices.coreinfrastructure.org/projects/291)
 [![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/c-ares.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:c-ares)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=c-ares_c-ares&metric=bugs)](https://sonarcloud.io/summary/new_code?id=c-ares_c-ares)
+[![Coverity Scan Status](https://scan.coverity.com/projects/c-ares/badge.svg)](https://scan.coverity.com/projects/c-ares)
 
 This is c-ares, an asynchronous resolver library.  It is intended for
 applications which need to perform DNS queries without blocking, or need to
@@ -21,14 +22,13 @@ If you find bugs, correct flaws, have questions or have comments in general in
 regard to c-ares (or by all means the original ares too), get in touch with us
 on the c-ares mailing list: https://lists.haxx.se/listinfo/c-ares
 
-c-ares is distributed the MIT license.
+c-ares is distributed under the MIT license.
 
 You'll find all c-ares details and news here:
         https://c-ares.org/
 
 
-Notes for c-ares hackers
-------------------------
+## Notes for c-ares hackers
 
 * The distributed `ares_build.h` file is only intended to be used on systems
   which can not run the also distributed configure script.
@@ -47,7 +47,7 @@ Notes for c-ares hackers
 
 * If you intend to distribute an already compiled c-ares library you **MUST**
   also distribute along with it the generated `ares_build.h` which has been
-  used to compile it. Otherwise the library will be of no use for the users of
+  used to compile it. Otherwise, the library will be of no use for the users of
   the library that you have built. It is **your** responsibility to provide this
   file. No one at the c-ares project can know how you have built the library.
 

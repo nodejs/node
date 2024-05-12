@@ -12,7 +12,6 @@
  * files.  We need to include some dependent headers that may be system specific
  * for C-Ares */
 #cmakedefine CARES_HAVE_SYS_TYPES_H
-#cmakedefine CARES_HAVE_SYS_RANDOM_H
 #cmakedefine CARES_HAVE_SYS_SOCKET_H
 #cmakedefine CARES_HAVE_WINDOWS_H
 #cmakedefine CARES_HAVE_WS2TCPIP_H
@@ -23,10 +22,6 @@
 
 #ifdef CARES_HAVE_SYS_TYPES_H
 #  include <sys/types.h>
-#endif
-
-#ifdef CARES_HAVE_SYS_RANDOM_H
-#  include <sys/random.h>
 #endif
 
 #ifdef CARES_HAVE_SYS_SOCKET_H

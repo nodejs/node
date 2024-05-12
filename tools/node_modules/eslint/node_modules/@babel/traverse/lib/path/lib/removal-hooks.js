@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.hooks = void 0;
-const hooks = [function (self, parent) {
+const hooks = exports.hooks = [function (self, parent) {
   const removeParent = self.key === "test" && (parent.isWhile() || parent.isSwitchCase()) || self.key === "declaration" && parent.isExportDeclaration() || self.key === "body" && parent.isLabeledStatement() || self.listKey === "declarations" && parent.isVariableDeclaration() && parent.node.declarations.length === 1 || self.key === "expression" && parent.isExpressionStatement();
   if (removeParent) {
     parent.remove();
@@ -33,6 +33,5 @@ const hooks = [function (self, parent) {
     return true;
   }
 }];
-exports.hooks = hooks;
 
 //# sourceMappingURL=removal-hooks.js.map

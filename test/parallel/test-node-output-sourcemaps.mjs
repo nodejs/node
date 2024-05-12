@@ -4,7 +4,7 @@ import * as snapshot from '../common/assertSnapshot.js';
 import * as path from 'node:path';
 import { describe, it } from 'node:test';
 
-describe('sourcemaps output', { concurrency: true }, () => {
+describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     const result = str
     .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
@@ -31,6 +31,7 @@ describe('sourcemaps output', { concurrency: true }, () => {
     { name: 'source-map/output/source_map_enclosing_function.js' },
     { name: 'source-map/output/source_map_eval.js' },
     { name: 'source-map/output/source_map_no_source_file.js' },
+    { name: 'source-map/output/source_map_prepare_stack_trace.js' },
     { name: 'source-map/output/source_map_reference_error_tabs.js' },
     { name: 'source-map/output/source_map_sourcemapping_url_string.js' },
     { name: 'source-map/output/source_map_throw_catch.js' },

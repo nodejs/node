@@ -5,7 +5,7 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 
-describe('ESM: http import via CLI', { concurrency: true }, () => {
+describe('ESM: http import via CLI', { concurrency: !process.env.TEST_PARALLEL }, () => {
   const disallowedSpecifier = 'http://example.com';
 
   it('should throw disallowed error for insecure protocol', async () => {

@@ -8,6 +8,9 @@ PREFIX ?= /usr/local
 FLAKY_TESTS ?= run
 TEST_CI_ARGS ?=
 STAGINGSERVER ?= node-www
+CLOUDFLARE_ENDPOINT ?= https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflarestorage.com
+CLOUDFLARE_BUCKET ?= dist-staging
+CLOUDFLARE_PROFILE ?= worker
 LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ifeq ($(findstring os/390,$OSTYPE),os/390)
@@ -77,7 +80,8 @@ EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
-NODE ?= ./$(NODE_EXE)
+# Use $(PWD) so we can cd to anywhere before calling this
+NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
 
@@ -91,10 +95,9 @@ BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 V ?= 0
 
 # Use -e to double check in case it's a broken link
-# Use $(PWD) so we can cd to anywhere before calling this
 available-node = \
-	if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
-		$(PWD)/$(NODE) $(1); \
+	if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
+		"$(NODE)" $(1); \
 	elif [ -x `command -v node` ] && [ -e `command -v node` ] && [ `command -v node` ]; then \
 		`command -v node` $(1); \
 	else \
@@ -187,11 +190,11 @@ config.gypi: configure configure.py src/node_version.h
 
 .PHONY: install
 install: all ## Installs node into $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ --dest-dir '$(DESTDIR)' --prefix '$(PREFIX)'
 
 .PHONY: uninstall
 uninstall: ## Uninstalls node from $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ --dest-dir '$(DESTDIR)' --prefix '$(PREFIX)'
 
 .PHONY: clean
 .NOTPARALLEL: clean
@@ -379,6 +382,28 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
+# All files that will be included in headers tarball should be listed as deps
+# for generating headers. The list is manually synchronized with install.py.
+ADDONS_HEADERS_PREREQS := tools/install.py \
+	config.gypi common.gypi \
+	$(wildcard deps/openssl/config/*.h) \
+	$(wildcard deps/openssl/openssl/include/openssl/*.h) \
+	$(wildcard deps/uv/include/*.h) \
+	$(wildcard deps/uv/include/*/*.h) \
+	$(wildcard deps/v8/include/*.h) \
+	$(wildcard deps/v8/include/*/*.h) \
+	deps/zlib/zconf.h deps/zlib/zlib.h \
+	src/node.h src/node_api.h src/js_native_api.h src/js_native_api_types.h \
+	src/node_api_types.h src/node_buffer.h src/node_object_wrap.h \
+	src/node_version.h
+
+ADDONS_HEADERS_DIR = out/$(BUILDTYPE)/addons_headers
+
+# Generate node headers which will be used for building addons.
+test/addons/.headersbuildstamp: $(ADDONS_HEADERS_PREREQS)
+	$(PYTHON) tools/install.py install --headers-only --dest-dir '$(ADDONS_HEADERS_DIR)' --prefix '/'
+	@touch $@
+
 ADDONS_BINDING_GYPS := \
 	$(filter-out test/addons/??_*/binding.gyp, \
 		$(wildcard test/addons/*/binding.gyp))
@@ -387,16 +412,11 @@ ADDONS_BINDING_SOURCES := \
 	$(filter-out test/addons/??_*/*.cc, $(wildcard test/addons/*/*.cc)) \
 	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h))
 
-ADDONS_PREREQS := config.gypi \
-	deps/npm/node_modules/node-gyp/package.json tools/build-addons.mjs \
-	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h
+ADDONS_PREREQS := test/addons/.headersbuildstamp \
+	deps/npm/node_modules/node-gyp/package.json tools/build_addons.py
 
 define run_build_addons
-env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \
-	npm_config_python="$(PYTHON)" $(NODE) "$$PWD/tools/build-addons.mjs" \
-	"$$PWD/deps/npm/node_modules/node-gyp/bin/node-gyp.js" \
-	$1
+env $(PYTHON) "$$PWD/tools/build_addons.py" --loglevel=$(LOGLEVEL) --headers-dir "$(ADDONS_HEADERS_DIR)" $1
 touch $2
 endef
 
@@ -429,8 +449,7 @@ JS_NATIVE_API_BINDING_SOURCES := \
 # Implicitly depends on $(NODE_EXE), see the build-js-native-api-tests rule for rationale.
 test/js-native-api/.buildstamp: $(ADDONS_PREREQS) \
 	$(JS_NATIVE_API_BINDING_GYPS) $(JS_NATIVE_API_BINDING_SOURCES) \
-	src/node_api.h src/node_api_types.h src/js_native_api.h \
-	src/js_native_api_types.h src/js_native_api_v8.h src/js_native_api_v8_internals.h
+	src/js_native_api_v8.h src/js_native_api_v8_internals.h
 	@$(call run_build_addons,"$$PWD/test/js-native-api",$@)
 
 .PHONY: build-js-native-api-tests
@@ -454,8 +473,7 @@ NODE_API_BINDING_SOURCES := \
 # Implicitly depends on $(NODE_EXE), see the build-node-api-tests rule for rationale.
 test/node-api/.buildstamp: $(ADDONS_PREREQS) \
 	$(NODE_API_BINDING_GYPS) $(NODE_API_BINDING_SOURCES) \
-	src/node_api.h src/node_api_types.h src/js_native_api.h \
-	src/js_native_api_types.h src/js_native_api_v8.h src/js_native_api_v8_internals.h
+	src/js_native_api_v8.h src/js_native_api_v8_internals.h
 	@$(call run_build_addons,"$$PWD/test/node-api",$@)
 
 .PHONY: build-node-api-tests
@@ -660,9 +678,10 @@ test-addons: test-build test-js-native-api test-node-api
 .PHONY: test-addons-clean
 .NOTPARALLEL: test-addons-clean
 test-addons-clean:
+	$(RM) -r "$(ADDONS_HEADERS_DIR)"
 	$(RM) -r test/addons/??_*/
 	$(RM) -r test/addons/*/build
-	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
+	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp test/addons/.headersbuildstamp
 	$(MAKE) test-js-native-api-clean
 	$(MAKE) test-node-api-clean
 
@@ -1144,6 +1163,7 @@ pkg-upload: pkg
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME).pkg
 	scp -p $(TARNAME).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
 $(TARBALL): release-only doc-only
@@ -1193,10 +1213,12 @@ tar-upload: tar
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME).tar.gz
 	scp -p $(TARNAME).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz.done"
 ifeq ($(XZ), 1)
 	chmod 664 $(TARNAME).tar.xz
 	scp -p $(TARNAME).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz.done"
 endif
 
@@ -1206,6 +1228,7 @@ doc-upload: doc
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/"
 	chmod -R ug=rw-x+X,o=r+X out/doc/
 	scp -pr out/doc/* $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
+	ssh $(STAGINGSERVER) "aws s3 cp --recursive nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/ --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
 
 .PHONY: $(TARBALL)-headers
@@ -1216,7 +1239,7 @@ $(TARBALL)-headers: release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	$(PYTHON) tools/install.py install --headers-only --dest-dir '$(TARNAME)' --prefix '/'
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	$(RM) -r $(TARNAME)
@@ -1234,10 +1257,12 @@ tar-headers-upload: tar-headers
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME)-headers.tar.gz
 	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
 ifeq ($(XZ), 1)
 	chmod 664 $(TARNAME)-headers.tar.xz
 	scp -p $(TARNAME)-headers.tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
 endif
 
@@ -1279,10 +1304,12 @@ binary-upload: binary
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
 	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz.done"
 ifeq ($(XZ), 1)
 	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
 	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
@@ -1496,15 +1523,15 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.0.272 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.0.272
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.3.4 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.3.4
 
 .PHONY: lint-py
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
 # Lint the Python code with ruff.
 lint-py:
 	tools/pip/site-packages/bin/ruff --version
-	tools/pip/site-packages/bin/ruff .
+	tools/pip/site-packages/bin/ruff check .
 else
 lint-py:
 	$(warning Python linting with ruff is not available)

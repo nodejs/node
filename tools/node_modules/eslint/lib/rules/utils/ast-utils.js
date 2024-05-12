@@ -1015,6 +1015,114 @@ function isDirective(node) {
     return node.type === "ExpressionStatement" && typeof node.directive === "string";
 }
 
+/**
+ * Tests if a node appears at the beginning of an ancestor ExpressionStatement node.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} Whether the node appears at the beginning of an ancestor ExpressionStatement node.
+ */
+function isStartOfExpressionStatement(node) {
+    const start = node.range[0];
+    let ancestor = node;
+
+    while ((ancestor = ancestor.parent) && ancestor.range[0] === start) {
+        if (ancestor.type === "ExpressionStatement") {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Determines whether an opening parenthesis `(`, bracket `[` or backtick ``` ` ``` needs to be preceded by a semicolon.
+ * This opening parenthesis or bracket should be at the start of an `ExpressionStatement` or at the start of the body of an `ArrowFunctionExpression`.
+ * @type {(sourceCode: SourceCode, node: ASTNode) => boolean}
+ * @param {SourceCode} sourceCode The source code object.
+ * @param {ASTNode} node A node at the position where an opening parenthesis or bracket will be inserted.
+ * @returns {boolean} Whether a semicolon is required before the opening parenthesis or braket.
+ */
+let needsPrecedingSemicolon;
+
+{
+    const BREAK_OR_CONTINUE = new Set(["BreakStatement", "ContinueStatement"]);
+
+    // Declaration types that must contain a string Literal node at the end.
+    const DECLARATIONS = new Set(["ExportAllDeclaration", "ExportNamedDeclaration", "ImportDeclaration"]);
+
+    const IDENTIFIER_OR_KEYWORD = new Set(["Identifier", "Keyword"]);
+
+    // Keywords that can immediately precede an ExpressionStatement node, mapped to the their node types.
+    const NODE_TYPES_BY_KEYWORD = {
+        __proto__: null,
+        break: "BreakStatement",
+        continue: "ContinueStatement",
+        debugger: "DebuggerStatement",
+        do: "DoWhileStatement",
+        else: "IfStatement",
+        return: "ReturnStatement",
+        yield: "YieldExpression"
+    };
+
+    /*
+     * Before an opening parenthesis, postfix `++` and `--` always trigger ASI;
+     * the tokens `:`, `;`, `{` and `=>` don't expect a semicolon, as that would count as an empty statement.
+     */
+    const PUNCTUATORS = new Set([":", ";", "{", "=>", "++", "--"]);
+
+    /*
+     * Statements that can contain an `ExpressionStatement` after a closing parenthesis.
+     * DoWhileStatement is an exception in that it always triggers ASI after the closing parenthesis.
+     */
+    const STATEMENTS = new Set([
+        "DoWhileStatement",
+        "ForInStatement",
+        "ForOfStatement",
+        "ForStatement",
+        "IfStatement",
+        "WhileStatement",
+        "WithStatement"
+    ]);
+
+    needsPrecedingSemicolon =
+    function(sourceCode, node) {
+        const prevToken = sourceCode.getTokenBefore(node);
+
+        if (!prevToken || prevToken.type === "Punctuator" && PUNCTUATORS.has(prevToken.value)) {
+            return false;
+        }
+
+        const prevNode = sourceCode.getNodeByRangeIndex(prevToken.range[0]);
+
+        if (isClosingParenToken(prevToken)) {
+            return !STATEMENTS.has(prevNode.type);
+        }
+
+        if (isClosingBraceToken(prevToken)) {
+            return (
+                prevNode.type === "BlockStatement" && prevNode.parent.type === "FunctionExpression" ||
+                prevNode.type === "ClassBody" && prevNode.parent.type === "ClassExpression" ||
+                prevNode.type === "ObjectExpression"
+            );
+        }
+
+        if (IDENTIFIER_OR_KEYWORD.has(prevToken.type)) {
+            if (BREAK_OR_CONTINUE.has(prevNode.parent.type)) {
+                return false;
+            }
+
+            const keyword = prevToken.value;
+            const nodeType = NODE_TYPES_BY_KEYWORD[keyword];
+
+            return prevNode.type !== nodeType;
+        }
+
+        if (prevToken.type === "String") {
+            return !DECLARATIONS.has(prevNode.parent.type);
+        }
+
+        return true;
+    };
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -2168,5 +2276,7 @@ module.exports = {
     getModuleExportName,
     isConstant,
     isTopLevelExpressionStatement,
-    isDirective
+    isDirective,
+    isStartOfExpressionStatement,
+    needsPrecedingSemicolon
 };

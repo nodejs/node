@@ -1,3 +1,2 @@
-import assert from 'assert';
-assert.ok(import.meta.dirname);
-assert.ok(import.meta.filename);
+export const dirname = import.meta.dirname;
+export const filename = import.meta.filename;

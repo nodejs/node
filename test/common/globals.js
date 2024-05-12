@@ -63,6 +63,7 @@ const intrinsics = new Set([
   'SharedArrayBuffer',
   'Atomics',
   'WebAssembly',
+  'Iterator',
 ]);
 
 if (global.gc) {
@@ -78,6 +79,7 @@ const webIdlExposedWildcard = new Set([
   'TextDecoder',
   'AbortController',
   'AbortSignal',
+  'CustomEvent',
   'EventTarget',
   'Event',
   'URL',

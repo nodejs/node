@@ -3,13 +3,12 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-
 #include <cinttypes>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "node_exit_code.h"
@@ -27,6 +26,7 @@ enum class SeaFlags : uint32_t {
   kDisableExperimentalSeaWarning = 1 << 0,
   kUseSnapshot = 1 << 1,
   kUseCodeCache = 1 << 2,
+  kIncludeAssets = 1 << 3,
 };
 
 struct SeaResource {
@@ -34,8 +34,11 @@ struct SeaResource {
   std::string_view code_path;
   std::string_view main_code_or_snapshot;
   std::optional<std::string_view> code_cache;
+  std::unordered_map<std::string_view, std::string_view> assets;
 
   bool use_snapshot() const;
+  bool use_code_cache() const;
+
   static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
 };
 
@@ -48,8 +51,6 @@ node::ExitCode BuildSingleExecutableBlob(
     const std::vector<std::string>& exec_args);
 }  // namespace sea
 }  // namespace node
-
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

@@ -31,6 +31,9 @@ The current security stewards are documented in the main Node.js
 | NearForm     | Rafael          | 2023-Jun-20  |
 | NearForm     | Rafael          | 2023-Aug-09  |
 | NearForm     | Rafael          | 2023-Oct-13  |
+| NodeSource   | Rafael          | 2024-Feb-14  |
+| NodeSource   | Rafael          | 2024-Apr-03  |
+| NodeSource   | Rafael          | 2024-Apr-10  |
 | Datadog      | Bryan           |              |
 | IBM          | Joe             |              |
 | Platformatic | Matteo          |              |
@@ -75,6 +78,8 @@ The current security stewards are documented in the main Node.js
 
 * [ ] Check that all vulnerabilities are ready for release integration:
   * PRs against all affected release lines or cherry-pick clean
+  * PRs with breaking changes have a
+    [--security-revert](#Adding-a-security-revert-option) option if possible.
   * Approved
   * (optional) Approved by the reporter
     * Build and send the binary to the reporter according to its architecture
@@ -122,7 +127,7 @@ out a better way, forward the email you receive to
 `oss-security@lists.openwall.com` as a CC.
 
 * [ ] Post in the [nodejs-social channel][]
-  in the OpenJS slack asking for amplication of the blog post.
+  in the OpenJS slack asking for amplification of the blog post.
 
   ```text
   Security release pre-alert:
@@ -182,7 +187,7 @@ out a better way, forward the email you receive to
   ```
 
 * [ ] Post in the [nodejs-social channel][]
-  in the OpenJS slack asking for amplication of the blog post.
+  in the OpenJS slack asking for amplification of the blog post.
   ```text
   Security release:
 
@@ -200,6 +205,12 @@ out a better way, forward the email you receive to
   * Request publication of [H1 CVE requests][]
     * (Check that the "Version Fixed" field in the CVE is correct, and provide
       links to the release blogs in the "Public Reference" section)
+  * In case the reporter doesn't accept the disclosure follow this process:
+    * Remove the original report reference within the reference text box and
+      insert the public URL you would like to be attached to this CVE.
+    * Then uncheck the Public Disclosure on HackerOne box at the bottom of the
+      page.
+      ![screenshot of HackerOne CVE form](https://github.com/nodejs/node/assets/26234614/e22e4f33-7948-4dd2-952e-2f9166f5568d)
 
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
   [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
@@ -216,6 +227,54 @@ out a better way, forward the email you receive to
 * [ ] PR in that you stewarded the release in
   [Security release stewards](https://github.com/nodejs/node/blob/HEAD/doc/contributing/security-release-process.md#security-release-stewards).
   If necessary add the next rotation of the steward rotation.
+
+## Adding a security revert option
+
+Breaking changes are allowed in existing LTS lines in order to fix
+important security vulnerabilities. When breaking changes are made
+it is important to provide a command line option that restores
+the original behaviour.
+
+The existing Node.js codebase supports the command line
+option `--security-revert` and has the boilerplate to make additions
+for a specific CVE easy.
+
+To add an option to revert for a CVE, for example `CVE-2024-1234`
+simply add this line to
+[`node_revert.h`](https://github.com/nodejs/node/blob/main/src/node_revert.h)
+
+```c
+  XX(CVE_2024_1234, "CVE-2024-1234", "Description of cve")
+```
+
+This will allow an easy check of whether a reversion has been
+requested or not.
+
+In JavaScript code you can check:
+
+```js
+if (process.REVERT_CVE_2024_1234);
+```
+
+In C/C++ code you can check:
+
+```c
+IsReverted(SECURITY_REVERT_CVE_2024_1234)
+```
+
+From the command line a user can request the revert by using
+the `--security-revert` option as follows:
+
+```console
+node --security-revert=CVE-2024-1234
+```
+
+If there are multiple security reverts then multiple instances
+of --security-revert can be used. For example:
+
+```console
+node --security-revert=CVE-2024-1234 --security-revert=CVE-2024-XXXX
+```
 
 ## When things go wrong
 

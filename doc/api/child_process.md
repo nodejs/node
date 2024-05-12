@@ -842,7 +842,7 @@ pipes between the parent and child. The value is one of the following:
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. The stream must have an
-   underlying descriptor (file streams do not until the `'open'` event has
+   underlying descriptor (file streams do not start until the `'open'` event has
    occurred).
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
@@ -872,12 +872,6 @@ is launched with the IPC channel unreferenced (using `unref()`) until the
 child registers an event handler for the [`'disconnect'`][] event
 or the [`'message'`][] event. This allows the child to exit
 normally without the process being held open by the open IPC channel._
-
-On Unix-like operating systems, the [`child_process.spawn()`][] method
-performs memory operations synchronously before decoupling the event loop
-from the child. Applications with a large memory footprint may find frequent
-[`child_process.spawn()`][] calls to be a bottleneck. For more information,
-see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
 
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
@@ -1228,8 +1222,8 @@ added: v0.5.9
 -->
 
 * `message` {Object} A parsed JSON object or primitive value.
-* `sendHandle` {Handle} A [`net.Socket`][] or [`net.Server`][] object, or
-  undefined.
+* `sendHandle` {Handle|undefined} `undefined` or a [`net.Socket`][],
+  [`net.Server`][], or [`dgram.Socket`][] object.
 
 The `'message'` event is triggered when a child process uses
 [`process.send()`][] to send messages.
@@ -1487,7 +1481,8 @@ changes:
 -->
 
 * `message` {Object}
-* `sendHandle` {Handle}
+* `sendHandle` {Handle|undefined} `undefined`, or a [`net.Socket`][],
+  [`net.Server`][], or [`dgram.Socket`][] object.
 * `options` {Object} The `options` argument, if present, is an object used to
   parameterize the sending of certain types of handles. `options` supports
   the following properties:
@@ -1545,7 +1540,8 @@ The optional `sendHandle` argument that may be passed to `subprocess.send()` is
 for passing a TCP server or socket object to the child process. The child will
 receive the object as the second argument passed to the callback function
 registered on the [`'message'`][] event. Any data that is received
-and buffered in the socket will not be sent to the child.
+and buffered in the socket will not be sent to the child. Sending IPC sockets is
+not supported on Windows.
 
 The optional `callback` is a function that is invoked after the message is
 sent but before the child may have received it. The function is called with a
@@ -1878,6 +1874,7 @@ or [`child_process.fork()`][].
 [`child_process.fork()`]: #child_processforkmodulepath-args-options
 [`child_process.spawn()`]: #child_processspawncommand-args-options
 [`child_process.spawnSync()`]: #child_processspawnsynccommand-args-options
+[`dgram.Socket`]: dgram.md#class-dgramsocket
 [`maxBuffer` and Unicode]: #maxbuffer-and-unicode
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket

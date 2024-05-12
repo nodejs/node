@@ -313,6 +313,8 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
 
 void SetIsolateUpForNode(v8::Isolate* isolate,
                          const IsolateSettings& settings) {
+  Isolate::Scope isolate_scope(isolate);
+
   SetIsolateErrorHandlers(isolate, settings);
   SetIsolateMiscHandlers(isolate, settings);
 }
@@ -354,6 +356,9 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
+
+  Isolate::Scope isolate_scope(isolate);
+
   if (snapshot_data == nullptr) {
     // If in deserialize mode, delay until after the deserialization is
     // complete.
@@ -428,6 +433,8 @@ Environment* CreateEnvironment(
     ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
   Isolate* isolate = isolate_data->isolate();
+
+  Isolate::Scope isolate_scope(isolate);
   HandleScope handle_scope(isolate);
 
   const bool use_snapshot = context.IsEmpty();
@@ -505,13 +512,6 @@ void FreeEnvironment(Environment* env) {
     RunAtExit(env);
   }
 
-  // This call needs to be made while the `Environment` is still alive
-  // because we assume that it is available for async tracking in the
-  // NodePlatform implementation.
-  MultiIsolatePlatform* platform = env->isolate_data()->platform();
-  if (platform != nullptr)
-    platform->DrainTasks(isolate);
-
   delete env;
 }
 
@@ -538,25 +538,34 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 #endif
 }
 
-MaybeLocal<Value> LoadEnvironment(
-    Environment* env,
-    StartExecutionCallback cb) {
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  StartExecutionCallback cb,
+                                  EmbedderPreloadCallback preload) {
   env->InitializeLibuv();
   env->InitializeDiagnostics();
+  if (preload) {
+    env->set_embedder_preload(std::move(preload));
+  }
+  env->InitializeCompileCache();
 
   return StartExecution(env, cb);
 }
 
 MaybeLocal<Value> LoadEnvironment(Environment* env,
-                                  std::string_view main_script_source_utf8) {
-  CHECK_NOT_NULL(main_script_source_utf8.data());
+                                  std::string_view main_script_source_utf8,
+                                  EmbedderPreloadCallback preload) {
+  // It could be empty when it's used by SEA to load an empty script.
+  CHECK_IMPLIES(main_script_source_utf8.size() > 0,
+                main_script_source_utf8.data());
   return LoadEnvironment(
-      env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
+      env,
+      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         Local<Value> main_script =
             ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
-      });
+      },
+      std::move(preload));
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
@@ -727,7 +736,7 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
     }
   } else if (per_process::cli_options->disable_proto != "") {
     // Validated in ProcessGlobalArgs
-    OnFatalError("InitializeContextRuntime()", "invalid --disable-proto mode");
+    UNREACHABLE("invalid --disable-proto mode");
   }
 
   return Just(true);
@@ -802,6 +811,9 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
   thread_local builtins::BuiltinLoader builtin_loader;
+  // Primordials can always be just eagerly compiled.
+  builtin_loader.SetEagerCompile();
+
   for (const char** module = context_files; *module != nullptr; module++) {
     Local<Value> arguments[] = {exports, primordials};
     if (builtin_loader

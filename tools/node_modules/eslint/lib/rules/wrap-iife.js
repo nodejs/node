@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to flag when IIFE is not wrapped in parens
  * @author Ilya Volodin
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -40,6 +41,8 @@ function isCalleeOfNewExpression(node) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

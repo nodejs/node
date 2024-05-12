@@ -1,6 +1,7 @@
 /**
  * @fileoverview Source code for spaced-comments rule
  * @author Gyandeep Singh
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -149,6 +150,8 @@ function createNeverStylePattern(markers) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "suggestion",
 
         docs: {

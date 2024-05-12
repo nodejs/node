@@ -82,6 +82,9 @@ Allow file system read access when using the permission model.
 .It Fl -allow-fs-write
 Allow file system write access when using the permission model.
 .
+.It Fl -allow-addons
+Allow using native addons when using the permission model.
+.
 .It Fl -allow-child-process
 Allow spawning process when using the permission model.
 .
@@ -139,6 +142,11 @@ is `delete`, the property will be removed entirely. If
 is `throw`, accesses to the property will throw an exception with the code
 `ERR_PROTO_ACCESS`.
 .
+.It Fl -disable-wasm-trap-handler Ns = Ns Ar mode
+Disable trap-handler-based WebAssembly bound checks and fall back to
+inline bound checks so that WebAssembly can be run with limited virtual
+memory.
+.
 .It Fl -disallow-code-generation-from-strings
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
@@ -157,9 +165,6 @@ Interpret as either ES modules or CommonJS modules input via --eval or STDIN, wh
 .js or extensionless files with no sibling or parent package.json;
 .js or extensionless files whose nearest parent package.json lacks a "type" field, unless under node_modules.
 .
-.It Fl -experimental-global-webcrypto
-Expose the Web Crypto API on the global scope.
-.
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
 .
@@ -174,26 +179,14 @@ Enable experimental support for loading modules using `import` over `https:`.
 .It Fl -experimental-permission
 Enable the experimental permission model.
 .
-.It Fl -experimental-policy
-Use the specified file as a security policy.
-.
 .It Fl -experimental-shadow-realm
 Use this flag to enable ShadowRealm support.
 .
 .It Fl -experimental-test-coverage
 Enable code coverage in the test runner.
 .
-.It Fl -experimental-websocket
-Enable experimental support for the WebSocket API.
-.
-.It Fl -no-experimental-fetch
-Disable experimental support for the Fetch API.
-.
-.It Fl -no-experimental-global-customevent
-Disable exposition of the CustomEvent on the global scope.
-.
-.It Fl -no-experimental-global-webcrypto
-Disable exposition of the Web Crypto API on the global scope.
+.It Fl -no-experimental-websocket
+Disable experimental support for the WebSocket API.
 .
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.
@@ -343,9 +336,6 @@ Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is
 .It Fl -pending-deprecation
 Emit pending deprecation warnings.
 .
-.It Fl -policy-integrity Ns = Ns Ar sri
-Instructs Node.js to error prior to running any code if the policy does not have the specified integrity. It expects a Subresource Integrity string as a parameter.
-.
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and caching modules other than the main module.
 .
@@ -422,6 +412,10 @@ Starts the Node.js command line test runner.
 The maximum number of test files that the test runner CLI will execute
 concurrently.
 .
+.It Fl -test-force-exit
+Configures the test runner to exit the process once all known tests have
+finished executing even if the event loop would otherwise remain active.
+.
 .It Fl -test-name-pattern
 A regular expression that configures the test runner to only execute tests
 whose name matches the provided pattern.
@@ -438,6 +432,13 @@ option set.
 .
 .It Fl -test-shard
 Test suite shard to execute in a format of <index>/<total>.
+.
+.It Fl -test-skip-pattern
+A regular expression that configures the test runner to skip tests
+whose name matches the provided pattern.
+.
+.It Fl -test-timeout
+A number of milliseconds the test execution will fail after.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.
@@ -476,11 +477,6 @@ but the option is supported for compatibility with older Node.js versions.
 Set default minVersion to 'TLSv1.3'. Use to disable support for TLSv1.2 in
 favour of TLSv1.3, which is more secure.
 .
-.It Fl -trace-atomics-wait
-Print short summaries of calls to
-.Sy Atomics.wait() .
-.
-This flag is deprecated.
 .It Fl -trace-deprecation
 Print stack traces for deprecations.
 .

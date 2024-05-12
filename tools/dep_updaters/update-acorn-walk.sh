@@ -40,11 +40,9 @@ cd "$WORKSPACE"
 
 echo "Fetching acorn-walk source archive..."
 
-DIST_URL=$(curl -sL "https://registry.npmjs.org/acorn-walk/$NEW_VERSION" | perl -n -e '/"dist".*?"tarball":"(.*?)"/ && print $1')
+"$NODE" "$NPM" pack "acorn-walk@$NEW_VERSION"
 
-ACORN_WALK_TGZ="acorn-walk.tgz"
-
-curl -sL -o "$ACORN_WALK_TGZ" "$DIST_URL"
+ACORN_WALK_TGZ="acorn-walk-$NEW_VERSION.tgz"
 
 log_and_verify_sha256sum "acorn-walk" "$ACORN_WALK_TGZ"
 
@@ -52,9 +50,7 @@ rm -r "$DEPS_DIR/acorn/acorn-walk"/*
 
 tar -xf "$ACORN_WALK_TGZ"
 
-mv "$WORKSPACE/package"/* "$DEPS_DIR/acorn/acorn-walk"
-
-rm "$ACORN_WALK_TGZ"
+mv package/* "$DEPS_DIR/acorn/acorn-walk"
 
 echo "All done!"
 echo ""
@@ -64,6 +60,7 @@ echo "$ git add -A deps/acorn-walk"
 echo "$ git commit -m \"deps: update acorn-walk to $NEW_VERSION\""
 echo ""
 
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "acorn-walk" "$NEW_VERSION"

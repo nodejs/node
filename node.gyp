@@ -69,16 +69,19 @@
       'src/base_object.cc',
       'src/cares_wrap.cc',
       'src/cleanup_queue.cc',
+      'src/compile_cache.cc',
       'src/connect_wrap.cc',
       'src/connection_wrap.cc',
       'src/dataqueue/queue.cc',
       'src/debug_utils.cc',
+      'src/embedded_data.cc',
       'src/encoding_binding.cc',
       'src/env.cc',
       'src/fs_event_wrap.cc',
       'src/handle_wrap.cc',
       'src/heap_utils.cc',
       'src/histogram.cc',
+      'src/internal_only_v8.cc',
       'src/js_native_api.h',
       'src/js_native_api_types.h',
       'src/js_native_api_v8.cc',
@@ -112,6 +115,7 @@
       'src/node_main_instance.cc',
       'src/node_messaging.cc',
       'src/node_metadata.cc',
+      'src/node_modules.cc',
       'src/node_options.cc',
       'src/node_os.cc',
       'src/node_perf.cc',
@@ -132,6 +136,7 @@
       'src/node_stat_watcher.cc',
       'src/node_symbols.cc',
       'src/node_task_queue.cc',
+      'src/node_task_runner.cc',
       'src/node_trace_events.cc',
       'src/node_types.cc',
       'src/node_url.cc',
@@ -142,6 +147,7 @@
       'src/node_watchdog.cc',
       'src/node_worker.cc',
       'src/node_zlib.cc',
+      'src/path.cc',
       'src/permission/child_process_permission.cc',
       'src/permission/fs_permission.cc',
       'src/permission/inspector_permission.cc',
@@ -186,11 +192,13 @@
       'src/callback_queue-inl.h',
       'src/cleanup_queue.h',
       'src/cleanup_queue-inl.h',
+      'src/compile_cache.h',
       'src/connect_wrap.h',
       'src/connection_wrap.h',
       'src/dataqueue/queue.h',
       'src/debug_utils.h',
       'src/debug_utils-inl.h',
+      'src/embedded_data.h',
       'src/encoding_binding.h',
       'src/env_properties.h',
       'src/env.h',
@@ -234,6 +242,7 @@
       'src/node_messaging.h',
       'src/node_metadata.h',
       'src/node_mutex.h',
+      'src/node_modules.h',
       'src/node_object_wrap.h',
       'src/node_options.h',
       'src/node_options-inl.h',
@@ -262,6 +271,7 @@
       'src/node_wasi.h',
       'src/node_watchdog.h',
       'src/node_worker.h',
+      'src/path.h',
       'src/permission/child_process_permission.h',
       'src/permission/fs_permission.h',
       'src/permission/inspector_permission.h',
@@ -352,6 +362,7 @@
       'src/quic/cid.cc',
       'src/quic/data.cc',
       'src/quic/endpoint.cc',
+      'src/quic/http3.cc',
       'src/quic/logstream.cc',
       'src/quic/packet.cc',
       'src/quic/preferredaddress.cc',
@@ -366,6 +377,7 @@
       'src/quic/cid.h',
       'src/quic/data.h',
       'src/quic/endpoint.h',
+      'src/quic/http3.h',
       'src/quic/logstream.h',
       'src/quic/packet.h',
       'src/quic/preferredaddress.h',
@@ -375,6 +387,7 @@
       'src/quic/tlscontext.h',
       'src/quic/tokens.h',
       'src/quic/transportparams.h',
+      'src/quic/quic.cc',
     ],
     'node_cctest_sources': [
       'src/node_snapshot_stub.cc',
@@ -385,9 +398,11 @@
       'test/cctest/test_base_object_ptr.cc',
       'test/cctest/test_cppgc.cc',
       'test/cctest/test_node_postmortem_metadata.cc',
+      'test/cctest/test_node_task_runner.cc',
       'test/cctest/test_environment.cc',
       'test/cctest/test_linked_binding.cc',
       'test/cctest/test_node_api.cc',
+      'test/cctest/test_path.cc',
       'test/cctest/test_per_process.cc',
       'test/cctest/test_platform.cc',
       'test/cctest/test_report.cc',
@@ -402,6 +417,7 @@
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
       'test/cctest/test_quic_cid.cc',
+      'test/cctest/test_quic_error.cc',
       'test/cctest/test_quic_tokens.cc',
     ],
     'node_cctest_inspector_sources': [
@@ -468,12 +484,27 @@
     },
 
     'conditions': [
+      # Pointer authentication for ARM64.
+      ['target_arch=="arm64"', {
+          'target_conditions': [
+              ['_toolset=="host"', {
+                  'conditions': [
+                      ['host_arch=="arm64"', {
+                          'cflags': ['-mbranch-protection=standard'],
+                      }],
+                  ],
+              }],
+              ['_toolset=="target"', {
+                  'cflags': ['-mbranch-protection=standard'],
+              }],
+          ],
+      }],
       ['OS in "aix os400"', {
         'ldflags': [
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS == "linux" and llvm_version != "0.0"', {
+      ['OS=="linux" and clang==1', {
         'libraries': ['-latomic'],
       }],
     ],
@@ -812,10 +843,10 @@
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
-        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
         'node_js2c#host',
@@ -1042,11 +1073,11 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest',
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
       ],
@@ -1202,11 +1233,14 @@
         'deps/simdutf/simdutf.gyp:simdutf#host',
       ],
       'include_dirs': [
-        'tools'
+        'tools',
+        'src',
       ],
       'sources': [
         'tools/js2c.cc',
-        'tools/executable_wrapper.h'
+        'tools/executable_wrapper.h',
+        'src/embedded_data.h',
+        'src/embedded_data.cc',
       ],
       'conditions': [
         [ 'node_shared_libuv=="false"', {
@@ -1236,6 +1270,8 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/ada/ada.gyp:ada',
+        'deps/simdjson/simdjson.gyp:simdjson',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'includes': [

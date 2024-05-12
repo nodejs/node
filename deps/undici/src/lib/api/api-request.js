@@ -1,13 +1,11 @@
 'use strict'
 
-const Readable = require('./readable')
-const {
-  InvalidArgumentError,
-  RequestAbortedError
-} = require('../core/errors')
+const assert = require('node:assert')
+const { Readable } = require('./readable')
+const { InvalidArgumentError } = require('../core/errors')
 const util = require('../core/util')
 const { getResolveErrorBodyCallback } = require('./util')
-const { AsyncResource } = require('async_hooks')
+const { AsyncResource } = require('node:async_hooks')
 const { addSignal, removeSignal } = require('./abort-signal')
 
 class RequestHandler extends AsyncResource {
@@ -69,9 +67,12 @@ class RequestHandler extends AsyncResource {
   }
 
   onConnect (abort, context) {
-    if (!this.callback) {
-      throw new RequestAbortedError()
+    if (this.reason) {
+      abort(this.reason)
+      return
     }
+
+    assert(this.callback)
 
     this.abort = abort
     this.context = context
@@ -91,7 +92,8 @@ class RequestHandler extends AsyncResource {
 
     const parsedHeaders = responseHeaders === 'raw' ? util.parseHeaders(rawHeaders) : headers
     const contentType = parsedHeaders['content-type']
-    const body = new Readable({ resume, abort, contentType, highWaterMark })
+    const contentLength = parsedHeaders['content-length']
+    const body = new Readable({ resume, abort, contentType, contentLength, highWaterMark })
 
     this.callback = null
     this.res = body
@@ -171,9 +173,10 @@ function request (opts, callback) {
     if (typeof callback !== 'function') {
       throw err
     }
-    const opaque = opts && opts.opaque
+    const opaque = opts?.opaque
     queueMicrotask(() => callback(err, { opaque }))
   }
 }
 
 module.exports = request
+module.exports.RequestHandler = RequestHandler

@@ -11,8 +11,7 @@
     "declarationMap": true,
     "strict": true,
     "target": "es6",
-    "outDir": "dist",
-    "allowSyntheticDefaultImports": true
+    "outDir": "dist"
   },
   "include": ["src/**/*.js"],
   "exclude": ["node_modules"]

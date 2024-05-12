@@ -16,11 +16,11 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b  # v4.1.4
         with:
           persist-credentials: false
       - name: Cache node modules and update-v8
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84  # v3.3.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
         id: cache-v8-npm
         env:
           cache-name: cache-v8-npm
@@ -30,7 +30,7 @@ jobs:
             ~/.npm
           key: ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Install Node.js
-        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install @node-core/utils
@@ -41,7 +41,7 @@ jobs:
             cat temp-output
             tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
             rm temp-output
-      - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+      - uses: gr2m/create-or-update-pull-request-action@86ec1766034c8173518f61d2075cc2a173fb8c97  # v1.9.4
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         env:
@@ -50,6 +50,7 @@ jobs:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
           branch: actions/update-v8-patch  # Custom branch *just* for this Action.
+          commit-message: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
           labels: v8 engine
           title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
           update-pull-request-title-and-body: true

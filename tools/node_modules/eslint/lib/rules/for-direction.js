@@ -101,30 +101,37 @@ module.exports = {
             }
             return 0;
         }
+
         return {
             ForStatement(node) {
 
-                if (node.test && node.test.type === "BinaryExpression" && node.test.left.type === "Identifier" && node.update) {
-                    const counter = node.test.left.name;
-                    const operator = node.test.operator;
-                    const update = node.update;
+                if (node.test && node.test.type === "BinaryExpression" && node.update) {
+                    for (const counterPosition of ["left", "right"]) {
+                        if (node.test[counterPosition].type !== "Identifier") {
+                            continue;
+                        }
 
-                    let wrongDirection;
+                        const counter = node.test[counterPosition].name;
+                        const operator = node.test.operator;
+                        const update = node.update;
 
-                    if (operator === "<" || operator === "<=") {
-                        wrongDirection = -1;
-                    } else if (operator === ">" || operator === ">=") {
-                        wrongDirection = 1;
-                    } else {
-                        return;
-                    }
+                        let wrongDirection;
 
-                    if (update.type === "UpdateExpression") {
-                        if (getUpdateDirection(update, counter) === wrongDirection) {
+                        if (operator === "<" || operator === "<=") {
+                            wrongDirection = counterPosition === "left" ? -1 : 1;
+                        } else if (operator === ">" || operator === ">=") {
+                            wrongDirection = counterPosition === "left" ? 1 : -1;
+                        } else {
+                            return;
+                        }
+
+                        if (update.type === "UpdateExpression") {
+                            if (getUpdateDirection(update, counter) === wrongDirection) {
+                                report(node);
+                            }
+                        } else if (update.type === "AssignmentExpression" && getAssignmentDirection(update, counter) === wrongDirection) {
                             report(node);
                         }
-                    } else if (update.type === "AssignmentExpression" && getAssignmentDirection(update, counter) === wrongDirection) {
-                        report(node);
                     }
                 }
             }

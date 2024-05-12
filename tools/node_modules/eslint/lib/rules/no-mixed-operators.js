@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to disallow mixed binary operators.
  * @author Toru Nagashima
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -85,6 +86,8 @@ function getChildNode(node) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "suggestion",
 
         docs: {

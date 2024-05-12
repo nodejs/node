@@ -14,8 +14,6 @@ import bz2
 import io
 from pathlib import Path
 
-from distutils.version import StrictVersion
-
 # If not run from node/, cd to node/.
 os.chdir(Path(__file__).parent)
 
@@ -30,6 +28,7 @@ tools_path = Path('tools')
 
 sys.path.insert(0, str(tools_path / 'gyp' / 'pylib'))
 from gyp.common import GetFlavor
+from packaging.version import Version
 
 # imports in tools/configure.d
 sys.path.insert(0, str(tools_path / 'configure.d'))
@@ -57,6 +56,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
+maglev_enabled_architectures = ('x64', 'arm', 'arm64')
 
 shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
                      'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
@@ -122,6 +122,12 @@ parser.add_argument('--no-cross-compiling',
     dest='cross_compiling',
     default=None,
     help='force build to be considered as NOT cross compiled')
+
+parser.add_argument('--use-prefix-to-find-headers',
+    action='store_true',
+    dest='use_prefix_to_find_headers',
+    default=None,
+    help='use the prefix to look for pre-installed headers')
 
 parser.add_argument('--dest-os',
     action='store',
@@ -442,8 +448,6 @@ shared_optgroup.add_argument('--shared-cares-libpath',
     dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
-parser.add_argument_group(shared_optgroup)
-
 for builtin in shareable_builtins:
   builtin_id = 'shared_builtin_' + builtin + '_path'
   shared_builtin_optgroup.add_argument('--shared-builtin-' + builtin + '-path',
@@ -452,14 +456,10 @@ for builtin in shareable_builtins:
     help='Path to shared file for ' + builtin + ' builtin. '
          'Will be used instead of bundled version at runtime')
 
-parser.add_argument_group(shared_builtin_optgroup)
-
 static_optgroup.add_argument('--static-zoslib-gyp',
     action='store',
     dest='static_zoslib_gyp',
     help='path to zoslib.gyp file for includes and to link to static zoslib library')
-
-parser.add_argument_group(static_optgroup)
 
 parser.add_argument('--tag',
     action='store',
@@ -640,8 +640,6 @@ intl_optgroup.add_argument('--download-path',
     default='deps',
     help='Download directory [default: %(default)s]')
 
-parser.add_argument_group(intl_optgroup)
-
 parser.add_argument('--debug-lib',
     action='store_true',
     dest='node_debug_lib',
@@ -653,8 +651,6 @@ http2_optgroup.add_argument('--debug-nghttp2',
     dest='debug_nghttp2',
     default=None,
     help='build nghttp2 with DEBUGBUILD (default is false)')
-
-parser.add_argument_group(http2_optgroup)
 
 parser.add_argument('--without-npm',
     action='store_true',
@@ -718,6 +714,12 @@ parser.add_argument('--enable-asan',
     dest='enable_asan',
     default=None,
     help='compile for Address Sanitizer to find memory bugs')
+
+parser.add_argument('--enable-ubsan',
+    action='store_true',
+    dest='enable_ubsan',
+    default=None,
+    help='compile for Undefined Behavior Sanitizer')
 
 parser.add_argument('--enable-static',
     action='store_true',
@@ -812,6 +814,14 @@ parser.add_argument('--v8-enable-hugepage',
     default=None,
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
+
+maglev_enabled_by_default_help = f"(Maglev is enabled by default on {','.join(maglev_enabled_architectures)})"
+
+parser.add_argument('--v8-disable-maglev',
+    action='store_true',
+    dest='v8_disable_maglev',
+    default=None,
+    help=f"Disable V8's Maglev compiler. {maglev_enabled_by_default_help}")
 
 parser.add_argument('--v8-enable-short-builtin-calls',
     action='store_true',
@@ -1022,6 +1032,7 @@ def get_gas_version(cc):
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
+    o['variables']['clang'] = 0
     o['variables']['llvm_version'] = '0.0'
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
@@ -1031,6 +1042,7 @@ def check_compiler(o):
     return
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
+  o['variables']['clang'] = B(is_clang)
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
   print_verbose(f"Detected {'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
   if not ok:
@@ -1244,6 +1256,7 @@ def configure_node(o):
   o['variables']['debug_node'] = b(options.debug_node)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
   o['variables']['error_on_warn'] = b(options.error_on_warn)
+  o['variables']['use_prefix_to_find_headers'] = b(options.use_prefix_to_find_headers)
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
@@ -1268,9 +1281,7 @@ def configure_node(o):
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
 
-  # Enable branch protection for arm64
   if target_arch == 'arm64':
-    o['cflags']+=['-msign-return-address=all']
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
 
   if options.node_snapshot_main is not None:
@@ -1427,6 +1438,7 @@ def configure_node(o):
     o['variables']['linked_module_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
+  o['variables']['ubsan'] = int(options.enable_ubsan or 0)
 
   if options.coverage:
     o['variables']['coverage'] = 'true'
@@ -1495,10 +1507,13 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
+  o['variables']['v8_enable_maglev'] = B(not options.v8_disable_maglev and
+                                         o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression or options.disable_shared_ro_heap else 1
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0
+  o['variables']['v8_enable_v8_checks'] = 1 if options.debug else 0
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
@@ -1566,10 +1581,10 @@ def configure_openssl(o):
     # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
     # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
     openssl110_asm_supported = \
-      ('gas_version' in variables and StrictVersion(variables['gas_version']) >= StrictVersion('2.23')) or \
-      ('xcode_version' in variables and StrictVersion(variables['xcode_version']) >= StrictVersion('5.0')) or \
-      ('llvm_version' in variables and StrictVersion(variables['llvm_version']) >= StrictVersion('3.3')) or \
-      ('nasm_version' in variables and StrictVersion(variables['nasm_version']) >= StrictVersion('2.10'))
+      ('gas_version' in variables and Version(variables['gas_version']) >= Version('2.23')) or \
+      ('xcode_version' in variables and Version(variables['xcode_version']) >= Version('5.0')) or \
+      ('llvm_version' in variables and Version(variables['llvm_version']) >= Version('3.3')) or \
+      ('nasm_version' in variables and Version(variables['nasm_version']) >= Version('2.10'))
 
     if is_x86 and not openssl110_asm_supported:
       error('''Did not find a new enough assembler, install one or build with

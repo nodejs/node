@@ -1,12 +1,13 @@
 const readline = require('readline')
-const promiseSpawn = require('@npmcli/promise-spawn')
+const { input, output } = require('proc-log')
+const open = require('./open-url.js')
 
 function print (npm, title, url) {
   const json = npm.config.get('json')
 
   const message = json ? JSON.stringify({ title, url }) : `${title}:\n${url}`
 
-  npm.output(message)
+  output.standard(message)
 }
 
 // Prompt to open URL in browser if possible
@@ -33,7 +34,7 @@ const promptOpen = async (npm, url, title, prompt, emitter) => {
     output: process.stdout,
   })
 
-  const tryOpen = await new Promise(resolve => {
+  const tryOpen = await input.read(() => new Promise(resolve => {
     rl.on('SIGINT', () => {
       rl.close()
       resolve('SIGINT')
@@ -46,14 +47,10 @@ const promptOpen = async (npm, url, title, prompt, emitter) => {
     if (emitter && emitter.addListener) {
       emitter.addListener('abort', () => {
         rl.close()
-
-        // clear the prompt line
-        npm.output('')
-
         resolve(false)
       })
     }
-  })
+  }))
 
   if (tryOpen === 'SIGINT') {
     throw new Error('canceled')
@@ -63,8 +60,7 @@ const promptOpen = async (npm, url, title, prompt, emitter) => {
     return
   }
 
-  const command = browser === true ? null : browser
-  await promiseSpawn.open(url, { command })
+  await open(npm, url, 'Browser unavailable.  Please open the URL manually')
 }
 
 module.exports = promptOpen

@@ -91,7 +91,7 @@ The properties included on each object include:
   * `idle` {number} The number of milliseconds the CPU has spent in idle mode.
   * `irq` {number} The number of milliseconds the CPU has spent in irq mode.
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 [
@@ -250,7 +250,7 @@ added:
   - v16.18.0
 -->
 
-* Returns {string}
+* Returns: {string}
 
 Returns the machine type as a string, such as `arm`, `arm64`, `aarch64`,
 `mips`, `mips64`, `ppc64`, `ppc64le`, `s390`, `s390x`, `i386`, `i686`, `x86_64`.
@@ -483,7 +483,7 @@ added:
  - v12.17.0
 -->
 
-* Returns {string}
+* Returns: {string}
 
 Returns a string identifying the kernel version.
 

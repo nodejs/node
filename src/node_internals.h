@@ -87,6 +87,8 @@ enum class StackTracePrefix {
   kAt,  // "    at "
   kNumber
 };
+void PrintCurrentStackTrace(v8::Isolate* isolate,
+                            StackTracePrefix prefix = StackTracePrefix::kAt);
 void PrintStackTrace(v8::Isolate* isolate,
                      v8::Local<v8::StackTrace> stack,
                      StackTracePrefix prefix = StackTracePrefix::kAt);
@@ -96,7 +98,11 @@ void PrintCaughtException(v8::Isolate* isolate,
 std::string FormatCaughtException(v8::Isolate* isolate,
                                   v8::Local<v8::Context> context,
                                   const v8::TryCatch& try_catch);
-
+std::string FormatErrorMessage(v8::Isolate* isolate,
+                               v8::Local<v8::Context> context,
+                               const std::string& reason,
+                               v8::Local<v8::Message> message,
+                               bool add_source_line = true);
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
@@ -190,16 +196,13 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
   char* src = reinterpret_cast<char*>(buf->out());
   const size_t len_in_bytes = buf->length() * sizeof(buf->out()[0]);
 
-  if (buf->IsAllocated())
+  if (buf->IsAllocated()) {
     ret = New(env, src, len_in_bytes);
-  else if (!buf->IsInvalidated())
-    ret = Copy(env, src, len_in_bytes);
-
-  if (ret.IsEmpty())
-    return ret;
-
-  if (buf->IsAllocated())
+    // new always takes ownership of src
     buf->Release();
+  } else if (!buf->IsInvalidated()) {
+    ret = Copy(env, src, len_in_bytes);
+  }
 
   return ret;
 }
@@ -309,8 +312,7 @@ class ThreadPoolWork {
 namespace credentials {
 bool SafeGetenv(const char* key,
                 std::string* text,
-                std::shared_ptr<KVStore> env_vars = nullptr,
-                v8::Isolate* isolate = nullptr);
+                std::shared_ptr<KVStore> env_vars = nullptr);
 }  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
@@ -368,6 +370,7 @@ typedef struct tm TIME_TYPE;
 #endif
 
 double GetCurrentTimeInMicroseconds();
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count);
 int WriteFileSync(const char* path, uv_buf_t buf);
 int WriteFileSync(v8::Isolate* isolate,
                   const char* path,
@@ -418,6 +421,7 @@ std::string Basename(const std::string& str, const std::string& extension);
 
 node_module napi_module_to_node_module(const napi_module* mod);
 
+std::ostream& operator<<(std::ostream& output, const SnapshotFlags& flags);
 std::ostream& operator<<(std::ostream& output,
                          const std::vector<SnapshotIndex>& v);
 std::ostream& operator<<(std::ostream& output,
@@ -446,6 +450,10 @@ v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
     v8::Local<v8::Value> options);
 }  // namespace heap
 
+enum encoding ParseEncoding(v8::Isolate* isolate,
+                            v8::Local<v8::Value> encoding_v,
+                            v8::Local<v8::Value> encoding_id,
+                            enum encoding default_encoding);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

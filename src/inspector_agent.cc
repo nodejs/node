@@ -36,9 +36,6 @@
 namespace node {
 namespace inspector {
 namespace {
-
-using node::OnFatalError;
-
 using v8::Context;
 using v8::Function;
 using v8::HandleScope;
@@ -281,6 +278,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     return retaining_context_;
   }
 
+  void setWaitingForDebugger() { runtime_agent_->setWaitingForDebugger(); }
+
+  void unsetWaitingForDebugger() { runtime_agent_->unsetWaitingForDebugger(); }
+
   bool retainingContext() {
     return retaining_context_;
   }
@@ -421,6 +422,9 @@ class NodeInspectorClient : public V8InspectorClient {
 
   void waitForFrontend() {
     waiting_for_frontend_ = true;
+    for (const auto& id_channel : channels_) {
+      id_channel.second->setWaitingForDebugger();
+    }
     runMessageLoop();
   }
 
@@ -468,6 +472,9 @@ class NodeInspectorClient : public V8InspectorClient {
 
   void runIfWaitingForDebugger(int context_group_id) override {
     waiting_for_frontend_ = false;
+    for (const auto& id_channel : channels_) {
+      id_channel.second->unsetWaitingForDebugger();
+    }
   }
 
   int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate,
@@ -479,6 +486,9 @@ class NodeInspectorClient : public V8InspectorClient {
                                                           std::move(delegate),
                                                           getThreadHandle(),
                                                           prevent_shutdown);
+    if (waiting_for_frontend_) {
+      channels_[session_id]->setWaitingForDebugger();
+    }
     return session_id;
   }
 
@@ -917,8 +927,7 @@ void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
   USE(fn->Call(context, Undefined(isolate), 0, nullptr));
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     PrintCaughtException(isolate, context, try_catch);
-    OnFatalError("\nnode::inspector::Agent::ToggleAsyncHook",
-                 "Cannot toggle Inspector's AsyncHook, please report this.");
+    UNREACHABLE("Cannot toggle Inspector's AsyncHook, please report this.");
   }
 }
 

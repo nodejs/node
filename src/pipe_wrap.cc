@@ -162,7 +162,8 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   node::Utf8Value name(args.GetIsolate(), args[0]);
-  int err = uv_pipe_bind2(&wrap->handle_, *name, name.length(), 0);
+  int err =
+      uv_pipe_bind2(&wrap->handle_, *name, name.length(), UV_PIPE_NO_TRUNCATE);
   args.GetReturnValue().Set(err);
 }
 
@@ -225,16 +226,27 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   ConnectWrap* req_wrap =
       new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP);
-  req_wrap->Dispatch(
-      uv_pipe_connect2, &wrap->handle_, *name, name.length(), 0, AfterConnect);
+  int err = req_wrap->Dispatch(uv_pipe_connect2,
+                               &wrap->handle_,
+                               *name,
+                               name.length(),
+                               UV_PIPE_NO_TRUNCATE,
+                               AfterConnect);
+  if (err) {
+    delete req_wrap;
+  } else {
+    const char* path_type = (*name)[0] == '\0' ? "abstract socket" : "file";
+    const char* pipe_path = (*name)[0] == '\0' ? (*name) + 1 : *name;
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(net, native),
+                                      "connect",
+                                      req_wrap,
+                                      "path_type",
+                                      path_type,
+                                      "pipe_path",
+                                      TRACE_STR_COPY(pipe_path));
+  }
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(net, native),
-                                    "connect",
-                                    req_wrap,
-                                    "pipe_path",
-                                    TRACE_STR_COPY(*name));
-
-  args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
+  args.GetReturnValue().Set(err);
 }
 
 }  // namespace node

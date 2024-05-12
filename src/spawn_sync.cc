@@ -22,6 +22,7 @@
 #include "spawn_sync.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "string_bytes.h"
 #include "util-inl.h"
@@ -67,7 +68,7 @@ void SyncProcessOutputBuffer::OnRead(const uv_buf_t* buf, size_t nread) {
 
 
 size_t SyncProcessOutputBuffer::Copy(char* dest) const {
-  memcpy(dest, data_, used());
+  if (dest != nullptr) memcpy(dest, data_, used());
   return used();
 }
 
@@ -366,6 +367,10 @@ void SyncProcessRunner::Initialize(Local<Object> target,
   SetMethod(context, target, "spawn", Spawn);
 }
 
+void SyncProcessRunner::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(Spawn);
+}
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -760,6 +765,13 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   if (r < 0) return Just(r);
   uv_process_options_.file = file_buffer_;
 
+  // Undocumented feature of Win32 CreateProcess API allows spawning
+  // batch files directly but is potentially insecure because arguments
+  // are not escaped (and sometimes cannot be unambiguously escaped),
+  // hence why they are rejected here.
+  if (IsWindowsBatchFile(uv_process_options_.file))
+    return Just<int>(UV_EINVAL);
+
   Local<Value> js_args =
       js_options->Get(context, env()->args_string()).ToLocalChecked();
   if (!CopyJsStringArray(js_args, &args_buffer_).To(&r)) return Nothing<int>();
@@ -1107,3 +1119,5 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(spawn_sync,
                                     node::SyncProcessRunner::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
+    spawn_sync, node::SyncProcessRunner::RegisterExternalReferences)

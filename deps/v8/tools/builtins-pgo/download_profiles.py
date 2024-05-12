@@ -89,7 +89,8 @@ def import_gsutil(args):
     print(f'{file} does not exist; check --depot-tools path.', file=sys.stderr)
     sys.exit(3)
 
-  sys.path.append(abs_depot_tools_path)
+  # Put this path at the beginning of the PATH to give it priority.
+  sys.path.insert(0, abs_depot_tools_path)
   globals()['gcs_download'] = __import__('download_from_google_storage')
 
 

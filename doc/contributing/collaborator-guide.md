@@ -232,7 +232,6 @@ There are some other files that touch the build chain. Changes in the following
 files also qualify as affecting the `node` binary:
 
 * `tools/*.py`
-* `tools/build-addons.mjs`
 * `*.gyp`
 * `*.gypi`
 * `configure`
@@ -532,9 +531,10 @@ The TSC serves as the final arbiter where required.
    [build](https://github.com/nodejs/build/issues) repositories, open new
    issues. Run a new CI any time someone pushes new code to the pull request.
 4. Check that the commit message adheres to [commit message guidelines][].
-5. Add all necessary [metadata](#metadata) to commit messages before landing. If
-   you are unsure exactly how to format the commit messages, use the commit log
-   as a reference. See [this commit][commit-example] as an example.
+5. Add all necessary [metadata][git-node-metadata] to commit messages before
+   landing. If you are unsure exactly how to format the commit messages, use
+   the commit log as a reference. See [this commit][commit-example] as an
+   example.
 
 For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
@@ -847,6 +847,7 @@ might impact an LTS release.
 | `lib/net`                                                                  | @bnoordhuis, @indutny, @nodejs/streams                                        |
 | `lib/repl`                                                                 | @nodejs/repl                                                                  |
 | `lib/{_}stream{*}`                                                         | @nodejs/streams                                                               |
+| `lib/internal/test_runner`                                                 | @nodejs/test\_runner                                                          |
 | `lib/timers`                                                               | @nodejs/timers                                                                |
 | `lib/util`                                                                 | @nodejs/util                                                                  |
 | `lib/zlib`                                                                 | @nodejs/zlib                                                                  |
@@ -879,9 +880,13 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
 * `confirmed-bug`: Bugs you have verified
 * `discuss`: Things that need larger discussion
+* `fast-track`: PRs that need to land faster - see
+  [Waiting for approvals](#waiting-for-approvals)
 * `feature request`: Any issue that requests a new feature
 * `good first issue`: Issues suitable for newcomers to fix
 * `meta`: Governance, policies, procedures, etc.
+* `request-ci`: When this label is added to a PR, CI will be started
+  automatically. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
 * `tsc-agenda`: Open issues and pull requests with this label will be added to
   the Technical Steering Committee meeting agenda
 

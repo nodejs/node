@@ -32,7 +32,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
-using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -63,6 +62,7 @@ Worker::Worker(Environment* env,
       thread_id_(AllocateEnvironmentThreadId()),
       name_(name),
       env_vars_(env_vars),
+      embedder_preload_(env->embedder_preload()),
       snapshot_data_(snapshot_data) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
@@ -89,7 +89,7 @@ Worker::Worker(Environment* env,
   // Without this check, to use the permission model with
   // workers (--allow-worker) one would need to pass --allow-inspector as well
   if (env->permission()->is_granted(
-          node::permission::PermissionScope::kInspector)) {
+          env, node::permission::PermissionScope::kInspector)) {
     inspector_parent_handle_ =
         GetInspectorParentHandle(env, thread_id_, url.c_str(), name.c_str());
   }
@@ -217,7 +217,13 @@ class WorkerThreadData {
       CHECK(!loop_init_failed_);
       bool platform_finished = false;
 
-      isolate_data_.reset();
+      // https://github.com/nodejs/node/issues/51129 - IsolateData destructor
+      // can kick off GC before teardown, so ensure the isolate is entered.
+      {
+        Locker locker(isolate);
+        Isolate::Scope isolate_scope(isolate);
+        isolate_data_.reset();
+      }
 
       w_->platform_->AddIsolateFinishedCallback(isolate, [](void* data) {
         *static_cast<bool*>(data) = true;
@@ -381,8 +387,12 @@ void Worker::Run() {
         }
 
         Debug(this, "Created message port for worker %llu", thread_id_.id);
-        if (LoadEnvironment(env_.get(), StartExecutionCallback{}).IsEmpty())
+        if (LoadEnvironment(env_.get(),
+                            StartExecutionCallback{},
+                            std::move(embedder_preload_))
+                .IsEmpty()) {
           return;
+        }
 
         Debug(this, "Loaded environment for worker %llu", thread_id_.id);
       }
@@ -531,11 +541,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     });
 
 #ifndef NODE_WITHOUT_NODE_OPTIONS
-    MaybeLocal<String> maybe_node_opts =
-        env_vars->Get(isolate, OneByteString(isolate, "NODE_OPTIONS"));
-    Local<String> node_opts;
-    if (maybe_node_opts.ToLocal(&node_opts)) {
-      std::string node_options(*String::Utf8Value(isolate, node_opts));
+    std::string node_options;
+    if (env_vars->Get("NODE_OPTIONS").To(&node_options)) {
       std::vector<std::string> errors{};
       std::vector<std::string> env_argv =
           ParseNodeOptionsEnvVar(node_options, &errors);
@@ -901,7 +908,7 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
   Local<Object> port = env->message_port();
   CHECK_IMPLIES(!env->is_main_thread(), !port.IsEmpty());
   if (!port.IsEmpty()) {
-    CHECK_EQ(port->GetCreationContext().ToLocalChecked()->GetIsolate(),
+    CHECK_EQ(port->GetCreationContextChecked()->GetIsolate(),
              args.GetIsolate());
     args.GetReturnValue().Set(port);
   }

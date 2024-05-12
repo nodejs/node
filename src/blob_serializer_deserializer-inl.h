@@ -139,11 +139,17 @@ std::string_view BlobDeserializer<Impl>::ReadStringView(StringLogMode mode) {
   size_t length = ReadArithmetic<size_t>();
   Debug("ReadStringView(), length=%zu: ", length);
 
-  std::string_view result(sink.data() + read_total, length);
-  Debug("%p, read %zu bytes\n", result.data(), result.size());
-  if (mode == StringLogMode::kAddressAndContent) {
-    Debug("%s", result);
+  if (length == 0) {
+    Debug("ReadStringView() read an empty view\n");
+    return std::string_view();
   }
+
+  std::string_view result(sink.data() + read_total, length);
+  Debug("%p, read %zu bytes", result.data(), result.size());
+  if (mode == StringLogMode::kAddressAndContent) {
+    Debug(", content:%s%s", length > 32 ? "\n" : " ", result);
+  }
+  Debug("\n");
 
   read_total += length;
   return result;
@@ -268,6 +274,10 @@ size_t BlobSerializer<Impl>::WriteStringView(std::string_view data,
   size_t written_total = WriteArithmetic<size_t>(data.size());
 
   size_t length = data.size();
+  if (length == 0) {
+    Debug("WriteStringView() wrote an empty view\n");
+    return written_total;
+  }
   sink.insert(sink.end(), data.data(), data.data() + length);
   written_total += length;
 

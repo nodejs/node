@@ -229,39 +229,13 @@ void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
                                 .ToLocalChecked());
 }
 
-void BindingData::ThrowInvalidURL(node::Environment* env,
-                                  std::string_view input,
-                                  std::optional<std::string> base) {
-  Local<Value> err = ERR_INVALID_URL(env->isolate(), "Invalid URL");
-  DCHECK(err->IsObject());
-
-  auto err_object = err.As<Object>();
-
-  USE(err_object->Set(env->context(),
-                      env->input_string(),
-                      v8::String::NewFromUtf8(env->isolate(),
-                                              input.data(),
-                                              v8::NewStringType::kNormal,
-                                              input.size())
-                          .ToLocalChecked()));
-
-  if (base.has_value()) {
-    USE(err_object->Set(env->context(),
-                        env->base_string(),
-                        v8::String::NewFromUtf8(env->isolate(),
-                                                base.value().c_str(),
-                                                v8::NewStringType::kNormal,
-                                                base.value().size())
-                            .ToLocalChecked()));
-  }
-
-  env->isolate()->ThrowException(err);
-}
-
 void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());  // input
   // args[1] // base url
+  // args[2] // raise Exception
+
+  const bool raise_exception = args.Length() > 2 && args[2]->IsTrue();
 
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
@@ -274,16 +248,20 @@ void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsString()) {
     base_ = Utf8Value(isolate, args[1]).ToString();
     base = ada::parse<ada::url_aggregator>(*base_);
-    if (!base) {
+    if (!base && raise_exception) {
       return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
+    } else if (!base) {
+      return;
     }
     base_pointer = &base.value();
   }
   auto out =
       ada::parse<ada::url_aggregator>(input.ToStringView(), base_pointer);
 
-  if (!out) {
+  if (!out && raise_exception) {
     return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
+  } else if (!out) {
+    return;
   }
 
   binding_data->UpdateComponents(out->get_components(), out->type);
@@ -417,6 +395,35 @@ void BindingData::RegisterExternalReferences(
   for (const CFunction& method : fast_can_parse_methods_) {
     registry->Register(method.GetTypeInfo());
   }
+}
+
+void ThrowInvalidURL(node::Environment* env,
+                     std::string_view input,
+                     std::optional<std::string> base) {
+  Local<Value> err = ERR_INVALID_URL(env->isolate(), "Invalid URL");
+  DCHECK(err->IsObject());
+
+  auto err_object = err.As<Object>();
+
+  USE(err_object->Set(env->context(),
+                      env->input_string(),
+                      v8::String::NewFromUtf8(env->isolate(),
+                                              input.data(),
+                                              v8::NewStringType::kNormal,
+                                              input.size())
+                          .ToLocalChecked()));
+
+  if (base.has_value()) {
+    USE(err_object->Set(env->context(),
+                        env->base_string(),
+                        v8::String::NewFromUtf8(env->isolate(),
+                                                base.value().c_str(),
+                                                v8::NewStringType::kNormal,
+                                                base.value().size())
+                            .ToLocalChecked()));
+  }
+
+  env->isolate()->ThrowException(err);
 }
 
 std::string FromFilePath(std::string_view file_path) {

@@ -1,6 +1,7 @@
 /**
  * @fileoverview enforce the location of single-line statements
  * @author Teddy Katz
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -13,6 +14,8 @@ const POSITION_SCHEMA = { enum: ["beside", "below", "any"] };
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

@@ -34,6 +34,10 @@ Node-API.
   * Experimental APIs **must** be documented as such.
   * Experimental APIs **must** require an explicit compile-time flag
     (`#define`) to be set to opt-in.
+  * A feature flag of the form `NODE_API_EXPERIMENTAL_HAS_<FEATURE>` **must**
+    be added with each experimental feature in order to allow code to
+    distinguish between experimental features as present in one version of
+    Node.js versus another.
   * Experimental APIs **must** be considered for backport.
   * Experimental status exit criteria **must** involve at least the
     following:
@@ -47,3 +51,16 @@ Node-API.
       to the decision to take an API out of experimental status.
     * The API **must** be implemented in a Node.js implementation with an
       alternate VM.
+
+Since the adoption of the policy whereby moving to a later version of Node-API
+from an earlier version may entail rework of existing code, it is possible to
+introduce modifications to already-released Node-APIs, as long as the
+modifications affect neither the ABI nor the API of earlier versions. Such
+modifications **must** be accompanied by an opt-out flag. This provides add-on
+maintainers who take advantage of the initial compile-time flag to track
+impending changes to Node-API with
+
+* a quick fix to the breakage caused,
+* a notification that such breakage is impending, and thus
+* a buffer to adoption above and beyond the one provided by the initial
+  compile-time flag.

@@ -32,6 +32,7 @@ const net = require('net');
 const path = require('path');
 const { inspect } = require('util');
 const { isMainThread } = require('worker_threads');
+const { isModuleNamespaceObject } = require('util/types');
 
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
@@ -128,7 +129,7 @@ const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isOSX = process.platform === 'darwin';
-const isAsan = process.env.ASAN !== undefined;
+const isASan = process.config.variables.asan === 1;
 const isPi = (() => {
   try {
     // Normal Raspberry Pi detection is to find the `Raspberry Pi` string in
@@ -146,12 +147,8 @@ const isPi = (() => {
 const isDumbTerminal = process.env.TERM === 'dumb';
 
 // When using high concurrency or in the CI we need much more time for each connection attempt
-const defaultAutoSelectFamilyAttemptTimeout = platformTimeout(2500);
-// Since this is also used by tools outside of the test suite,
-// make sure setDefaultAutoSelectFamilyAttemptTimeout
-if (typeof net.setDefaultAutoSelectFamilyAttemptTimeout === 'function') {
-  net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(defaultAutoSelectFamilyAttemptTimeout));
-}
+net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 10));
+const defaultAutoSelectFamilyAttemptTimeout = net.getDefaultAutoSelectFamilyAttemptTimeout();
 
 const buildType = process.config.target_defaults ?
   process.config.target_defaults.default_configuration :
@@ -368,9 +365,6 @@ if (global.ReadableStream) {
     global.CompressionStream,
     global.DecompressionStream,
   );
-}
-if (global.WebSocket) {
-  knownGlobals.push(WebSocket);
 }
 
 function allowGlobals(...allowlist) {
@@ -662,12 +656,12 @@ function _expectWarning(name, expected, code) {
     expected = [[expected, code]];
   } else if (!Array.isArray(expected)) {
     expected = Object.entries(expected).map(([a, b]) => [b, a]);
-  } else if (!(Array.isArray(expected[0]))) {
+  } else if (expected.length !== 0 && !Array.isArray(expected[0])) {
     expected = [[expected[0], expected[1]]];
   }
   // Deprecation codes are mandatory, everything else is not.
   if (name === 'DeprecationWarning') {
-    expected.forEach(([_, code]) => assert(code, expected));
+    expected.forEach(([_, code]) => assert(code, `Missing deprecation code: ${expected}`));
   }
   return mustCall((warning) => {
     const expectedProperties = expected.shift();
@@ -945,6 +939,18 @@ function getPrintedStackTrace(stderr) {
   return result;
 }
 
+/**
+ * Check the exports of require(esm).
+ * TODO(joyeecheung): use it in all the test-require-module-* tests to minimize changes
+ * if/when we change the layout of the result returned by require(esm).
+ * @param {object} mod result returned by require()
+ * @param {object} expectation shape of expected namespace.
+ */
+function expectRequiredModule(mod, expectation) {
+  assert(isModuleNamespaceObject(mod));
+  assert.deepStrictEqual({ ...mod }, { ...expectation });
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -953,6 +959,7 @@ const common = {
   createZeroFilledFile,
   defaultAutoSelectFamilyAttemptTimeout,
   expectsError,
+  expectRequiredModule,
   expectWarning,
   gcUntil,
   getArrayBufferViews,
@@ -968,7 +975,7 @@ const common = {
   hasMultiLocalhost,
   invalidArgTypeHelper,
   isAlive,
-  isAsan,
+  isASan,
   isDumbTerminal,
   isFreeBSD,
   isLinux,

@@ -73,7 +73,7 @@ bool ApplyRSAOptions(const ManagedEVPPKey& pkey,
 }
 
 std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
-                                             EVPMDPointer&& mdctx,
+                                             EVPMDCtxPointer&& mdctx,
                                              const ManagedEVPPKey& pkey,
                                              int padding,
                                              Maybe<int> pss_salt_len) {
@@ -99,10 +99,15 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
       EVP_PKEY_sign(pkctx.get(), static_cast<unsigned char*>(sig->Data()),
                     &sig_len, m, m_len)) {
     CHECK_LE(sig_len, sig->ByteLength());
-    if (sig_len == 0)
+    if (sig_len == 0) {
       sig = ArrayBuffer::NewBackingStore(env->isolate(), 0);
-    else
-      sig = BackingStore::Reallocate(env->isolate(), std::move(sig), sig_len);
+    } else if (sig_len != sig->ByteLength()) {
+      std::unique_ptr<BackingStore> old_sig = std::move(sig);
+      sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
+      memcpy(static_cast<char*>(sig->Data()),
+             static_cast<char*>(old_sig->Data()),
+             sig_len);
+    }
     return sig;
   }
 
@@ -391,7 +396,7 @@ Sign::SignResult Sign::SignFinal(
   if (!mdctx_)
     return SignResult(kSignNotInitialised);
 
-  EVPMDPointer mdctx = std::move(mdctx_);
+  EVPMDCtxPointer mdctx = std::move(mdctx_);
 
   if (!ValidateDSAParameters(pkey.get()))
     return SignResult(kSignPrivateKey);
@@ -417,6 +422,11 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   ManagedEVPPKey key = ManagedEVPPKey::GetPrivateKeyFromJs(args, &offset, true);
   if (!key)
     return;
+
+  if (IsOneShot(key)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
 
   int padding = GetDefaultSignPadding(key);
   if (!args[offset]->IsUndefined()) {
@@ -511,7 +521,7 @@ SignBase::Error Verify::VerifyFinal(const ManagedEVPPKey& pkey,
   unsigned char m[EVP_MAX_MD_SIZE];
   unsigned int m_len;
   *verify_result = false;
-  EVPMDPointer mdctx = std::move(mdctx_);
+  EVPMDCtxPointer mdctx = std::move(mdctx_);
 
   if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
     return kSignPublicKey;
@@ -542,6 +552,11 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
       ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
   if (!pkey)
     return;
+
+  if (IsOneShot(pkey)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
 
   ArrayBufferOrViewContents<char> hbuf(args[offset]);
   if (UNLIKELY(!hbuf.CheckSizeInt32()))
@@ -696,7 +711,7 @@ bool SignTraits::DeriveBits(
     const SignConfiguration& params,
     ByteSource* out) {
   ClearErrorOnReturn clear_error_on_return;
-  EVPMDPointer context(EVP_MD_CTX_new());
+  EVPMDCtxPointer context(EVP_MD_CTX_new());
   EVP_PKEY_CTX* ctx = nullptr;
 
   switch (params.mode) {

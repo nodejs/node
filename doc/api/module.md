@@ -83,9 +83,13 @@ isBuiltin('wss'); // false
 ### `module.register(specifier[, parentURL][, options])`
 
 <!-- YAML
-added: v20.6.0
+added:
+  - v20.6.0
+  - v18.19.0
 changes:
-  - version: v20.8.0
+  - version:
+    - v20.8.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49655
     description: Add support for WHATWG URL instances.
 -->
@@ -99,6 +103,10 @@ changes:
   URL, such as `import.meta.url`, you can pass that URL here. **Default:**
   `'data:'`
 * `options` {Object}
+  * `parentURL` {string|URL} If you want to resolve `specifier` relative to a
+    base URL, such as `import.meta.url`, you can pass that URL here. This
+    property is ignored if the `parentURL` is supplied as the second argument.
+    **Default:** `'data:'`
   * `data` {any} Any arbitrary, cloneable JavaScript value to pass into the
     [`initialize`][] hook.
   * `transferList` {Object\[]} [transferrable objects][] to be passed into the
@@ -153,7 +161,9 @@ import('node:fs').then((esmFS) => {
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48842
     description: Added `initialize` hook to replace `globalPreload`.
   - version:
@@ -264,8 +274,8 @@ It's possible to call `register` more than once:
 // entrypoint.mjs
 import { register } from 'node:module';
 
-register('./first.mjs', import.meta.url);
-register('./second.mjs', import.meta.url);
+register('./foo.mjs', import.meta.url);
+register('./bar.mjs', import.meta.url);
 await import('./my-app.mjs');
 ```
 
@@ -275,20 +285,23 @@ const { register } = require('node:module');
 const { pathToFileURL } = require('node:url');
 
 const parentURL = pathToFileURL(__filename);
-register('./first.mjs', parentURL);
-register('./second.mjs', parentURL);
+register('./foo.mjs', parentURL);
+register('./bar.mjs', parentURL);
 import('./my-app.mjs');
 ```
 
-In this example, the registered hooks will form chains. If both `first.mjs` and
-`second.mjs` define a `resolve` hook, both will be called, in the order they
-were registered. The same applies to all the other hooks.
+In this example, the registered hooks will form chains. These chains run
+last-in, first out (LIFO). If both `foo.mjs` and `bar.mjs` define a `resolve`
+hook, they will be called like so (note the right-to-left):
+node's default ← `./foo.mjs` ← `./bar.mjs`
+(starting with `./bar.mjs`, then `./foo.mjs`, then the Node.js default).
+The same applies to all the other hooks.
 
 The registered hooks also affect `register` itself. In this example,
-`second.mjs` will be resolved and loaded per the hooks registered by
-`first.mjs`. This allows for things like writing hooks in non-JavaScript
-languages, so long as an earlier registered loader is one that transpiles into
-JavaScript.
+`bar.mjs` will be resolved and loaded via the hooks registered by `foo.mjs`
+(because `foo`'s hooks will have already been added to the chain). This allows
+for things like writing hooks in non-JavaScript languages, so long as
+earlier registered hooks transpile into JavaScript.
 
 The `register` method cannot be called from within the module that defines the
 hooks.
@@ -363,11 +376,11 @@ export async function load(url, context, nextLoad) {
 }
 ```
 
-Hooks are part of a chain, even if that chain consists of only one custom
-(user-provided) hook and the default hook, which is always present. Hook
+Hooks are part of a [chain][], even if that chain consists of only one
+custom (user-provided) hook and the default hook, which is always present. Hook
 functions nest: each one must always return a plain object, and chaining happens
 as a result of each function calling `next<hookName>()`, which is a reference to
-the subsequent loader's hook.
+the subsequent loader's hook (in LIFO order).
 
 A hook that returns a value lacking a required property triggers an exception. A
 hook that returns without calling `next<hookName>()` _and_ without returning
@@ -383,7 +396,9 @@ asynchronous operations (like `console.log`) to complete.
 #### `initialize()`
 
 <!-- YAML
-added: v20.6.0
+added:
+  - v20.6.0
+  - v18.19.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -458,7 +473,10 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: v21.0.0
+  - version:
+    - v21.0.0
+    - v20.10.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: The property `context.importAssertions` is replaced with
                  `context.importAttributes`. Using the old name is still
@@ -622,7 +640,8 @@ Omitting vs providing a `source` for `'commonjs'` has very different effects:
   registered hooks. This behavior for nullish `source` is temporary — in the
   future, nullish `source` will not be supported.
 
-The Node.js internal `load` implementation, which is the value of `next` for the
+When `node` is run with `--experimental-default-type=commonjs`, the Node.js
+internal `load` implementation, which is the value of `next` for the
 last hook in the `load` chain, returns `null` for `source` when `format` is
 `'commonjs'` for backward compatibility. Here is an example hook that would
 opt-in to using the non-default behavior:
@@ -806,7 +825,7 @@ async function getPackageType(url) {
     .catch((err) => {
       if (err?.code !== 'ENOENT') console.error(err);
     });
-  // Ff package.json existed and contained a `type` field with a value, voila
+  // If package.json existed and contained a `type` field with a value, voilà
   if (type) return type;
   // Otherwise, (if not at the root) continue checking the next directory up
   // If at the root, stop and return false
@@ -1004,16 +1023,16 @@ columnNumber)`
 
 * `lineNumber` {number} The 1-indexed line number of the call
   site in the generated source
-* `columnOffset` {number} The 1-indexed column number
+* `columnNumber` {number} The 1-indexed column number
   of the call site in the generated source
 * Returns: {Object}
 
-Given a 1-indexed lineNumber and columnNumber from a call site in
+Given a 1-indexed `lineNumber` and `columnNumber` from a call site in
 the generated source, find the corresponding call site location
 in the original source.
 
-If the lineNumber and columnNumber provided are not found in any
-source map, then an empty object is returned.  Otherwise, the
+If the `lineNumber` and `columnNumber` provided are not found in any
+source map, then an empty object is returned. Otherwise, the
 returned object contains the following keys:
 
 * name: {string | undefined} The name of the range in the
@@ -1044,6 +1063,7 @@ returned object contains the following keys:
 [`register`]: #moduleregisterspecifier-parenturl-options
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
+[chain]: #chaining
 [hooks]: #customization-hooks
 [load hook]: #loadurl-context-nextload
 [module wrapper]: modules.md#the-module-wrapper

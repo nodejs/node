@@ -2,19 +2,23 @@ const t = require('tap')
 const pack = require('libnpmpack')
 const ssri = require('ssri')
 const tmock = require('../../fixtures/tmock')
+const { cleanZlib } = require('../../fixtures/clean-snapshot')
 
 const { getContents } = require('../../../lib/utils/tar.js')
+t.cleanSnapshot = data => cleanZlib(data)
 
 const mockTar = ({ notice }) => tmock(t, '{LIB}/utils/tar.js', {
   'proc-log': {
-    notice,
+    log: {
+      notice,
+    },
   },
 })
 
 const printLogs = (tarball, options) => {
   const logs = []
   const { logTar } = mockTar({
-    notice: (...args) => args.map(el => logs.push(el)),
+    notice: (...args) => logs.push(...args),
   })
   logTar(tarball, options)
   return logs.join('\n')
@@ -121,13 +125,15 @@ t.test('should getContents of a tarball', async (t) => {
     algorithms: ['sha1', 'sha512'],
   })
 
+  // zlib is nondeterministic
+  t.match(tarballContents.shasum, /^[0-9a-f]{40}$/)
+  delete tarballContents.shasum
   t.strictSame(tarballContents, {
     id: 'my-cool-pkg@1.0.0',
     name: 'my-cool-pkg',
     version: '1.0.0',
-    size: 146,
+    size: tarball.length,
     unpackedSize: 49,
-    shasum: 'b8379c5e69693cdda73aec3d81dae1d11c1e75bd',
     integrity: ssri.parse(integrity.sha512[0]),
     filename: 'my-cool-pkg-1.0.0.tgz',
     files: [{ path: 'package.json', size: 49, mode: 420 }],

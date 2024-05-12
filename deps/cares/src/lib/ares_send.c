@@ -37,98 +37,91 @@
 #include "ares_dns.h"
 #include "ares_private.h"
 
-int ares_send_ex(ares_channel channel, const unsigned char *qbuf, int qlen,
-                 ares_callback callback, void *arg)
+static unsigned short generate_unique_qid(ares_channel_t *channel)
 {
-  struct query *query;
-  int i, packetsz;
-  struct timeval now;
+  unsigned short id;
 
-  /* Verify that the query is at least long enough to hold the header. */
-  if (qlen < HFIXEDSZ || qlen >= (1 << 16))
-    {
-      callback(arg, ARES_EBADQUERY, 0, NULL, 0);
-      return ARES_EBADQUERY;
-    }
-  if (channel->nservers < 1)
-    {
-      callback(arg, ARES_ESERVFAIL, 0, NULL, 0);
-      return ARES_ESERVFAIL;
-    }
+  do {
+    id = ares__generate_new_id(channel->rand_state);
+  } while (ares__htable_szvp_get(channel->queries_by_qid, id, NULL));
+
+  return id;
+}
+
+static ares_status_t ares_send_dnsrec_int(ares_channel_t          *channel,
+                                          const ares_dns_record_t *dnsrec,
+                                          ares_callback_dnsrec     callback,
+                                          void *arg, unsigned short *qid)
+{
+  struct query            *query;
+  size_t                   packetsz;
+  struct timeval           now = ares__tvnow();
+  ares_status_t            status;
+  unsigned short           id          = generate_unique_qid(channel);
+  const ares_dns_record_t *dnsrec_resp = NULL;
+
+  if (ares__slist_len(channel->servers) == 0) {
+    callback(arg, ARES_ENOSERVER, 0, NULL);
+    return ARES_ENOSERVER;
+  }
+
+  /* Check query cache */
+  status = ares_qcache_fetch(channel, &now, dnsrec, &dnsrec_resp);
+  if (status != ARES_ENOTFOUND) {
+    /* ARES_SUCCESS means we retrieved the cache, anything else is a critical
+     * failure, all result in termination */
+    callback(arg, status, 0, dnsrec_resp);
+    return status;
+  }
+
   /* Allocate space for query and allocated fields. */
   query = ares_malloc(sizeof(struct query));
-  if (!query)
-    {
-      callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return ARES_ENOMEM;
-    }
+  if (!query) {
+    callback(arg, ARES_ENOMEM, 0, NULL);
+    return ARES_ENOMEM;
+  }
   memset(query, 0, sizeof(*query));
-  query->channel = channel;
-  query->tcpbuf = ares_malloc(qlen + 2);
-  if (!query->tcpbuf)
-    {
-      ares_free(query);
-      callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return ARES_ENOMEM;
-    }
-  query->server_info = ares_malloc(channel->nservers *
-                                   sizeof(query->server_info[0]));
-  if (!query->server_info)
-    {
-      ares_free(query->tcpbuf);
-      ares_free(query);
-      callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return ARES_ENOMEM;
-    }
 
-  /* Compute the query ID.  Start with no timeout. */
-  query->qid = DNS_HEADER_QID(qbuf);
-  query->timeout.tv_sec = 0;
+  query->channel = channel;
+
+  status = ares_dns_write(dnsrec, &query->qbuf, &query->qlen);
+  if (status != ARES_SUCCESS) {
+    ares_free(query);
+    callback(arg, status, 0, NULL);
+    return status;
+  }
+
+  query->qid             = id;
+  query->timeout.tv_sec  = 0;
   query->timeout.tv_usec = 0;
 
-  /* Form the TCP query buffer by prepending qlen (as two
-   * network-order bytes) to qbuf.
-   */
-  query->tcpbuf[0] = (unsigned char)((qlen >> 8) & 0xff);
-  query->tcpbuf[1] = (unsigned char)(qlen & 0xff);
-  memcpy(query->tcpbuf + 2, qbuf, qlen);
-  query->tcplen = qlen + 2;
+  /* Ignore first 2 bytes, assign our own query id */
+  query->qbuf[0] = (unsigned char)((id >> 8) & 0xFF);
+  query->qbuf[1] = (unsigned char)(id & 0xFF);
 
   /* Fill in query arguments. */
-  query->qbuf = query->tcpbuf + 2;
-  query->qlen = qlen;
   query->callback = callback;
-  query->arg = arg;
+  query->arg      = arg;
 
   /* Initialize query status. */
   query->try_count = 0;
 
-  /* Choose the server to send the query to. If rotation is enabled, keep track
-   * of the next server we want to use. */
-  query->server = channel->last_server;
-  if (channel->rotate == 1)
-    channel->last_server = (channel->last_server + 1) % channel->nservers;
-
-  for (i = 0; i < channel->nservers; i++)
-    {
-      query->server_info[i].skip_server = 0;
-      query->server_info[i].tcp_connection_generation = 0;
-    }
-
   packetsz = (channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : PACKETSZ;
-  query->using_tcp = (channel->flags & ARES_FLAG_USEVC) || qlen > packetsz;
+  query->using_tcp =
+    (channel->flags & ARES_FLAG_USEVC) || query->qlen > packetsz;
 
-  query->error_status = ARES_ECONNREFUSED;
-  query->timeouts = 0;
+  query->error_status = ARES_SUCCESS;
+  query->timeouts     = 0;
 
   /* Initialize our list nodes. */
   query->node_queries_by_timeout = NULL;
   query->node_queries_to_conn    = NULL;
 
   /* Chain the query into the list of all queries. */
-  query->node_all_queries = ares__llist_insert_last(channel->all_queries, query);
+  query->node_all_queries =
+    ares__llist_insert_last(channel->all_queries, query);
   if (query->node_all_queries == NULL) {
-    callback(arg, ARES_ENOMEM, 0, NULL, 0);
+    callback(arg, ARES_ENOMEM, 0, NULL);
     ares__free_query(query);
     return ARES_ENOMEM;
   }
@@ -136,19 +129,90 @@ int ares_send_ex(ares_channel channel, const unsigned char *qbuf, int qlen,
   /* Keep track of queries bucketed by qid, so we can process DNS
    * responses quickly.
    */
-  if (!ares__htable_stvp_insert(channel->queries_by_qid, query->qid, query)) {
-    callback(arg, ARES_ENOMEM, 0, NULL, 0);
+  if (!ares__htable_szvp_insert(channel->queries_by_qid, query->qid, query)) {
+    callback(arg, ARES_ENOMEM, 0, NULL);
     ares__free_query(query);
     return ARES_ENOMEM;
   }
 
   /* Perform the first query action. */
-  now = ares__tvnow();
-  return ares__send_query(channel, query, &now);
+
+  status = ares__send_query(query, &now);
+  if (status == ARES_SUCCESS && qid) {
+    *qid = id;
+  }
+  return status;
 }
 
-void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
+ares_status_t ares_send_dnsrec(ares_channel_t          *channel,
+                               const ares_dns_record_t *dnsrec,
+                               ares_callback_dnsrec callback, void *arg,
+                               unsigned short *qid)
+{
+  ares_status_t status;
+
+  if (channel == NULL) {
+    return ARES_EFORMERR;
+  }
+
+  ares__channel_lock(channel);
+
+  status = ares_send_dnsrec_int(channel, dnsrec, callback, arg, qid);
+
+  ares__channel_unlock(channel);
+
+  return status;
+}
+
+void ares_send(ares_channel_t *channel, const unsigned char *qbuf, int qlen,
                ares_callback callback, void *arg)
 {
-  ares_send_ex(channel, qbuf, qlen, callback, arg);
+  ares_dns_record_t *dnsrec = NULL;
+  ares_status_t      status;
+  void              *carg = NULL;
+
+  if (channel == NULL) {
+    return;
+  }
+
+  /* Verify that the query is at least long enough to hold the header. */
+  if (qlen < HFIXEDSZ || qlen >= (1 << 16)) {
+    callback(arg, ARES_EBADQUERY, 0, NULL, 0);
+    return;
+  }
+
+  status = ares_dns_parse(qbuf, (size_t)qlen, 0, &dnsrec);
+  if (status != ARES_SUCCESS) {
+    callback(arg, (int)status, 0, NULL, 0);
+    return;
+  }
+
+  carg = ares__dnsrec_convert_arg(callback, arg);
+  if (carg == NULL) {
+    status = ARES_ENOMEM;
+    ares_dns_record_destroy(dnsrec);
+    callback(arg, (int)status, 0, NULL, 0);
+    return;
+  }
+
+  ares_send_dnsrec(channel, dnsrec, ares__dnsrec_convert_cb, carg, NULL);
+
+  ares_dns_record_destroy(dnsrec);
+}
+
+size_t ares_queue_active_queries(ares_channel_t *channel)
+{
+  size_t len;
+
+  if (channel == NULL) {
+    return 0;
+  }
+
+  ares__channel_lock(channel);
+
+  len = ares__llist_len(channel->all_queries);
+
+  ares__channel_unlock(channel);
+
+  return len;
 }

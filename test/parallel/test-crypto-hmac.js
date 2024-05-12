@@ -459,3 +459,13 @@ assert.strictEqual(
     crypto.createHmac('sha256', keyObject).update('foo').digest(),
   );
 }
+
+{
+  crypto.Hmac('sha256', 'Node');
+  common.expectWarning({
+    DeprecationWarning: [
+      ['crypto.Hmac constructor is deprecated.',
+       'DEP0181'],
+    ]
+  });
+}

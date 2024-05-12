@@ -775,3 +775,49 @@ const proxyWithNullPrototypeObject = new Proxy(objectToProxy, {
 });
 console.log(proxyWithNullPrototypeObject.someProperty); // genuine value
 ```
+
+### Checking if an object is an instance of a class
+
+#### Using `instanceof` looks up the `@@hasInstance` property of the class
+
+```js
+// User-land
+Object.defineProperty(Array, Symbol.hasInstance, {
+  __proto__: null,
+  value: () => true,
+});
+Object.defineProperty(Date, Symbol.hasInstance, {
+  __proto__: null,
+  value: () => false,
+});
+
+// Core
+const {
+  FunctionPrototypeSymbolHasInstance,
+} = primordials;
+
+console.log(new Date() instanceof Array); // true
+console.log(new Date() instanceof Date); // false
+
+console.log(FunctionPrototypeSymbolHasInstance(Array, new Date())); // false
+console.log(FunctionPrototypeSymbolHasInstance(Date, new Date())); // true
+```
+
+Even without user mutations, the result of `instanceof` can be deceiving when
+dealing with values from different realms:
+
+```js
+const vm = require('node:vm');
+
+console.log(vm.runInNewContext('[]') instanceof Array); // false
+console.log(vm.runInNewContext('[]') instanceof vm.runInNewContext('Array')); // false
+console.log([] instanceof vm.runInNewContext('Array')); // false
+
+console.log(Array.isArray(vm.runInNewContext('[]'))); // true
+console.log(vm.runInNewContext('Array').isArray(vm.runInNewContext('[]'))); // true
+console.log(vm.runInNewContext('Array').isArray([])); // true
+```
+
+In general, using `instanceof` (or `FunctionPrototypeSymbolHasInstance`) checks
+is not recommended, consider checking for the presence of properties or methods
+for more reliable results.
