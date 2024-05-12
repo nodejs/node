@@ -250,13 +250,17 @@ class HeadersList {
   get entries () {
     const headers = {}
 
-    if (this[kHeadersMap].size) {
+    if (this[kHeadersMap].size !== 0) {
       for (const { name, value } of this[kHeadersMap].values()) {
         headers[name] = value
       }
     }
 
     return headers
+  }
+
+  rawValues () {
+    return this[kHeadersMap].values()
   }
 
   get entriesList () {
