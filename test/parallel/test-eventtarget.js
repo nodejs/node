@@ -345,7 +345,9 @@ let asyncTest = Promise.resolve();
 {
   const target = new EventTarget();
   const event = new Event('foo');
+  strictEqual(event.cancelBubble, false);
   event.stopImmediatePropagation();
+  strictEqual(event.cancelBubble, true);
   target.addEventListener('foo', common.mustNotCall());
   target.dispatchEvent(event);
 }
