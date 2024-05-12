@@ -712,10 +712,10 @@ npm install -g git-secure-tag
 
 > Ensure to disable `--follow-tags` in your git settings using: `git config push.followTags false`
 
-If your GPG key is protected by a password, you might need to run:
+If your private key is protected by a passphrase, you might need to run:
 
-```console
-$ export GPG_TTY=$(tty)
+```bash
+export GPG_TTY=$(tty)
 ```
 
 before creating the tag.
