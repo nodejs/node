@@ -603,7 +603,8 @@ function printSkipMessage(msg) {
 
 function skip(msg) {
   printSkipMessage(msg);
-  process.exit(0);
+  // In known_issues test, skipping should produce a non-zero exit code.
+  process.exit(require.main?.filename.startsWith(path.resolve(__dirname, '../known_issues/')) ? 1 : 0);
 }
 
 // Returns true if the exit code "exitCode" and/or signal name "signal"
