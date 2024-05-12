@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-24 01:28:18 -0400. Do not edit! */
+/* auto-generated on 2024-05-07 22:33:11 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -594,7 +594,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "5.2.6"
+#define SIMDUTF_VERSION "5.2.8"
 
 namespace simdutf {
 enum {
@@ -609,7 +609,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 6
+  SIMDUTF_VERSION_REVISION = 8
 };
 } // namespace simdutf
 
@@ -682,6 +682,17 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+// RISC-V ISA detection utilities
+#if SIMDUTF_IS_RISCV64 && defined(__linux__)
+#include <unistd.h> // for syscall
+// We define these ourselves, for backwards compatibility
+struct simdutf_riscv_hwprobe { int64_t key; uint64_t value; };
+#define simdutf_riscv_hwprobe(...) syscall(258, __VA_ARGS__)
+#define SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0 4
+#define SIMDUTF_RISCV_HWPROBE_IMA_V    (1 << 2)
+#define SIMDUTF_RISCV_HWPROBE_EXT_ZVBB (1 << 17)
+#endif // SIMDUTF_IS_RISCV64 && defined(__linux__)
+
 namespace simdutf {
 namespace internal {
 
@@ -715,17 +726,6 @@ static inline uint32_t detect_supported_architectures() {
 }
 
 #elif SIMDUTF_IS_RISCV64
-
-#if defined(__linux__)
-
-#include <unistd.h>
-// We define these our selfs, for backwards compatibility
-struct simdutf_riscv_hwprobe { int64_t key; uint64_t value; };
-#define simdutf_riscv_hwprobe(...) syscall(258, __VA_ARGS__)
-#define SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0 4
-#define SIMDUTF_RISCV_HWPROBE_IMA_V    (1 << 2)
-#define SIMDUTF_RISCV_HWPROBE_EXT_ZVBB (1 << 17)
-#endif
 
 static inline uint32_t detect_supported_architectures() {
   uint32_t host_isa = instruction_set::DEFAULT;
@@ -2374,7 +2374,7 @@ simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_optio
  * @param length        the length of the input in bytes
  * @param output        the pointer to buffer that can hold the conversion result (should be at least base64_length_from_binary(length) bytes long)
  * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
- * @return number of written bytes, will be equal to base64_length_from_binary(length)
+ * @return number of written bytes, will be equal to base64_length_from_binary(length, options)
  */
 size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options = base64_default) noexcept;
 
@@ -3599,7 +3599,7 @@ public:
    * @param length        the length of the input in bytes
    * @param output        the pointer to buffer that can hold the conversion result (should be at least base64_length_from_binary(length) bytes long)
    * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
-   * @return number of written bytes, will be equal to base64_length_from_binary(length)
+   * @return number of written bytes, will be equal to base64_length_from_binary(length, options)
    */
   virtual size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options = base64_default) const noexcept = 0;
 
