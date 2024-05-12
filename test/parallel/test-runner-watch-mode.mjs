@@ -1,6 +1,7 @@
 // Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import { describe, it } from 'node:test';
+import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import util from 'internal/util';
@@ -36,21 +37,33 @@ async function testWatch({ fileToUpdate, file }) {
                       ['--watch', '--test', file ? fixturePaths[file] : undefined].filter(Boolean),
                       { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
   let stdout = '';
+  let currentRun = '';
+  const runs = [];
 
   child.stdout.on('data', (data) => {
     stdout += data.toString();
-    const testRuns = stdout.match(/ - test has ran/g);
+    currentRun += data.toString();
+    const testRuns = stdout.match(/# duration_ms\s\d+/g);
     if (testRuns?.length >= 1) ran1.resolve();
     if (testRuns?.length >= 2) ran2.resolve();
   });
 
   await ran1.promise;
+  runs.push(currentRun);
+  currentRun = '';
   const content = fixtureContent[fileToUpdate];
   const path = fixturePaths[fileToUpdate];
   const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
   await ran2.promise;
+  runs.push(currentRun);
   clearInterval(interval);
   child.kill();
+  for (const run of runs) {
+    assert.match(run, /# tests 1/);
+    assert.match(run, /# pass 1/);
+    assert.match(run, /# fail 0/);
+    assert.match(run, /# cancelled 0/);
+  }
 }
 
 describe('test runner watch mode', () => {
