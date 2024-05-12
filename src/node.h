@@ -657,7 +657,11 @@ enum Flags : uint64_t {
   // This control is needed by embedders who may not want to initialize the V8
   // inspector in situations where one has already been created,
   // e.g. Blink's in Chromium.
-  kNoCreateInspector = 1 << 9
+  kNoCreateInspector = 1 << 9,
+  // Controls where or not the InspectorAgent for this Environment should
+  // call StartDebugSignalHandler.  This control is needed by embedders who may
+  // not want to allow other processes to start the V8 inspector.
+  kNoStartDebugSignalHandler = 1 << 10
 };
 }  // namespace EnvironmentFlags
 
