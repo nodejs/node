@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-24 01:28:18 -0400. Do not edit! */
+/* auto-generated on 2024-05-07 22:33:11 -0400. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -1031,9 +1031,9 @@ namespace {
       return vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(*this), 4)), 0);
     }
 
-    simdutf_really_inline bool any() const { return vmaxvq_u8(*this) != 0; }
-    simdutf_really_inline bool none() const { return vmaxvq_u8(*this) == 0; }
-    simdutf_really_inline bool all() const { return vminvq_u8(*this) == 0xFF; }
+    simdutf_really_inline bool any() const { return vmaxvq_u32(vreinterpretq_u32_u8(*this)) != 0; }
+    simdutf_really_inline bool none() const { return vmaxvq_u32(vreinterpretq_u32_u8(*this)) == 0; }
+    simdutf_really_inline bool all() const { return vminvq_u32(vreinterpretq_u32_u8(*this)) == 0xFFFFF; }
 
 
   };
@@ -2481,10 +2481,10 @@ namespace simd {
   struct simd8<bool>: base8<bool> {
     static simdutf_really_inline simd8<bool> splat(bool _value) { return _mm256_set1_epi8(uint8_t(-(!!_value))); }
 
-    simdutf_really_inline simd8<bool>() : base8() {}
-    simdutf_really_inline simd8<bool>(const __m256i _value) : base8<bool>(_value) {}
+    simdutf_really_inline simd8() : base8() {}
+    simdutf_really_inline simd8(const __m256i _value) : base8<bool>(_value) {}
     // Splat constructor
-    simdutf_really_inline simd8<bool>(bool _value) : base8<bool>(splat(_value)) {}
+    simdutf_really_inline simd8(bool _value) : base8<bool>(splat(_value)) {}
 
     simdutf_really_inline uint32_t to_bitmask() const { return uint32_t(_mm256_movemask_epi8(*this)); }
     simdutf_really_inline bool any() const { return !_mm256_testz_si256(*this, *this); }
@@ -3409,10 +3409,10 @@ namespace simd {
   struct simd8<bool>: base8<bool> {
     static simdutf_really_inline simd8<bool> splat(bool _value) { return _mm_set1_epi8(uint8_t(-(!!_value))); }
 
-    simdutf_really_inline simd8<bool>() : base8() {}
-    simdutf_really_inline simd8<bool>(const __m128i _value) : base8<bool>(_value) {}
+    simdutf_really_inline simd8() : base8() {}
+    simdutf_really_inline simd8(const __m128i _value) : base8<bool>(_value) {}
     // Splat constructor
-    simdutf_really_inline simd8<bool>(bool _value) : base8<bool>(splat(_value)) {}
+    simdutf_really_inline simd8(bool _value) : base8<bool>(splat(_value)) {}
 
     simdutf_really_inline int to_bitmask() const { return _mm_movemask_epi8(*this); }
     simdutf_really_inline bool any() const { return !_mm_testz_si128(*this, *this); }
@@ -4319,11 +4319,11 @@ template <> struct simd8<bool> : base8<bool> {
     return (__m128i)vec_splats((unsigned char)(-(!!_value)));
   }
 
-  simdutf_really_inline simd8<bool>() : base8() {}
-  simdutf_really_inline simd8<bool>(const __m128i _value)
+  simdutf_really_inline simd8() : base8() {}
+  simdutf_really_inline simd8(const __m128i _value)
       : base8<bool>(_value) {}
   // Splat constructor
-  simdutf_really_inline simd8<bool>(bool _value)
+  simdutf_really_inline simd8(bool _value)
       : base8<bool>(splat(_value)) {}
 
   simdutf_really_inline int to_bitmask() const {
