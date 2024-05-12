@@ -21,7 +21,7 @@ std::string WildcardIfDir(const std::string& res) noexcept {
   int rc = uv_fs_stat(nullptr, &req, res.c_str(), nullptr);
   if (rc == 0) {
     const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    if (s->st_mode & S_IFDIR) {
+    if ((s->st_mode & S_IFMT) == S_IFDIR) {
       // add wildcard when directory
       if (res.back() == node::kPathSeparator) {
         return res + "*";
