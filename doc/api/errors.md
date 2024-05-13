@@ -3375,7 +3375,7 @@ An import attribute is not supported by this version of Node.js.
 ### `ERR_MANIFEST_ASSERT_INTEGRITY`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 An attempt was made to load a resource, but the resource did not match the
@@ -3387,7 +3387,7 @@ manifests for more information.
 ### `ERR_MANIFEST_DEPENDENCY_MISSING`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 An attempt was made to load a resource, but the resource was not listed as a
@@ -3399,7 +3399,7 @@ for policy manifests for more information.
 ### `ERR_MANIFEST_INTEGRITY_MISMATCH`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 An attempt was made to load a policy manifest, but the manifest had multiple
@@ -3412,7 +3412,7 @@ policy manifests for more information.
 ### `ERR_MANIFEST_INVALID_RESOURCE_FIELD`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 A policy manifest resource had an invalid value for one of its fields. Update
@@ -3424,7 +3424,7 @@ documentation for policy manifests for more information.
 ### `ERR_MANIFEST_INVALID_SPECIFIER`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 A policy manifest resource had an invalid value for one of its dependency
@@ -3436,7 +3436,7 @@ documentation for policy manifests for more information.
 ### `ERR_MANIFEST_PARSE_POLICY`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 An attempt was made to load a policy manifest, but the manifest was unable to
@@ -3447,7 +3447,7 @@ be parsed. See the documentation for policy manifests for more information.
 ### `ERR_MANIFEST_TDZ`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 An attempt was made to read from a policy manifest, but the manifest
@@ -3458,7 +3458,7 @@ initialization has not yet taken place. This is likely a bug in Node.js.
 ### `ERR_MANIFEST_UNKNOWN_ONERROR`
 
 <!-- YAML
-removed: REPLACEME
+removed: v22.2.0
 -->
 
 A policy manifest was loaded, but had an unknown value for its "onerror"

@@ -253,7 +253,7 @@ added:
   - v18.2.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v22.2.0
     pr-url: https://github.com/nodejs/node/pull/51589
     description: Added bodyInfo, responseStatus, and deliveryType arguments.
 -->
