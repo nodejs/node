@@ -1245,13 +1245,13 @@ static void hd_context_shrink_table_size(nghttp2_hd_context *context,
 
 int nghttp2_hd_deflate_change_table_size(
     nghttp2_hd_deflater *deflater, size_t settings_max_dynamic_table_size) {
-  size_t next_bufsize = nghttp2_min(settings_max_dynamic_table_size,
-                                    deflater->deflate_hd_table_bufsize_max);
+  size_t next_bufsize = nghttp2_min_size(
+      settings_max_dynamic_table_size, deflater->deflate_hd_table_bufsize_max);
 
   deflater->ctx.hd_table_bufsize_max = next_bufsize;
 
   deflater->min_hd_table_bufsize_max =
-      nghttp2_min(deflater->min_hd_table_bufsize_max, next_bufsize);
+      nghttp2_min_size(deflater->min_hd_table_bufsize_max, next_bufsize);
 
   deflater->notify_table_size_change = 1;
 
@@ -1738,7 +1738,7 @@ static nghttp2_ssize hd_inflate_read_huff(nghttp2_hd_inflater *inflater,
 static nghttp2_ssize hd_inflate_read(nghttp2_hd_inflater *inflater,
                                      nghttp2_buf *buf, const uint8_t *in,
                                      const uint8_t *last) {
-  size_t len = nghttp2_min((size_t)(last - in), inflater->left);
+  size_t len = nghttp2_min_size((size_t)(last - in), inflater->left);
 
   buf->last = nghttp2_cpymem(buf->last, in, len);
 
@@ -1962,8 +1962,8 @@ nghttp2_ssize nghttp2_hd_inflate_hd_nv(nghttp2_hd_inflater *inflater,
       rfin = 0;
       rv = hd_inflate_read_len(
           inflater, &rfin, in, last, 5,
-          nghttp2_min(inflater->min_hd_table_bufsize_max,
-                      inflater->settings_hd_table_bufsize_max));
+          nghttp2_min_size(inflater->min_hd_table_bufsize_max,
+                           inflater->settings_hd_table_bufsize_max));
       if (rv < 0) {
         goto fail;
       }
