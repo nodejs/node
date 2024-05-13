@@ -28,6 +28,11 @@
                   'xcode_settings': {
                     'OTHER_CFLAGS': [ '-mssse3' ],
                   },
+                  'msvs_settings': {
+                    'VCCLCompilerTool': {
+                      'AdditionalOptions': [ '-mssse3' ],
+                    },
+                  },
                 }],
               ],
             }],
