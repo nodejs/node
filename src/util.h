@@ -37,6 +37,7 @@
 #include <cstring>
 
 #include <array>
+#include <bit>
 #include <limits>
 #include <memory>
 #include <set>
@@ -778,24 +779,16 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
         .Check();                                                              \
   } while (0)
 
-enum class Endianness { LITTLE, BIG };
-
-inline Endianness GetEndianness() {
-  // Constant-folded by the compiler.
-  const union {
-    uint8_t u8[2];
-    uint16_t u16;
-  } u = {{1, 0}};
-  return u.u16 == 1 ? Endianness::LITTLE : Endianness::BIG;
+constexpr inline bool IsLittleEndian() {
+  return std::endian::native == std::endian::little;
 }
 
-inline bool IsLittleEndian() {
-  return GetEndianness() == Endianness::LITTLE;
+constexpr inline bool IsBigEndian() {
+  return std::endian::native == std::endian::big;
 }
 
-inline bool IsBigEndian() {
-  return GetEndianness() == Endianness::BIG;
-}
+static_assert(IsLittleEndian() || IsBigEndian(),
+              "Node.js does not support mixed-endian systems");
 
 // Round up a to the next highest multiple of b.
 template <typename T>

@@ -2285,10 +2285,12 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
       auto ext = string->GetExternalOneByteStringResource();
       buf = const_cast<char*>(ext->data());
       len = ext->length();
-    } else if (enc == UCS2 && IsLittleEndian() && string->IsExternalTwoByte()) {
-      auto ext = string->GetExternalStringResource();
-      buf = reinterpret_cast<char*>(const_cast<uint16_t*>(ext->data()));
-      len = ext->length() * sizeof(*ext->data());
+    } else if (enc == UCS2 && string->IsExternalTwoByte()) {
+      if constexpr (IsLittleEndian()) {
+        auto ext = string->GetExternalStringResource();
+        buf = reinterpret_cast<char*>(const_cast<uint16_t*>(ext->data()));
+        len = ext->length() * sizeof(*ext->data());
+      }
     }
   }
 
