@@ -160,6 +160,11 @@
           # -Wno-invalid-offsetof
           'GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO': 'NO',
         },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': ['-Wno-invalid-offsetof'],
+          },
+        },
       }],
       ['v8_target_arch=="arm"', {
         'defines': [
@@ -536,6 +541,7 @@
           'WIN32',
           'NOMINMAX',  # Refs: https://chromium-review.googlesource.com/c/v8/v8/+/1456620
           '_WIN32_WINNT=0x0602',  # Windows 8
+          '_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS',
         ],
         # 4351: VS 2005 and later are warning us that they've fixed a bug
         #       present in VS 2003 and earlier.
