@@ -2986,7 +2986,7 @@ The name of the test.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.2.0
 -->
 
 > Stability: 1 - Experimental
