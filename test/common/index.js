@@ -325,6 +325,10 @@ if (global.structuredClone) {
   knownGlobals.push(global.structuredClone);
 }
 
+if (global.EventSource) {
+  knownGlobals.push(EventSource);
+}
+
 if (global.fetch) {
   knownGlobals.push(fetch);
 }
