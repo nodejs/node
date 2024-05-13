@@ -568,7 +568,7 @@ vm.measureMemory();
 ### `--disable-wasm-trap-handler`
 
 <!-- YAML
-added: REPLACEME
+added: v22.2.0
 -->
 
 By default, Node.js enables trap-handler-based WebAssembly bound
@@ -1337,7 +1337,7 @@ endpoint on `http://host:port/json/list`.
 ### `--inspect-wait[=[host:]port]`
 
 <!-- YAML
-added: REPLACEME
+added: v22.2.0
 -->
 
 Activate inspector on `host:port` and wait for debugger to be attached.
