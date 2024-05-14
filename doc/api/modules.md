@@ -405,8 +405,13 @@ always return the built in HTTP module, even if there is `require.cache` entry
 by that name.
 
 Some core modules are always preferentially loaded if their identifier is
-passed to `require()`. For instance, `require('http')` will always
-return the built-in HTTP module, even if there is a file by that name. The list
+passed to `require()`. For instance, `require('http')` will 
+return the built-in HTTP module, even if there is a file by that name. However, 
+note that core modules specified without the `node:` prefix are served from the 
+cache if an entry for the module exists. Because cache entries can be manually 
+altered by modifying the `require.cache `object, this allows the module's 
+implementation to be replaced. To ensure `require() ` returns the original 
+implementation, use the `node:` prefix. The list
 of core modules that can be loaded without using the `node:` prefix is exposed
 as [`module.builtinModules`][].
 
