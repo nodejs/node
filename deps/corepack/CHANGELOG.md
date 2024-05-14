@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.28.1](https://github.com/nodejs/corepack/compare/v0.28.0...v0.28.1) (2024-05-10)
+
+
+### Features
+
+* add support for `COREPACK_INTEGRITY_KEYS=0` ([#470](https://github.com/nodejs/corepack/issues/470)) ([f15ebc2](https://github.com/nodejs/corepack/commit/f15ebc289ebcd6a86580f15ae3c4ef0e1be37c4b))
+* update package manager versions ([#469](https://github.com/nodejs/corepack/issues/469)) ([985895b](https://github.com/nodejs/corepack/commit/985895bccb5ec68b3645c540d8500c572e1ccadb))
+
+
+### Bug Fixes
+
+* COREPACK_NPM_REGISTRY should allow for username/password auth ([#466](https://github.com/nodejs/corepack/issues/466)) ([6efa349](https://github.com/nodejs/corepack/commit/6efa34988229918debe6e881d45ba6715282f283))
+
 ## [0.28.0](https://github.com/nodejs/corepack/compare/v0.27.0...v0.28.0) (2024-04-20)
 
 

@@ -296,8 +296,9 @@ same major line. Should you need to upgrade to a new major, use an explicit
 - `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` are supported through
   [`node-proxy-agent`](https://github.com/TooTallNate/node-proxy-agent).
 
-- `COREPACK_INTEGRITY_KEYS` can be set to an empty string to instruct Corepack
-  to skip integrity checks, or a JSON string containing custom keys.
+- `COREPACK_INTEGRITY_KEYS` can be set to an empty string or `0` to
+  instruct Corepack to skip integrity checks, or to a JSON string containing
+  custom keys.
 
 ## Troubleshooting
 
