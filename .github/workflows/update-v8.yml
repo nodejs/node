@@ -35,22 +35,23 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install @node-core/utils
         run: npm install -g @node-core/utils
+      - name: Setup Git config
+        run: |
+          git config --global user.name "Node.js GitHub Bot"
+          git config --global user.email "github-bot@iojs.org"
       - name: Check and download new V8 version
         run: |
             ./tools/dep_updaters/update-v8-patch.sh > temp-output
             cat temp-output
             tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
             rm temp-output
-      - uses: gr2m/create-or-update-pull-request-action@86ec1766034c8173518f61d2075cc2a173fb8c97  # v1.9.4
+      - uses: peter-evans/create-pull-request@6d6857d36972b65feb161a90e484f2984215f83e  # v6.0.5
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
-          author: Node.js GitHub Bot <github-bot@iojs.org>
-          body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
+          token: ${{ secrets.GH_USER_TOKEN }}
           branch: actions/update-v8-patch  # Custom branch *just* for this Action.
-          commit-message: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
-          labels: v8 engine
+          delete-branch: true
           title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
-          update-pull-request-title-and-body: true
+          body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
+          labels: v8 engine
