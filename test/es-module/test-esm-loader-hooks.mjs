@@ -751,15 +751,15 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
       '--no-warnings',
       '--experimental-loader',
       `data:text/javascript,import{readFile}from"node:fs/promises";import{fileURLToPath}from"node:url";export ${
-        async function load(u, c, n) {
-          const r = await n(u, c);
-          if (u.endsWith('/common/index.js')) {
-            r.source = '"use strict";module.exports=require("node:module").createRequire(' +
-                     `${JSON.stringify(u)})(${JSON.stringify(fileURLToPath(u))});\n`;
-          } else if (c.format === 'commonjs') {
-            r.source = await readFile(new URL(u));
+        async function load(url, context, nextLoad) {
+          const resolved = await nextLoad(url, context);
+          if (url.endsWith('/common/index.js')) {
+            resolved.source = '"use strict";module.exports=require("node:module").createRequire(' +
+                     `${JSON.stringify(url)})(${JSON.stringify(fileURLToPath(url))});\n`;
+          } else if (context.format === 'commonjs' || context.format === null) {
+            resolved.source = await readFile(new URL(url));
           }
-          return r;
+          return resolved;
         }}`,
       '--experimental-loader',
       fixtures.fileURL('es-module-loaders/loader-resolve-passthru.mjs'),
