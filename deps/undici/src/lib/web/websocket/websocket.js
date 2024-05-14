@@ -2,8 +2,8 @@
 
 const { webidl } = require('../fetch/webidl')
 const { URLSerializer } = require('../fetch/data-url')
-const { getGlobalOrigin } = require('../fetch/global')
-const { staticPropertyDescriptors, states, sentCloseFrameState, opcodes, emptyBuffer } = require('./constants')
+const { environmentSettingsObject } = require('../fetch/util')
+const { staticPropertyDescriptors, states, sentCloseFrameState, opcodes } = require('./constants')
 const {
   kWebSocketURL,
   kReadyState,
@@ -16,20 +16,21 @@ const {
 const {
   isConnecting,
   isEstablished,
-  isClosed,
   isClosing,
   isValidSubprotocol,
-  failWebsocketConnection,
   fireEvent
 } = require('./util')
-const { establishWebSocketConnection } = require('./connection')
+const { establishWebSocketConnection, closeWebSocketConnection } = require('./connection')
 const { WebsocketFrameSend } = require('./frame')
 const { ByteParser } = require('./receiver')
 const { kEnumerableProperty, isBlobLike } = require('../../core/util')
 const { getGlobalDispatcher } = require('../../global')
 const { types } = require('node:util')
+const { ErrorEvent } = require('./events')
 
 let experimentalWarned = false
+
+const FastBuffer = Buffer[Symbol.species]
 
 // https://websockets.spec.whatwg.org/#interface-definition
 class WebSocket extends EventTarget {
@@ -67,7 +68,7 @@ class WebSocket extends EventTarget {
     protocols = options.protocols
 
     // 1. Let baseURL be this's relevant settings object's API base URL.
-    const baseURL = getGlobalOrigin()
+    const baseURL = environmentSettingsObject.settingsObject.baseUrl
 
     // 1. Let urlRecord be the result of applying the URL parser to url with baseURL.
     let urlRecord
@@ -123,6 +124,7 @@ class WebSocket extends EventTarget {
     this[kWebSocketURL] = new URL(urlRecord.href)
 
     // 11. Let client be this's relevant settings object.
+    const client = environmentSettingsObject.settingsObject
 
     // 12. Run this step in parallel:
 
@@ -131,6 +133,7 @@ class WebSocket extends EventTarget {
     this[kController] = establishWebSocketConnection(
       urlRecord,
       protocols,
+      client,
       this,
       (response) => this.#onConnectionEstablished(response),
       options
@@ -197,67 +200,7 @@ class WebSocket extends EventTarget {
     }
 
     // 3. Run the first matching steps from the following list:
-    if (isClosing(this) || isClosed(this)) {
-      // If this's ready state is CLOSING (2) or CLOSED (3)
-      // Do nothing.
-    } else if (!isEstablished(this)) {
-      // If the WebSocket connection is not yet established
-      // Fail the WebSocket connection and set this's ready state
-      // to CLOSING (2).
-      failWebsocketConnection(this, 'Connection was closed before it was established.')
-      this[kReadyState] = WebSocket.CLOSING
-    } else if (this[kSentClose] === sentCloseFrameState.NOT_SENT) {
-      // If the WebSocket closing handshake has not yet been started
-      // Start the WebSocket closing handshake and set this's ready
-      // state to CLOSING (2).
-      // - If neither code nor reason is present, the WebSocket Close
-      //   message must not have a body.
-      // - If code is present, then the status code to use in the
-      //   WebSocket Close message must be the integer given by code.
-      // - If reason is also present, then reasonBytes must be
-      //   provided in the Close message after the status code.
-
-      this[kSentClose] = sentCloseFrameState.PROCESSING
-
-      const frame = new WebsocketFrameSend()
-
-      // If neither code nor reason is present, the WebSocket Close
-      // message must not have a body.
-
-      // If code is present, then the status code to use in the
-      // WebSocket Close message must be the integer given by code.
-      if (code !== undefined && reason === undefined) {
-        frame.frameData = Buffer.allocUnsafe(2)
-        frame.frameData.writeUInt16BE(code, 0)
-      } else if (code !== undefined && reason !== undefined) {
-        // If reason is also present, then reasonBytes must be
-        // provided in the Close message after the status code.
-        frame.frameData = Buffer.allocUnsafe(2 + reasonByteLength)
-        frame.frameData.writeUInt16BE(code, 0)
-        // the body MAY contain UTF-8-encoded data with value /reason/
-        frame.frameData.write(reason, 2, 'utf-8')
-      } else {
-        frame.frameData = emptyBuffer
-      }
-
-      /** @type {import('stream').Duplex} */
-      const socket = this[kResponse].socket
-
-      socket.write(frame.createFrame(opcodes.CLOSE), (err) => {
-        if (!err) {
-          this[kSentClose] = sentCloseFrameState.SENT
-        }
-      })
-
-      // Upon either sending or receiving a Close control frame, it is said
-      // that _The WebSocket Closing Handshake is Started_ and that the
-      // WebSocket connection is in the CLOSING state.
-      this[kReadyState] = states.CLOSING
-    } else {
-      // Otherwise
-      // Set this's ready state to CLOSING (2).
-      this[kReadyState] = WebSocket.CLOSING
-    }
+    closeWebSocketConnection(this, code, reason, reasonByteLength)
   }
 
   /**
@@ -323,7 +266,7 @@ class WebSocket extends EventTarget {
       // increase the bufferedAmount attribute by the length of the
       // ArrayBuffer in bytes.
 
-      const value = Buffer.from(data)
+      const value = new FastBuffer(data)
       const frame = new WebsocketFrameSend(value)
       const buffer = frame.createFrame(opcodes.BINARY)
 
@@ -344,7 +287,7 @@ class WebSocket extends EventTarget {
       // not throw an exception must increase the bufferedAmount attribute
       // by the length of data’s buffer in bytes.
 
-      const ab = Buffer.from(data, data.byteOffset, data.byteLength)
+      const ab = new FastBuffer(data, data.byteOffset, data.byteLength)
 
       const frame = new WebsocketFrameSend(ab)
       const buffer = frame.createFrame(opcodes.BINARY)
@@ -368,7 +311,7 @@ class WebSocket extends EventTarget {
       const frame = new WebsocketFrameSend()
 
       data.arrayBuffer().then((ab) => {
-        const value = Buffer.from(ab)
+        const value = new FastBuffer(ab)
         frame.frameData = value
         const buffer = frame.createFrame(opcodes.BINARY)
 
@@ -521,9 +464,8 @@ class WebSocket extends EventTarget {
     this[kResponse] = response
 
     const parser = new ByteParser(this)
-    parser.on('drain', function onParserDrain () {
-      this.ws[kResponse].socket.resume()
-    })
+    parser.on('drain', onParserDrain)
+    parser.on('error', onParserError.bind(this))
 
     response.socket.ws = this
     this[kByteParser] = parser
@@ -607,7 +549,7 @@ webidl.converters['DOMString or sequence<DOMString>'] = function (V, prefix, arg
   return webidl.converters.DOMString(V, prefix, argument)
 }
 
-// This implements the propsal made in https://github.com/whatwg/websockets/issues/42
+// This implements the proposal made in https://github.com/whatwg/websockets/issues/42
 webidl.converters.WebSocketInit = webidl.dictionaryConverter([
   {
     key: 'protocols',
@@ -645,6 +587,16 @@ webidl.converters.WebSocketSendData = function (V) {
   }
 
   return webidl.converters.USVString(V)
+}
+
+function onParserDrain () {
+  this.ws[kResponse].socket.resume()
+}
+
+function onParserError (err) {
+  fireEvent('error', this, () => new ErrorEvent('error', { error: err, message: err.reason }))
+
+  closeWebSocketConnection(this, err.code)
 }
 
 module.exports = {
