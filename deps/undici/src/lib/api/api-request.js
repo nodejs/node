@@ -2,11 +2,10 @@
 
 const assert = require('node:assert')
 const { Readable } = require('./readable')
-const { InvalidArgumentError } = require('../core/errors')
+const { InvalidArgumentError, RequestAbortedError } = require('../core/errors')
 const util = require('../core/util')
 const { getResolveErrorBodyCallback } = require('./util')
 const { AsyncResource } = require('node:async_hooks')
-const { addSignal, removeSignal } = require('./abort-signal')
 
 class RequestHandler extends AsyncResource {
   constructor (opts, callback) {
@@ -45,6 +44,7 @@ class RequestHandler extends AsyncResource {
       throw err
     }
 
+    this.method = method
     this.responseHeaders = responseHeaders || null
     this.opaque = opaque || null
     this.callback = callback
@@ -56,6 +56,9 @@ class RequestHandler extends AsyncResource {
     this.onInfo = onInfo || null
     this.throwOnError = throwOnError
     this.highWaterMark = highWaterMark
+    this.signal = signal
+    this.reason = null
+    this.removeAbortListener = null
 
     if (util.isStream(body)) {
       body.on('error', (err) => {
@@ -63,7 +66,26 @@ class RequestHandler extends AsyncResource {
       })
     }
 
-    addSignal(this, signal)
+    if (this.signal) {
+      if (this.signal.aborted) {
+        this.reason = this.signal.reason ?? new RequestAbortedError()
+      } else {
+        this.removeAbortListener = util.addAbortListener(this.signal, () => {
+          this.reason = this.signal.reason ?? new RequestAbortedError()
+          if (this.res) {
+            util.destroy(this.res, this.reason)
+          } else if (this.abort) {
+            this.abort(this.reason)
+          }
+
+          if (this.removeAbortListener) {
+            this.res?.off('close', this.removeAbortListener)
+            this.removeAbortListener()
+            this.removeAbortListener = null
+          }
+        })
+      }
+    }
   }
 
   onConnect (abort, context) {
@@ -93,14 +115,26 @@ class RequestHandler extends AsyncResource {
     const parsedHeaders = responseHeaders === 'raw' ? util.parseHeaders(rawHeaders) : headers
     const contentType = parsedHeaders['content-type']
     const contentLength = parsedHeaders['content-length']
-    const body = new Readable({ resume, abort, contentType, contentLength, highWaterMark })
+    const res = new Readable({
+      resume,
+      abort,
+      contentType,
+      contentLength: this.method !== 'HEAD' && contentLength
+        ? Number(contentLength)
+        : null,
+      highWaterMark
+    })
+
+    if (this.removeAbortListener) {
+      res.on('close', this.removeAbortListener)
+    }
 
     this.callback = null
-    this.res = body
+    this.res = res
     if (callback !== null) {
       if (this.throwOnError && statusCode >= 400) {
         this.runInAsyncScope(getResolveErrorBodyCallback, null,
-          { callback, body, contentType, statusCode, statusMessage, headers }
+          { callback, body: res, contentType, statusCode, statusMessage, headers }
         )
       } else {
         this.runInAsyncScope(callback, null, null, {
@@ -108,7 +142,7 @@ class RequestHandler extends AsyncResource {
           headers,
           trailers: this.trailers,
           opaque,
-          body,
+          body: res,
           context
         })
       }
@@ -116,24 +150,16 @@ class RequestHandler extends AsyncResource {
   }
 
   onData (chunk) {
-    const { res } = this
-    return res.push(chunk)
+    return this.res.push(chunk)
   }
 
   onComplete (trailers) {
-    const { res } = this
-
-    removeSignal(this)
-
     util.parseHeaders(trailers, this.trailers)
-
-    res.push(null)
+    this.res.push(null)
   }
 
   onError (err) {
     const { res, callback, body, opaque } = this
-
-    removeSignal(this)
 
     if (callback) {
       // TODO: Does this need queueMicrotask?
@@ -154,6 +180,12 @@ class RequestHandler extends AsyncResource {
     if (body) {
       this.body = null
       util.destroy(body, err)
+    }
+
+    if (this.removeAbortListener) {
+      res?.off('close', this.removeAbortListener)
+      this.removeAbortListener()
+      this.removeAbortListener = null
     }
   }
 }

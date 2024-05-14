@@ -6,6 +6,7 @@ const { kReadyState, kSentClose, kResponse, kReceivedClose } = require('./symbol
 const { channels } = require('../../core/diagnostics')
 const { isValidStatusCode, failWebsocketConnection, websocketMessageReceived, utf8Decode } = require('./util')
 const { WebsocketFrameSend } = require('./frame')
+const { CloseEvent } = require('./events')
 
 // This code was influenced by ws released under the MIT license.
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
@@ -55,6 +56,12 @@ class ByteParser extends Writable {
 
         this.#info.fin = (buffer[0] & 0x80) !== 0
         this.#info.opcode = buffer[0] & 0x0F
+        this.#info.masked = (buffer[1] & 0x80) === 0x80
+
+        if (this.#info.masked) {
+          failWebsocketConnection(this.ws, 'Frame cannot be masked')
+          return callback()
+        }
 
         // If we receive a fragmented message, we use the type of the first
         // frame to parse the full message as binary/text, when it's terminated
@@ -101,6 +108,13 @@ class ByteParser extends Writable {
           const body = this.consume(payloadLength)
 
           this.#info.closeInfo = this.parseCloseBody(body)
+
+          if (this.#info.closeInfo.error) {
+            const { code, reason } = this.#info.closeInfo
+
+            callback(new CloseEvent('close', { wasClean: false, reason, code }))
+            return
+          }
 
           if (this.ws[kSentClose] !== sentCloseFrameState.SENT) {
             // If an endpoint receives a Close frame and did not previously send a
@@ -198,7 +212,7 @@ class ByteParser extends Writable {
         const buffer = this.consume(8)
         const upper = buffer.readUInt32BE(0)
 
-        // 2^31 is the maxinimum bytes an arraybuffer can contain
+        // 2^31 is the maximum bytes an arraybuffer can contain
         // on 32-bit systems. Although, on 64-bit systems, this is
         // 2^53-1 bytes.
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length
@@ -239,7 +253,7 @@ class ByteParser extends Writable {
         }
       }
 
-      if (this.#byteOffset === 0) {
+      if (this.#byteOffset === 0 && this.#info.payloadLength !== 0) {
         callback()
         break
       }
@@ -300,6 +314,10 @@ class ByteParser extends Writable {
       code = data.readUInt16BE(0)
     }
 
+    if (code !== undefined && !isValidStatusCode(code)) {
+      return { code: 1002, reason: 'Invalid status code', error: true }
+    }
+
     // https://datatracker.ietf.org/doc/html/rfc6455#section-7.1.6
     /** @type {Buffer} */
     let reason = data.subarray(2)
@@ -309,17 +327,13 @@ class ByteParser extends Writable {
       reason = reason.subarray(3)
     }
 
-    if (code !== undefined && !isValidStatusCode(code)) {
-      return null
-    }
-
     try {
       reason = utf8Decode(reason)
     } catch {
-      return null
+      return { code: 1007, reason: 'Invalid UTF-8', error: true }
     }
 
-    return { code, reason }
+    return { code, reason, error: false }
   }
 
   get closingInfo () {
