@@ -99,10 +99,15 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
       EVP_PKEY_sign(pkctx.get(), static_cast<unsigned char*>(sig->Data()),
                     &sig_len, m, m_len)) {
     CHECK_LE(sig_len, sig->ByteLength());
-    if (sig_len == 0)
+    if (sig_len == 0) {
       sig = ArrayBuffer::NewBackingStore(env->isolate(), 0);
-    else
-      sig = BackingStore::Reallocate(env->isolate(), std::move(sig), sig_len);
+    } else if (sig_len != sig->ByteLength()) {
+      std::unique_ptr<BackingStore> old_sig = std::move(sig);
+      sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
+      memcpy(static_cast<char*>(sig->Data()),
+             static_cast<char*>(old_sig->Data()),
+             sig_len);
+    }
     return sig;
   }
 
@@ -418,6 +423,11 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   if (!key)
     return;
 
+  if (IsOneShot(key)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
+
   int padding = GetDefaultSignPadding(key);
   if (!args[offset]->IsUndefined()) {
     CHECK(args[offset]->IsInt32());
@@ -542,6 +552,11 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
       ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
   if (!pkey)
     return;
+
+  if (IsOneShot(pkey)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
 
   ArrayBufferOrViewContents<char> hbuf(args[offset]);
   if (UNLIKELY(!hbuf.CheckSizeInt32()))

@@ -305,6 +305,7 @@ constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a7;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
+constexpr Register kWasmTrapHandlerFaultAddressRegister = t6;
 
 constexpr DoubleRegister kFPReturnRegister0 = fa0;
 constexpr VRegister kSimd128ScratchReg = v24;

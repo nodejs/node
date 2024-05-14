@@ -167,7 +167,7 @@ class StructBodyDescriptor
 
 // This class describes a body of an object in which all pointer fields are
 // located in the [start_offset, object_size) interval.
-// Pointers may be strong or may be MaybeObject-style weak pointers.
+// Pointers may be strong or may be Tagged<MaybeObject>-style weak pointers.
 template <int start_offset>
 class SuffixRangeWeakBodyDescriptor : public BodyDescriptorBase {
  public:
@@ -189,7 +189,7 @@ class SuffixRangeWeakBodyDescriptor : public BodyDescriptorBase {
 // This class describes a body of an object of a variable size
 // in which all pointer fields are located in the [start_offset, object_size)
 // interval.
-// Pointers may be strong or may be MaybeObject-style weak pointers.
+// Pointers may be strong or may be Tagged<MaybeObject>-style weak pointers.
 template <int start_offset>
 class FlexibleWeakBodyDescriptor
     : public SuffixRangeWeakBodyDescriptor<start_offset> {

@@ -230,15 +230,24 @@ const { describe, it } = require('node:test');
 ## `only` tests
 
 If Node.js is started with the [`--test-only`][] command-line option, it is
-possible to skip all top level tests except for a selected subset by passing
-the `only` option to the tests that should be run. When a test with the `only`
-option set is run, all subtests are also run. The test context's `runOnly()`
+possible to skip all tests except for a selected subset by passing
+the `only` option to the tests that should run. When a test with the `only`
+option is set, all subtests are also run.
+If a suite has the `only` option set, all tests within the suite are run,
+unless it has descendants with the `only` option set, in which case only those
+tests are run.
+
+When using [subtests][] within a `test()`/`it()`, it is required to mark
+all ancestor tests with the `only` option to run only a
+selected subset of tests.
+
+The test context's `runOnly()`
 method can be used to implement the same behavior at the subtest level. Tests
 that are not executed are omitted from the test runner output.
 
 ```js
 // Assume Node.js is run with the --test-only command-line option.
-// The 'only' option is set, so this test is run.
+// The suite's 'only' option is set, so these tests are run.
 test('this test is run', { only: true }, async (t) => {
   // Within this test, all subtests are run by default.
   await t.test('running subtest');
@@ -262,16 +271,42 @@ test('this test is not run', () => {
   // This code is not run.
   throw new Error('fail');
 });
+
+describe('a suite', () => {
+  // The 'only' option is set, so this test is run.
+  it('this test is run', { only: true }, () => {
+    // This code is run.
+  });
+
+  it('this test is not run', () => {
+    // This code is not run.
+    throw new Error('fail');
+  });
+});
+
+describe.only('a suite', () => {
+  // The 'only' option is set, so this test is run.
+  it('this test is run', () => {
+    // This code is run.
+  });
+
+  it('this test is run', () => {
+    // This code is run.
+  });
+});
 ```
 
 ## Filtering tests by name
 
-The [`--test-name-pattern`][] command-line option can be used to only run tests
-whose name matches the provided pattern. Test name patterns are interpreted as
-JavaScript regular expressions. The `--test-name-pattern` option can be
-specified multiple times in order to run nested tests. For each test that is
-executed, any corresponding test hooks, such as `beforeEach()`, are also
-run. Tests that are not executed are omitted from the test runner output.
+The [`--test-name-pattern`][] command-line option can be used to only run
+tests whose name matches the provided pattern, and the
+[`--test-skip-pattern`][] option can be used to skip tests whose name
+matches the provided pattern. Test name patterns are interpreted as
+JavaScript regular expressions. The `--test-name-pattern` and
+`--test-skip-pattern` options can be specified multiple times in order to run
+nested tests. For each test that is executed, any corresponding test hooks,
+such as `beforeEach()`, are also run. Tests that are not executed are omitted
+from the test runner output.
 
 Given the following test file, starting Node.js with the
 `--test-name-pattern="test [1-3]"` option would cause the test runner to execute
@@ -295,8 +330,8 @@ test('Test 4', async (t) => {
 
 Test name patterns can also be specified using regular expression literals. This
 allows regular expression flags to be used. In the previous example, starting
-Node.js with `--test-name-pattern="/test [4-5]/i"` would match `Test 4` and
-`Test 5` because the pattern is case-insensitive.
+Node.js with `--test-name-pattern="/test [4-5]/i"` (or `--test-skip-pattern="/test [4-5]/i"`)
+would match `Test 4` and `Test 5` because the pattern is case-insensitive.
 
 To match a single test with a pattern, you can prefix it with all its ancestor
 test names separated by space, to ensure it is unique.
@@ -316,6 +351,9 @@ Starting Node.js with `--test-name-pattern="test 1 some test"` would match
 only `some test` in `test 1`.
 
 Test name patterns do not change the set of files that the test runner executes.
+
+If both `--test-name-pattern` and `--test-skip-pattern` are supplied,
+tests must satisfy **both** requirements in order to be executed.
 
 ## Extraneous asynchronous activity
 
@@ -472,12 +510,8 @@ node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-de
 
 ### Limitations
 
-The test runner's code coverage functionality has the following limitations,
-which will be addressed in a future Node.js release:
-
-* Source maps are not supported.
-* Excluding specific files or directories from the coverage report is not
-  supported.
+The test runner's code coverage functionality does not support excluding
+specific files or directories from the coverage report.
 
 ## Mocking
 
@@ -607,7 +641,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
 
@@ -626,7 +660,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   // Reset the globally tracked mocks.
   mock.timers.reset();
 
-  // If you call reset mock instance, it'll also reset timers instance
+  // If you call reset mock instance, it will also reset timers instance
   mock.reset();
 });
 ```
@@ -654,7 +688,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1152,7 +1186,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52038
     description: Added the `forceExit` option.
   - version:
@@ -1240,7 +1274,9 @@ run({ files: [path.resolve('./tests/test.js')] })
 ## `suite([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 * `name` {string} The name of the suite, which is displayed when reporting test
@@ -1258,7 +1294,9 @@ The `suite()` function is imported from the `node:test` module.
 ## `suite.skip([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for skipping a suite. This is the same as
@@ -1267,7 +1305,9 @@ Shorthand for skipping a suite. This is the same as
 ## `suite.todo([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for marking a suite as `TODO`. This is the same as
@@ -1276,7 +1316,9 @@ Shorthand for marking a suite as `TODO`. This is the same as
 ## `suite.only([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for marking a suite as `only`. This is the same as
@@ -1330,6 +1372,10 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+    If the number of assertions run in the test does not match the number
+    specified in the plan, the test will fail.
+    **Default:** `undefined`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -2931,6 +2977,54 @@ added:
 
 The name of the test.
 
+### `context.plan(count)`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `count` {number} The number of assertions and subtests that are expected to run.
+
+This function is used to set the number of assertions and subtests that are expected to run
+within the test. If the number of assertions and subtests that run does not match the
+expected count, the test will fail.
+
+> Note: To make sure assertions are tracked, `t.assert` must be used instead of `assert` directly.
+
+```js
+test('top level test', (t) => {
+  t.plan(2);
+  t.assert.ok('some relevant assertion here');
+  t.subtest('subtest', () => {});
+});
+```
+
+When working with asynchronous code, the `plan` function can be used to ensure that the
+correct number of assertions are run:
+
+```js
+test('planning with streams', (t, done) => {
+  function* generate() {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+  }
+  const expected = ['a', 'b', 'c'];
+  t.plan(expected.length);
+  const stream = Readable.from(generate());
+  stream.on('data', (chunk) => {
+    t.assert.strictEqual(chunk, expected.shift());
+  });
+
+  stream.on('end', () => {
+    done();
+  });
+});
+```
+
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
@@ -3061,6 +3155,10 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+    If the number of assertions run in the test does not match the number
+    specified in the plan, the test will fail.
+    **Default:** `undefined`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -3074,7 +3172,7 @@ behaves in the same fashion as the top level [`test()`][] function.
 test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
-    { only: false, skip: false, concurrency: 1, todo: false },
+    { only: false, skip: false, concurrency: 1, todo: false, plan: 4 },
     (t) => {
       assert.ok('some relevant assertion here');
     },
@@ -3125,6 +3223,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
 [`--test-reporter`]: cli.md#--test-reporter
+[`--test-skip-pattern`]: cli.md#--test-skip-pattern
 [`--test`]: cli.md#--test
 [`MockFunctionContext`]: #class-mockfunctioncontext
 [`MockTimers`]: #class-mocktimers
@@ -3145,6 +3244,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
+[subtests]: #subtests
 [suite options]: #suitename-options-fn
 [test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model

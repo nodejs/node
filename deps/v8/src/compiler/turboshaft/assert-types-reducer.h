@@ -34,7 +34,7 @@ class AssertTypesReducer
 #endif
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(AssertTypes)
 
   using Adapter = UniformReducerAdapter<AssertTypesReducer, Next>;
 
@@ -136,6 +136,7 @@ class AssertTypesReducer
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
       case RegisterRepresentation::Simd128():
+      case RegisterRepresentation::Simd256():
         // TODO(nicohartmann@): Handle remaining cases.
         break;
     }

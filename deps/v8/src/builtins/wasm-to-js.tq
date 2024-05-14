@@ -56,6 +56,7 @@ macro HandleF32Returns(
 
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+  dcheck(Is<WasmApiFunctionRef>(ref));
   // Spill the signature on the stack so that it can be read by the GC. This is
   // done in the very beginning before a GC could be triggered.
   // Caller FP + return address.
@@ -81,6 +82,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const returnCount =
       Convert<intptr>(*torque_internal::unsafe::NewReference<int32>(
           serializedSig.object, serializedSig.offset));
+  dcheck(returnCount < serializedSig.length);
   const paramCount: intptr = serializedSig.length - returnCount - 1;
   const returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
       otherwise unreachable;
@@ -261,6 +263,8 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
         *toHighRef = Signed(pair.high);
       }
     } else {
+      const retKind = retType & kValueTypeKindBitsMask;
+      dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
       dcheck(ref.instance == Undefined || Is<WasmInstanceObject>(ref.instance));
       const trustedData = ref.instance == Undefined ?
           Undefined :

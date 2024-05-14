@@ -25,7 +25,6 @@
 #include "unicode/ugender.h"
 #include "unicode/ures.h"
 
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
@@ -156,11 +155,9 @@ const GenderInfo* GenderInfo::loadInstance(const Locale& locale, UErrorCode& sta
     CharString parentLocaleName(curLocaleName, key_status);
     while (s == nullptr) {
       {
-        CharString tmp;
-        CharStringByteSink sink(&tmp);
-        ulocimp_getParent(parentLocaleName.data(), sink, &status);
-        if (tmp.isEmpty()) break;
-        parentLocaleName = std::move(tmp);
+          CharString tmp = ulocimp_getParent(parentLocaleName.data(), status);
+          if (tmp.isEmpty()) break;
+          parentLocaleName = std::move(tmp);
       }
       key_status = U_ZERO_ERROR;
       resLen = 0;

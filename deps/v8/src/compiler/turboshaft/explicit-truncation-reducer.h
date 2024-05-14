@@ -7,7 +7,6 @@
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/reduce-args-helper.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -22,7 +21,7 @@ template <class Next>
 class ExplicitTruncationReducer
     : public UniformReducerAdapter<ExplicitTruncationReducer, Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(ExplicitTruncation)
 
   template <Opcode opcode, typename Continuation, typename... Ts>
   OpIndex ReduceOperation(Ts... args) {
@@ -59,9 +58,12 @@ class ExplicitTruncationReducer
       return Continuation{this}.Reduce(args...);
     }
 
-    return CallWithReduceArgs([this](auto... args) {
-      return Continuation{this}.Reduce(args...);
-    })(*operation);
+    Operation::IdentityMapper mapper;
+    return operation->Explode(
+        [this](auto... args) -> OpIndex {
+          return Continuation{this}.Reduce(args...);
+        },
+        mapper);
   }
 
  private:

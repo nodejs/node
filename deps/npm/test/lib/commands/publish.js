@@ -83,6 +83,8 @@ t.test('re-loads publishConfig.registry if added during script process', async t
   const { joinedOutput, npm } = await loadMockNpm(t, {
     config: {
       [`${alternateRegistry.slice(6)}/:_authToken`]: 'test-other-token',
+      // Keep output from leaking into tap logs for readability
+      'foreground-scripts': false,
     },
     prefixDir: {
       'package.json': JSON.stringify({
@@ -131,6 +133,60 @@ t.test('re-loads publishConfig.registry if added during script process', async t
   t.matchSnapshot(joinedOutput(), 'new package version')
 })
 
+t.test('prioritize CLI flags over publishConfig', async t => {
+  const publishConfig = { registry: 'http://publishconfig' }
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      [`${alternateRegistry.slice(6)}/:_authToken`]: 'test-other-token',
+      // Keep output from leaking into tap logs for readability
+      'foreground-scripts': false,
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        ...pkgJson,
+        scripts: {
+          prepare: 'cp new.json package.json',
+        },
+      }, null, 2),
+      'new.json': JSON.stringify({
+        ...pkgJson,
+        publishConfig,
+      }),
+    },
+    argv: ['--registry', alternateRegistry],
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
+    authorization: 'test-other-token',
+  })
+  registry.nock.put(`/${pkg}`, body => {
+    return t.match(body, {
+      _id: pkg,
+      name: pkg,
+      'dist-tags': { latest: '1.0.0' },
+      access: null,
+      versions: {
+        '1.0.0': {
+          name: pkg,
+          version: '1.0.0',
+          _id: `${pkg}@1.0.0`,
+          dist: {
+            shasum: /\.*/,
+            tarball: `http:${alternateRegistry.slice(6)}/test-package/-/test-package-1.0.0.tgz`,
+          },
+          publishConfig,
+        },
+      },
+      _attachments: {
+        [`${pkg}-1.0.0.tgz`]: {},
+      },
+    })
+  }).reply(200, {})
+  await npm.exec('publish', [])
+  t.matchSnapshot(joinedOutput(), 'new package version')
+})
+
 t.test('json', async t => {
   const { joinedOutput, npm, logs } = await loadMockNpm(t, {
     config: {
@@ -168,7 +224,7 @@ t.test('dry-run', async t => {
 })
 
 t.test('foreground-scripts defaults to true', async t => {
-  const { joinedOutput, npm, logs } = await loadMockNpm(t, {
+  const { outputs, npm, logs } = await loadMockNpm(t, {
     config: {
       'dry-run': true,
       ...auth,
@@ -186,33 +242,22 @@ t.test('foreground-scripts defaults to true', async t => {
     },
   })
 
-  /* eslint no-console: 0 */
-  // TODO: replace this with `const results = t.intercept(console, 'log')`
-  const log = console.log
-  t.teardown(() => {
-    console.log = log
-  })
-  const caughtLogs = []
-  console.log = (...args) => {
-    caughtLogs.push(args)
-  }
-  // end TODO
-
   await npm.exec('publish', [])
-  t.equal(joinedOutput(), `+ test-fg-scripts@0.0.0`)
+
   t.matchSnapshot(logs.notice)
 
-  t.same(
-    caughtLogs,
+  t.strictSame(
+    outputs,
     [
-      ['\n> test-fg-scripts@0.0.0 prepack\n> echo prepack!\n'],
-      ['\n> test-fg-scripts@0.0.0 postpack\n> echo postpack!\n'],
+      '\n> test-fg-scripts@0.0.0 prepack\n> echo prepack!\n',
+      '\n> test-fg-scripts@0.0.0 postpack\n> echo postpack!\n',
+      `+ test-fg-scripts@0.0.0`,
     ],
     'prepack and postpack log to stdout')
 })
 
 t.test('foreground-scripts can still be set to false', async t => {
-  const { joinedOutput, npm, logs } = await loadMockNpm(t, {
+  const { outputs, npm, logs } = await loadMockNpm(t, {
     config: {
       'dry-run': true,
       'foreground-scripts': false,
@@ -231,25 +276,13 @@ t.test('foreground-scripts can still be set to false', async t => {
     },
   })
 
-  /* eslint no-console: 0 */
-  // TODO: replace this with `const results = t.intercept(console, 'log')`
-  const log = console.log
-  t.teardown(() => {
-    console.log = log
-  })
-  const caughtLogs = []
-  console.log = (...args) => {
-    caughtLogs.push(args)
-  }
-  // end TODO
-
   await npm.exec('publish', [])
-  t.equal(joinedOutput(), `+ test-fg-scripts@0.0.0`)
+
   t.matchSnapshot(logs.notice)
 
-  t.same(
-    caughtLogs,
-    [],
+  t.strictSame(
+    outputs,
+    [`+ test-fg-scripts@0.0.0`],
     'prepack and postpack do not log to stdout')
 })
 
@@ -819,6 +852,7 @@ t.test('manifest', async t => {
   const { npm } = await loadMockNpm(t, {
     config: {
       ...auth,
+      'foreground-scripts': false,
     },
     chdir: () => root,
     mocks: {

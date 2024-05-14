@@ -93,6 +93,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -311,6 +312,10 @@ class AlphaNum {
  public:
   // No bool ctor -- bools convert to an integral type.
   // A bool ctor would also convert incoming pointers (bletch).
+
+  // Prevent brace initialization
+  template <typename T>
+  AlphaNum(std::initializer_list<T>) = delete;  // NOLINT(runtime/explicit)
 
   AlphaNum(int x)  // NOLINT(runtime/explicit)
       : piece_(digits_, static_cast<size_t>(
@@ -601,18 +606,17 @@ StrAppend(absl::Nonnull<String*> str, T... args) {
   ptrdiff_t n;   // The length of the current argument
   typename String::pointer pos = &(*str)[old_size];
   using SomeTrivialEmptyType = std::false_type;
-  // Ugly code due to the lack of C++14 fold expression makes us.
-  const SomeTrivialEmptyType dummy1;
-  for (const SomeTrivialEmptyType& dummy2 :
-       {(/* Comma expressions are poor man's C++17 fold expression for C++14 */
-         (void)(n = lengths[i]),
-         (void)(n < 0 ? (void)(*pos++ = '-'), (n = ~n) : 0),
-         (void)absl::numbers_internal::FastIntToBufferBackward(
-             absl::numbers_internal::UnsignedAbsoluteValue(std::move(args)),
-             pos += n, static_cast<uint32_t>(n)),
-         (void)++i, dummy1)...}) {
-    (void)dummy2;  // Remove & migrate to fold expressions in C++17
-  }
+  const SomeTrivialEmptyType dummy;
+  // Ugly code due to the lack of C++17 fold expressions
+  const SomeTrivialEmptyType dummies[] = {
+      (/* Comma expressions are poor man's C++17 fold expression for C++14 */
+       (void)(n = lengths[i]),
+       (void)(n < 0 ? (void)(*pos++ = '-'), (n = ~n) : 0),
+       (void)absl::numbers_internal::FastIntToBufferBackward(
+           absl::numbers_internal::UnsignedAbsoluteValue(std::move(args)),
+           pos += n, static_cast<uint32_t>(n)),
+       (void)++i, dummy)...};
+  (void)dummies;  // Remove & migrate to fold expressions in C++17
 }
 
 // Helper function for the future StrCat default floating-point format, %.6g

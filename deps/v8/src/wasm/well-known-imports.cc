@@ -4,8 +4,6 @@
 
 #include "src/wasm/well-known-imports.h"
 
-#include "src/wasm/wasm-code-manager.h"
-
 namespace v8::internal::wasm {
 
 const char* WellKnownImportName(WellKnownImport wki) {
@@ -101,6 +99,8 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "js-string:fromCharCodeArray";
     case WellKnownImport::kStringIntoUtf8Array:
       return "text-encoder:encodeStringIntoUTF8Array";
+    case WellKnownImport::kStringToUtf8Array:
+      return "text-encoder:encodeStringToUTF8Array";
     case WellKnownImport::kStringLength:
       return "js-string:length";
     case WellKnownImport::kStringMeasureUtf8:
@@ -111,6 +111,10 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "js-string:test";
     case WellKnownImport::kStringToWtf16Array:
       return "js-string:intoCharCodeArray";
+
+      // Fast API Call:
+    case WellKnownImport::kFastAPICall:
+      return "fast API call";
   }
 }
 

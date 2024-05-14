@@ -170,9 +170,7 @@ Address InstructionStream::body_end() const {
 }
 
 Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
-  Tagged<Object> value =
-      TaggedField<Object, kCodeOffset,
-                  TrustedSpaceCompressionScheme>::Acquire_Load(*this);
+  Tagged<Object> value = RawProtectedPointerField(kCodeOffset).Acquire_Load();
   DCHECK(!ObjectInYoungGeneration(value));
   DCHECK(IsSmi(value) || IsTrustedSpaceObject(HeapObject::cast(value)));
   return value;
@@ -182,11 +180,10 @@ Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
   return Code::cast(raw_code(tag));
 }
 
-void InstructionStream::set_code(Tagged<Code> value, ReleaseStoreTag) {
+void InstructionStream::set_code(Tagged<Code> value, ReleaseStoreTag tag) {
   DCHECK(!ObjectInYoungGeneration(value));
   DCHECK(IsTrustedSpaceObject(value));
-  TaggedField<Code, kCodeOffset, TrustedSpaceCompressionScheme>::Release_Store(
-      *this, value);
+  WriteProtectedPointerField(kCodeOffset, value, tag);
   CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kCodeOffset, value,
                                               UPDATE_WRITE_BARRIER);
 }

@@ -208,7 +208,7 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
               v8::Integer::New(v8_isolate, i))
         .FromJust();
     // Create with internal api
-    eternal_handles->Create(isolate, *v8::Utils::OpenHandle(*object),
+    eternal_handles->Create(isolate, *v8::Utils::OpenDirectHandle(*object),
                             &indices[i]);
     // Create with external api
     CHECK(eternals[i].IsEmpty());

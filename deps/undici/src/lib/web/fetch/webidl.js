@@ -33,14 +33,18 @@ webidl.errors.invalidArgument = function (context) {
 }
 
 // https://webidl.spec.whatwg.org/#implements
-webidl.brandCheck = function (V, I, opts = undefined) {
+webidl.brandCheck = function (V, I, opts) {
   if (opts?.strict !== false) {
     if (!(V instanceof I)) {
-      throw new TypeError('Illegal invocation')
+      const err = new TypeError('Illegal invocation')
+      err.code = 'ERR_INVALID_THIS' // node compat.
+      throw err
     }
   } else {
     if (V?.[Symbol.toStringTag] !== I.prototype[Symbol.toStringTag]) {
-      throw new TypeError('Illegal invocation')
+      const err = new TypeError('Illegal invocation')
+      err.code = 'ERR_INVALID_THIS' // node compat.
+      throw err
     }
   }
 }
@@ -50,7 +54,7 @@ webidl.argumentLengthCheck = function ({ length }, min, ctx) {
     throw webidl.errors.exception({
       message: `${min} argument${min !== 1 ? 's' : ''} required, ` +
                `but${length ? ' only' : ''} ${length} found.`,
-      ...ctx
+      header: ctx
     })
   }
 }
@@ -83,7 +87,7 @@ webidl.util.Type = function (V) {
 }
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
-webidl.util.ConvertToInt = function (V, bitLength, signedness, opts = {}) {
+webidl.util.ConvertToInt = function (V, bitLength, signedness, opts) {
   let upperBound
   let lowerBound
 
@@ -127,7 +131,7 @@ webidl.util.ConvertToInt = function (V, bitLength, signedness, opts = {}) {
 
   // 6. If the conversion is to an IDL type associated
   //    with the [EnforceRange] extended attribute, then:
-  if (opts.enforceRange === true) {
+  if (opts?.enforceRange === true) {
     // 1. If x is NaN, +∞, or −∞, then throw a TypeError.
     if (
       Number.isNaN(x) ||
@@ -159,7 +163,7 @@ webidl.util.ConvertToInt = function (V, bitLength, signedness, opts = {}) {
   // 7. If x is not NaN and the conversion is to an IDL
   //    type associated with the [Clamp] extended
   //    attribute, then:
-  if (!Number.isNaN(x) && opts.clamp === true) {
+  if (!Number.isNaN(x) && opts?.clamp === true) {
     // 1. Set x to min(max(x, lowerBound), upperBound).
     x = Math.min(Math.max(x, lowerBound), upperBound)
 
@@ -233,12 +237,12 @@ webidl.util.Stringify = function (V) {
 
 // https://webidl.spec.whatwg.org/#es-sequence
 webidl.sequenceConverter = function (converter) {
-  return (V, Iterable) => {
+  return (V, prefix, argument, Iterable) => {
     // 1. If Type(V) is not Object, throw a TypeError.
     if (webidl.util.Type(V) !== 'Object') {
       throw webidl.errors.exception({
-        header: 'Sequence',
-        message: `Value of type ${webidl.util.Type(V)} is not an Object.`
+        header: prefix,
+        message: `${argument} (${webidl.util.Stringify(V)}) is not iterable.`
       })
     }
 
@@ -246,6 +250,7 @@ webidl.sequenceConverter = function (converter) {
     /** @type {Generator} */
     const method = typeof Iterable === 'function' ? Iterable() : V?.[Symbol.iterator]?.()
     const seq = []
+    let index = 0
 
     // 3. If method is undefined, throw a TypeError.
     if (
@@ -253,8 +258,8 @@ webidl.sequenceConverter = function (converter) {
       typeof method.next !== 'function'
     ) {
       throw webidl.errors.exception({
-        header: 'Sequence',
-        message: 'Object is not an iterator.'
+        header: prefix,
+        message: `${argument} is not iterable.`
       })
     }
 
@@ -266,7 +271,7 @@ webidl.sequenceConverter = function (converter) {
         break
       }
 
-      seq.push(converter(value))
+      seq.push(converter(value, prefix, `${argument}[${index++}]`))
     }
 
     return seq
@@ -275,12 +280,12 @@ webidl.sequenceConverter = function (converter) {
 
 // https://webidl.spec.whatwg.org/#es-to-record
 webidl.recordConverter = function (keyConverter, valueConverter) {
-  return (O) => {
+  return (O, prefix, argument) => {
     // 1. If Type(O) is not Object, throw a TypeError.
     if (webidl.util.Type(O) !== 'Object') {
       throw webidl.errors.exception({
-        header: 'Record',
-        message: `Value of type ${webidl.util.Type(O)} is not an Object.`
+        header: prefix,
+        message: `${argument} ("${webidl.util.Type(O)}") is not an Object.`
       })
     }
 
@@ -293,11 +298,11 @@ webidl.recordConverter = function (keyConverter, valueConverter) {
 
       for (const key of keys) {
         // 1. Let typedKey be key converted to an IDL value of type K.
-        const typedKey = keyConverter(key)
+        const typedKey = keyConverter(key, prefix, argument)
 
         // 2. Let value be ? Get(O, key).
         // 3. Let typedValue be value converted to an IDL value of type V.
-        const typedValue = valueConverter(O[key])
+        const typedValue = valueConverter(O[key], prefix, argument)
 
         // 4. Set result[typedKey] to typedValue.
         result[typedKey] = typedValue
@@ -318,11 +323,11 @@ webidl.recordConverter = function (keyConverter, valueConverter) {
       // 2. If desc is not undefined and desc.[[Enumerable]] is true:
       if (desc?.enumerable) {
         // 1. Let typedKey be key converted to an IDL value of type K.
-        const typedKey = keyConverter(key)
+        const typedKey = keyConverter(key, prefix, argument)
 
         // 2. Let value be ? Get(O, key).
         // 3. Let typedValue be value converted to an IDL value of type V.
-        const typedValue = valueConverter(O[key])
+        const typedValue = valueConverter(O[key], prefix, argument)
 
         // 4. Set result[typedKey] to typedValue.
         result[typedKey] = typedValue
@@ -335,11 +340,11 @@ webidl.recordConverter = function (keyConverter, valueConverter) {
 }
 
 webidl.interfaceConverter = function (i) {
-  return (V, opts = {}) => {
-    if (opts.strict !== false && !(V instanceof i)) {
+  return (V, prefix, argument, opts) => {
+    if (opts?.strict !== false && !(V instanceof i)) {
       throw webidl.errors.exception({
-        header: i.name,
-        message: `Expected ${webidl.util.Stringify(V)} to be an instance of ${i.name}.`
+        header: prefix,
+        message: `Expected ${argument} ("${webidl.util.Stringify(V)}") to be an instance of ${i.name}.`
       })
     }
 
@@ -348,7 +353,7 @@ webidl.interfaceConverter = function (i) {
 }
 
 webidl.dictionaryConverter = function (converters) {
-  return (dictionary) => {
+  return (dictionary, prefix, argument) => {
     const type = webidl.util.Type(dictionary)
     const dict = {}
 
@@ -356,7 +361,7 @@ webidl.dictionaryConverter = function (converters) {
       return dict
     } else if (type !== 'Object') {
       throw webidl.errors.exception({
-        header: 'Dictionary',
+        header: prefix,
         message: `Expected ${dictionary} to be one of: Null, Undefined, Object.`
       })
     }
@@ -367,7 +372,7 @@ webidl.dictionaryConverter = function (converters) {
       if (required === true) {
         if (!Object.hasOwn(dictionary, key)) {
           throw webidl.errors.exception({
-            header: 'Dictionary',
+            header: prefix,
             message: `Missing required key "${key}".`
           })
         }
@@ -379,21 +384,21 @@ webidl.dictionaryConverter = function (converters) {
       // Only use defaultValue if value is undefined and
       // a defaultValue options was provided.
       if (hasDefault && value !== null) {
-        value = value ?? defaultValue
+        value ??= defaultValue()
       }
 
       // A key can be optional and have no default value.
       // When this happens, do not perform a conversion,
       // and do not assign the key a value.
       if (required || hasDefault || value !== undefined) {
-        value = converter(value)
+        value = converter(value, prefix, `${argument}.${key}`)
 
         if (
           options.allowedValues &&
           !options.allowedValues.includes(value)
         ) {
           throw webidl.errors.exception({
-            header: 'Dictionary',
+            header: prefix,
             message: `${value} is not an accepted type. Expected one of ${options.allowedValues.join(', ')}.`
           })
         }
@@ -407,28 +412,31 @@ webidl.dictionaryConverter = function (converters) {
 }
 
 webidl.nullableConverter = function (converter) {
-  return (V) => {
+  return (V, prefix, argument) => {
     if (V === null) {
       return V
     }
 
-    return converter(V)
+    return converter(V, prefix, argument)
   }
 }
 
 // https://webidl.spec.whatwg.org/#es-DOMString
-webidl.converters.DOMString = function (V, opts = {}) {
+webidl.converters.DOMString = function (V, prefix, argument, opts) {
   // 1. If V is null and the conversion is to an IDL type
   //    associated with the [LegacyNullToEmptyString]
   //    extended attribute, then return the DOMString value
   //    that represents the empty string.
-  if (V === null && opts.legacyNullToEmptyString) {
+  if (V === null && opts?.legacyNullToEmptyString) {
     return ''
   }
 
   // 2. Let x be ? ToString(V).
   if (typeof V === 'symbol') {
-    throw new TypeError('Could not convert argument of type symbol to string.')
+    throw webidl.errors.exception({
+      header: prefix,
+      message: `${argument} is a symbol, which cannot be converted to a DOMString.`
+    })
   }
 
   // 3. Return the IDL DOMString value that represents the
@@ -438,10 +446,10 @@ webidl.converters.DOMString = function (V, opts = {}) {
 }
 
 // https://webidl.spec.whatwg.org/#es-ByteString
-webidl.converters.ByteString = function (V) {
+webidl.converters.ByteString = function (V, prefix, argument) {
   // 1. Let x be ? ToString(V).
   // Note: DOMString converter perform ? ToString(V)
-  const x = webidl.converters.DOMString(V)
+  const x = webidl.converters.DOMString(V, prefix, argument)
 
   // 2. If the value of any element of x is greater than
   //    255, then throw a TypeError.
@@ -461,6 +469,7 @@ webidl.converters.ByteString = function (V) {
 }
 
 // https://webidl.spec.whatwg.org/#es-USVString
+// TODO: rewrite this so we can control the errors thrown
 webidl.converters.USVString = toUSVString
 
 // https://webidl.spec.whatwg.org/#es-boolean
@@ -479,9 +488,9 @@ webidl.converters.any = function (V) {
 }
 
 // https://webidl.spec.whatwg.org/#es-long-long
-webidl.converters['long long'] = function (V) {
+webidl.converters['long long'] = function (V, prefix, argument) {
   // 1. Let x be ? ConvertToInt(V, 64, "signed").
-  const x = webidl.util.ConvertToInt(V, 64, 'signed')
+  const x = webidl.util.ConvertToInt(V, 64, 'signed', undefined, prefix, argument)
 
   // 2. Return the IDL long long value that represents
   //    the same numeric value as x.
@@ -489,9 +498,9 @@ webidl.converters['long long'] = function (V) {
 }
 
 // https://webidl.spec.whatwg.org/#es-unsigned-long-long
-webidl.converters['unsigned long long'] = function (V) {
+webidl.converters['unsigned long long'] = function (V, prefix, argument) {
   // 1. Let x be ? ConvertToInt(V, 64, "unsigned").
-  const x = webidl.util.ConvertToInt(V, 64, 'unsigned')
+  const x = webidl.util.ConvertToInt(V, 64, 'unsigned', undefined, prefix, argument)
 
   // 2. Return the IDL unsigned long long value that
   //    represents the same numeric value as x.
@@ -499,9 +508,9 @@ webidl.converters['unsigned long long'] = function (V) {
 }
 
 // https://webidl.spec.whatwg.org/#es-unsigned-long
-webidl.converters['unsigned long'] = function (V) {
+webidl.converters['unsigned long'] = function (V, prefix, argument) {
   // 1. Let x be ? ConvertToInt(V, 32, "unsigned").
-  const x = webidl.util.ConvertToInt(V, 32, 'unsigned')
+  const x = webidl.util.ConvertToInt(V, 32, 'unsigned', undefined, prefix, argument)
 
   // 2. Return the IDL unsigned long value that
   //    represents the same numeric value as x.
@@ -509,9 +518,9 @@ webidl.converters['unsigned long'] = function (V) {
 }
 
 // https://webidl.spec.whatwg.org/#es-unsigned-short
-webidl.converters['unsigned short'] = function (V, opts) {
+webidl.converters['unsigned short'] = function (V, prefix, argument, opts) {
   // 1. Let x be ? ConvertToInt(V, 16, "unsigned").
-  const x = webidl.util.ConvertToInt(V, 16, 'unsigned', opts)
+  const x = webidl.util.ConvertToInt(V, 16, 'unsigned', opts, prefix, argument)
 
   // 2. Return the IDL unsigned short value that represents
   //    the same numeric value as x.
@@ -519,7 +528,7 @@ webidl.converters['unsigned short'] = function (V, opts) {
 }
 
 // https://webidl.spec.whatwg.org/#idl-ArrayBuffer
-webidl.converters.ArrayBuffer = function (V, opts = {}) {
+webidl.converters.ArrayBuffer = function (V, prefix, argument, opts) {
   // 1. If Type(V) is not Object, or V does not have an
   //    [[ArrayBufferData]] internal slot, then throw a
   //    TypeError.
@@ -530,8 +539,8 @@ webidl.converters.ArrayBuffer = function (V, opts = {}) {
     !types.isAnyArrayBuffer(V)
   ) {
     throw webidl.errors.conversionFailed({
-      prefix: webidl.util.Stringify(V),
-      argument: webidl.util.Stringify(V),
+      prefix,
+      argument: `${argument} ("${webidl.util.Stringify(V)}")`,
       types: ['ArrayBuffer']
     })
   }
@@ -540,7 +549,7 @@ webidl.converters.ArrayBuffer = function (V, opts = {}) {
   //    with the [AllowShared] extended attribute, and
   //    IsSharedArrayBuffer(V) is true, then throw a
   //    TypeError.
-  if (opts.allowShared === false && types.isSharedArrayBuffer(V)) {
+  if (opts?.allowShared === false && types.isSharedArrayBuffer(V)) {
     throw webidl.errors.exception({
       header: 'ArrayBuffer',
       message: 'SharedArrayBuffer is not allowed.'
@@ -563,7 +572,7 @@ webidl.converters.ArrayBuffer = function (V, opts = {}) {
   return V
 }
 
-webidl.converters.TypedArray = function (V, T, opts = {}) {
+webidl.converters.TypedArray = function (V, T, prefix, name, opts) {
   // 1. Let T be the IDL type V is being converted to.
 
   // 2. If Type(V) is not Object, or V does not have a
@@ -575,8 +584,8 @@ webidl.converters.TypedArray = function (V, T, opts = {}) {
     V.constructor.name !== T.name
   ) {
     throw webidl.errors.conversionFailed({
-      prefix: `${T.name}`,
-      argument: webidl.util.Stringify(V),
+      prefix,
+      argument: `${name} ("${webidl.util.Stringify(V)}")`,
       types: [T.name]
     })
   }
@@ -585,7 +594,7 @@ webidl.converters.TypedArray = function (V, T, opts = {}) {
   //    with the [AllowShared] extended attribute, and
   //    IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is
   //    true, then throw a TypeError.
-  if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
+  if (opts?.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
     throw webidl.errors.exception({
       header: 'ArrayBuffer',
       message: 'SharedArrayBuffer is not allowed.'
@@ -608,13 +617,13 @@ webidl.converters.TypedArray = function (V, T, opts = {}) {
   return V
 }
 
-webidl.converters.DataView = function (V, opts = {}) {
+webidl.converters.DataView = function (V, prefix, name, opts) {
   // 1. If Type(V) is not Object, or V does not have a
   //    [[DataView]] internal slot, then throw a TypeError.
   if (webidl.util.Type(V) !== 'Object' || !types.isDataView(V)) {
     throw webidl.errors.exception({
-      header: 'DataView',
-      message: 'Object is not a DataView.'
+      header: prefix,
+      message: `${name} is not a DataView.`
     })
   }
 
@@ -622,7 +631,7 @@ webidl.converters.DataView = function (V, opts = {}) {
   //    with the [AllowShared] extended attribute, and
   //    IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is true,
   //    then throw a TypeError.
-  if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
+  if (opts?.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
     throw webidl.errors.exception({
       header: 'ArrayBuffer',
       message: 'SharedArrayBuffer is not allowed.'
@@ -646,20 +655,24 @@ webidl.converters.DataView = function (V, opts = {}) {
 }
 
 // https://webidl.spec.whatwg.org/#BufferSource
-webidl.converters.BufferSource = function (V, opts = {}) {
+webidl.converters.BufferSource = function (V, prefix, name, opts) {
   if (types.isAnyArrayBuffer(V)) {
-    return webidl.converters.ArrayBuffer(V, { ...opts, allowShared: false })
+    return webidl.converters.ArrayBuffer(V, prefix, name, { ...opts, allowShared: false })
   }
 
   if (types.isTypedArray(V)) {
-    return webidl.converters.TypedArray(V, V.constructor, { ...opts, allowShared: false })
+    return webidl.converters.TypedArray(V, V.constructor, prefix, name, { ...opts, allowShared: false })
   }
 
   if (types.isDataView(V)) {
-    return webidl.converters.DataView(V, opts, { ...opts, allowShared: false })
+    return webidl.converters.DataView(V, prefix, name, { ...opts, allowShared: false })
   }
 
-  throw new TypeError(`Could not convert ${webidl.util.Stringify(V)} to a BufferSource.`)
+  throw webidl.errors.conversionFailed({
+    prefix,
+    argument: `${name} ("${webidl.util.Stringify(V)}")`,
+    types: ['BufferSource']
+  })
 }
 
 webidl.converters['sequence<ByteString>'] = webidl.sequenceConverter(

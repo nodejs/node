@@ -64,12 +64,14 @@ enum PropertyNormalizationMode {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag { INSERT_TRANSITION, OMIT_TRANSITION };
 
-// Indicates whether the transition is simple: the target map of the transition
+// Indicates the kind of transition: the target map of the transition
 // either extends the current map with a new property, or it modifies the
-// property that was added last to the current map.
-enum SimpleTransitionFlag {
+// property that was added last to the current map. Otherwise, it can
+// be a prototype transition, or anything else.
+enum TransitionKindFlag {
   SIMPLE_PROPERTY_TRANSITION,
   PROPERTY_TRANSITION,
+  PROTOTYPE_TRANSITION,
   SPECIAL_TRANSITION
 };
 
@@ -124,7 +126,10 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 // For a design overview, see https://goo.gl/Ph4CGz.
 class Object : public AllStatic {
  public:
-  enum class Conversion { kToNumber, kToNumeric };
+  enum class Conversion {
+    kToNumber,  // Number = Smi or HeapNumber
+    kToNumeric  // Numeric = Smi or HeapNumber or BigInt
+  };
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
@@ -433,6 +438,11 @@ class Object : public AllStatic {
   // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are
   // not allowed.
   static void VerifyPointer(Isolate* isolate, Tagged<Object> p);
+  // Verify a pointer is a valid (non-InstructionStream) object pointer,
+  // potentially a weak one.
+  // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are
+  // not allowed.
+  static void VerifyMaybeObjectPointer(Isolate* isolate, Tagged<MaybeObject> p);
   // Verify a pointer is a valid object pointer.
   // InstructionStream objects are allowed regardless of the
   // V8_EXTERNAL_CODE_SPACE mode.
@@ -456,8 +466,9 @@ class Object : public AllStatic {
     }
   };
 
-  // For use with std::unordered_set/unordered_map when using both
-  // InstructionStream and non-InstructionStream objects as keys.
+  // For use with std::unordered_set/unordered_map when one of the objects may
+  // be located outside the main pointer compression cage, for example in
+  // trusted space. In this case, we must use full pointer comparison.
   struct KeyEqualSafe {
     bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
       return a.SafeEquals(b);
@@ -473,7 +484,7 @@ class Object : public AllStatic {
 
   // Same as above, but can be used when one of the objects may be located
   // outside of the main pointer compression cage, for example in trusted
-  // space. In this case, we must not compare just the lower 32 bits.
+  // space. In this case, we must use full pointer comparison.
   struct FullPtrComparer {
     bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
       return a.ptr() < b.ptr();
@@ -550,6 +561,8 @@ class Object : public AllStatic {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Tagged<Object> obj);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Object::Conversion kind);
 
 struct Brief {
   template <HeapObjectReferenceType kRefType>
@@ -585,6 +598,11 @@ template <HeapObjectReferenceType kRefType, typename StorageType>
 V8_INLINE constexpr bool IsHeapObject(TaggedImpl<kRefType, StorageType> obj) {
   return obj.IsHeapObject();
 }
+template <typename StorageType>
+V8_INLINE constexpr bool IsWeak(
+    TaggedImpl<HeapObjectReferenceType::WEAK, StorageType> obj) {
+  return obj.IsWeak();
+}
 
 // TODO(leszeks): These exist both as free functions and members of Tagged. They
 // probably want to be cleaned up at some point.
@@ -605,6 +623,7 @@ OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 #undef IS_TYPE_FUNCTION_DECL
 V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
 

@@ -230,6 +230,7 @@ class IsolateData final {
 
   THREAD_LOCAL_TOP_MEMBER_OFFSET(topmost_script_having_context)
   THREAD_LOCAL_TOP_MEMBER_OFFSET(is_on_central_stack_flag)
+  THREAD_LOCAL_TOP_MEMBER_OFFSET(context)
 #undef THREAD_LOCAL_TOP_MEMBER_OFFSET
 
  private:

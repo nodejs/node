@@ -155,10 +155,14 @@ void CheckDebuggerUnloaded() {
   CHECK_EQ(CcTest::i_isolate()->debug()->debug_infos_.Size(), 0);
 
   // Collect garbage to ensure weak handles are cleared.
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-  heap::InvokeMajorGC(CcTest::heap());
-  heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
+  }
 
   // Iterate the heap and check that there are no debugger related objects left.
   HeapObjectIterator iterator(CcTest::heap());
@@ -2962,7 +2966,7 @@ TEST(PauseInScript) {
 
   // Set breakpoint in the script.
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenDirectHandle(*script)->shared()->script()),
       isolate);
   i::Handle<i::String> condition = isolate->factory()->empty_string();
   int position = 0;
@@ -4829,7 +4833,8 @@ TEST(SourceInfo) {
   v8::Local<v8::Script> v8_script =
       v8::Script::Compile(env.local(), v8_str(source)).ToLocalChecked();
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*v8_script)->shared()->script()),
+      i::Script::cast(
+          v8::Utils::OpenDirectHandle(*v8_script)->shared()->script()),
       CcTest::i_isolate());
   v8::Local<v8::debug::Script> script =
       v8::ToApiHandle<v8::debug::Script>(i_script);
@@ -5737,7 +5742,8 @@ TEST(TerminateOnResumeAtUnhandledRejection) {
 }
 
 namespace {
-void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void RejectPromiseThroughCppInternal(
+    const v8::FunctionCallbackInfo<v8::Value>& info, bool silent) {
   CHECK(i::ValidateCallbackInfo(info));
   auto data = reinterpret_cast<std::pair<v8::Isolate*, LocalContext*>*>(
       info.Data().As<v8::External>()->Value());
@@ -5750,11 +5756,23 @@ void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Promise> promise = resolver->GetPromise();
   CHECK_EQ(promise->State(), v8::Promise::PromiseState::kPending);
 
+  if (silent) {
+    promise->MarkAsSilent();
+  }
+
   resolver->Reject(data->second->local(), value1).ToChecked();
   CHECK_EQ(promise->State(), v8::Promise::PromiseState::kRejected);
-  // CHECK_EQ(*v8::Utils::OpenHandle(*promise->Result()),
-  //         i::ReadOnlyRoots(CcTest::i_isolate()).exception());
 }
+
+void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  RejectPromiseThroughCppInternal(info, false);
+}
+
+void SilentRejectPromiseThroughCpp(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  RejectPromiseThroughCppInternal(info, true);
+}
+
 }  // namespace
 
 TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
@@ -5779,6 +5797,36 @@ TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
     CompileRun("RejectPromiseThroughCpp(); while (true) {}");
     CHECK_EQ(delegate.break_count(), 0);
     CHECK_EQ(delegate.exception_thrown_count(), 1);
+  }
+  ExpectInt32("1 + 1", 2);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(NoTerminateOnResumeAtSilentUnhandledRejectionCppImpl) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(env->GetIsolate());
+  ChangeBreakOnException(isolate, true, true);
+  SetTerminateOnResumeDelegate delegate;
+  auto data = std::make_pair(isolate, &env);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  {
+    // We want to reject in a way that would trigger a breakpoint if it were
+    // not silenced (as in TerminateOnResumeAtUnhandledRejectionCppImpl), but
+    // that would also requre that there is at least one JavaScript frame
+    // on the stack.
+    v8::Local<v8::Function> func =
+        v8::Function::New(env.local(), SilentRejectPromiseThroughCpp,
+                          v8::External::New(isolate, &data))
+            .ToLocalChecked();
+    CHECK(env->Global()
+              ->Set(env.local(), v8_str("RejectPromiseThroughCpp"), func)
+              .FromJust());
+
+    CompileRun("RejectPromiseThroughCpp(); debugger;");
+    CHECK_EQ(delegate.break_count(), 1);
+    CHECK_EQ(delegate.exception_thrown_count(), 0);
   }
   ExpectInt32("1 + 1", 2);
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);

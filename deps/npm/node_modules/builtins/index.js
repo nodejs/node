@@ -1,6 +1,6 @@
 'use strict'
 
-const semver = require('semver')
+const satisfies = require('semver/functions/satisfies')
 
 const permanentModules = [
   'assert',
@@ -60,7 +60,7 @@ module.exports = ({ version = process.version, experimental = false } = {}) => {
   const builtins = [...permanentModules]
 
   for (const [name, semverRange] of Object.entries(versionLockedModules)) {
-    if (version === '*' || semver.satisfies(version, semverRange)) {
+    if (version === '*' || satisfies(version, semverRange)) {
       builtins.push(name)
     }
   }
@@ -69,7 +69,7 @@ module.exports = ({ version = process.version, experimental = false } = {}) => {
     for (const [name, semverRange] of Object.entries(experimentalModules)) {
       if (
         !builtins.includes(name) &&
-        (version === '*' || semver.satisfies(version, semverRange))
+        (version === '*' || satisfies(version, semverRange))
       ) {
         builtins.push(name)
       }

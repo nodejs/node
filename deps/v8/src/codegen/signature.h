@@ -32,12 +32,14 @@ class Signature : public ZoneObject {
   size_t parameter_count() const { return parameter_count_; }
 
   T GetParam(size_t index) const {
-    DCHECK_LT(index, parameter_count_);
+    // If heap memory is corrupted, we may get confused about the number of
+    // parameters during compilation. These SBXCHECKs defend against that.
+    SBXCHECK_LT(index, parameter_count_);
     return reps_[return_count_ + index];
   }
 
   T GetReturn(size_t index = 0) const {
-    DCHECK_LT(index, return_count_);
+    SBXCHECK_LT(index, return_count_);
     return reps_[index];
   }
 

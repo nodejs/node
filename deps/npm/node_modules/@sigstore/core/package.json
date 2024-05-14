@@ -1,6 +1,6 @@
 {
   "name": "@sigstore/core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Base library for Sigstore",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

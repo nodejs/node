@@ -1189,6 +1189,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
+          .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
@@ -1550,8 +1551,7 @@ void RegExpMacroAssemblerARM64::CallCFunctionFromIrregexpCode(
   //    fail.
   //
   // See also: crbug.com/v8/12670#c17.
-  __ CallCFunction(function, num_arguments,
-                   MacroAssembler::SetIsolateDataSlots::kNo);
+  __ CallCFunction(function, num_arguments, SetIsolateDataSlots::kNo);
 }
 
 void RegExpMacroAssemblerARM64::CheckPreemption() {

@@ -134,6 +134,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addImport('wasm:text-encoder', 'measureStringAsUTF8', kSig_i_r);
   builder.addImport('wasm:text-encoder', 'encodeStringIntoUTF8Array',
                     makeSig([kWasmExternRef, a8ref, kWasmI32], [kWasmI32]));
+  builder.addImport('wasm:text-encoder', 'encodeStringToUTF8Array',
+                    makeSig([kWasmExternRef], [wasmRefType(kArrayI8)]));
 
   builder.addImport('related', 'intToString', kSig_e_ii);
   builder.addImport('related', 'doubleToString', kSig_e_d);

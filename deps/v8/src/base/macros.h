@@ -427,7 +427,18 @@ bool is_inbounds(float_t v) {
 #define IF_TARGET_ARCH_64_BIT(V, ...) EXPAND(V(__VA_ARGS__))
 #else
 #define IF_TARGET_ARCH_64_BIT(V, ...)
-#endif
+#endif  // V8_TARGET_ARCH_64_BIT
+
+// Defines IF_OFFICIAL_BUILD and IF_NO_OFFICIAL_BUILD, to be used in macro lists
+// for elements that should only be there in official / non-official builds.
+#ifdef OFFICIAL_BUILD
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_OFFICIAL_BUILD(V, ...) EXPAND(V(__VA_ARGS__))
+#define IF_NO_OFFICIAL_BUILD(V, ...)
+#else
+#define IF_OFFICIAL_BUILD(V, ...)
+#define IF_NO_OFFICIAL_BUILD(V, ...) EXPAND(V(__VA_ARGS__))
+#endif  // OFFICIAL_BUILD
 
 #ifdef GOOGLE3
 // Disable FRIEND_TEST macro in Google3.

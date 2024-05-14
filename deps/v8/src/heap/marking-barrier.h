@@ -10,7 +10,7 @@
 #include "src/common/globals.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {
@@ -91,8 +91,8 @@ class MarkingBarrier {
   std::unique_ptr<MarkingWorklist::Local> current_worklist_;
   base::Optional<MarkingWorklist::Local> shared_heap_worklist_;
   MarkingState marking_state_;
-  std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
-                     base::hash<MemoryChunk*>>
+  std::unordered_map<MutablePageMetadata*, std::unique_ptr<TypedSlots>,
+                     base::hash<MutablePageMetadata*>>
       typed_slots_map_;
   bool is_compacting_ = false;
   bool is_activated_ = false;

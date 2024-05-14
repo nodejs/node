@@ -373,12 +373,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
   BIND(&allocate_properties);
   {
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      properties =
-          AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
-    } else {
-      properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
-    }
+    properties =
+        AllocatePropertyDictionary(PropertyDictionary::kInitialCapacity);
     Goto(&instantiate_map);
   }
 

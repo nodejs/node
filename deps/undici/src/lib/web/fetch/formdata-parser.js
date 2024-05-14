@@ -1,14 +1,14 @@
 'use strict'
 
-const { toUSVString, isUSVString, bufferToLowerCasedHeaderName } = require('../../core/util')
+const { isUSVString, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { utf8DecodeBytes } = require('./util')
 const { HTTP_TOKEN_CODEPOINTS, isomorphicDecode } = require('./data-url')
-const { isFileLike, File: UndiciFile } = require('./file')
+const { isFileLike } = require('./file')
 const { makeEntry } = require('./formdata')
 const assert = require('node:assert')
 const { File: NodeFile } = require('node:buffer')
 
-const File = globalThis.File ?? NodeFile ?? UndiciFile
+const File = globalThis.File ?? NodeFile
 
 const formDataNameBuffer = Buffer.from('form-data; name="')
 const filenameBuffer = Buffer.from('; filename')
@@ -58,43 +58,6 @@ function validateBoundary (boundary) {
   }
 
   return true
-}
-
-/**
- * @see https://andreubotella.github.io/multipart-form-data/#escape-a-multipart-form-data-name
- * @param {string} name
- * @param {string} [encoding='utf-8']
- * @param {boolean} [isFilename=false]
- */
-function escapeFormDataName (name, encoding = 'utf-8', isFilename = false) {
-  // 1. If isFilename is true:
-  if (isFilename) {
-    // 1.1. Set name to the result of converting name into a scalar value string.
-    name = toUSVString(name)
-  } else {
-    // 2. Otherwise:
-
-    // 2.1. Assert: name is a scalar value string.
-    assert(isUSVString(name))
-
-    // 2.2. Replace every occurrence of U+000D (CR) not followed by U+000A (LF),
-    //      and every occurrence of U+000A (LF) not preceded by U+000D (CR), in
-    //      name, by a string consisting of U+000D (CR) and U+000A (LF).
-    name = name.replace(/\r\n?|\r?\n/g, '\r\n')
-  }
-
-  // 3. Let encoded be the result of encoding name with encoding.
-  assert(Buffer.isEncoding(encoding))
-
-  // 4. Replace every 0x0A (LF) bytes in encoded with the byte sequence `%0A`,
-  //    0x0D (CR) with `%0D` and 0x22 (") with `%22`.
-  name = name
-    .replace(/\n/g, '%0A')
-    .replace(/\r/g, '%0D')
-    .replace(/"/g, '%22')
-
-  // 5. Return encoded.
-  return Buffer.from(name, encoding) // encoded
 }
 
 /**
@@ -497,6 +460,5 @@ function bufferStartsWith (buffer, start, position) {
 
 module.exports = {
   multipartFormDataParser,
-  validateBoundary,
-  escapeFormDataName
+  validateBoundary
 }

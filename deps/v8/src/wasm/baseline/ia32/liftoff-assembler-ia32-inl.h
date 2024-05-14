@@ -5,9 +5,8 @@
 #ifndef V8_WASM_BASELINE_IA32_LIFTOFF_ASSEMBLER_IA32_INL_H_
 #define V8_WASM_BASELINE_IA32_LIFTOFF_ASSEMBLER_IA32_INL_H_
 
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/object-access.h"
@@ -404,11 +403,11 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
   mov(dst, liftoff::GetInstanceDataOperand());
 }
 
-void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
-    Register dst, Register instance_object) {
-  LoadTaggedPointerFromInstance(
-      dst, instance_object,
-      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kTrustedDataOffset));
+void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
+                                          int offset, IndirectPointerTag tag) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  static_assert(!COMPRESS_POINTERS_BOOL);
+  mov(dst, Operand{src_addr, offset});
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -464,6 +463,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   Load(LiftoffRegister(dst), src_addr, offset_reg,
        static_cast<uint32_t>(offset_imm), LoadType::kI32Load, protected_load_pc,
        false, false, needs_shift);
+}
+
+void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
+                                            int32_t offset) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  LoadTaggedPointer(dst, src_addr, no_reg, offset);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -595,7 +600,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI64Store8:
       src = src.low();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StoreType::kI32Store8:
       // Only the lower 4 registers can be addressed as 8-bit registers.
       if (src.gp().is_byte_register()) {
@@ -625,13 +630,13 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI64Store16:
       src = src.low();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StoreType::kI32Store16:
       mov_w(dst_op, src.gp());
       break;
     case StoreType::kI64Store32:
       src = src.low();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StoreType::kI32Store:
       mov(dst_op, src.gp());
       break;
@@ -1444,6 +1449,14 @@ void EmitCommutativeBinOpImm(LiftoffAssembler* assm, Register dst, Register lhs,
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::imul>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_muli(Register dst, Register lhs, int32_t imm) {
+  if (base::bits::IsPowerOfTwo(imm)) {
+    emit_i32_shli(dst, lhs, base::bits::WhichPowerOfTwo(imm));
+  } else {
+    imul(dst, lhs, imm);
+  }
 }
 
 namespace liftoff {
@@ -2567,7 +2580,7 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
       case kRefNull:
       case kRtt:
         DCHECK(cond == kEqual || cond == kNotEqual);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case kI32:
         cmp(lhs, rhs);
         break;
@@ -3024,8 +3037,19 @@ void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero(
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2,
-                                                    LiftoffRegister mask) {
-  Pblendvb(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+                                                    LiftoffRegister mask,
+                                                    int lane_width) {
+  // Passing {src2} first is not a typo: the x86 instructions copy from the
+  // second operand when the mask is 1, contrary to the Wasm instruction.
+  if (lane_width == 8) {
+    Pblendvb(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else if (lane_width == 32) {
+    Blendvps(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else if (lane_width == 64) {
+    Blendvpd(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else {
+    UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,

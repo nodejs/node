@@ -382,6 +382,28 @@ shared_optgroup.add_argument('--shared-openssl-libpath',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
+shared_optgroup.add_argument('--shared-uvwasi',
+    action='store_true',
+    dest='shared_uvwasi',
+    default=None,
+    help='link to a shared uvwasi DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-uvwasi-includes',
+    action='store',
+    dest='shared_uvwasi_includes',
+    help='directory containing uvwasi header files')
+
+shared_optgroup.add_argument('--shared-uvwasi-libname',
+    action='store',
+    dest='shared_uvwasi_libname',
+    default='uvwasi',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_argument('--shared-uvwasi-libpath',
+    action='store',
+    dest='shared_uvwasi_libpath',
+    help='a directory to search for the shared uvwasi DLL')
+
 shared_optgroup.add_argument('--shared-zlib',
     action='store_true',
     dest='shared_zlib',
@@ -403,6 +425,74 @@ shared_optgroup.add_argument('--shared-zlib-libpath',
     action='store',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
+
+shared_optgroup.add_argument('--shared-simdjson',
+    action='store_true',
+    dest='shared_simdjson',
+    default=None,
+    help='link to a shared simdjson DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-simdjson-includes',
+    action='store',
+    dest='shared_simdjson_includes',
+    help='directory containing simdjson header files')
+
+shared_optgroup.add_argument('--shared-simdjson-libname',
+    action='store',
+    dest='shared_simdjson_libname',
+    default='simdjson',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-simdjson-libpath',
+    action='store',
+    dest='shared_simdjson_libpath',
+    help='a directory to search for the shared simdjson DLL')
+
+
+shared_optgroup.add_argument('--shared-simdutf',
+    action='store_true',
+    dest='shared_simdutf',
+    default=None,
+    help='link to a shared simdutf DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-simdutf-includes',
+    action='store',
+    dest='shared_simdutf_includes',
+    help='directory containing simdutf header files')
+
+shared_optgroup.add_argument('--shared-simdutf-libname',
+    action='store',
+    dest='shared_simdutf_libname',
+    default='simdutf',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-simdutf-libpath',
+    action='store',
+    dest='shared_simdutf_libpath',
+    help='a directory to search for the shared simdutf DLL')
+
+
+shared_optgroup.add_argument('--shared-ada',
+    action='store_true',
+    dest='shared_ada',
+    default=None,
+    help='link to a shared ada DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-ada-includes',
+    action='store',
+    dest='shared_ada_includes',
+    help='directory containing ada header files')
+
+shared_optgroup.add_argument('--shared-ada-libname',
+    action='store',
+    dest='shared_ada_libname',
+    default='ada',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-ada-libpath',
+    action='store',
+    dest='shared_ada_libpath',
+    help='a directory to search for the shared ada DLL')
 
 shared_optgroup.add_argument('--shared-brotli',
     action='store_true',
@@ -448,8 +538,6 @@ shared_optgroup.add_argument('--shared-cares-libpath',
     dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
-parser.add_argument_group(shared_optgroup)
-
 for builtin in shareable_builtins:
   builtin_id = 'shared_builtin_' + builtin + '_path'
   shared_builtin_optgroup.add_argument('--shared-builtin-' + builtin + '-path',
@@ -458,14 +546,10 @@ for builtin in shareable_builtins:
     help='Path to shared file for ' + builtin + ' builtin. '
          'Will be used instead of bundled version at runtime')
 
-parser.add_argument_group(shared_builtin_optgroup)
-
 static_optgroup.add_argument('--static-zoslib-gyp',
     action='store',
     dest='static_zoslib_gyp',
     help='path to zoslib.gyp file for includes and to link to static zoslib library')
-
-parser.add_argument_group(static_optgroup)
 
 parser.add_argument('--tag',
     action='store',
@@ -646,8 +730,6 @@ intl_optgroup.add_argument('--download-path',
     default='deps',
     help='Download directory [default: %(default)s]')
 
-parser.add_argument_group(intl_optgroup)
-
 parser.add_argument('--debug-lib',
     action='store_true',
     dest='node_debug_lib',
@@ -659,8 +741,6 @@ http2_optgroup.add_argument('--debug-nghttp2',
     dest='debug_nghttp2',
     default=None,
     help='build nghttp2 with DEBUGBUILD (default is false)')
-
-parser.add_argument_group(http2_optgroup)
 
 parser.add_argument('--without-npm',
     action='store_true',
@@ -866,6 +946,13 @@ parser.add_argument('-C',
     default=None,
     help=argparse.SUPPRESS)
 
+parser.add_argument('--clang-cl',
+    action='store',
+    dest='clang_cl',
+    default=None,
+    help='Configure for clang-cl on Windows. This flag sets the GYP "clang" ' +
+         'variable to 1 and "llvm_version" to the specified value.')
+
 (options, args) = parser.parse_known_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -1042,7 +1129,13 @@ def get_gas_version(cc):
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
-    o['variables']['llvm_version'] = '0.0'
+    if options.clang_cl:
+      o['variables']['clang'] = 1
+      o['variables']['llvm_version'] = options.clang_cl
+    else:
+      o['variables']['clang'] = 0
+      o['variables']['llvm_version'] = '0.0'
+
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
       o['variables']['nasm_version'] = nasm_version
@@ -1051,6 +1144,7 @@ def check_compiler(o):
     return
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
+  o['variables']['clang'] = B(is_clang)
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
   print_verbose(f"Detected {'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
   if not ok:
@@ -2054,11 +2148,15 @@ configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
+configure_library('ada', output)
+configure_library('simdjson', output)
+configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
+configure_library('uvwasi', output, pkgname='libuvwasi')
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)

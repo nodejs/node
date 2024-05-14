@@ -289,3 +289,20 @@
 
   assertEquals(resultArray, differenceArray);
 })();
+
+(function TestThrowRangeErrorIfSizeIsLowerThanZero() {
+  const setLike = {
+    arr: [42, 46, 47],
+    size: -1,
+    keys() {
+      return this.arr[Symbol.iterator]();
+    },
+    has(key) {
+      return this.arr.indexOf(key) != -1;
+    }
+  };
+
+  assertThrows(() => {
+    new Set().difference(setLike);
+  }, RangeError, "'-1' is an invalid size");
+})()

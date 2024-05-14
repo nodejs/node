@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax
+// Flags: --js-float16array
 
 "use strict";
 

@@ -76,8 +76,12 @@ class TaskRunner {
   /**
    * Schedules a task to be invoked by this TaskRunner. The TaskRunner
    * implementation takes ownership of |task|.
+   *
+   * Embedders should override PostTaskImpl instead of this.
    */
-  virtual void PostTask(std::unique_ptr<Task> task) = 0;
+  virtual void PostTask(std::unique_ptr<Task> task) {
+    PostTaskImpl(std::move(task), SourceLocation::Current());
+  }
 
   /**
    * Schedules a task to be invoked by this TaskRunner. The TaskRunner
@@ -93,16 +97,25 @@ class TaskRunner {
    * execution is not allowed to nest.
    *
    * Requires that |TaskRunner::NonNestableTasksEnabled()| is true.
+   *
+   * Embedders should override PostNonNestableTaskImpl instead of this.
    */
-  virtual void PostNonNestableTask(std::unique_ptr<Task> task) {}
+  virtual void PostNonNestableTask(std::unique_ptr<Task> task) {
+    PostNonNestableTaskImpl(std::move(task), SourceLocation::Current());
+  }
 
   /**
    * Schedules a task to be invoked by this TaskRunner. The task is scheduled
    * after the given number of seconds |delay_in_seconds|. The TaskRunner
    * implementation takes ownership of |task|.
+   *
+   * Embedders should override PostDelayedTaskImpl instead of this.
    */
   virtual void PostDelayedTask(std::unique_ptr<Task> task,
-                               double delay_in_seconds) = 0;
+                               double delay_in_seconds) {
+    PostDelayedTaskImpl(std::move(task), delay_in_seconds,
+                        SourceLocation::Current());
+  }
 
   /**
    * Schedules a task to be invoked by this TaskRunner. The task is scheduled
@@ -119,9 +132,14 @@ class TaskRunner {
    * execution is not allowed to nest.
    *
    * Requires that |TaskRunner::NonNestableDelayedTasksEnabled()| is true.
+   *
+   * Embedders should override PostNonNestableDelayedTaskImpl instead of this.
    */
   virtual void PostNonNestableDelayedTask(std::unique_ptr<Task> task,
-                                          double delay_in_seconds) {}
+                                          double delay_in_seconds) {
+    PostNonNestableDelayedTaskImpl(std::move(task), delay_in_seconds,
+                                   SourceLocation::Current());
+  }
 
   /**
    * Schedules an idle task to be invoked by this TaskRunner. The task is
@@ -130,8 +148,12 @@ class TaskRunner {
    * relative to other task types and may be starved for an arbitrarily long
    * time if no idle time is available. The TaskRunner implementation takes
    * ownership of |task|.
+   *
+   * Embedders should override PostIdleTaskImpl instead of this.
    */
-  virtual void PostIdleTask(std::unique_ptr<IdleTask> task) = 0;
+  virtual void PostIdleTask(std::unique_ptr<IdleTask> task) {
+    PostIdleTaskImpl(std::move(task), SourceLocation::Current());
+  }
 
   /**
    * Returns true if idle tasks are enabled for this TaskRunner.
@@ -153,6 +175,23 @@ class TaskRunner {
 
   TaskRunner(const TaskRunner&) = delete;
   TaskRunner& operator=(const TaskRunner&) = delete;
+
+ protected:
+  /**
+   * Implementation of above methods with an additional `location` argument.
+   */
+  virtual void PostTaskImpl(std::unique_ptr<Task> task,
+                            const SourceLocation& location) {}
+  virtual void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
+                                       const SourceLocation& location) {}
+  virtual void PostDelayedTaskImpl(std::unique_ptr<Task> task,
+                                   double delay_in_seconds,
+                                   const SourceLocation& location) {}
+  virtual void PostNonNestableDelayedTaskImpl(std::unique_ptr<Task> task,
+                                              double delay_in_seconds,
+                                              const SourceLocation& location) {}
+  virtual void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                                const SourceLocation& location) {}
 };
 
 /**

@@ -13,7 +13,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {
@@ -294,7 +294,6 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = true;
       return OLT;
     case kUnsignedGreaterThanOrEqual:
-    case kFloatGreaterThanOrEqual:
       *predicate = false;
       return OLT;
     case kUnsignedLessThanOrEqual:
@@ -302,9 +301,26 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       *predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
-    case kFloatGreaterThan:
       *predicate = false;
       return OLE;
+    case kFloatGreaterThan:
+      *predicate = false;
+      return ULE;
+    case kFloatGreaterThanOrEqual:
+      *predicate = false;
+      return ULT;
+    case kFloatLessThanOrUnordered:
+      *predicate = true;
+      return ULT;
+    case kFloatGreaterThanOrUnordered:
+      *predicate = false;
+      return OLE;
+    case kFloatGreaterThanOrEqualOrUnordered:
+      *predicate = false;
+      return OLT;
+    case kFloatLessThanOrEqualOrUnordered:
+      *predicate = true;
+      return ULE;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       *predicate = true;
@@ -572,10 +588,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        CodeEntrypointTag tag =
+            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ CallCodeObject(reg);
+        __ CallCodeObject(reg, tag);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -626,10 +644,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
+        CodeEntrypointTag tag =
+            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ JumpCodeObject(reg);
+        __ JumpCodeObject(reg, tag);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -699,12 +719,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallCFunction: {
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
 #if V8_ENABLE_WEBASSEMBLY
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       // from start_call to return address.
-      int offset = __ root_array_available() ? 64 : 112;
+      int offset = 0;
+      // TODO(mips): Use a more robust way to calculate offset of pc.
+      // See CallCFunction.
+      if (isWasmCapiFunction) {
+        offset = 32;  // SetIsolateDataSlots::kNo
+      } else if (__ root_array_available()) {
+        offset = 64;  // SetIsolateDataSlots::kYes and root_array_available
+      } else {
+        offset = 112;  // SetIsolateDataSlots::kYes but not root_array_available
+      }
 #endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_HOST_ARCH_MIPS64
       if (v8_flags.debug_code) {
@@ -721,14 +751,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Daddu(ra, ra, offset - 8);  // 8 = nop + nal
         __ sd(ra, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mov(ra, kScratchReg);
+        set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       }
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {

@@ -11,7 +11,7 @@ namespace v8::internal::compiler::turboshaft {
 
 void DebugFeatureLoweringPhase::Run(Zone* temp_zone) {
 #ifdef V8_ENABLE_DEBUG_CODE
-  turboshaft::CopyingPhase<turboshaft::DebugFeatureLoweringReducer>::Run<false>(
+  turboshaft::CopyingPhase<turboshaft::DebugFeatureLoweringReducer>::Run(
       temp_zone);
 #endif
 }

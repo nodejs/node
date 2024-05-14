@@ -268,6 +268,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   // Check whether the given new target value is a constructor function.
   void CheckIfConstructor(Node* call);
 
+  Node* ConvertHoleToUndefined(Node* value, ElementsKind elements_kind);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* temp_zone() const { return temp_zone_; }

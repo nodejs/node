@@ -605,6 +605,12 @@ Http2Session::Http2Session(Http2State* http2_state,
 Http2Session::~Http2Session() {
   CHECK(!is_in_scope());
   Debug(this, "freeing nghttp2 session");
+  // Ensure that all `Http2Stream` instances and the memory they hold
+  // on to are destroyed before the nghttp2 session is.
+  for (const auto& [id, stream] : streams_) {
+    stream->Detach();
+  }
+  streams_.clear();
   // Explicitly reset session_ so the subsequent
   // current_nghttp2_memory_ check passes.
   session_.reset();
@@ -2023,9 +2029,14 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 
   statistics_.data_received += nread;
 
-  if (LIKELY(stream_buf_offset_ == 0)) {
+  if (LIKELY(stream_buf_offset_ == 0 &&
+             static_cast<size_t>(nread) != bs->ByteLength())) {
     // Shrink to the actual amount of used data.
-    bs = BackingStore::Reallocate(env()->isolate(), std::move(bs), nread);
+    std::unique_ptr<BackingStore> old_bs = std::move(bs);
+    bs = ArrayBuffer::NewBackingStore(env()->isolate(), nread);
+    memcpy(static_cast<char*>(bs->Data()),
+           static_cast<char*>(old_bs->Data()),
+           nread);
   } else {
     // This is a very unlikely case, and should only happen if the ReadStart()
     // call in OnStreamAfterWrite() immediately provides data. If that does

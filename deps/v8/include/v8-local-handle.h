@@ -62,6 +62,7 @@ class ReturnValue;
 class String;
 template <class F>
 class Traced;
+class TypecheckWitness;
 class Utils;
 
 namespace debug {
@@ -405,6 +406,8 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
   }
 
 #ifdef V8_ENABLE_DIRECT_LOCAL
+  friend class TypecheckWitness;
+
   V8_INLINE static Local<T> FromAddress(internal::Address ptr) {
     return Local<T>(LocalBase<T>(ptr));
   }

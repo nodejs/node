@@ -51,7 +51,7 @@ void ares_destroy(ares_channel_t *channel)
     struct query       *query = ares__llist_node_claim(node);
 
     query->node_all_queries = NULL;
-    query->callback(query->arg, ARES_EDESTRUCTION, 0, NULL, 0);
+    query->callback(query->arg, ARES_EDESTRUCTION, 0, NULL);
     ares__free_query(query);
 
     node = next;

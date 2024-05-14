@@ -4,6 +4,7 @@
 
 #include "src/extensions/gc-extension.h"
 
+#include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-maybe.h"
 #include "include/v8-microtask-queue.h"
@@ -19,29 +20,35 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/tasks/cancelable-task.h"
 
-namespace v8 {
-namespace internal {
-
+namespace v8::internal {
 namespace {
 
 enum class GCType { kMinor, kMajor, kMajorWithSnapshot };
 enum class ExecutionType { kAsync, kSync };
+enum class Flavor { kRegular, kLastResort };
 
 struct GCOptions {
   static GCOptions GetDefault() {
-    return {GCType::kMajor, ExecutionType::kSync, "heap.heapsnapshot"};
+    return {GCType::kMajor, ExecutionType::kSync, Flavor::kRegular,
+            "heap.heapsnapshot"};
   }
   static GCOptions GetDefaultForTruthyWithoutOptionsBag() {
-    return {GCType::kMinor, ExecutionType::kSync, "heap.heapsnapshot"};
+    return {GCType::kMinor, ExecutionType::kSync, Flavor::kRegular,
+            "heap.heapsnapshot"};
   }
+
+  // Used with Nothing<GCOptions>.
+  GCOptions() = default;
 
   GCType type;
   ExecutionType execution;
+  Flavor flavor;
   std::string filename;
 
  private:
-  GCOptions(GCType type, ExecutionType execution, std::string filename)
-      : type(type), execution(execution), filename(filename) {}
+  GCOptions(GCType type, ExecutionType execution, Flavor flavor,
+            std::string filename)
+      : type(type), execution(execution), flavor(flavor), filename(filename) {}
 };
 
 MaybeLocal<v8::String> ReadProperty(v8::Isolate* isolate,
@@ -50,11 +57,9 @@ MaybeLocal<v8::String> ReadProperty(v8::Isolate* isolate,
                                     const char* key) {
   auto k = v8::String::NewFromUtf8(isolate, key).ToLocalChecked();
   auto maybe_property = object->Get(ctx, k);
-  // Handle the exception.
-  if (maybe_property.IsEmpty()) return MaybeLocal<v8::String>();
-  auto property = maybe_property.ToLocalChecked();
-  if (!property->IsString()) {
-    return MaybeLocal<v8::String>();
+  v8::Local<v8::Value> property;
+  if (!maybe_property.ToLocal(&property) || !property->IsString()) {
+    return {};
   }
   return MaybeLocal<v8::String>(property.As<v8::String>());
 }
@@ -97,6 +102,22 @@ void ParseExecution(v8::Isolate* isolate,
   }
 }
 
+void ParseFlavor(v8::Isolate* isolate, MaybeLocal<v8::String> maybe_execution,
+                 GCOptions* options, bool* found_options_object) {
+  if (maybe_execution.IsEmpty()) return;
+
+  auto type = maybe_execution.ToLocalChecked();
+  if (type->StrictEquals(
+          v8::String::NewFromUtf8(isolate, "regular").ToLocalChecked())) {
+    *found_options_object = true;
+    options->flavor = Flavor::kRegular;
+  } else if (type->StrictEquals(v8::String::NewFromUtf8(isolate, "last-resort")
+                                    .ToLocalChecked())) {
+    *found_options_object = true;
+    options->flavor = Flavor::kLastResort;
+  }
+}
+
 Maybe<GCOptions> Parse(v8::Isolate* isolate,
                        const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
@@ -113,13 +134,32 @@ Maybe<GCOptions> Parse(v8::Isolate* isolate,
     auto ctx = isolate->GetCurrentContext();
     auto param = v8::Local<v8::Object>::Cast(info[0]);
 
+    v8::TryCatch catch_block(isolate);
     ParseType(isolate, ReadProperty(isolate, ctx, param, "type"), &options,
               &found_options_object);
+    if (catch_block.HasCaught()) {
+      catch_block.ReThrow();
+      return Nothing<GCOptions>();
+    }
     ParseExecution(isolate, ReadProperty(isolate, ctx, param, "execution"),
                    &options, &found_options_object);
+    if (catch_block.HasCaught()) {
+      catch_block.ReThrow();
+      return Nothing<GCOptions>();
+    }
+    ParseFlavor(isolate, ReadProperty(isolate, ctx, param, "flavor"), &options,
+                &found_options_object);
+    if (catch_block.HasCaught()) {
+      catch_block.ReThrow();
+      return Nothing<GCOptions>();
+    }
 
     if (options.type == GCType::kMajorWithSnapshot) {
       auto maybe_filename = ReadProperty(isolate, ctx, param, "filename");
+      if (catch_block.HasCaught()) {
+        catch_block.ReThrow();
+        return Nothing<GCOptions>();
+      }
       Local<v8::String> filename;
       if (maybe_filename.ToLocal(&filename)) {
         std::unique_ptr<char[]> buffer(
@@ -147,8 +187,8 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
   EmbedderStackStateScope stack_scope(
       heap,
       gc_options.execution == ExecutionType::kAsync
-          ? EmbedderStackStateScope::kImplicitThroughTask
-          : EmbedderStackStateScope::kExplicitInvocation,
+          ? EmbedderStackStateOrigin::kImplicitThroughTask
+          : EmbedderStackStateOrigin::kExplicitInvocation,
       gc_options.execution == ExecutionType::kAsync
           ? StackState::kNoHeapPointers
           : StackState::kMayContainHeapPointers);
@@ -158,9 +198,18 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
                            kGCCallbackFlagForced);
       break;
     case GCType::kMajor:
-      heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
-                                     i::GarbageCollectionReason::kTesting,
-                                     kGCCallbackFlagForced);
+      switch (gc_options.flavor) {
+        case Flavor::kRegular:
+          heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
+                                         i::GarbageCollectionReason::kTesting,
+                                         kGCCallbackFlagForced);
+          break;
+        case Flavor::kLastResort:
+          heap->CollectAllAvailableGarbage(
+              i::GarbageCollectionReason::kTesting);
+
+          break;
+      }
       break;
     case GCType::kMajorWithSnapshot:
       heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
@@ -228,9 +277,11 @@ void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  auto maybe_options = Parse(isolate, info);
-  if (maybe_options.IsNothing()) return;
-  GCOptions options = maybe_options.ToChecked();
+  GCOptions options;
+  if (!Parse(isolate, info).To(&options)) {
+    // Parsing ran into an exception. Just bail out without GC in this case.
+    return;
+  }
   switch (options.execution) {
     case ExecutionType::kSync:
       InvokeGC(isolate, options);
@@ -249,5 +300,4 @@ void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

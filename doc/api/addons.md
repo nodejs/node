@@ -845,8 +845,8 @@ class MyObject : public node::ObjectWrap {
 ```
 
 In `myobject.cc`, implement the various methods that are to be exposed.
-Below, the method `plusOne()` is exposed by adding it to the constructor's
-prototype:
+In the following code, the method `plusOne()` is exposed by adding it to the
+constructor's prototype:
 
 ```cpp
 // myobject.cc

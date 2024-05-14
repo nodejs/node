@@ -158,6 +158,26 @@ std::ostream& operator<<(std::ostream& os, OperationPrintStyle styled_op) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, GenericBinopOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(Name)              \
+  case GenericBinopOp::Kind::k##Name: \
+    return os << #Name;
+    GENERIC_BINOP_LIST(PRINT_KIND)
+#undef PRINT_KIND
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(Name)             \
+  case GenericUnopOp::Kind::k##Name: \
+    return os << #Name;
+    GENERIC_UNOP_LIST(PRINT_KIND)
+#undef PRINT_KIND
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
   switch (kind) {
     case WordUnaryOp::Kind::kReverseBytes:
@@ -380,6 +400,8 @@ std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind kind) {
       return os << "Smi";
     case TaggedBitcastOp::Kind::kHeapObject:
       return os << "HeapObject";
+    case TaggedBitcastOp::Kind::kTagAndSmiBits:
+      return os << "TagAndSmiBits";
     case TaggedBitcastOp::Kind::kAny:
       return os << "Any";
   }
@@ -489,6 +511,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       break;
     case Kind::kWord64:
       os << "word64: " << static_cast<int64_t>(storage.integral);
+      break;
+    case Kind::kSmi:
+      os << "smi: " << smi();
       break;
     case Kind::kNumber:
       os << "number: " << number();
@@ -884,6 +909,35 @@ void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
+void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  switch (kind) {
+    case Kind::kSignedAdd:
+      os << "signed add, ";
+      break;
+    case Kind::kSignedMul:
+      os << "signed mul, ";
+      break;
+    case Kind::kSignedSub:
+      os << "signed sub, ";
+      break;
+    case Kind::kSignedDiv:
+      os << "signed div, ";
+      break;
+    case Kind::kSignedMod:
+      os << "signed mod, ";
+      break;
+    case Kind::kUnsignedDiv:
+      os << "unsigned div, ";
+      break;
+    case Kind::kUnsignedMod:
+      os << "unsigned mod, ";
+      break;
+  }
+  os << rep;
+  os << "]";
+}
+
 void OverflowCheckedBinopOp::PrintOptions(std::ostream& os) const {
   os << "[";
   switch (kind) {
@@ -991,6 +1045,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "Smi";
     case ObjectIsOp::Kind::kString:
       return os << "String";
+    case ObjectIsOp::Kind::kStringOrStringWrapper:
+      return os << "StringOrStringWrapper";
     case ObjectIsOp::Kind::kSymbol:
       return os << "Symbol";
     case ObjectIsOp::Kind::kUndetectable:
@@ -1020,6 +1076,8 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
       return os << "Integer";
     case NumericKind::kSafeInteger:
       return os << "SafeInteger";
+    case NumericKind::kSmi:
+      return os << "kSmi";
     case NumericKind::kMinusZero:
       return os << "MinusZero";
     case NumericKind::kNaN:
@@ -1055,6 +1113,9 @@ std::ostream& operator<<(std::ostream& os,
       return os << "Boolean";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber:
       return os << "HeapNumber";
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+        kHeapNumberOrUndefined:
+      return os << "HeapNumberOrUndefined";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber:
       return os << "Number";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi:
@@ -1580,6 +1641,65 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
 void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
   PrintSimd128Value(os, shuffle);
 }
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  if (load_kind.maybe_unaligned) os << "unaligned, ";
+  if (load_kind.with_trap_handler) os << "protected, ";
+
+  switch (transform_kind) {
+#define PRINT_KIND(kind)       \
+  case TransformKind::k##kind: \
+    os << #kind;               \
+    break;
+    FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(PRINT_KIND)
+#undef PRINT_KIND
+  }
+
+  os << ", offset: " << offset << "]";
+}
+
+std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)              \
+  case Simd256UnaryOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_UNARY_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+
+std::ostream& operator<<(std::ostream& os, Simd256TernaryOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)                \
+  case Simd256TernaryOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_TERNARY_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+
+std::ostream& operator<<(std::ostream& os, Simd256BinopOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)              \
+  case Simd256BinopOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_BINARY_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+
+std::ostream& operator<<(std::ostream& os, Simd256ShiftOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)              \
+  case Simd256ShiftOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_SHIFT_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
   os << '[' << array_type->element_type() << "]";

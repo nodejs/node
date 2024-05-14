@@ -70,11 +70,13 @@ const specTransform = snapshot.transform(
   replaceSpecDuration,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
+  snapshot.replaceWindowsPaths,
 );
 const junitTransform = snapshot.transform(
   replaceJunitDuration,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
+  snapshot.replaceWindowsPaths,
 );
 const lcovTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
@@ -91,7 +93,7 @@ const tests = [
   { name: 'test-runner/output/abort_hooks.js' },
   { name: 'test-runner/output/describe_it.js' },
   { name: 'test-runner/output/describe_nested.js' },
-  { name: 'test-runner/output/eval_dot.js' },
+  { name: 'test-runner/output/eval_dot.js', transform: specTransform },
   { name: 'test-runner/output/eval_spec.js', transform: specTransform },
   { name: 'test-runner/output/eval_tap.js' },
   { name: 'test-runner/output/hooks.js' },
@@ -108,7 +110,7 @@ const tests = [
   { name: 'test-runner/output/no_refs.js' },
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
-  { name: 'test-runner/output/dot_reporter.js' },
+  { name: 'test-runner/output/dot_reporter.js', transform: specTransform },
   { name: 'test-runner/output/junit_reporter.js', transform: junitTransform },
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
@@ -117,8 +119,10 @@ const tests = [
   process.features.inspector ? { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform } : false,
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
+  { name: 'test-runner/output/name_and_skip_patterns.js' },
   { name: 'test-runner/output/name_pattern.js' },
   { name: 'test-runner/output/name_pattern_with_only.js' },
+  { name: 'test-runner/output/skip_pattern.js' },
   { name: 'test-runner/output/unfinished-suite-async-error.js' },
   { name: 'test-runner/output/unresolved_promise.js' },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
@@ -136,6 +140,7 @@ const tests = [
       replaceTestDuration,
     ),
   },
+  { name: 'test-runner/output/test-runner-plan.js' },
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
 ]
 .filter(Boolean)

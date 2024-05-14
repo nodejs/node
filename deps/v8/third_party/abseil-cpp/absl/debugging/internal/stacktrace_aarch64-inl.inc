@@ -122,19 +122,20 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
       if (pre_signal_frame_pointer >= old_frame_pointer) {
         new_frame_pointer = pre_signal_frame_pointer;
       }
-      // Check that alleged frame pointer is actually readable. This is to
-      // prevent "double fault" in case we hit the first fault due to e.g.
-      // stack corruption.
-      if (!absl::debugging_internal::AddressIsReadable(
-              new_frame_pointer))
-        return nullptr;
-    }
   }
 #endif
 
   // The frame pointer should be 8-byte aligned.
   if ((reinterpret_cast<uintptr_t>(new_frame_pointer) & 7) != 0)
     return nullptr;
+
+  // Check that alleged frame pointer is actually readable. This is to
+  // prevent "double fault" in case we hit the first fault due to e.g.
+  // stack corruption.
+  if (!absl::debugging_internal::AddressIsReadable(
+          new_frame_pointer))
+    return nullptr;
+  }
 
   // Only check the size if both frames are in the same stack.
   if (InsideSignalStack(new_frame_pointer, stack_info) ==

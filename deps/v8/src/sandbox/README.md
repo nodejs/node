@@ -32,16 +32,17 @@ The sandbox is designed to be testable, both manually and automatically.
 
 To use a "sandbox testing" configurations, two steps are required:
 
-1. V8 needs to be build with `v8_expose_memory_corruption_api = true`. This
-   will expose a JavaScript `Sandbox` object through which memory inside the
-   sandbox can be arbitrarily modified. This API effectively emulates an
-   exploit for a typical V8 vulnerability.
-2. The sandbox "crash filter" needs to be enabled. This signal handler will
+1. V8 needs to be build with `v8_enable_memory_corruption_api = true`. This
+   will, when sandbox testing mode is enabled, see below, expose a JavaScript
+   `Sandbox` object through which memory inside the sandbox can be arbitrarily
+   modified. This API effectively emulates common exploit primitives that can
+   be constructed from a typical V8 vulnerability.
+2. The sandbox testing mode needs to be enabled at runtime via
+   `--sandbox-fuzzing`. This will enable the sandbox crash filter, which will
    filter out harmless crashes such as access violations inside the sandbox or
    other, unexploitable crashes. As such, it effectively defines what
    constitutes a sandbox violation bug. The sandbox crash filter is currently
-   only available on Linux and in d8, where it can be enabled with
-   `--enable-sandbox-crash-filter`.
+   only available on Linux and in d8.
 
 The following example demonstrates these two parts:
 
@@ -96,3 +97,9 @@ various design documents related to it.
   outside of the sandbox in the trusted heap space, then referencing them
   through another pointer table indirection to ensure memory safe access. This
   document discusses both of these mechanisms.
+* [Hardware Support](https://docs.google.com/document/d/12MsaG6BYRB-jQWNkZiuM3bY8X2B2cAsCMLLdgErvK4c/edit?usp=sharing):
+  Instead of the purely software-based sandbox described by the preceeding
+  documents, the sandbox could also be implemented (or augmented) with special
+  hardware support. This document discusses various options for how that may
+  work in practice, what the implications would be, and which requirements the
+  hardware would have to fulfill.

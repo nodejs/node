@@ -288,12 +288,12 @@ class ModuleRequest
 
   template <typename IsolateT>
   static Handle<ModuleRequest> New(IsolateT* isolate, Handle<String> specifier,
-                                   Handle<FixedArray> import_assertions,
+                                   Handle<FixedArray> import_attributes,
                                    int position);
 
-  // The number of entries in the import_assertions FixedArray that are used for
-  // a single assertion.
-  static const size_t kAssertionEntrySize = 3;
+  // The number of entries in the import_attributes FixedArray that are used for
+  // a single attribute.
+  static const size_t kAttributeEntrySize = 3;
 
   using BodyDescriptor = StructBodyDescriptor;
 

@@ -512,7 +512,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     if (!maybe_handler.is_null()) {
       Handle<MegaDomHandler> handler =
           Handle<MegaDomHandler>::cast(maybe_handler.object());
-      if (!handler->accessor(kAcquireLoad)->IsCleared()) {
+      if (!handler->accessor(kAcquireLoad).IsCleared()) {
         FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
             this, FunctionTemplateInfo::cast(
                       handler->accessor(kAcquireLoad).GetHeapObject()));
@@ -554,7 +554,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
          nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
   if (nexus.ic_state() != InlineCacheState::MONOMORPHIC ||
-      nexus.GetFeedback()->IsCleared()) {
+      nexus.GetFeedback().IsCleared()) {
     return *zone()->New<GlobalAccessFeedback>(nexus.kind());
   }
 
@@ -684,7 +684,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   OptionalHeapObjectRef target_ref;
   {
-    MaybeObject maybe_target = nexus.GetFeedback();
+    Tagged<MaybeObject> maybe_target = nexus.GetFeedback();
     Tagged<HeapObject> target_object;
     if (maybe_target.GetHeapObject(&target_object)) {
       target_ref = TryMakeRef(this, target_object);

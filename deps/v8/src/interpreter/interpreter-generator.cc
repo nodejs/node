@@ -321,6 +321,32 @@ IGNITION_HANDLER(StaCurrentContextSlot, InterpreterAssembler) {
   Dispatch();
 }
 
+// StaScriptContextSlot <context> <slot_index> <depth>
+//
+// Stores the object in the accumulator into |slot_index| of the script context
+// at |depth| in the context chain starting at |context|.
+IGNITION_HANDLER(StaScriptContextSlot, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
+  StoreContextElementAndUpdateSideData(slot_context, slot_index, value);
+  Dispatch();
+}
+
+// StaCurrentScriptContextSlot <slot_index>
+//
+// Stores the object in the accumulator into |slot_index| of the current
+// context (which has to be a script context).
+IGNITION_HANDLER(StaCurrentScriptContextSlot, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+  TNode<Context> slot_context = GetContext();
+  StoreContextElementAndUpdateSideData(slot_context, slot_index, value);
+  Dispatch();
+}
+
 // LdaLookupSlot <name_index>
 //
 // Lookup the object with the name in constant pool entry |name_index|
@@ -582,6 +608,28 @@ IGNITION_HANDLER(GetKeyedProperty, InterpreterAssembler) {
   TVARIABLE(Object, var_result);
   var_result = CallBuiltin(Builtin::kKeyedLoadIC, context, object, name, slot,
                            feedback_vector);
+  SetAccumulator(var_result.value());
+  Dispatch();
+}
+
+// GetEnumeratedKeyedProperty <object> <enum_index> <cache_type> <slot>
+//
+// Calls the EnumeratedKeyedLoadIC at FeedBackVector slot <slot> for <object>
+// and the key in the accumulator. The key is coming from the each target of a
+// for-in loop.
+IGNITION_HANDLER(GetEnumeratedKeyedProperty, InterpreterAssembler) {
+  TNode<Object> object = LoadRegisterAtOperandIndex(0);
+  TNode<Object> name = GetAccumulator();
+  TNode<TaggedIndex> enum_index =
+      SmiToTaggedIndex(CAST(LoadRegisterAtOperandIndex(1)));
+  TNode<Object> cache_type = LoadRegisterAtOperandIndex(2);
+  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(3);
+  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
+
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtin::kEnumeratedKeyedLoadIC, context, object,
+                           name, enum_index, cache_type, slot, feedback_vector);
   SetAccumulator(var_result.value());
   Dispatch();
 }
@@ -2210,6 +2258,8 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
 
+  ClobberAccumulator(UndefinedConstant());
+
 #ifndef V8_JITLESS
   TVARIABLE(HeapObject, maybe_feedback_vector);
   Label ok(this);
@@ -2251,8 +2301,6 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
 
   BIND(&ok);
 #endif  // !V8_JITLESS
-
-  ClobberAccumulator(UndefinedConstant());
 
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.
@@ -3152,8 +3200,6 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
   SetContext(context);
 
   TNode<UintPtrT> table_start = BytecodeOperandIdx(1);
-  // TODO(leszeks): table_length is only used for a CSA_DCHECK, we don't
-  // actually need it otherwise.
   TNode<UintPtrT> table_length = BytecodeOperandUImmWord(2);
 
   // The state must be a Smi.
@@ -3161,9 +3207,10 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
 
   TNode<IntPtrT> case_value = SmiUntag(state);
 
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(case_value, IntPtrConstant(0)));
-  CSA_DCHECK(this, IntPtrLessThan(case_value, table_length));
-  USE(table_length);
+  // When the sandbox is enabled, the generator state must be assumed to be
+  // untrusted as it is located inside the sandbox, so validate it here.
+  CSA_SBXCHECK(this, UintPtrLessThan(case_value, table_length));
+  USE(table_length);  // SBXCHECK is a DCHECK when the sandbox is disabled.
 
   TNode<WordT> entry = IntPtrAdd(table_start, case_value);
   TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntry(entry);

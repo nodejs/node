@@ -20,6 +20,8 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
     return PropertyCell::cast(object)->dependent_code();
   } else if (IsAllocationSite(object)) {
     return AllocationSite::cast(object)->dependent_code();
+  } else if (IsConstTrackingLetCell(object)) {
+    return ConstTrackingLetCell::cast(object)->dependent_code();
   }
   UNREACHABLE();
 }
@@ -32,6 +34,8 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
     Handle<PropertyCell>::cast(object)->set_dependent_code(*dep);
   } else if (IsAllocationSite(*object)) {
     Handle<AllocationSite>::cast(object)->set_dependent_code(*dep);
+  } else if (IsConstTrackingLetCell(*object)) {
+    Handle<ConstTrackingLetCell>::cast(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();
   }
@@ -82,15 +86,15 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
 
   // As the Code object lives outside of the sandbox in trusted space, we need
   // to use its in-sandbox wrapper object here.
-  MaybeObjectHandle code_slot(HeapObjectReference::Weak(code->wrapper()),
-                              isolate);
+  MaybeObjectHandle code_slot(MakeWeak(code->wrapper()), isolate);
   entries = Handle<DependentCode>::cast(WeakArrayList::AddToEnd(
       isolate, entries, code_slot, Smi::FromInt(groups)));
   return entries;
 }
 
+template <typename Function>
 void DependentCode::IterateAndCompact(IsolateForSandbox isolate,
-                                      const IterateAndCompactFn& fn) {
+                                      const Function& fn) {
   DisallowGarbageCollection no_gc;
 
   int len = length();
@@ -103,8 +107,8 @@ void DependentCode::IterateAndCompact(IsolateForSandbox isolate,
   // - Any cleared slots are filled from the back of the list.
   int i = len - kSlotsPerEntry;
   while (i >= 0) {
-    MaybeObject obj = Get(i + kCodeSlotOffset);
-    if (obj->IsCleared()) {
+    Tagged<MaybeObject> obj = Get(i + kCodeSlotOffset);
+    if (obj.IsCleared()) {
       len = FillEntryFromBack(i, len);
       i -= kSlotsPerEntry;
       continue;
@@ -145,8 +149,8 @@ int DependentCode::FillEntryFromBack(int index, int length) {
   DCHECK_EQ(index % 2, 0);
   DCHECK_EQ(length % 2, 0);
   for (int i = length - kSlotsPerEntry; i > index; i -= kSlotsPerEntry) {
-    MaybeObject obj = Get(i + kCodeSlotOffset);
-    if (obj->IsCleared()) continue;
+    Tagged<MaybeObject> obj = Get(i + kCodeSlotOffset);
+    if (obj.IsCleared()) continue;
 
     Set(index + kCodeSlotOffset, obj);
     Set(index + kGroupsSlotOffset, Get(i + kGroupsSlotOffset),
@@ -192,6 +196,8 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-tenuring-changed";
     case kAllocationSiteTransitionChangedGroup:
       return "allocation-site-transition-changed";
+    case kConstTrackingLetChangedGroup:
+      return "const-tracking-let-changed";
   }
   UNREACHABLE();
 }

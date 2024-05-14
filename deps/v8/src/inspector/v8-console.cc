@@ -989,12 +989,18 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     v8::Local<v8::Value> name;
     if (!names->Get(context, i).ToLocal(&name) || !name->IsName()) continue;
     if (global->Has(context, name).FromMaybe(true)) continue;
+
+    const v8::SideEffectType get_accessor_side_effect_type =
+        isCommandLineAPIGetter(
+            toProtocolStringWithTypeCheck(context->GetIsolate(), name))
+            ? v8::SideEffectType::kHasNoSideEffect
+            : v8::SideEffectType::kHasSideEffect;
     if (!global
              ->SetNativeDataProperty(
                  context, name.As<v8::Name>(),
                  CommandLineAPIScope::accessorGetterCallback,
                  CommandLineAPIScope::accessorSetterCallback, thisReference(),
-                 v8::DontEnum)
+                 v8::DontEnum, get_accessor_side_effect_type)
              .FromMaybe(false)) {
       continue;
     }

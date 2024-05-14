@@ -665,6 +665,7 @@ void JSFunction::InitializeFeedbackCell(
 
   if (v8_flags.profile_guided_optimization &&
       v8_flags.profile_guided_optimization_for_empty_feedback_vector &&
+      function->has_feedback_vector() &&
       function->feedback_vector()->length() == 0) {
     if (function->shared()->cached_tiering_decision() ==
         CachedTieringDecision::kEarlyMaglev) {
@@ -964,6 +965,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case MAP_TYPE:
     case ODDBALL_TYPE:
     case PROPERTY_CELL_TYPE:
+    case CONST_TRACKING_LET_CELL_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
     case SYMBOL_TYPE:
     case ALLOCATION_SITE_TYPE:

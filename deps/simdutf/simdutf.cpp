@@ -1,9 +1,685 @@
-/* auto-generated on 2024-03-18 10:58:28 -0400. Do not edit! */
+/* auto-generated on 2024-05-07 22:33:11 -0400. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
+// We include base64_tables once.
+/* begin file src/tables/base64_tables.h */
+#ifndef SIMDUTF_BASE64_TABLES_H
+#define SIMDUTF_BASE64_TABLES_H
+#include <array>
+#include <cstdint>
+
+namespace simdutf {
+namespace {
+namespace tables {
+namespace base64 {
+namespace base64_default {
+
+const char e0[256] = {
+    'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D',
+    'D', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'G', 'G', 'G', 'G', 'H', 'H',
+    'H', 'H', 'I', 'I', 'I', 'I', 'J', 'J', 'J', 'J', 'K', 'K', 'K', 'K', 'L',
+    'L', 'L', 'L', 'M', 'M', 'M', 'M', 'N', 'N', 'N', 'N', 'O', 'O', 'O', 'O',
+    'P', 'P', 'P', 'P', 'Q', 'Q', 'Q', 'Q', 'R', 'R', 'R', 'R', 'S', 'S', 'S',
+    'S', 'T', 'T', 'T', 'T', 'U', 'U', 'U', 'U', 'V', 'V', 'V', 'V', 'W', 'W',
+    'W', 'W', 'X', 'X', 'X', 'X', 'Y', 'Y', 'Y', 'Y', 'Z', 'Z', 'Z', 'Z', 'a',
+    'a', 'a', 'a', 'b', 'b', 'b', 'b', 'c', 'c', 'c', 'c', 'd', 'd', 'd', 'd',
+    'e', 'e', 'e', 'e', 'f', 'f', 'f', 'f', 'g', 'g', 'g', 'g', 'h', 'h', 'h',
+    'h', 'i', 'i', 'i', 'i', 'j', 'j', 'j', 'j', 'k', 'k', 'k', 'k', 'l', 'l',
+    'l', 'l', 'm', 'm', 'm', 'm', 'n', 'n', 'n', 'n', 'o', 'o', 'o', 'o', 'p',
+    'p', 'p', 'p', 'q', 'q', 'q', 'q', 'r', 'r', 'r', 'r', 's', 's', 's', 's',
+    't', 't', 't', 't', 'u', 'u', 'u', 'u', 'v', 'v', 'v', 'v', 'w', 'w', 'w',
+    'w', 'x', 'x', 'x', 'x', 'y', 'y', 'y', 'y', 'z', 'z', 'z', 'z', '0', '0',
+    '0', '0', '1', '1', '1', '1', '2', '2', '2', '2', '3', '3', '3', '3', '4',
+    '4', '4', '4', '5', '5', '5', '5', '6', '6', '6', '6', '7', '7', '7', '7',
+    '8', '8', '8', '8', '9', '9', '9', '9', '+', '+', '+', '+', '/', '/', '/',
+    '/'};
+
+const char e1[256] = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+    'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+    't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
+    'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
+    '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
+    'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
+    'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C',
+    'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+    'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
+    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+',
+    '/'};
+
+const char e2[256] = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+    'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+    't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
+    'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
+    '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
+    'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
+    'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C',
+    'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+    'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
+    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+',
+    '/'};
+
+const uint32_t d0[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x000000f8, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x000000fc,
+    0x000000d0, 0x000000d4, 0x000000d8, 0x000000dc, 0x000000e0, 0x000000e4,
+    0x000000e8, 0x000000ec, 0x000000f0, 0x000000f4, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00000004, 0x00000008, 0x0000000c, 0x00000010, 0x00000014, 0x00000018,
+    0x0000001c, 0x00000020, 0x00000024, 0x00000028, 0x0000002c, 0x00000030,
+    0x00000034, 0x00000038, 0x0000003c, 0x00000040, 0x00000044, 0x00000048,
+    0x0000004c, 0x00000050, 0x00000054, 0x00000058, 0x0000005c, 0x00000060,
+    0x00000064, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x00000068, 0x0000006c, 0x00000070, 0x00000074, 0x00000078,
+    0x0000007c, 0x00000080, 0x00000084, 0x00000088, 0x0000008c, 0x00000090,
+    0x00000094, 0x00000098, 0x0000009c, 0x000000a0, 0x000000a4, 0x000000a8,
+    0x000000ac, 0x000000b0, 0x000000b4, 0x000000b8, 0x000000bc, 0x000000c0,
+    0x000000c4, 0x000000c8, 0x000000cc, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+
+const uint32_t d1[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x0000e003, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x0000f003,
+    0x00004003, 0x00005003, 0x00006003, 0x00007003, 0x00008003, 0x00009003,
+    0x0000a003, 0x0000b003, 0x0000c003, 0x0000d003, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00001000, 0x00002000, 0x00003000, 0x00004000, 0x00005000, 0x00006000,
+    0x00007000, 0x00008000, 0x00009000, 0x0000a000, 0x0000b000, 0x0000c000,
+    0x0000d000, 0x0000e000, 0x0000f000, 0x00000001, 0x00001001, 0x00002001,
+    0x00003001, 0x00004001, 0x00005001, 0x00006001, 0x00007001, 0x00008001,
+    0x00009001, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x0000a001, 0x0000b001, 0x0000c001, 0x0000d001, 0x0000e001,
+    0x0000f001, 0x00000002, 0x00001002, 0x00002002, 0x00003002, 0x00004002,
+    0x00005002, 0x00006002, 0x00007002, 0x00008002, 0x00009002, 0x0000a002,
+    0x0000b002, 0x0000c002, 0x0000d002, 0x0000e002, 0x0000f002, 0x00000003,
+    0x00001003, 0x00002003, 0x00003003, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+
+const uint32_t d2[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x00800f00, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00c00f00,
+    0x00000d00, 0x00400d00, 0x00800d00, 0x00c00d00, 0x00000e00, 0x00400e00,
+    0x00800e00, 0x00c00e00, 0x00000f00, 0x00400f00, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00400000, 0x00800000, 0x00c00000, 0x00000100, 0x00400100, 0x00800100,
+    0x00c00100, 0x00000200, 0x00400200, 0x00800200, 0x00c00200, 0x00000300,
+    0x00400300, 0x00800300, 0x00c00300, 0x00000400, 0x00400400, 0x00800400,
+    0x00c00400, 0x00000500, 0x00400500, 0x00800500, 0x00c00500, 0x00000600,
+    0x00400600, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x00800600, 0x00c00600, 0x00000700, 0x00400700, 0x00800700,
+    0x00c00700, 0x00000800, 0x00400800, 0x00800800, 0x00c00800, 0x00000900,
+    0x00400900, 0x00800900, 0x00c00900, 0x00000a00, 0x00400a00, 0x00800a00,
+    0x00c00a00, 0x00000b00, 0x00400b00, 0x00800b00, 0x00c00b00, 0x00000c00,
+    0x00400c00, 0x00800c00, 0x00c00c00, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+
+const uint32_t d3[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x003e0000, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x003f0000,
+    0x00340000, 0x00350000, 0x00360000, 0x00370000, 0x00380000, 0x00390000,
+    0x003a0000, 0x003b0000, 0x003c0000, 0x003d0000, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00010000, 0x00020000, 0x00030000, 0x00040000, 0x00050000, 0x00060000,
+    0x00070000, 0x00080000, 0x00090000, 0x000a0000, 0x000b0000, 0x000c0000,
+    0x000d0000, 0x000e0000, 0x000f0000, 0x00100000, 0x00110000, 0x00120000,
+    0x00130000, 0x00140000, 0x00150000, 0x00160000, 0x00170000, 0x00180000,
+    0x00190000, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x001a0000, 0x001b0000, 0x001c0000, 0x001d0000, 0x001e0000,
+    0x001f0000, 0x00200000, 0x00210000, 0x00220000, 0x00230000, 0x00240000,
+    0x00250000, 0x00260000, 0x00270000, 0x00280000, 0x00290000, 0x002a0000,
+    0x002b0000, 0x002c0000, 0x002d0000, 0x002e0000, 0x002f0000, 0x00300000,
+    0x00310000, 0x00320000, 0x00330000, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+} // namespace base64_default
+
+namespace base64_url {
+
+const char e0[256] = {
+    'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D',
+    'D', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'G', 'G', 'G', 'G', 'H', 'H',
+    'H', 'H', 'I', 'I', 'I', 'I', 'J', 'J', 'J', 'J', 'K', 'K', 'K', 'K', 'L',
+    'L', 'L', 'L', 'M', 'M', 'M', 'M', 'N', 'N', 'N', 'N', 'O', 'O', 'O', 'O',
+    'P', 'P', 'P', 'P', 'Q', 'Q', 'Q', 'Q', 'R', 'R', 'R', 'R', 'S', 'S', 'S',
+    'S', 'T', 'T', 'T', 'T', 'U', 'U', 'U', 'U', 'V', 'V', 'V', 'V', 'W', 'W',
+    'W', 'W', 'X', 'X', 'X', 'X', 'Y', 'Y', 'Y', 'Y', 'Z', 'Z', 'Z', 'Z', 'a',
+    'a', 'a', 'a', 'b', 'b', 'b', 'b', 'c', 'c', 'c', 'c', 'd', 'd', 'd', 'd',
+    'e', 'e', 'e', 'e', 'f', 'f', 'f', 'f', 'g', 'g', 'g', 'g', 'h', 'h', 'h',
+    'h', 'i', 'i', 'i', 'i', 'j', 'j', 'j', 'j', 'k', 'k', 'k', 'k', 'l', 'l',
+    'l', 'l', 'm', 'm', 'm', 'm', 'n', 'n', 'n', 'n', 'o', 'o', 'o', 'o', 'p',
+    'p', 'p', 'p', 'q', 'q', 'q', 'q', 'r', 'r', 'r', 'r', 's', 's', 's', 's',
+    't', 't', 't', 't', 'u', 'u', 'u', 'u', 'v', 'v', 'v', 'v', 'w', 'w', 'w',
+    'w', 'x', 'x', 'x', 'x', 'y', 'y', 'y', 'y', 'z', 'z', 'z', 'z', '0', '0',
+    '0', '0', '1', '1', '1', '1', '2', '2', '2', '2', '3', '3', '3', '3', '4',
+    '4', '4', '4', '5', '5', '5', '5', '6', '6', '6', '6', '7', '7', '7', '7',
+    '8', '8', '8', '8', '9', '9', '9', '9', '-', '-', '-', '-', '_', '_', '_',
+    '_'};
+
+const char e1[256] = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+    'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+    't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', '-', '_', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
+    'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
+    '4', '5', '6', '7', '8', '9', '-', '_', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
+    'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
+    'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '_', 'A', 'B', 'C',
+    'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+    'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
+    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-',
+    '_'};
+
+const char e2[256] = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+    'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+    't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', '-', '_', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
+    'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
+    '4', '5', '6', '7', '8', '9', '-', '_', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
+    'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
+    'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '_', 'A', 'B', 'C',
+    'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+    'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
+    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-',
+    '_'};
+
+const uint32_t d0[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x000000f8, 0x01ffffff, 0x01ffffff,
+    0x000000d0, 0x000000d4, 0x000000d8, 0x000000dc, 0x000000e0, 0x000000e4,
+    0x000000e8, 0x000000ec, 0x000000f0, 0x000000f4, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00000004, 0x00000008, 0x0000000c, 0x00000010, 0x00000014, 0x00000018,
+    0x0000001c, 0x00000020, 0x00000024, 0x00000028, 0x0000002c, 0x00000030,
+    0x00000034, 0x00000038, 0x0000003c, 0x00000040, 0x00000044, 0x00000048,
+    0x0000004c, 0x00000050, 0x00000054, 0x00000058, 0x0000005c, 0x00000060,
+    0x00000064, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x000000fc,
+    0x01ffffff, 0x00000068, 0x0000006c, 0x00000070, 0x00000074, 0x00000078,
+    0x0000007c, 0x00000080, 0x00000084, 0x00000088, 0x0000008c, 0x00000090,
+    0x00000094, 0x00000098, 0x0000009c, 0x000000a0, 0x000000a4, 0x000000a8,
+    0x000000ac, 0x000000b0, 0x000000b4, 0x000000b8, 0x000000bc, 0x000000c0,
+    0x000000c4, 0x000000c8, 0x000000cc, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+const uint32_t d1[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x0000e003, 0x01ffffff, 0x01ffffff,
+    0x00004003, 0x00005003, 0x00006003, 0x00007003, 0x00008003, 0x00009003,
+    0x0000a003, 0x0000b003, 0x0000c003, 0x0000d003, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00001000, 0x00002000, 0x00003000, 0x00004000, 0x00005000, 0x00006000,
+    0x00007000, 0x00008000, 0x00009000, 0x0000a000, 0x0000b000, 0x0000c000,
+    0x0000d000, 0x0000e000, 0x0000f000, 0x00000001, 0x00001001, 0x00002001,
+    0x00003001, 0x00004001, 0x00005001, 0x00006001, 0x00007001, 0x00008001,
+    0x00009001, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x0000f003,
+    0x01ffffff, 0x0000a001, 0x0000b001, 0x0000c001, 0x0000d001, 0x0000e001,
+    0x0000f001, 0x00000002, 0x00001002, 0x00002002, 0x00003002, 0x00004002,
+    0x00005002, 0x00006002, 0x00007002, 0x00008002, 0x00009002, 0x0000a002,
+    0x0000b002, 0x0000c002, 0x0000d002, 0x0000e002, 0x0000f002, 0x00000003,
+    0x00001003, 0x00002003, 0x00003003, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+const uint32_t d2[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00800f00, 0x01ffffff, 0x01ffffff,
+    0x00000d00, 0x00400d00, 0x00800d00, 0x00c00d00, 0x00000e00, 0x00400e00,
+    0x00800e00, 0x00c00e00, 0x00000f00, 0x00400f00, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00400000, 0x00800000, 0x00c00000, 0x00000100, 0x00400100, 0x00800100,
+    0x00c00100, 0x00000200, 0x00400200, 0x00800200, 0x00c00200, 0x00000300,
+    0x00400300, 0x00800300, 0x00c00300, 0x00000400, 0x00400400, 0x00800400,
+    0x00c00400, 0x00000500, 0x00400500, 0x00800500, 0x00c00500, 0x00000600,
+    0x00400600, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00c00f00,
+    0x01ffffff, 0x00800600, 0x00c00600, 0x00000700, 0x00400700, 0x00800700,
+    0x00c00700, 0x00000800, 0x00400800, 0x00800800, 0x00c00800, 0x00000900,
+    0x00400900, 0x00800900, 0x00c00900, 0x00000a00, 0x00400a00, 0x00800a00,
+    0x00c00a00, 0x00000b00, 0x00400b00, 0x00800b00, 0x00c00b00, 0x00000c00,
+    0x00400c00, 0x00800c00, 0x00c00c00, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+const uint32_t d3[256] = {
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x003e0000, 0x01ffffff, 0x01ffffff,
+    0x00340000, 0x00350000, 0x00360000, 0x00370000, 0x00380000, 0x00390000,
+    0x003a0000, 0x003b0000, 0x003c0000, 0x003d0000, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
+    0x00010000, 0x00020000, 0x00030000, 0x00040000, 0x00050000, 0x00060000,
+    0x00070000, 0x00080000, 0x00090000, 0x000a0000, 0x000b0000, 0x000c0000,
+    0x000d0000, 0x000e0000, 0x000f0000, 0x00100000, 0x00110000, 0x00120000,
+    0x00130000, 0x00140000, 0x00150000, 0x00160000, 0x00170000, 0x00180000,
+    0x00190000, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x003f0000,
+    0x01ffffff, 0x001a0000, 0x001b0000, 0x001c0000, 0x001d0000, 0x001e0000,
+    0x001f0000, 0x00200000, 0x00210000, 0x00220000, 0x00230000, 0x00240000,
+    0x00250000, 0x00260000, 0x00270000, 0x00280000, 0x00290000, 0x002a0000,
+    0x002b0000, 0x002c0000, 0x002d0000, 0x002e0000, 0x002f0000, 0x00300000,
+    0x00310000, 0x00320000, 0x00330000, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
+    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
+} // namespace base64_url
+const uint64_t thintable_epi8[256] = {
+    0x0706050403020100, 0x0007060504030201, 0x0007060504030200,
+    0x0000070605040302, 0x0007060504030100, 0x0000070605040301,
+    0x0000070605040300, 0x0000000706050403, 0x0007060504020100,
+    0x0000070605040201, 0x0000070605040200, 0x0000000706050402,
+    0x0000070605040100, 0x0000000706050401, 0x0000000706050400,
+    0x0000000007060504, 0x0007060503020100, 0x0000070605030201,
+    0x0000070605030200, 0x0000000706050302, 0x0000070605030100,
+    0x0000000706050301, 0x0000000706050300, 0x0000000007060503,
+    0x0000070605020100, 0x0000000706050201, 0x0000000706050200,
+    0x0000000007060502, 0x0000000706050100, 0x0000000007060501,
+    0x0000000007060500, 0x0000000000070605, 0x0007060403020100,
+    0x0000070604030201, 0x0000070604030200, 0x0000000706040302,
+    0x0000070604030100, 0x0000000706040301, 0x0000000706040300,
+    0x0000000007060403, 0x0000070604020100, 0x0000000706040201,
+    0x0000000706040200, 0x0000000007060402, 0x0000000706040100,
+    0x0000000007060401, 0x0000000007060400, 0x0000000000070604,
+    0x0000070603020100, 0x0000000706030201, 0x0000000706030200,
+    0x0000000007060302, 0x0000000706030100, 0x0000000007060301,
+    0x0000000007060300, 0x0000000000070603, 0x0000000706020100,
+    0x0000000007060201, 0x0000000007060200, 0x0000000000070602,
+    0x0000000007060100, 0x0000000000070601, 0x0000000000070600,
+    0x0000000000000706, 0x0007050403020100, 0x0000070504030201,
+    0x0000070504030200, 0x0000000705040302, 0x0000070504030100,
+    0x0000000705040301, 0x0000000705040300, 0x0000000007050403,
+    0x0000070504020100, 0x0000000705040201, 0x0000000705040200,
+    0x0000000007050402, 0x0000000705040100, 0x0000000007050401,
+    0x0000000007050400, 0x0000000000070504, 0x0000070503020100,
+    0x0000000705030201, 0x0000000705030200, 0x0000000007050302,
+    0x0000000705030100, 0x0000000007050301, 0x0000000007050300,
+    0x0000000000070503, 0x0000000705020100, 0x0000000007050201,
+    0x0000000007050200, 0x0000000000070502, 0x0000000007050100,
+    0x0000000000070501, 0x0000000000070500, 0x0000000000000705,
+    0x0000070403020100, 0x0000000704030201, 0x0000000704030200,
+    0x0000000007040302, 0x0000000704030100, 0x0000000007040301,
+    0x0000000007040300, 0x0000000000070403, 0x0000000704020100,
+    0x0000000007040201, 0x0000000007040200, 0x0000000000070402,
+    0x0000000007040100, 0x0000000000070401, 0x0000000000070400,
+    0x0000000000000704, 0x0000000703020100, 0x0000000007030201,
+    0x0000000007030200, 0x0000000000070302, 0x0000000007030100,
+    0x0000000000070301, 0x0000000000070300, 0x0000000000000703,
+    0x0000000007020100, 0x0000000000070201, 0x0000000000070200,
+    0x0000000000000702, 0x0000000000070100, 0x0000000000000701,
+    0x0000000000000700, 0x0000000000000007, 0x0006050403020100,
+    0x0000060504030201, 0x0000060504030200, 0x0000000605040302,
+    0x0000060504030100, 0x0000000605040301, 0x0000000605040300,
+    0x0000000006050403, 0x0000060504020100, 0x0000000605040201,
+    0x0000000605040200, 0x0000000006050402, 0x0000000605040100,
+    0x0000000006050401, 0x0000000006050400, 0x0000000000060504,
+    0x0000060503020100, 0x0000000605030201, 0x0000000605030200,
+    0x0000000006050302, 0x0000000605030100, 0x0000000006050301,
+    0x0000000006050300, 0x0000000000060503, 0x0000000605020100,
+    0x0000000006050201, 0x0000000006050200, 0x0000000000060502,
+    0x0000000006050100, 0x0000000000060501, 0x0000000000060500,
+    0x0000000000000605, 0x0000060403020100, 0x0000000604030201,
+    0x0000000604030200, 0x0000000006040302, 0x0000000604030100,
+    0x0000000006040301, 0x0000000006040300, 0x0000000000060403,
+    0x0000000604020100, 0x0000000006040201, 0x0000000006040200,
+    0x0000000000060402, 0x0000000006040100, 0x0000000000060401,
+    0x0000000000060400, 0x0000000000000604, 0x0000000603020100,
+    0x0000000006030201, 0x0000000006030200, 0x0000000000060302,
+    0x0000000006030100, 0x0000000000060301, 0x0000000000060300,
+    0x0000000000000603, 0x0000000006020100, 0x0000000000060201,
+    0x0000000000060200, 0x0000000000000602, 0x0000000000060100,
+    0x0000000000000601, 0x0000000000000600, 0x0000000000000006,
+    0x0000050403020100, 0x0000000504030201, 0x0000000504030200,
+    0x0000000005040302, 0x0000000504030100, 0x0000000005040301,
+    0x0000000005040300, 0x0000000000050403, 0x0000000504020100,
+    0x0000000005040201, 0x0000000005040200, 0x0000000000050402,
+    0x0000000005040100, 0x0000000000050401, 0x0000000000050400,
+    0x0000000000000504, 0x0000000503020100, 0x0000000005030201,
+    0x0000000005030200, 0x0000000000050302, 0x0000000005030100,
+    0x0000000000050301, 0x0000000000050300, 0x0000000000000503,
+    0x0000000005020100, 0x0000000000050201, 0x0000000000050200,
+    0x0000000000000502, 0x0000000000050100, 0x0000000000000501,
+    0x0000000000000500, 0x0000000000000005, 0x0000000403020100,
+    0x0000000004030201, 0x0000000004030200, 0x0000000000040302,
+    0x0000000004030100, 0x0000000000040301, 0x0000000000040300,
+    0x0000000000000403, 0x0000000004020100, 0x0000000000040201,
+    0x0000000000040200, 0x0000000000000402, 0x0000000000040100,
+    0x0000000000000401, 0x0000000000000400, 0x0000000000000004,
+    0x0000000003020100, 0x0000000000030201, 0x0000000000030200,
+    0x0000000000000302, 0x0000000000030100, 0x0000000000000301,
+    0x0000000000000300, 0x0000000000000003, 0x0000000000020100,
+    0x0000000000000201, 0x0000000000000200, 0x0000000000000002,
+    0x0000000000000100, 0x0000000000000001, 0x0000000000000000,
+    0x0000000000000000,
+};
+
+const uint8_t pshufb_combine_table[272] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x08,
+    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0x00, 0x01, 0x02, 0x03,
+    0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+    0x0f, 0xff, 0xff, 0xff, 0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01, 0x02, 0x08,
+    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+    0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+};
+
+const unsigned char BitsSetTable256mul2[256] = {
+    0,  2,  2,  4,  2,  4,  4,  6,  2,  4,  4,  6,  4,  6,  6,  8,  2,  4,  4,
+    6,  4,  6,  6,  8,  4,  6,  6,  8,  6,  8,  8,  10, 2,  4,  4,  6,  4,  6,
+    6,  8,  4,  6,  6,  8,  6,  8,  8,  10, 4,  6,  6,  8,  6,  8,  8,  10, 6,
+    8,  8,  10, 8,  10, 10, 12, 2,  4,  4,  6,  4,  6,  6,  8,  4,  6,  6,  8,
+    6,  8,  8,  10, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,  10, 8,  10, 10,
+    12, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,  10, 8,  10, 10, 12, 6,  8,
+    8,  10, 8,  10, 10, 12, 8,  10, 10, 12, 10, 12, 12, 14, 2,  4,  4,  6,  4,
+    6,  6,  8,  4,  6,  6,  8,  6,  8,  8,  10, 4,  6,  6,  8,  6,  8,  8,  10,
+    6,  8,  8,  10, 8,  10, 10, 12, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,
+    10, 8,  10, 10, 12, 6,  8,  8,  10, 8,  10, 10, 12, 8,  10, 10, 12, 10, 12,
+    12, 14, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,  10, 8,  10, 10, 12, 6,
+    8,  8,  10, 8,  10, 10, 12, 8,  10, 10, 12, 10, 12, 12, 14, 6,  8,  8,  10,
+    8,  10, 10, 12, 8,  10, 10, 12, 10, 12, 12, 14, 8,  10, 10, 12, 10, 12, 12,
+    14, 10, 12, 12, 14, 12, 14, 14, 16};
+
+constexpr uint8_t to_base64_value[] = {
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 64,  64,  255, 64, 64,  255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 64,  255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 62,  255,
+    255, 255, 63,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  255, 255,
+    255, 255, 255, 255, 255, 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,
+    10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,
+    25,  255, 255, 255, 255, 255, 255, 26,  27,  28,  29,  30,  31,  32,  33,
+    34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,
+    49,  50,  51,  255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255};
+
+constexpr uint8_t to_base64_url_value[] = {
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 64,  64,  255, 64, 64,  255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 64,  255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    62,  255, 255, 52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  255, 255,
+    255, 255, 255, 255, 255, 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,
+    10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,
+    25,  255, 255, 255, 255, 63,  255, 26,  27,  28,  29,  30,  31,  32,  33,
+    34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,
+    49,  50,  51,  255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255};
+static_assert(sizeof(to_base64_value) == 256, "to_base64_value must have 256 elements");
+static_assert(sizeof(to_base64_url_value) == 256, "to_base64_url_value must have 256 elements");
+static_assert(to_base64_value[uint8_t(' ')] == 64, "space must be == 64 in to_base64_value");
+static_assert(to_base64_url_value[uint8_t(' ')] == 64, "space must be == 64 in to_base64_url_value");
+static_assert(to_base64_value[uint8_t('\t')] == 64, "tab must be == 64 in to_base64_value");
+static_assert(to_base64_url_value[uint8_t('\t')] == 64, "tab must be == 64 in to_base64_url_value");
+static_assert(to_base64_value[uint8_t('\r')] == 64, "cr must be == 64 in to_base64_value");
+static_assert(to_base64_url_value[uint8_t('\r')] == 64, "cr must be == 64 in to_base64_url_value");
+static_assert(to_base64_value[uint8_t('\n')] == 64, "lf must be == 64 in to_base64_value");
+static_assert(to_base64_url_value[uint8_t('\n')] == 64, "lf must be == 64 in to_base64_url_value");
+static_assert(to_base64_value[uint8_t('\f')] == 64, "ff must be == 64 in to_base64_value");
+static_assert(to_base64_url_value[uint8_t('\f')] == 64, "ff must be == 64 in to_base64_url_value");
+static_assert(to_base64_value[uint8_t('+')] == 62, "+ must be == 62 in to_base64_value");
+static_assert(to_base64_url_value[uint8_t('-')] == 62, "- must be == 62 in to_base64_url_value");
+static_assert(to_base64_value[uint8_t('/')] == 63, "/ must be == 62 in to_base64_value");
+static_assert(to_base64_url_value[uint8_t('_')] == 63, "_ must be == 62 in to_base64_url_value");
+} // namespace base64
+} // namespace tables
+} // unnamed namespace
+} // namespace simdutf
+
+#endif // SIMDUTF_BASE64_TABLES_H
+/* end file src/tables/base64_tables.h */
 /* begin file src/implementation.cpp */
 #include <initializer_list>
 #include <climits>
+#include <type_traits>
 
 // Useful for debugging purposes
 namespace simdutf {
@@ -36,7 +712,11 @@ std::string toBinaryString(T b) {
 #ifndef SIMDUTF_IMPLEMENTATION_ARM64
 #define SIMDUTF_IMPLEMENTATION_ARM64 (SIMDUTF_IS_ARM64)
 #endif
-#define SIMDUTF_CAN_ALWAYS_RUN_ARM64 SIMDUTF_IMPLEMENTATION_ARM64 && SIMDUTF_IS_ARM64
+#if SIMDUTF_IMPLEMENTATION_ARM64 && SIMDUTF_IS_ARM64
+#define SIMDUTF_CAN_ALWAYS_RUN_ARM64 1
+#else
+#define SIMDUTF_CAN_ALWAYS_RUN_ARM64 0
+#endif
 
 
 
@@ -141,9 +821,11 @@ public:
   simdutf_warn_unused size_t utf16_length_from_latin1(size_t length) const noexcept;
   simdutf_warn_unused size_t utf8_length_from_latin1(const char * input, size_t length) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept;
-  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) const noexcept;
-  simdutf_warn_unused size_t base64_length_from_binary(size_t length) const noexcept;
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) const noexcept;
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept;
 };
 
 } // namespace arm64
@@ -349,9 +1031,9 @@ namespace {
       return vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(*this), 4)), 0);
     }
 
-    simdutf_really_inline bool any() const { return vmaxvq_u8(*this) != 0; }
-    simdutf_really_inline bool none() const { return vmaxvq_u8(*this) == 0; }
-    simdutf_really_inline bool all() const { return vminvq_u8(*this) == 0xFF; }
+    simdutf_really_inline bool any() const { return vmaxvq_u32(vreinterpretq_u32_u8(*this)) != 0; }
+    simdutf_really_inline bool none() const { return vmaxvq_u32(vreinterpretq_u32_u8(*this)) == 0; }
+    simdutf_really_inline bool all() const { return vminvq_u32(vreinterpretq_u32_u8(*this)) == 0xFFFFF; }
 
 
   };
@@ -944,7 +1626,7 @@ struct simd16<uint16_t>: base16_numeric<uint16_t>  {
   simdutf_really_inline simd16<uint16_t> operator&(const simd16<uint16_t> other) const { return vandq_u16(*this, other); }
   simdutf_really_inline simd16<uint16_t> operator^(const simd16<uint16_t> other) const { return veorq_u16(*this, other); }
 
-  // Pack with the unsigned saturation  two uint16_t code units into single uint8_t vector
+  // Pack with the unsigned saturation of two uint16_t code units into single uint8_t vector
   static simdutf_really_inline simd8<uint8_t> pack(const simd16<uint16_t>& v0, const simd16<uint16_t>& v1) {
     return vqmovn_high_u16(vqmovn_u16(v0), v1);
   }
@@ -1131,10 +1813,14 @@ simdutf_really_inline simd16<int16_t>::operator simd16<uint16_t>() const { retur
 
 // To see why  (__BMI__) && (__LZCNT__) are not part of this next line, see
 // https://github.com/simdutf/simdutf/issues/1247
-#define SIMDUTF_CAN_ALWAYS_RUN_ICELAKE ((SIMDUTF_IMPLEMENTATION_ICELAKE) && (SIMDUTF_IS_X86_64) && (__AVX2__) && (SIMDUTF_HAS_AVX512F && \
+#if ((SIMDUTF_IMPLEMENTATION_ICELAKE) && (SIMDUTF_IS_X86_64) && (__AVX2__) && (SIMDUTF_HAS_AVX512F && \
                                          SIMDUTF_HAS_AVX512DQ && \
                                          SIMDUTF_HAS_AVX512VL && \
                                            SIMDUTF_HAS_AVX512VBMI2) && (!SIMDUTF_IS_32BITS))
+#define SIMDUTF_CAN_ALWAYS_RUN_ICELAKE 1
+#else
+#define SIMDUTF_CAN_ALWAYS_RUN_ICELAKE 0
+#endif
 
 #if SIMDUTF_IMPLEMENTATION_ICELAKE
 #if SIMDUTF_CAN_ALWAYS_RUN_ICELAKE
@@ -1358,9 +2044,11 @@ public:
   simdutf_warn_unused size_t utf16_length_from_latin1(size_t length) const noexcept;
   simdutf_warn_unused size_t utf8_length_from_latin1(const char * input, size_t length) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept;
-  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) const noexcept;
-  simdutf_warn_unused size_t base64_length_from_binary(size_t length) const noexcept;
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) const noexcept;
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept;
 };
 
 } // namespace icelake
@@ -1468,7 +2156,11 @@ SIMDUTF_POP_DISABLE_WARNINGS
 #endif
 // To see why  (__BMI__) && (__LZCNT__) are not part of this next line, see
 // https://github.com/simdutf/simdutf/issues/1247
-#define SIMDUTF_CAN_ALWAYS_RUN_HASWELL ((SIMDUTF_IMPLEMENTATION_HASWELL) && (SIMDUTF_IS_X86_64) && (__AVX2__))
+#if ((SIMDUTF_IMPLEMENTATION_HASWELL) && (SIMDUTF_IS_X86_64) && (__AVX2__))
+#define SIMDUTF_CAN_ALWAYS_RUN_HASWELL 1
+#else
+#define SIMDUTF_CAN_ALWAYS_RUN_HASWELL 0
+#endif
 
 #if SIMDUTF_IMPLEMENTATION_HASWELL
 
@@ -1579,9 +2271,11 @@ public:
   simdutf_warn_unused size_t utf16_length_from_latin1(size_t length) const noexcept;
   simdutf_warn_unused size_t utf8_length_from_latin1(const char * input, size_t length) const noexcept;
   simdutf_warn_unused virtual size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept;
-  simdutf_warn_unused virtual result base64_to_binary(const char * input, size_t length, char* output) const noexcept;
-  simdutf_warn_unused virtual size_t base64_length_from_binary(size_t length) const noexcept;
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept;
+  simdutf_warn_unused virtual result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused virtual size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept;
+  simdutf_warn_unused virtual result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused virtual size_t base64_length_from_binary(size_t length, base64_options options) const noexcept;
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept;
 };
 
 } // namespace haswell
@@ -1787,10 +2481,10 @@ namespace simd {
   struct simd8<bool>: base8<bool> {
     static simdutf_really_inline simd8<bool> splat(bool _value) { return _mm256_set1_epi8(uint8_t(-(!!_value))); }
 
-    simdutf_really_inline simd8<bool>() : base8() {}
-    simdutf_really_inline simd8<bool>(const __m256i _value) : base8<bool>(_value) {}
+    simdutf_really_inline simd8() : base8() {}
+    simdutf_really_inline simd8(const __m256i _value) : base8<bool>(_value) {}
     // Splat constructor
-    simdutf_really_inline simd8<bool>(bool _value) : base8<bool>(splat(_value)) {}
+    simdutf_really_inline simd8(bool _value) : base8<bool>(splat(_value)) {}
 
     simdutf_really_inline uint32_t to_bitmask() const { return uint32_t(_mm256_movemask_epi8(*this)); }
     simdutf_really_inline bool any() const { return !_mm256_testz_si256(*this, *this); }
@@ -2243,7 +2937,7 @@ struct simd16<uint16_t>: base16_numeric<uint16_t>  {
     return _mm256_shuffle_epi8(*this, swap);
   }
 
-  // Pack with the unsigned saturation two uint16_t code units into single uint8_t vector
+  // Pack with the unsigned saturation of two uint16_t code units into single uint8_t vector
   static simdutf_really_inline simd8<uint8_t> pack(const simd16<uint16_t>& v0, const simd16<uint16_t>& v1) {
     // Note: the AVX2 variant of pack operates on 128-bit lanes, thus
     //       we have to shuffle lanes in order to produce bytes in the
@@ -2415,7 +3109,11 @@ SIMDUTF_POP_DISABLE_WARNINGS
 
 #endif
 
-#define SIMDUTF_CAN_ALWAYS_RUN_WESTMERE (SIMDUTF_IMPLEMENTATION_WESTMERE && SIMDUTF_IS_X86_64 && __SSE4_2__)
+#if (SIMDUTF_IMPLEMENTATION_WESTMERE && SIMDUTF_IS_X86_64 && __SSE4_2__)
+#define SIMDUTF_CAN_ALWAYS_RUN_WESTMERE 1
+#else
+#define SIMDUTF_CAN_ALWAYS_RUN_WESTMERE 0
+#endif
 
 #if SIMDUTF_IMPLEMENTATION_WESTMERE
 
@@ -2524,9 +3222,11 @@ public:
   simdutf_warn_unused size_t utf16_length_from_latin1(size_t length) const noexcept;
   simdutf_warn_unused size_t utf8_length_from_latin1(const char * input, size_t length) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept;
-  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) const noexcept;
-  simdutf_warn_unused size_t base64_length_from_binary(size_t length) const noexcept;
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) const noexcept;
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept;
 };
 
 } // namespace westmere
@@ -2709,10 +3409,10 @@ namespace simd {
   struct simd8<bool>: base8<bool> {
     static simdutf_really_inline simd8<bool> splat(bool _value) { return _mm_set1_epi8(uint8_t(-(!!_value))); }
 
-    simdutf_really_inline simd8<bool>() : base8() {}
-    simdutf_really_inline simd8<bool>(const __m128i _value) : base8<bool>(_value) {}
+    simdutf_really_inline simd8() : base8() {}
+    simdutf_really_inline simd8(const __m128i _value) : base8<bool>(_value) {}
     // Splat constructor
-    simdutf_really_inline simd8<bool>(bool _value) : base8<bool>(splat(_value)) {}
+    simdutf_really_inline simd8(bool _value) : base8<bool>(splat(_value)) {}
 
     simdutf_really_inline int to_bitmask() const { return _mm_movemask_epi8(*this); }
     simdutf_really_inline bool any() const { return !_mm_testz_si128(*this, *this); }
@@ -3223,7 +3923,7 @@ struct simd16<uint16_t>: base16_numeric<uint16_t>  {
     return _mm_shuffle_epi8(*this, swap);
   }
 
-  // Pack with the unsigned saturation  two uint16_t code units into single uint8_t vector
+  // Pack with the unsigned saturation of two uint16_t code units into single uint8_t vector
   static simdutf_really_inline simd8<uint8_t> pack(const simd16<uint16_t>& v0, const simd16<uint16_t>& v1) {
     return _mm_packus_epi16(v0, v1);
   }
@@ -3459,9 +4159,11 @@ public:
   simdutf_warn_unused size_t utf16_length_from_utf32(const char32_t * input, size_t length) const noexcept;
   simdutf_warn_unused size_t utf32_length_from_utf8(const char * input, size_t length) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept;
-  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) const noexcept;
-  simdutf_warn_unused size_t base64_length_from_binary(size_t length) const noexcept;
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) const noexcept;
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept;
 };
 
 } // namespace ppc64
@@ -3617,11 +4319,11 @@ template <> struct simd8<bool> : base8<bool> {
     return (__m128i)vec_splats((unsigned char)(-(!!_value)));
   }
 
-  simdutf_really_inline simd8<bool>() : base8() {}
-  simdutf_really_inline simd8<bool>(const __m128i _value)
+  simdutf_really_inline simd8() : base8() {}
+  simdutf_really_inline simd8(const __m128i _value)
       : base8<bool>(_value) {}
   // Splat constructor
-  simdutf_really_inline simd8<bool>(bool _value)
+  simdutf_really_inline simd8(bool _value)
       : base8<bool>(splat(_value)) {}
 
   simdutf_really_inline int to_bitmask() const {
@@ -4145,9 +4847,11 @@ public:
   simdutf_warn_unused size_t utf16_length_from_latin1(size_t len) const noexcept;
   simdutf_warn_unused size_t utf8_length_from_latin1(const char *buf, size_t len) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept;
-  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) const noexcept;
-  simdutf_warn_unused size_t base64_length_from_binary(size_t length) const noexcept;
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) const noexcept;
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept;
 private:
   const bool _supports_zvbb;
 
@@ -4414,9 +5118,11 @@ public:
   simdutf_warn_unused size_t utf16_length_from_latin1(size_t length) const noexcept;
   simdutf_warn_unused size_t utf8_length_from_latin1(const char * input, size_t length) const noexcept;
   simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept;
-  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) const noexcept;
-  simdutf_warn_unused size_t base64_length_from_binary(size_t length) const noexcept;
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept;
+  simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept;
+  simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) const noexcept;
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept;
 };
 } // namespace fallback
 } // namespace simdutf
@@ -4794,6 +5500,388 @@ simdutf_warn_unused inline size_t trim_partial_utf16(const char16_t* input, size
 
 #endif
 /* end file src/scalar/utf16.h */
+/* begin file src/scalar/utf32.h */
+#ifndef SIMDUTF_UTF32_H
+#define SIMDUTF_UTF32_H
+
+namespace simdutf {
+namespace scalar {
+namespace {
+namespace utf32 {
+
+inline simdutf_warn_unused bool validate(const char32_t *buf, size_t len) noexcept {
+  const uint32_t *data = reinterpret_cast<const uint32_t *>(buf);
+  uint64_t pos = 0;
+  for(;pos < len; pos++) {
+    uint32_t word = data[pos];
+    if(word > 0x10FFFF || (word >= 0xD800 && word <= 0xDFFF)) {
+        return false;
+    }
+  }
+  return true;
+}
+
+inline simdutf_warn_unused result validate_with_errors(const char32_t *buf, size_t len) noexcept {
+  const uint32_t *data = reinterpret_cast<const uint32_t *>(buf);
+  size_t pos = 0;
+  for(;pos < len; pos++) {
+    uint32_t word = data[pos];
+    if(word > 0x10FFFF) {
+        return result(error_code::TOO_LARGE, pos);
+    }
+    if(word >= 0xD800 && word <= 0xDFFF) {
+        return result(error_code::SURROGATE, pos);
+    }
+  }
+  return result(error_code::SUCCESS, pos);
+}
+
+inline size_t utf8_length_from_utf32(const char32_t* buf, size_t len) {
+  // We are not BOM aware.
+  const uint32_t * p = reinterpret_cast<const uint32_t *>(buf);
+  size_t counter{0};
+  for(size_t i = 0; i < len; i++) {
+    // credit: @ttsugriy  for the vectorizable approach
+    counter++;                                      // ASCII
+    counter += static_cast<size_t>(p[i] > 0x7F);    // two-byte
+    counter += static_cast<size_t>(p[i] > 0x7FF);   // three-byte
+    counter += static_cast<size_t>(p[i] > 0xFFFF);  // four-bytes
+  }
+  return counter;
+}
+
+inline size_t utf16_length_from_utf32(const char32_t* buf, size_t len) {
+  // We are not BOM aware.
+  const uint32_t * p = reinterpret_cast<const uint32_t *>(buf);
+  size_t counter{0};
+  for(size_t i = 0; i < len; i++) {
+    counter++;                                      // non-surrogate word
+    counter += static_cast<size_t>(p[i] > 0xFFFF);  // surrogate pair
+  }
+  return counter;
+}
+
+inline size_t latin1_length_from_utf32(size_t len) {
+  // We are not BOM aware.
+  return len; // a utf32 codepoint will always represent 1 latin1 character
+}
+
+inline simdutf_warn_unused uint32_t swap_bytes(const uint32_t word) {
+  return ((word >> 24) & 0xff) |      // move byte 3 to byte 0
+         ((word << 8) & 0xff0000) |   // move byte 1 to byte 2
+         ((word >> 8) & 0xff00) |     // move byte 2 to byte 1
+         ((word << 24) & 0xff000000); // byte 0 to byte 3
+}
+
+} // utf32 namespace
+} // unnamed namespace
+} // namespace scalar
+} // namespace simdutf
+
+#endif
+/* end file src/scalar/utf32.h */
+/* begin file src/scalar/base64.h */
+#ifndef SIMDUTF_BASE64_H
+#define SIMDUTF_BASE64_H
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+namespace simdutf {
+namespace scalar {
+namespace {
+namespace base64 {
+
+// This function is not expected to be fast. Do not use in long loops.
+template <class char_type>
+bool is_ascii_white_space(char_type c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
+}
+
+// Returns true upon success. The destination buffer must be large enough.
+// This functions assumes that the padding (=) has been removed.
+template <class char_type>
+result base64_tail_decode(char *dst, const char_type *src, size_t length, base64_options options) {
+  // This looks like 5 branches, but we expect the compiler to resolve this to a single branch:
+  const uint8_t *to_base64 = (options & base64_url) ? tables::base64::to_base64_url_value : tables::base64::to_base64_value;
+  const uint32_t *d0 = (options & base64_url) ? tables::base64::base64_url::d0 : tables::base64::base64_default::d0;
+  const uint32_t *d1 = (options & base64_url) ? tables::base64::base64_url::d1 : tables::base64::base64_default::d1;
+  const uint32_t *d2 = (options & base64_url) ? tables::base64::base64_url::d2 : tables::base64::base64_default::d2;
+  const uint32_t *d3 = (options & base64_url) ? tables::base64::base64_url::d3 : tables::base64::base64_default::d3;
+
+  const char_type *srcend = src + length;
+  const char_type *srcinit = src;
+  const char *dstinit = dst;
+
+  uint32_t x;
+  size_t idx;
+  uint8_t buffer[4];
+  while (true) {
+    while (src + 4 <= srcend &&
+           (x = d0[uint8_t(src[0])] | d1[uint8_t(src[1])] |
+                d2[uint8_t(src[2])] | d3[uint8_t(src[3])]) < 0x01FFFFFF) {
+      if(match_system(endianness::BIG)) {
+        x = scalar::utf32::swap_bytes(x);
+      }
+      std::memcpy(dst, &x, 3); // optimization opportunity: copy 4 bytes
+      dst += 3;
+      src += 4;
+    }
+    idx = 0;
+    // we need at least four characters.
+    while (idx < 4 && src < srcend) {
+      char_type c = *src;
+      uint8_t code = to_base64[uint8_t(c)];
+      buffer[idx] = uint8_t(code);
+      if (code <= 63) {
+        idx++;
+      } else if (code > 64) {
+        return {INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+      } else {
+        // We have a space or a newline. We ignore it.
+      }
+      src++;
+    }
+    if (idx != 4) {
+      if (idx == 2) {
+        uint32_t triple =
+            (uint32_t(buffer[0]) << 3 * 6) + (uint32_t(buffer[1]) << 2 * 6);
+        if(match_system(endianness::BIG)) {
+          triple <<= 8;
+          std::memcpy(dst, &triple, 1);
+        } else {
+          triple = scalar::utf32::swap_bytes(triple);
+          triple >>= 8;
+          std::memcpy(dst, &triple, 1);
+        }
+        dst += 1;
+
+      } else if (idx == 3) {
+        uint32_t triple = (uint32_t(buffer[0]) << 3 * 6) +
+                          (uint32_t(buffer[1]) << 2 * 6) +
+                          (uint32_t(buffer[2]) << 1 * 6);
+        if(match_system(endianness::BIG)) {
+          triple <<= 8;
+          std::memcpy(dst, &triple, 2);
+        } else {
+          triple = scalar::utf32::swap_bytes(triple);
+          triple >>= 8;
+          std::memcpy(dst, &triple, 2);
+        }
+        dst += 2;
+      } else if (idx == 1) {
+        return {BASE64_INPUT_REMAINDER, size_t(dst - dstinit)};
+      }
+      return {SUCCESS, size_t(dst - dstinit)};
+    }
+
+    uint32_t triple =
+        (uint32_t(buffer[0]) << 3 * 6) + (uint32_t(buffer[1]) << 2 * 6) +
+        (uint32_t(buffer[2]) << 1 * 6) + (uint32_t(buffer[3]) << 0 * 6);
+    if(match_system(endianness::BIG)) {
+      triple <<= 8;
+      std::memcpy(dst, &triple, 3);
+    } else {
+      triple = scalar::utf32::swap_bytes(triple);
+      triple >>= 8;
+      std::memcpy(dst, &triple, 3);
+    }
+    dst += 3;
+  }
+}
+
+// like base64_tail_decode, but it will not write past the end of the ouput buffer.
+// outlen is modified to reflect the number of bytes written.
+// This functions assumes that the padding (=) has been removed.
+template <class char_type>
+result base64_tail_decode_safe(char *dst, size_t& outlen, const char_type *src, size_t length, base64_options options) {
+  // This looks like 5 branches, but we expect the compiler to resolve this to a single branch:
+  const uint8_t *to_base64 = (options & base64_url) ? tables::base64::to_base64_url_value : tables::base64::to_base64_value;
+  const uint32_t *d0 = (options & base64_url) ? tables::base64::base64_url::d0 : tables::base64::base64_default::d0;
+  const uint32_t *d1 = (options & base64_url) ? tables::base64::base64_url::d1 : tables::base64::base64_default::d1;
+  const uint32_t *d2 = (options & base64_url) ? tables::base64::base64_url::d2 : tables::base64::base64_default::d2;
+  const uint32_t *d3 = (options & base64_url) ? tables::base64::base64_url::d3 : tables::base64::base64_default::d3;
+
+  const char_type *srcend = src + length;
+  const char_type *srcinit = src;
+  const char *dstinit = dst;
+  const char *dstend = dst + outlen;
+
+  uint32_t x;
+  size_t idx;
+  uint8_t buffer[4];
+  while (true) {
+    while (src + 4 <= srcend &&
+           (x = d0[uint8_t(src[0])] | d1[uint8_t(src[1])] |
+                d2[uint8_t(src[2])] | d3[uint8_t(src[3])]) < 0x01FFFFFF) {
+      if(match_system(endianness::BIG)) {
+        x = scalar::utf32::swap_bytes(x);
+      }
+      if(dst + 3 > dstend) {
+        outlen = size_t(dst - dstinit);
+        return {OUTPUT_BUFFER_TOO_SMALL, size_t(src - srcinit)};
+      }
+      std::memcpy(dst, &x, 3); // optimization opportunity: copy 4 bytes
+      dst += 3;
+      src += 4;
+    }
+    idx = 0;
+    const char_type *srccur = src;
+
+    // we need at least four characters.
+    while (idx < 4 && src < srcend) {
+      char_type c = *src;
+      uint8_t code = to_base64[uint8_t(c)];
+      buffer[idx] = uint8_t(code);
+      if (code <= 63) {
+        idx++;
+      } else if (code > 64) {
+        outlen = size_t(dst - dstinit);
+        return {INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
+      } else {
+        // We have a space or a newline. We ignore it.
+      }
+      src++;
+    }
+    if (idx != 4) {
+      if (idx == 2) {
+        if(dst == dstend) {
+          outlen = size_t(dst - dstinit);
+          return {OUTPUT_BUFFER_TOO_SMALL, size_t(srccur - srcinit)};
+        }
+        uint32_t triple =
+            (uint32_t(buffer[0]) << 3 * 6) + (uint32_t(buffer[1]) << 2 * 6);
+        if(match_system(endianness::BIG)) {
+          triple <<= 8;
+          std::memcpy(dst, &triple, 1);
+        } else {
+          triple = scalar::utf32::swap_bytes(triple);
+          triple >>= 8;
+          std::memcpy(dst, &triple, 1);
+        }
+        dst += 1;
+
+      } else if (idx == 3) {
+        if(dst + 2 >= dstend) {
+          outlen = size_t(dst - dstinit);
+          return {OUTPUT_BUFFER_TOO_SMALL, size_t(srccur - srcinit)};
+        }
+        uint32_t triple = (uint32_t(buffer[0]) << 3 * 6) +
+                          (uint32_t(buffer[1]) << 2 * 6) +
+                          (uint32_t(buffer[2]) << 1 * 6);
+        if(match_system(endianness::BIG)) {
+          triple <<= 8;
+          std::memcpy(dst, &triple, 2);
+        } else {
+          triple = scalar::utf32::swap_bytes(triple);
+          triple >>= 8;
+          std::memcpy(dst, &triple, 2);
+        }
+        dst += 2;
+      } else if (idx == 1) {
+        outlen = size_t(dst - dstinit);
+        return {BASE64_INPUT_REMAINDER, size_t(dst - dstinit)};
+      }
+      outlen = size_t(dst - dstinit);
+      return {SUCCESS, size_t(dst - dstinit)};
+    }
+    if(dst + 3 >= dstend) {
+      outlen = size_t(dst - dstinit);
+      return {OUTPUT_BUFFER_TOO_SMALL, size_t(srccur - srcinit)};
+    }
+    uint32_t triple =
+        (uint32_t(buffer[0]) << 3 * 6) + (uint32_t(buffer[1]) << 2 * 6) +
+        (uint32_t(buffer[2]) << 1 * 6) + (uint32_t(buffer[3]) << 0 * 6);
+    if(match_system(endianness::BIG)) {
+      triple <<= 8;
+      std::memcpy(dst, &triple, 3);
+    } else {
+      triple = scalar::utf32::swap_bytes(triple);
+      triple >>= 8;
+      std::memcpy(dst, &triple, 3);
+    }
+    dst += 3;
+  }
+}
+
+// Returns the number of bytes written. The destination buffer must be large
+// enough. It will add padding (=) if needed.
+size_t tail_encode_base64(char *dst, const char *src, size_t srclen, base64_options options) {
+  // This looks like 3 branches, but we expect the compiler to resolve this to a single branch:
+  const char *e0 = (options & base64_url) ? tables::base64::base64_url::e0 : tables::base64::base64_default::e0;
+  const char *e1 = (options & base64_url) ? tables::base64::base64_url::e1 : tables::base64::base64_default::e1;
+  const char *e2 = (options & base64_url) ? tables::base64::base64_url::e2 : tables::base64::base64_default::e2;
+  char *out = dst;
+  size_t i = 0;
+  uint8_t t1, t2, t3;
+  for (; i + 2 < srclen; i += 3) {
+    t1 = uint8_t(src[i]);
+    t2 = uint8_t(src[i + 1]);
+    t3 = uint8_t(src[i + 2]);
+    *out++ = e0[t1];
+    *out++ = e1[((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)];
+    *out++ = e1[((t2 & 0x0F) << 2) | ((t3 >> 6) & 0x03)];
+    *out++ = e2[t3];
+  }
+  switch (srclen - i) {
+  case 0:
+    break;
+  case 1:
+    t1 = uint8_t(src[i]);
+    *out++ = e0[t1];
+    *out++ = e1[(t1 & 0x03) << 4];
+    if((options & base64_url) == 0) {
+      *out++ = '=';
+      *out++ = '=';
+    }
+    break;
+  default: /* case 2 */
+    t1 = uint8_t(src[i]);
+    t2 = uint8_t(src[i + 1]);
+    *out++ = e0[t1];
+    *out++ = e1[((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)];
+    *out++ = e2[(t2 & 0x0F) << 2];
+    if((options & base64_url) == 0) {
+      *out++ = '=';
+    }
+  }
+  return (size_t)(out - dst);
+}
+
+template <class char_type>
+simdutf_warn_unused size_t maximal_binary_length_from_base64(const char_type * input, size_t length) noexcept {
+  // We follow https://infra.spec.whatwg.org/#forgiving-base64-decode
+  size_t padding = 0;
+  if(length > 0) {
+    if(input[length - 1] == '=') {
+      padding++;
+      if(length > 1 && input[length - 2] == '=') {
+        padding++;
+      }
+    }
+  }
+  size_t actual_length = length - padding;
+  if(actual_length % 4 <= 1) {
+    return actual_length / 4 * 3;
+  }
+  // if we have a valid input, then the remainder must be 2 or 3 adding one or two extra bytes.
+  return  actual_length / 4 * 3 + (actual_length %4)  - 1;
+}
+
+simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) noexcept {
+  if(options & base64_url) {
+    return length/3 * 4 + ((length % 3) ? (length % 3) + 1 : 0);
+  }
+  return (length + 2)/3 * 4; // We use padding to make the length a multiple of 4.
+}
+
+} // namespace base64
+} // unnamed namespace
+} // namespace scalar
+} // namespace simdutf
+
+#endif
+/* end file src/scalar/base64.h */
 
 namespace simdutf {
 bool implementation::supported_by_runtime_system() const {
@@ -4911,8 +5999,8 @@ static const implementation* get_single_implementation() {
  */
 class detect_best_supported_implementation_on_first_use final : public implementation {
 public:
-  const std::string &name() const noexcept final { return set_best()->name(); }
-  const std::string &description() const noexcept final { return set_best()->description(); }
+  std::string name() const noexcept final { return set_best()->name(); }
+  std::string description() const noexcept final { return set_best()->description(); }
   uint32_t required_instruction_sets() const noexcept final { return set_best()->required_instruction_sets(); }
 
   simdutf_warn_unused int detect_encodings(const char * input, size_t length) const noexcept override {
@@ -5219,16 +6307,24 @@ public:
     return set_best()->maximal_binary_length_from_base64(input, length);
   }
 
-  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) const noexcept override {
-    return set_best()->base64_to_binary(input, length, output);
+  simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept override {
+    return set_best()->base64_to_binary(input, length, output, options);
   }
 
-  simdutf_warn_unused size_t base64_length_from_binary(size_t length) const noexcept override {
-    return set_best()->base64_length_from_binary(length);
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept override {
+    return set_best()->maximal_binary_length_from_base64(input, length);
   }
 
-  size_t binary_to_base64(const char * input, size_t length, char* output) const noexcept override {
-    return set_best()->binary_to_base64(input, length, output);
+  simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept override {
+    return set_best()->base64_to_binary(input, length, output, options);
+  }
+
+  simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) const noexcept override {
+    return set_best()->base64_length_from_binary(length, options);
+  }
+
+  size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept override {
+    return set_best()->binary_to_base64(input, length, output, options);
   }
 
   simdutf_really_inline detect_best_supported_implementation_on_first_use() noexcept : implementation("best_supported_detector", "Detects the best supported implementation and sets it", 0) {}
@@ -5236,6 +6332,8 @@ public:
 private:
   const implementation *set_best() const noexcept;
 };
+
+static_assert(std::is_trivially_destructible<detect_best_supported_implementation_on_first_use>::value, "detect_best_supported_implementation_on_first_use should be trivially destructible");
 
 static const std::initializer_list<const implementation *>& get_available_implementation_pointers() {
   static const std::initializer_list<const implementation *> available_implementation_pointers {
@@ -5575,22 +6673,35 @@ public:
     return 0;
   }
 
-  simdutf_warn_unused result base64_to_binary(const char *, size_t, char*) const noexcept override {
+  simdutf_warn_unused result base64_to_binary(const char *, size_t, char*, base64_options) const noexcept override {
     return result(error_code::OTHER, 0);
   }
 
-  simdutf_warn_unused size_t base64_length_from_binary(size_t) const noexcept override {
+  simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t *, size_t) const noexcept override {
     return 0;
   }
 
-  size_t binary_to_base64(const char *, size_t, char*) const noexcept override {
+  simdutf_warn_unused result base64_to_binary(const char16_t *, size_t, char*, base64_options) const noexcept override {
+    return result(error_code::OTHER, 0);
+  }
+
+
+  simdutf_warn_unused size_t base64_length_from_binary(size_t, base64_options) const noexcept override {
+    return 0;
+  }
+
+  size_t binary_to_base64(const char *, size_t, char*, base64_options) const noexcept override {
     return 0;
   }
 
   unsupported_implementation() : implementation("unsupported", "Unsupported CPU (no detected SIMD instructions)", 0) {}
 };
 
-const unsupported_implementation unsupported_singleton{};
+const unsupported_implementation* get_unsupported_singleton() {
+    static const unsupported_implementation unsupported_singleton{};
+    return &unsupported_singleton;
+}
+static_assert(std::is_trivially_destructible<unsupported_implementation>::value, "unsupported_singleton should be trivially destructible");
 
 size_t available_implementation_list::size() const noexcept {
   return internal::get_available_implementation_pointers().size();
@@ -5608,7 +6719,7 @@ const implementation *available_implementation_list::detect_best_supported() con
     uint32_t required_instruction_sets = impl->required_instruction_sets();
     if ((supported_instruction_sets & required_instruction_sets) == required_instruction_sets) { return impl; }
   }
-  return &unsupported_singleton; // this should never happen?
+  return get_unsupported_singleton(); // this should never happen?
 }
 
 const implementation *detect_best_supported_implementation_on_first_use::set_best() const noexcept {
@@ -5623,7 +6734,7 @@ const implementation *detect_best_supported_implementation_on_first_use::set_bes
       return get_active_implementation() = force_implementation;
     } else {
       // Note: abort() and stderr usage within the library is forbidden.
-      return get_active_implementation() = &unsupported_singleton;
+      return get_active_implementation() = get_unsupported_singleton();
     }
   }
   return get_active_implementation() = get_available_implementations().detect_best_supported();
@@ -5642,8 +6753,8 @@ SIMDUTF_DLLIMPORTEXPORT const internal::available_implementation_list& get_avail
 }
 
 /**
-  * The active implementation.
-  */
+ * The active implementation.
+ */
 SIMDUTF_DLLIMPORTEXPORT internal::atomic_ptr<const implementation>& get_active_implementation() {
 #if SIMDUTF_SINGLE_IMPLEMENTATION
     // skip runtime detection
@@ -6033,16 +7144,96 @@ simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input,
   return get_default_implementation()->maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output) noexcept {
-  return get_default_implementation()->base64_to_binary(input, length, output);
+simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options) noexcept {
+  return get_default_implementation()->base64_to_binary(input, length, output, options);
 }
 
-simdutf_warn_unused size_t base64_length_from_binary(size_t length) noexcept {
-  return get_default_implementation()->base64_length_from_binary(length);
+simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) noexcept {
+  return get_default_implementation()->maximal_binary_length_from_base64(input, length);
 }
 
-size_t binary_to_base64(const char * input, size_t length, char* output) noexcept {
-  return get_default_implementation()->binary_to_base64(input, length, output);
+simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) noexcept {
+  return get_default_implementation()->base64_to_binary(input, length, output, options);
+}
+
+template <typename chartype>
+simdutf_warn_unused result base64_to_binary_safe_impl(const chartype * input, size_t length, char* output, size_t& outlen, base64_options options) noexcept {
+  static_assert(std::is_same<chartype, char>::value || std::is_same<chartype, char16_t>::value, "Only char and char16_t are supported.");
+  // The implementation could be nicer, but we expect that most times, the user
+  // will provide us with a buffer that is large enough.
+  size_t max_length = maximal_binary_length_from_base64(input, length);
+  if(outlen >= max_length) {
+    // fast path
+    result r = base64_to_binary(input, length, output, options);
+    if(r.error != error_code::INVALID_BASE64_CHARACTER) { outlen = r.count; r.count = length; }
+    return r;
+  }
+  // The output buffer is maybe too small. We will decode a truncated version of the input.
+  size_t outlen3 = outlen / 3 * 3; // round down to multiple of 3
+  size_t safe_input = base64_length_from_binary(outlen3, options);
+  result r = base64_to_binary(input, safe_input, output, options);
+  if(r.error == error_code::INVALID_BASE64_CHARACTER) { return r; }
+  size_t offset = (r.error == error_code::BASE64_INPUT_REMAINDER) ? 1 :
+    ((r.count % 3) == 0 ? 0 : (r.count % 3) + 1);
+  size_t output_index = r.count - (r.count % 3);
+  size_t input_index = safe_input;
+  // offset is a value that is no larger than 3. We backtrack
+  // by up to offset characters + an undetermined number of
+  // white space characters. It is expected that the next loop
+  // runs at most 3 times + the number of white space characters
+  // in between them, so we are not worried about performance.
+  while(offset > 0 && input_index > 0) {
+    chartype c = input[--input_index];
+    if(scalar::base64::is_ascii_white_space(c)){
+      // skipping
+    } else {
+      offset--;
+    }
+  }
+  size_t remaining_out = outlen - output_index;
+  const chartype * tail_input = input + input_index;
+  size_t tail_length = length - input_index;
+  while(tail_length > 0 && scalar::base64::is_ascii_white_space(tail_input[tail_length - 1])) {
+    tail_length--;
+  }
+  size_t padding_characts = 0;
+  if(tail_length > 0 && tail_input[tail_length - 1] == '=') {
+    tail_length--;
+    padding_characts++;
+    while(tail_length > 0 && scalar::base64::is_ascii_white_space(tail_input[tail_length - 1])) {
+      tail_length--;
+    }
+    if(tail_length > 0 && tail_input[tail_length - 1] == '=') {
+      tail_length--;
+      padding_characts++;
+    }
+  }
+  r = scalar::base64::base64_tail_decode_safe(output + output_index, remaining_out, tail_input, tail_length, options);
+  outlen = output_index + remaining_out;
+  if(r.error == error_code::SUCCESS && padding_characts > 0) {
+    // additional checks
+    if((outlen % 3 == 0) || ((outlen % 3) + 1 + padding_characts != 4)) {
+      r.error = error_code::INVALID_BASE64_CHARACTER;
+    }
+  }
+  r.count += input_index;
+  return r;
+}
+
+
+simdutf_warn_unused result base64_to_binary_safe(const char * input, size_t length, char* output, size_t& outlen, base64_options options) noexcept {
+  return base64_to_binary_safe_impl<char>(input, length, output, outlen, options);
+}
+simdutf_warn_unused result base64_to_binary_safe(const char16_t * input, size_t length, char* output, size_t& outlen, base64_options options) noexcept {
+  return base64_to_binary_safe_impl<char16_t>(input, length, output, outlen, options);
+}
+
+simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) noexcept {
+  return get_default_implementation()->base64_length_from_binary(length, options);
+}
+
+size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options) noexcept {
+  return get_default_implementation()->binary_to_base64(input, length, output, options);
 }
 
 simdutf_warn_unused simdutf::encoding_type autodetect_encoding(const char * buf, size_t length) noexcept {
@@ -6142,429 +7333,11 @@ encoding_type check_bom(const char* byte, size_t length) {
 /* end file src/encoding_types.cpp */
 /* begin file src/error.cpp */
 namespace simdutf {
-
-  simdutf_really_inline result::result() : error{error_code::SUCCESS}, count{0} {}
-
-  simdutf_really_inline result::result(error_code _err, size_t _pos) : error{_err}, count{_pos} {}
-
+// deliberately empty
 }
 /* end file src/error.cpp */
 // The large tables should be included once and they
 // should not depend on a kernel.
-/* begin file src/tables/base64_tables.h */
-#ifndef SIMDUTF_BASE64_TABLES_H
-#define SIMDUTF_BASE64_TABLES_H
-#include <array>
-#include <cstdint>
-
-namespace simdutf {
-namespace {
-namespace tables {
-namespace base64 {
-
-const char e0[256] = {
-    'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D',
-    'D', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'G', 'G', 'G', 'G', 'H', 'H',
-    'H', 'H', 'I', 'I', 'I', 'I', 'J', 'J', 'J', 'J', 'K', 'K', 'K', 'K', 'L',
-    'L', 'L', 'L', 'M', 'M', 'M', 'M', 'N', 'N', 'N', 'N', 'O', 'O', 'O', 'O',
-    'P', 'P', 'P', 'P', 'Q', 'Q', 'Q', 'Q', 'R', 'R', 'R', 'R', 'S', 'S', 'S',
-    'S', 'T', 'T', 'T', 'T', 'U', 'U', 'U', 'U', 'V', 'V', 'V', 'V', 'W', 'W',
-    'W', 'W', 'X', 'X', 'X', 'X', 'Y', 'Y', 'Y', 'Y', 'Z', 'Z', 'Z', 'Z', 'a',
-    'a', 'a', 'a', 'b', 'b', 'b', 'b', 'c', 'c', 'c', 'c', 'd', 'd', 'd', 'd',
-    'e', 'e', 'e', 'e', 'f', 'f', 'f', 'f', 'g', 'g', 'g', 'g', 'h', 'h', 'h',
-    'h', 'i', 'i', 'i', 'i', 'j', 'j', 'j', 'j', 'k', 'k', 'k', 'k', 'l', 'l',
-    'l', 'l', 'm', 'm', 'm', 'm', 'n', 'n', 'n', 'n', 'o', 'o', 'o', 'o', 'p',
-    'p', 'p', 'p', 'q', 'q', 'q', 'q', 'r', 'r', 'r', 'r', 's', 's', 's', 's',
-    't', 't', 't', 't', 'u', 'u', 'u', 'u', 'v', 'v', 'v', 'v', 'w', 'w', 'w',
-    'w', 'x', 'x', 'x', 'x', 'y', 'y', 'y', 'y', 'z', 'z', 'z', 'z', '0', '0',
-    '0', '0', '1', '1', '1', '1', '2', '2', '2', '2', '3', '3', '3', '3', '4',
-    '4', '4', '4', '5', '5', '5', '5', '6', '6', '6', '6', '7', '7', '7', '7',
-    '8', '8', '8', '8', '9', '9', '9', '9', '+', '+', '+', '+', '/', '/', '/',
-    '/'};
-
-const char e1[256] = {
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
-    'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
-    't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
-    '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
-    'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
-    '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
-    'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
-    'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
-    'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C',
-    'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
-    'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
-    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-    'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+',
-    '/'};
-
-const char e2[256] = {
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
-    'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
-    't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
-    '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
-    'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
-    '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
-    'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
-    'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
-    'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/', 'A', 'B', 'C',
-    'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
-    'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
-    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-    'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+',
-    '/'};
-
-const int8_t decoding_table[256] = {
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1, -1, -2, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, 62, -1, 62, -1, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60,
-    61, -1, -1, -1, -1, -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
-    11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1,
-    63, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
-    43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1};
-
-/* SPECIAL DECODE TABLES FOR LITTLE ENDIAN CPUS */
-
-const uint32_t d0[256] = {
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x000000f8, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x000000fc,
-    0x000000d0, 0x000000d4, 0x000000d8, 0x000000dc, 0x000000e0, 0x000000e4,
-    0x000000e8, 0x000000ec, 0x000000f0, 0x000000f4, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
-    0x00000004, 0x00000008, 0x0000000c, 0x00000010, 0x00000014, 0x00000018,
-    0x0000001c, 0x00000020, 0x00000024, 0x00000028, 0x0000002c, 0x00000030,
-    0x00000034, 0x00000038, 0x0000003c, 0x00000040, 0x00000044, 0x00000048,
-    0x0000004c, 0x00000050, 0x00000054, 0x00000058, 0x0000005c, 0x00000060,
-    0x00000064, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x00000068, 0x0000006c, 0x00000070, 0x00000074, 0x00000078,
-    0x0000007c, 0x00000080, 0x00000084, 0x00000088, 0x0000008c, 0x00000090,
-    0x00000094, 0x00000098, 0x0000009c, 0x000000a0, 0x000000a4, 0x000000a8,
-    0x000000ac, 0x000000b0, 0x000000b4, 0x000000b8, 0x000000bc, 0x000000c0,
-    0x000000c4, 0x000000c8, 0x000000cc, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
-
-const uint32_t d1[256] = {
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x0000e003, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x0000f003,
-    0x00004003, 0x00005003, 0x00006003, 0x00007003, 0x00008003, 0x00009003,
-    0x0000a003, 0x0000b003, 0x0000c003, 0x0000d003, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
-    0x00001000, 0x00002000, 0x00003000, 0x00004000, 0x00005000, 0x00006000,
-    0x00007000, 0x00008000, 0x00009000, 0x0000a000, 0x0000b000, 0x0000c000,
-    0x0000d000, 0x0000e000, 0x0000f000, 0x00000001, 0x00001001, 0x00002001,
-    0x00003001, 0x00004001, 0x00005001, 0x00006001, 0x00007001, 0x00008001,
-    0x00009001, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x0000a001, 0x0000b001, 0x0000c001, 0x0000d001, 0x0000e001,
-    0x0000f001, 0x00000002, 0x00001002, 0x00002002, 0x00003002, 0x00004002,
-    0x00005002, 0x00006002, 0x00007002, 0x00008002, 0x00009002, 0x0000a002,
-    0x0000b002, 0x0000c002, 0x0000d002, 0x0000e002, 0x0000f002, 0x00000003,
-    0x00001003, 0x00002003, 0x00003003, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
-
-const uint32_t d2[256] = {
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x00800f00, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00c00f00,
-    0x00000d00, 0x00400d00, 0x00800d00, 0x00c00d00, 0x00000e00, 0x00400e00,
-    0x00800e00, 0x00c00e00, 0x00000f00, 0x00400f00, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
-    0x00400000, 0x00800000, 0x00c00000, 0x00000100, 0x00400100, 0x00800100,
-    0x00c00100, 0x00000200, 0x00400200, 0x00800200, 0x00c00200, 0x00000300,
-    0x00400300, 0x00800300, 0x00c00300, 0x00000400, 0x00400400, 0x00800400,
-    0x00c00400, 0x00000500, 0x00400500, 0x00800500, 0x00c00500, 0x00000600,
-    0x00400600, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x00800600, 0x00c00600, 0x00000700, 0x00400700, 0x00800700,
-    0x00c00700, 0x00000800, 0x00400800, 0x00800800, 0x00c00800, 0x00000900,
-    0x00400900, 0x00800900, 0x00c00900, 0x00000a00, 0x00400a00, 0x00800a00,
-    0x00c00a00, 0x00000b00, 0x00400b00, 0x00800b00, 0x00c00b00, 0x00000c00,
-    0x00400c00, 0x00800c00, 0x00c00c00, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
-
-const uint32_t d3[256] = {
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x003e0000, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x003f0000,
-    0x00340000, 0x00350000, 0x00360000, 0x00370000, 0x00380000, 0x00390000,
-    0x003a0000, 0x003b0000, 0x003c0000, 0x003d0000, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x00000000,
-    0x00010000, 0x00020000, 0x00030000, 0x00040000, 0x00050000, 0x00060000,
-    0x00070000, 0x00080000, 0x00090000, 0x000a0000, 0x000b0000, 0x000c0000,
-    0x000d0000, 0x000e0000, 0x000f0000, 0x00100000, 0x00110000, 0x00120000,
-    0x00130000, 0x00140000, 0x00150000, 0x00160000, 0x00170000, 0x00180000,
-    0x00190000, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x001a0000, 0x001b0000, 0x001c0000, 0x001d0000, 0x001e0000,
-    0x001f0000, 0x00200000, 0x00210000, 0x00220000, 0x00230000, 0x00240000,
-    0x00250000, 0x00260000, 0x00270000, 0x00280000, 0x00290000, 0x002a0000,
-    0x002b0000, 0x002c0000, 0x002d0000, 0x002e0000, 0x002f0000, 0x00300000,
-    0x00310000, 0x00320000, 0x00330000, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff,
-    0x01ffffff, 0x01ffffff, 0x01ffffff, 0x01ffffff};
-const uint64_t thintable_epi8[256] = {
-    0x0706050403020100, 0x0007060504030201, 0x0007060504030200,
-    0x0000070605040302, 0x0007060504030100, 0x0000070605040301,
-    0x0000070605040300, 0x0000000706050403, 0x0007060504020100,
-    0x0000070605040201, 0x0000070605040200, 0x0000000706050402,
-    0x0000070605040100, 0x0000000706050401, 0x0000000706050400,
-    0x0000000007060504, 0x0007060503020100, 0x0000070605030201,
-    0x0000070605030200, 0x0000000706050302, 0x0000070605030100,
-    0x0000000706050301, 0x0000000706050300, 0x0000000007060503,
-    0x0000070605020100, 0x0000000706050201, 0x0000000706050200,
-    0x0000000007060502, 0x0000000706050100, 0x0000000007060501,
-    0x0000000007060500, 0x0000000000070605, 0x0007060403020100,
-    0x0000070604030201, 0x0000070604030200, 0x0000000706040302,
-    0x0000070604030100, 0x0000000706040301, 0x0000000706040300,
-    0x0000000007060403, 0x0000070604020100, 0x0000000706040201,
-    0x0000000706040200, 0x0000000007060402, 0x0000000706040100,
-    0x0000000007060401, 0x0000000007060400, 0x0000000000070604,
-    0x0000070603020100, 0x0000000706030201, 0x0000000706030200,
-    0x0000000007060302, 0x0000000706030100, 0x0000000007060301,
-    0x0000000007060300, 0x0000000000070603, 0x0000000706020100,
-    0x0000000007060201, 0x0000000007060200, 0x0000000000070602,
-    0x0000000007060100, 0x0000000000070601, 0x0000000000070600,
-    0x0000000000000706, 0x0007050403020100, 0x0000070504030201,
-    0x0000070504030200, 0x0000000705040302, 0x0000070504030100,
-    0x0000000705040301, 0x0000000705040300, 0x0000000007050403,
-    0x0000070504020100, 0x0000000705040201, 0x0000000705040200,
-    0x0000000007050402, 0x0000000705040100, 0x0000000007050401,
-    0x0000000007050400, 0x0000000000070504, 0x0000070503020100,
-    0x0000000705030201, 0x0000000705030200, 0x0000000007050302,
-    0x0000000705030100, 0x0000000007050301, 0x0000000007050300,
-    0x0000000000070503, 0x0000000705020100, 0x0000000007050201,
-    0x0000000007050200, 0x0000000000070502, 0x0000000007050100,
-    0x0000000000070501, 0x0000000000070500, 0x0000000000000705,
-    0x0000070403020100, 0x0000000704030201, 0x0000000704030200,
-    0x0000000007040302, 0x0000000704030100, 0x0000000007040301,
-    0x0000000007040300, 0x0000000000070403, 0x0000000704020100,
-    0x0000000007040201, 0x0000000007040200, 0x0000000000070402,
-    0x0000000007040100, 0x0000000000070401, 0x0000000000070400,
-    0x0000000000000704, 0x0000000703020100, 0x0000000007030201,
-    0x0000000007030200, 0x0000000000070302, 0x0000000007030100,
-    0x0000000000070301, 0x0000000000070300, 0x0000000000000703,
-    0x0000000007020100, 0x0000000000070201, 0x0000000000070200,
-    0x0000000000000702, 0x0000000000070100, 0x0000000000000701,
-    0x0000000000000700, 0x0000000000000007, 0x0006050403020100,
-    0x0000060504030201, 0x0000060504030200, 0x0000000605040302,
-    0x0000060504030100, 0x0000000605040301, 0x0000000605040300,
-    0x0000000006050403, 0x0000060504020100, 0x0000000605040201,
-    0x0000000605040200, 0x0000000006050402, 0x0000000605040100,
-    0x0000000006050401, 0x0000000006050400, 0x0000000000060504,
-    0x0000060503020100, 0x0000000605030201, 0x0000000605030200,
-    0x0000000006050302, 0x0000000605030100, 0x0000000006050301,
-    0x0000000006050300, 0x0000000000060503, 0x0000000605020100,
-    0x0000000006050201, 0x0000000006050200, 0x0000000000060502,
-    0x0000000006050100, 0x0000000000060501, 0x0000000000060500,
-    0x0000000000000605, 0x0000060403020100, 0x0000000604030201,
-    0x0000000604030200, 0x0000000006040302, 0x0000000604030100,
-    0x0000000006040301, 0x0000000006040300, 0x0000000000060403,
-    0x0000000604020100, 0x0000000006040201, 0x0000000006040200,
-    0x0000000000060402, 0x0000000006040100, 0x0000000000060401,
-    0x0000000000060400, 0x0000000000000604, 0x0000000603020100,
-    0x0000000006030201, 0x0000000006030200, 0x0000000000060302,
-    0x0000000006030100, 0x0000000000060301, 0x0000000000060300,
-    0x0000000000000603, 0x0000000006020100, 0x0000000000060201,
-    0x0000000000060200, 0x0000000000000602, 0x0000000000060100,
-    0x0000000000000601, 0x0000000000000600, 0x0000000000000006,
-    0x0000050403020100, 0x0000000504030201, 0x0000000504030200,
-    0x0000000005040302, 0x0000000504030100, 0x0000000005040301,
-    0x0000000005040300, 0x0000000000050403, 0x0000000504020100,
-    0x0000000005040201, 0x0000000005040200, 0x0000000000050402,
-    0x0000000005040100, 0x0000000000050401, 0x0000000000050400,
-    0x0000000000000504, 0x0000000503020100, 0x0000000005030201,
-    0x0000000005030200, 0x0000000000050302, 0x0000000005030100,
-    0x0000000000050301, 0x0000000000050300, 0x0000000000000503,
-    0x0000000005020100, 0x0000000000050201, 0x0000000000050200,
-    0x0000000000000502, 0x0000000000050100, 0x0000000000000501,
-    0x0000000000000500, 0x0000000000000005, 0x0000000403020100,
-    0x0000000004030201, 0x0000000004030200, 0x0000000000040302,
-    0x0000000004030100, 0x0000000000040301, 0x0000000000040300,
-    0x0000000000000403, 0x0000000004020100, 0x0000000000040201,
-    0x0000000000040200, 0x0000000000000402, 0x0000000000040100,
-    0x0000000000000401, 0x0000000000000400, 0x0000000000000004,
-    0x0000000003020100, 0x0000000000030201, 0x0000000000030200,
-    0x0000000000000302, 0x0000000000030100, 0x0000000000000301,
-    0x0000000000000300, 0x0000000000000003, 0x0000000000020100,
-    0x0000000000000201, 0x0000000000000200, 0x0000000000000002,
-    0x0000000000000100, 0x0000000000000001, 0x0000000000000000,
-    0x0000000000000000,
-};
-
-const uint8_t pshufb_combine_table[272] = {
-    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
-    0x0c, 0x0d, 0x0e, 0x0f, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x08,
-    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0x00, 0x01, 0x02, 0x03,
-    0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
-    0x00, 0x01, 0x02, 0x03, 0x04, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
-    0x0f, 0xff, 0xff, 0xff, 0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b,
-    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01, 0x02, 0x08,
-    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0x00, 0x01, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0x00, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
-    0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x08, 0x09, 0x0a, 0x0b,
-    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-};
-
-const unsigned char BitsSetTable256mul2[256] = {
-    0,  2,  2,  4,  2,  4,  4,  6,  2,  4,  4,  6,  4,  6,  6,  8,  2,  4,  4,
-    6,  4,  6,  6,  8,  4,  6,  6,  8,  6,  8,  8,  10, 2,  4,  4,  6,  4,  6,
-    6,  8,  4,  6,  6,  8,  6,  8,  8,  10, 4,  6,  6,  8,  6,  8,  8,  10, 6,
-    8,  8,  10, 8,  10, 10, 12, 2,  4,  4,  6,  4,  6,  6,  8,  4,  6,  6,  8,
-    6,  8,  8,  10, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,  10, 8,  10, 10,
-    12, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,  10, 8,  10, 10, 12, 6,  8,
-    8,  10, 8,  10, 10, 12, 8,  10, 10, 12, 10, 12, 12, 14, 2,  4,  4,  6,  4,
-    6,  6,  8,  4,  6,  6,  8,  6,  8,  8,  10, 4,  6,  6,  8,  6,  8,  8,  10,
-    6,  8,  8,  10, 8,  10, 10, 12, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,
-    10, 8,  10, 10, 12, 6,  8,  8,  10, 8,  10, 10, 12, 8,  10, 10, 12, 10, 12,
-    12, 14, 4,  6,  6,  8,  6,  8,  8,  10, 6,  8,  8,  10, 8,  10, 10, 12, 6,
-    8,  8,  10, 8,  10, 10, 12, 8,  10, 10, 12, 10, 12, 12, 14, 6,  8,  8,  10,
-    8,  10, 10, 12, 8,  10, 10, 12, 10, 12, 12, 14, 8,  10, 10, 12, 10, 12, 12,
-    14, 10, 12, 12, 14, 12, 14, 14, 16};
-
-const uint8_t to_base64_value[] = {
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 64,  64,  255, 255, 64,  255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 64,  255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 62,  255,
-    255, 255, 63,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  255, 255,
-    255, 255, 255, 255, 255, 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,
-    10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,
-    25,  255, 255, 255, 255, 255, 255, 26,  27,  28,  29,  30,  31,  32,  33,
-    34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,
-    49,  50,  51,  255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255};
-} // namespace base64
-} // namespace tables
-} // unnamed namespace
-} // namespace simdutf
-
-#endif // SIMDUTF_BASE64_TABLES_H
-/* end file src/tables/base64_tables.h */
 /* begin file src/tables/utf8_to_utf16_tables.h */
 #ifndef SIMDUTF_UTF8_TO_UTF16_TABLES_H
 #define SIMDUTF_UTF8_TO_UTF16_TABLES_H
@@ -11503,86 +12276,6 @@ inline simdutf_warn_unused result validate_with_errors(const char *buf, size_t l
 
 #endif
 /* end file src/scalar/ascii.h */
-/* begin file src/scalar/utf32.h */
-#ifndef SIMDUTF_UTF32_H
-#define SIMDUTF_UTF32_H
-
-namespace simdutf {
-namespace scalar {
-namespace {
-namespace utf32 {
-
-inline simdutf_warn_unused bool validate(const char32_t *buf, size_t len) noexcept {
-  const uint32_t *data = reinterpret_cast<const uint32_t *>(buf);
-  uint64_t pos = 0;
-  for(;pos < len; pos++) {
-    uint32_t word = data[pos];
-    if(word > 0x10FFFF || (word >= 0xD800 && word <= 0xDFFF)) {
-        return false;
-    }
-  }
-  return true;
-}
-
-inline simdutf_warn_unused result validate_with_errors(const char32_t *buf, size_t len) noexcept {
-  const uint32_t *data = reinterpret_cast<const uint32_t *>(buf);
-  size_t pos = 0;
-  for(;pos < len; pos++) {
-    uint32_t word = data[pos];
-    if(word > 0x10FFFF) {
-        return result(error_code::TOO_LARGE, pos);
-    }
-    if(word >= 0xD800 && word <= 0xDFFF) {
-        return result(error_code::SURROGATE, pos);
-    }
-  }
-  return result(error_code::SUCCESS, pos);
-}
-
-inline size_t utf8_length_from_utf32(const char32_t* buf, size_t len) {
-  // We are not BOM aware.
-  const uint32_t * p = reinterpret_cast<const uint32_t *>(buf);
-  size_t counter{0};
-  for(size_t i = 0; i < len; i++) {
-    // credit: @ttsugriy  for the vectorizable approach
-    counter++;                                      // ASCII
-    counter += static_cast<size_t>(p[i] > 0x7F);    // two-byte
-    counter += static_cast<size_t>(p[i] > 0x7FF);   // three-byte
-    counter += static_cast<size_t>(p[i] > 0xFFFF);  // four-bytes
-  }
-  return counter;
-}
-
-inline size_t utf16_length_from_utf32(const char32_t* buf, size_t len) {
-  // We are not BOM aware.
-  const uint32_t * p = reinterpret_cast<const uint32_t *>(buf);
-  size_t counter{0};
-  for(size_t i = 0; i < len; i++) {
-    counter++;                                      // non-surrogate word
-    counter += static_cast<size_t>(p[i] > 0xFFFF);  // surrogate pair
-  }
-  return counter;
-}
-
-inline size_t latin1_length_from_utf32(size_t len) {
-  // We are not BOM aware.
-  return len; // a utf32 codepoint will always represent 1 latin1 character
-}
-
-inline simdutf_warn_unused uint32_t swap_bytes(const uint32_t word) {
-  return ((word >> 24) & 0xff) |      // move byte 3 to byte 0
-         ((word << 8) & 0xff0000) |   // move byte 1 to byte 2
-         ((word >> 8) & 0xff00) |     // move byte 2 to byte 1
-         ((word << 24) & 0xff000000); // byte 0 to byte 3
-}
-
-} // utf32 namespace
-} // unnamed namespace
-} // namespace scalar
-} // namespace simdutf
-
-#endif
-/* end file src/scalar/utf32.h */
 /* begin file src/scalar/latin1.h */
 #ifndef SIMDUTF_LATIN1_H
 #define SIMDUTF_LATIN1_H
@@ -11617,183 +12310,6 @@ inline size_t utf16_length_from_latin1(size_t len) {
 
 #endif
 /* end file src/scalar/latin1.h */
-/* begin file src/scalar/base64.h */
-#ifndef SIMDUTF_BASE64_H
-#define SIMDUTF_BASE64_H
-
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-namespace simdutf {
-namespace scalar {
-namespace {
-namespace base64 {
-
-// Returns true upon success. The destination buffer must be large enough and is
-// incremented by the number of bytes written and src is incremented by the number of bytes read.
-// This functions assumes that the padding (=) has been removed.
-result base64_tail_decode(char *dst, const char *src, size_t length) {
-  const char *srcend = src + length;
-  const char *srcinit = src;
-  const char *dstinit = dst;
-
-  uint32_t x;
-  size_t idx;
-  uint8_t buffer[4];
-  while (true) {
-    while (src + 4 <= srcend &&
-           (x = tables::base64::d0[uint8_t(src[0])] | tables::base64::d1[uint8_t(src[1])] |
-                tables::base64::d2[uint8_t(src[2])] | tables::base64::d3[uint8_t(src[3])]) < 0x01FFFFFF) {
-      if(match_system(endianness::BIG)) {
-        x = scalar::utf32::swap_bytes(x);
-      }
-      std::memcpy(dst, &x, 3); // optimization opportunity: copy 4 bytes
-      dst += 3;
-      src += 4;
-    }
-    idx = 0;
-    // we need at least four characters.
-    while (idx < 4 && src < srcend) {
-      char c = *src;
-      uint8_t code = tables::base64::to_base64_value[uint8_t(c)];
-      buffer[idx] = uint8_t(code);
-      if (code <= 63) {
-        idx++;
-      } else if (code > 64) {
-        return {INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
-      }
-      src++;
-    }
-    if (idx != 4) {
-      if (idx == 2) {
-        uint32_t triple =
-            (uint32_t(buffer[0]) << 3 * 6) + (uint32_t(buffer[1]) << 2 * 6);
-        if(match_system(endianness::BIG)) {
-          triple <<= 8;
-          std::memcpy(dst, &triple, 1);
-        } else {
-          triple = scalar::utf32::swap_bytes(triple);
-          triple >>= 8;
-          std::memcpy(dst, &triple, 1);
-        }
-        dst += 1;
-
-      } else if (idx == 3) {
-        uint32_t triple = (uint32_t(buffer[0]) << 3 * 6) +
-                          (uint32_t(buffer[1]) << 2 * 6) +
-                          (uint32_t(buffer[2]) << 1 * 6);
-        if(match_system(endianness::BIG)) {
-          triple <<= 8;
-          std::memcpy(dst, &triple, 2);
-        } else {
-          triple = scalar::utf32::swap_bytes(triple);
-          triple >>= 8;
-          std::memcpy(dst, &triple, 2);
-        }
-        dst += 2;
-      } else if (idx == 1) {
-        return {BASE64_INPUT_REMAINDER, size_t(dst - dstinit)};
-      }
-      return {SUCCESS, size_t(dst - dstinit)};
-    }
-
-    uint32_t triple =
-        (uint32_t(buffer[0]) << 3 * 6) + (uint32_t(buffer[1]) << 2 * 6) +
-        (uint32_t(buffer[2]) << 1 * 6) + (uint32_t(buffer[3]) << 0 * 6);
-    if(match_system(endianness::BIG)) {
-      triple <<= 8;
-      std::memcpy(dst, &triple, 3);
-    } else {
-      triple = scalar::utf32::swap_bytes(triple);
-      triple >>= 8;
-      std::memcpy(dst, &triple, 3);
-    }
-    dst += 3;
-  }
-}
-
-// Returns the number of bytes written. The destination buffer must be large
-// enough. It will add padding (=) if needed.
-size_t tail_encode_base64(char *dst, const char *src, size_t srclen) {
-  char *out = dst;
-  size_t i = 0;
-  uint8_t t1, t2, t3;
-  for (; i + 2 < srclen; i += 3) {
-    t1 = (uint8_t)src[i];
-    t2 = (uint8_t)src[i + 1];
-    t3 = (uint8_t)src[i + 2];
-    *out++ = tables::base64::e0[t1];
-    *out++ = tables::base64::e1[((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)];
-    *out++ = tables::base64::e1[((t2 & 0x0F) << 2) | ((t3 >> 6) & 0x03)];
-    *out++ = tables::base64::e2[t3];
-  }
-  switch (srclen - i) {
-  case 0:
-    break;
-  case 1:
-    t1 = (uint8_t)src[i];
-    *out++ = tables::base64::e0[t1];
-    *out++ = tables::base64::e1[(t1 & 0x03) << 4];
-    *out++ = '=';
-    *out++ = '=';
-    break;
-  default: /* case 2 */
-    t1 = (uint8_t)src[i];
-    t2 = (uint8_t)src[i + 1];
-    *out++ = tables::base64::e0[t1];
-    *out++ = tables::base64::e1[((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)];
-    *out++ = tables::base64::e2[(t2 & 0x0F) << 2];
-    *out++ = '=';
-  }
-  return (size_t)(out - dst);
-}
-
-simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) noexcept {
-  // We follow https://infra.spec.whatwg.org/#forgiving-base64-decode
-  size_t padding = 0;
-  if(length > 0) {
-    if(input[length - 1] == '=') {
-      padding++;
-      if(length > 1 && input[length - 2] == '=') {
-        padding++;
-      }
-    }
-  }
-  size_t actual_length = length - padding;
-  if(actual_length % 4 == 0) {
-    return actual_length / 4 * 3;
-  }
-  // if we have a valid input, then the remainder must be 2 or 3 adding one or two extra bytes.
-  return  actual_length / 4 * 3 + (actual_length %4)  - 1;
-}
-
-simdutf_warn_unused simdutf_really_inline result base64_to_binary(const char * input, size_t length, char* output) noexcept {
-  if(length > 0 && input[length - 1] == '=') {
-    length -= 1;
-    if(length > 0 && input[length - 1] == '=') {
-      length -= 1;
-    }
-  }
-  if(length == 0) {
-    return {SUCCESS, 0};
-  }
-  return base64_tail_decode(output, input, length);
-}
-
-simdutf_warn_unused size_t base64_length_from_binary(size_t length) noexcept {
-  return (length + 2)/3 * 4; // We use padding to make the length a multiple of 4.
-}
-
-simdutf_really_inline size_t binary_to_base64(const char * input, size_t length, char* output) noexcept {
-  return tail_encode_base64(output, input, length);
-}
-} // namespace base64
-} // unnamed namespace
-} // namespace scalar
-} // namespace simdutf
-
-#endif
-/* end file src/scalar/base64.h */
 
 /* begin file src/scalar/utf32_to_utf8/valid_utf32_to_utf8.h */
 #ifndef SIMDUTF_VALID_UTF32_TO_UTF8_H
@@ -13155,7 +13671,6 @@ inline size_t convert(const char *buf, size_t len, char32_t *utf32_output) {
 /* begin file src/scalar/utf8_to_latin1/utf8_to_latin1.h */
 #ifndef SIMDUTF_UTF8_TO_LATIN1_H
 #define SIMDUTF_UTF8_TO_LATIN1_H
-#include <iostream>
 
 namespace simdutf {
 namespace scalar {
@@ -16186,7 +16701,8 @@ std::pair<result, char16_t*> arm_convert_utf32_to_utf16_with_errors(const char32
  * https://www.codeproject.com/Articles/276993/Base-Encoding-on-a-GPU. (2013).
  */
 
-size_t encode_base64(char *dst, const char *src, size_t srclen) {
+size_t encode_base64(char *dst, const char *src, size_t srclen,
+                     base64_options options) {
   // credit: Wojciech Muła
   uint8_t *out = (uint8_t *)dst;
   constexpr static uint8_t source_table[64] = {
@@ -16196,8 +16712,25 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
       '5', 'K', 'a', 'q', '6', 'L', 'b', 'r', '7', 'M', 'c', 's', '8',
       'N', 'd', 't', '9', 'O', 'e', 'u', '+', 'P', 'f', 'v', '/',
   };
+  constexpr static uint8_t source_table_url[64] = {
+      'A', 'Q', 'g', 'w', 'B', 'R', 'h', 'x', 'C', 'S', 'i', 'y', 'D',
+      'T', 'j', 'z', 'E', 'U', 'k', '0', 'F', 'V', 'l', '1', 'G', 'W',
+      'm', '2', 'H', 'X', 'n', '3', 'I', 'Y', 'o', '4', 'J', 'Z', 'p',
+      '5', 'K', 'a', 'q', '6', 'L', 'b', 'r', '7', 'M', 'c', 's', '8',
+      'N', 'd', 't', '9', 'O', 'e', 'u', '-', 'P', 'f', 'v', '_',
+  };
   const uint8x16_t v3f = vdupq_n_u8(0x3f);
-  const uint8x16x4_t table = vld4q_u8(source_table);
+#ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
+  // When trying to load a uint8_t array, Visual Studio might
+  // error with: error C2664: '__n128x4 neon_ld4m_q8(const char *)':
+  // cannot convert argument 1 from 'const uint8_t [64]' to 'const char *
+  const uint8x16x4_t table =
+      vld4q_u8((reinterpret_cast<const char *>(
+        options & base64_url) ? source_table_url : source_table));
+#else
+  const uint8x16x4_t table =
+      vld4q_u8((options & base64_url) ? source_table_url : source_table);
+#endif
   size_t i = 0;
   for (; i + 16 * 3 <= srclen; i += 16 * 3) {
     const uint8x16x3_t in = vld3q_u8((const uint8_t *)src + i);
@@ -16215,7 +16748,8 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     vst4q_u8(out, result);
     out += 64;
   }
-  out += scalar::base64::tail_encode_base64((char *)out, src + i, srclen - i);
+  out += scalar::base64::tail_encode_base64((char *)out, src + i, srclen - i,
+                                            options);
 
   return size_t((char *)out - dst);
 }
@@ -16254,8 +16788,21 @@ struct block64 {
   uint8x16_t chunks[4];
 };
 static_assert(sizeof(block64) == 64, "block64 is not 64 bytes");
-uint64_t to_base64_mask(block64 *b, bool *error) {
+template <bool base64_url> uint64_t to_base64_mask(block64 *b, bool *error) {
   uint8x16_t v0f = vdupq_n_u8(0xf);
+
+  uint8x16_t underscore0, underscore1, underscore2, underscore3;
+  if (base64_url) {
+    underscore0 = vceqq_u8(b->chunks[0], vdupq_n_u8(0x5f));
+    underscore1 = vceqq_u8(b->chunks[1], vdupq_n_u8(0x5f));
+    underscore2 = vceqq_u8(b->chunks[2], vdupq_n_u8(0x5f));
+    underscore3 = vceqq_u8(b->chunks[3], vdupq_n_u8(0x5f));
+  } else {
+    (void)underscore0;
+    (void)underscore1;
+    (void)underscore2;
+    (void)underscore3;
+  }
 
   uint8x16_t lo_nibbles0 = vandq_u8(b->chunks[0], v0f);
   uint8x16_t lo_nibbles1 = vandq_u8(b->chunks[1], v0f);
@@ -16266,30 +16813,61 @@ uint64_t to_base64_mask(block64 *b, bool *error) {
   uint8x16_t hi_nibbles1 = vshrq_n_u8(b->chunks[1], 4);
   uint8x16_t hi_nibbles2 = vshrq_n_u8(b->chunks[2], 4);
   uint8x16_t hi_nibbles3 = vshrq_n_u8(b->chunks[3], 4);
+  uint8x16_t lut_lo;
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-  const uint8x16_t lut_lo =
-      simdutf_make_uint8x16_t(0x3a, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
-                              0x70, 0x61, 0xe1, 0xb4, 0xf4, 0xe5, 0xf4, 0xb4);
+  if (base64_url) {
+    lut_lo =
+        simdutf_make_uint8x16_t(0x3a, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
+                                0x70, 0x61, 0xe1, 0xf4, 0xf5, 0xa5, 0xf4, 0xf4);
+  } else {
+    lut_lo =
+        simdutf_make_uint8x16_t(0x3a, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
+                                0x70, 0x61, 0xe1, 0xb4, 0xf5, 0xe5, 0xf4, 0xb4);
+  }
 #else
-  const uint8x16_t lut_lo = {0x3a, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
-                             0x70, 0x61, 0xe1, 0xb4, 0xf4, 0xe5, 0xf4, 0xb4};
+  if (base64_url) {
+    lut_lo = uint8x16_t{0x3a, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
+              0x70, 0x61, 0xe1, 0xf4, 0xf5, 0xa5, 0xf4, 0xf4};
+  } else {
+    lut_lo = uint8x16_t{0x3a, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
+              0x70, 0x61, 0xe1, 0xb4, 0xf5, 0xe5, 0xf4, 0xb4};
+  }
 #endif
   uint8x16_t lo0 = vqtbl1q_u8(lut_lo, lo_nibbles0);
   uint8x16_t lo1 = vqtbl1q_u8(lut_lo, lo_nibbles1);
   uint8x16_t lo2 = vqtbl1q_u8(lut_lo, lo_nibbles2);
   uint8x16_t lo3 = vqtbl1q_u8(lut_lo, lo_nibbles3);
+  uint8x16_t lut_hi;
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-  const uint8x16_t lut_hi =
-      simdutf_make_uint8x16_t(0x11, 0x20, 0x42, 0x80, 0x8, 0x4, 0x8, 0x4, 0x20,
-                              0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20);
+  if (base64_url) {
+    lut_hi =
+        simdutf_make_uint8x16_t(0x11, 0x20, 0x42, 0x80, 0x8, 0x4, 0x8, 0x4,
+                                0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20);
+  } else {
+    lut_hi =
+        simdutf_make_uint8x16_t(0x11, 0x20, 0x42, 0x80, 0x8, 0x4, 0x8, 0x4,
+                                0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20);
+  }
 #else
-  const uint8x16_t lut_hi = {0x11, 0x20, 0x42, 0x80, 0x8,  0x4,  0x8,  0x4,
-                             0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
+  if (base64_url) {
+    lut_hi = uint8x16_t{0x11, 0x20, 0x42, 0x80, 0x8,  0x4,  0x8,  0x4,
+              0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
+  } else {
+    lut_hi = uint8x16_t{0x11, 0x20, 0x42, 0x80, 0x8,  0x4,  0x8,  0x4,
+              0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
+  }
 #endif
   uint8x16_t hi0 = vqtbl1q_u8(lut_hi, hi_nibbles0);
   uint8x16_t hi1 = vqtbl1q_u8(lut_hi, hi_nibbles1);
   uint8x16_t hi2 = vqtbl1q_u8(lut_hi, hi_nibbles2);
   uint8x16_t hi3 = vqtbl1q_u8(lut_hi, hi_nibbles3);
+
+  if (base64_url) {
+    hi0 = vbicq_u8(hi0, underscore0);
+    hi1 = vbicq_u8(hi1, underscore1);
+    hi2 = vbicq_u8(hi2, underscore2);
+    hi3 = vbicq_u8(hi3, underscore3);
+  }
 
   uint8_t checks =
       vmaxvq_u8(vorrq_u8(vorrq_u8(vandq_u8(lo0, hi0), vandq_u8(lo1, hi1)),
@@ -16321,23 +16899,41 @@ uint64_t to_base64_mask(block64 *b, bool *error) {
   }
   // This is the transformation step that can be done while we are waiting for
   // sum0
+  uint8x16_t roll_lut;
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-  const uint8x16_t roll_lut =
-      simdutf_make_uint8x16_t(0x0, 0x10, 0x13, 0x4, 0xbf, 0xbf, 0xb9, 0xb9, 0x0,
-                              0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0);
+  if (base64_url) {
+    roll_lut =
+        simdutf_make_uint8x16_t(0xe0, 0x11, 0x13, 0x4, 0xbf, 0xbf, 0xb9, 0xb9,
+                                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0);
+  } else {
+    roll_lut =
+        simdutf_make_uint8x16_t(0x0, 0x10, 0x13, 0x4, 0xbf, 0xbf, 0xb9, 0xb9,
+                                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0);
+  }
 #else
-  const uint8x16_t roll_lut = {0x0, 0x10, 0x13, 0x4, 0xbf, 0xbf, 0xb9, 0xb9,
-                               0x0, 0x0,  0x0,  0x0, 0x0,  0x0,  0x0,  0x0};
+  if (base64_url) {
+    roll_lut = uint8x16_t{0xe0, 0x11, 0x13, 0x4, 0xbf, 0xbf, 0xb9, 0xb9,
+                0x0,  0x0,  0x0,  0x0, 0x0,  0x0,  0x0,  0x0};
+  } else {
+    roll_lut = uint8x16_t{0x0, 0x10, 0x13, 0x4, 0xbf, 0xbf, 0xb9, 0xb9,
+                0x0, 0x0,  0x0,  0x0, 0x0,  0x0,  0x0,  0x0};
+  }
 #endif
-  uint8x16_t v2f = vdupq_n_u8(0x2f);
-  uint8x16_t roll0 =
-      vqtbl1q_u8(roll_lut, vaddq_u8(vceqq_u8(b->chunks[0], v2f), hi_nibbles0));
-  uint8x16_t roll1 =
-      vqtbl1q_u8(roll_lut, vaddq_u8(vceqq_u8(b->chunks[1], v2f), hi_nibbles1));
-  uint8x16_t roll2 =
-      vqtbl1q_u8(roll_lut, vaddq_u8(vceqq_u8(b->chunks[2], v2f), hi_nibbles2));
-  uint8x16_t roll3 =
-      vqtbl1q_u8(roll_lut, vaddq_u8(vceqq_u8(b->chunks[3], v2f), hi_nibbles3));
+  uint8x16_t vsecond_last = base64_url ? vdupq_n_u8(0x2d) : vdupq_n_u8(0x2f);
+  if (base64_url) {
+    hi_nibbles0 = vbicq_u8(hi_nibbles0, underscore0);
+    hi_nibbles1 = vbicq_u8(hi_nibbles1, underscore1);
+    hi_nibbles2 = vbicq_u8(hi_nibbles2, underscore2);
+    hi_nibbles3 = vbicq_u8(hi_nibbles3, underscore3);
+  }
+  uint8x16_t roll0 = vqtbl1q_u8(
+      roll_lut, vaddq_u8(vceqq_u8(b->chunks[0], vsecond_last), hi_nibbles0));
+  uint8x16_t roll1 = vqtbl1q_u8(
+      roll_lut, vaddq_u8(vceqq_u8(b->chunks[1], vsecond_last), hi_nibbles1));
+  uint8x16_t roll2 = vqtbl1q_u8(
+      roll_lut, vaddq_u8(vceqq_u8(b->chunks[2], vsecond_last), hi_nibbles2));
+  uint8x16_t roll3 = vqtbl1q_u8(
+      roll_lut, vaddq_u8(vceqq_u8(b->chunks[3], vsecond_last), hi_nibbles3));
   b->chunks[0] = vaddq_u8(b->chunks[0], roll0);
   b->chunks[1] = vaddq_u8(b->chunks[1], roll1);
   b->chunks[2] = vaddq_u8(b->chunks[2], roll2);
@@ -16363,11 +16959,30 @@ uint64_t compress_block(block64 *b, uint64_t mask, char *output) {
   return offsets >> 56;
 }
 
+// The caller of this function is responsible to ensure that there are 64 bytes available
+// from reading at src. The data is read into a block64 structure.
 void load_block(block64 *b, const char *src) {
   b->chunks[0] = vld1q_u8(reinterpret_cast<const uint8_t *>(src));
   b->chunks[1] = vld1q_u8(reinterpret_cast<const uint8_t *>(src) + 16);
   b->chunks[2] = vld1q_u8(reinterpret_cast<const uint8_t *>(src) + 32);
   b->chunks[3] = vld1q_u8(reinterpret_cast<const uint8_t *>(src) + 48);
+}
+
+// The caller of this function is responsible to ensure that there are 32 bytes available
+// from reading at data. It returns a 16-byte value, narrowing with saturation the 16-bit words.
+inline uint8x16_t load_satured(const uint16_t *data) {
+  uint16x8_t in1 = vld1q_u16(data);
+  uint16x8_t in2 = vld1q_u16(data + 8);
+  return vqmovn_high_u16(vqmovn_u16(in1), in2);
+}
+
+// The caller of this function is responsible to ensure that there are 128 bytes available
+// from reading at src. The data is read into a block64 structure.
+void load_block(block64 *b, const char16_t *src) {
+  b->chunks[0] = load_satured(reinterpret_cast<const uint16_t *>(src));
+  b->chunks[1] = load_satured(reinterpret_cast<const uint16_t *>(src) + 16);
+  b->chunks[2] = load_satured(reinterpret_cast<const uint16_t *>(src) + 32);
+  b->chunks[3] = load_satured(reinterpret_cast<const uint16_t *>(src) + 48);
 }
 
 // decode 64 bytes and output 48 bytes
@@ -16382,36 +16997,48 @@ void base64_decode_block(char *out, const char *src) {
   vst3q_u8((uint8_t *)out, outvec);
 }
 
-result compress_decode_base64(char *dst, const char *src, size_t srclen) {
+template <bool base64_url, typename char_type>
+result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
+                              base64_options options) {
+  const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
+                                        : tables::base64::to_base64_value;
+  // skip trailing spaces
+  while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+    srclen--;
+  }
   size_t equalsigns = 0;
   if (srclen > 0 && src[srclen - 1] == '=') {
     srclen--;
     equalsigns = 1;
+    // skip trailing spaces
+    while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+      srclen--;
+    }
     if (srclen > 0 && src[srclen - 1] == '=') {
       srclen--;
       equalsigns = 2;
     }
   }
-  const char *const srcinit = src;
+  const char_type *const srcinit = src;
   const char *const dstinit = dst;
-  const char *const srcend = src + srclen;
+  const char_type *const srcend = src + srclen;
 
   constexpr size_t block_size = 10;
   char buffer[block_size * 64];
   char *bufferptr = buffer;
   if (srclen >= 64) {
-    const char *const srcend64 = src + srclen - 64;
+    const char_type *const srcend64 = src + srclen - 64;
     while (src <= srcend64) {
       block64 b;
       load_block(&b, src);
       src += 64;
       bool error = false;
-      uint64_t badcharmask = to_base64_mask(&b, &error);
+      uint64_t badcharmask = to_base64_mask<base64_url>(&b, &error);
+      if(badcharmask)
       if (error) {
         src -= 64;
 
-        while (src < srcend &&
-               tables::base64::to_base64_value[uint8_t(*src)] <= 64) {
+        while (src < srcend && to_base64[uint8_t(*src)] <= 64) {
           src++;
         }
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -16448,7 +17075,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
   int last_block = (int)((bufferptr - buffer_start) % 64);
   if (last_block != 0 && srcend - src + last_block >= 64) {
     while ((bufferptr - buffer_start) % 64 != 0 && src < srcend) {
-      uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+      uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (val > 64) {
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -16492,7 +17119,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     int leftover = int(bufferptr - buffer_start);
     if (leftover > 0) {
       while (leftover < 4 && src < srcend) {
-        uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+        uint8_t val = to_base64[uint8_t(*src)];
         if (val > 64) {
           return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
         }
@@ -16533,14 +17160,26 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(dst, src, srcend - src);
+    result r =
+        scalar::base64::base64_tail_decode(dst, src, srcend - src, options);
     if (r.error == error_code::INVALID_BASE64_CHARACTER) {
       r.count += size_t(src - srcinit);
       return r;
     } else {
       r.count += size_t(dst - dstinit);
     }
+    if(r.error == error_code::SUCCESS && equalsigns > 0) {
+      // additional checks
+      if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+        r.error = error_code::INVALID_BASE64_CHARACTER;
+      }
+    }
     return r;
+  }
+  if(equalsigns > 0) {
+    if((size_t(dst - dstinit) % 3 == 0) || ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, size_t(dst - dstinit)};
+    }
   }
   return {SUCCESS, size_t(dst - dstinit)};
 }
@@ -18857,16 +19496,24 @@ simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(con
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output) const noexcept {
-  return compress_decode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
 }
 
-simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length) const noexcept {
-  return scalar::base64::base64_length_from_binary(length);
+simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept {
+  return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-size_t implementation::binary_to_base64(const char * input, size_t length, char* output) const noexcept {
-  return encode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
+}
+
+simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length, base64_options options) const noexcept {
+  return scalar::base64::base64_length_from_binary(length, options);
+}
+
+size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return encode_base64(output, input, length, options);
 }
 
 
@@ -19212,16 +19859,82 @@ simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(con
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output) const noexcept {
-  return scalar::base64::base64_to_binary(input, length, output);
+simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation = length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if(length > 0 && input[length - 1] == '=') {
+    length -= 1;
+    equalsigns++;
+    while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if(length > 0 && input[length - 1] == '=') {
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if(length == 0) {
+    if(equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+    return {SUCCESS, 0};
+  }
+  result r = scalar::base64::base64_tail_decode(output, input, length, options);
+  if(r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
 }
 
-simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length) const noexcept {
-  return scalar::base64::base64_length_from_binary(length);
+simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept {
+  return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-size_t implementation::binary_to_base64(const char * input, size_t length, char* output) const noexcept {
-  return scalar::base64::binary_to_base64(input, length, output);
+simdutf_warn_unused result implementation::base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept {
+  while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation = length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if(length > 0 && input[length - 1] == '=') {
+    length -= 1;
+    equalsigns++;
+    while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if(length > 0 && input[length - 1] == '=') {
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if(length == 0) {
+    if(equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+    return {SUCCESS, 0};
+  }
+  result r = scalar::base64::base64_tail_decode(output, input, length, options);
+  if(r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
+}
+
+simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length, base64_options options) const noexcept {
+  return scalar::base64::base64_length_from_binary(length, options);
+}
+
+size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return scalar::base64::tail_encode_base64(output, input, length, options);
 }
 } // namespace fallback
 } // namespace simdutf
@@ -22145,14 +22858,17 @@ struct block64 {
   __m512i chunks[1];
 };
 
-size_t encode_base64(char *dst, const char *src, size_t srclen) {
+template <bool base64_url>
+size_t encode_base64(char *dst, const char *src, size_t srclen,
+                     base64_options options) {
   // credit: Wojciech Muła
-
   const uint8_t *input = (const uint8_t *)src;
 
   uint8_t *out = (uint8_t *)dst;
   static const char *lookup_tbl =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+      base64_url
+          ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+          : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
   const __m512i shuffle_input = _mm512_setr_epi32(
       0x01020001, 0x04050304, 0x07080607, 0x0a0b090a, 0x0d0e0c0d, 0x10110f10,
@@ -22171,27 +22887,48 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     _mm512_storeu_si512(reinterpret_cast<__m512i *>(out), result);
     out += 64;
   }
-  return i / 3 * 4 +
-         scalar::base64::tail_encode_base64((char *)out, src + i, srclen - i);
+  return i / 3 * 4 + scalar::base64::tail_encode_base64((char *)out, src + i,
+                                                        srclen - i, options);
 }
 
+template <bool base64_url>
 static inline uint64_t to_base64_mask(block64 *b, bool *error) {
   __m512i input = b->chunks[0];
   const __m512i ascii_space_tbl = _mm512_set_epi8(
-      0, 0, 13, 0, 0, 10, 9, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 13, 0, 0, 10, 9,
-      0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 13, 0, 0, 10, 9, 0, 0, 0, 0, 0, 0, 0, 0,
-      32, 0, 0, 13, 0, 0, 10, 9, 0, 0, 0, 0, 0, 0, 0, 0, 32);
-  __m512i lookup0 = _mm512_set_epi8(
-      -128, -128, -128, -128, -128, -128, 61, 60, 59, 58, 57, 56, 55, 54, 53,
-      52, 63, -128, -128, -128, 62, -128, -128, -128, -128, -128, -128, -128,
-      -128, -128, -128, -64, -128, -128, -128, -128, -128, -128, -128, -128,
-      -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -64, -128,
-      -128, -64, -64, -128, -128, -128, -128, -128, -128, -128, -128, -64);
-  __m512i lookup1 = _mm512_set_epi8(
-      -128, -128, -128, -128, -128, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41,
-      40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, -128, -128,
-      -128, -128, -128, -128, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14,
-      13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -128);
+      0, 0, 13, 12, 0, 10, 9, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 13, 12, 0, 10, 9,
+      0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 13, 12, 0, 10, 9, 0, 0, 0, 0, 0, 0, 0, 0,
+      32, 0, 0, 13, 12, 0, 10, 9, 0, 0, 0, 0, 0, 0, 0, 0, 32);
+  __m512i lookup0;
+  if (base64_url) {
+    lookup0 = _mm512_set_epi8(
+        -128, -128, -128, -128, -128, -128, 61, 60, 59, 58, 57, 56, 55, 54, 53,
+        52, -128, -128, 62, -128, -128, -128, -128, -128, -128, -128, -128,
+        -128, -128, -128, -128, -1, -128, -128, -128, -128, -128, -128, -128,
+        -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -1,
+        -128, -128, -1, -1, -128, -128, -128, -128, -128, -128, -128, -128, -1);
+  } else {
+    lookup0 = _mm512_set_epi8(
+        -128, -128, -128, -128, -128, -128, 61, 60, 59, 58, 57, 56, 55, 54, 53,
+        52, 63, -128, -128, -128, 62, -128, -128, -128, -128, -128, -128, -128,
+        -128, -128, -128, -1, -128, -128, -128, -128, -128, -128, -128, -128,
+        -128, -128, -128, -128, -128, -128, -128, -128, -128, -128, -1, -128,
+        -128, -1, -1, -128, -128, -128, -128, -128, -128, -128, -128, -128);
+  }
+  __m512i lookup1;
+  if (base64_url) {
+    lookup1 = _mm512_set_epi8(
+        -128, -128, -128, -128, -128, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42,
+        41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, -128,
+        63, -128, -128, -128, -128, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15,
+        14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -128);
+  } else {
+    lookup1 = _mm512_set_epi8(
+        -128, -128, -128, -128, -128, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42,
+        41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, -128,
+        -128, -128, -128, -128, -128, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
+        15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -128);
+  }
+
   const __m512i translated = _mm512_permutex2var_epi8(lookup0, input, lookup1);
   const __m512i combined = _mm512_or_si512(translated, input);
   const __mmask64 mask = _mm512_movepi8_mask(combined);
@@ -22216,8 +22953,20 @@ static inline uint64_t compress_block(block64 *b, uint64_t mask, char *output) {
   return _mm_popcnt_u64(nmask);
 }
 
+// The caller of this function is responsible to ensure that there are 64 bytes available
+// from reading at src. The data is read into a block64 structure.
 static inline void load_block(block64 *b, const char *src) {
   b->chunks[0] = _mm512_loadu_si512(reinterpret_cast<const __m512i *>(src));
+}
+
+// The caller of this function is responsible to ensure that there are 128 bytes available
+// from reading at src. The data is read into a block64 structure.
+static inline void load_block(block64 *b, const char16_t *src) {
+  __m512i m1 = _mm512_loadu_si512(reinterpret_cast<const __m512i *>(src));
+  __m512i m2 = _mm512_loadu_si512(reinterpret_cast<const __m512i *>(src + 32));
+  __m512i p = _mm512_packus_epi16(m1, m2);
+  b->chunks[0] =
+      _mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7), p);
 }
 
 static inline void base64_decode(char *out, __m512i str) {
@@ -22244,36 +22993,47 @@ static inline void base64_decode_block(char *out, block64 *b) {
   base64_decode(out, b->chunks[0]);
 }
 
-result compress_decode_base64(char *dst, const char *src, size_t srclen) {
+template <bool base64_url, typename chartype>
+result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
+                              base64_options options) {
+  const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
+                                        : tables::base64::to_base64_value;
   size_t equalsigns = 0;
+  // skip trailing spaces
+  while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+    srclen--;
+  }
   if (srclen > 0 && src[srclen - 1] == '=') {
     srclen--;
     equalsigns = 1;
+    // skip trailing spaces
+    while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+      srclen--;
+    }
     if (srclen > 0 && src[srclen - 1] == '=') {
       srclen--;
       equalsigns = 2;
     }
   }
-  const char *const srcinit = src;
+  const chartype *const srcinit = src;
   const char *const dstinit = dst;
-  const char *const srcend = src + srclen;
+  const chartype *const srcend = src + srclen;
 
   // figure out why block_size == 2 is sometimes best???
   constexpr size_t block_size = 6;
   char buffer[block_size * 64];
   char *bufferptr = buffer;
   if (srclen >= 64) {
-    const char *const srcend64 = src + srclen - 64;
+    const chartype *const srcend64 = src + srclen - 64;
     while (src <= srcend64) {
       block64 b;
       load_block(&b, src);
       src += 64;
       bool error = false;
-      uint64_t badcharmask = to_base64_mask(&b, &error);
+      uint64_t badcharmask = to_base64_mask<base64_url>(&b, &error);
       if (error) {
         src -= 64;
-        while (src < srcend &&
-               tables::base64::to_base64_value[uint8_t(*src)] <= 64) {
+        while (src < srcend && to_base64[uint8_t(*src)] <= 64) {
           src++;
         }
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -22309,7 +23069,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
   if (last_block != 0 && srcend - src + last_block >= 64) {
 
     while ((bufferptr - buffer_start) % 64 != 0 && src < srcend) {
-      uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+      uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (val > 64) {
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -22351,7 +23111,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     int leftover = int(bufferptr - buffer_start);
     if (leftover > 0) {
       while (leftover < 4 && src < srcend) {
-        uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+        uint8_t val = to_base64[uint8_t(*src)];
         if (val > 64) {
           return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
         }
@@ -22392,14 +23152,26 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(dst, src, srcend - src);
+    result r =
+        scalar::base64::base64_tail_decode(dst, src, srcend - src, options);
     if (r.error == error_code::INVALID_BASE64_CHARACTER) {
       r.count += size_t(src - srcinit);
       return r;
     } else {
       r.count += size_t(dst - dstinit);
     }
+    if(r.error == error_code::SUCCESS && equalsigns > 0) {
+      // additional checks
+      if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+        r.error = error_code::INVALID_BASE64_CHARACTER;
+      }
+    }
     return r;
+  }
+  if(equalsigns > 0) {
+    if((size_t(dst - dstinit) % 3 == 0) || ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, size_t(dst - dstinit)};
+    }
   }
   return {SUCCESS, size_t(dst - dstinit)};
 }
@@ -23736,16 +24508,29 @@ simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(con
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output) const noexcept {
-  return compress_decode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
 }
 
-simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length) const noexcept {
-  return scalar::base64::base64_length_from_binary(length);
+simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept {
+  return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-size_t implementation::binary_to_base64(const char * input, size_t length, char* output) const noexcept {
-  return encode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
+}
+
+
+simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length, base64_options options) const noexcept {
+  return scalar::base64::base64_length_from_binary(length, options);
+}
+
+size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  if(options & base64_url) {
+    return encode_base64<true>(output, input, length, options);
+  } else {
+    return encode_base64<false>(output, input, length, options);
+  }
 }
 
 } // namespace icelake
@@ -25340,7 +26125,7 @@ std::pair<result, char*> avx2_convert_utf16_to_utf8_with_errors(const char16_t* 
     1. an input register contains no surrogates and each value
        is in range 0x0000 .. 0x07ff.
     2. an input register contains no surrogates and values are
-       is in range 0x0000 .. 0xffff.
+       in range 0x0000 .. 0xffff.
     3. an input register contains surrogates --- i.e. codepoints
        can have 16 or 32 bits.
 
@@ -26325,23 +27110,35 @@ size_t convert_masked_utf8_to_latin1(const char *input,
  * https://www.codeproject.com/Articles/276993/Base-Encoding-on-a-GPU. (2013).
  */
 
-__m256i lookup_pshufb_improved(const __m256i input) {
+template <bool base64_url>
+simdutf_really_inline __m256i lookup_pshufb_improved(const __m256i input) {
   // credit: Wojciech Muła
   __m256i result = _mm256_subs_epu8(input, _mm256_set1_epi8(51));
   const __m256i less = _mm256_cmpgt_epi8(_mm256_set1_epi8(26), input);
   result =
       _mm256_or_si256(result, _mm256_and_si256(less, _mm256_set1_epi8(13)));
-  const __m256i shift_LUT = _mm256_setr_epi8(
-      'a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
-      '0' - 52, '0' - 52, '0' - 52, '0' - 52, '+' - 62, '/' - 63, 'A', 0, 0,
+  __m256i shift_LUT;
+  if (base64_url) {
+    shift_LUT = _mm256_setr_epi8(
+        'a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+        '0' - 52, '0' - 52, '0' - 52, '0' - 52, '-' - 62, '_' - 63, 'A', 0, 0,
 
-      'a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
-      '0' - 52, '0' - 52, '0' - 52, '0' - 52, '+' - 62, '/' - 63, 'A', 0, 0);
+        'a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+        '0' - 52, '0' - 52, '0' - 52, '0' - 52, '-' - 62, '_' - 63, 'A', 0, 0);
+  } else {
+    shift_LUT = _mm256_setr_epi8(
+        'a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+        '0' - 52, '0' - 52, '0' - 52, '0' - 52, '+' - 62, '/' - 63, 'A', 0, 0,
+
+        'a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+        '0' - 52, '0' - 52, '0' - 52, '0' - 52, '+' - 62, '/' - 63, 'A', 0, 0);
+  }
 
   result = _mm256_shuffle_epi8(shift_LUT, result);
   return _mm256_add_epi8(result, input);
 }
 
+template <base64_options options>
 size_t encode_base64(char *dst, const char *src, size_t srclen) {
   // credit: Wojciech Muła
   const uint8_t *input = (const uint8_t *)src;
@@ -26409,18 +27206,18 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m256i input3 = _mm256_or_si256(t1_3, t3_3);
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved(input0));
+                        lookup_pshufb_improved<options == base64_url>(input0));
     out += 32;
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved(input1));
+                        lookup_pshufb_improved<options == base64_url>(input1));
     out += 32;
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved(input2));
+                        lookup_pshufb_improved<options == base64_url>(input2));
     out += 32;
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved(input3));
+                        lookup_pshufb_improved<options == base64_url>(input3));
     out += 32;
   }
   for (; i + 28 <= srclen; i += 24) {
@@ -26444,11 +27241,11 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m256i indices = _mm256_or_si256(t1, t3);
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved(indices));
+                        lookup_pshufb_improved<options == base64_url>(indices));
     out += 32;
   }
-  return i / 3 * 4 +
-         scalar::base64::tail_encode_base64((char *)out, src + i, srclen - i);
+  return i / 3 * 4 + scalar::base64::tail_encode_base64((char *)out, src + i,
+                                                        srclen - i, options);
 }
 
 static inline void compress(__m128i data, uint16_t mask, char *output) {
@@ -26499,43 +27296,83 @@ struct block64 {
   __m256i chunks[2];
 };
 
+template <bool base64_url>
 static inline uint32_t to_base64_mask(__m256i *src, bool *error) {
   const __m256i ascii_space_tbl =
       _mm256_setr_epi8(0x20, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x9, 0xa,
-                       0x0, 0x0, 0xd, 0x0, 0x0, 0x20, 0x0, 0x0, 0x0, 0x0, 0x0,
-                       0x0, 0x0, 0x0, 0x9, 0xa, 0x0, 0x0, 0xd, 0x0, 0x0);
+                       0x0, 0xc, 0xd, 0x0, 0x0, 0x20, 0x0, 0x0, 0x0, 0x0, 0x0,
+                       0x0, 0x0, 0x0, 0x9, 0xa, 0x0, 0xc, 0xd, 0x0, 0x0);
   // credit: aqrit
-  const __m256i delta_asso = _mm256_setr_epi8(
-      0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x0F, 0x00, 0x0F, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x0F);
-  const __m256i delta_values = _mm256_setr_epi8(
-      int8_t(0x00), int8_t(0x00), int8_t(0x00), int8_t(0x13), int8_t(0x04),
-      int8_t(0xBF), int8_t(0xBF), int8_t(0xB9), int8_t(0xB9), int8_t(0x00),
-      int8_t(0x10), int8_t(0xC3), int8_t(0xBF), int8_t(0xBF), int8_t(0xB9),
-      int8_t(0xB9), int8_t(0x00), int8_t(0x00), int8_t(0x00), int8_t(0x13),
-      int8_t(0x04), int8_t(0xBF), int8_t(0xBF), int8_t(0xB9), int8_t(0xB9),
-      int8_t(0x00), int8_t(0x10), int8_t(0xC3), int8_t(0xBF), int8_t(0xBF),
-      int8_t(0xB9), int8_t(0xB9));
-  const __m256i check_asso = _mm256_setr_epi8(
-      0x0D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0x07,
-      0x0B, 0x0B, 0x0B, 0x0F, 0x0D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-      0x01, 0x01, 0x03, 0x07, 0x0B, 0x0B, 0x0B, 0x0F);
-  const __m256i check_values = _mm256_setr_epi8(
-      int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0xCF),
-      int8_t(0xBF), int8_t(0xD5), int8_t(0xA6), int8_t(0xB5), int8_t(0x86),
-      int8_t(0xD1), int8_t(0x80), int8_t(0xB1), int8_t(0x80), int8_t(0x91),
-      int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80),
-      int8_t(0xCF), int8_t(0xBF), int8_t(0xD5), int8_t(0xA6), int8_t(0xB5),
-      int8_t(0x86), int8_t(0xD1), int8_t(0x80), int8_t(0xB1), int8_t(0x80),
-      int8_t(0x91), int8_t(0x80));
-  const __m256i shifted = _mm256_srli_epi32(*src, 3);
+  __m256i delta_asso;
+  if (base64_url) {
+    delta_asso =
+        _mm256_setr_epi8(0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x0, 0x0, 0x0,
+                         0x0, 0x0, 0xF, 0x0, 0xF, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+                         0x1, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0xF, 0x0, 0xF);
+  } else {
+    delta_asso = _mm256_setr_epi8(
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x0F, 0x00, 0x0F, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x0F);
+  }
 
+  __m256i delta_values;
+  if (base64_url) {
+    delta_values = _mm256_setr_epi8(
+        0x0, 0x0, 0x0, 0x13, 0x4, uint8_t(0xBF), uint8_t(0xBF), uint8_t(0xB9),
+        uint8_t(0xB9), 0x0, 0x11, uint8_t(0xC3), uint8_t(0xBF), uint8_t(0xE0),
+        uint8_t(0xB9), uint8_t(0xB9), 0x0, 0x0, 0x0, 0x13, 0x4, uint8_t(0xBF),
+        uint8_t(0xBF), uint8_t(0xB9), uint8_t(0xB9), 0x0, 0x11, uint8_t(0xC3),
+        uint8_t(0xBF), uint8_t(0xE0), uint8_t(0xB9), uint8_t(0xB9));
+  } else {
+    delta_values = _mm256_setr_epi8(
+        int8_t(0x00), int8_t(0x00), int8_t(0x00), int8_t(0x13), int8_t(0x04),
+        int8_t(0xBF), int8_t(0xBF), int8_t(0xB9), int8_t(0xB9), int8_t(0x00),
+        int8_t(0x10), int8_t(0xC3), int8_t(0xBF), int8_t(0xBF), int8_t(0xB9),
+        int8_t(0xB9), int8_t(0x00), int8_t(0x00), int8_t(0x00), int8_t(0x13),
+        int8_t(0x04), int8_t(0xBF), int8_t(0xBF), int8_t(0xB9), int8_t(0xB9),
+        int8_t(0x00), int8_t(0x10), int8_t(0xC3), int8_t(0xBF), int8_t(0xBF),
+        int8_t(0xB9), int8_t(0xB9));
+  }
+  __m256i check_asso;
+
+  if (base64_url) {
+    check_asso =
+        _mm256_setr_epi8(0xD, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x3,
+                         0x7, 0xB, 0x6, 0xB, 0x12, 0xD, 0x1, 0x1, 0x1, 0x1, 0x1,
+                         0x1, 0x1, 0x1, 0x1, 0x3, 0x7, 0xB, 0x6, 0xB, 0x12);
+  } else {
+
+    check_asso = _mm256_setr_epi8(
+        0x0D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0x07,
+        0x0B, 0x0B, 0x0B, 0x0F, 0x0D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x03, 0x07, 0x0B, 0x0B, 0x0B, 0x0F);
+  }
+  __m256i check_values;
+  if (base64_url) {
+    check_values = _mm256_setr_epi8(
+        0x0, uint8_t(0x80), uint8_t(0x80), uint8_t(0x80), uint8_t(0xCF),
+        uint8_t(0xBF), uint8_t(0xD3), uint8_t(0xA6), uint8_t(0xB5),
+        uint8_t(0x86), uint8_t(0xD0), uint8_t(0x80), uint8_t(0xB0),
+        uint8_t(0x80), 0x0, 0x0, 0x0, uint8_t(0x80), uint8_t(0x80),
+        uint8_t(0x80), uint8_t(0xCF), uint8_t(0xBF), uint8_t(0xD3),
+        uint8_t(0xA6), uint8_t(0xB5), uint8_t(0x86), uint8_t(0xD0),
+        uint8_t(0x80), uint8_t(0xB0), uint8_t(0x80), 0x0, 0x0);
+  } else {
+    check_values = _mm256_setr_epi8(
+        int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0xCF),
+        int8_t(0xBF), int8_t(0xD5), int8_t(0xA6), int8_t(0xB5), int8_t(0x86),
+        int8_t(0xD1), int8_t(0x80), int8_t(0xB1), int8_t(0x80), int8_t(0x91),
+        int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80),
+        int8_t(0xCF), int8_t(0xBF), int8_t(0xD5), int8_t(0xA6), int8_t(0xB5),
+        int8_t(0x86), int8_t(0xD1), int8_t(0x80), int8_t(0xB1), int8_t(0x80),
+        int8_t(0x91), int8_t(0x80));
+  }
+  const __m256i shifted = _mm256_srli_epi32(*src, 3);
   const __m256i delta_hash =
       _mm256_avg_epu8(_mm256_shuffle_epi8(delta_asso, *src), shifted);
   const __m256i check_hash =
       _mm256_avg_epu8(_mm256_shuffle_epi8(check_asso, *src), shifted);
-
   const __m256i out =
       _mm256_adds_epi8(_mm256_shuffle_epi8(delta_values, delta_hash), *src);
   const __m256i chk =
@@ -26549,10 +27386,12 @@ static inline uint32_t to_base64_mask(__m256i *src, bool *error) {
   *src = out;
   return (uint32_t)mask;
 }
+
+template <bool base64_url>
 static inline uint64_t to_base64_mask(block64 *b, bool *error) {
   *error = 0;
-  uint64_t m0 = to_base64_mask(&b->chunks[0], error);
-  uint64_t m1 = to_base64_mask(&b->chunks[1], error);
+  uint64_t m0 = to_base64_mask<base64_url>(&b->chunks[0], error);
+  uint64_t m1 = to_base64_mask<base64_url>(&b->chunks[1], error);
   return m0 | (m1 << 32);
 }
 
@@ -26569,10 +27408,27 @@ static inline uint64_t compress_block(block64 *b, uint64_t mask, char *output) {
   return _mm_popcnt_u64(nmask);
 }
 
+// The caller of this function is responsible to ensure that there are 64 bytes available
+// from reading at src. The data is read into a block64 structure.
 static inline void load_block(block64 *b, const char *src) {
   b->chunks[0] = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(src));
   b->chunks[1] =
       _mm256_loadu_si256(reinterpret_cast<const __m256i *>(src + 32));
+}
+
+// The caller of this function is responsible to ensure that there are 128 bytes available
+// from reading at src. The data is read into a block64 structure.
+static inline void load_block(block64 *b, const char16_t *src) {
+  __m256i m1 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(src));
+  __m256i m2 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(src + 16));
+  __m256i m3 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(src + 32));
+  __m256i m4 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(src + 48));
+  __m256i m1p = _mm256_permute2x128_si256(m1, m2, 0x20);
+  __m256i m2p = _mm256_permute2x128_si256(m1, m2, 0x31);
+  __m256i m3p = _mm256_permute2x128_si256(m3, m4, 0x20);
+  __m256i m4p = _mm256_permute2x128_si256(m3, m4, 0x31);
+  b->chunks[0] = _mm256_packus_epi16(m1p, m2p);
+  b->chunks[1] = _mm256_packus_epi16(m3p, m4p);
 }
 
 static inline void base64_decode(char *out, __m256i str) {
@@ -26614,11 +27470,26 @@ static inline void base64_decode_block_safe(char *out, block64 *b) {
   std::memcpy(out + 24, buffer, 24);
 }
 
-result compress_decode_base64(char *dst, const char *src, size_t srclen) {
+template <bool base64_url, typename chartype>
+result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
+                              base64_options options) {
+  const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
+                                        : tables::base64::to_base64_value;
+  // skip trailing spaces
+  while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+    srclen--;
+  }
   size_t equalsigns = 0;
   if (srclen > 0 && src[srclen - 1] == '=') {
     srclen--;
     equalsigns = 1;
+    // skip trailing spaces
+    while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+      srclen--;
+    }
+    while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+      srclen--;
+    }
     if (srclen > 0 && src[srclen - 1] == '=') {
       srclen--;
       equalsigns = 2;
@@ -26627,26 +27498,25 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
   char *end_of_safe_64byte_zone =
       (srclen + 3) / 4 * 3 >= 63 ? dst + (srclen + 3) / 4 * 3 - 63 : dst;
 
-  const char *const srcinit = src;
+  const chartype *const srcinit = src;
   const char *const dstinit = dst;
-  const char *const srcend = src + srclen;
+  const chartype *const srcend = src + srclen;
 
   constexpr size_t block_size = 6;
   static_assert(block_size >= 2, "block_size must be at least two");
   char buffer[block_size * 64];
   char *bufferptr = buffer;
   if (srclen >= 64) {
-    const char *const srcend64 = src + srclen - 64;
+    const chartype *const srcend64 = src + srclen - 64;
     while (src <= srcend64) {
       block64 b;
       load_block(&b, src);
       src += 64;
       bool error = false;
-      uint64_t badcharmask = to_base64_mask(&b, &error);
+      uint64_t badcharmask = to_base64_mask<base64_url>(&b, &error);
       if (error) {
         src -= 64;
-        while (src < srcend &&
-               tables::base64::to_base64_value[uint8_t(*src)] <= 64) {
+        while (src < srcend && to_base64[uint8_t(*src)] <= 64) {
           src++;
         }
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -26692,7 +27562,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
   if (last_block != 0 && srcend - src + last_block >= 64) {
 
     while ((bufferptr - buffer_start) % 64 != 0 && src < srcend) {
-      uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+      uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (val > 64) {
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -26740,7 +27610,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     int leftover = int(bufferptr - buffer_start);
     if (leftover > 0) {
       while (leftover < 4 && src < srcend) {
-        uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+        uint8_t val = to_base64[uint8_t(*src)];
         if (val > 64) {
           return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
         }
@@ -26780,14 +27650,26 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(dst, src, srcend - src);
+    result r =
+        scalar::base64::base64_tail_decode(dst, src, srcend - src, options);
     if (r.error == error_code::INVALID_BASE64_CHARACTER) {
       r.count += size_t(src - srcinit);
       return r;
     } else {
       r.count += size_t(dst - dstinit);
     }
+    if(r.error == error_code::SUCCESS && equalsigns > 0) {
+      // additional checks
+      if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+        r.error = error_code::INVALID_BASE64_CHARACTER;
+      }
+    }
     return r;
+  }
+  if(equalsigns > 0) {
+    if((size_t(dst - dstinit) % 3 == 0) || ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, size_t(dst - dstinit)};
+    }
   }
   return {SUCCESS, size_t(dst - dstinit)};
 }
@@ -29112,16 +29994,28 @@ simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(con
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output) const noexcept {
-  return compress_decode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
 }
 
-simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length) const noexcept {
-  return scalar::base64::base64_length_from_binary(length);
+simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept {
+  return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-size_t implementation::binary_to_base64(const char * input, size_t length, char* output) const noexcept {
-  return encode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
+}
+
+simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length, base64_options options) const noexcept {
+  return scalar::base64::base64_length_from_binary(length, options);
+}
+
+size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  if(options & base64_url) {
+    return encode_base64<base64_url>(output, input, length);
+  } else {
+    return encode_base64<base64_default>(output, input, length);
+  }
 }
 } // namespace haswell
 } // namespace simdutf
@@ -30659,16 +31553,84 @@ simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(con
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output) const noexcept {
-  return scalar::base64::base64_to_binary(input, length, output);
+simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  // skip trailing spaces
+  while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation = length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if(length > 0 && input[length - 1] == '=') {
+    length -= 1;
+    equalsigns++;
+    while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if(length > 0 && input[length - 1] == '=') {
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if(length == 0) {
+    if(equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation};;
+    }
+    return {SUCCESS, 0};
+  }
+  result r = scalar::base64::base64_tail_decode(output, input, length, options);
+  if(r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
 }
 
-simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length) const noexcept {
-  return scalar::base64::base64_length_from_binary(length);
+simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept {
+  return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-size_t implementation::binary_to_base64(const char * input, size_t length, char* output) const noexcept {
-  return scalar::base64::binary_to_base64(input, length, output);
+simdutf_warn_unused result implementation::base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept {
+  // skip trailing spaces
+  while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation = length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if(length > 0 && input[length - 1] == '=') {
+    length -= 1;
+    equalsigns++;
+    while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if(length > 0 && input[length - 1] == '=') {
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if(length == 0) {
+    if(equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+    return {SUCCESS, 0};
+  }
+  result r = scalar::base64::base64_tail_decode(output, input, length, options);
+  if(r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
+}
+
+simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length, base64_options options) const noexcept {
+  return scalar::base64::base64_length_from_binary(length, options);
+}
+
+size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return scalar::base64::binary_to_base64(input, length, output, options);
 }
 } // namespace ppc64
 } // namespace simdutf
@@ -30888,15 +31850,14 @@ simdutf_warn_unused result implementation::validate_ascii_with_errors(const char
  * first invalid one, but never overestimating. */
 simdutf_really_inline static size_t rvv_count_valid_utf8(const char *src, size_t len) {
   const char *beg = src;
-  size_t tail = 32; // minimum of 3
-  if (len < tail) return 0;
+  if (len < 32) return 0;
 
   /* validate first three bytes */
   {
-    size_t idx = tail;
+    size_t idx = 3;
     while (idx < len && (src[idx] >> 6) == 0b10)
       ++idx;
-    if (idx > tail + 3 || !scalar::utf8::validate(src, idx))
+    if (idx > 3+3 || !scalar::utf8::validate(src, idx))
       return 0;
   }
 
@@ -30908,21 +31869,26 @@ simdutf_really_inline static size_t rvv_count_valid_utf8(const char *src, size_t
   const vuint8m1_t err2tbl = __riscv_vreinterpret_v_u64m1_u8m1(__riscv_vle64_v_u64m1(err2m, 2));
   const vuint8m1_t err3tbl = __riscv_vreinterpret_v_u64m1_u8m1(__riscv_vle64_v_u64m1(err3m, 2));
 
+  size_t tail = 3;
   size_t n = len - tail;
 
   for (size_t vl; n > 0; n -= vl, src += vl) {
     vl = __riscv_vsetvl_e8m4(n);
     vuint8m4_t v0 = __riscv_vle8_v_u8m4((uint8_t const*)src, vl);
 
+    uint8_t next0 = src[vl+0];
+    uint8_t next1 = src[vl+1];
+    uint8_t next2 = src[vl+2];
+
     /* fast path: ASCII */
-    if (__riscv_vfirst(__riscv_vmsgtu(v0, 0b01111111, vl), vl) < 0)
+    if (__riscv_vfirst_m_b2(__riscv_vmsgtu_vx_u8m4_b2(v0, 0b01111111, vl), vl) < 0 && (next0|next1|next2) < 0b10000000)
       continue;
 
     /* see "Validating UTF-8 In Less Than One Instruction Per Byte"
      * https://arxiv.org/abs/2010.03090 */
-    vuint8m4_t v1 = __riscv_vslide1down_vx_u8m4(v0, src[vl+0], vl);
-    vuint8m4_t v2 = __riscv_vslide1down_vx_u8m4(v1, src[vl+1], vl);
-    vuint8m4_t v3 = __riscv_vslide1down_vx_u8m4(v2, src[vl+2], vl);
+    vuint8m4_t v1 = __riscv_vslide1down_vx_u8m4(v0, next0, vl);
+    vuint8m4_t v2 = __riscv_vslide1down_vx_u8m4(v1, next1, vl);
+    vuint8m4_t v3 = __riscv_vslide1down_vx_u8m4(v2, next2, vl);
 
     vuint8m4_t s1 = __riscv_vreinterpret_v_u16m4_u8m4(__riscv_vsrl_vx_u16m4(__riscv_vreinterpret_v_u8m4_u16m4(v2), 4, __riscv_vsetvlmax_e16m4()));
     vuint8m4_t s3 = __riscv_vreinterpret_v_u16m4_u8m4(__riscv_vsrl_vx_u16m4(__riscv_vreinterpret_v_u8m4_u16m4(v3), 4, __riscv_vsetvlmax_e16m4()));
@@ -31128,18 +32094,18 @@ simdutf_really_inline static size_t rvv_utf8_to_common(char const *src, size_t l
                 : scalar::utf8_to_utf32::convert(in, count, (char32_t*)out);
   };
 
-  size_t tail = 32; // the minimum value is 3
-  if (len < tail) return scalar(src, len, dst);
+  if (len < 32) return scalar(src, len, dst);
 
   /* validate first three bytes */
   if (validate) {
-    size_t idx = tail;
+    size_t idx = 3;
     while (idx < len && (src[idx] >> 6) == 0b10)
       ++idx;
-    if (idx > tail + 3 || !scalar::utf8::validate(src, idx))
+    if (idx > 3+3 || !scalar::utf8::validate(src, idx))
       return 0;
   }
 
+  size_t tail = 3;
   size_t n = len - tail;
   Tdst *beg = dst;
 
@@ -31160,8 +32126,12 @@ simdutf_really_inline static size_t rvv_utf8_to_common(char const *src, size_t l
     vuint8m2_t v0 = __riscv_vle8_v_u8m2((uint8_t const*)src, vl);
     uint64_t max = __riscv_vmv_x_s_u8m1_u8(__riscv_vredmaxu_vs_u8m2_u8m1(v0, __riscv_vmv_s_x_u8m1(0, vl), vl));
 
+    uint8_t next0 = src[vl+0];
+    uint8_t next1 = src[vl+1];
+    uint8_t next2 = src[vl+2];
+
     /* fast path: ASCII */
-    if (max < 0b10000000) {
+    if ((max|next0|next1|next2) < 0b10000000) {
       vlOut = vl;
       if (is16) __riscv_vse16_v_u16m4((uint16_t*)dst, simdutf_byteflip<bflip>(__riscv_vzext_vf2_u16m4(v0, vlOut), vlOut), vlOut);
       else      __riscv_vse32_v_u32m8((uint32_t*)dst, __riscv_vzext_vf4_u32m8(v0, vlOut), vlOut);
@@ -31170,9 +32140,9 @@ simdutf_really_inline static size_t rvv_utf8_to_common(char const *src, size_t l
 
     /* see "Validating UTF-8 In Less Than One Instruction Per Byte"
      * https://arxiv.org/abs/2010.03090 */
-    vuint8m2_t v1 = __riscv_vslide1down_vx_u8m2(v0, src[vl+0], vl);
-    vuint8m2_t v2 = __riscv_vslide1down_vx_u8m2(v1, src[vl+1], vl);
-    vuint8m2_t v3 = __riscv_vslide1down_vx_u8m2(v2, src[vl+2], vl);
+    vuint8m2_t v1 = __riscv_vslide1down_vx_u8m2(v0, next0, vl);
+    vuint8m2_t v2 = __riscv_vslide1down_vx_u8m2(v1, next1, vl);
+    vuint8m2_t v3 = __riscv_vslide1down_vx_u8m2(v2, next2, vl);
 
     if (validate) {
       vuint8m2_t s1 = __riscv_vreinterpret_v_u16m2_u8m2(__riscv_vsrl_vx_u16m2(__riscv_vreinterpret_v_u8m2_u16m2(v2), 4, __riscv_vsetvlmax_e16m2()));
@@ -31431,6 +32401,8 @@ simdutf_warn_unused size_t implementation::convert_valid_utf8_to_utf32(const cha
 
 /* end file src/rvv/rvv_utf8_to.inl.cpp */
 /* begin file src/rvv/rvv_utf16_to.inl.cpp */
+#include <cstdio>
+
 template<simdutf_ByteFlip bflip>
 simdutf_really_inline static result rvv_utf16_to_latin1_with_errors(const char16_t *src, size_t len, char *dst) {
   const char16_t *const beg = src;
@@ -31645,47 +32617,95 @@ simdutf_really_inline static result rvv_utf16_to_utf32_with_errors(const char16_
   const char16_t *const srcBeg = src;
   char32_t *const dstBeg = dst;
 
+  constexpr const uint16_t ANY_SURROGATE_MASK  = 0xf800;
+  constexpr const uint16_t ANY_SURROGATE_VALUE = 0xd800;
+  constexpr const uint16_t LO_SURROGATE_MASK  = 0xfc00;
+  constexpr const uint16_t LO_SURROGATE_VALUE = 0xdc00;
+  constexpr const uint16_t HI_SURROGATE_MASK  = 0xfc00;
+  constexpr const uint16_t HI_SURROGATE_VALUE = 0xd800;
+
   uint16_t last = 0;
-  for (size_t vl, vlOut; len > 0; len -= vl, src += vl, dst += vlOut, last = simdutf_byteflip<bflip>(src[-1])) {
-    vl = __riscv_vsetvl_e16m2(len);
-    vuint16m2_t v1 = __riscv_vle16_v_u16m2((uint16_t const*)src, vl);
-    v1 = simdutf_byteflip<bflip>(v1, vl);
-    vuint16m2_t v0 = __riscv_vslide1up_vx_u16m2(v1, last, vl);
+  while (len > 0) {
+    size_t vl = __riscv_vsetvl_e16m2(len);
+    vuint16m2_t v0 = __riscv_vle16_v_u16m2((uint16_t const*)src, vl);
+    v0 = simdutf_byteflip<bflip>(v0, vl);
 
-    vbool8_t surhi0 = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v0, 0xFC00, vl), 0xD800, vl);
-    vbool8_t surlo1 = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v1, 0xFC00, vl), 0xDC00, vl);
-
-    /* no surrogates */
-    if (__riscv_vfirst_m_b8(__riscv_vmor_mm_b8(surhi0, surlo1, vl), vl) < 0) {
-      vlOut = vl;
-      __riscv_vse32_v_u32m4((uint32_t*)dst, __riscv_vzext_vf2_u32m4(v1, vl), vl);
-      continue;
+    {   // check fast-path
+        const vuint16m2_t v = __riscv_vand_vx_u16m2(v0, ANY_SURROGATE_MASK, vl);
+        const vbool8_t any_surrogate = __riscv_vmseq_vx_u16m2_b8(v, ANY_SURROGATE_VALUE, vl);
+        if (__riscv_vfirst_m_b8(any_surrogate, vl) < 0) {
+            /* no surrogates */
+            __riscv_vse32_v_u32m4((uint32_t*)dst, __riscv_vzext_vf2_u32m4(v0, vl), vl);
+            len -= vl;
+            src += vl;
+            dst += vl;
+            continue;
+        }
     }
 
-    long idx = __riscv_vfirst_m_b8(__riscv_vmxor_mm_b8(surhi0, surlo1, vl), vl);
-    if (idx >= 0) {
-      last = idx > 0 ? simdutf_byteflip<bflip>(src[idx-1]) : last;
-      return result(error_code::SURROGATE, src - srcBeg + idx - (last - 0xD800u < 0x400u));
+    if ((simdutf_byteflip<bflip>(src[0]) & LO_SURROGATE_MASK) == LO_SURROGATE_VALUE) {
+      return result(error_code::SURROGATE, src - srcBeg);
     }
 
-    vbool8_t surhi1 = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v1, 0xFC00, vl), 0xD800, vl);
-    uint16_t next = vl < len ? simdutf_byteflip<bflip>(src[vl]) : 0;
+    // decode surrogates
+    vuint16m2_t v1 = __riscv_vslide1down_vx_u16m2(v0, 0, vl);
+    vl = __riscv_vsetvl_e16m2(vl - 1);
+    if (vl == 0) {
+        return result(error_code::SURROGATE, src - srcBeg);
+    }
 
-    vuint32m4_t wide    = __riscv_vzext_vf2_u32m4(v1, vl);
-    vuint32m4_t slided  = __riscv_vslide1down_vx_u32m4(wide, next, vl);
-    vuint32m4_t aligned = __riscv_vsll_vx_u32m4_mu(surhi1, wide, wide, 10, vl);
-    vuint32m4_t added   = __riscv_vadd_vv_u32m4_mu(surhi1, aligned, aligned, slided, vl);
-    vuint32m4_t utf32   = __riscv_vadd_vx_u32m4_mu(surhi1, added, added, 0xFCA02400, vl);
-    vbool8_t m = __riscv_vmnot_m_b8(surlo1, vl);
-    vlOut = __riscv_vcpop_m_b8(m, vl);
-    vuint32m4_t comp = __riscv_vcompress_vm_u32m4(utf32, m, vl);
+    const vbool8_t surhi  = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v0, HI_SURROGATE_MASK, vl), HI_SURROGATE_VALUE, vl);
+    const vbool8_t surlo  = __riscv_vmseq_vx_u16m2_b8(__riscv_vand_vx_u16m2(v1, LO_SURROGATE_MASK, vl), LO_SURROGATE_VALUE, vl);
+
+    // compress everything but lo surrogates
+    const vbool8_t compress = __riscv_vmsne_vx_u16m2_b8(__riscv_vand_vx_u16m2(v0, LO_SURROGATE_MASK, vl), LO_SURROGATE_VALUE, vl);
+
+    {
+        const vbool8_t diff = __riscv_vmxor_mm_b8(surhi, surlo, vl);
+        const long idx = __riscv_vfirst_m_b8(diff, vl);
+        if (idx >= 0) {
+          return result(error_code::SURROGATE, src - srcBeg + idx + 1);
+        }
+    }
+
+    last = simdutf_byteflip<bflip>(src[vl]);
+    vuint32m4_t utf32 = __riscv_vzext_vf2_u32m4(v0, vl);
+
+    // v0 = 110110yyyyyyyyyy (0xd800 + yyyyyyyyyy) --- hi surrogate
+    // v1 = 110111xxxxxxxxxx (0xdc00 + xxxxxxxxxx) --- lo surrogate
+
+    // t0 = u16(                    0000_00yy_yyyy_yyyy)
+    const vuint32m4_t t0 = __riscv_vzext_vf2_u32m4(__riscv_vand_vx_u16m2(v0, 0x03ff, vl), vl);
+    // t1 = u32(0000_0000_0000_yyyy_yyyy_yy00_0000_0000)
+    const vuint32m4_t t1 = __riscv_vsll_vx_u32m4(t0, 10, vl);
+
+    // t2 = u32(0000_0000_0000_0000_0000_00xx_xxxx_xxxx)
+    const vuint32m4_t t2   = __riscv_vzext_vf2_u32m4(__riscv_vand_vx_u16m2(v1, 0x03ff, vl), vl);
+
+    // t3 = u32(0000_0000_0000_yyyy_yyyy_yyxx_xxxx_xxxx)
+    const vuint32m4_t t3 = __riscv_vor_vv_u32m4(t1, t2, vl);
+
+    // t4 = utf32 from surrogate pairs
+    const vuint32m4_t t4 = __riscv_vadd_vx_u32m4(t3, 0x10000, vl);
+
+    const vuint32m4_t result = __riscv_vmerge_vvm_u32m4(utf32, t4, surhi, vl);
+
+    const vuint32m4_t comp = __riscv_vcompress_vm_u32m4(result, compress, vl);
+    const size_t vlOut = __riscv_vcpop_m_b8(compress, vl);
     __riscv_vse32_v_u32m4((uint32_t*)dst, comp, vlOut);
+
+    len -= vl;
+    src += vl;
+    dst += vlOut;
+
+    if ((last & LO_SURROGATE_MASK) == LO_SURROGATE_VALUE) {
+        // last item is lo surrogate and got already consumed
+        len -= 1;
+        src += 1;
+    }
   }
 
-  if (last - 0xD800u < 0x400u)
-    return result(error_code::SURROGATE, src - srcBeg - 1); /* end on high surrogate */
-  else
-    return result(error_code::SUCCESS, dst - dstBeg);
+  return result(error_code::SUCCESS, dst - dstBeg);
 }
 
 simdutf_warn_unused size_t implementation::convert_utf16le_to_utf32(const char16_t *src, size_t len, char32_t *dst) const noexcept {
@@ -31981,16 +33001,83 @@ simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(con
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output) const noexcept {
-  return scalar::base64::base64_to_binary(input, length, output);
+simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation = length; // location of the first padding character if any
+  size_t equalsigns = 0;
+  if(length > 0 && input[length - 1] == '=') {
+    length -= 1;
+    equalsigns++;
+    while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if(length > 0 && input[length - 1] == '=') {
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if(length == 0) {
+    if(equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+    return {SUCCESS, 0};
+  }
+  result r = scalar::base64::base64_tail_decode(output, input, length, options);
+  if(r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
 }
 
-simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length) const noexcept {
-  return scalar::base64::base64_length_from_binary(length);
+
+simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept {
+  return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-size_t implementation::binary_to_base64(const char * input, size_t length, char* output) const noexcept {
-  return scalar::base64::binary_to_base64(input, length, output);
+simdutf_warn_unused result implementation::base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept {
+  while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+    length--;
+  }
+  size_t equallocation = length; // location of the first padding character if any
+  auto equalsigns = 0;
+  if(length > 0 && input[length - 1] == '=') {
+    length -= 1;
+    equalsigns++;
+    while(length > 0 && scalar::base64::is_ascii_white_space(input[length - 1])) {
+      length--;
+    }
+    if(length > 0 && input[length - 1] == '=') {
+      equalsigns++;
+      length -= 1;
+    }
+  }
+  if(length == 0) {
+    if(equalsigns > 0) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+    return {SUCCESS, 0};
+  }
+  result r = scalar::base64::base64_tail_decode(output, input, length, options);
+  if(r.error == error_code::SUCCESS && equalsigns > 0) {
+    // additional checks
+    if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, equallocation};
+    }
+  }
+  return r;
+}
+
+simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length, base64_options options) const noexcept {
+  return scalar::base64::base64_length_from_binary(length, options);
+}
+
+size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return scalar::base64::tail_encode_base64(output, input, length, options);
 }
 } // namespace rvv
 } // namespace simdutf
@@ -34557,8 +35644,7 @@ std::pair<result, char16_t*> sse_convert_utf32_to_utf16_with_errors(const char32
  * Nick Kopp. 2013. Base64 Encoding on a GPU.
  * https://www.codeproject.com/Articles/276993/Base-Encoding-on-a-GPU. (2013).
  */
-
-__m128i lookup_pshufb_improved(const __m128i input) {
+template <bool base64_url> __m128i lookup_pshufb_improved(const __m128i input) {
   // credit: Wojciech Muła
   // reduce  0..51 -> 0
   //        52..61 -> 1 .. 10
@@ -34572,9 +35658,16 @@ __m128i lookup_pshufb_improved(const __m128i input) {
   const __m128i less = _mm_cmpgt_epi8(_mm_set1_epi8(26), input);
   result = _mm_or_si128(result, _mm_and_si128(less, _mm_set1_epi8(13)));
 
-  const __m128i shift_LUT = _mm_setr_epi8(
-      'a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
-      '0' - 52, '0' - 52, '0' - 52, '0' - 52, '+' - 62, '/' - 63, 'A', 0, 0);
+  __m128i shift_LUT;
+  if (base64_url) {
+    shift_LUT = _mm_setr_epi8('a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+                              '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+                              '0' - 52, '-' - 62, '_' - 63, 'A', 0, 0);
+  } else {
+    shift_LUT = _mm_setr_epi8('a' - 26, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+                              '0' - 52, '0' - 52, '0' - 52, '0' - 52, '0' - 52,
+                              '0' - 52, '+' - 62, '/' - 63, 'A', 0, 0);
+  }
 
   // read shift
   result = _mm_shuffle_epi8(shift_LUT, result);
@@ -34582,6 +35675,7 @@ __m128i lookup_pshufb_improved(const __m128i input) {
   return _mm_add_epi8(result, input);
 }
 
+template <base64_options options>
 size_t encode_base64(char *dst, const char *src, size_t srclen) {
   // credit: Wojciech Muła
   // SSE (lookup: pshufb improved unrolled)
@@ -34633,19 +35727,19 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m128i input3 = _mm_or_si128(t1_3, t3_3);
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved(input0));
+                     lookup_pshufb_improved<options & base64_url>(input0));
     out += 16;
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved(input1));
+                     lookup_pshufb_improved<options & base64_url>(input1));
     out += 16;
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved(input2));
+                     lookup_pshufb_improved<options & base64_url>(input2));
     out += 16;
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved(input3));
+                     lookup_pshufb_improved<options & base64_url>(input3));
     out += 16;
   }
   for (; i + 16 <= srclen; i += 12) {
@@ -34685,12 +35779,12 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m128i indices = _mm_or_si128(t1, t3);
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved(indices));
+                     lookup_pshufb_improved<options & base64_url>(indices));
     out += 16;
   }
 
-  return i / 3 * 4 +
-         scalar::base64::tail_encode_base64((char *)out, src + i, srclen - i);
+  return i / 3 * 4 + scalar::base64::tail_encode_base64((char *)out, src + i,
+                                                        srclen - i, options);
 }
 static inline void compress(__m128i data, uint16_t mask, char *output) {
   if (mask == 0) {
@@ -34730,27 +35824,59 @@ struct block64 {
   __m128i chunks[4];
 };
 
+template <bool base64_url>
 static inline uint16_t to_base64_mask(__m128i *src, bool *error) {
   const __m128i ascii_space_tbl =
       _mm_setr_epi8(0x20, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x9, 0xa, 0x0,
-                    0x0, 0xd, 0x0, 0x0);
+                    0xc, 0xd, 0x0, 0x0);
   // credit: aqrit
-  const __m128i delta_asso =
-      _mm_setr_epi8(0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x0F, 0x00, 0x0F);
-  const __m128i delta_values =
-      _mm_setr_epi8(int8_t(0x00), int8_t(0x00), int8_t(0x00), int8_t(0x13),
-                    int8_t(0x04), int8_t(0xBF), int8_t(0xBF), int8_t(0xB9),
-                    int8_t(0xB9), int8_t(0x00), int8_t(0x10), int8_t(0xC3),
-                    int8_t(0xBF), int8_t(0xBF), int8_t(0xB9), int8_t(0xB9));
-  const __m128i check_asso =
-      _mm_setr_epi8(0x0D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-                    0x03, 0x07, 0x0B, 0x0B, 0x0B, 0x0F);
-  const __m128i check_values =
-      _mm_setr_epi8(int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80),
-                    int8_t(0xCF), int8_t(0xBF), int8_t(0xD5), int8_t(0xA6),
-                    int8_t(0xB5), int8_t(0x86), int8_t(0xD1), int8_t(0x80),
-                    int8_t(0xB1), int8_t(0x80), int8_t(0x91), int8_t(0x80));
+  __m128i delta_asso;
+  if (base64_url) {
+    delta_asso = _mm_setr_epi8(0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x0, 0x0,
+                               0x0, 0x0, 0x0, 0xF, 0x0, 0xF);
+  } else {
+
+    delta_asso = _mm_setr_epi8(0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x0F);
+  }
+  __m128i delta_values;
+  if (base64_url) {
+    delta_values = _mm_setr_epi8(0x0, 0x0, 0x0, 0x13, 0x4, uint8_t(0xBF),
+                                 uint8_t(0xBF), uint8_t(0xB9), uint8_t(0xB9),
+                                 0x0, 0x11, uint8_t(0xC3), uint8_t(0xBF),
+                                 uint8_t(0xE0), uint8_t(0xB9), uint8_t(0xB9));
+  } else {
+
+    delta_values =
+        _mm_setr_epi8(int8_t(0x00), int8_t(0x00), int8_t(0x00), int8_t(0x13),
+                      int8_t(0x04), int8_t(0xBF), int8_t(0xBF), int8_t(0xB9),
+                      int8_t(0xB9), int8_t(0x00), int8_t(0x10), int8_t(0xC3),
+                      int8_t(0xBF), int8_t(0xBF), int8_t(0xB9), int8_t(0xB9));
+  }
+  __m128i check_asso;
+  if (base64_url) {
+    check_asso = _mm_setr_epi8(0xD, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+                               0x3, 0x7, 0xB, 0x6, 0xB, 0x12);
+  } else {
+
+    check_asso = _mm_setr_epi8(0x0D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+                               0x01, 0x01, 0x03, 0x07, 0x0B, 0x0B, 0x0B, 0x0F);
+  }
+  __m128i check_values;
+  if (base64_url) {
+    check_values = _mm_setr_epi8(0x0, uint8_t(0x80), uint8_t(0x80),
+                                 uint8_t(0x80), uint8_t(0xCF), uint8_t(0xBF),
+                                 uint8_t(0xD3), uint8_t(0xA6), uint8_t(0xB5),
+                                 uint8_t(0x86), uint8_t(0xD0), uint8_t(0x80),
+                                 uint8_t(0xB0), uint8_t(0x80), 0x0, 0x0);
+  } else {
+
+    check_values =
+        _mm_setr_epi8(int8_t(0x80), int8_t(0x80), int8_t(0x80), int8_t(0x80),
+                      int8_t(0xCF), int8_t(0xBF), int8_t(0xD5), int8_t(0xA6),
+                      int8_t(0xB5), int8_t(0x86), int8_t(0xD1), int8_t(0x80),
+                      int8_t(0xB1), int8_t(0x80), int8_t(0x91), int8_t(0x80));
+  }
   const __m128i shifted = _mm_srli_epi32(*src, 3);
 
   const __m128i delta_hash =
@@ -34771,12 +35897,14 @@ static inline uint16_t to_base64_mask(__m128i *src, bool *error) {
   *src = out;
   return (uint16_t)mask;
 }
+
+template <bool base64_url>
 static inline uint64_t to_base64_mask(block64 *b, bool *error) {
   *error = 0;
-  uint64_t m0 = to_base64_mask(&b->chunks[0], error);
-  uint64_t m1 = to_base64_mask(&b->chunks[1], error);
-  uint64_t m2 = to_base64_mask(&b->chunks[2], error);
-  uint64_t m3 = to_base64_mask(&b->chunks[3], error);
+  uint64_t m0 = to_base64_mask<base64_url>(&b->chunks[0], error);
+  uint64_t m1 = to_base64_mask<base64_url>(&b->chunks[1], error);
+  uint64_t m2 = to_base64_mask<base64_url>(&b->chunks[2], error);
+  uint64_t m3 = to_base64_mask<base64_url>(&b->chunks[3], error);
   return m0 | (m1 << 16) | (m2 << 32) | (m3 << 48);
 }
 
@@ -34799,11 +35927,30 @@ static inline uint64_t compress_block(block64 *b, uint64_t mask, char *output) {
   return _mm_popcnt_u64(nmask);
 }
 
+// The caller of this function is responsible to ensure that there are 64 bytes available
+// from reading at src. The data is read into a block64 structure.
 static inline void load_block(block64 *b, const char *src) {
   b->chunks[0] = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src));
   b->chunks[1] = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 16));
   b->chunks[2] = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 32));
   b->chunks[3] = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 48));
+}
+
+// The caller of this function is responsible to ensure that there are 128 bytes available
+// from reading at src. The data is read into a block64 structure.
+static inline void load_block(block64 *b, const char16_t *src) {
+  __m128i m1 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src));
+  __m128i m2 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 8));
+  __m128i m3 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 16));
+  __m128i m4 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 24));
+  __m128i m5 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 32));
+  __m128i m6 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 40));
+  __m128i m7 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 48));
+  __m128i m8 = _mm_loadu_si128(reinterpret_cast<const __m128i *>(src + 56));
+  b->chunks[0] = _mm_packus_epi16(m1, m2);
+  b->chunks[1] = _mm_packus_epi16(m3, m4);
+  b->chunks[2] = _mm_packus_epi16(m5, m6);
+  b->chunks[3] = _mm_packus_epi16(m7, m8);
 }
 
 static inline void base64_decode(char *out, __m128i str) {
@@ -34855,11 +36002,23 @@ static inline void base64_decode_block_safe(char *out, block64 *b) {
   std::memcpy(out + 36, buffer, 12);
 }
 
-result compress_decode_base64(char *dst, const char *src, size_t srclen) {
+template <bool base64_url, typename chartype>
+result compress_decode_base64(char *dst, const chartype *src, size_t srclen,
+                              base64_options options) {
+  const uint8_t *to_base64 = base64_url ? tables::base64::to_base64_url_value
+                                        : tables::base64::to_base64_value;
+  // skip trailing spaces
+  while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+    srclen--;
+  }
   size_t equalsigns = 0;
   if (srclen > 0 && src[srclen - 1] == '=') {
     srclen--;
     equalsigns = 1;
+    // skip trailing spaces
+    while (srclen > 0 && to_base64[uint8_t(src[srclen - 1])] == 64) {
+      srclen--;
+    }
     if (srclen > 0 && src[srclen - 1] == '=') {
       srclen--;
       equalsigns = 2;
@@ -34868,26 +36027,25 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
   char *end_of_safe_64byte_zone =
       (srclen + 3) / 4 * 3 >= 63 ? dst + (srclen + 3) / 4 * 3 - 63 : dst;
 
-  const char *const srcinit = src;
+  const chartype *const srcinit = src;
   const char *const dstinit = dst;
-  const char *const srcend = src + srclen;
+  const chartype *const srcend = src + srclen;
 
   constexpr size_t block_size = 6;
   static_assert(block_size >= 2, "block should of size 2 or more");
   char buffer[block_size * 64];
   char *bufferptr = buffer;
   if (srclen >= 64) {
-    const char *const srcend64 = src + srclen - 64;
+    const chartype *const srcend64 = src + srclen - 64;
     while (src <= srcend64) {
       block64 b;
       load_block(&b, src);
       src += 64;
       bool error = false;
-      uint64_t badcharmask = to_base64_mask(&b, &error);
+      uint64_t badcharmask = to_base64_mask<base64_url>(&b, &error);
       if (error) {
         src -= 64;
-        while (src < srcend &&
-               tables::base64::to_base64_value[uint8_t(*src)] <= 64) {
+        while (src < srcend && to_base64[uint8_t(*src)] <= 64) {
           src++;
         }
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -34932,7 +36090,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
   int last_block = (int)((bufferptr - buffer_start) % 64);
   if (last_block != 0 && srcend - src + last_block >= 64) {
     while ((bufferptr - buffer_start) % 64 != 0 && src < srcend) {
-      uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+      uint8_t val = to_base64[uint8_t(*src)];
       *bufferptr = char(val);
       if (val > 64) {
         return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
@@ -34980,7 +36138,7 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     int leftover = int(bufferptr - buffer_start);
     if (leftover > 0) {
       while (leftover < 4 && src < srcend) {
-        uint8_t val = tables::base64::to_base64_value[uint8_t(*src)];
+        uint8_t val = to_base64[uint8_t(*src)];
         if (val > 64) {
           return {error_code::INVALID_BASE64_CHARACTER, size_t(src - srcinit)};
         }
@@ -35022,14 +36180,26 @@ result compress_decode_base64(char *dst, const char *src, size_t srclen) {
     }
   }
   if (src < srcend + equalsigns) {
-    result r = scalar::base64::base64_tail_decode(dst, src, srcend - src);
+    result r =
+        scalar::base64::base64_tail_decode(dst, src, srcend - src, options);
     if (r.error == error_code::INVALID_BASE64_CHARACTER) {
       r.count += size_t(src - srcinit);
       return r;
     } else {
       r.count += size_t(dst - dstinit);
     }
+    if(r.error == error_code::SUCCESS && equalsigns > 0) {
+      // additional checks
+      if((r.count % 3 == 0) || ((r.count % 3) + 1 + equalsigns != 4)) {
+        r.error = error_code::INVALID_BASE64_CHARACTER;
+      }
+    }
     return r;
+  }
+  if(equalsigns > 0) {
+    if((size_t(dst - dstinit) % 3 == 0) || ((size_t(dst - dstinit) % 3) + 1 + equalsigns != 4)) {
+      return {INVALID_BASE64_CHARACTER, size_t(dst - dstinit)};
+    }
   }
   return {SUCCESS, size_t(dst - dstinit)};
 }
@@ -37368,16 +38538,28 @@ simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(con
   return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output) const noexcept {
-  return compress_decode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
 }
 
-simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length) const noexcept {
-  return scalar::base64::base64_length_from_binary(length);
+simdutf_warn_unused size_t implementation::maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept {
+  return scalar::base64::maximal_binary_length_from_base64(input, length);
 }
 
-size_t implementation::binary_to_base64(const char * input, size_t length, char* output) const noexcept {
-  return encode_base64(output, input, length);
+simdutf_warn_unused result implementation::base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options) const noexcept {
+  return (options & base64_url) ? compress_decode_base64<true>(output, input, length, options) : compress_decode_base64<false>(output, input, length, options);
+}
+
+simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t length, base64_options options) const noexcept {
+  return scalar::base64::base64_length_from_binary(length, options);
+}
+
+size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
+  if(options == base64_url) {
+    return encode_base64<base64_url>(output, input, length);
+  } else {
+    return encode_base64<base64_default>(output, input, length);
+  }
 }
 } // namespace westmere
 } // namespace simdutf

@@ -70,9 +70,6 @@ TEST(WrapperBudget) {
     // This test assumes use of the generic wrapper.
     FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
                                              true);
-    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
-      &v8_flags.enable_wasm_arm64_generic_wrapper,
-      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -120,9 +117,6 @@ TEST(WrapperReplacement) {
     // This test assumes use of the generic wrapper.
     FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
                                              true);
-    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
-      &v8_flags.enable_wasm_arm64_generic_wrapper,
-      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -196,9 +190,6 @@ TEST(EagerWrapperReplacement) {
     // This test assumes use of the generic wrapper.
     FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
                                              true);
-    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
-      &v8_flags.enable_wasm_arm64_generic_wrapper,
-      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -304,9 +295,6 @@ TEST(WrapperReplacement_IndirectExport) {
     // This test assumes use of the generic wrapper.
     FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
                                              true);
-    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
-      &v8_flags.enable_wasm_arm64_generic_wrapper,
-      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -343,12 +331,13 @@ TEST(WrapperReplacement_IndirectExport) {
             instance->trusted_data(isolate)->tables()->get(table_index)),
         isolate);
     // Get the Wasm function through the exported table.
-    Handle<Object> function =
-        WasmTableObject::Get(isolate, table, function_index);
+    Handle<WasmFuncRef> func_ref = Handle<WasmFuncRef>::cast(
+        WasmTableObject::Get(isolate, table, function_index));
+    Handle<WasmInternalFunction> internal_function{func_ref->internal(),
+                                                   isolate};
     Handle<WasmExportedFunction> indirect_function =
         Handle<WasmExportedFunction>::cast(
-            WasmInternalFunction::GetOrCreateExternal(
-                Handle<WasmInternalFunction>::cast(function)));
+            WasmInternalFunction::GetOrCreateExternal(internal_function));
     // Get the function data.
     Handle<WasmExportedFunctionData> indirect_function_data(
         indirect_function->shared()->wasm_exported_function_data(), isolate);

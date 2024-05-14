@@ -79,7 +79,7 @@ class TypeInferenceReducer
   using table_t = SnapshotTable<Type>;
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(TypeInference)
 
   using Adapter = UniformReducerAdapter<TypeInferenceReducer, Next>;
   using Args = TypeInferenceReducerArgs;

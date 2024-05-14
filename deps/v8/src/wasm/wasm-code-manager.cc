@@ -541,15 +541,18 @@ int WasmCode::GetSourceOffsetBefore(int code_offset) {
   return GetSourcePositionBefore(code_offset).ScriptOffset();
 }
 
-std::pair<int, SourcePosition> WasmCode::GetInliningPosition(
+std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
     int inlining_id) const {
-  const size_t elem_size = sizeof(int) + sizeof(SourcePosition);
+  const size_t elem_size = sizeof(int) + sizeof(bool) + sizeof(SourcePosition);
   const uint8_t* start = inlining_positions().begin() + elem_size * inlining_id;
   DCHECK_LE(start, inlining_positions().end());
-  std::pair<int, SourcePosition> result;
-  std::memcpy(&result.first, start, sizeof result.first);
-  std::memcpy(&result.second, start + sizeof result.first,
-              sizeof result.second);
+  std::tuple<int, bool, SourcePosition> result;
+  std::memcpy(&std::get<0>(result), start, sizeof std::get<0>(result));
+  std::memcpy(&std::get<1>(result), start + sizeof std::get<0>(result),
+              sizeof std::get<1>(result));
+  std::memcpy(&std::get<2>(result),
+              start + sizeof std::get<0>(result) + sizeof std::get<1>(result),
+              sizeof std::get<2>(result));
   return result;
 }
 
@@ -832,7 +835,11 @@ NativeModule::NativeModule(WasmFeatures enabled,
       code_allocator_(async_counters),
       enabled_features_(enabled),
       compile_imports_(compile_imports),
-      module_(std::move(module)) {
+      module_(std::move(module)),
+      fast_api_targets_(
+          new std::atomic<Address>[module_->num_imported_functions]()),
+      fast_api_return_is_bool_(
+          new std::atomic<bool>[module_->num_imported_functions]()) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
@@ -913,10 +920,6 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
   }
 }
 
-CompilationEnv NativeModule::CreateCompilationEnv() const {
-  return {module(), enabled_features_, compilation_state()->dynamic_tiering()};
-}
-
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   const size_t relocation_size = code->relocation_size();
   base::OwnedVector<uint8_t> reloc_info;
@@ -924,8 +927,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     reloc_info = base::OwnedVector<uint8_t>::Of(
         base::Vector<uint8_t>{code->relocation_start(), relocation_size});
   }
-  Handle<ByteArray> source_pos_table(code->source_position_table(),
-                                     code->instruction_stream()->GetIsolate());
+  Handle<TrustedByteArray> source_pos_table(
+      code->source_position_table(), code->instruction_stream()->GetIsolate());
   int source_pos_len = source_pos_table->length();
   auto source_pos = base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_len);
   if (source_pos_len > 0) {
@@ -1070,10 +1073,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
     base::Vector<const uint8_t> protected_instructions_data,
-    base::Vector<const uint8_t> source_position_table, WasmCode::Kind kind,
+    base::Vector<const uint8_t> source_position_table,
+    base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging) {
   base::Vector<uint8_t> code_space;
-  base::Vector<uint8_t> inlining_positions;
   NativeModule::JumpTablesRef jump_table_ref;
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
@@ -2428,7 +2431,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 520);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 536);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
@@ -2445,6 +2448,9 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   // For {tiering_budgets_}.
   result += module_->num_declared_functions * sizeof(uint32_t);
 
+  // For fast api call targets.
+  result += module_->num_imported_functions *
+            (sizeof(std::atomic<Address>) + sizeof(CFunctionInfo*));
   {
     base::RecursiveMutexGuard lock(&allocation_mutex_);
     result += ContentSize(owned_code_);

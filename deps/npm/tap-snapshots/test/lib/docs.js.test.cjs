@@ -2078,8 +2078,6 @@ Array [
   "color",
   "commit-hooks",
   "cpu",
-  "os",
-  "libc",
   "depth",
   "description",
   "dev",
@@ -2094,8 +2092,8 @@ Array [
   "dry-run",
   "editor",
   "engine-strict",
-  "expect-results",
   "expect-result-count",
+  "expect-results",
   "fetch-retries",
   "fetch-retry-factor",
   "fetch-retry-maxtimeout",
@@ -2135,10 +2133,9 @@ Array [
   "key",
   "legacy-bundling",
   "legacy-peer-deps",
+  "libc",
   "link",
   "local-address",
-  "sbom-format",
-  "sbom-type",
   "location",
   "lockfile-version",
   "loglevel",
@@ -2154,6 +2151,7 @@ Array [
   "omit-lockfile-registry-resolved",
   "only",
   "optional",
+  "os",
   "otp",
   "package",
   "package-lock",
@@ -2182,6 +2180,8 @@ Array [
   "save-peer",
   "save-prefix",
   "save-prod",
+  "sbom-format",
+  "sbom-type",
   "scope",
   "script-shell",
   "searchexclude",
@@ -2238,8 +2238,6 @@ Array [
   "color",
   "commit-hooks",
   "cpu",
-  "os",
-  "libc",
   "depth",
   "description",
   "dev",
@@ -2281,9 +2279,8 @@ Array [
   "key",
   "legacy-bundling",
   "legacy-peer-deps",
+  "libc",
   "local-address",
-  "sbom-format",
-  "sbom-type",
   "location",
   "lockfile-version",
   "loglevel",
@@ -2295,6 +2292,7 @@ Array [
   "omit-lockfile-registry-resolved",
   "only",
   "optional",
+  "os",
   "otp",
   "package",
   "package-lock",
@@ -2322,6 +2320,8 @@ Array [
   "save-peer",
   "save-prefix",
   "save-prod",
+  "sbom-format",
+  "sbom-type",
   "scope",
   "script-shell",
   "searchexclude",
@@ -2347,8 +2347,8 @@ Array [
 
 exports[`test/lib/docs.js TAP config > keys that are not flattened 1`] = `
 Array [
-  "expect-results",
   "expect-result-count",
+  "expect-results",
   "init-author-email",
   "init-author-name",
   "init-author-url",
@@ -2552,7 +2552,7 @@ exports[`test/lib/docs.js TAP usage access > must match snapshot 1`] = `
 Set access level on published packages
 
 Usage:
-npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list packages [<user>|<scope>|<scope:team>] [<package>]
 npm access list collaborators [<package> [<user>]]
 npm access get status [<package>]
 npm access set status=public|private [<package>]
@@ -2566,7 +2566,7 @@ Options:
 Run "npm help access" for more info
 
 \`\`\`bash
-npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list packages [<user>|<scope>|<scope:team>] [<package>]
 npm access list collaborators [<package> [<user>]]
 npm access get status [<package>]
 npm access set status=public|private [<package>]
@@ -2958,7 +2958,7 @@ exports[`test/lib/docs.js TAP usage doctor > must match snapshot 1`] = `
 Check the health of your npm environment
 
 Usage:
-npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
+npm doctor [connection] [registry] [versions] [environment] [permissions] [cache]
 
 Options:
 [--registry <registry>]
@@ -2966,7 +2966,7 @@ Options:
 Run "npm help doctor" for more info
 
 \`\`\`bash
-npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
+npm doctor [connection] [registry] [versions] [environment] [permissions] [cache]
 \`\`\`
 
 Note: This command is unaware of workspaces.
@@ -4065,30 +4065,31 @@ exports[`test/lib/docs.js TAP usage search > must match snapshot 1`] = `
 Search for packages
 
 Usage:
-npm search [search terms ...]
+npm search <search term> [<search term> ...]
 
 Options:
-[-l|--long] [--json] [--color|--no-color|--color always] [-p|--parseable]
-[--no-description] [--searchopts <searchopts>] [--searchexclude <searchexclude>]
-[--registry <registry>] [--prefer-online] [--prefer-offline] [--offline]
+[--json] [--color|--no-color|--color always] [-p|--parseable] [--no-description]
+[--searchlimit <number>] [--searchopts <searchopts>]
+[--searchexclude <searchexclude>] [--registry <registry>] [--prefer-online]
+[--prefer-offline] [--offline]
 
 aliases: find, s, se
 
 Run "npm help search" for more info
 
 \`\`\`bash
-npm search [search terms ...]
+npm search <search term> [<search term> ...]
 
 aliases: find, s, se
 \`\`\`
 
 Note: This command is unaware of workspaces.
 
-#### \`long\`
 #### \`json\`
 #### \`color\`
 #### \`parseable\`
 #### \`description\`
+#### \`searchlimit\`
 #### \`searchopts\`
 #### \`searchexclude\`
 #### \`registry\`

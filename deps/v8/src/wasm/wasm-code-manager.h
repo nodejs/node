@@ -34,6 +34,7 @@
 #include "src/wasm/wasm-tier.h"
 
 namespace v8 {
+class CFunctionInfo;
 namespace internal {
 
 class InstructionStream;
@@ -161,6 +162,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
+  size_t instructions_size() const {
+    return static_cast<size_t>(instructions_size_);
+  }
   base::Vector<const uint8_t> reloc_info() const {
     return {protected_instructions_data().end(),
             static_cast<size_t>(reloc_info_size_)};
@@ -283,7 +287,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   SourcePosition GetSourcePositionBefore(int code_offset);
   int GetSourceOffsetBefore(int code_offset);
 
-  std::pair<int, SourcePosition> GetInliningPosition(int inlining_id) const;
+  std::tuple<int, bool, SourcePosition> GetInliningPosition(
+      int inlining_id) const;
 
   // Returns whether this code was generated for debugging. If this returns
   // {kForDebugging}, but {tier()} is not {kLiftoff}, then Liftoff compilation
@@ -505,7 +510,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int index, const CodeDesc& desc, int stack_slots,
       uint32_t tagged_parameter_slots,
       base::Vector<const uint8_t> protected_instructions,
-      base::Vector<const uint8_t> source_position_table, WasmCode::Kind kind,
+      base::Vector<const uint8_t> source_position_table,
+      base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging);
 
   // {PublishCode} makes the code available to the system by entering it into
@@ -603,11 +609,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   CompilationState* compilation_state() const {
     return compilation_state_.get();
   }
-
-  // Create a {CompilationEnv} object for compilation. The caller has to ensure
-  // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
-  // being used.
-  CompilationEnv CreateCompilationEnv() const;
 
   uint32_t num_functions() const {
     return module_->num_declared_functions + module_->num_imported_functions;
@@ -760,6 +761,32 @@ class V8_EXPORT_PRIVATE NativeModule final {
     kFarJumpTable,
     kLazyCompileTable,
   };
+
+  bool TrySetFastApiCallTarget(int index, Address target) {
+    Address old_val = fast_api_targets_[index].load(std::memory_order_relaxed);
+    if (old_val == target) {
+      return true;
+    }
+    if (old_val != kNullAddress) {
+      // If already a different target is stored, then there are conflicting
+      // targets and fast api calls are not possible.
+      return false;
+    }
+    return fast_api_targets_[index].compare_exchange_weak(
+        old_val, target, std::memory_order_relaxed);
+  }
+
+  std::atomic<Address>* fast_api_targets() const {
+    return fast_api_targets_.get();
+  }
+
+  void set_fast_api_return_is_bool(int index, bool return_is_bool) {
+    fast_api_return_is_bool_[index] = return_is_bool;
+  }
+
+  std::atomic<bool>* fast_api_return_is_bool() const {
+    return fast_api_return_is_bool_.get();
+  }
 
  private:
   friend class WasmCode;
@@ -951,6 +978,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // you would typically call into {WasmEngine::LogCode} which then checks
   // (under a mutex) which isolate needs logging.
   std::atomic<bool> log_code_{false};
+
+  std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
+  std::unique_ptr<std::atomic<bool>[]> fast_api_return_is_bool_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

@@ -863,8 +863,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
 
     Handle<WeakFixedArray> awaited_by_holder(
         isolate->factory()->NewWeakFixedArray(1));
-    awaited_by_holder->set(
-        0, MaybeObject::MakeWeak(MaybeObject::FromObject(*generator)));
+    awaited_by_holder->set(0, MakeWeak(*generator));
     Object::SetProperty(isolate, promise,
                         isolate->factory()->promise_awaited_by_symbol(),
                         awaited_by_holder, StoreOrigin::kMaybeKeyed,
@@ -927,15 +926,13 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
   DisableEmbeddedBlobRefcounting();
 
   static constexpr char* kNoEmbeddedSource = nullptr;
-  // Have the SnapshotCreator create a new Isolate from scratch.
-  static constexpr Isolate* kNoIsolate = nullptr;
   // We use this flag to tell the serializer not to finalize/seal RO space -
   // this already happened after deserializing the main Isolate.
   static constexpr Snapshot::SerializerFlags kSerializerFlags =
       Snapshot::SerializerFlag::kAllowActiveIsolateForTesting;
   v8::StartupData blob = CreateSnapshotDataBlobInternal(
       v8::SnapshotCreator::FunctionCodeHandling::kClear, kNoEmbeddedSource,
-      kNoIsolate, kSerializerFlags);
+      kSerializerFlags);
   delete[] blob.data;
 
   // Track the embedded blob size as well.

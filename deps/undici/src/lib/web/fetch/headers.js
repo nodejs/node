@@ -12,7 +12,7 @@ const {
 } = require('./util')
 const { webidl } = require('./webidl')
 const assert = require('node:assert')
-const util = require('util')
+const util = require('node:util')
 
 const kHeadersMap = Symbol('headers map')
 const kHeadersSortedMap = Symbol('headers map sorted')
@@ -250,9 +250,31 @@ class HeadersList {
   get entries () {
     const headers = {}
 
-    if (this[kHeadersMap].size) {
+    if (this[kHeadersMap].size !== 0) {
       for (const { name, value } of this[kHeadersMap].values()) {
         headers[name] = value
+      }
+    }
+
+    return headers
+  }
+
+  rawValues () {
+    return this[kHeadersMap].values()
+  }
+
+  get entriesList () {
+    const headers = []
+
+    if (this[kHeadersMap].size !== 0) {
+      for (const { 0: lowerName, 1: { name, value } } of this[kHeadersMap]) {
+        if (lowerName === 'set-cookie') {
+          for (const cookie of this.cookies) {
+            headers.push([name, cookie])
+          }
+        } else {
+          headers.push([name, value])
+        }
       }
     }
 
@@ -348,7 +370,7 @@ class Headers {
 
     // 2. If init is given, then fill this with init.
     if (init !== undefined) {
-      init = webidl.converters.HeadersInit(init)
+      init = webidl.converters.HeadersInit(init, 'Headers contructor', 'init')
       fill(this, init)
     }
   }
@@ -357,10 +379,11 @@ class Headers {
   append (name, value) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 2, { header: 'Headers.append' })
+    webidl.argumentLengthCheck(arguments, 2, 'Headers.append')
 
-    name = webidl.converters.ByteString(name)
-    value = webidl.converters.ByteString(value)
+    const prefix = 'Headers.append'
+    name = webidl.converters.ByteString(name, prefix, 'name')
+    value = webidl.converters.ByteString(value, prefix, 'value')
 
     return appendHeader(this, name, value)
   }
@@ -369,9 +392,10 @@ class Headers {
   delete (name) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.delete' })
+    webidl.argumentLengthCheck(arguments, 1, 'Headers.delete')
 
-    name = webidl.converters.ByteString(name)
+    const prefix = 'Headers.delete'
+    name = webidl.converters.ByteString(name, prefix, 'name')
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
@@ -414,14 +438,15 @@ class Headers {
   get (name) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.get' })
+    webidl.argumentLengthCheck(arguments, 1, 'Headers.get')
 
-    name = webidl.converters.ByteString(name)
+    const prefix = 'Headers.get'
+    name = webidl.converters.ByteString(name, prefix, 'name')
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.get',
+        prefix,
         value: name,
         type: 'header name'
       })
@@ -436,14 +461,15 @@ class Headers {
   has (name) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.has' })
+    webidl.argumentLengthCheck(arguments, 1, 'Headers.has')
 
-    name = webidl.converters.ByteString(name)
+    const prefix = 'Headers.has'
+    name = webidl.converters.ByteString(name, prefix, 'name')
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.has',
+        prefix,
         value: name,
         type: 'header name'
       })
@@ -458,10 +484,11 @@ class Headers {
   set (name, value) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 2, { header: 'Headers.set' })
+    webidl.argumentLengthCheck(arguments, 2, 'Headers.set')
 
-    name = webidl.converters.ByteString(name)
-    value = webidl.converters.ByteString(value)
+    const prefix = 'Headers.set'
+    name = webidl.converters.ByteString(name, prefix, 'name')
+    value = webidl.converters.ByteString(value, prefix, 'value')
 
     // 1. Normalize value.
     value = headerValueNormalize(value)
@@ -470,13 +497,13 @@ class Headers {
     //    header value, then throw a TypeError.
     if (!isValidHeaderName(name)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.set',
+        prefix,
         value: name,
         type: 'header name'
       })
     } else if (!isValidHeaderValue(value)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.set',
+        prefix,
         value,
         type: 'header value'
       })
@@ -598,15 +625,21 @@ Object.defineProperties(Headers.prototype, {
   }
 })
 
-webidl.converters.HeadersInit = function (V) {
+webidl.converters.HeadersInit = function (V, prefix, argument) {
   if (webidl.util.Type(V) === 'Object') {
     const iterator = Reflect.get(V, Symbol.iterator)
 
-    if (typeof iterator === 'function') {
-      return webidl.converters['sequence<sequence<ByteString>>'](V, iterator.bind(V))
+    // A work-around to ensure we send the properly-cased Headers when V is a Headers object.
+    // Read https://github.com/nodejs/undici/pull/3159#issuecomment-2075537226 before touching, please.
+    if (!util.types.isProxy(V) && kHeadersList in V && iterator === Headers.prototype.entries) { // Headers object
+      return V[kHeadersList].entriesList
     }
 
-    return webidl.converters['record<ByteString, ByteString>'](V)
+    if (typeof iterator === 'function') {
+      return webidl.converters['sequence<sequence<ByteString>>'](V, prefix, argument, iterator.bind(V))
+    }
+
+    return webidl.converters['record<ByteString, ByteString>'](V, prefix, argument)
   }
 
   throw webidl.errors.conversionFailed({

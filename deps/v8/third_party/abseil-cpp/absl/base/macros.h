@@ -138,4 +138,40 @@ ABSL_NAMESPACE_END
 #define ABSL_INTERNAL_RETHROW do {} while (false)
 #endif  // ABSL_HAVE_EXCEPTIONS
 
+// ABSL_DEPRECATE_AND_INLINE()
+//
+// Marks a function or type alias as deprecated and tags it to be picked up for
+// automated refactoring by go/cpp-inliner. It can added to inline function
+// definitions or type aliases. It should only be used within a header file. It
+// differs from `ABSL_DEPRECATED` in the following ways:
+//
+// 1. New uses of the function or type will be discouraged via Tricorder
+//    warnings.
+// 2. If enabled via `METADATA`, automated changes will be sent out inlining the
+//    functions's body or replacing the type where it is used.
+//
+// For example:
+//
+// ABSL_DEPRECATE_AND_INLINE() inline int OldFunc(int x) {
+//   return NewFunc(x, 0);
+// }
+//
+// will mark `OldFunc` as deprecated, and the go/cpp-inliner service will
+// replace calls to `OldFunc(x)` with calls to `NewFunc(x, 0)`. Once all calls
+// to `OldFunc` have been replaced, `OldFunc` can be deleted.
+//
+// See go/cpp-inliner for more information.
+//
+// Note: go/cpp-inliner is Google-internal service for automated refactoring.
+// While open-source users do not have access to this service, the macro is
+// provided for compatibility, and so that users receive deprecation warnings.
+#if ABSL_HAVE_CPP_ATTRIBUTE(deprecated) && \
+    ABSL_HAVE_CPP_ATTRIBUTE(clang::annotate)
+#define ABSL_DEPRECATE_AND_INLINE() [[deprecated, clang::annotate("inline-me")]]
+#elif ABSL_HAVE_CPP_ATTRIBUTE(deprecated)
+#define ABSL_DEPRECATE_AND_INLINE() [[deprecated]]
+#else
+#define ABSL_DEPRECATE_AND_INLINE()
+#endif
+
 #endif  // ABSL_BASE_MACROS_H_

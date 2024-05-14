@@ -63,29 +63,34 @@ class MockPlatform final : public TestPlatform {
  private:
   class MockTaskRunner final : public TaskRunner {
    public:
-    void PostTask(std::unique_ptr<v8::Task> task) override {
+    void PostTaskImpl(std::unique_ptr<v8::Task> task,
+                      const SourceLocation& location) override {
       base::MutexGuard lock_scope(&tasks_lock_);
       tasks_.push(std::move(task));
     }
 
-    void PostNonNestableTask(std::unique_ptr<Task> task) override {
+    void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
+                                 const SourceLocation& location) override {
       PostTask(std::move(task));
     }
 
-    void PostDelayedTask(std::unique_ptr<Task> task,
-                         double delay_in_seconds) override {
+    void PostDelayedTaskImpl(std::unique_ptr<Task> task,
+                             double delay_in_seconds,
+                             const SourceLocation& location) override {
       base::MutexGuard lock_scope(&tasks_lock_);
       delayed_tasks_.emplace_back(
           std::move(task), base::TimeTicks::Now() +
                                base::TimeDelta::FromSecondsD(delay_in_seconds));
     }
 
-    void PostNonNestableDelayedTask(std::unique_ptr<Task> task,
-                                    double delay_in_seconds) override {
+    void PostNonNestableDelayedTaskImpl(
+        std::unique_ptr<Task> task, double delay_in_seconds,
+        const SourceLocation& location) override {
       PostDelayedTask(std::move(task), delay_in_seconds);
     }
 
-    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                          const SourceLocation& location) override {
       UNREACHABLE();
     }
 
@@ -275,7 +280,7 @@ class StreamTester {
   v8::Context::Scope context_scope(context);                                 \
   /* Reduce tiering budget so we do not need to execute too long. */         \
   i::FlagScope<int> reduced_tiering_budget(&i::v8_flags.wasm_tiering_budget, \
-                                           10);                              \
+                                           1);                               \
   RunStream_##name(&platform, isolate);
 
 #define STREAM_TEST(name)                                                  \
@@ -1284,7 +1289,7 @@ STREAM_TEST(TestIncrementalCaching) {
   CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
   // No TurboFan compilation happened yet, and therefore no call to the cache.
   CHECK_EQ(0, call_cache_counter);
-  i::wasm::TriggerTierUp(instance->trusted_data(i_isolate), 0);
+  i::wasm::TriggerTierUp(i_isolate, instance->trusted_data(i_isolate), 0);
   tester.RunCompilerTasks();
   CHECK(!module->GetCode(0)->is_liftoff());
   CHECK(module->GetCode(1) == nullptr || module->GetCode(1)->is_liftoff());
@@ -1295,7 +1300,7 @@ STREAM_TEST(TestIncrementalCaching) {
     i::wasm::WasmSerializer serializer(tester.native_module());
     serialized_size = serializer.GetSerializedNativeModuleSize();
   }
-  i::wasm::TriggerTierUp(instance->trusted_data(i_isolate), 1);
+  i::wasm::TriggerTierUp(i_isolate, instance->trusted_data(i_isolate), 1);
   tester.RunCompilerTasks();
   CHECK(!module->GetCode(0)->is_liftoff());
   CHECK(!module->GetCode(1)->is_liftoff());

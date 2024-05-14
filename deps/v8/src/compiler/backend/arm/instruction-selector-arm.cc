@@ -736,7 +736,8 @@ void VisitPairAtomicBinOp(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
   StackSlotRepresentation rep = this->stack_slot_representation_of(node);
-  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  int slot =
+      frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
@@ -2023,7 +2024,7 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
   UNREACHABLE();
 }
 
@@ -4526,8 +4527,9 @@ void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
     node_t node) {
-  // TODO(thibaudm): Implement.
-  UNREACHABLE();
+  OperandGenerator g(this);
+  auto input = g.UseRegister(this->input_at(node, 0));
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
 template <typename Adapter>

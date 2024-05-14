@@ -276,7 +276,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 
   if (compilation_info()->SourcePositionRecordingMode() ==
       SourcePositionTableBuilder::RecordingMode::RECORD_SOURCE_POSITIONS) {
-    Handle<ByteArray> source_position_table =
+    Handle<TrustedByteArray> source_position_table =
         generator()->FinalizeSourcePositionTable(isolate);
     bytecodes->set_source_position_table(*source_position_table, kReleaseStore);
   }

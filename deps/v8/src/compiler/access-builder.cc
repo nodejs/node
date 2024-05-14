@@ -613,6 +613,15 @@ FieldAccess AccessBuilder::ForJSIteratorResultValue() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSPrimitiveWrapperValue() {
+  FieldAccess access = {kTaggedBase,         JSPrimitiveWrapper::kValueOffset,
+                        MaybeHandle<Name>(), OptionalMapRef(),
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier,   "JSPrimitiveWrapperValue"};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSRegExpData() {
   FieldAccess access = {kTaggedBase,         JSRegExp::kDataOffset,
                         MaybeHandle<Name>(), OptionalMapRef(),
@@ -1214,6 +1223,10 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
                               MachineType::Uint32(), kNoWriteBarrier};
       return access;
     }
+    case kExternalFloat16Array: {
+      // TODO(v8:14012): support machine logic
+      UNIMPLEMENTED();
+    }
     case kExternalFloat32Array: {
       ElementAccess access = {taggedness, header_size, Type::Number(),
                               MachineType::Float32(), kNoWriteBarrier};
@@ -1463,6 +1476,18 @@ FieldAccess AccessBuilder::ForWasmArrayLength() {
           MachineType::Uint32(),
           compiler::kNoWriteBarrier,
           "WasmArrayLength"};
+}
+
+// static
+FieldAccess AccessBuilder::ForWasmDispatchTableLength() {
+  return {compiler::kTaggedBase,
+          WasmDispatchTable::kLengthOffset,
+          MaybeHandle<Name>{},
+          compiler::OptionalMapRef{},
+          compiler::Type::OtherInternal(),
+          MachineType::Uint32(),
+          compiler::kNoWriteBarrier,
+          "WasmDispatchTableLength"};
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

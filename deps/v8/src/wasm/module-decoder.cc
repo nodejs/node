@@ -124,9 +124,10 @@ ModuleResult DecodeWasmModule(
 }
 
 ModuleResult DecodeWasmModuleForDisassembler(
-    base::Vector<const uint8_t> wire_bytes) {
+    base::Vector<const uint8_t> wire_bytes, ITracer* tracer) {
   constexpr bool kNoValidateFunctions = false;
-  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin};
+  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
+                            kDoNotPopulateExplicitRecGroups, tracer};
   return decoder.DecodeModule(kNoValidateFunctions);
 }
 
@@ -450,9 +451,11 @@ class ValidateFunctionsTask : public JobTask {
     WasmFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
     DCHECK_LT(0, function.code.offset());
+    bool is_shared = module_->types[function.sig_index].is_shared;
     FunctionBody body{function.sig, function.code.offset(),
                       wire_bytes_.begin() + function.code.offset(),
-                      wire_bytes_.begin() + function.code.end_offset()};
+                      wire_bytes_.begin() + function.code.end_offset(),
+                      is_shared};
     DecodeResult validation_result = ValidateFunctionBody(
         zone, enabled_features_, module_, &unused_detected_features, body);
     if (V8_UNLIKELY(validation_result.failed())) {

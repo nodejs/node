@@ -33,11 +33,11 @@ enum ValueTypeCode : uint8_t {
   kS128Code = 0x7b,             // -0x05
   kI8Code = 0x78,               // -0x08, packed type
   kI16Code = 0x77,              // -0x09, packed type
+  kNoExnCode = 0x74,            // -0x0c
   kNoFuncCode = 0x73,           // -0x0d
   kNoExternCode = 0x72,         // -0x0e
   kNoneCode = 0x71,             // -0x0f
   kFuncRefCode = 0x70,          // -0x10
-  kExnRefCode = 0x69,           // -0x17
   kExternRefCode = 0x6f,        // -0x11
   kAnyRefCode = 0x6e,           // -0x12
   kEqRefCode = 0x6d,            // -0x13
@@ -47,6 +47,7 @@ enum ValueTypeCode : uint8_t {
   kRefCode = 0x64,              // -0x1c
   kRefNullCode = 0x63,          // -0x1d
                                 // Non-finalized proposals below.
+  kExnRefCode = 0x69,           // -0x17
   kStringRefCode = 0x67,        // -0x19
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x62,  // -0x1e
@@ -54,6 +55,7 @@ enum ValueTypeCode : uint8_t {
 };
 
 // Binary encoding of type definitions.
+constexpr uint8_t kSharedFlagCode = 0x65;
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;

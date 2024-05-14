@@ -136,19 +136,24 @@ class V8_EXPORT ModuleRequest : public Data {
   int GetSourceOffset() const;
 
   /**
-   * Contains the import assertions for this request in the form:
+   * Contains the import attributes for this request in the form:
    * [key1, value1, source_offset1, key2, value2, source_offset2, ...].
    * The keys and values are of type v8::String, and the source offsets are of
    * type Int32. Use Module::SourceOffsetToLocation to convert the source
    * offsets to Locations with line/column numbers.
    *
-   * All assertions present in the module request will be supplied in this
+   * All attributes present in the module request will be supplied in this
    * list, regardless of whether they are supported by the host. Per
    * https://tc39.es/proposal-import-attributes/#sec-hostgetsupportedimportattributes,
-   * hosts are expected to throw for assertions that they do not support (as
+   * hosts are expected to throw for attributes that they do not support (as
    * opposed to, for example, ignoring them).
    */
-  Local<FixedArray> GetImportAssertions() const;
+  Local<FixedArray> GetImportAttributes() const;
+
+  V8_DEPRECATE_SOON("Use GetImportAttributes instead")
+  Local<FixedArray> GetImportAssertions() const {
+    return GetImportAttributes();
+  }
 
   V8_INLINE static ModuleRequest* Cast(Data* data);
 
@@ -286,11 +291,6 @@ class V8_EXPORT Module : public Data {
    * module_name is used solely for logging/debugging and doesn't affect module
    * behavior.
    */
-  V8_DEPRECATED("Please use the version that takes a MemorySpan")
-  static Local<Module> CreateSyntheticModule(
-      Isolate* isolate, Local<String> module_name,
-      const std::vector<Local<String>>& export_names,
-      SyntheticModuleEvaluationSteps evaluation_steps);
   static Local<Module> CreateSyntheticModule(
       Isolate* isolate, Local<String> module_name,
       const MemorySpan<const Local<String>>& export_names,
@@ -305,17 +305,6 @@ class V8_EXPORT Module : public Data {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
       Isolate* isolate, Local<String> export_name, Local<Value> export_value);
-
-  /**
-   * Search the modules requested directly or indirectly by the module for
-   * any top-level await that has not yet resolved. If there is any, the
-   * returned vector contains a tuple of the unresolved module and a message
-   * with the pending top-level await.
-   * An embedder may call this before exiting to improve error messages.
-   */
-  V8_DEPRECATED("Please use GetStalledTopLevelAwaitMessages")
-  std::vector<std::tuple<Local<Module>, Local<Message>>>
-  GetStalledTopLevelAwaitMessage(Isolate* isolate);
 
   /**
    * Search the modules requested directly or indirectly by the module for

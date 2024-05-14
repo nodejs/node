@@ -717,9 +717,8 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     GotoIfNot(IsSetWord32<Map::Bits1::IsAccessCheckNeededBit>(
                   LoadMapBitField(receiver_map)),
               &receiver_done);
-    TNode<Int32T> function_template_info_flags =
-        LoadAndUntagToWord32ObjectField(function_template_info,
-                                        FunctionTemplateInfo::kFlagOffset);
+    TNode<Uint32T> function_template_info_flags = LoadObjectField<Uint32T>(
+        function_template_info, FunctionTemplateInfo::kFlagOffset);
     Branch(IsSetWord32<FunctionTemplateInfo::AcceptAnyReceiverBit>(
                function_template_info_flags),
            &receiver_done, &receiver_needs_access_check);
@@ -772,39 +771,37 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     }
   }
 
-  TNode<HeapObject> call_code = CAST(LoadObjectField(
-      function_template_info, FunctionTemplateInfo::kCallCodeOffset));
+  TNode<Object> callback_data = LoadObjectField(
+      function_template_info, FunctionTemplateInfo::kCallbackDataOffset);
   // If the function doesn't have an associated C++ code to execute, just
   // return the receiver as would an empty function do (see
   // HandleApiCallHelper).
   {
     Label if_continue(this);
-    GotoIfNot(IsUndefined(call_code), &if_continue);
+    GotoIfNot(IsTheHole(callback_data), &if_continue);
     args.PopAndReturn(receiver);
 
     Bind(&if_continue);
   }
 
   // Perform the actual API callback invocation via CallApiCallback.
-  TNode<CallHandlerInfo> call_handler_info = CAST(call_code);
   switch (mode) {
     case CallFunctionTemplateMode::kGeneric:
       TailCallBuiltin(Builtin::kCallApiCallbackGeneric, context,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      topmost_script_having_context, call_handler_info, holder);
+                      topmost_script_having_context, function_template_info,
+                      holder);
       break;
 
     case CallFunctionTemplateMode::kCheckAccess:
     case CallFunctionTemplateMode::kCheckAccessAndCompatibleReceiver:
     case CallFunctionTemplateMode::kCheckCompatibleReceiver: {
       TNode<RawPtrT> callback_address =
-          LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
-      TNode<Object> call_data =
-          LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
+          LoadFunctionTemplateInfoJsCallbackPtr(function_template_info);
       TailCallBuiltin(Builtin::kCallApiCallbackOptimized, context,
                       callback_address,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      call_data, holder);
+                      callback_data, holder);
       break;
     }
   }

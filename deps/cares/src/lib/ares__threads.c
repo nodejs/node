@@ -138,9 +138,9 @@ struct ares__thread {
   HANDLE thread;
   DWORD  id;
 
-  void  *(*func)(void *arg);
-  void  *arg;
-  void  *rv;
+  void *(*func)(void *arg);
+  void *arg;
+  void *rv;
 };
 
 /* Wrap for pthread compatibility */
@@ -335,8 +335,8 @@ static void ares__timespec_timeout(struct timespec *ts, unsigned long add_ms)
 #      error cannot determine current system time
 #    endif
 
-  ts->tv_sec  += add_ms / 1000;
-  ts->tv_nsec += (add_ms % 1000) * 1000000;
+  ts->tv_sec  += (time_t)(add_ms / 1000);
+  ts->tv_nsec += (long)((add_ms % 1000) * 1000000);
 
   /* Normalize if needed */
   if (ts->tv_nsec >= 1000000000) {

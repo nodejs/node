@@ -17,7 +17,7 @@ void WasmRevecPhase::Run(Zone* temp_zone) {
     PipelineData::Get().set_wasm_revec_analyzer(&analyzer);
     UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                                 v8_flags.turboshaft_trace_reduction);
-    CopyingPhase<WasmRevecReducer>::Run<false>(temp_zone);
+    CopyingPhase<WasmRevecReducer>::Run(temp_zone);
     PipelineData::Get().clear_wasm_revec_analyzer();
   }
 }

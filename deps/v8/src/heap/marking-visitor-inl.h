@@ -57,14 +57,14 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   SynchronizePageAccess(heap_object);
   if (!ShouldMarkObject(heap_object)) return;
   // TODO(chromium:1495151): Remove after diagnosing.
-  if (V8_UNLIKELY(!BasicMemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
+  if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
                   IsFreeSpaceOrFiller(
                       heap_object, ObjectVisitorWithCageBases::cage_base()))) {
     heap_->isolate()->PushStackTraceAndDie(
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
-        reinterpret_cast<void*>(BasicMemoryChunk::FromHeapObject(heap_object)
+        reinterpret_cast<void*>(MemoryChunkMetadata::FromHeapObject(heap_object)
                                     ->owner()
                                     ->identity()));
   }
@@ -209,27 +209,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(slot.tag(), kUnknownIndirectPointerTag);
-
-  IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
-
-  // We must not see an uninitialized 'self' indirect pointer as we might
-  // otherwise fail to mark the table entry as alive.
-  DCHECK_NE(handle, kNullIndirectPointerHandle);
-
-  if (slot.tag() == kCodeIndirectPointerTag) {
-    CodePointerTable* table = GetProcessWideCodePointerTable();
-    CodePointerTable::Space* space = heap_->code_pointer_space();
-    table->Mark(space, handle);
-  } else {
-    TrustedPointerTable* table = trusted_pointer_table_;
-    TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
-    table->Mark(space, handle);
-  }
-#else
-  UNREACHABLE();
-#endif
+  concrete_visitor()->MarkPointerTableEntry(host, slot);
 }
 
 // ===========================================================================
@@ -304,9 +284,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     Tagged<Code> baseline_code = shared_info->baseline_code(kAcquireLoad);
     // Visit the bytecode hanging off baseline code.
-    VisitPointer(baseline_code,
-                 baseline_code->RawField(
-                     Code::kDeoptimizationDataOrInterpreterDataOffset));
+    VisitProtectedPointer(
+        baseline_code, baseline_code->RawProtectedPointerField(
+                           Code::kDeoptimizationDataOrInterpreterDataOffset));
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old
@@ -336,7 +316,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
     if (!IsBaselineCodeFlushingEnabled(code_flush_mode_)) return false;
-    data = baseline_code->bytecode_or_interpreter_data(heap_->isolate());
+    data = baseline_code->bytecode_or_interpreter_data();
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing isn't enabled and there is no baseline code there is
     // nothing to flush.
@@ -417,7 +397,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 #ifdef THREAD_SANITIZER
   // This is needed because TSAN does not process the memory fence
   // emitted after page initialization.
-  BasicMemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
+  MemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedLoad();
 #endif
   if (!IsCode(maybe_code)) return false;
   Tagged<Code> code = Code::cast(maybe_code);
@@ -474,7 +454,7 @@ template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object) {
   ProgressBar& progress_bar =
-      MemoryChunk::FromHeapObject(object)->ProgressBar();
+      MutablePageMetadata::FromHeapObject(object)->ProgressBar();
   return concrete_visitor()->CanUpdateValuesInHeap() && progress_bar.IsEnabled()
              ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
              : VisitFixedArrayRegularly(map, object);
@@ -781,6 +761,32 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
   local_weak_objects_->transition_arrays_local.Push(array);
   return size;
+}
+
+template <typename ConcreteVisitor>
+void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
+    Tagged<HeapObject> host, IndirectPointerSlot slot) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(slot.tag(), kUnknownIndirectPointerTag);
+
+  IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+
+  // We must not see an uninitialized 'self' indirect pointer as we might
+  // otherwise fail to mark the table entry as alive.
+  DCHECK_NE(handle, kNullIndirectPointerHandle);
+
+  if (slot.tag() == kCodeIndirectPointerTag) {
+    CodePointerTable* table = GetProcessWideCodePointerTable();
+    CodePointerTable::Space* space = this->heap_->code_pointer_space();
+    table->Mark(space, handle);
+  } else {
+    TrustedPointerTable* table = this->trusted_pointer_table_;
+    TrustedPointerTable::Space* space = this->heap_->trusted_pointer_space();
+    table->Mark(space, handle);
+  }
+#else
+  UNREACHABLE();
+#endif
 }
 
 }  // namespace internal

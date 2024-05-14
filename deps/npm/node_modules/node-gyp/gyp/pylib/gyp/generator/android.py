@@ -739,9 +739,9 @@ class AndroidMkWriter:
                     % (self.android_class, self.android_module)
                 )
             else:
-                path = "$(call intermediates-dir-for,{},{},,,$(GYP_VAR_PREFIX))".format(
-                    self.android_class,
-                    self.android_module,
+                path = (
+                    "$(call intermediates-dir-for,"
+                    f"{self.android_class},{self.android_module},,,$(GYP_VAR_PREFIX))"
                 )
 
         assert spec.get("product_dir") is None  # TODO: not supported?

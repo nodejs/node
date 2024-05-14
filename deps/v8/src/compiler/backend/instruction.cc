@@ -20,6 +20,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/loop-finder.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
@@ -723,11 +724,9 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   return instr_block;
 }
 
-static InstructionBlock* InstructionBlockFor(Zone* zone,
-                                             const turboshaft::Graph& graph,
-                                             const turboshaft::Block* block) {
-  // TODO(nicohartmann@): Properly get the loop_header.
-  turboshaft::Block* loop_header = nullptr;  // block->loop_header()
+static InstructionBlock* InstructionBlockFor(
+    Zone* zone, const turboshaft::Graph& graph, const turboshaft::Block* block,
+    const turboshaft::Block* loop_header) {
   bool is_handler =
       block->FirstOperation(graph).Is<turboshaft::CatchBlockBeginOp>();
   bool deferred = block->get_custom_data(
@@ -830,10 +829,16 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   new (blocks)
       InstructionBlocks(static_cast<int>(graph.block_count()), nullptr, zone);
   size_t rpo_number = 0;
+  // TODO(dmercadier): currently, the LoopFinder is just used to compute loop
+  // headers. Since it's somewhat expensive to compute this, we should also use
+  // the LoopFinder to compute the special RPO (we would only need to run the
+  // LoopFinder once to compute both the special RPO and the loop headers).
+  turboshaft::LoopFinder loop_finder(zone, &graph);
   for (const turboshaft::Block& block : graph.blocks()) {
     DCHECK(!(*blocks)[rpo_number]);
     DCHECK_EQ(RpoNumber::FromInt(block.index().id()).ToSize(), rpo_number);
-    (*blocks)[rpo_number] = InstructionBlockFor(zone, graph, &block);
+    (*blocks)[rpo_number] = InstructionBlockFor(
+        zone, graph, &block, loop_finder.GetLoopHeader(&block));
     ++rpo_number;
   }
   return blocks;

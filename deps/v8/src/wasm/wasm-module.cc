@@ -646,7 +646,7 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 }
 
 size_t WasmModule::EstimateStoredSize() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 848);
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 856);
   return sizeof(WasmModule) +                            // --
          signature_zone.allocation_size_for_tracing() +  // --
          ContentSize(types) +                            // --
@@ -704,8 +704,8 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 160);
   UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 48);
   // Not including sizeof(TFS) because that's contained in sizeof(WasmModule).
-  size_t result = ContentSize(feedback_for_function);
   base::SharedMutexGuard<base::kShared> lock(&mutex);
+  size_t result = ContentSize(feedback_for_function);
   for (const auto& [func_idx, feedback] : feedback_for_function) {
     result += ContentSize(feedback.feedback_vector);
     result += feedback.call_targets.size() * sizeof(uint32_t);
@@ -719,7 +719,7 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 848);
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 856);
   size_t result = EstimateStoredSize();
 
   result += type_feedback.EstimateCurrentMemoryConsumption();

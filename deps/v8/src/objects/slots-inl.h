@@ -110,33 +110,34 @@ Tagged<Object> FullObjectSlot::Release_CompareAndSwap(
 // FullMaybeObjectSlot implementation.
 //
 
-MaybeObject FullMaybeObjectSlot::operator*() const {
-  return MaybeObject(*location());
+Tagged<MaybeObject> FullMaybeObjectSlot::operator*() const {
+  return Tagged<MaybeObject>(*location());
 }
 
-MaybeObject FullMaybeObjectSlot::load(PtrComprCageBase cage_base) const {
+Tagged<MaybeObject> FullMaybeObjectSlot::load(
+    PtrComprCageBase cage_base) const {
   return **this;
 }
 
-void FullMaybeObjectSlot::store(MaybeObject value) const {
+void FullMaybeObjectSlot::store(Tagged<MaybeObject> value) const {
   *location() = value.ptr();
 }
 
-MaybeObject FullMaybeObjectSlot::Relaxed_Load() const {
-  return MaybeObject(base::AsAtomicPointer::Relaxed_Load(location()));
+Tagged<MaybeObject> FullMaybeObjectSlot::Relaxed_Load() const {
+  return Tagged<MaybeObject>(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-MaybeObject FullMaybeObjectSlot::Relaxed_Load(
+Tagged<MaybeObject> FullMaybeObjectSlot::Relaxed_Load(
     PtrComprCageBase cage_base) const {
   return Relaxed_Load();
 }
 
-void FullMaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
-  base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
+void FullMaybeObjectSlot::Relaxed_Store(Tagged<MaybeObject> value) const {
+  base::AsAtomicPointer::Relaxed_Store(location(), value.ptr());
 }
 
-void FullMaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
-                                                 MaybeObject target) const {
+void FullMaybeObjectSlot::Release_CompareAndSwap(
+    Tagged<MaybeObject> old, Tagged<MaybeObject> target) const {
   base::AsAtomicPointer::Release_CompareAndSwap(location(), old.ptr(),
                                                 target.ptr());
 }
@@ -145,15 +146,16 @@ void FullMaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
 // FullHeapObjectSlot implementation.
 //
 
-HeapObjectReference FullHeapObjectSlot::operator*() const {
-  return HeapObjectReference(*location());
+Tagged<HeapObjectReference> FullHeapObjectSlot::operator*() const {
+  return Tagged<HeapObjectReference>::cast(Tagged<MaybeObject>(*location()));
 }
 
-HeapObjectReference FullHeapObjectSlot::load(PtrComprCageBase cage_base) const {
+Tagged<HeapObjectReference> FullHeapObjectSlot::load(
+    PtrComprCageBase cage_base) const {
   return **this;
 }
 
-void FullHeapObjectSlot::store(HeapObjectReference value) const {
+void FullHeapObjectSlot::store(Tagged<HeapObjectReference> value) const {
   *location() = value.ptr();
 }
 
@@ -356,7 +358,7 @@ Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
   const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
-  return Tagged<Object>(table.Get(handle));
+  return Tagged<Object>(table.Get(handle, tag_));
 }
 
 Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(

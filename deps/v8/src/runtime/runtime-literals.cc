@@ -531,7 +531,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
   Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->length());
-  Handle<Object> literal_site(vector->Get(literals_slot)->cast<Object>(),
+  Handle<Object> literal_site(Tagged<Object>::cast(vector->Get(literals_slot)),
                               isolate);
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
@@ -619,7 +619,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
-  Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
+  Handle<Object> literal_site(Tagged<Object>::cast(vector->Get(literal_slot)),
                               isolate);
 
   // This function must not be called when a boilerplate already exists (if it
@@ -648,7 +648,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
 
   vector->SynchronizedSet(literal_slot, *boilerplate);
   DCHECK(HasBoilerplate(
-      handle(vector->Get(literal_slot)->cast<Object>(), isolate)));
+      handle(Tagged<Object>::cast(vector->Get(literal_slot)), isolate)));
 
   return *regexp_instance;
 }

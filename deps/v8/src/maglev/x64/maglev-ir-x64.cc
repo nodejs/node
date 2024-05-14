@@ -26,15 +26,43 @@ namespace maglev {
 // Nodes
 // ---
 
-void FoldedAllocation::SetValueLocationConstraints() {
-  UseRegister(raw_allocation());
-  DefineAsRegister(this);
+void InlinedAllocation::SetValueLocationConstraints() {
+  UseRegister(allocation_block());
+  if (offset() == 0) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
-void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
-  __ leaq(ToRegister(result()),
-          Operand(ToRegister(raw_allocation()), offset()));
+void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  if (offset() != 0) {
+    __ leaq(ToRegister(result()),
+            Operand(ToRegister(allocation_block()), offset()));
+  }
+}
+
+void ArgumentsLength::SetValueLocationConstraints() { DefineAsRegister(this); }
+
+void ArgumentsLength::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  __ movq(ToRegister(result()),
+          Operand(rbp, StandardFrameConstants::kArgCOffset));
+  __ decl(ToRegister(result()));  // Remove receiver.
+}
+
+void RestLength::SetValueLocationConstraints() { DefineAsRegister(this); }
+
+void RestLength::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register length = ToRegister(result());
+  Label done;
+  __ movq(length, Operand(rbp, StandardFrameConstants::kArgCOffset));
+  __ subl(length, Immediate(formal_parameter_count() + 1));
+  __ j(greater_equal, &done, Label::Distance::kNear);
+  __ Move(length, 0);
+  __ bind(&done);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {
@@ -667,7 +695,7 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
   __ PrepareCallCFunction(1);
-  __ CallCFunction(ieee_function_, 1);
+  __ CallCFunction(ieee_function_ref(), 1);
 }
 
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {

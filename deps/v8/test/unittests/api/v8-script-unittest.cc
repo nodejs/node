@@ -290,10 +290,11 @@ TEST_F(ScriptTest, ProduceCompileHints) {
       EXPECT_EQ(14, compile_hints[0]);
     }
 
-    // The previous data is cleared if we retrieve compile hints again.
+    // The previous data is still there if we retrieve compile hints again.
     {
       auto compile_hints = script->GetProducedCompileHints();
-      EXPECT_EQ(0u, compile_hints.size());
+      EXPECT_EQ(1u, compile_hints.size());
+      EXPECT_EQ(14, compile_hints[0]);
     }
 
     // Call the other lazy function and retrieve compile hints again.
@@ -307,16 +308,23 @@ TEST_F(ScriptTest, ProduceCompileHints) {
     EXPECT_FALSE(result2.IsEmpty());
     {
       auto compile_hints = script->GetProducedCompileHints();
-      EXPECT_EQ(1u, compile_hints.size());
-      EXPECT_EQ(34, compile_hints[0]);
+      EXPECT_EQ(2u, compile_hints.size());
+      EXPECT_EQ(14, compile_hints[0]);
+      EXPECT_EQ(34, compile_hints[1]);
     }
   }
 
   // Test that compile hints are not produced unless the relevant compile option
   // is set.
   {
+    const char* nohints_code =
+        "function nohints_lazy1() {} function nohints_lazy2() {} "
+        "nohints_lazy1();";
+    v8::ScriptCompiler::Source nohints_script_source(NewString(nohints_code),
+                                                     origin);
+
     Local<Script> script =
-        v8::ScriptCompiler::Compile(v8_context(), &script_source)
+        v8::ScriptCompiler::Compile(v8_context(), &nohints_script_source)
             .ToLocalChecked();
     {
       auto compile_hints = script->GetProducedCompileHints();
@@ -386,8 +394,9 @@ TEST_F(ScriptTest, ProduceCompileHintsForArrowFunctions) {
     EXPECT_FALSE(result3.IsEmpty());
     {
       auto compile_hints = script->GetProducedCompileHints();
-      EXPECT_EQ(1u, compile_hints.size());
-      EXPECT_EQ(35, compile_hints[0]);
+      EXPECT_EQ(2u, compile_hints.size());
+      EXPECT_EQ(8, compile_hints[0]);
+      EXPECT_EQ(35, compile_hints[1]);
     }
   }
 }

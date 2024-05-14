@@ -729,7 +729,8 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
   Zone zone(isolate->allocator(), ZONE_NAME);
   SourcePositionTableBuilder builder(&zone);
 
-  Handle<ByteArray> source_position_table(code->SourcePositionTable(), isolate);
+  Handle<TrustedByteArray> source_position_table(code->SourcePositionTable(),
+                                                 isolate);
   for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePosition position = iterator.source_position();
@@ -739,7 +740,7 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
                         iterator.is_statement());
   }
 
-  Handle<ByteArray> new_source_position_table(
+  Handle<TrustedByteArray> new_source_position_table(
       builder.ToSourcePositionTable(isolate));
   code->set_source_position_table(*new_source_position_table, kReleaseStore);
   LOG_CODE_EVENT(isolate,
@@ -922,7 +923,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     sfi->set_script(*new_script, kReleaseStore);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
     new_script->shared_function_infos()->set(
-        mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
+        mapping.second->function_literal_id(), MakeWeak(*sfi));
     DCHECK_EQ(sfi->function_literal_id(),
               mapping.second->function_literal_id());
 
@@ -946,7 +947,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     }
 
     if (!sfi->HasBytecodeArray()) continue;
-    Tagged<FixedArray> constants =
+    Tagged<TrustedFixedArray> constants =
         sfi->GetBytecodeArray(isolate)->constant_pool();
     for (int i = 0; i < constants->length(); ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
@@ -998,7 +999,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   for (Tagged<SharedFunctionInfo> sfi = it.Next(); !sfi.is_null();
        sfi = it.Next()) {
     if (!sfi->HasBytecodeArray()) continue;
-    Tagged<FixedArray> constants =
+    Tagged<TrustedFixedArray> constants =
         sfi->GetBytecodeArray(isolate)->constant_pool();
     for (int i = 0; i < constants->length(); ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
@@ -1049,7 +1050,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // Check that all the functions in this function's constant pool are also
       // on the new script, and that their id matches their index in the new
       // scripts function list.
-      Tagged<FixedArray> constants =
+      Tagged<TrustedFixedArray> constants =
           sfi->GetBytecodeArray(isolate)->constant_pool();
       for (int i = 0; i < constants->length(); ++i) {
         if (!IsSharedFunctionInfo(constants->get(i))) continue;

@@ -1,9 +1,9 @@
 const pacote = require('pacote')
 const libpack = require('libnpmpack')
 const npa = require('npm-package-arg')
-const log = require('../utils/log-shim')
+const { log, output } = require('proc-log')
 const { getContents, logTar } = require('../utils/tar.js')
-const BaseCommand = require('../base-command.js')
+const BaseCommand = require('../base-cmd.js')
 
 class Pack extends BaseCommand {
   static description = 'Create a tarball from a package'
@@ -58,13 +58,13 @@ class Pack extends BaseCommand {
     }
 
     if (json) {
-      this.npm.output(JSON.stringify(tarballs, null, 2))
+      output.standard(JSON.stringify(tarballs, null, 2))
       return
     }
 
     for (const tar of tarballs) {
       logTar(tar, { unicode })
-      this.npm.output(tar.filename.replace(/^@/, '').replace(/\//, '-'))
+      output.standard(tar.filename.replace(/^@/, '').replace(/\//, '-'))
     }
   }
 
@@ -83,4 +83,5 @@ class Pack extends BaseCommand {
     return this.exec([...this.workspacePaths, ...args.filter(a => a !== '.')])
   }
 }
+
 module.exports = Pack

@@ -6104,7 +6104,7 @@ void Simulator::DecodeTypeMsa3RF() {
     case MADDR_Q:
     case MSUBR_Q:
       get_msa_register(wd_reg(), &wd);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case MUL_Q:
     case MULR_Q:
       switch (DecodeMsaDataFormat()) {

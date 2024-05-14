@@ -105,14 +105,17 @@ Node* WasmGCLowering::Null(wasm::ValueType type) {
 }
 
 Node* WasmGCLowering::IsNull(Node* object, wasm::ValueType type) {
-  Tagged_t static_null =
-      wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
-  Node* null_value =
+#if V8_STATIC_ROOTS_BOOL
+  // TODO(14616): Extend this for shared types.
+  const bool is_wasm_null =
       !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
-              !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_) &&
-              static_null != 0
-          ? gasm_.UintPtrConstant(static_null)
-          : Null(type);
+      !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_);
+  Node* null_value =
+      gasm_.UintPtrConstant(is_wasm_null ? StaticReadOnlyRoot::kWasmNull
+                                         : StaticReadOnlyRoot::kNullValue);
+#else
+  Node* null_value = Null(type);
+#endif
   return gasm_.TaggedEqual(object, null_value);
 }
 

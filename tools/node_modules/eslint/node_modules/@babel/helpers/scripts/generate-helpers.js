@@ -6,6 +6,7 @@ import { minify } from "terser";
 import { transformSync } from "@babel/core";
 import presetTypescript from "@babel/preset-typescript";
 import { gzipSync } from "zlib";
+import { IS_BABEL_8 } from "$repo-utils";
 
 const HELPERS_FOLDER = new URL("../src/helpers", import.meta.url);
 const IGNORED_FILES = new Set(["package.json"]);
@@ -50,6 +51,10 @@ export default Object.freeze({
       throw new Error(`@minVersion number missing in ${filePath}`);
     }
     const { minVersion } = minVersionMatch.groups;
+
+    if (IS_BABEL_8() && code.includes("@onlyBabel7")) {
+      continue;
+    }
 
     const mangleFns = code.includes("@mangleFns");
     const noMangleFns = [];
@@ -101,7 +106,12 @@ export default Object.freeze({
           keep_fnames: mangleFns ? new RegExp(noMangleFns.join("|")) : true,
         },
         // The _typeof helper has a custom directive that we must keep
-        compress: { directives: false, passes: 10 },
+        compress: {
+          directives: false,
+          passes: 10,
+          unsafe: true,
+          unsafe_proto: true,
+        },
       })
     ).code;
 

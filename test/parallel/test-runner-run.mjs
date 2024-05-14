@@ -345,7 +345,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line max-len
+          // eslint-disable-next-line @stylistic/js/max-len
           message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 0'
         });
       });
@@ -360,7 +360,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line max-len
+          // eslint-disable-next-line @stylistic/js/max-len
           message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 7'
         });
       });
@@ -521,6 +521,18 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
+  });
+
+  it('should avoid running recursively', async () => {
+    const stream = run({ files: [join(testFixtures, 'recursive_run.js')] });
+    let stderr = '';
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    stream.on('test:stderr', (c) => { stderr += c.message; });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    assert.match(stderr, /Warning: node:test run\(\) is being called recursively/);
   });
 });
 

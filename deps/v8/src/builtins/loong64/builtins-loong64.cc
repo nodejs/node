@@ -346,9 +346,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 #endif  // !V8_JITLESS
 
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
-  __ LoadTrustedPointerField(
-      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset),
-      kBytecodeArrayIndirectPointerTag);
+  __ LoadProtectedPointerField(
+      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);
 }
@@ -1334,7 +1333,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Move(a2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(a2, closure);
-    __ JumpCodeObject(a2);
+    __ JumpCodeObject(a2, kJSEntrypointTag);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1712,9 +1711,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ JumpIfObjectType(&builtin_trampoline, ne, t0, INTERPRETER_DATA_TYPE,
                       kInterpreterDispatchTableRegister);
 
-  __ LoadTaggedField(
+  __ LoadProtectedPointerField(
       t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
-  __ LoadCodeInstructionStart(t0, t0);
+  __ LoadCodeInstructionStart(t0, t0, kJSEntrypointTag);
   __ Branch(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
@@ -1971,7 +1970,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ LoadTaggedField(
+  __ LoadProtectedPointerField(
       a1, MemOperand(maybe_target_code,
                      Code::kDeoptimizationDataOrInterpreterDataOffset -
                          kHeapObjectTag));
@@ -1979,11 +1978,12 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
   __ SmiUntagField(a1,
-                   MemOperand(a1, FixedArray::OffsetOfElementAt(
+                   MemOperand(a1, TrustedFixedArray::OffsetOfElementAt(
                                       DeoptimizationData::kOsrPcOffsetIndex) -
                                       kHeapObjectTag));
 
-  __ LoadCodeInstructionStart(maybe_target_code, maybe_target_code);
+  __ LoadCodeInstructionStart(maybe_target_code, maybe_target_code,
+                              kJSEntrypointTag);
 
   // Compute the target address = code_entry + osr_offset
   // <entry_addr> = <code_entry> + <osr_offset>
@@ -3152,7 +3152,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(a0, zero_reg);
     __ mov(a1, zero_reg);
     __ li(a2, ExternalReference::isolate_address(masm->isolate()));
-    __ CallCFunction(find_handler, 3);
+    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
 
   // Retrieve the handler context, SP and FP.
@@ -3286,7 +3286,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      callback =
+          CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
@@ -3359,7 +3360,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
       __ LoadTaggedField(
-          scratch2, FieldMemOperand(callback, CallHandlerInfo::kDataOffset));
+          scratch2,
+          FieldMemOperand(callback, FunctionTemplateInfo::kCallbackDataOffset));
       __ St_d(scratch2, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
 
@@ -3412,16 +3414,13 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ LoadTaggedField(
-        scratch,
-        FieldMemOperand(callback, CallHandlerInfo::kOwnerTemplateOffset));
-    __ St_d(scratch, MemOperand(sp, 0 * kSystemPointerSize));
+    __ St_d(callback, MemOperand(sp, 0 * kSystemPointerSize));
 
     __ LoadExternalPointerField(
         api_function_address,
         FieldMemOperand(callback,
-                        CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-        kCallHandlerInfoCallbackTag);
+                        FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
+        kFunctionTemplateInfoCallbackTag);
 
     __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
   } else {
@@ -3556,8 +3555,14 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   __ RecordComment(
       "Load address of v8::PropertyAccessorInfo::args_ array and name handle.");
-  // name_arg = Handle<Name>(&name), name value was pushed to GC-ed stack space.
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
+  __ mov(name_arg, scratch);
+  USE(kNameStackIndex);
+#else
+  // name_arg = Local<Name>(&name), name value was pushed to GC-ed stack space.
   __ Add_d(name_arg, sp, Operand(kNameStackIndex * kSystemPointerSize));
+#endif
   // property_callback_info_arg = v8::PCI::args_ (= &ShouldThrow)
   __ Add_d(property_callback_info_arg, sp,
            Operand(kPCAStackIndex * kSystemPointerSize));
@@ -3951,7 +3956,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ PrepareCallCFunction(3, 0, a4);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
-  __ LoadCodeInstructionStart(code_obj, code_obj);
+  __ LoadCodeInstructionStart(code_obj, code_obj, kJSEntrypointTag);
   __ Add_d(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister);
 

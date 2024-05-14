@@ -179,11 +179,8 @@ class InterpreterData
     : public TorqueGeneratedInterpreterData<InterpreterData,
                                             ExposedTrustedObject> {
  public:
-  // TODO(saelo): once InterpreterData objects are moved into TrustedSpace,
-  // these two references can become protected pointers.
-  static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
-  DECL_TRUSTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
-  DECL_CODE_POINTER_ACCESSORS(interpreter_trampoline)
+  DECL_PROTECTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(interpreter_trampoline, Code)
 
   class BodyDescriptor;
 
@@ -422,7 +419,7 @@ class SharedFunctionInfo
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
-  inline void FlushBaselineCode(IsolateForSandbox isolate);
+  inline void FlushBaselineCode();
   inline Tagged<BytecodeArray> GetActiveBytecodeArray(
       IsolateForSandbox isolate) const;
   inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode,

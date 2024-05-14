@@ -35,10 +35,12 @@
 #ifndef ABSL_CONTAINER_NODE_HASH_SET_H_
 #define ABSL_CONTAINER_NODE_HASH_SET_H_
 
+#include <cstddef>
 #include <type_traits>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_function_defaults.h"  // IWYU pragma: export
 #include "absl/container/internal/node_slot_policy.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
@@ -62,7 +64,7 @@ struct NodeHashSetPolicy;
 //
 // * Supports heterogeneous lookup, through `find()`, `operator[]()` and
 //   `insert()`, provided that the set is provided a compatible heterogeneous
-//   hashing function and equality operator.
+//   hashing function and equality operator. See below for details.
 // * Contains a `capacity()` member function indicating the number of element
 //   slots (open, deleted, and empty) within the hash set.
 // * Returns `void` from the `erase(iterator)` overload.
@@ -77,6 +79,19 @@ struct NodeHashSetPolicy;
 // Using `absl::node_hash_set` at interface boundaries in dynamically loaded
 // libraries (e.g. .dll, .so) is unsupported due to way `absl::Hash` values may
 // be randomized across dynamically loaded libraries.
+//
+// To achieve heterogeneous lookup for custom types either `Hash` and `Eq` type
+// parameters can be used or `T` should have public inner types
+// `absl_container_hash` and (optionally) `absl_container_eq`. In either case,
+// `typename Hash::is_transparent` and `typename Eq::is_transparent` should be
+// well-formed. Both types are basically functors:
+// * `Hash` should support `size_t operator()(U val) const` that returns a hash
+// for the given `val`.
+// * `Eq` should support `bool operator()(U lhs, V rhs) const` that returns true
+// if `lhs` is equal to `rhs`.
+//
+// In most cases `T` needs only to provide the `absl_container_hash`. In this
+// case `std::equal_to<void>` will be used instead of `eq` part.
 //
 // Example:
 //
@@ -487,6 +502,11 @@ struct NodeHashSetPolicy
   }
 
   static size_t element_space_used(const T*) { return sizeof(T); }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return &TypeErasedDerefAndApplyToSlotFn<Hash, T>;
+  }
 };
 }  // namespace container_internal
 

@@ -213,8 +213,8 @@
   DECL_RELEASE_SETTER(name, type)
 
 #define DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(name) \
-  DECL_ACQUIRE_GETTER(name, MaybeObject)          \
-  DECL_RELEASE_SETTER(name, MaybeObject)
+  DECL_ACQUIRE_GETTER(name, Tagged<MaybeObject>)  \
+  DECL_RELEASE_SETTER(name, Tagged<MaybeObject>)
 
 #define DECL_CAST(Type)                                      \
   V8_INLINE static Tagged<Type> cast(Tagged<Object> object); \
@@ -392,18 +392,18 @@
 #define RELEASE_ACQUIRE_ACCESSORS(holder, name, type, offset) \
   RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,  \
-                                set_condition)                        \
-  DEF_GETTER(holder, name, MaybeObject) {                             \
-    MaybeObject value =                                               \
-        TaggedField<MaybeObject, offset>::load(cage_base, *this);     \
-    DCHECK(get_condition);                                            \
-    return value;                                                     \
-  }                                                                   \
-  void holder::set_##name(MaybeObject value, WriteBarrierMode mode) { \
-    DCHECK(set_condition);                                            \
-    TaggedField<MaybeObject, offset>::store(*this, value);            \
-    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);       \
+#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,          \
+                                set_condition)                                \
+  DEF_GETTER(holder, name, Tagged<MaybeObject>) {                             \
+    Tagged<MaybeObject> value =                                               \
+        TaggedField<MaybeObject, offset>::load(cage_base, *this);             \
+    DCHECK(get_condition);                                                    \
+    return value;                                                             \
+  }                                                                           \
+  void holder::set_##name(Tagged<MaybeObject> value, WriteBarrierMode mode) { \
+    DCHECK(set_condition);                                                    \
+    TaggedField<MaybeObject, offset>::store(*this, value);                    \
+    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);               \
   }
 
 #define WEAK_ACCESSORS_CHECKED(holder, name, offset, condition) \
@@ -414,13 +414,13 @@
 
 #define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset,         \
                                                 get_condition, set_condition) \
-  DEF_ACQUIRE_GETTER(holder, name, MaybeObject) {                             \
-    MaybeObject value =                                                       \
+  DEF_ACQUIRE_GETTER(holder, name, Tagged<MaybeObject>) {                     \
+    Tagged<MaybeObject> value =                                               \
         TaggedField<MaybeObject, offset>::Acquire_Load(cage_base, *this);     \
     DCHECK(get_condition);                                                    \
     return value;                                                             \
   }                                                                           \
-  void holder::set_##name(MaybeObject value, ReleaseStoreTag,                 \
+  void holder::set_##name(Tagged<MaybeObject> value, ReleaseStoreTag,         \
                           WriteBarrierMode mode) {                            \
     DCHECK(set_condition);                                                    \
     TaggedField<MaybeObject, offset>::Release_Store(*this, value);            \
@@ -591,21 +591,52 @@
 // Accessors for "protected" pointers, i.e. references from one trusted object
 // to another trusted object. For these pointers it can be assumed that neither
 // the pointer nor the pointed-to object can be manipulated by an attacker.
-#define DECL_PROTECTED_POINTER_ACCESSORS(name, type) \
-  inline Tagged<type> name() const;                  \
-  inline void set_##name(Tagged<type> value,         \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+#define DECL_PROTECTED_POINTER_ACCESSORS(name, type)                    \
+  inline Tagged<type> name() const;                                     \
+  inline void set_##name(Tagged<type> value,                            \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
+  inline bool has_##name() const;                                       \
+  inline void clear_##name();
 
 #define PROTECTED_POINTER_ACCESSORS(holder, name, type, offset)              \
   static_assert(std::is_base_of<TrustedObject, holder>::value);              \
   Tagged<type> holder::name() const {                                        \
-    return TaggedField<type, offset, TrustedSpaceCompressionScheme>::load(   \
-        *this);                                                              \
+    DCHECK(has_##name());                                                    \
+    return type::cast(ReadProtectedPointerField(offset));                    \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {       \
-    TaggedField<type, offset, TrustedSpaceCompressionScheme>::store(*this,   \
-                                                                    value);  \
+    WriteProtectedPointerField(offset, value);                               \
     CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
+  }                                                                          \
+  bool holder::has_##name() const {                                          \
+    return !IsProtectedPointerFieldCleared(offset);                          \
+  }                                                                          \
+  void holder::clear_##name() { return ClearProtectedPointerField(offset); }
+
+#define DECL_RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(name, type)    \
+  inline Tagged<type> name(AcquireLoadTag) const;                       \
+  inline void set_##name(Tagged<type> value, ReleaseStoreTag,           \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
+  inline bool has_##name(AcquireLoadTag) const;                         \
+  inline void clear_##name(ReleaseStoreTag);
+
+#define RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(holder, name, type,      \
+                                                    offset)                  \
+  static_assert(std::is_base_of<TrustedObject, holder>::value);              \
+  Tagged<type> holder::name(AcquireLoadTag tag) const {                      \
+    DCHECK(has_##name(tag));                                                 \
+    return type::cast(ReadProtectedPointerField(offset, tag));               \
+  }                                                                          \
+  void holder::set_##name(Tagged<type> value, ReleaseStoreTag tag,           \
+                          WriteBarrierMode mode) {                           \
+    WriteProtectedPointerField(offset, value, tag);                          \
+    CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
+  }                                                                          \
+  bool holder::has_##name(AcquireLoadTag tag) const {                        \
+    return !IsProtectedPointerFieldCleared(offset, tag);                     \
+  }                                                                          \
+  void holder::clear_##name(ReleaseStoreTag tag) {                           \
+    return ClearProtectedPointerField(offset, tag);                          \
   }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \

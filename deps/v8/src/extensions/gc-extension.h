@@ -23,6 +23,9 @@ namespace internal {
 // - truthy parameter that is not setting any options:
 //   {type: 'minor', execution: 'sync'}.
 //
+// Exceptions that occur during parsing the options bag are preserved and result
+// in skipping the GC call.
+//
 // Supported options:
 // - type:
 //     - 'major': Full GC.
@@ -30,6 +33,9 @@ namespace internal {
 //     - 'major-snapshot': Full GC with taking a heap snapshot at the same time.
 // - execution: 'sync' or 'async' for synchronous and asynchronous
 //   execution, respectively.
+// - flavor:
+//     - 'regular': A regular GC.
+//     - 'last-resort': A last resort GC.
 // - filename: Filename for the snapshot in case the type was
 //   'major-snapshot'.
 //
@@ -39,9 +45,11 @@ namespace internal {
 // Frequent use cases (assuming --expose-gc):
 // 1. Just perform a GC to check whether things improve: `gc()`
 // 2. Test that certain objects indeed are reclaimed:
-//   `await gc{type:'major', execution:'async'})`
+//   `await gc({type:'major', execution:'async'})`
 // 3. Same as 2. but with checking why things did go wrong in a snapshot:
-//   `await gc{type:'major-snapshot', execution:'async'})`
+//   `await gc({type:'major-snapshot', execution:'async'})`
+// 4. Synchronous last resort GC:
+//   `gc({type:'major',execution:'sync',flavor:'last-resort'})`
 class GCExtension : public v8::Extension {
  public:
   explicit GCExtension(const char* fun_name)

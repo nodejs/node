@@ -112,8 +112,8 @@ absl_source_set("crc_cord_state") {
   deps = [
     ":crc32c",
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:no_destructor",
     "//third_party/abseil-cpp/absl/numeric:bits",
-    "//third_party/abseil-cpp/absl/strings",
   ]
   visibility = [
     "//third_party/abseil-cpp/absl/crc/*",

@@ -186,8 +186,16 @@ function(absl_cc_library)
         endif()
       endif()
     endforeach()
+    set(skip_next_cflag OFF)
     foreach(cflag ${ABSL_CC_LIB_COPTS})
-      if(${cflag} MATCHES "^(-Wno|/wd)")
+      if(skip_next_cflag)
+        set(skip_next_cflag OFF)
+      elseif(${cflag} MATCHES "^-Xarch_")
+        # An -Xarch_ flag implies that its successor only applies to the
+        # specified platform. Filter both of them out before the successor
+        # reaches the "^-m" filter.
+        set(skip_next_cflag ON)
+      elseif(${cflag} MATCHES "^(-Wno|/wd)")
         # These flags are needed to suppress warnings that might fire in our headers.
         set(PC_CFLAGS "${PC_CFLAGS} ${cflag}")
       elseif(${cflag} MATCHES "^(-W|/w[1234eo])")

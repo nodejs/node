@@ -58,8 +58,8 @@ const {
   subresourceSet
 } = require('./constants')
 const EE = require('node:events')
-const { Readable, pipeline } = require('node:stream')
-const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor, bufferToLowerCasedHeaderName } = require('../../core/util')
+const { Readable, pipeline, finished } = require('node:stream')
+const { addAbortListener, isErrored, isReadable, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('./webidl')
@@ -120,12 +120,16 @@ class Fetch extends EE {
   }
 }
 
+function handleFetchDone (response) {
+  finalizeAndReportTiming(response, 'fetch')
+}
+
 // https://fetch.spec.whatwg.org/#fetch-method
 function fetch (input, init = undefined) {
-  webidl.argumentLengthCheck(arguments, 1, { header: 'globalThis.fetch' })
+  webidl.argumentLengthCheck(arguments, 1, 'globalThis.fetch')
 
   // 1. Let p be a new promise.
-  const p = createDeferredPromise()
+  let p = createDeferredPromise()
 
   // 2. Let requestObject be the result of invoking the initial value of
   // Request as constructor with input and init as arguments. If this throws
@@ -165,7 +169,6 @@ function fetch (input, init = undefined) {
   let responseObject = null
 
   // 8. Let relevantRealm be this’s relevant Realm.
-  const relevantRealm = null
 
   // 9. Let locallyAborted be false.
   let locallyAborted = false
@@ -186,16 +189,17 @@ function fetch (input, init = undefined) {
       // 3. Abort controller with requestObject’s signal’s abort reason.
       controller.abort(requestObject.signal.reason)
 
+      const realResponse = responseObject?.deref()
+
       // 4. Abort the fetch() call with p, request, responseObject,
       //    and requestObject’s signal’s abort reason.
-      abortFetch(p, request, responseObject, requestObject.signal.reason)
+      abortFetch(p, request, realResponse, requestObject.signal.reason)
     }
   )
 
   // 12. Let handleFetchDone given response response be to finalize and
   // report timing with response, globalObject, and "fetch".
-  const handleFetchDone = (response) =>
-    finalizeAndReportTiming(response, 'fetch')
+  // see function handleFetchDone
 
   // 13. Set controller to the result of calling fetch given request,
   // with processResponseEndOfBody set to handleFetchDone, and processResponse
@@ -229,10 +233,11 @@ function fetch (input, init = undefined) {
 
     // 4. Set responseObject to the result of creating a Response object,
     // given response, "immutable", and relevantRealm.
-    responseObject = fromInnerResponse(response, 'immutable', relevantRealm)
+    responseObject = new WeakRef(fromInnerResponse(response, 'immutable'))
 
     // 5. Resolve p with responseObject.
-    p.resolve(responseObject)
+    p.resolve(responseObject.deref())
+    p = null
   }
 
   controller = fetching({
@@ -310,14 +315,15 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
-const markResourceTiming = (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2))
-  ? performance.markResourceTiming
-  : () => {}
+const markResourceTiming = performance.markResourceTiming
 
 // https://fetch.spec.whatwg.org/#abort-fetch
 function abortFetch (p, request, responseObject, error) {
   // 1. Reject promise with error.
-  p.reject(error)
+  if (p) {
+    // We might have already resolved the promise at this stage
+    p.reject(error)
+  }
 
   // 2. If request’s body is not null and is readable, then cancel request’s
   // body with error.
@@ -438,8 +444,7 @@ function fetching ({
   // 9. If request’s origin is "client", then set request’s origin to request’s
   // client’s origin.
   if (request.origin === 'client') {
-    // TODO: What if request.client is null?
-    request.origin = request.client?.origin
+    request.origin = request.client.origin
   }
 
   // 10. If all of the following conditions are true:
@@ -1069,7 +1074,10 @@ function fetchFinale (fetchParams, response) {
   // 4. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s
   //    process response given response, with fetchParams’s task destination.
   if (fetchParams.processResponse != null) {
-    queueMicrotask(() => fetchParams.processResponse(response))
+    queueMicrotask(() => {
+      fetchParams.processResponse(response)
+      fetchParams.processResponse = null
+    })
   }
 
   // 5. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
@@ -1080,42 +1088,19 @@ function fetchFinale (fetchParams, response) {
   if (internalResponse.body == null) {
     processResponseEndOfBody()
   } else {
+    // mcollina: all the following steps of the specs are skipped.
+    // The internal transform stream is not needed.
+    // See https://github.com/nodejs/undici/pull/3093#issuecomment-2050198541
+
     // 1. Let transformStream be a new TransformStream.
     // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
     // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm
     //    set to processResponseEndOfBody.
-    const transformStream = new TransformStream({
-      start () { },
-      transform (chunk, controller) {
-        controller.enqueue(chunk)
-      },
-      flush: processResponseEndOfBody
-    })
-
     // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
-    internalResponse.body.stream.pipeThrough(transformStream)
 
-    const byteStream = new ReadableStream({
-      readableStream: transformStream.readable,
-      async start () {
-        this._bodyReader = this.readableStream.getReader()
-      },
-      async pull (controller) {
-        while (controller.desiredSize >= 0) {
-          const { done, value } = await this._bodyReader.read()
-
-          if (done) {
-            queueMicrotask(() => readableStreamClose(controller))
-            break
-          }
-
-          controller.enqueue(value)
-        }
-      },
-      type: 'bytes'
+    finished(internalResponse.body.stream, () => {
+      processResponseEndOfBody()
     })
-
-    internalResponse.body.stream = byteStream
   }
 }
 
@@ -1563,7 +1548,7 @@ async function httpNetworkOrCacheFetch (
 
   //    24. If httpRequest’s cache mode is neither "no-store" nor "reload",
   //    then:
-  if (httpRequest.mode !== 'no-store' && httpRequest.mode !== 'reload') {
+  if (httpRequest.cache !== 'no-store' && httpRequest.cache !== 'reload') {
     // TODO: cache
   }
 
@@ -1574,7 +1559,7 @@ async function httpNetworkOrCacheFetch (
   if (response == null) {
     // 1. If httpRequest’s cache mode is "only-if-cached", then return a
     // network error.
-    if (httpRequest.mode === 'only-if-cached') {
+    if (httpRequest.cache === 'only-if-cached') {
       return makeNetworkError('only if cached')
     }
 
@@ -1910,7 +1895,11 @@ async function httpNetworkFetch (
   // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s
   // controller with reason, given reason.
   const cancelAlgorithm = (reason) => {
-    fetchParams.controller.abort(reason)
+    // If the aborted fetch was already terminated, then we do not
+    // need to do anything.
+    if (!isCancelled(fetchParams)) {
+      fetchParams.controller.abort(reason)
+    }
   }
 
   // 13. Let highWaterMark be a non-negative, non-NaN number, chosen by
@@ -2128,43 +2117,16 @@ async function httpNetworkFetch (
 
           const headersList = new HeadersList()
 
-          // For H2, the rawHeaders are a plain JS object
-          // We distinguish between them and iterate accordingly
-          if (Array.isArray(rawHeaders)) {
-            for (let i = 0; i < rawHeaders.length; i += 2) {
-              headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
-            }
-            const contentEncoding = headersList.get('content-encoding', true)
-            if (contentEncoding) {
-              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-              // "All content-coding values are case-insensitive..."
-              codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim())
-            }
-            location = headersList.get('location', true)
-          } else {
-            const keys = Object.keys(rawHeaders)
-            for (let i = 0; i < keys.length; ++i) {
-              // The header names are already in lowercase.
-              const key = keys[i]
-              const value = rawHeaders[key]
-              if (key === 'set-cookie') {
-                for (let j = 0; j < value.length; ++j) {
-                  headersList.append(key, value[j], true)
-                }
-              } else {
-                headersList.append(key, value, true)
-              }
-            }
-            // For H2, The header names are already in lowercase,
-            // so we can avoid the `HeadersList#get` call here.
-            const contentEncoding = rawHeaders['content-encoding']
-            if (contentEncoding) {
-              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-              // "All content-coding values are case-insensitive..."
-              codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim()).reverse()
-            }
-            location = rawHeaders.location
+          for (let i = 0; i < rawHeaders.length; i += 2) {
+            headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
           }
+          const contentEncoding = headersList.get('content-encoding', true)
+          if (contentEncoding) {
+            // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+            // "All content-coding values are case-insensitive..."
+            codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim())
+          }
+          location = headersList.get('location', true)
 
           this.body = new Readable({ read: resume })
 
@@ -2174,7 +2136,7 @@ async function httpNetworkFetch (
             redirectStatusSet.has(status)
 
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
+          if (codings.length !== 0 && request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
             for (let i = 0; i < codings.length; ++i) {
               const coding = codings[i]
               // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2

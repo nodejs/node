@@ -219,6 +219,9 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kNotifyIsolateForeground:
     case Runtime::kNotifyIsolateBackground:
     case Runtime::kIsEfficiencyModeEnabled:
+#if V8_ENABLE_WEBASSEMBLY && !defined(OFFICIAL_BUILD)
+    case Runtime::kWasmGenerateRandomModule:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return true;
     // Runtime functions only permitted for non-differential fuzzers.
     // This list may contain functions performing extra checks or returning

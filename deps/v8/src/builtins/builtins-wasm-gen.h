@@ -27,7 +27,7 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<FixedArray> LoadTablesFromInstanceData(TNode<WasmTrustedInstanceData>);
 
-  TNode<FixedArray> LoadInternalFunctionsFromInstanceData(
+  TNode<FixedArray> LoadFuncRefsFromInstanceData(
       TNode<WasmTrustedInstanceData>);
 
   TNode<FixedArray> LoadManagedObjectMapsFromInstanceData(

@@ -74,6 +74,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
  public:
   using SharedMacroAssembler<MacroAssembler>::SharedMacroAssembler;
 
+  void MemoryChunkHeaderFromObject(Register object, Register header);
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
@@ -162,7 +163,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void TailCallBuiltin(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeInstructionStart(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object,
+                                CodeEntrypointTag = kDefaultCodeEntrypointTag);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -234,16 +236,14 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // garbage collection, since that might move the code and invalidate the
   // return address (unless this is somehow accounted for by the called
   // function).
-  enum class SetIsolateDataSlots {
-    kNo,
-    kYes,
-  };
-  void CallCFunction(
+  int CallCFunction(
       ExternalReference function, int num_arguments,
-      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes);
-  void CallCFunction(
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      Label* return_location = nullptr);
+  int CallCFunction(
       Register function, int num_arguments,
-      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes);
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      Label* return_location = nullptr);
 
   void ShlPair(Register high, Register low, uint8_t imm8);
   void ShlPair_cl(Register high, Register low);

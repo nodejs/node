@@ -993,6 +993,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
+          .set_empty_source_position_table()
           .Build();
   LOG(masm_->isolate(),
       RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
@@ -1376,8 +1377,7 @@ void RegExpMacroAssemblerRISCV::CallCFunctionFromIrregexpCode(
   //    fail.
   //
   // See also: crbug.com/v8/12670#c17.
-  __ CallCFunction(function, num_arguments,
-                   MacroAssembler::SetIsolateDataSlots::kNo);
+  __ CallCFunction(function, num_arguments, SetIsolateDataSlots::kNo);
 }
 #undef __
 

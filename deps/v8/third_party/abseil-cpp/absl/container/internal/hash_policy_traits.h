@@ -148,6 +148,56 @@ struct hash_policy_traits : common_policy_traits<Policy> {
   static auto value(T* elem) -> decltype(P::value(elem)) {
     return P::value(elem);
   }
+
+  using HashSlotFn = size_t (*)(const void* hash_fn, void* slot);
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+// get_hash_slot_fn may return nullptr to signal that non type erased function
+// should be used. GCC warns against comparing function address with nullptr.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+// silent error: the address of * will never be NULL [-Werror=address]
+#pragma GCC diagnostic ignored "-Waddress"
+#endif
+    return Policy::template get_hash_slot_fn<Hash>() == nullptr
+               ? &hash_slot_fn_non_type_erased<Hash>
+               : Policy::template get_hash_slot_fn<Hash>();
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+  }
+
+  // Whether small object optimization is enabled. False by default.
+  static constexpr bool soo_enabled() { return soo_enabled_impl(Rank1{}); }
+
+ private:
+  template <class Hash>
+  struct HashElement {
+    template <class K, class... Args>
+    size_t operator()(const K& key, Args&&...) const {
+      return h(key);
+    }
+    const Hash& h;
+  };
+
+  template <class Hash>
+  static size_t hash_slot_fn_non_type_erased(const void* hash_fn, void* slot) {
+    return Policy::apply(HashElement<Hash>{*static_cast<const Hash*>(hash_fn)},
+                         Policy::element(static_cast<slot_type*>(slot)));
+  }
+
+  // Use go/ranked-overloads for dispatching. Rank1 is preferred.
+  struct Rank0 {};
+  struct Rank1 : Rank0 {};
+
+  // Use auto -> decltype as an enabler.
+  template <class P = Policy>
+  static constexpr auto soo_enabled_impl(Rank1) -> decltype(P::soo_enabled()) {
+    return P::soo_enabled();
+  }
+
+  static constexpr bool soo_enabled_impl(Rank0) { return false; }
 };
 
 }  // namespace container_internal

@@ -15,13 +15,15 @@
 
 // Features that are always enabled and do not have a flag.
 #define FOREACH_WASM_NON_FLAG_FEATURE(V)             \
-  V(eh, "exception handling opcodes")                \
   V(reftypes, "reference type opcodes")              \
   V(simd, "SIMD opcodes")                            \
   V(threads, "thread opcodes")                       \
   V(return_call, "return call opcodes")              \
   V(extended_const, "extended constant expressions") \
-  V(relaxed_simd, "relaxed simd")
+  V(relaxed_simd, "relaxed simd")                    \
+  V(gc, "garbage collection")                        \
+  V(typed_funcref, "typed function references")      \
+  V(js_inlining, "inline small wasm functions into JS")
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \

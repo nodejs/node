@@ -891,6 +891,13 @@ When passing a string as the `buffer`, please consider
 <!-- YAML
 added: v1.0.0
 changes:
+  - version:
+    - v22.0.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52345
+    description: Using GCM tag lengths other than 128 bits without specifying
+                 the `authTagLength` option when creating `decipher` is
+                 deprecated.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The buffer argument can be a string or ArrayBuffer and is
@@ -3073,10 +3080,9 @@ and initialization vector (`iv`).
 The `options` argument controls stream behavior and is optional except when a
 cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
-option is not required but can be used to restrict accepted authentication tags
-to those with the specified length.
-For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
+authentication tag in bytes, see [CCM mode][].
+For AES-GCM and `chacha20-poly1305`, the `authTagLength` option defaults to 16
+bytes and must be set to a different value if a different length is used.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will

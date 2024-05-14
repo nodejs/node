@@ -4,6 +4,7 @@
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax
 // Flags: --harmony-array-find-last
+// Flags: --js-float16array
 
 "use strict";
 

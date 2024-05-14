@@ -162,20 +162,6 @@ void TracedReferenceTest(v8::Isolate* isolate,
 
 }  // namespace
 
-// TODO(chromium:1502777): Remove test when API is fully deprecated.
-TEST_F(EmbedderRootsHandlerTest, TracedReferenceWrapperClassId) {
-  ManualGCScope manual_gc(i_isolate());
-  v8::HandleScope scope(v8_isolate());
-
-  v8::TracedReference<v8::Object> traced;
-  ConstructJSObject(v8_isolate(), v8_isolate()->GetCurrentContext(), &traced);
-  START_ALLOW_USE_DEPRECATED()
-  EXPECT_EQ(0, traced.WrapperClassId());
-  traced.SetWrapperClassId(17);
-  EXPECT_EQ(17, traced.WrapperClassId());
-  END_ALLOW_USE_DEPRECATED()
-}
-
 // EmbedderRootsHandler does not affect full GCs.
 TEST_F(EmbedderRootsHandlerTest,
        TracedReferenceToUnmodifiedJSObjectDiesOnFullGC) {

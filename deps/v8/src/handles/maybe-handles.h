@@ -106,17 +106,19 @@ class MaybeObjectHandle {
  public:
   inline MaybeObjectHandle()
       : reference_type_(HeapObjectReferenceType::STRONG) {}
-  inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
+  inline MaybeObjectHandle(Tagged<MaybeObject> object, Isolate* isolate);
   inline MaybeObjectHandle(Tagged<Object> object, Isolate* isolate);
-  inline MaybeObjectHandle(MaybeObject object, LocalHeap* local_heap);
+  inline MaybeObjectHandle(Tagged<Smi> object, Isolate* isolate);
+  inline MaybeObjectHandle(Tagged<MaybeObject> object, LocalHeap* local_heap);
   inline MaybeObjectHandle(Tagged<Object> object, LocalHeap* local_heap);
+  inline MaybeObjectHandle(Tagged<Smi> object, LocalHeap* local_heap);
   inline explicit MaybeObjectHandle(Handle<Object> object);
 
   static inline MaybeObjectHandle Weak(Tagged<Object> object, Isolate* isolate);
   static inline MaybeObjectHandle Weak(Handle<Object> object);
 
-  inline MaybeObject operator*() const;
-  inline MaybeObject operator->() const;
+  inline Tagged<MaybeObject> operator*() const;
+  inline Tagged<MaybeObject> operator->() const;
   inline Handle<Object> object() const;
 
   inline bool is_identical_to(const MaybeObjectHandle& other) const;
@@ -215,9 +217,10 @@ class MaybeObjectDirectHandle {
  public:
   inline MaybeObjectDirectHandle()
       : reference_type_(HeapObjectReferenceType::STRONG) {}
-  inline MaybeObjectDirectHandle(MaybeObject object, Isolate* isolate);
+  inline MaybeObjectDirectHandle(Tagged<MaybeObject> object, Isolate* isolate);
   inline MaybeObjectDirectHandle(Tagged<Object> object, Isolate* isolate);
-  inline MaybeObjectDirectHandle(MaybeObject object, LocalHeap* local_heap);
+  inline MaybeObjectDirectHandle(Tagged<MaybeObject> object,
+                                 LocalHeap* local_heap);
   inline MaybeObjectDirectHandle(Tagged<Object> object, LocalHeap* local_heap);
   inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object);
 
@@ -225,8 +228,8 @@ class MaybeObjectDirectHandle {
                                              Isolate* isolate);
   static inline MaybeObjectDirectHandle Weak(DirectHandle<Object> object);
 
-  inline MaybeObject operator*() const;
-  inline MaybeObject operator->() const;
+  inline Tagged<MaybeObject> operator*() const;
+  inline Tagged<MaybeObject> operator->() const;
   inline DirectHandle<Object> object() const;
 
   inline bool is_identical_to(const MaybeObjectDirectHandle& other) const;

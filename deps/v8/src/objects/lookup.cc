@@ -79,6 +79,7 @@ template void LookupIterator::Start<false>();
 void LookupIterator::Next() {
   DCHECK_NE(JSPROXY, state_);
   DCHECK_NE(TRANSITION, state_);
+  DCHECK_NE(NOT_FOUND, state_);
   DisallowGarbageCollection no_gc;
   has_property_ = false;
 
@@ -337,6 +338,22 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
         (IsJSPrimitiveWrapper(*receiver) || IsJSObjectPrototype(*receiver))) {
       Protectors::InvalidateNumberStringNotRegexpLike(isolate);
     }
+  } else if (*name == roots.to_primitive_symbol()) {
+    if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
+    if (isolate->IsInAnyContext(*receiver,
+                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
+        isolate->IsInAnyContext(*receiver,
+                                Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
+        IsStringWrapper(*receiver)) {
+      Protectors::InvalidateStringWrapperToPrimitive(isolate);
+    }
+  } else if (*name == roots.valueOf_string()) {
+    if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
+    if (isolate->IsInAnyContext(*receiver,
+                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
+        IsStringWrapper(*receiver)) {
+      Protectors::InvalidateStringWrapperToPrimitive(isolate);
+    }
   }
 }
 
@@ -585,7 +602,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK(state_ != LookupIterator::ACCESSOR ||
          (IsAccessorInfo(*GetAccessors(), isolate_) &&
           AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
-  DCHECK_NE(INTEGER_INDEXED_EXOTIC, state_);
+  DCHECK_NE(TYPED_ARRAY_INDEX_NOT_FOUND, state_);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
 
   Handle<Map> map(receiver->map(isolate_), isolate_);
@@ -1188,7 +1205,7 @@ bool LookupIterator::SkipInterceptor(Tagged<JSObject> holder) {
     switch (interceptor_state_) {
       case InterceptorState::kUninitialized:
         interceptor_state_ = InterceptorState::kSkipNonMasking;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case InterceptorState::kSkipNonMasking:
         return true;
       case InterceptorState::kProcessNonMasking:
@@ -1212,9 +1229,9 @@ Tagged<JSReceiver> LookupIterator::NextHolder(Tagged<Map> map) {
 LookupIterator::State LookupIterator::NotFound(
     Tagged<JSReceiver> const holder) const {
   if (!IsJSTypedArray(holder, isolate_)) return NOT_FOUND;
-  if (IsElement()) return INTEGER_INDEXED_EXOTIC;
+  if (IsElement()) return TYPED_ARRAY_INDEX_NOT_FOUND;
   if (!IsString(*name_, isolate_)) return NOT_FOUND;
-  return IsSpecialIndex(String::cast(*name_)) ? INTEGER_INDEXED_EXOTIC
+  return IsSpecialIndex(String::cast(*name_)) ? TYPED_ARRAY_INDEX_NOT_FOUND
                                               : NOT_FOUND;
 }
 
@@ -1253,13 +1270,13 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         if (is_element || !name_->IsPrivate() || name_->IsPrivateName())
           return ACCESS_CHECK;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case ACCESS_CHECK:
       if (check_interceptor() && HasInterceptor<is_element>(map, index_) &&
           !SkipInterceptor<is_element>(JSObject::cast(holder))) {
         if (is_element || !name_->IsPrivate()) return INTERCEPTOR;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case INTERCEPTOR:
       if (IsJSGlobalObjectMap(map) && !is_js_array_element(is_element)) {
         Tagged<GlobalDictionary> dict =
@@ -1284,7 +1301,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
     case ACCESSOR:
     case DATA:
       return NOT_FOUND;
-    case INTEGER_INDEXED_EXOTIC:
+    case TYPED_ARRAY_INDEX_NOT_FOUND:
     case JSPROXY:
     case WASM_OBJECT:
     case TRANSITION:
@@ -1308,7 +1325,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     number_ =
         accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
     if (number_.is_not_found()) {
-      return IsJSTypedArray(holder, isolate_) ? INTEGER_INDEXED_EXOTIC
+      return IsJSTypedArray(holder, isolate_) ? TYPED_ARRAY_INDEX_NOT_FOUND
                                               : NOT_FOUND;
     }
     property_details_ = accessor->GetDetails(js_object, number_);

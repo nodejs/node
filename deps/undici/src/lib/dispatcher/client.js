@@ -203,7 +203,7 @@ class Client extends DispatcherBase {
         allowH2,
         socketPath,
         timeout: connectTimeout,
-        ...(util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
+        ...(autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
       })
     }
@@ -226,7 +226,7 @@ class Client extends DispatcherBase {
     this[kMaxHeadersSize] = maxHeaderSize || http.maxHeaderSize
     this[kKeepAliveDefaultTimeout] = keepAliveTimeout == null ? 4e3 : keepAliveTimeout
     this[kKeepAliveMaxTimeout] = keepAliveMaxTimeout == null ? 600e3 : keepAliveMaxTimeout
-    this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 1e3 : keepAliveTimeoutThreshold
+    this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 2e3 : keepAliveTimeoutThreshold
     this[kKeepAliveTimeoutValue] = this[kKeepAliveDefaultTimeout]
     this[kServerName] = null
     this[kLocalAddress] = localAddress != null ? localAddress : null
@@ -338,7 +338,7 @@ class Client extends DispatcherBase {
       const requests = this[kQueue].splice(this[kPendingIdx])
       for (let i = 0; i < requests.length; i++) {
         const request = requests[i]
-        errorRequest(this, request, err)
+        util.errorRequest(this, request, err)
       }
 
       const callback = () => {
@@ -376,9 +376,10 @@ function onError (client, err) {
     assert(client[kPendingIdx] === client[kRunningIdx])
 
     const requests = client[kQueue].splice(client[kRunningIdx])
+
     for (let i = 0; i < requests.length; i++) {
       const request = requests[i]
-      errorRequest(client, request, err)
+      util.errorRequest(client, request, err)
     }
     assert(client[kSize] === 0)
   }
@@ -502,7 +503,7 @@ async function connect (client) {
       assert(client[kRunning] === 0)
       while (client[kPending] > 0 && client[kQueue][client[kPendingIdx]].servername === client[kServerName]) {
         const request = client[kQueue][client[kPendingIdx]++]
-        errorRequest(client, request, err)
+        util.errorRequest(client, request, err)
       }
     } else {
       onError(client, err)
@@ -581,7 +582,10 @@ function _resume (client, sync) {
       }
 
       client[kServerName] = request.servername
-      client[kHTTPContext]?.destroy(new InformationalError('servername changed'))
+      client[kHTTPContext]?.destroy(new InformationalError('servername changed'), () => {
+        client[kHTTPContext] = null
+        resume(client)
+      })
     }
 
     if (client[kConnecting]) {
@@ -606,15 +610,6 @@ function _resume (client, sync) {
     } else {
       client[kQueue].splice(client[kPendingIdx], 1)
     }
-  }
-}
-
-function errorRequest (client, request, err) {
-  try {
-    request.onError(err)
-    assert(request.aborted)
-  } catch (err) {
-    client.emit('error', err)
   }
 }
 

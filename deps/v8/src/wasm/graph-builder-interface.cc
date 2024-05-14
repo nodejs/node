@@ -858,6 +858,14 @@ class WasmGraphBuildingInterface {
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
+      case WKI::kStringToUtf8Array: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        result = builder_->StringToUtf8Array(
+            string, compiler::kWithoutNullCheck, decoder->position());
+        builder_->SetType(result, returns[0].type);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
       case WKI::kStringLength: {
         TFNode* string = ExternRefToString(decoder, args[0]);
         result = builder_->StringMeasureWtf16(
@@ -948,6 +956,7 @@ class WasmGraphBuildingInterface {
       case WKI::kDataViewSetUint16:
       case WKI::kDataViewSetUint32:
       case WKI::kDataViewByteLength:
+      case WKI::kFastAPICall:
         return false;
     }
     if (v8_flags.trace_wasm_inlining) {
@@ -956,6 +965,36 @@ class WasmGraphBuildingInterface {
     }
     assumptions_->RecordAssumption(index, import);
     SetAndTypeNode(&returns[0], result);
+    // The decoder assumes that any call might throw, so if we are in a try
+    // block, it marks the associated catch block as reachable, and will
+    // later ask the graph builder to build the catch block's graph.
+    // However, we just replaced the call with a sequence that doesn't throw,
+    // which might make the catch block unreachable as far as the graph builder
+    // is concerned, which would violate assumptions when trying to build a
+    // graph for it. So we insert a fake branch to the catch block to make it
+    // reachable. Later phases will optimize this out.
+    if (decoder->current_catch() != -1) {
+      TryInfo* try_info = current_try_info(decoder);
+      if (try_info->catch_env->state == SsaEnv::kUnreachable) {
+        auto [true_cont, false_cont] =
+            builder_->BranchExpectTrue(builder_->Int32Constant(1));
+        SsaEnv* success_env = Steal(decoder->zone(), ssa_env_);
+        success_env->control = true_cont;
+
+        SsaEnv* exception_env = Split(decoder->zone(), success_env);
+        exception_env->control = false_cont;
+
+        ScopedSsaEnv scoped_env(this, exception_env, success_env);
+
+        if (emit_loop_exits()) {
+          ValueVector stack_values;
+          uint32_t depth = decoder->control_depth_of_current_catch();
+          BuildNestedLoopExits(decoder, depth, true, stack_values);
+        }
+        Goto(decoder, try_info->catch_env);
+        try_info->exception = builder_->Int32Constant(1);
+      }
+    }
     return true;
   }
 
@@ -1036,9 +1075,9 @@ class WasmGraphBuildingInterface {
 
       TFNode* success_control;
       TFNode* failure_control;
-      builder_->CompareToInternalFunctionAtIndex(
-          func_ref.node, expected_function_index, &success_control,
-          &failure_control, i == num_cases - 1);
+      builder_->CompareToFuncRefAtIndex(func_ref.node, expected_function_index,
+                                        &success_control, &failure_control,
+                                        i == num_cases - 1);
       TFNode* initial_effect = effect();
 
       builder_->SetControl(success_control);
@@ -1125,9 +1164,9 @@ class WasmGraphBuildingInterface {
 
       TFNode* success_control;
       TFNode* failure_control;
-      builder_->CompareToInternalFunctionAtIndex(
-          func_ref.node, expected_function_index, &success_control,
-          &failure_control, i == num_cases - 1);
+      builder_->CompareToFuncRefAtIndex(func_ref.node, expected_function_index,
+                                        &success_control, &failure_control,
+                                        i == num_cases - 1);
       TFNode* initial_effect = effect();
 
       builder_->SetControl(success_control);
@@ -1312,6 +1351,18 @@ class WasmGraphBuildingInterface {
       // Merge the current env into the target handler's env.
       SetEnv(block->try_info->catch_env);
       if (depth == decoder->control_depth() - 1) {
+        if (inlined_status_ == kInlinedHandledCall) {
+          if (emit_loop_exits()) {
+            ValueVector stack_values;
+            BuildNestedLoopExits(decoder, depth, false, stack_values,
+                                 &block->try_info->exception);
+          }
+          // We are inlining this function and the inlined Call has a handler.
+          // Add the delegated exception to {dangling_exceptions_}.
+          dangling_exceptions_.Add(block->try_info->exception, effect(),
+                                   control());
+          return;
+        }
         // We just throw to the caller here, so no need to generate IfSuccess
         // and IfFailure nodes.
         builder_->Rethrow(block->try_info->exception);

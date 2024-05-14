@@ -167,16 +167,33 @@ class MaxCallDepthProcessor {
 
 thread_local MaglevGraphLabeller* labeller_;
 
+template <typename NodeT>
+constexpr bool CanBeStoreToNonEscapedObject() {
+  return std::is_same_v<NodeT, StoreMap> ||
+         std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
+         std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
+         std::is_same_v<NodeT, StoreFloat64>;
+}
+
 class AnyUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
+
+  ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
+    if (!node->HasEscaped()) {
+      node->input(0).node()->remove_use();
+      return ProcessResult::kRemove;
+    }
+    escaped_allocations_.push_back(node);
+    return ProcessResult::kContinue;
+  }
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
-                  !NodeT::kProperties.is_required_when_unused()) {
+                  (!NodeT::kProperties.is_required_when_unused() ||
+                   std::is_same_v<ArgumentsElements, NodeT>)) {
       if (!node->is_used()) {
         if (!node->unused_inputs_were_visited()) {
           DropInputUses(node);
@@ -184,23 +201,56 @@ class AnyUseMarkingProcessor {
         return ProcessResult::kRemove;
       }
     }
+
+    if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
+      if (InlinedAllocation* object =
+              node->input(0).node()->template TryCast<InlinedAllocation>()) {
+        if (!object->HasEscaped()) {
+          // Make sure to remove the uses of the other inputs.
+          for (int i = 1; i < node->input_count(); i++) {
+            DropInputUses(node->Node::input(i));
+          }
+          return ProcessResult::kRemove;
+        }
+      }
+    }
+
     return ProcessResult::kContinue;
   }
 
+  void PostProcessGraph(Graph* graph) {
+    // Somes escaped allocation might have been marked as non-escaping.
+    // Fix the AllocationBlock usages. They will be removed in the
+    // DeadNodeSweepingProcessor.
+    for (InlinedAllocation* alloc : escaped_allocations_) {
+      if (!alloc->HasEscaped()) {
+        alloc->allocation_block().node()->remove_use();
+      }
+    }
+  }
+
  private:
+  void DropInputUses(Input& input) {
+    ValueNode* input_node = input.node();
+    if (input_node->properties().is_required_when_unused() &&
+        !input_node->Is<ArgumentsElements>())
+      return;
+    input_node->remove_use();
+    if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
+      DropInputUses(input_node);
+    }
+  }
+
   void DropInputUses(ValueNode* node) {
     for (Input& input : *node) {
-      ValueNode* input_node = input.node();
-      if (input_node->properties().is_required_when_unused()) continue;
-      input_node->remove_use();
-      if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
-        DropInputUses(input_node);
-      }
+      DropInputUses(input);
     }
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
     node->mark_unused_inputs_visited();
   }
+
+  std::vector<InlinedAllocation*> escaped_allocations_;
 };
 
 class DeadNodeSweepingProcessor {
@@ -209,18 +259,59 @@ class DeadNodeSweepingProcessor {
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
 
-  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+  ProcessResult Process(AllocationBlock* node, const ProcessingState& state) {
+    if (!node->is_used()) return ProcessResult::kRemove;
+    // All non-escaped InlinedAllocations were already removed. We can now set
+    // the offsets of the escaped ones.
+    // Note: this need to be done before ValueLocationConstraintProcessor, since
+    // it access the allocation offsets.
+    int size = 0;
+    for (auto alloc : node->allocation_list()) {
+      if (alloc->HasEscaped()) {
+        alloc->set_offset(size);
+        size += alloc->size();
+      }
+    }
+    // ... and update its size.
+    node->set_size(size);
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(ValueNode* node, const ProcessingState& state) {
-    if (!node->is_used() && !node->properties().is_required_when_unused()) {
-      // The UseMarkingProcessor will clear dead forward jump Phis eagerly, so
-      // the only dead phis that should remain are loop and exception phis.
-      DCHECK_IMPLIES(node->Is<Phi>(),
-                     node->Cast<Phi>()->is_loop_phi() ||
-                         node->Cast<Phi>()->is_exception_phi());
+  ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
+    // Remove inlined allocation that became non-escaping.
+    if (!node->HasEscaped()) {
       return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
+                  (!NodeT::kProperties.is_required_when_unused() ||
+                   std::is_same_v<ArgumentsElements, NodeT>)) {
+      if (!node->is_used()) {
+        if constexpr (std::is_same_v<NodeT, Phi>) {
+          // The UseMarkingProcessor will clear dead forward jump Phis eagerly,
+          // so the only dead phis that should remain are loop and exception
+          // phis.
+          DCHECK(node->is_loop_phi() || node->is_exception_phi());
+        }
+        return ProcessResult::kRemove;
+      }
+      return ProcessResult::kContinue;
+    }
+
+    if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
+      if (InlinedAllocation* object =
+              node->input(0).node()->template TryCast<InlinedAllocation>()) {
+        if (!object->HasEscaped()) {
+          // We might still have stores that have not been cleared for
+          // allocations that were initially escaping and then became
+          // non-escaping.
+          return ProcessResult::kRemove;
+        }
+      }
     }
     return ProcessResult::kContinue;
   }
@@ -394,6 +485,13 @@ class LiveRangeAndNextUseProcessor {
   void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
                LoopUsedNodes* loop_used_nodes) {
     DCHECK(!node->Is<Identity>());
+    if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+      if (!alloc->HasEscaped()) {
+        // No need to mark use. The allocation has survived as a deopt input.
+        return;
+      }
+    }
+
     node->record_next_use(use_id, input);
 
     // If we are in a loop, loop_used_nodes is non-null. In this case, check if

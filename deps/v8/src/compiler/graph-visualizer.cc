@@ -133,13 +133,15 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
         sb << '\n';
         str.write(sb.start(), sb.length());
 
-        wasm::WireBytesRef wire_bytes_ref =
-            module->functions[function_data->function_index()].code;
+        const wasm::WasmFunction& function =
+            module->functions[function_data->function_index()];
+        wasm::WireBytesRef wire_bytes_ref = function.code;
         base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
             wire_bytes_ref.offset(), wire_bytes_ref.end_offset()));
+        bool is_shared = module->types[function.sig_index].is_shared;
         wasm::FunctionBody func_body{function_data->sig(),
                                      wire_bytes_ref.offset(), bytes.begin(),
-                                     bytes.end()};
+                                     bytes.end(), is_shared};
         AccountingAllocator allocator;
         wasm::PrintRawWasmCode(&allocator, func_body, module,
                                wasm::kPrintLocals, str);
@@ -279,8 +281,9 @@ void JsonPrintAllSourceWithPositionsWasm(
        << fct.func_index << "\", \"sourceName\": \"\", \"sourceText\": \"";
     wasm::WireBytesRef wire_bytes_ref = fct.code;
     base::Vector<const uint8_t> bytes = wire_bytes->GetCode(wire_bytes_ref);
+    bool is_shared = module->types[fct.sig_index].is_shared;
     wasm::FunctionBody func_body{fct.sig, wire_bytes_ref.offset(),
-                                 bytes.begin(), bytes.end()};
+                                 bytes.begin(), bytes.end(), is_shared};
     AccountingAllocator allocator;
     std::ostringstream wasm_str;
     wasm::PrintRawWasmCode(&allocator, func_body, module, wasm::kPrintLocals,

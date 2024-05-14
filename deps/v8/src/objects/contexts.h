@@ -16,6 +16,7 @@
 namespace v8 {
 namespace internal {
 
+class ConstTrackingLetCell;
 class JSGlobalObject;
 class JSGlobalProxy;
 class MicrotaskQueue;
@@ -70,6 +71,7 @@ enum ContextLookupFlags {
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
   V(BIGUINT64_ARRAY_FUN_INDEX, JSFunction, biguint64_array_fun)                \
   V(BIGINT64_ARRAY_FUN_INDEX, JSFunction, bigint64_array_fun)                  \
+  V(FLOAT16_ARRAY_FUN_INDEX, JSFunction, float16_array_fun)                    \
   V(RAB_GSAB_UINT8_ARRAY_MAP_INDEX, Map, rab_gsab_uint8_array_map)             \
   V(RAB_GSAB_INT8_ARRAY_MAP_INDEX, Map, rab_gsab_int8_array_map)               \
   V(RAB_GSAB_UINT16_ARRAY_MAP_INDEX, Map, rab_gsab_uint16_array_map)           \
@@ -82,6 +84,7 @@ enum ContextLookupFlags {
     rab_gsab_uint8_clamped_array_map)                                          \
   V(RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX, Map, rab_gsab_biguint64_array_map)     \
   V(RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX, Map, rab_gsab_bigint64_array_map)       \
+  V(RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX, Map, rab_gsab_float16_array_map)         \
   /* Below is alpha-sorted */                                                  \
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
@@ -530,7 +533,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
     THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
     // These slots hold values in debug evaluate contexts.
-    WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS
+    WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
+
+    // This slot holds the const tracking let side data.
+    CONST_TRACKING_LET_SIDE_DATA_INDEX = MIN_CONTEXT_SLOTS,
   };
 
   static const int kExtensionSize =
@@ -655,6 +661,16 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
+  static Tagged<ConstTrackingLetCell> GetOrCreateConstTrackingLetCell(
+      Handle<Context> context, size_t index, Isolate* isolate);
+
+  bool ConstTrackingLetSideDataIsConst(size_t index) const;
+
+  static void UpdateConstTrackingLetSideData(Handle<Context> script_context,
+                                             int index,
+                                             Handle<Object> new_value,
+                                             Isolate* isolate);
+
   static const int kNotFound = -1;
 
   // Dispatched behavior.
@@ -767,6 +783,7 @@ class ScriptContextTableShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Context;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
   static constexpr bool kLengthEqualsCapacity = false;
 

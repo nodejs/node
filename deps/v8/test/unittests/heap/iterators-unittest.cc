@@ -47,7 +47,7 @@ TEST_F(IteratorsTest, CombinedHeapObjectIteratorNullPastEnd) {
 namespace {
 // An arbitrary object guaranteed to live on the non-read-only heap.
 Tagged<Object> CreateWritableObject(v8::Isolate* isolate) {
-  return *v8::Utils::OpenHandle(*v8::Object::New(isolate));
+  return *v8::Utils::OpenDirectHandle(*v8::Object::New(isolate));
 }
 }  // namespace
 

@@ -39,7 +39,7 @@ void WriteBarrierForCode(Tagged<InstructionStream> host, RelocInfo* rinfo,
 void CombinedWriteBarrier(Tagged<HeapObject> object, ObjectSlot slot,
                           Tagged<Object> value, WriteBarrierMode mode);
 void CombinedWriteBarrier(Tagged<HeapObject> object, MaybeObjectSlot slot,
-                          MaybeObject value, WriteBarrierMode mode);
+                          Tagged<MaybeObject> value, WriteBarrierMode mode);
 
 void CombinedWriteBarrier(HeapObjectLayout* object, TaggedMemberBase* slot,
                           Tagged<Object> value, WriteBarrierMode mode);
@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(Tagged<HeapObject> host, HeapObjectSlot,
                              Tagged<HeapObject> value);
   static inline void Marking(Tagged<HeapObject> host, MaybeObjectSlot,
-                             MaybeObject value);
+                             Tagged<MaybeObject> value);
   static inline void Marking(Tagged<InstructionStream> host, RelocInfo*,
                              Tagged<HeapObject> value);
   static inline void Marking(Tagged<JSArrayBuffer> host, ArrayBufferExtension*);

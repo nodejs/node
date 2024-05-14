@@ -115,8 +115,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
   DCHECK_GE(return_registers.size(), DerivedDescriptor::kReturnCount);
   DCHECK_GE(return_double_registers.size(), DerivedDescriptor::kReturnCount);
   data->InitializeRegisters(
-      DerivedDescriptor::flags(), DerivedDescriptor::kReturnCount,
-      DerivedDescriptor::GetParameterCount(),
+      DerivedDescriptor::flags(), DerivedDescriptor::kEntrypointTag,
+      DerivedDescriptor::kReturnCount, DerivedDescriptor::GetParameterCount(),
       DerivedDescriptor::kStackArgumentOrder,
       DerivedDescriptor::GetRegisterParameterCount(), registers.data(),
       double_registers.data(), return_registers.data(),
@@ -138,7 +138,7 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetReturnCount() {
   static_assert(
       DerivedDescriptor::kReturnCount >= 0,
       "DerivedDescriptor subclass should override return count with a value "
-      "that is greater than 0");
+      "that is greater than or equal to 0");
 
   return DerivedDescriptor::kReturnCount;
 }
@@ -150,7 +150,7 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetParameterCount() {
   static_assert(
       DerivedDescriptor::kParameterCount >= 0,
       "DerivedDescriptor subclass should override parameter count with a "
-      "value that is greater than 0");
+      "value that is greater than or equal to 0");
 
   return DerivedDescriptor::kParameterCount;
 }
@@ -502,7 +502,8 @@ constexpr auto OnStackReplacementDescriptor::registers() {
 constexpr auto
 MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::registers() {
 #ifdef V8_ENABLE_MAGLEV
-  return RegisterArray(FlagsRegister(), FeedbackVectorRegister());
+  return RegisterArray(FlagsRegister(), FeedbackVectorRegister(),
+                       TemporaryRegister());
 #else
   return DefaultRegisterArray();
 #endif
@@ -626,6 +627,25 @@ constexpr auto KeyedLoadBaselineDescriptor::registers() {
 }
 
 // static
+constexpr auto EnumeratedKeyedLoadBaselineDescriptor::registers() {
+  return RegisterArray(KeyedLoadBaselineDescriptor::ReceiverRegister(),
+                       KeyedLoadBaselineDescriptor::NameRegister(),
+                       EnumIndexRegister(), CacheTypeRegister(),
+                       SlotRegister());
+}
+
+// static
+constexpr auto EnumeratedKeyedLoadDescriptor::registers() {
+  return RegisterArray(
+      KeyedLoadBaselineDescriptor::ReceiverRegister(),
+      KeyedLoadBaselineDescriptor::NameRegister(),
+      EnumeratedKeyedLoadBaselineDescriptor::EnumIndexRegister(),
+      EnumeratedKeyedLoadBaselineDescriptor::CacheTypeRegister(),
+      EnumeratedKeyedLoadBaselineDescriptor::SlotRegister(),
+      KeyedLoadWithVectorDescriptor::VectorRegister());
+}
+
+// static
 constexpr auto KeyedLoadDescriptor::registers() {
   return KeyedLoadBaselineDescriptor::registers();
 }
@@ -679,7 +699,7 @@ constexpr auto CallApiCallbackOptimizedDescriptor::registers() {
 constexpr auto CallApiCallbackGenericDescriptor::registers() {
   return RegisterArray(ActualArgumentsCountRegister(),
                        TopmostScriptHavingContextRegister(),
-                       CallHandlerInfoRegister(), HolderRegister());
+                       FunctionTemplateInfoRegister(), HolderRegister());
 }
 
 // static

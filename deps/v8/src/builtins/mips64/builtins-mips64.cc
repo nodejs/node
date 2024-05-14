@@ -1277,7 +1277,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Move(a2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(a2, closure, t0, t1);
-    __ JumpCodeObject(a2);
+    __ JumpCodeObject(a2, kJSEntrypointTag);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1653,7 +1653,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
             Operand(INTERPRETER_DATA_TYPE));
 
   __ Ld(t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
-  __ LoadCodeInstructionStart(t0, t0);
+  __ LoadCodeInstructionStart(t0, t0, kJSEntrypointTag);
   __ Branch(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
@@ -1916,7 +1916,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
                                      DeoptimizationData::kOsrPcOffsetIndex) -
                                      kHeapObjectTag));
 
-  __ LoadCodeInstructionStart(maybe_target_code, maybe_target_code);
+  __ LoadCodeInstructionStart(maybe_target_code, maybe_target_code,
+                              kJSEntrypointTag);
 
   // Compute the target address = code_entry + osr_offset
   // <entry_addr> = <code_entry> + <osr_offset>
@@ -3268,7 +3269,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      callback =
+          CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
@@ -3340,7 +3342,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // kData.
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
-      __ Ld(scratch2, FieldMemOperand(callback, CallHandlerInfo::kDataOffset));
+      __ Ld(scratch2, FieldMemOperand(
+                          callback, FunctionTemplateInfo::kCallbackDataOffset));
       __ Sd(scratch2, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
 
@@ -3393,13 +3396,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ Ld(scratch,
-          FieldMemOperand(callback, CallHandlerInfo::kOwnerTemplateOffset));
-    __ Sd(scratch, MemOperand(sp, 0 * kSystemPointerSize));
+    __ Sd(callback, MemOperand(sp, 0 * kSystemPointerSize));
 
     __ Ld(api_function_address,
-          FieldMemOperand(callback,
-                          CallHandlerInfo::kMaybeRedirectedCallbackOffset));
+          FieldMemOperand(
+              callback, FunctionTemplateInfo::kMaybeRedirectedCallbackOffset));
 
     __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
   } else {
@@ -3533,8 +3534,14 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ RecordComment(
       "Load address of v8::PropertyAccessorInfo::args_ array and name handle.");
 
-  // name_arg = Handle<Name>(&name), name value was pushed to GC-ed stack space.
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
+  __ mov(name_arg, scratch);
+  USE(kNameStackIndex);
+#else
+  // name_arg = Local<Name>(&name), name value was pushed to GC-ed stack space.
   __ Daddu(name_arg, sp, Operand(kNameStackIndex * kSystemPointerSize));
+#endif
   // property_callback_info_arg = v8::PCI::args_ (= &ShouldThrow)
   __ Daddu(property_callback_info_arg, sp,
            Operand(kPCAStackIndex * kSystemPointerSize));
@@ -3932,7 +3939,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ PrepareCallCFunction(3, 0, a4);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
-  __ LoadCodeInstructionStart(code_obj, code_obj);
+  __ LoadCodeInstructionStart(code_obj, code_obj, kJSEntrypointTag);
   __ Daddu(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister);
 

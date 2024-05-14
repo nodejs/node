@@ -88,11 +88,25 @@ ABSL_NAMESPACE_END
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace time_internal {
+
+// On some processors, consecutive reads of the cycle counter may yield the
+// same value (weakly-increasing). In debug mode, clear the least significant
+// bits to discourage depending on a strictly-increasing Now() value.
+// In x86-64's debug mode, discourage depending on a strictly-increasing Now()
+// value.
+#if !defined(NDEBUG) && defined(__x86_64__)
+constexpr int64_t kCycleClockNowMask = ~int64_t{0xff};
+#else
+constexpr int64_t kCycleClockNowMask = ~int64_t{0};
+#endif
+
 // This is a friend wrapper around UnscaledCycleClock::Now()
 // (needed to access UnscaledCycleClock).
 class UnscaledCycleClockWrapperForGetCurrentTime {
  public:
-  static int64_t Now() { return base_internal::UnscaledCycleClock::Now(); }
+  static int64_t Now() {
+    return base_internal::UnscaledCycleClock::Now() & kCycleClockNowMask;
+  }
 };
 }  // namespace time_internal
 

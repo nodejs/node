@@ -32,6 +32,7 @@ set ltcg=
 set target_env=
 set noprojgen=
 set projgen=
+set clang_cl=
 set nobuild=
 set sign=
 set nosnapshot=
@@ -48,6 +49,7 @@ set lint_js=
 set lint_cpp=
 set lint_md=
 set lint_md_build=
+set format_md=
 set i18n_arg=
 set download_arg=
 set build_release=
@@ -86,6 +88,7 @@ if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
 if /i "%1"=="vs2022"        set target_env=vs2022&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
+if /i "%1"=="clang-cl"      set clang_cl=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
@@ -122,6 +125,7 @@ if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
 if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
 if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="lint-ci"       set lint_cpp=1&set lint_js_ci=1&goto arg-ok
+if /i "%1"=="format-md"     set format_md=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=full-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&set sign=1&goto arg-ok
@@ -180,11 +184,16 @@ if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022
 :: skip building if the only argument received was lint
 if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
 
+:: skip building if the only argument received was format-md
+if "%*"=="format-md" if exist "%node_exe%" goto format-md
+
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
 if defined nonpm            set configure_flags=%configure_flags% --without-npm
 if defined nocorepack       set configure_flags=%configure_flags% --without-corepack
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
+:: If clang-cl build is requested, set it to 17.0, which is the version shipped with VS 2022.
+if defined clang_cl         set configure_flags=%configure_flags% --clang-cl=17.0
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
@@ -429,12 +438,28 @@ if defined dll (
   copy /Y libnode.dll %TARGET_NAME%\ > nul
   if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
 
+  copy /Y libnode.lib %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy libnode.lib && goto package_error
+
   mkdir %TARGET_NAME%\Release > nul
   copy /Y node.def %TARGET_NAME%\Release\ > nul
   if errorlevel 1 echo Cannot copy node.def && goto package_error
 
-  python ..\tools\install.py install --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only --silent
+  python ..\tools\install.py install --root-dir .. --config-gypi-path %CD%\..\config.gypi --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only
   if errorlevel 1 echo Cannot install headers && goto package_error
+
+  if exist ..\Debug (
+    mkdir %TARGET_NAME%\Debug > nul
+
+    copy /Y ..\Debug\libnode.dll %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
+
+    copy /Y ..\Debug\libnode.lib %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy libnode.lib && goto package_error
+
+    copy /Y ..\Debug\node.def %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy node.def && goto package_error
+  )
 )
 cd ..
 
@@ -492,21 +517,38 @@ if not defined SSHCONFIG (
 )
 
 if not defined STAGINGSERVER set STAGINGSERVER=node-www
+if not defined CLOUDFLARE_ENDPOINT set CLOUDFLARE_ENDPOINT=https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflarestorage.com
+if not defined CLOUDFLARE_BUCKET set CLOUDFLARE_BUCKET=dist-staging
+if not defined CLOUDFLARE_PROFILE set CLOUDFLARE_PROFILE=worker
 ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
 if errorlevel 1 goto exit
 ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 if errorlevel 1 goto exit
@@ -562,7 +604,7 @@ for /d %%F in (test\addons\??_*) do (
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\addons"
+python "%~dp0tools\build_addons.py" "%~dp0test\addons" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 
@@ -579,7 +621,7 @@ for /d %%F in (test\js-native-api\??_*) do (
 )
 :: building js-native-api
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto build-node-api-tests
@@ -597,7 +639,7 @@ for /d %%F in (test\node-api\??_*) do (
 )
 :: building node-api
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\node-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\node-api" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
@@ -653,6 +695,7 @@ if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-lint
 where wsl > NUL 2>&1
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=wsl make" & goto run-make-lint
 echo Could not find GNU Make, needed for linting C/C++
+echo Alternatively, you can use WSL
 goto lint-js
 
 :run-make-lint
@@ -677,7 +720,7 @@ echo "Deprecated no-op target 'lint_md_build'"
 goto lint-md
 
 :lint-md
-if not defined lint_md goto exit
+if not defined lint_md goto format-md
 echo Running Markdown linter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -688,10 +731,10 @@ for /D %%D IN (doc\*) do (
 )
 %node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
 ENDLOCAL
-goto exit
+goto format-md
 
 :format-md
-if not defined lint_md goto exit
+if not defined format_md goto exit
 echo Running Markdown formatter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -711,7 +754,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

@@ -35,7 +35,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class SelectLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(SelectLowering)
 
   OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                          RegisterRepresentation rep, BranchHint hint,
@@ -49,11 +49,9 @@ class SelectLoweringReducer : public Next {
     Variable result = __ NewLoopInvariantVariable(rep);
     IF (cond) {
       __ SetVariable(result, vtrue);
-    }
-    ELSE {
+    } ELSE {
       __ SetVariable(result, vfalse);
     }
-    END_IF
 
     return __ GetVariable(result);
   }

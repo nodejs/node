@@ -239,7 +239,7 @@ Handle<Code> BuildTeardownFunction(
       case MachineRepresentation::kFloat32:
         param =
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case MachineRepresentation::kFloat64: {
         __ StoreHeapNumberValue(
             __ Cast(__ LoadFixedArrayElement(result_array, i)),
@@ -618,6 +618,7 @@ class TestEnvironment : public HandleAndZoneScope {
     const int kTotalStackParameterCount = stack_slot_count_ + 1;
     return main_zone()->New<CallDescriptor>(
         CallDescriptor::kCallCodeObject,  // kind
+        kDefaultCodeEntrypointTag,        // tag
         MachineType::AnyTagged(),         // target MachineType
         LinkageLocation::ForAnyRegister(
             MachineType::AnyTagged()),  // target location
@@ -1115,7 +1116,8 @@ class CodeGeneratorTester {
               CodeKind::FOR_TESTING),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
-            CodeKind::FOR_TESTING)) {
+                   CodeKind::FOR_TESTING),
+               environment->main_zone()) {
     // Pick half of the stack parameters at random and move them into spill
     // slots, separated by `extra_stack_space` bytes.
     // When testing a move with stack slots using CheckAssembleMove or
@@ -1300,6 +1302,9 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
+        ImmediateOperand(
+            ImmediateOperand::INLINE_INT32,
+            (kDefaultCodeEntrypointTag >> kCodeEntrypointTagShift)),
         ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE_INT32,
                          first_unused_stack_slot)};

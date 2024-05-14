@@ -30,6 +30,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
@@ -40,6 +41,111 @@ namespace v8::internal::compiler::turboshaft {
 
 template <typename>
 class VariableReducer;
+template <typename>
+class GraphVisitor;
+
+namespace {
+
+// Represents an operation of the form `(source & mask) == masked_value`.
+// where each bit set in masked_value also has to be set in mask.
+struct BitfieldCheck {
+  OpIndex const source;
+  uint32_t const mask;
+  uint32_t const masked_value;
+  bool const truncate_from_64_bit;
+
+  BitfieldCheck(OpIndex source, uint32_t mask, uint32_t masked_value,
+                bool truncate_from_64_bit)
+      : source(source),
+        mask(mask),
+        masked_value(masked_value),
+        truncate_from_64_bit(truncate_from_64_bit) {
+    CHECK_EQ(masked_value & ~mask, 0);
+  }
+
+  static base::Optional<BitfieldCheck> Detect(const OperationMatcher& matcher,
+                                              const Graph& graph,
+                                              OpIndex index) {
+    // There are two patterns to check for here:
+    // 1. Single-bit checks: `(val >> shift) & 1`, where:
+    //    - the shift may be omitted, and/or
+    //    - the result may be truncated from 64 to 32
+    // 2. Equality checks: `(val & mask) == expected`, where:
+    //    - val may be truncated from 64 to 32 before masking (see
+    //      ReduceWordEqualForConstantRhs)
+    const Operation& op = graph.Get(index);
+    if (const ComparisonOp* equal = op.TryCast<Opmask::kWord32Equal>()) {
+      if (const WordBinopOp* left_and =
+              graph.Get(equal->left()).TryCast<Opmask::kWord32BitwiseAnd>()) {
+        uint32_t mask;
+        uint32_t masked_value;
+        if (matcher.MatchIntegralWord32Constant(left_and->right(), &mask) &&
+            matcher.MatchIntegralWord32Constant(equal->right(),
+                                                &masked_value)) {
+          if ((masked_value & ~mask) != 0) return base::nullopt;
+          if (const ChangeOp* truncate =
+                  graph.Get(left_and->left())
+                      .TryCast<Opmask::kTruncateWord64ToWord32>()) {
+            return BitfieldCheck{truncate->input(), mask, masked_value, true};
+          } else {
+            return BitfieldCheck{left_and->left(), mask, masked_value, false};
+          }
+        }
+      }
+    } else if (const ChangeOp* truncate =
+                   op.TryCast<Opmask::kTruncateWord64ToWord32>()) {
+      return TryDetectShiftAndMaskOneBit<WordRepresentation::Word64()>(
+          matcher, truncate->input());
+    } else {
+      return TryDetectShiftAndMaskOneBit<WordRepresentation::Word32()>(matcher,
+                                                                       index);
+    }
+    return base::nullopt;
+  }
+
+  base::Optional<BitfieldCheck> TryCombine(const BitfieldCheck& other) {
+    if (source != other.source ||
+        truncate_from_64_bit != other.truncate_from_64_bit) {
+      return base::nullopt;
+    }
+    uint32_t overlapping_bits = mask & other.mask;
+    // It would be kind of strange to have any overlapping bits, but they can be
+    // allowed as long as they don't require opposite values in the same
+    // positions.
+    if ((masked_value & overlapping_bits) !=
+        (other.masked_value & overlapping_bits)) {
+      return base::nullopt;
+    }
+    return BitfieldCheck{source, mask | other.mask,
+                         masked_value | other.masked_value,
+                         truncate_from_64_bit};
+  }
+
+ private:
+  template <WordRepresentation::Enum R>
+  static base::Optional<BitfieldCheck> TryDetectShiftAndMaskOneBit(
+      const OperationMatcher& matcher, OpIndex index) {
+    const WordRepresentation Rep(R);
+    // Look for the pattern `(val >> shift) & 1`. The shift may be omitted.
+    OpIndex value;
+    uint64_t constant;
+    if (matcher.MatchBitwiseAndWithConstant(index, &value, &constant, Rep) &&
+        constant == 1) {
+      OpIndex input;
+      if (int shift_amount;
+          matcher.MatchConstantRightShift(value, &input, Rep, &shift_amount) &&
+          shift_amount >= 0 && shift_amount < 32) {
+        uint32_t mask = 1 << shift_amount;
+        return BitfieldCheck{input, mask, mask,
+                             Rep == WordRepresentation::Word64()};
+      }
+      return BitfieldCheck{value, 1, 1, Rep == WordRepresentation::Word64()};
+    }
+    return base::nullopt;
+  }
+};
+
+}  // namespace
 
 // The MachineOptimizationAssembler performs basic optimizations on low-level
 // operations that can be performed on-the-fly, without requiring type analysis
@@ -54,9 +160,16 @@ class VariableReducer;
 template <class Next>
 class MachineOptimizationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(MachineOptimization)
 #if defined(__clang__)
-  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
+  // TODO(dmercadier): this static_assert ensures that the stack contains a
+  // VariableReducer. It is currently not very clean, because when GraphVisitor
+  // is on the stack, it implicitly adds a VariableReducer that isn't detected
+  // by reducer_list_contains. It would be cleaner to have a single "reducer
+  // list contains VariableReducer" check that sees the VariableReducer
+  // introduced by GraphVisitor.
+  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value ||
+                reducer_list_contains<ReducerList, GraphVisitor>::value);
 #endif
 
   // TODO(mslekova): Implement ReduceSelect and ReducePhi,
@@ -199,7 +312,7 @@ class MachineOptimizationReducer : public Next {
     // because the GC might have modified the pointer.
     if (auto* input_bitcast = matcher.TryCast<TaggedBitcastOp>(input)) {
       if (all_of(input_bitcast->to, from) ==
-              RegisterRepresentation::PointerSized() &&
+              RegisterRepresentation::WordPtr() &&
           all_of(input_bitcast->from, to) == RegisterRepresentation::Tagged()) {
         return input_bitcast->input();
       }
@@ -230,6 +343,12 @@ class MachineOptimizationReducer : public Next {
             return __ Word32Constant(static_cast<uint32_t>(cst->integral()));
           }
         }
+      }
+    }
+    if (const ConstantOp* cst = matcher.TryCast<ConstantOp>(input);
+        cst && cst->IsIntegral() && to == RegisterRepresentation::Tagged()) {
+      if (Smi::IsValid(cst->integral())) {
+        return __ SmiConstant(static_cast<intptr_t>(cst->integral()));
       }
     }
     return Next::ReduceTaggedBitcast(input, from, to, kind);
@@ -566,11 +685,10 @@ class MachineOptimizationReducer : public Next {
           IF (UNLIKELY(__ FloatLessThanOrEqual(
                   lhs, __ FloatConstant(-V8_INFINITY, rep), rep))) {
             __ SetVariable(result, __ FloatConstant(V8_INFINITY, rep));
-          }
-          ELSE {
+          } ELSE {
             __ SetVariable(result, __ FloatSqrt(lhs, rep));
           }
-          END_IF
+
           return __ GetVariable(result);
         }
       }
@@ -671,8 +789,25 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
-    // TODO(tebbi): Detect and merge multiple bitfield checks for CSA/Torque
-    // code.
+    if (kind == WordBinopOp::Kind::kBitwiseAnd &&
+        rep == WordRepresentation::Word32()) {
+      if (auto right_bitfield =
+              BitfieldCheck::Detect(matcher, __ output_graph(), right)) {
+        if (auto left_bitfield =
+                BitfieldCheck::Detect(matcher, __ output_graph(), left)) {
+          if (auto combined_bitfield =
+                  left_bitfield->TryCombine(*right_bitfield)) {
+            OpIndex source = combined_bitfield->source;
+            if (combined_bitfield->truncate_from_64_bit) {
+              source = __ TruncateWord64ToWord32(source);
+            }
+            return __ Word32Equal(
+                __ Word32BitwiseAnd(source, combined_bitfield->mask),
+                combined_bitfield->masked_value);
+          }
+        }
+      }
+    }
 
     if (uint64_t right_value;
         matcher.MatchIntegralWordConstant(right, rep, &right_value)) {
@@ -699,7 +834,7 @@ class MachineOptimizationReducer : public Next {
       }
       switch (kind) {
         case Kind::kSub:
-          // left - k  => left + -k
+          // left - k  =>  left + -k
           return ReduceWordBinop(left, __ WordConstant(-right_value, rep),
                                  Kind::kAdd, rep);
         case Kind::kAdd:
@@ -715,7 +850,7 @@ class MachineOptimizationReducer : public Next {
           }
           // left ^ 1  =>  left == 0  if left is 0 or 1
           if (right_value == 1 && IsBit(left)) {
-            return __ Word32Equal(left, __ Word32Constant(0));
+            return __ Word32Equal(left, 0);
           }
           // (x ^ -1) ^ -1  =>  x
           {
@@ -765,9 +900,8 @@ class MachineOptimizationReducer : public Next {
           }
           // left * 2^k  =>  left << k
           if (base::bits::IsPowerOfTwo(right_value)) {
-            OpIndex shift_amount =
-                __ Word32Constant(base::bits::WhichPowerOfTwo(right_value));
-            return __ ShiftLeft(left, shift_amount, rep);
+            return __ ShiftLeft(left, base::bits::WhichPowerOfTwo(right_value),
+                                rep);
           }
           break;
         case Kind::kBitwiseAnd:
@@ -1333,11 +1467,26 @@ class MachineOptimizationReducer : public Next {
         if (matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
                 left, &x, rep_w, &k1) &&
             matcher.MatchIntegralWordConstant(right, rep_w, &k2) &&
-            CountLeadingSignBits(k2, rep_w) > k1 &&
-            matcher.Get(left).saturated_use_count.IsZero()) {
-          return __ Comparison(
-              x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), kind,
-              rep_w);
+            CountLeadingSignBits(k2, rep_w) > k1) {
+          if (matcher.Get(left).saturated_use_count.IsZero()) {
+            return __ Comparison(
+                x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), kind,
+                rep_w);
+          } else if constexpr (reducer_list_contains<
+                                   ReducerList, ValueNumberingReducer>::value) {
+            // If the shift has uses, we only apply the transformation if the
+            // result would be GVNed away.
+            OpIndex rhs =
+                __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w);
+            static_assert(ComparisonOp::input_count == 2);
+            static_assert(sizeof(ComparisonOp) == 8);
+            base::SmallVector<OperationStorageSlot, 32> storage;
+            ComparisonOp* cmp =
+                CreateOperation<ComparisonOp>(storage, x, rhs, kind, rep_w);
+            if (__ WillGVNOp(*cmp)) {
+              return __ Comparison(x, rhs, kind, rep_w);
+            }
+          }
         }
         // k2 </<= (x >> k1)  =>  (k2 << k1) </<= x  if shifts reversible
         // Only perform the transformation if the shift is not used yet, to
@@ -1345,11 +1494,26 @@ class MachineOptimizationReducer : public Next {
         if (matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
                 right, &x, rep_w, &k1) &&
             matcher.MatchIntegralWordConstant(left, rep_w, &k2) &&
-            CountLeadingSignBits(k2, rep_w) > k1 &&
-            matcher.Get(right).saturated_use_count.IsZero()) {
-          return __ Comparison(
-              __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x, kind,
-              rep_w);
+            CountLeadingSignBits(k2, rep_w) > k1) {
+          if (matcher.Get(right).saturated_use_count.IsZero()) {
+            return __ Comparison(
+                __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x, kind,
+                rep_w);
+          } else if constexpr (reducer_list_contains<
+                                   ReducerList, ValueNumberingReducer>::value) {
+            // If the shift has uses, we only apply the transformation if the
+            // result would be GVNed away.
+            OpIndex lhs =
+                __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w);
+            static_assert(ComparisonOp::input_count == 2);
+            static_assert(sizeof(ComparisonOp) == 8);
+            base::SmallVector<OperationStorageSlot, 32> storage;
+            ComparisonOp* cmp =
+                CreateOperation<ComparisonOp>(storage, lhs, x, kind, rep_w);
+            if (__ WillGVNOp(*cmp)) {
+              return __ Comparison(lhs, x, kind, rep_w);
+            }
+          }
         }
       }
       // Map 64bit to 32bit comparisons.
@@ -1582,8 +1746,8 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
-                         TrapId trap_id) {
+  OpIndex REDUCE(TrapIf)(OpIndex condition, OptionalOpIndex frame_state,
+                         bool negated, TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }
@@ -1750,7 +1914,7 @@ class MachineOptimizationReducer : public Next {
       if (!kind.tagged_base && !index.valid()) {
         if (OpIndex left, right;
             matcher.MatchWordAdd(base_idx, &left, &right,
-                                 WordRepresentation::PointerSized()) &&
+                                 WordRepresentation::WordPtr()) &&
             TryAdjustOffset(&offset, matcher.Get(right), element_scale,
                             kind.tagged_base)) {
           base_idx = left;
@@ -1928,7 +2092,7 @@ class MachineOptimizationReducer : public Next {
                        uint8_t element_scale, bool tagged_base) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
-    if (constant.rep != WordRepresentation::PointerSized() ||
+    if (constant.rep != WordRepresentation::WordPtr() ||
         !constant.IsIntegral()) {
       // This can only happen in unreachable code. Ideally, we identify this
       // situation and use `__ Unreachable()`. However, this is difficult to
@@ -1954,7 +2118,7 @@ class MachineOptimizationReducer : public Next {
                       const Operation& maybe_constant, uint8_t element_scale) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
-    if (constant.rep != WordRepresentation::PointerSized() ||
+    if (constant.rep != WordRepresentation::WordPtr() ||
         !constant.IsIntegral()) {
       // This can only happen in unreachable code. Ideally, we identify this
       // situation and use `__ Unreachable()`. However, this is difficult to
@@ -1974,11 +2138,11 @@ class MachineOptimizationReducer : public Next {
   bool TryAdjustElementScale(uint8_t* element_scale, OpIndex maybe_constant) {
     uint64_t diff;
     if (!matcher.MatchIntegralWordConstant(
-            maybe_constant, WordRepresentation::PointerSized(), &diff)) {
+            maybe_constant, WordRepresentation::WordPtr(), &diff)) {
       return false;
     }
-    DCHECK_LT(*element_scale, WordRepresentation::PointerSized().bit_width());
-    if (diff < (WordRepresentation::PointerSized().bit_width() -
+    DCHECK_LT(*element_scale, WordRepresentation::WordPtr().bit_width());
+    if (diff < (WordRepresentation::WordPtr().bit_width() -
                 uint64_t{*element_scale})) {
       *element_scale += diff;
       return true;

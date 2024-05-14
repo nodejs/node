@@ -295,6 +295,7 @@ cc_test(
 cc_test(
     name = "absl_check_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["absl_check_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -328,6 +329,7 @@ cc_test(
 cc_test(
     name = "check_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["check_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

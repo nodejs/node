@@ -5,6 +5,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "node_file.h"
 
 #include "v8.h"
 
@@ -49,10 +50,10 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     return args.GetReturnValue().Set(
-        env->permission()->is_granted(scope, *utf8_arg));
+        env->permission()->is_granted(env, scope, *utf8_arg));
   }
 
-  return args.GetReturnValue().Set(env->permission()->is_granted(scope));
+  return args.GetReturnValue().Set(env->permission()->is_granted(env, scope));
 }
 
 }  // namespace
@@ -99,16 +100,16 @@ Permission::Permission() : enabled_(false) {
 #undef V
 }
 
-void Permission::ThrowAccessDenied(Environment* env,
-                                   PermissionScope perm,
-                                   const std::string_view& res) {
+Local<Value> CreateAccessDeniedError(Environment* env,
+                                     PermissionScope perm,
+                                     const std::string_view& res) {
   Local<Value> err = ERR_ACCESS_DENIED(env->isolate());
   CHECK(err->IsObject());
   if (err.As<Object>()
           ->Set(env->context(),
                 env->permission_string(),
                 v8::String::NewFromUtf8(env->isolate(),
-                                        PermissionToString(perm),
+                                        Permission::PermissionToString(perm),
                                         v8::NewStringType::kNormal)
                     .ToLocalChecked())
           .IsNothing() ||
@@ -120,8 +121,25 @@ void Permission::ThrowAccessDenied(Environment* env,
                                         v8::NewStringType::kNormal)
                     .ToLocalChecked())
           .IsNothing())
-    return;
+    return Local<Value>();
+  return err;
+}
+
+void Permission::ThrowAccessDenied(Environment* env,
+                                   PermissionScope perm,
+                                   const std::string_view& res) {
+  Local<Value> err = CreateAccessDeniedError(env, perm, res);
+  if (err.IsEmpty()) return;
   env->isolate()->ThrowException(err);
+}
+
+void Permission::AsyncThrowAccessDenied(Environment* env,
+                                        fs::FSReqBase* req_wrap,
+                                        PermissionScope perm,
+                                        const std::string_view& res) {
+  Local<Value> err = CreateAccessDeniedError(env, perm, res);
+  if (err.IsEmpty()) return;
+  return req_wrap->Reject(err);
 }
 
 void Permission::EnablePermissions() {

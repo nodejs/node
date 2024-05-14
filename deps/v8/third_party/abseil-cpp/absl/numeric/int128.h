@@ -244,11 +244,6 @@ class
 #endif  // byte order
 };
 
-// Prefer to use the constexpr `Uint128Max()`.
-//
-// TODO(absl-team) deprecate kuint128max once migration tool is released.
-ABSL_DLL extern const uint128 kuint128max;
-
 // allow uint128 to be logged
 std::ostream& operator<<(std::ostream& os, uint128 v);
 

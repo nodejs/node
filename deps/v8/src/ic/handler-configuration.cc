@@ -49,7 +49,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
     // corresponds.
     if (fill_handler) {
       Handle<Context> native_context = isolate->native_context();
-      handler->set_data2(HeapObjectReference::Weak(*native_context));
+      handler->set_data2(MakeWeak(*native_context));
     } else {
       // Enable access checks on the lookup start object.
       *smi_handler = SetBitFieldValue<
@@ -168,32 +168,24 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 }
 
 // static
-KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(
+    Tagged<MaybeObject> handler) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(handler)) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
-    if ((kind == Kind::kElement || kind == Kind::kIndexedString) &&
-        AllowOutOfBoundsBits::decode(raw_handler)) {
-      return KeyedAccessLoadMode::kHandleOOB;
+    if (kind == Kind::kElement || kind == Kind::kIndexedString) {
+      bool handle_oob = AllowOutOfBoundsBits::decode(raw_handler);
+      bool handle_holes = AllowHandlingHole::decode(raw_handler);
+      return CreateKeyedAccessLoadMode(handle_oob, handle_holes);
     }
   }
   return KeyedAccessLoadMode::kInBounds;
 }
 
 // static
-bool LoadHandler::GetConvertHole(MaybeObject handler) {
-  DisallowGarbageCollection no_gc;
-  if (IsSmi(handler)) {
-    int const raw_handler = handler.ToSmi().value();
-    return ConvertHoleBits::decode(raw_handler);
-  }
-  return false;
-}
-
-// static
 KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
-    MaybeObject handler) {
+    Tagged<MaybeObject> handler) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(handler)) {
     int const raw_handler = handler.ToSmi().value();
@@ -225,7 +217,7 @@ Handle<Object> StoreHandler::StoreElementTransition(
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);
   handler->set_smi_handler(*code);
   handler->set_validity_cell(*validity_cell);
-  handler->set_data1(HeapObjectReference::Weak(*transition));
+  handler->set_data1(MakeWeak(*transition));
   return handler;
 }
 
@@ -255,7 +247,7 @@ MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
   if (is_dictionary_map) {
     DCHECK(!IsJSGlobalObjectMap(*transition_map));
     int config = KindBits::encode(Kind::kNormal);
-    return MaybeObjectHandle(Smi::FromInt(config), isolate);
+    return MaybeObjectHandle(Tagged<Object>(Smi::FromInt(config)), isolate);
 
   } else {
     return MaybeObjectHandle::Weak(transition_map);
@@ -381,8 +373,8 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
            << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
            << ", is JSArray = "
            << LoadHandler::IsJsArrayBits::decode(raw_handler)
-           << ", convert hole = "
-           << LoadHandler::ConvertHoleBits::decode(raw_handler)
+           << ", alow reading holes = "
+           << LoadHandler::AllowHandlingHole::decode(raw_handler)
            << ", elements kind = "
            << ElementsKindToString(
                   LoadHandler::ElementsKindBits::decode(raw_handler));
@@ -595,6 +587,11 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   } else if (IsMap(handler)) {
     os << "StoreHandler(field transition to " << Brief(handler) << ")"
        << std::endl;
+  } else if (IsCode(handler)) {
+    Tagged<Code> code = Code::cast(handler);
+    os << "StoreHandler(builtin = ";
+    ShortPrint(code, os);
+    os << ")" << std::endl;
   } else {
     os << "StoreHandler(<unexpected>)(" << Brief(handler) << ")" << std::endl;
   }

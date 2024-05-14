@@ -2,7 +2,8 @@
 
 const { kReadyState, kController, kResponse, kBinaryType, kWebSocketURL } = require('./symbols')
 const { states, opcodes } = require('./constants')
-const { MessageEvent, ErrorEvent } = require('./events')
+const { ErrorEvent, createFastMessageEvent } = require('./events')
+const { isUtf8 } = require('node:buffer')
 
 /* globals Blob */
 
@@ -50,15 +51,16 @@ function isClosed (ws) {
  * @see https://dom.spec.whatwg.org/#concept-event-fire
  * @param {string} e
  * @param {EventTarget} target
+ * @param {(...args: ConstructorParameters<typeof Event>) => Event} eventFactory
  * @param {EventInit | undefined} eventInitDict
  */
-function fireEvent (e, target, eventConstructor = Event, eventInitDict = {}) {
+function fireEvent (e, target, eventFactory = (type, init) => new Event(type, init), eventInitDict = {}) {
   // 1. If eventConstructor is not given, then let eventConstructor be Event.
 
   // 2. Let event be the result of creating an event given eventConstructor,
   //    in the relevant realm of target.
   // 3. Initialize event’s type attribute to e.
-  const event = new eventConstructor(e, eventInitDict) // eslint-disable-line new-cap
+  const event = eventFactory(e, eventInitDict)
 
   // 4. Initialize any other IDL attributes of event as described in the
   //    invocation of this algorithm.
@@ -87,7 +89,7 @@ function websocketMessageReceived (ws, type, data) {
     // -> type indicates that the data is Text
     //      a new DOMString containing data
     try {
-      dataForEvent = new TextDecoder('utf-8', { fatal: true }).decode(data)
+      dataForEvent = utf8Decode(data)
     } catch {
       failWebsocketConnection(ws, 'Received invalid UTF-8 in text frame.')
       return
@@ -102,17 +104,24 @@ function websocketMessageReceived (ws, type, data) {
       // -> type indicates that the data is Binary and binary type is "arraybuffer"
       //      a new ArrayBuffer object, created in the relevant Realm of the
       //      WebSocket object, whose contents are data
-      dataForEvent = new Uint8Array(data).buffer
+      dataForEvent = toArrayBuffer(data)
     }
   }
 
   // 3. Fire an event named message at the WebSocket object, using MessageEvent,
   //    with the origin attribute initialized to the serialization of the WebSocket
   //    object’s url's origin, and the data attribute initialized to dataForEvent.
-  fireEvent('message', ws, MessageEvent, {
+  fireEvent('message', ws, createFastMessageEvent, {
     origin: ws[kWebSocketURL].origin,
     data: dataForEvent
   })
+}
+
+function toArrayBuffer (buffer) {
+  if (buffer.byteLength === buffer.buffer.byteLength) {
+    return buffer.buffer
+  }
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
 }
 
 /**
@@ -194,11 +203,29 @@ function failWebsocketConnection (ws, reason) {
 
   if (reason) {
     // TODO: process.nextTick
-    fireEvent('error', ws, ErrorEvent, {
-      error: new Error(reason)
+    fireEvent('error', ws, (type, init) => new ErrorEvent(type, init), {
+      error: new Error(reason),
+      message: reason
     })
   }
 }
+
+// https://nodejs.org/api/intl.html#detecting-internationalization-support
+const hasIntl = typeof process.versions.icu === 'string'
+const fatalDecoder = hasIntl ? new TextDecoder('utf-8', { fatal: true }) : undefined
+
+/**
+ * Converts a Buffer to utf-8, even on platforms without icu.
+ * @param {Buffer} buffer
+ */
+const utf8Decode = hasIntl
+  ? fatalDecoder.decode.bind(fatalDecoder)
+  : function (buffer) {
+    if (isUtf8(buffer)) {
+      return buffer.toString('utf-8')
+    }
+    throw new TypeError('Invalid utf-8 received.')
+  }
 
 module.exports = {
   isConnecting,
@@ -209,5 +236,6 @@ module.exports = {
   isValidSubprotocol,
   isValidStatusCode,
   failWebsocketConnection,
-  websocketMessageReceived
+  websocketMessageReceived,
+  utf8Decode
 }

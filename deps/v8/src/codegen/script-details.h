@@ -35,6 +35,9 @@ struct ScriptDetails {
   const ScriptOriginOptions origin_options;
 };
 
+void SetScriptFieldsFromDetails(Isolate* isolate, Tagged<Script> script,
+                                const ScriptDetails& script_details,
+                                DisallowGarbageCollection* no_gc);
 }  // namespace internal
 }  // namespace v8
 

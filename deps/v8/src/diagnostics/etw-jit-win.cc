@@ -249,7 +249,7 @@ void MaybeSetHandlerNow(Isolate* isolate) {
 // TODO(v8/11911): UnboundScript::GetLineNumber should be replaced
 Tagged<SharedFunctionInfo> GetSharedFunctionInfo(const JitCodeEvent* event) {
   return event->script.IsEmpty() ? Tagged<SharedFunctionInfo>()
-                                 : *Utils::OpenHandle(*event->script);
+                                 : *Utils::OpenDirectHandle(*event->script);
 }
 
 std::wstring GetScriptMethodNameFromEvent(const JitCodeEvent* event) {

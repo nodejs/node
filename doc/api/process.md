@@ -1115,7 +1115,9 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52039
     description: Aligned return value with `uv_get_constrained_memory`.
 -->
@@ -1134,7 +1136,9 @@ information.
 ## `process.availableMemory()`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -1711,20 +1715,18 @@ the script name. These options are useful in order to spawn child processes with
 the same execution environment as the parent.
 
 ```bash
-node --harmony script.js --version
+node --icu-data-dir=./foo --require ./bar.js script.js --version
 ```
 
 Results in `process.execArgv`:
 
-<!-- eslint-disable semi -->
-
-```js
-['--harmony']
+```json
+["--icu-data-dir=./foo", "--require", "./bar.js"]
 ```
 
 And `process.argv`:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 ['/usr/local/bin/node', 'script.js', '--version']
@@ -1744,7 +1746,7 @@ added: v0.1.100
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process. Symbolic links, if any, are resolved.
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 '/usr/local/bin/node'
@@ -3910,30 +3912,31 @@ console.log(versions);
 Will generate an object similar to:
 
 ```console
-{ node: '20.2.0',
-  acorn: '8.8.2',
-  ada: '2.4.0',
-  ares: '1.19.0',
-  base64: '0.5.0',
-  brotli: '1.0.9',
+{ node: '23.0.0',
+  acorn: '8.11.3',
+  ada: '2.7.8',
+  ares: '1.28.1',
+  base64: '0.5.2',
+  brotli: '1.1.0',
   cjs_module_lexer: '1.2.2',
-  cldr: '43.0',
-  icu: '73.1',
-  llhttp: '8.1.0',
-  modules: '115',
-  napi: '8',
-  nghttp2: '1.52.0',
+  cldr: '45.0',
+  icu: '75.1',
+  llhttp: '9.2.1',
+  modules: '127',
+  napi: '9',
+  nghttp2: '1.61.0',
   nghttp3: '0.7.0',
-  ngtcp2: '0.8.1',
-  openssl: '3.0.8+quic',
-  simdutf: '3.2.9',
-  tz: '2023c',
-  undici: '5.22.0',
-  unicode: '15.0',
-  uv: '1.44.2',
-  uvwasi: '0.0.16',
-  v8: '11.3.244.8-node.9',
-  zlib: '1.2.13' }
+  ngtcp2: '1.3.0',
+  openssl: '3.0.13+quic',
+  simdjson: '3.8.0',
+  simdutf: '5.2.4',
+  tz: '2024a',
+  undici: '6.13.0',
+  unicode: '15.1',
+  uv: '1.48.0',
+  uvwasi: '0.0.20',
+  v8: '12.4.254.14-node.11',
+  zlib: '1.3.0.1-motley-7d77fb7' }
 ```
 
 ## Exit codes

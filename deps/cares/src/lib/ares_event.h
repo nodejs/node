@@ -72,11 +72,11 @@ struct ares_event {
 typedef struct {
   const char *name;
   ares_bool_t (*init)(ares_event_thread_t *e);
-  void        (*destroy)(ares_event_thread_t *e);
+  void (*destroy)(ares_event_thread_t *e);
   ares_bool_t (*event_add)(ares_event_t *event);
-  void        (*event_del)(ares_event_t *event);
-  void        (*event_mod)(ares_event_t *event, ares_event_flags_t new_flags);
-  size_t      (*wait)(ares_event_thread_t *e, unsigned long timeout_ms);
+  void (*event_del)(ares_event_t *event);
+  void (*event_mod)(ares_event_t *event, ares_event_flags_t new_flags);
+  size_t (*wait)(ares_event_thread_t *e, unsigned long timeout_ms);
 } ares_event_sys_t;
 
 struct ares_event_thread {

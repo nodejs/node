@@ -401,7 +401,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   }
   Node* Checkpoint(FrameState frame_state);
 
-  TNode<RawPtrT> StackSlot(int size, int alignment);
+  TNode<RawPtrT> StackSlot(int size, int alignment, bool is_tagged = false);
+
+  Node* AdaptLocalArgument(Node* argument);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Store(StoreRepresentation rep, Node* object, int offset, Node* value);

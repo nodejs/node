@@ -177,7 +177,7 @@ void           ares__buf_append_finish(ares__buf_t *buf, size_t len);
  *
  *  \param[in] buf      Initialized buffer object.
  *  \param[in] data     Data to hex dump
- *  \param[in] data_len Length of data to hexdump
+ *  \param[in] len      Length of data to hexdump
  *  \return ARES_SUCCESS on success.
  */
 ares_status_t  ares__buf_hexdump(ares__buf_t *buf, const unsigned char *data,
@@ -373,7 +373,8 @@ size_t        ares__buf_consume_whitespace(ares__buf_t *buf,
 size_t        ares__buf_consume_nonwhitespace(ares__buf_t *buf);
 
 
-/*! Consume until a character in the character set provided is reached
+/*! Consume until a character in the character set provided is reached.  Does
+ *  not include the character from the charset at the end.
  *
  *  \param[in] buf                Initialized buffer object
  *  \param[in] charset            character set
@@ -414,7 +415,9 @@ typedef enum {
   /*! No flags */
   ARES_BUF_SPLIT_NONE = 0,
   /*! The delimiter will be the first character in the buffer, except the
-   *  first buffer since the start doesn't have a delimiter
+   *  first buffer since the start doesn't have a delimiter.  This option is
+   *  incompatible with ARES_BUF_SPLIT_LTRIM since the delimiter is always
+   *  the first character.
    */
   ARES_BUF_SPLIT_DONT_CONSUME_DELIMS = 1 << 0,
   /*! Allow blank sections, by default blank sections are not emitted.  If using
@@ -424,7 +427,13 @@ typedef enum {
   /*! Remove duplicate entries */
   ARES_BUF_SPLIT_NO_DUPLICATES = 1 << 2,
   /*! Perform case-insensitive matching when comparing values */
-  ARES_BUF_SPLIT_CASE_INSENSITIVE = 1 << 3
+  ARES_BUF_SPLIT_CASE_INSENSITIVE = 1 << 3,
+  /*! Trim leading whitespace from buffer */
+  ARES_BUF_SPLIT_LTRIM = 1 << 4,
+  /*! Trim trailing whitespace from buffer */
+  ARES_BUF_SPLIT_RTRIM = 1 << 5,
+  /*! Trim leading and trailing whitespace from buffer */
+  ARES_BUF_SPLIT_TRIM = (ARES_BUF_SPLIT_LTRIM | ARES_BUF_SPLIT_RTRIM)
 } ares__buf_split_t;
 
 /*! Split the provided buffer into multiple sub-buffers stored in the variable
@@ -435,6 +444,12 @@ typedef enum {
  *  \param[in]  delims            Possible delimiters
  *  \param[in]  delims_len        Length of possible delimiters
  *  \param[in]  flags             One more more flags
+ *  \param[in]  max_sections      Maximum number of sections.  Use 0 for
+ *                                unlimited. Useful for splitting key/value
+ *                                pairs where the delimiter may be a valid
+ *                                character in the value.  A value of 1 would
+ *                                have little usefulness and would effectively
+ *                                ignore the delimiter itself.
  *  \param[out] list              Result. Depending on flags, this may be a
  *                                valid list with no elements.  Use
  *                                ares__llist_destroy() to free the memory which
@@ -444,7 +459,7 @@ typedef enum {
  */
 ares_status_t ares__buf_split(ares__buf_t *buf, const unsigned char *delims,
                               size_t delims_len, ares__buf_split_t flags,
-                              ares__llist_t **list);
+                              size_t max_sections, ares__llist_t **list);
 
 
 /*! Check the unprocessed buffer to see if it begins with the sequence of
@@ -536,7 +551,7 @@ size_t               ares__buf_get_position(const ares__buf_t *buf);
  *  \param[in]  remaining_len  maximum length that should be used for parsing
  *                             the string, this is often less than the remaining
  *                             buffer and is based on the RR record length.
- *  \param[out] str            Pointer passed by reference to be filled in with
+ *  \param[out] name           Pointer passed by reference to be filled in with
  *                             allocated string of the parsed that must be
  *                             ares_free()'d by the caller.
  *  \param[in]  allow_multiple ARES_TRUE if it should attempt to parse multiple
@@ -567,6 +582,18 @@ ares_status_t ares__buf_parse_dns_str(ares__buf_t *buf, size_t remaining_len,
 ares_status_t ares__buf_parse_dns_binstr(ares__buf_t *buf, size_t remaining_len,
                                          unsigned char **bin, size_t *bin_len,
                                          ares_bool_t allow_multiple);
+
+/*! Load data from specified file path into provided buffer.  The entire file
+ *  is loaded into memory.
+ *
+ *  \param[in]     filename complete path to file
+ *  \param[in,out] buf      Initialized (non-const) buffer object to load data
+ *                          into
+ *  \return ARES_ENOTFOUND if file not found, ARES_EFILE if issues reading
+ *          file, ARES_ENOMEM if out of memory, ARES_SUCCESS on success.
+ */
+ares_status_t ares__buf_load_file(const char *filename, ares__buf_t *buf);
+
 /*! @} */
 
 #endif /* __ARES__BUF_H */

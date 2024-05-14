@@ -1422,6 +1422,10 @@ ExternalReference ExternalReference::fast_c_call_caller_fp_address(
       isolate->isolate_data()->fast_c_call_caller_fp_address());
 }
 
+ExternalReference ExternalReference::context_address(Isolate* isolate) {
+  return ExternalReference(isolate->context_address());
+}
+
 ExternalReference ExternalReference::fast_c_call_caller_pc_address(
     Isolate* isolate) {
   return ExternalReference(

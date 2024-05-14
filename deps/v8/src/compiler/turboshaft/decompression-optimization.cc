@@ -4,10 +4,10 @@
 
 #include "src/compiler/turboshaft/decompression-optimization.h"
 
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -135,7 +135,8 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     }
     case Opcode::kTaggedBitcast: {
       auto& bitcast = op.Cast<TaggedBitcastOp>();
-      if (NeedsDecompression(op)) {
+      if (bitcast.kind != TaggedBitcastOp::Kind::kSmi &&
+          NeedsDecompression(op)) {
         MarkAsNeedsDecompression(bitcast.input());
       } else {
         candidates.push_back(graph.Index(op));
@@ -240,7 +241,8 @@ void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
       case Opcode::kTaggedBitcast: {
         auto& bitcast = op.Cast<TaggedBitcastOp>();
         if (bitcast.from == RegisterRepresentation::Tagged() &&
-            bitcast.to == RegisterRepresentation::PointerSized()) {
+            (bitcast.to == RegisterRepresentation::WordPtr() ||
+             bitcast.kind == TaggedBitcastOp::Kind::kSmi)) {
           bitcast.from = RegisterRepresentation::Compressed();
           bitcast.to = RegisterRepresentation::Word32();
         }

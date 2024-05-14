@@ -121,7 +121,7 @@ TEST_F(FeedbackVectorTest, VectorICMetadata) {
 
   // Meanwhile set some feedback values and type feedback values to
   // verify the data structure remains intact.
-  vector->SynchronizedSet(FeedbackSlot(0), MaybeObject::FromObject(*vector));
+  vector->SynchronizedSet(FeedbackSlot(0), *vector);
 
   // Verify the metadata is correctly set up from the spec.
   for (int i = 0; i < 40; i++) {
@@ -354,7 +354,7 @@ TEST_F(FeedbackVectorTest, VectorConstructCounts) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 
-  CHECK(feedback_vector->Get(slot)->IsWeak());
+  CHECK(feedback_vector->Get(slot).IsWeak());
 
   TryRunJS("f(Foo); f(Foo);");
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());

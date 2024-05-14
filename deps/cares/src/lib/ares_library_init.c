@@ -72,7 +72,7 @@ static void default_free(void *p)
 #endif
 void *(*ares_malloc)(size_t size)             = default_malloc;
 void *(*ares_realloc)(void *ptr, size_t size) = default_realloc;
-void  (*ares_free)(void *ptr)                 = default_free;
+void (*ares_free)(void *ptr)                  = default_free;
 
 void *ares_malloc_zero(size_t size)
 {
@@ -114,7 +114,7 @@ int ares_library_init(int flags)
 }
 
 int ares_library_init_mem(int flags, void *(*amalloc)(size_t size),
-                          void  (*afree)(void *ptr),
+                          void (*afree)(void *ptr),
                           void *(*arealloc)(void *ptr, size_t size))
 {
   if (amalloc) {

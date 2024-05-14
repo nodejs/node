@@ -847,7 +847,7 @@ JSNumberFormat::SetDigitOptionsToFormatter(
       break;
     case Intl::RoundingType::kMorePrecision:
       relaxed = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case Intl::RoundingType::kLessPrecision:
       precision =
           icu::number::Precision::minMaxFraction(

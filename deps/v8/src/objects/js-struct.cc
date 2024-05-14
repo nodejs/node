@@ -229,7 +229,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
           PropertyKind::kData, SEALED, PropertyLocation::kField,
           PropertyConstness::kMutable, Representation::Tagged(), num_fields);
       descriptors->Set(InternalIndex(special_slots + num_fields), *field_name,
-                       MaybeObject::FromObject(FieldType::Any()), details);
+                       FieldType::Any(), details);
       num_fields++;
     }
 

@@ -313,10 +313,7 @@ def v8_library(
 # split the set of outputs by using OutputGroupInfo, that way we do not need to
 # run the torque generator twice.
 def _torque_files_impl(ctx):
-    if ctx.workspace_name == "v8":
-        v8root = "."
-    else:
-        v8root = "external/v8"
+    v8root = "."
 
     # Arguments
     args = []
@@ -414,7 +411,7 @@ def _v8_target_cpu_transition_impl(settings,
     # Check for an existing v8_target_cpu flag.
     if "@v8//bazel/config:v8_target_cpu" in settings:
         if settings["@v8//bazel/config:v8_target_cpu"] != "none":
-            return
+            return {}
 
     # Auto-detect target architecture based on the --cpu flag.
     mapping = {
@@ -480,9 +477,6 @@ _v8_mksnapshot = rule(
             cfg = "exec",
         ),
         "target_os": attr.string(mandatory = True),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
-        ),
         "prefix": attr.string(mandatory = True),
         "suffix": attr.string(mandatory = True),
     },

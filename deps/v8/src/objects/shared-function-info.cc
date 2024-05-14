@@ -148,7 +148,7 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(
 
 Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
-    MaybeObject raw = shared_function_infos_->get(index_++);
+    Tagged<MaybeObject> raw = shared_function_infos_->get(index_++);
     Tagged<HeapObject> heap_object;
     if (!raw.GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
       continue;
@@ -186,13 +186,13 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
     Tagged<WeakFixedArray> list = script->shared_function_infos();
 #ifdef DEBUG
     DCHECK_LT(function_literal_id, list->length());
-    MaybeObject maybe_object = list->get(function_literal_id);
+    Tagged<MaybeObject> maybe_object = list->get(function_literal_id);
     Tagged<HeapObject> heap_object;
     if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
       DCHECK_EQ(heap_object, *this);
     }
 #endif
-    list->set(function_literal_id, HeapObjectReference::Weak(*this));
+    list->set(function_literal_id, MakeWeak(Tagged(*this)));
   } else {
     DCHECK(IsScript(script()));
 
@@ -203,13 +203,12 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
     // about the SharedFunctionInfo, so we have to guard against that.
     Tagged<WeakFixedArray> infos = old_script->shared_function_infos();
     if (function_literal_id < infos->length()) {
-      MaybeObject raw =
+      Tagged<MaybeObject> raw =
           old_script->shared_function_infos()->get(function_literal_id);
       Tagged<HeapObject> heap_object;
       if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
-        old_script->shared_function_infos()->set(
-            function_literal_id,
-            HeapObjectReference::Strong(roots.undefined_value()));
+        old_script->shared_function_infos()->set(function_literal_id,
+                                                 roots.undefined_value());
       }
     }
   }
@@ -245,19 +244,23 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_flags(other->flags(kRelaxedLoad), kRelaxedStore);
   set_function_literal_id(other->function_literal_id());
   set_unique_id(other->unique_id());
+  set_age(0);
 
 #if DEBUG
-  // Copy age just for the following memcmp-check.
-  set_age(other->age());
-
-  // This should now be byte-for-byte identical to the input.
+  // This should now be byte-for-byte identical to the input except for the age
+  // field (could be reset concurrently). Compare content before age field now:
   DCHECK_EQ(memcmp(reinterpret_cast<void*>(address()),
                    reinterpret_cast<void*>(other.address()),
-                   SharedFunctionInfo::kSize),
+                   SharedFunctionInfo::kAgeOffset),
+            0);
+  // Compare content after age field.
+  constexpr Address kPastAgeOffset =
+      SharedFunctionInfo::kAgeOffset + SharedFunctionInfo::kAgeSize;
+  DCHECK_EQ(memcmp(reinterpret_cast<void*>(address() + kPastAgeOffset),
+                   reinterpret_cast<void*>(other.address() + kPastAgeOffset),
+                   SharedFunctionInfo::kSize - kPastAgeOffset),
             0);
 #endif
-
-  set_age(0);
 }
 
 bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {

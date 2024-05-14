@@ -225,7 +225,7 @@ const safe = val => {
   return val.split(';').join('\\;').split('#').join('\\#')
 }
 
-const unsafe = (val, doUnesc) => {
+const unsafe = val => {
   val = (val || '').trim()
   if (isQuoted(val)) {
     // remove the single quotes before calling JSON.parse

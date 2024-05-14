@@ -299,7 +299,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
   EXPECT_TRUE(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
-  MaybeObject object = feedback_vector->Get(slot_for_a);
+  Tagged<MaybeObject> object = feedback_vector->Get(slot_for_a);
   {
     Tagged<HeapObject> heap_object;
     EXPECT_TRUE(object.GetHeapObjectIfWeak(&heap_object));

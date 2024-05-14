@@ -4,9 +4,6 @@ env:
 rules:
   prefer-object-spread: error
   no-buffer-constructor: error
-  no-mixed-operators:
-    - error
-    - groups: [['&&', '||']]
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
@@ -70,7 +67,7 @@ rules:
     - name: MessageChannel
       message: Use `const { MessageChannel } = require('internal/worker/io');` instead of the global.
     - name: MessageEvent
-      message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
+      message: Use `const { MessageEvent } = require('internal/deps/undici/undici');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
     - name: Navigator
@@ -157,6 +154,8 @@ rules:
       message: Use `const { Crypto } = require('internal/crypto/webcrypto');` instead of the global.
     - name: CryptoKey
       message: Use `const { CryptoKey } = require('internal/crypto/webcrypto');` instead of the global.
+    - name: EventSource
+      message: Use `const { EventSource } = require('internal/deps/undici/undici');` instead of the global.
     - name: fetch
       message: Use `const { fetch } = require('internal/deps/undici/undici');` instead of the global.
     - name: global
@@ -181,7 +180,15 @@ rules:
     - error
     - name: url
       message: Require `internal/url` instead of `url`.
+
+  # Stylistic rules
+  '@stylistic/js/no-mixed-operators':
+    - error
+    - groups: [['&&', '||']]
+
   # Custom rules in tools/eslint-rules
+  node-core/alphabetize-errors: error
+  node-core/alphabetize-primordials: error
   node-core/avoid-prototype-pollution: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
@@ -263,3 +270,7 @@ globals:
   module: false
   internalBinding: false
   primordials: false
+overrides:
+  - files: [internal/per_context/primordials.js]
+    rules:
+      node-core/alphabetize-primordials: [error, {enforceTopPosition: false}]

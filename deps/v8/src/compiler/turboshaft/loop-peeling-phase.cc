@@ -20,10 +20,8 @@ void LoopPeelingPhase::Run(Zone* temp_zone) {
   // if no loops are present) should evaluate how to run the
   // MachineOptimizationReducer then.
   turboshaft::CopyingPhase<turboshaft::LoopPeelingReducer,
-                           turboshaft::VariableReducer,
                            turboshaft::MachineOptimizationReducer,
-                           turboshaft::RequiredOptimizationReducer,
-                           turboshaft::ValueNumberingReducer>::Run<true>(temp_zone);
+                           turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -84,8 +84,10 @@ struct NewCodeOptions {
   int constant_pool_offset;
   int code_comments_offset;
   int32_t unwinding_info_offset;
-  Handle<HeapObject> bytecode_or_deoptimization_data;
-  Handle<ByteArray> bytecode_offsets_or_source_position_table;
+  MaybeHandle<TrustedObject> bytecode_or_interpreter_data;
+  MaybeHandle<DeoptimizationData> deoptimization_data;
+  MaybeHandle<TrustedByteArray> bytecode_offset_table;
+  MaybeHandle<TrustedByteArray> source_position_table;
   // Either instruction_stream is set and instruction_start is kNullAddress, or
   // instruction_stream is empty and instruction_start a valid target.
   MaybeHandle<InstructionStream> instruction_stream;
@@ -104,6 +106,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+  MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
   // Numbers (e.g. literals) are pretenured by the parser.
@@ -140,6 +143,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocates a trusted fixed array in trusted space, initialized with zeros.
   Handle<TrustedFixedArray> NewTrustedFixedArray(int length);
+
+  // Allocates a protected fixed array in trusted space, initialized with zeros.
+  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length);
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
@@ -189,13 +195,14 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<BytecodeArray> NewBytecodeArray(
       int length, const uint8_t* raw_bytecodes, int frame_size,
-      int parameter_count, DirectHandle<FixedArray> constant_pool,
+      int parameter_count, DirectHandle<TrustedFixedArray> constant_pool,
       DirectHandle<TrustedByteArray> handler_table);
 
   Handle<BytecodeWrapper> NewBytecodeWrapper();
 
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTrustedInstanceData> NewWasmTrustedInstanceData();
+  Handle<WasmDispatchTable> NewWasmDispatchTable(int length);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and

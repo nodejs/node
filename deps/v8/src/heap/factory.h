@@ -35,7 +35,6 @@ class BreakPoint;
 class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
-class CallHandlerInfo;
 class CallSiteInfo;
 class Expression;
 class EmbedderDataArray;
@@ -44,8 +43,10 @@ class CoverageInfo;
 class DebugInfo;
 class DeoptimizationData;
 class DeoptimizationLiteralArray;
+class DictionaryTemplateInfo;
 class EnumCache;
 class FreshlyAllocatedBigInt;
+class FunctionTemplateInfo;
 class Isolate;
 class JSArrayBufferView;
 class JSDataView;
@@ -450,6 +451,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Name> name, PropertyDetails details,
       DirectHandle<Object> value,
       AllocationType allocation = AllocationType::kOld);
+  Handle<ConstTrackingLetCell> NewConstTrackingLetCell(
+      AllocationType allocation = AllocationType::kOld);
   Handle<PropertyCell> NewProtector();
 
   Handle<FeedbackCell> NewNoClosuresCell(DirectHandle<HeapObject> value);
@@ -685,10 +688,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(
-      Address type_address, Handle<Map> opt_parent, int instance_size_bytes,
+      Address type_address, Handle<Map> opt_parent,
       DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(
-      Address opt_call_target, DirectHandle<HeapObject> ref,
+      Address opt_call_target, DirectHandle<ExposedTrustedObject> ref,
       DirectHandle<Map> rtt, int function_index);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
@@ -706,6 +709,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       DirectHandle<WasmApiFunctionRef> ref);
+
+  Handle<WasmFastApiCallData> NewWasmFastApiCallData(
+      DirectHandle<HeapObject> signature);
+
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
@@ -718,11 +725,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args,
                                    DirectHandle<Map> map);
-  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type, uint32_t length,
+  Handle<WasmArray> NewWasmArray(wasm::ValueType element_type, uint32_t length,
                                  wasm::WasmValue initial_value,
                                  DirectHandle<Map> map);
   Handle<WasmArray> NewWasmArrayFromElements(
-      const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+      const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
       DirectHandle<Map> map);
   Handle<WasmArray> NewWasmArrayFromMemory(uint32_t length,
                                            DirectHandle<Map> map,
@@ -970,8 +977,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSPromise> NewJSPromiseWithoutHook();
   Handle<JSPromise> NewJSPromise();
 
-  Handle<CallHandlerInfo> NewCallHandlerInfo(bool has_no_side_effect = false);
-
   Tagged<HeapObject> NewForTest(DirectHandle<Map> map,
                                 AllocationType allocation) {
     return New(map, allocation);
@@ -987,6 +992,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSAtomicsMutex> NewJSAtomicsMutex();
 
   Handle<JSAtomicsCondition> NewJSAtomicsCondition();
+
+  Handle<FunctionTemplateInfo> NewFunctionTemplateInfo(int length,
+                                                       bool do_not_cache);
+
+  Handle<ObjectTemplateInfo> NewObjectTemplateInfo(
+      DirectHandle<FunctionTemplateInfo> constructor, bool do_not_cache);
+
+  Handle<DictionaryTemplateInfo> NewDictionaryTemplateInfo(
+      Handle<FixedArray> property_names);
 
   // Helper class for creating JSFunction objects.
   class V8_EXPORT_PRIVATE JSFunctionBuilder final {
@@ -1071,17 +1085,19 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
+    CodeBuilder& set_source_position_table(Handle<TrustedByteArray> table) {
       DCHECK_NE(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
-      position_table_ = table;
+      source_position_table_ = table;
       return *this;
     }
 
-    CodeBuilder& set_bytecode_offset_table(Handle<ByteArray> table) {
+    inline CodeBuilder& set_empty_source_position_table();
+
+    CodeBuilder& set_bytecode_offset_table(Handle<TrustedByteArray> table) {
       DCHECK_EQ(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
-      position_table_ = table;
+      bytecode_offset_table_ = table;
       return *this;
     }
 
@@ -1094,7 +1110,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     }
 
     inline CodeBuilder& set_interpreter_data(
-        Handle<HeapObject> interpreter_data);
+        Handle<TrustedObject> interpreter_data);
 
     CodeBuilder& set_is_turbofanned() {
       DCHECK(!CodeKindIsUnoptimizedJSFunction(kind_));
@@ -1131,11 +1147,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     Builtin builtin_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
     BytecodeOffset osr_offset_ = BytecodeOffset::None();
-    // Either source_position_table for non-baseline code or
-    // bytecode_offset_table for baseline code.
-    Handle<ByteArray> position_table_;
-    Handle<DeoptimizationData> deoptimization_data_;
-    Handle<HeapObject> interpreter_data_;
+    MaybeHandle<TrustedByteArray> bytecode_offset_table_;
+    MaybeHandle<TrustedByteArray> source_position_table_;
+    MaybeHandle<DeoptimizationData> deoptimization_data_;
+    MaybeHandle<TrustedObject> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;

@@ -419,7 +419,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   ]);
 
   let global = builder.addGlobal(
-      wasmRefNullType(struct_2), true, [kExprRefNull, struct_2]);
+      wasmRefNullType(struct_2), true, false, [kExprRefNull, struct_2]);
 
   // The three alocations should be folded.
   builder.addFunction("main", kSig_i_i)
@@ -477,7 +477,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprBlock, kWasmRefNull, super_struct,
           kExprLocalGet, 0,
           // This should also get optimized away.
-          kGCPrefix, kExprBrOnCastFailGeneric, 0b11, 0, super_struct,
+          kGCPrefix, kExprBrOnCastFail, 0b11, 0, super_struct,
               mid_struct,
           // So should this, despite being represented by a TypeGuard alias.
           kGCPrefix, kExprRefCast, sub_struct,

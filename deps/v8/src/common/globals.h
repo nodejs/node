@@ -439,8 +439,8 @@ constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
 // These constants define the total trusted space memory per process.
-constexpr size_t kMaximalTrustedRangeSize = 256 * MB;
-constexpr size_t kMinimumTrustedRangeSize = 3 * MB;
+constexpr size_t kMaximalTrustedRangeSize = 1 * GB;
+constexpr size_t kMinimumTrustedRangeSize = 32 * MB;
 
 #else  // V8_HOST_ARCH_64_BIT
 
@@ -862,8 +862,8 @@ const Address kWeakHeapObjectMask = 1 << 1;
 // for cleared weak reference.
 // Note, that real heap objects can't have lower 32 bits equal to 3 because
 // this offset belongs to page header. So, in either case it's enough to
-// compare only the lower 32 bits of a MaybeObject value in order to figure
-// out if it's a cleared reference or not.
+// compare only the lower 32 bits of a Tagged<MaybeObject> value in order to
+// figure out if it's a cleared reference or not.
 const uint32_t kClearedWeakHeapObjectLower32 = 3;
 
 // Zap-value: The value used for zapping dead objects.
@@ -890,9 +890,6 @@ constexpr uint32_t kFreeListZapValue = 0xfeed1eaf;
 
 constexpr int kCodeZapValue = 0xbadc0de;
 constexpr uint32_t kPhantomReferenceZap = 0xca11bac;
-
-// Page constants.
-static const intptr_t kPageAlignmentMask = (intptr_t{1} << kPageSizeBits) - 1;
 
 // On Intel architecture, cache line size is 64 bytes.
 // On ARM it may be less (32 bytes), but as far this constant is
@@ -953,7 +950,6 @@ using DirectHandle = Handle<T>;
 #endif
 class Heap;
 class HeapObject;
-class HeapObjectReference;
 class IC;
 template <typename T>
 using IndirectHandle = Handle<T>;
@@ -979,7 +975,6 @@ using MaybeDirectHandle = MaybeHandle<T>;
 #endif
 template <typename T>
 using MaybeIndirectHandle = MaybeHandle<T>;
-class MaybeObject;
 #ifdef V8_ENABLE_DIRECT_HANDLE
 class MaybeObjectDirectHandle;
 #endif
@@ -988,7 +983,9 @@ class MaybeObjectHandle;
 using MaybeObjectDirectHandle = MaybeObjectHandle;
 #endif
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
-class MemoryChunk;
+template <typename T>
+class MaybeWeak;
+class MutablePageMetadata;
 class MessageLocation;
 class ModuleScope;
 class Name;
@@ -1049,6 +1046,9 @@ namespace compiler {
 class AccessBuilder;
 }
 
+using MaybeObject = MaybeWeak<Object>;
+using HeapObjectReference = MaybeWeak<HeapObject>;
+
 // Slots are either full-pointer slots or compressed slots depending on whether
 // pointer compression is enabled or not.
 struct SlotTraits {
@@ -1084,12 +1084,13 @@ struct SlotTraits {
 using ObjectSlot = SlotTraits::TObjectSlot;
 
 // A MaybeObjectSlot instance describes a kTaggedSize-sized on-heap field
-// ("slot") holding MaybeObject (smi or weak heap object or strong heap object).
+// ("slot") holding Tagged<MaybeObject> (smi or weak heap object or strong heap
+// object).
 using MaybeObjectSlot = SlotTraits::TMaybeObjectSlot;
 
 // A HeapObjectSlot instance describes a kTaggedSize-sized field ("slot")
 // holding a weak or strong pointer to a heap object (think:
-// HeapObjectReference).
+// Tagged<HeapObjectReference>).
 using HeapObjectSlot = SlotTraits::THeapObjectSlot;
 
 // An OffHeapObjectSlot instance describes a kTaggedSize-sized field ("slot")
@@ -1739,7 +1740,10 @@ enum class VariableMode : uint8_t {
   // User declared variables:
   kLet,  // declared via 'let' declarations (first lexical)
 
-  kConst,  // declared via 'const' declarations (last lexical)
+  kConst,  // declared via 'const' declarations
+
+  kUsing,  // declared via 'using' declaration for explicit memory management
+           // (last lexical)
 
   kVar,  // declared via 'var', and 'function' declarations
 
@@ -1778,7 +1782,7 @@ enum class VariableMode : uint8_t {
   kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
                             // same name in the same scope.
 
-  kLastLexicalVariableMode = kConst,
+  kLastLexicalVariableMode = kUsing,
 };
 
 // Printing support
@@ -1807,6 +1811,8 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "DYNAMIC_LOCAL";
     case VariableMode::kTemporary:
       return "TEMPORARY";
+    case VariableMode::kUsing:
+      return "USING";
   }
   UNREACHABLE();
 }
@@ -1986,6 +1992,8 @@ class BinaryOperationFeedback {
     kString = 0x10,
     kBigInt64 = 0x20,
     kBigInt = 0x60,
+    kStringWrapper = 0x80,
+    kStringOrStringWrapper = 0x90,
     kAny = 0x7F
   };
 };
@@ -2137,6 +2145,7 @@ enum ExternalArrayType {
   kExternalUint16Array,
   kExternalInt32Array,
   kExternalUint32Array,
+  kExternalFloat16Array,
   kExternalFloat32Array,
   kExternalFloat64Array,
   kExternalUint8ClampedArray,
@@ -2337,16 +2346,35 @@ enum IsolateAddressId {
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode {
-  kInBounds,
-  kHandleOOB,
+  kInBounds = 0b00,
+  kHandleOOB = 0b01,
+  kHandleHoles = 0b10,
+  kHandleOOBAndHoles = 0b11,
 };
 
-inline bool LoadModeIsInBounds(KeyedAccessLoadMode load_mode) {
-  return load_mode == KeyedAccessLoadMode::kInBounds;
+inline KeyedAccessLoadMode CreateKeyedAccessLoadMode(bool handle_oob,
+                                                     bool handle_holes) {
+  return static_cast<KeyedAccessLoadMode>(
+      static_cast<int>(handle_oob) | (static_cast<int>(handle_holes) << 1));
+}
+
+inline KeyedAccessLoadMode GeneralizeKeyedAccessLoadMode(
+    KeyedAccessLoadMode mode1, KeyedAccessLoadMode mode2) {
+  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  return static_cast<KeyedAccessLoadMode>(static_cast<T>(mode1) |
+                                          static_cast<T>(mode2));
 }
 
 inline bool LoadModeHandlesOOB(KeyedAccessLoadMode load_mode) {
-  return load_mode == KeyedAccessLoadMode::kHandleOOB;
+  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  return (static_cast<T>(load_mode) &
+          static_cast<T>(KeyedAccessLoadMode::kHandleOOB)) != 0;
+}
+
+inline bool LoadModeHandlesHoles(KeyedAccessLoadMode load_mode) {
+  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  return (static_cast<T>(load_mode) &
+          static_cast<T>(KeyedAccessLoadMode::kHandleHoles)) != 0;
 }
 
 enum class KeyedAccessStoreMode {

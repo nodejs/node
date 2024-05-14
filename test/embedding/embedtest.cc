@@ -30,7 +30,7 @@ static int RunNodeInstance(MultiIsolatePlatform* platform,
 int main(int argc, char** argv) {
   argv = uv_setup_args(argc, argv);
   std::vector<std::string> args(argv, argv + argc);
-  std::unique_ptr<node::InitializationResult> result =
+  std::shared_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
           args,
           {node::ProcessInitializationFlags::kNoInitializeV8,

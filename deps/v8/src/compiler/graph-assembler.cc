@@ -1030,9 +1030,25 @@ Node* GraphAssembler::UnreachableWithoutConnectToEnd() {
       graph()->NewNode(common()->Unreachable(), effect(), control()));
 }
 
-TNode<RawPtrT> GraphAssembler::StackSlot(int size, int alignment) {
+TNode<RawPtrT> GraphAssembler::StackSlot(int size, int alignment,
+                                         bool is_tagged) {
   return AddNode<RawPtrT>(
-      graph()->NewNode(machine()->StackSlot(size, alignment)));
+      graph()->NewNode(machine()->StackSlot(size, alignment, is_tagged)));
+}
+
+Node* GraphAssembler::AdaptLocalArgument(Node* argument) {
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  // With direct locals, the argument can be passed directly.
+  return BitcastTaggedToWord(argument);
+#else
+  // With indirect locals, the argument has to be stored on the stack and the
+  // slot address is passed.
+  Node* stack_slot = StackSlot(sizeof(uintptr_t), alignof(uintptr_t), true);
+  Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                            kNoWriteBarrier),
+        stack_slot, 0, BitcastTaggedToWord(argument));
+  return stack_slot;
+#endif
 }
 
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,

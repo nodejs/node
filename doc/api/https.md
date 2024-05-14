@@ -327,10 +327,13 @@ changes:
   - version:
       - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
-    description: The agent now uses HTTP Keep-Alive by default.
+    description: The agent now uses HTTP Keep-Alive and a 5 second timeout by
+                 default.
 -->
 
-Global instance of [`https.Agent`][] for all HTTPS client requests.
+Global instance of [`https.Agent`][] for all HTTPS client requests. Diverges
+from a default [`https.Agent`][] configuration by having `keepAlive` enabled and
+a `timeout` of 5 seconds.
 
 ## `https.request(options[, callback])`
 

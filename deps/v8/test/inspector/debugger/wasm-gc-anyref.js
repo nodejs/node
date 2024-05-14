@@ -81,7 +81,7 @@ async function instantiateWasm() {
 
   let func = builder.addFunction('my_func', kSig_v_v).addBody([kExprNop]);
   // Make the function "declared".
-  builder.addGlobal(kWasmFuncRef, false, [kExprRefFunc, func.index]);
+  builder.addGlobal(kWasmFuncRef, false, false, [kExprRefFunc, func.index]);
 
   builder.addFunction('fill_tables', kSig_v_v)
     .addBody([

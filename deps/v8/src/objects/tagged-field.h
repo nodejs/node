@@ -86,31 +86,49 @@ static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
 //      BigIntBase),
 //   c) The similar zero-length array extension _also_ doesn't allow subclasses
 //      on some compilers (specifically, MSVC).
-#define FLEXIBLE_ARRAY_MEMBER(Type, name)                                   \
-  /* Some typedefs so that error messages are a bit more transparent */     \
-  using Only_one_FLEXIBLE_ARRAY_MEMBER_allowed_per_class = void;            \
-  using OFFSET_OF_DATA_START_needs_class_with_FLEXIBLE_ARRAY_MEMBER = void; \
-                                                                            \
-  Type* name() {                                                            \
-    static_assert(sizeof(decltype(*this)) % alignof(Type) == 0);            \
-    return reinterpret_cast<Type*>(this + 1);                               \
-  }                                                                         \
-  const Type* name() const {                                                \
-    static_assert(sizeof(decltype(*this)) % alignof(Type) == 0);            \
-    return reinterpret_cast<const Type*>(this + 1);                         \
-  }                                                                         \
+//
+// On compilers that do support zero length arrays (i.e. not MSVC), we use one
+// of these instead of `this` pointer fiddling. This gives LLVM better
+// information for optimization, and gives us the warnings we'd want to have
+// (e.g. only allowing one FAM in a class, ensuring that OFFSET_OF_DATA_START is
+// only used on classes with a FAM) on clang -- the MSVC version then doesn't
+// check the same constraints, and relies on the code being equivalent enough.
+#if V8_CC_MSVC && !defined(__clang__)
+// MSVC doesn't support zero length arrays in base classes. Cast the
+// one-past-this value to a zero length array reference, so that the return
+// values match that in GCC/clang.
+#define FLEXIBLE_ARRAY_MEMBER(Type, name)                     \
+  using FlexibleDataReturnType = Type[0];                     \
+  FlexibleDataReturnType& name() {                            \
+    using ReturnType = Type[0];                               \
+    return reinterpret_cast<ReturnType&>(*(this + 1));        \
+  }                                                           \
+  const FlexibleDataReturnType& name() const {                \
+    using ReturnType = Type[0];                               \
+    return reinterpret_cast<const ReturnType&>(*(this + 1));  \
+  }                                                           \
   using FlexibleDataType = Type
+#else
+// GCC and clang allow zero length arrays in base classes. Return the zero
+// length array by reference, to avoid array-to-pointer decay which can lose
+// aliasing information.
+#define FLEXIBLE_ARRAY_MEMBER(Type, name)                                \
+  using FlexibleDataReturnType = Type[0];                                \
+  FlexibleDataReturnType& name() { return flexible_array_member_data_; } \
+  const FlexibleDataReturnType& name() const {                           \
+    return flexible_array_member_data_;                                  \
+  }                                                                      \
+  Type flexible_array_member_data_[0];                                   \
+  using FlexibleDataType = Type
+#endif
 
 // OFFSET_OF_DATA_START(T) returns the offset of the FLEXIBLE_ARRAY_MEMBER of
 // the class T.
-//
-// It forces an access of a dummy typedef in the class to make sure that it is
-// only used on classes with a FLEXIBLE_ARRAY_MEMBER.
-#define OFFSET_OF_DATA_START(Type)                                          \
-  (static_cast<                                                             \
-       typename Type::                                                      \
-           OFFSET_OF_DATA_START_needs_class_with_FLEXIBLE_ARRAY_MEMBER>(0), \
-   sizeof(Type))
+#if V8_CC_MSVC && !defined(__clang__)
+#define OFFSET_OF_DATA_START(Type) sizeof(Type)
+#else
+#define OFFSET_OF_DATA_START(Type) offsetof(Type, flexible_array_member_data_)
+#endif
 
 // This helper static class represents a tagged field of type T at offset
 // kFieldOffset inside some host HeapObject.
@@ -121,8 +139,7 @@ template <typename T, int kFieldOffset = 0,
           typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedField : public AllStatic {
  public:
-  static_assert(is_taggable_v<T> || std::is_same<MapWord, T>::value ||
-                    std::is_same<MaybeObject, T>::value,
+  static_assert(is_taggable_v<T> || std::is_same<MapWord, T>::value,
                 "T must be strong or weak tagged type or MapWord");
 
   // True for Smi fields.
@@ -132,11 +149,13 @@ class TaggedField : public AllStatic {
   // if it contains forwarding pointer but still requires tagged pointer
   // decompression.
   static constexpr bool kIsHeapObject =
-      is_subtype<T, HeapObject>::value || std::is_same<MapWord, T>::value;
+      is_subtype<T, HeapObject>::value || std::is_same_v<MapWord, T>;
 
-  // Object subclasses should be wrapped in Tagged<>, otherwise use T directly.
+  // Types should be wrapped in Tagged<>, except for MapWord which is used
+  // directly.
   // TODO(leszeks): Clean this up to be more uniform.
-  using PtrType = std::conditional_t<is_taggable_v<T>, Tagged<T>, T>;
+  using PtrType =
+      std::conditional_t<std::is_same_v<MapWord, T>, MapWord, Tagged<T>>;
 
   static inline Address address(Tagged<HeapObject> host, int offset = 0);
 
@@ -204,6 +223,13 @@ class TaggedField : public AllStatic {
 
   static inline Tagged_t full_to_tagged(Address value);
 };
+
+template <typename T>
+class TaggedField<Tagged<T>> : public TaggedField<T> {};
+
+template <typename T, int kFieldOffset>
+class TaggedField<Tagged<T>, kFieldOffset>
+    : public TaggedField<T, kFieldOffset> {};
 
 template <typename T, int kFieldOffset, typename CompressionScheme>
 class TaggedField<Tagged<T>, kFieldOffset, CompressionScheme>

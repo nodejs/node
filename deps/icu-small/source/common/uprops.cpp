@@ -668,6 +668,11 @@ static int32_t layoutGetMaxValue(const IntProperty &/*prop*/, UProperty which) {
     }
 }
 
+static int32_t getIDStatusValue(const IntProperty & /*prop*/, UChar32 c, UProperty /*which*/) {
+    uint32_t value = u_getUnicodeProperties(c, 2) >> UPROPS_2_ID_TYPE_SHIFT;
+    return value >= UPROPS_ID_TYPE_ALLOWED_MIN ? U_ID_STATUS_ALLOWED : U_ID_STATUS_RESTRICTED;
+}
+
 static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     /*
      * column, mask and shift values for int-value properties from u_getUnicodeProperties().
@@ -706,6 +711,7 @@ static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     { UPROPS_SRC_INPC,  0, 0,                               getInPC, layoutGetMaxValue },
     { UPROPS_SRC_INSC,  0, 0,                               getInSC, layoutGetMaxValue },
     { UPROPS_SRC_VO,    0, 0,                               getVo, layoutGetMaxValue },
+    { UPROPS_SRC_PROPSVEC, 0, (int32_t)U_ID_STATUS_ALLOWED, getIDStatusValue, getMaxValueFromShift },
 };
 
 U_CAPI int32_t U_EXPORT2
@@ -800,6 +806,7 @@ uprops_getSource(UProperty which) {
     } else {
         switch(which) {
         case UCHAR_SCRIPT_EXTENSIONS:
+        case UCHAR_IDENTIFIER_TYPE:
             return UPROPS_SRC_PROPSVEC;
         default:
             return UPROPS_SRC_NONE; /* undefined */
@@ -850,6 +857,86 @@ uprops_addPropertyStarts(UPropertySource src, const USetAdder *sa, UErrorCode *p
                                    nullptr, nullptr, nullptr)) >= 0) {
         sa->add(sa->set, start);
         start = end + 1;
+    }
+}
+
+U_CAPI bool U_EXPORT2
+u_hasIDType(UChar32 c, UIdentifierType type) {
+    uint32_t typeIndex = type;  // also guards against negative type integers
+    if (typeIndex >= UPRV_LENGTHOF(uprops_idTypeToEncoded)) {
+        return false;
+    }
+    uint32_t encodedType = uprops_idTypeToEncoded[typeIndex];
+    uint32_t value = u_getUnicodeProperties(c, 2) >> UPROPS_2_ID_TYPE_SHIFT;
+    if ((encodedType & UPROPS_ID_TYPE_BIT) != 0) {
+        return value < UPROPS_ID_TYPE_FORBIDDEN && (value & encodedType) != 0;
+    } else {
+        return value == encodedType;
+    }
+}
+
+namespace {
+
+void maybeAppendType(uint32_t value, uint32_t bit, UIdentifierType t,
+                     UIdentifierType *types, int32_t &length, int32_t capacity) {
+    if ((value & bit) != 0) {
+        if (length < capacity) {
+            types[length] = t;
+        }
+        ++length;
+    }
+}
+
+}  // namespace
+
+U_CAPI int32_t U_EXPORT2
+u_getIDTypes(UChar32 c, UIdentifierType *types, int32_t capacity, UErrorCode *pErrorCode) {
+    if (U_FAILURE(*pErrorCode)) { return 0; }
+    if (capacity < 0 || (capacity > 0 && types == nullptr)) {
+        *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    uint32_t value = u_getUnicodeProperties(c, 2) >> UPROPS_2_ID_TYPE_SHIFT;
+    if ((value & UPROPS_ID_TYPE_FORBIDDEN) == UPROPS_ID_TYPE_FORBIDDEN ||
+            value == UPROPS_ID_TYPE_NOT_CHARACTER) {
+        // single value
+        if (capacity > 0) {
+            UIdentifierType t;
+            switch (value) {
+                case UPROPS_ID_TYPE_NOT_CHARACTER: t = U_ID_TYPE_NOT_CHARACTER; break;
+                case UPROPS_ID_TYPE_DEPRECATED: t = U_ID_TYPE_DEPRECATED; break;
+                case UPROPS_ID_TYPE_DEFAULT_IGNORABLE: t = U_ID_TYPE_DEFAULT_IGNORABLE; break;
+                case UPROPS_ID_TYPE_NOT_NFKC: t = U_ID_TYPE_NOT_NFKC; break;
+                case UPROPS_ID_TYPE_INCLUSION: t = U_ID_TYPE_INCLUSION; break;
+                case UPROPS_ID_TYPE_RECOMMENDED: t = U_ID_TYPE_RECOMMENDED; break;
+                default:
+                    *pErrorCode = U_INVALID_FORMAT_ERROR;
+                    return 0;
+            }
+            types[0] = t;
+        } else {
+            *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
+        }
+        return 1;
+    } else {
+        // one or more combinable bits
+        int32_t length = 0;
+        maybeAppendType(value, UPROPS_ID_TYPE_NOT_XID, U_ID_TYPE_NOT_XID,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_EXCLUSION, U_ID_TYPE_EXCLUSION,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_OBSOLETE, U_ID_TYPE_OBSOLETE,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_TECHNICAL, U_ID_TYPE_TECHNICAL,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_UNCOMMON_USE, U_ID_TYPE_UNCOMMON_USE,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_LIMITED_USE, U_ID_TYPE_LIMITED_USE,
+                        types, length, capacity);
+        if (length >= capacity) {
+            *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
+        }
+        return length;
     }
 }
 

@@ -159,7 +159,7 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
 }
 
 bool BasicBlockProfiler::HasData(Isolate* isolate) {
-  return data_list_.size() > 0 ||
+  return !data_list_.empty() ||
          isolate->heap()->basic_block_profiling_data()->length() > 0;
 }
 

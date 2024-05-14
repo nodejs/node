@@ -170,7 +170,9 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
       continue;
     }
 
-    int min_count_for_inlining = top->wire_byte_size_ / 2;
+    int min_count_for_inlining = v8_flags.wasm_inlining_ignore_call_counts
+                                     ? 0
+                                     : top->wire_byte_size_ / 2;
     if (top != this && top->wire_byte_size_ >= 12 &&
         (top->call_count_ < min_count_for_inlining)) {
       if (v8_flags.trace_wasm_inlining) {
@@ -215,6 +217,11 @@ void InliningTree::FullyExpand(const size_t initial_graph_size) {
   }
 }
 
+// Returns true if there is still enough budget left to inline the current
+// candidate given the initial graph size and the already inlined wire bytes.
+// TODO(mliedtke): The upper_budget calculation only depends on the module, not
+// on the callsite / callee. Consider moving this to a more central place and
+// propagating the information along the inlining tree.
 bool InliningTree::SmallEnoughToInline(size_t initial_graph_size,
                                        size_t inlined_wire_byte_count) {
   if (wire_byte_size_ > static_cast<int>(v8_flags.wasm_inlining_max_size)) {
@@ -228,16 +235,44 @@ bool InliningTree::SmallEnoughToInline(size_t initial_graph_size,
       inlined_wire_byte_count = 0;
     }
   }
-  size_t budget =
+  // For small-ish functions, the inlining budget is defined by the larger of
+  // 1) the wasm_inlining_budget and
+  // 2) the wasm_inlining_factor * initial_graph_size.
+  // Inlining a little bit should always be fine even for tiny functions (1),
+  // otherwise (2) makes sure that the budget scales in relation with the
+  // original function size to limit the compile time regressions caused by
+  // inlining.
+  size_t budget_small_function =
       std::max<size_t>(v8_flags.wasm_inlining_min_budget,
                        v8_flags.wasm_inlining_factor * initial_graph_size);
+  // For large-ish functions, the inlining budget is mainly defined by the
+  // wasm_inlining_budget.
+  size_t upper_budget = v8_flags.wasm_inlining_budget;
+  double small_function_percentage =
+      module_->num_small_functions * 100.0 / module_->num_declared_functions;
+  if (small_function_percentage < 50) {
+    // If there are few small functions, it indicates that the toolchain already
+    // performed significant inlining. Reduce the budget significantly as
+    // inlining has a diminishing ROI.
+
+    // We also apply a linear progression of the budget in the interval [25, 50]
+    // for the small_function_percentage. This progression is just added to
+    // prevent performance cliffs (e.g. when just performing a sharp cutoff at
+    // the 50% point) and not based on actual data.
+    double smallishness = std::max(25.0, small_function_percentage) - 25.0;
+    size_t lower_budget = upper_budget / 10;
+    double step = (upper_budget - lower_budget) / 25.0;
+    upper_budget = lower_budget + smallishness * step;
+  }
   // Independent of the wasm_inlining_budget, for large functions we should
-  // still allow some inlining.
-  size_t full_budget =
-      std::max<size_t>(v8_flags.wasm_inlining_budget, initial_graph_size * 1.1);
+  // still allow some inlining which is why 10% of the graph size is the minimal
+  // budget even for large functions larger than the upper_budget.
+  size_t budget_large_function =
+      std::max<size_t>(upper_budget, initial_graph_size * 1.1);
   size_t total_size = initial_graph_size + inlined_wire_byte_count +
                       static_cast<size_t>(wire_byte_size_);
-  return total_size < std::min<size_t>(budget, full_budget);
+  return total_size <
+         std::min<size_t>(budget_small_function, budget_large_function);
 }
 
 }  // namespace v8::internal::wasm

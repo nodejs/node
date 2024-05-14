@@ -65,6 +65,15 @@ or `require('node:stream').promises`.
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version:
+      - v18.0.0
+      - v17.2.0
+      - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/40886
+    description: Add the `end` option, which can be set to `false` to prevent
+                 automatically closing the destination stream when the source
+                 ends.
 -->
 
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
@@ -76,9 +85,11 @@ added: v15.0.0
 * `destination` {Stream|Function}
   * `source` {AsyncIterable}
   * Returns: {Promise|AsyncIterable}
-* `options` {Object}
+* `options` {Object} Pipeline options
   * `signal` {AbortSignal}
-  * `end` {boolean}
+  * `end` {boolean} End the destination stream when the source stream ends.
+    Transform streams are always ended, even if this value is `false`.
+    **Default:** `true`.
 * Returns: {Promise} Fulfills when the pipeline is complete.
 
 ```cjs
@@ -237,9 +248,16 @@ The `pipeline` API provides [callback version][stream-pipeline]:
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version:
+    - v19.5.0
+    - v18.14.0
+    pr-url: https://github.com/nodejs/node/pull/46205
+    description: Added support for `ReadableStream` and `WritableStream`.
 -->
 
-* `stream` {Stream}
+* `stream` {Stream|ReadableStream|WritableStream} A readable and/or writable
+  stream/webstream.
 * `options` {Object}
   * `error` {boolean|undefined}
   * `readable` {boolean|undefined}
@@ -310,7 +328,9 @@ buffer.
 The amount of data potentially buffered depends on the `highWaterMark` option
 passed into the stream's constructor. For normal streams, the `highWaterMark`
 option specifies a [total number of bytes][hwm-gotcha]. For streams operating
-in object mode, the `highWaterMark` specifies a total number of objects.
+in object mode, the `highWaterMark` specifies a total number of objects. For
+streams operating on (but not decoding) strings, the `highWaterMark` specifies
+a total number of UTF-16 code units.
 
 Data is buffered in `Readable` streams when the implementation calls
 [`stream.push(chunk)`][stream-push]. If the consumer of the Stream does not
@@ -720,7 +740,9 @@ console.log(myStream.destroyed); // true
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v15.0.0
@@ -937,7 +959,9 @@ Getter for the property `objectMode` of a given `Writable` stream.
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0
@@ -1777,7 +1801,9 @@ setTimeout(() => {
 <!-- YAML
 added: v0.9.11
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0
@@ -3496,7 +3522,7 @@ method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52037
     description: bump default highWaterMark.
   - version: v15.5.0
@@ -3876,7 +3902,7 @@ constructor and implement the [`readable._read()`][] method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52037
     description: bump default highWaterMark.
   - version: v15.5.0
@@ -4085,7 +4111,9 @@ It can be overridden by child classes but it **must not** be called directly.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0

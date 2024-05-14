@@ -65,7 +65,7 @@ cc_library(
 
 cc_library(
     name = "test_util",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/test_util.cc"],
     hdrs = ["internal/test_util.h"],
     copts = ABSL_DEFAULT_COPTS,

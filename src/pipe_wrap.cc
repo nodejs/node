@@ -162,7 +162,8 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   node::Utf8Value name(args.GetIsolate(), args[0]);
-  int err = uv_pipe_bind2(&wrap->handle_, *name, name.length(), 0);
+  int err =
+      uv_pipe_bind2(&wrap->handle_, *name, name.length(), UV_PIPE_NO_TRUNCATE);
   args.GetReturnValue().Set(err);
 }
 
@@ -225,8 +226,12 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   ConnectWrap* req_wrap =
       new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP);
-  int err = req_wrap->Dispatch(
-      uv_pipe_connect2, &wrap->handle_, *name, name.length(), 0, AfterConnect);
+  int err = req_wrap->Dispatch(uv_pipe_connect2,
+                               &wrap->handle_,
+                               *name,
+                               name.length(),
+                               UV_PIPE_NO_TRUNCATE,
+                               AfterConnect);
   if (err) {
     delete req_wrap;
   } else {

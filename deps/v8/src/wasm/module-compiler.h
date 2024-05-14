@@ -66,9 +66,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
 
-WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
-                                       base::Vector<const uint8_t> wire_bytes,
-                                       CompileTimeImports imports);
+V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
+    const WasmModule* module, base::Vector<const uint8_t> wire_bytes,
+    CompileTimeImports imports);
 
 // Compiles the wrapper for this (kind, sig) pair and sets the corresponding
 // cache entry. Assumes the key already exists in the cache but has not been
@@ -91,11 +91,14 @@ void ThrowLazyCompilationError(Isolate* isolate,
 
 // Trigger tier-up of a particular function to TurboFan. If tier-up was already
 // triggered, we instead increase the priority with exponential back-off.
-V8_EXPORT_PRIVATE void TriggerTierUp(Tagged<WasmTrustedInstanceData>,
+V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, Tagged<WasmTrustedInstanceData>,
                                      int func_index);
 // Synchronous version of the above.
 void TierUpNowForTesting(Isolate*, Tagged<WasmTrustedInstanceData>,
                          int func_index);
+// Same, but all functions.
+V8_EXPORT_PRIVATE void TierUpAllForTesting(Isolate*,
+                                           Tagged<WasmTrustedInstanceData>);
 
 template <typename Key, typename KeyInfo, typename Hash>
 class WrapperQueue {

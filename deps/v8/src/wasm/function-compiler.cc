@@ -13,6 +13,7 @@
 #include "src/logging/log.h"
 #include "src/objects/code-inl.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"
@@ -59,10 +60,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
 WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
     Counters* counters, WasmFeatures* detected) {
-  auto* func = &env->module->functions[func_index_];
+  const WasmFunction* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
+  bool is_shared = env->module->types[func->sig_index].is_shared;
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
-                               code.end()};
+                               code.end(), is_shared};
 
   base::Optional<TimedHistogramScope> wasm_compile_function_time_scope;
   base::Optional<TimedHistogramScope> wasm_compile_huge_function_time_scope;
@@ -107,6 +109,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   }
 
   WasmCompilationResult result;
+  int declared_index = declared_function_index(env->module, func_index_);
 
   switch (tier_) {
     case ExecutionTier::kNone:
@@ -117,8 +120,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
       // them to be compiled for debugging, see documentation.
       if (V8_LIKELY(v8_flags.wasm_tier_mask_for_testing == 0) ||
-          func_index_ >= 32 ||
-          ((v8_flags.wasm_tier_mask_for_testing & (1 << func_index_)) == 0) ||
+          declared_index >= 32 ||
+          ((v8_flags.wasm_tier_mask_for_testing & (1 << declared_index)) ==
+           0) ||
           v8_flags.liftoff_only) {
         auto options = LiftoffOptions{}
                            .set_func_index(func_index_)
@@ -128,9 +132,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
         // We do not use the debug side table, we only (optionally) pass it to
         // cover different code paths in Liftoff for testing.
         std::unique_ptr<DebugSideTable> unused_debug_sidetable;
-        if (V8_UNLIKELY(func_index_ < 32 &&
+        if (V8_UNLIKELY(declared_index < 32 &&
                         (v8_flags.wasm_debug_mask_for_testing &
-                         (1 << func_index_)) != 0)) {
+                         (1 << declared_index)) != 0)) {
           options.set_debug_sidetable(&unused_debug_sidetable);
           if (!for_debugging_) options.set_for_debugging(kForDebugging);
         }
@@ -145,15 +149,15 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // If Liftoff failed, fall back to TurboFan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case ExecutionTier::kTurbofan: {
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
       bool use_turboshaft = v8_flags.turboshaft_wasm;
-      if (func_index_ < 32 && ((v8_flags.wasm_turboshaft_mask_for_testing &
-                                (1 << func_index_)) == 1)) {
+      if (declared_index < 32 && ((v8_flags.wasm_turboshaft_mask_for_testing &
+                                   (1 << declared_index)) != 0)) {
         use_turboshaft = true;
       }
       if (use_turboshaft) {
@@ -168,8 +172,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       result.for_debugging = for_debugging_;
       break;
     }
-    default:
-      UNREACHABLE();
   }
 
   DCHECK(result.succeeded());
@@ -183,14 +185,17 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
                                               const WasmFunction* function,
                                               ExecutionTier tier) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
+  bool is_shared =
+      native_module->module()->types[function->sig_index].is_shared;
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
-                             wire_bytes.start() + function->code.end_offset()};
+                             wire_bytes.start() + function->code.end_offset(),
+                             is_shared};
 
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());
   WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging);
-  CompilationEnv env = native_module->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
       counters, detected);
@@ -226,10 +231,17 @@ void JSToWasmWrapperCompilationUnit::Execute() {
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
-  Handle<Code> code = job_->compilation_info()->code();
+  OptimizedCompilationInfo* info =
+      v8_flags.turboshaft_wasm_wrappers
+          ? static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(
+                job_.get())
+                ->compilation_info()
+          : static_cast<TurbofanCompilationJob*>(job_.get())
+                ->compilation_info();
+  Handle<Code> code = info->code();
   if (isolate_->IsLoggingCodeCreation()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
-        job_->compilation_info()->GetDebugName().get());
+        info->GetDebugName().get());
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Handle<AbstractCode>::cast(code), name));
   }

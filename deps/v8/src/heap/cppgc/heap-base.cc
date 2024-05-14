@@ -175,6 +175,10 @@ size_t HeapBase::ExecutePreFinalizers() {
 void HeapBase::EnableGenerationalGC() {
   DCHECK(in_atomic_pause());
   if (HeapHandle::is_young_generation_enabled_) return;
+#if defined(CPPGC_CAGED_HEAP)
+  // Commit storage for the age table.
+  CagedHeap::CommitAgeTable(*(page_allocator()));
+#endif  // defined(CPPGC_CAGED_HEAP)
   // Notify the global flag that the write barrier must always be enabled.
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.
@@ -220,7 +224,7 @@ void HeapBase::ResetRememberedSet() {
 
 void HeapBase::Terminate() {
   CHECK(!IsMarking());
-  CHECK(!in_disallow_gc_scope());
+  CHECK(!IsGCForbidden());
   // Cannot use IsGCAllowed() as `Terminate()` will be invoked after detaching
   // which implies GC is prohibited at this point.
   CHECK(!sweeper().IsSweepingOnMutatorThread());
@@ -329,6 +333,8 @@ void HeapBase::UnregisterMoveListener(MoveListener* listener) {
       std::remove(move_listeners_.begin(), move_listeners_.end(), listener);
   move_listeners_.erase(it, move_listeners_.end());
 }
+
+bool HeapBase::IsGCForbidden() const { return disallow_gc_scope_ > 0; }
 
 bool HeapBase::IsGCAllowed() const {
   // GC is prohibited in a GC forbidden scope, or when currently sweeping an

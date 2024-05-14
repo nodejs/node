@@ -1,7 +1,7 @@
 'use strict'
 
 const assert = require('node:assert')
-const { kDestroyed, kBodyUsed } = require('./symbols')
+const { kDestroyed, kBodyUsed, kListeners } = require('./symbols')
 const { IncomingMessage } = require('node:http')
 const stream = require('node:stream')
 const net = require('node:net')
@@ -22,13 +22,20 @@ function isStream (obj) {
 
 // based on https://github.com/node-fetch/fetch-blob/blob/8ab587d34080de94140b54f07168451e7d0b655e/index.js#L229-L241 (MIT License)
 function isBlobLike (object) {
-  return (Blob && object instanceof Blob) || (
-    object &&
-    typeof object === 'object' &&
-    (typeof object.stream === 'function' ||
-      typeof object.arrayBuffer === 'function') &&
-    /^(Blob|File)$/.test(object[Symbol.toStringTag])
-  )
+  if (object === null) {
+    return false
+  } else if (object instanceof Blob) {
+    return true
+  } else if (typeof object !== 'object') {
+    return false
+  } else {
+    const sTag = object[Symbol.toStringTag]
+
+    return (sTag === 'Blob' || sTag === 'File') && (
+      ('stream' in object && typeof object.stream === 'function') ||
+      ('arrayBuffer' in object && typeof object.arrayBuffer === 'function')
+    )
+  }
 }
 
 function buildURL (url, queryParams) {
@@ -45,11 +52,37 @@ function buildURL (url, queryParams) {
   return url
 }
 
+function isValidPort (port) {
+  const value = parseInt(port, 10)
+  return (
+    value === Number(port) &&
+    value >= 0 &&
+    value <= 65535
+  )
+}
+
+function isHttpOrHttpsPrefixed (value) {
+  return (
+    value != null &&
+    value[0] === 'h' &&
+    value[1] === 't' &&
+    value[2] === 't' &&
+    value[3] === 'p' &&
+    (
+      value[4] === ':' ||
+      (
+        value[4] === 's' &&
+        value[5] === ':'
+      )
+    )
+  )
+}
+
 function parseURL (url) {
   if (typeof url === 'string') {
     url = new URL(url)
 
-    if (!/^https?:/.test(url.origin || url.protocol)) {
+    if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
       throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
     }
 
@@ -60,12 +93,8 @@ function parseURL (url) {
     throw new InvalidArgumentError('Invalid URL: The URL argument must be a non-null object.')
   }
 
-  if (!/^https?:/.test(url.origin || url.protocol)) {
-    throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
-  }
-
   if (!(url instanceof URL)) {
-    if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
+    if (url.port != null && url.port !== '' && isValidPort(url.port) === false) {
       throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
     }
 
@@ -85,28 +114,36 @@ function parseURL (url) {
       throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
     }
 
+    if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
+      throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
+    }
+
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
     let origin = url.origin != null
       ? url.origin
-      : `${url.protocol}//${url.hostname}:${port}`
+      : `${url.protocol || ''}//${url.hostname || ''}:${port}`
     let path = url.path != null
       ? url.path
       : `${url.pathname || ''}${url.search || ''}`
 
-    if (origin.endsWith('/')) {
-      origin = origin.substring(0, origin.length - 1)
+    if (origin[origin.length - 1] === '/') {
+      origin = origin.slice(0, origin.length - 1)
     }
 
-    if (path && !path.startsWith('/')) {
+    if (path && path[0] !== '/') {
       path = `/${path}`
     }
     // new URL(path, origin) is unsafe when `path` contains an absolute URL
     // From https://developer.mozilla.org/en-US/docs/Web/API/URL/URL:
     // If first parameter is a relative URL, second param is required, and will be used as the base URL.
     // If first parameter is an absolute URL, a given second param will be ignored.
-    url = new URL(origin + path)
+    return new URL(`${origin}${path}`)
+  }
+
+  if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
+    throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
   }
 
   return url
@@ -186,11 +223,6 @@ function isDestroyed (body) {
   return body && !!(body.destroyed || body[kDestroyed] || (stream.isDestroyed?.(body)))
 }
 
-function isReadableAborted (stream) {
-  const state = stream?._readableState
-  return isDestroyed(stream) && state && !state.endEmitted
-}
-
 function destroy (stream, err) {
   if (stream == null || !isStream(stream) || isDestroyed(stream)) {
     return
@@ -246,9 +278,6 @@ function bufferToLowerCasedHeaderName (value) {
  * @returns {Record<string, string | string[]>}
  */
 function parseHeaders (headers, obj) {
-  // For H2 support
-  if (!Array.isArray(headers)) return headers
-
   if (obj === undefined) obj = {}
   for (let i = 0; i < headers.length; i += 2) {
     const key = headerNameToString(headers[i])
@@ -518,7 +547,7 @@ const headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/
 /**
  * @param {string} characters
  */
-function isValidHeaderChar (characters) {
+function isValidHeaderValue (characters) {
   return !headerCharRegex.test(characters)
 }
 
@@ -537,6 +566,29 @@ function parseRangeHeader (range) {
     : null
 }
 
+function addListener (obj, name, listener) {
+  const listeners = (obj[kListeners] ??= [])
+  listeners.push([name, listener])
+  obj.on(name, listener)
+  return obj
+}
+
+function removeAllListeners (obj) {
+  for (const [name, listener] of obj[kListeners] ?? []) {
+    obj.removeListener(name, listener)
+  }
+  obj[kListeners] = null
+}
+
+function errorRequest (client, request, err) {
+  try {
+    request.onError(err)
+    assert(request.aborted)
+  } catch (err) {
+    client.emit('error', err)
+  }
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -548,7 +600,6 @@ module.exports = {
   isReadable,
   toUSVString,
   isUSVString,
-  isReadableAborted,
   isBlobLike,
   parseOrigin,
   parseURL,
@@ -559,6 +610,9 @@ module.exports = {
   isDestroyed,
   headerNameToString,
   bufferToLowerCasedHeaderName,
+  addListener,
+  removeAllListeners,
+  errorRequest,
   parseRawHeaders,
   parseHeaders,
   parseKeepAliveTimeout,
@@ -573,11 +627,12 @@ module.exports = {
   buildURL,
   addAbortListener,
   isValidHTTPToken,
-  isValidHeaderChar,
+  isValidHeaderValue,
   isTokenCharCode,
   parseRangeHeader,
+  isValidPort,
+  isHttpOrHttpsPrefixed,
   nodeMajor,
   nodeMinor,
-  nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13),
   safeHTTPMethods: ['GET', 'HEAD', 'OPTIONS', 'TRACE']
 }

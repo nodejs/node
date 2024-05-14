@@ -16,6 +16,7 @@
 #include <atomic>
 
 #include "absl/base/internal/raw_logging.h"  // For ABSL_RAW_CHECK
+#include "absl/base/no_destructor.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
@@ -43,33 +44,32 @@ struct Queue {
   }
 };
 
-static Queue* GlobalQueue() {
-  static Queue* global_queue = new Queue;
-  return global_queue;
+static Queue& GlobalQueue() {
+  static absl::NoDestructor<Queue> global_queue;
+  return *global_queue;
 }
 
 }  // namespace
 
 CordzHandle::CordzHandle(bool is_snapshot) : is_snapshot_(is_snapshot) {
-  Queue* global_queue = GlobalQueue();
+  Queue& global_queue = GlobalQueue();
   if (is_snapshot) {
-    MutexLock lock(&global_queue->mutex);
-    CordzHandle* dq_tail =
-        global_queue->dq_tail.load(std::memory_order_acquire);
+    MutexLock lock(&global_queue.mutex);
+    CordzHandle* dq_tail = global_queue.dq_tail.load(std::memory_order_acquire);
     if (dq_tail != nullptr) {
       dq_prev_ = dq_tail;
       dq_tail->dq_next_ = this;
     }
-    global_queue->dq_tail.store(this, std::memory_order_release);
+    global_queue.dq_tail.store(this, std::memory_order_release);
   }
 }
 
 CordzHandle::~CordzHandle() {
-  Queue* global_queue = GlobalQueue();
+  Queue& global_queue = GlobalQueue();
   if (is_snapshot_) {
     std::vector<CordzHandle*> to_delete;
     {
-      MutexLock lock(&global_queue->mutex);
+      MutexLock lock(&global_queue.mutex);
       CordzHandle* next = dq_next_;
       if (dq_prev_ == nullptr) {
         // We were head of the queue, delete every CordzHandle until we reach
@@ -85,7 +85,7 @@ CordzHandle::~CordzHandle() {
       if (next) {
         next->dq_prev_ = dq_prev_;
       } else {
-        global_queue->dq_tail.store(dq_prev_, std::memory_order_release);
+        global_queue.dq_tail.store(dq_prev_, std::memory_order_release);
       }
     }
     for (CordzHandle* handle : to_delete) {
@@ -95,20 +95,20 @@ CordzHandle::~CordzHandle() {
 }
 
 bool CordzHandle::SafeToDelete() const {
-  return is_snapshot_ || GlobalQueue()->IsEmpty();
+  return is_snapshot_ || GlobalQueue().IsEmpty();
 }
 
 void CordzHandle::Delete(CordzHandle* handle) {
   assert(handle);
   if (handle) {
-    Queue* const queue = GlobalQueue();
+    Queue& queue = GlobalQueue();
     if (!handle->SafeToDelete()) {
-      MutexLock lock(&queue->mutex);
-      CordzHandle* dq_tail = queue->dq_tail.load(std::memory_order_acquire);
+      MutexLock lock(&queue.mutex);
+      CordzHandle* dq_tail = queue.dq_tail.load(std::memory_order_acquire);
       if (dq_tail != nullptr) {
         handle->dq_prev_ = dq_tail;
         dq_tail->dq_next_ = handle;
-        queue->dq_tail.store(handle, std::memory_order_release);
+        queue.dq_tail.store(handle, std::memory_order_release);
         return;
       }
     }
@@ -118,9 +118,9 @@ void CordzHandle::Delete(CordzHandle* handle) {
 
 std::vector<const CordzHandle*> CordzHandle::DiagnosticsGetDeleteQueue() {
   std::vector<const CordzHandle*> handles;
-  Queue* global_queue = GlobalQueue();
-  MutexLock lock(&global_queue->mutex);
-  CordzHandle* dq_tail = global_queue->dq_tail.load(std::memory_order_acquire);
+  Queue& global_queue = GlobalQueue();
+  MutexLock lock(&global_queue.mutex);
+  CordzHandle* dq_tail = global_queue.dq_tail.load(std::memory_order_acquire);
   for (const CordzHandle* p = dq_tail; p; p = p->dq_prev_) {
     handles.push_back(p);
   }
@@ -133,9 +133,9 @@ bool CordzHandle::DiagnosticsHandleIsSafeToInspect(
   if (handle == nullptr) return true;
   if (handle->is_snapshot_) return false;
   bool snapshot_found = false;
-  Queue* global_queue = GlobalQueue();
-  MutexLock lock(&global_queue->mutex);
-  for (const CordzHandle* p = global_queue->dq_tail; p; p = p->dq_prev_) {
+  Queue& global_queue = GlobalQueue();
+  MutexLock lock(&global_queue.mutex);
+  for (const CordzHandle* p = global_queue.dq_tail; p; p = p->dq_prev_) {
     if (p == handle) return !snapshot_found;
     if (p == this) snapshot_found = true;
   }
@@ -150,8 +150,8 @@ CordzHandle::DiagnosticsGetSafeToInspectDeletedHandles() {
     return handles;
   }
 
-  Queue* global_queue = GlobalQueue();
-  MutexLock lock(&global_queue->mutex);
+  Queue& global_queue = GlobalQueue();
+  MutexLock lock(&global_queue.mutex);
   for (const CordzHandle* p = dq_next_; p != nullptr; p = p->dq_next_) {
     if (!p->is_snapshot()) {
       handles.push_back(p);

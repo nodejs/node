@@ -562,4 +562,10 @@
   'heap-profiler/sampling-heap-profiler-flags': [SKIP],
 }], # single_generation
 
+##############################################################################
+['clang_coverage and mode == debug', {
+  # Too slow tests.
+  'runtime/console-messages-limits': [SKIP],
+}],  # 'clang_coverage and mode == debug'
+
 ]

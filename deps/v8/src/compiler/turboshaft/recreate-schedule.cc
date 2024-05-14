@@ -176,7 +176,7 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   OpIndex index = input_graph.Index(op);
   DCHECK_LT(index.id(), nodes.size());
   nodes[index.id()] = node;
-  if (source_positions->IsEnabled() && node) {
+  if (source_positions && source_positions->IsEnabled() && node) {
     source_positions->SetSourcePosition(node,
                                         input_graph.source_positions()[index]);
   }
@@ -925,6 +925,7 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
     case RegisterRepresentation::Enum::kTagged:
     case RegisterRepresentation::Enum::kCompressed:
     case RegisterRepresentation::Enum::kSimd128:
+    case RegisterRepresentation::Enum::kSimd256:
       UNREACHABLE();
   }
 
@@ -1042,6 +1043,14 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
     case ConstantOp::Kind::kWord64:
       return AddNode(common.Int64Constant(static_cast<int64_t>(op.word64())),
                      {});
+    case ConstantOp::Kind::kSmi:
+      if constexpr (Is64()) {
+        return AddNode(
+            common.Int64Constant(static_cast<int64_t>(op.smi().ptr())), {});
+      } else {
+        return AddNode(
+            common.Int32Constant(static_cast<int32_t>(op.smi().ptr())), {});
+      }
     case ConstantOp::Kind::kExternal:
       return AddNode(common.ExternalConstant(op.external_reference()), {});
     case ConstantOp::Kind::kHeapObject:
@@ -1225,7 +1234,7 @@ Node* ScheduleBuilder::ProcessOperation(const StackPointerGreaterThanOp& op) {
                  {GetNode(op.stack_limit())});
 }
 Node* ScheduleBuilder::ProcessOperation(const StackSlotOp& op) {
-  return AddNode(machine.StackSlot(op.size, op.alignment), {});
+  return AddNode(machine.StackSlot(op.size, op.alignment, op.is_tagged), {});
 }
 Node* ScheduleBuilder::ProcessOperation(const FrameConstantOp& op) {
   switch (op.kind) {
@@ -1252,7 +1261,8 @@ Node* ScheduleBuilder::ProcessOperation(const DeoptimizeIfOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
   Node* condition = GetNode(op.condition());
   bool has_frame_state = op.frame_state().valid();
-  Node* frame_state = has_frame_state ? GetNode(op.frame_state()) : nullptr;
+  Node* frame_state =
+      has_frame_state ? GetNode(op.frame_state().value()) : nullptr;
   const Operator* o = op.negated
                           ? common.TrapUnless(op.trap_id, has_frame_state)
                           : common.TrapIf(op.trap_id, has_frame_state);
@@ -1305,7 +1315,7 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
 #endif
 
     int current_index = 0;
-    for (Block* pred : current_input_block->PredecessorsIterable()) {
+    for (const Block* pred : current_input_block->PredecessorsIterable()) {
       size_t pred_index = predecessor_count - current_index - 1;
       auto lower =
           std::lower_bound(new_predecessors.begin(), new_predecessors.end(),
@@ -1469,7 +1479,7 @@ Node* ScheduleBuilder::ProcessOperation(const CallOp& op) {
   }
   if (op.HasFrameState()) {
     DCHECK(op.frame_state().valid());
-    inputs.push_back(GetNode(op.frame_state()));
+    inputs.push_back(GetNode(op.frame_state().value()));
   }
   return AddNode(common.Call(op.descriptor->descriptor),
                  base::VectorOf(inputs));
@@ -1481,6 +1491,7 @@ Node* ScheduleBuilder::ProcessOperation(const CheckExceptionOp& op) {
   // Re-building the IfSuccess/IfException mechanism.
   BasicBlock* success_block = GetBlock(*op.didnt_throw_block);
   BasicBlock* exception_block = GetBlock(*op.catch_block);
+  exception_block->set_deferred(true);
   schedule->AddCall(current_block, call_node, success_block, exception_block);
   // Pass `call` as the control input of `IfSuccess` and as both the effect and
   // control input of `IfException`.
@@ -1804,6 +1815,76 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ShuffleOp& op) {
   return AddNode(machine.I8x16Shuffle(op.shuffle),
                  {GetNode(op.left()), GetNode(op.right())});
 }
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+Node* ScheduleBuilder::ProcessOperation(const Simd256Extract128LaneOp& op) {
+  const Operator* o = machine.ExtractF128(op.lane);
+  return AddNode(o, {GetNode(op.input())});
+}
+
+Node* ScheduleBuilder::ProcessOperation(const Simd256LoadTransformOp& op) {
+  DCHECK_EQ(op.offset, 0);
+  MemoryAccessKind access =
+      op.load_kind.with_trap_handler ? MemoryAccessKind::kProtected
+      : op.load_kind.maybe_unaligned ? MemoryAccessKind::kUnaligned
+                                     : MemoryAccessKind::kNormal;
+  LoadTransformation transformation;
+  switch (op.transform_kind) {
+#define HANDLE_KIND(kind)                                 \
+  case Simd256LoadTransformOp::TransformKind::k##kind:    \
+    transformation = LoadTransformation::kS256Load##kind; \
+    break;
+    FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(HANDLE_KIND)
+#undef HANDLE_KIND
+  }
+
+  const Operator* o = machine.LoadTransform(access, transformation);
+
+  return AddNode(o, {GetNode(op.base()), GetNode(op.index())});
+}
+
+Node* ScheduleBuilder::ProcessOperation(const Simd256UnaryOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)             \
+  case Simd256UnaryOp::Kind::k##kind: \
+    return AddNode(machine.kind(), {GetNode(op.input())});
+    FOREACH_SIMD_256_UNARY_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
+
+Node* ScheduleBuilder::ProcessOperation(const Simd256BinopOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)             \
+  case Simd256BinopOp::Kind::k##kind: \
+    return AddNode(machine.kind(), {GetNode(op.left()), GetNode(op.right())});
+    FOREACH_SIMD_256_BINARY_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
+
+Node* ScheduleBuilder::ProcessOperation(const Simd256ShiftOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)             \
+  case Simd256ShiftOp::Kind::k##kind: \
+    return AddNode(machine.kind(), {GetNode(op.input()), GetNode(op.shift())});
+    FOREACH_SIMD_256_SHIFT_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
+
+Node* ScheduleBuilder::ProcessOperation(const Simd256TernaryOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)                                                      \
+  case Simd256TernaryOp::Kind::k##kind:                                        \
+    return AddNode(machine.kind(), {GetNode(op.first()), GetNode(op.second()), \
+                                    GetNode(op.third())});
+    FOREACH_SIMD_256_TERNARY_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
+
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {
   return AddNode(machine.LoadStackPointer(), {});

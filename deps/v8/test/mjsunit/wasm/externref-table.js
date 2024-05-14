@@ -180,7 +180,8 @@ function getDummy(val) {
 
   let builder = new WasmModuleBuilder();
   let imported_global = builder.addImportedGlobal('m', 'n', extern_type, false);
-  let global = builder.addGlobal(kWasmExternRef, true).exportAs('global');
+  let global =
+    builder.addGlobal(kWasmExternRef, true, false).exportAs('global');
   let table = builder.addTable(extern_type, 2, 10,
                                [kExprGlobalGet, imported_global])
   builder.addFunction(

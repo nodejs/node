@@ -238,8 +238,7 @@ t.test('npm init cancel', async t => {
 
   await npm.exec('init', [])
 
-  t.equal(logs.warn[0][0], 'init', 'should have init title')
-  t.equal(logs.warn[0][1], 'canceled', 'should log canceled')
+  t.equal(logs.warn[0], 'init canceled', 'should have init title and canceled')
 })
 
 t.test('npm init error', async t => {
@@ -335,7 +334,7 @@ t.test('workspaces', async t => {
       'should exit with missing package.json file error'
     )
 
-    t.equal(logs.warn[0][0], 'Missing package.json. Try with `--include-workspace-root`.')
+    t.equal(logs.warn[0], 'init Missing package.json. Try with `--include-workspace-root`.')
   })
 
   await t.test('bad package.json when settting workspace', async t => {

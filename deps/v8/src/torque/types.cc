@@ -93,9 +93,7 @@ std::string Type::HandlifiedCppTypeName(HandleKind kind) const {
 
 std::string Type::TagglifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
-  // TODO(leszeks): Changee this to GetTaggedType once there's a Maybe version
-  // of Tagged<T>.
-  if (IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
+  if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
     return "Tagged<" + GetConstexprGeneratedTypeName() + ">";
   } else {
     return GetConstexprGeneratedTypeName();
@@ -1188,6 +1186,8 @@ size_t AbstractType::AlignmentLog2() const {
     alignment = TargetArchitecture::ExternalPointerSize();
   } else if (this == TypeOracle::GetIndirectPointerType()) {
     alignment = TargetArchitecture::IndirectPointerSize();
+  } else if (this == TypeOracle::GetProtectedPointerType()) {
+    alignment = TargetArchitecture::ProtectedPointerSize();
   } else if (this == TypeOracle::GetVoidType()) {
     alignment = 1;
   } else if (this == TypeOracle::GetInt8Type()) {
@@ -1261,6 +1261,9 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetIndirectPointerType())) {
     size = TargetArchitecture::IndirectPointerSize();
     size_string = "kIndirectPointerSize";
+  } else if (type->IsSubtypeOf(TypeOracle::GetProtectedPointerType())) {
+    size = TargetArchitecture::ProtectedPointerSize();
+    size_string = "kTaggedSize";
   } else if (type->IsSubtypeOf(TypeOracle::GetVoidType())) {
     size = 0;
     size_string = "0";

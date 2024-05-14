@@ -79,10 +79,8 @@ Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map) {
-  return NewFastOrSlowJSObjectFromMap(
-      map, V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-               ? SwissNameDictionary::kInitialCapacity
-               : NameDictionary::kInitialCapacity);
+  return NewFastOrSlowJSObjectFromMap(map,
+                                      PropertyDictionary::kInitialCapacity);
 }
 
 Handle<Object> Factory::NewURIError() {
@@ -98,8 +96,13 @@ HeapAllocator* Factory::allocator() const {
   return isolate()->heap()->allocator();
 }
 
+Factory::CodeBuilder& Factory::CodeBuilder::set_empty_source_position_table() {
+  return set_source_position_table(
+      isolate_->factory()->empty_trusted_byte_array());
+}
+
 Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
-    Handle<HeapObject> interpreter_data) {
+    Handle<TrustedObject> interpreter_data) {
   // This DCHECK requires this function to be in -inl.h.
   DCHECK(IsInterpreterData(*interpreter_data) ||
          IsBytecodeArray(*interpreter_data));

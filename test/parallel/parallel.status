@@ -7,10 +7,17 @@ prefix parallel
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/52273
 test-net-write-fully-async-hex-string: PASS, FLAKY
-test-shadow-realm-gc: PASS, FLAKY
-test-shadow-realm-gc-module: PASS, FLAKY
+# https://github.com/nodejs/node/issues/52273
+test-shadow-realm-gc: SKIP
+test-shadow-realm-gc-module: SKIP
 # https://github.com/nodejs/node/issues/52274
 test-worker-arraybuffer-zerofill: PASS, FLAKY
+
+# https://github.com/nodejs/node/issues/51862
+test-fs-read-stream-concurrent-reads: PASS, FLAKY
+
+# https://github.com/nodejs/node/issues/52630
+test-error-serdes: PASS, FLAKY
 
 [$system==win32]
 
@@ -33,8 +40,6 @@ test-runner-watch-mode: PASS,FLAKY
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
-# https://github.com/nodejs/node/issues/43465
-test-http-server-request-timeouts-mixed: PASS,FLAKY
 # https://github.com/nodejs/node/issues/50243
 test-inspector-async-stack-traces-set-interval: PASS, FLAKY
 

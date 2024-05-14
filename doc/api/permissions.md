@@ -27,7 +27,7 @@ If you find a potential security vulnerability, please refer to our
 
 <!-- type=misc -->
 
-> Stability: 1 - Experimental
+> Stability: 0 - Deprecated: Will be removed shortly
 
 <!-- name=policy -->
 
@@ -583,9 +583,6 @@ There are constraints you need to know before using this system:
 
 #### Limitations and Known Issues
 
-* When the permission model is enabled, Node.js may resolve some paths
-  differently than when it is disabled.
-* Relative paths are not supported through the CLI (`--allow-fs-*`).
 * Symbolic links will be followed even to locations outside of the set of paths
   that access has been granted to. Relative symbolic links may allow access to
   arbitrary files and directories. When starting applications with the

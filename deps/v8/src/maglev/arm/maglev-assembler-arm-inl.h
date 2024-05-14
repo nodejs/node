@@ -298,6 +298,8 @@ inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot slot) {
   return MemOperand(fp, slot.index);
 }
 
+inline Register MaglevAssembler::GetFramePointer() { return fp; }
+
 // TODO(Victorgomes): Unify this to use StackSlot struct.
 inline MemOperand MaglevAssembler::GetStackSlot(
     const compiler::AllocatedOperand& operand) {
@@ -903,8 +905,7 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
 void MaglevAssembler::JumpIfNotHoleNan(DoubleRegister value, Register scratch,
                                        Label* target,
                                        Label::Distance distance) {
-  VFPCompareAndSetFlags(value, value);
-  JumpIf(NegateCondition(ConditionForNaN()), target, distance);
+  JumpIfNotNan(value, target, distance);
   VmovHigh(scratch, value);
   CompareInt32AndJumpIf(scratch, kHoleNanUpper32, kNotEqual, target, distance);
 }
@@ -918,6 +919,18 @@ void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
                              operand.am()));
   CompareInt32AndJumpIf(upper_bits, kHoleNanUpper32, kNotEqual, target,
                         distance);
+}
+
+void MaglevAssembler::JumpIfNan(DoubleRegister value, Label* target,
+                                Label::Distance distance) {
+  VFPCompareAndSetFlags(value, value);
+  JumpIf(ConditionForNaN(), target, distance);
+}
+
+void MaglevAssembler::JumpIfNotNan(DoubleRegister value, Label* target,
+                                   Label::Distance distance) {
+  VFPCompareAndSetFlags(value, value);
+  JumpIf(NegateCondition(ConditionForNaN()), target, distance);
 }
 
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
@@ -1016,14 +1029,6 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register src1,
                                                     Label* target,
                                                     Label::Distance distance) {
   CmpTagged(src1, src2);
-  JumpIf(cond, target, distance);
-}
-
-inline void MaglevAssembler::CompareRootAndJumpIf(Register with,
-                                                  RootIndex index,
-                                                  Condition cond, Label* target,
-                                                  Label::Distance distance) {
-  CompareRoot(with, index);
   JumpIf(cond, target, distance);
 }
 

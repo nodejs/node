@@ -188,8 +188,10 @@ void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT>& registers,
 }
 
 bool IsDeadNodeToSkip(Node* node) {
-  return node->Is<ValueNode>() && node->Cast<ValueNode>()->has_no_more_uses() &&
-         !node->properties().is_required_when_unused();
+  if (!node->Is<ValueNode>()) return false;
+  ValueNode* value = node->Cast<ValueNode>();
+  return value->has_no_more_uses() &&
+         !value->properties().is_required_when_unused();
 }
 
 }  // namespace
@@ -657,11 +659,19 @@ void StraightForwardRegisterAllocator::UpdateUse(
   }
 }
 
+namespace {
+bool IsNonEscapedInlinedAllocation(ValueNode* node) {
+  return node->Is<InlinedAllocation>() &&
+         !node->Cast<InlinedAllocation>()->HasEscaped();
+}
+}  // namespace
+
 void StraightForwardRegisterAllocator::AllocateEagerDeopt(
     const EagerDeoptInfo& deopt_info) {
   detail::DeepForEachInput(
       &deopt_info, [&](ValueNode* node, InputLocation* input) {
         DCHECK(!node->Is<Identity>());
+        if (IsNonEscapedInlinedAllocation(node)) return;
         // We might have dropped this node without spilling it. Spill it now.
         if (!node->has_register() && !node->is_loadable()) {
           Spill(node);
@@ -676,6 +686,7 @@ void StraightForwardRegisterAllocator::AllocateLazyDeopt(
   detail::DeepForEachInput(&deopt_info,
                            [&](ValueNode* node, InputLocation* input) {
                              DCHECK(!node->Is<Identity>());
+                             if (IsNonEscapedInlinedAllocation(node)) return;
                              // Lazy deopts always need spilling, and should
                              // always be loaded from their loadable slot.
                              Spill(node);

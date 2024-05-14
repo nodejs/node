@@ -138,13 +138,13 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
 };
 
 // A FullMaybeObjectSlot instance describes a kSystemPointerSize-sized field
-// ("slot") holding a possibly-weak tagged pointer (think: MaybeObject).
+// ("slot") holding a possibly-weak tagged pointer (think: Tagged<MaybeObject>).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
 class FullMaybeObjectSlot
     : public SlotBase<FullMaybeObjectSlot, Address, kSystemPointerSize> {
  public:
-  using TObject = MaybeObject;
+  using TObject = Tagged<MaybeObject>;
   using THeapObjectSlot = FullHeapObjectSlot;
 
   // Tagged value stored in this slot can be a weak pointer.
@@ -154,25 +154,26 @@ class FullMaybeObjectSlot
   explicit FullMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit FullMaybeObjectSlot(TaggedBase* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit FullMaybeObjectSlot(MaybeObject* ptr)
+  explicit FullMaybeObjectSlot(Tagged<MaybeObject>* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
-  inline MaybeObject operator*() const;
-  inline MaybeObject load(PtrComprCageBase cage_base) const;
-  inline void store(MaybeObject value) const;
+  inline Tagged<MaybeObject> operator*() const;
+  inline Tagged<MaybeObject> load(PtrComprCageBase cage_base) const;
+  inline void store(Tagged<MaybeObject> value) const;
 
-  inline MaybeObject Relaxed_Load() const;
-  inline MaybeObject Relaxed_Load(PtrComprCageBase cage_base) const;
-  inline void Relaxed_Store(MaybeObject value) const;
-  inline void Release_CompareAndSwap(MaybeObject old, MaybeObject target) const;
+  inline Tagged<MaybeObject> Relaxed_Load() const;
+  inline Tagged<MaybeObject> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline void Relaxed_Store(Tagged<MaybeObject> value) const;
+  inline void Release_CompareAndSwap(Tagged<MaybeObject> old,
+                                     Tagged<MaybeObject> target) const;
 };
 
 // A FullHeapObjectSlot instance describes a kSystemPointerSize-sized field
 // ("slot") holding a weak or strong pointer to a heap object (think:
-// HeapObjectReference).
+// Tagged<HeapObjectReference>).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
 // In case it is known that that slot contains a strong heap object pointer,
@@ -187,9 +188,9 @@ class FullHeapObjectSlot : public SlotBase<FullHeapObjectSlot, Address> {
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}
 
-  inline HeapObjectReference operator*() const;
-  inline HeapObjectReference load(PtrComprCageBase cage_base) const;
-  inline void store(HeapObjectReference value) const;
+  inline Tagged<HeapObjectReference> operator*() const;
+  inline Tagged<HeapObjectReference> load(PtrComprCageBase cage_base) const;
+  inline void store(Tagged<HeapObjectReference> value) const;
 
   inline Tagged<HeapObject> ToHeapObject() const;
 

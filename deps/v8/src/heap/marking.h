@@ -15,7 +15,7 @@
 
 namespace v8::internal {
 
-class Page;
+class PageMetadata;
 
 class MarkBit final {
  public:
@@ -110,9 +110,7 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // The size of the bitmap in bytes is CellsCount() * kBytesPerCell.
   static constexpr size_t kSize = kCellsCount * kBytesPerCell;
 
-  V8_INLINE static constexpr MarkBitIndex AddressToIndex(Address address) {
-    return (address & kPageAlignmentMask) >> kTaggedSizeLog2;
-  }
+  V8_INLINE static constexpr MarkBitIndex AddressToIndex(Address address);
 
   V8_INLINE static constexpr MarkBitIndex LimitAddressToIndex(Address address);
 
@@ -198,7 +196,7 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // its markbit set. If no such address exists, it returns the page area start.
   // If the page is iterable, the returned address is guaranteed to be the start
   // of a valid object in the page.
-  static inline Address FindPreviousValidObject(const Page* page,
+  static inline Address FindPreviousValidObject(const PageMetadata* page,
                                                 Address maybe_inner_ptr);
 
  private:
@@ -238,7 +236,7 @@ class LiveObjectRange final {
     using iterator_category = std::forward_iterator_tag;
 
     inline iterator();
-    explicit inline iterator(const Page* page);
+    explicit inline iterator(const PageMetadata* page);
 
     inline iterator& operator++();
     inline iterator operator++(int);
@@ -256,7 +254,7 @@ class LiveObjectRange final {
     inline bool AdvanceToNextMarkedObject();
     inline void AdvanceToNextValidObject();
 
-    const Page* const page_ = nullptr;
+    const PageMetadata* const page_ = nullptr;
     const MarkBit::CellType* const cells_ = nullptr;
     const PtrComprCageBase cage_base_;
     MarkingBitmap::CellIndex current_cell_index_ = 0;
@@ -266,13 +264,13 @@ class LiveObjectRange final {
     int current_size_ = 0;
   };
 
-  explicit LiveObjectRange(const Page* page) : page_(page) {}
+  explicit LiveObjectRange(const PageMetadata* page) : page_(page) {}
 
   inline iterator begin();
   inline iterator end();
 
  private:
-  const Page* const page_;
+  const PageMetadata* const page_;
 };
 
 }  // namespace v8::internal

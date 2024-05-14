@@ -820,5 +820,16 @@ RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
   return *shared_value;
 }
 
+RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForConstTrackingLet) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<ConstTrackingLetCell> const_tracking_let_cell =
+      Handle<ConstTrackingLetCell>::cast(args.at<HeapObject>(0));
+  DependentCode::DeoptimizeDependencyGroups(
+      isolate, *const_tracking_let_cell,
+      DependentCode::kConstTrackingLetChangedGroup);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

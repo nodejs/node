@@ -759,9 +759,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
                                               &done);
   }
 
-  __ LoadTrustedPointerField(
-      bytecode, FieldOperand(data, InterpreterData::kBytecodeArrayOffset),
-      kBytecodeArrayIndirectPointerTag, scratch1);
+  __ LoadProtectedPointerField(
+      bytecode, FieldOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);
   __ IsObjectType(bytecode, BYTECODE_ARRAY_TYPE, scratch1);
@@ -1298,7 +1297,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ ReplaceClosureCodeWithOptimizedCode(
         rcx, closure, kInterpreterBytecodeArrayRegister,
         WriteBarrierDescriptor::SlotAddressRegister());
-    __ JumpCodeObject(rcx);
+    __ JumpCodeObject(rcx, kJSEntrypointTag);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1707,11 +1706,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   GetSharedFunctionInfoData(masm, rbx, shared_function_info, kScratchRegister);
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
-
-  __ LoadCodePointerField(
-      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset),
-      kScratchRegister);
-  __ LoadCodeInstructionStart(rbx, rbx);
+  __ LoadProtectedPointerField(
+      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadCodeInstructionStart(rbx, rbx, kJSEntrypointTag);
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
@@ -1841,7 +1838,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
                      FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
-  __ AssertFeedbackVector(feedback_vector);
+  __ AssertFeedbackVector(feedback_vector, kScratchRegister);
 
   // Check the tiering state.
   Label flags_need_processing;
@@ -2935,18 +2932,18 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   }
 
   // Load deoptimization data from the code object.
-  const TaggedRegister deopt_data(rbx);
-  __ LoadTaggedField(
+  const Register deopt_data(rbx);
+  __ LoadProtectedPointerField(
       deopt_data,
       FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiUntagField(
       rbx,
-      FieldOperand(deopt_data, FixedArray::OffsetOfElementAt(
+      FieldOperand(deopt_data, TrustedFixedArray::OffsetOfElementAt(
                                    DeoptimizationData::kOsrPcOffsetIndex)));
 
-  __ LoadCodeInstructionStart(rax, rax);
+  __ LoadCodeInstructionStart(rax, rax, kJSEntrypointTag);
 
   // Compute the target address = code_entry + osr_offset
   __ addq(rax, rbx);
@@ -3999,7 +3996,8 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
     __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ Move(kCArgRegs[1], kOldSPRegister);
     __ PrepareCallCFunction(2);
-    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
+    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
+                     SetIsolateDataSlots::kNo);
     __ movq(central_stack_sp, kReturnRegister0);
 
     __ popq(argc_input);
@@ -4042,7 +4040,8 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
 
     __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(1);
-    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
+    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
+                     SetIsolateDataSlots::kNo);
 
     __ popq(kReturnRegister1);
     __ popq(kReturnRegister0);
@@ -4218,7 +4217,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Move(kCArgRegs[1], 0);  // argv.
     __ Move(kCArgRegs[2], ER::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(3);
-    __ CallCFunction(find_handler, 3);
+    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
@@ -4369,7 +4368,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      callback =
+          CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
@@ -4428,8 +4428,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ Push(kScratchRegister);  // kNewTarget
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
-      __ PushTaggedField(FieldOperand(callback, CallHandlerInfo::kDataOffset),
-                         scratch2);
+      __ PushTaggedField(
+          FieldOperand(callback, FunctionTemplateInfo::kCallbackDataOffset),
+          scratch2);
       break;
 
     case CallApiCallbackMode::kOptimizedNoProfiling:
@@ -4475,16 +4476,15 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ PushTaggedField(
-        FieldOperand(callback, CallHandlerInfo::kOwnerTemplateOffset),
-        scratch2);
+    __ Push(callback);
 
     __ PushReturnAddressFrom(scratch);
 
     __ LoadExternalPointerField(
         api_function_address,
-        FieldOperand(callback, CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-        kCallHandlerInfoCallbackTag, kScratchRegister);
+        FieldOperand(callback,
+                     FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
+        kFunctionTemplateInfoCallbackTag, kScratchRegister);
 
     __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT,
                       api_function_address);
@@ -4625,8 +4625,13 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Operand info_object = ExitFrameStackSlotOperand(0);
   __ movq(info_object, args_array);
 
-  // name_arg = Handle<Name>(&name), name value was pushed to GC-ed stack space.
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
+  __ movq(name_arg, Operand(args_array, -kSystemPointerSize));
+#else
+  // name_arg = Local<Name>(&name), name value was pushed to GC-ed stack space.
   __ leaq(name_arg, Operand(args_array, -kSystemPointerSize));
+#endif
   // The context register (rsi) might overlap with property_callback_info_arg
   // but the context value has been saved in EnterExitFrame and thus it could
   // be used to pass arguments.
@@ -4726,7 +4731,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
   __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
 #else
-  // r8 is kCArgRegs[4] on Linux
+  // r8 is kCArgRegs[4] on Linux.
   __ LoadAddress(r8, ExternalReference::isolate_address(isolate));
 #endif
 
@@ -4990,7 +4995,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ movq(kCArgRegs[2], kInterpreterBytecodeArrayRegister);
     __ CallCFunction(get_baseline_pc, 3);
   }
-  __ LoadCodeInstructionStart(code_obj, code_obj);
+  __ LoadCodeInstructionStart(code_obj, code_obj, kJSEntrypointTag);
   __ addq(code_obj, kReturnRegister0);
   __ popq(kInterpreterAccumulatorRegister);
 

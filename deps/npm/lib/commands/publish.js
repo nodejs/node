@@ -1,4 +1,4 @@
-const log = require('../utils/log-shim.js')
+const { log, output } = require('proc-log')
 const semver = require('semver')
 const pack = require('libnpmpack')
 const libpub = require('libnpmpublish').publish
@@ -6,19 +6,17 @@ const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
-const replaceInfo = require('../utils/replace-info.js')
-
+const { redactLog: replaceInfo } = require('@npmcli/redact')
 const otplease = require('../utils/otplease.js')
 const { getContents, logTar } = require('../utils/tar.js')
-
 // for historical reasons, publishConfig in package.json can contain ANY config
 // keys that npm supports in .npmrc files and elsewhere.  We *may* want to
 // revisit this at some point, and have a minimal set that's a SemVer-major
 // change that ought to get a RFC written on it.
 const { flatten } = require('@npmcli/config/lib/definitions')
 const pkgJson = require('@npmcli/package-json')
+const BaseCommand = require('../base-cmd.js')
 
-const BaseCommand = require('../base-command.js')
 class Publish extends BaseCommand {
   static description = 'Publish a package'
   static name = 'publish'
@@ -59,7 +57,6 @@ class Publish extends BaseCommand {
     }
 
     const opts = { ...this.npm.flatOptions, progress: false }
-    log.disableProgress()
 
     // you can publish name@version, ./foo.tgz, etc.
     // even though the default is the 'file:.' cwd.
@@ -73,7 +70,6 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
-        banner: !silent,
       })
     }
 
@@ -132,7 +128,6 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
-        banner: !silent,
       })
 
       await runScript({
@@ -140,22 +135,21 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
-        banner: !silent,
       })
     }
 
     if (!this.suppressOutput) {
       if (!silent && json) {
-        this.npm.output(JSON.stringify(pkgContents, null, 2))
+        output.standard(JSON.stringify(pkgContents, null, 2))
       } else if (!silent) {
-        this.npm.output(`+ ${pkgContents.id}`)
+        output.standard(`+ ${pkgContents.id}`)
       }
     }
 
     return pkgContents
   }
 
-  async execWorkspaces (args) {
+  async execWorkspaces () {
     // Suppresses JSON output in publish() so we can handle it here
     this.suppressOutput = true
 
@@ -173,7 +167,7 @@ class Publish extends BaseCommand {
           log.warn(
             'publish',
             `Skipping workspace ${
-              this.npm.chalk.green(name)
+              this.npm.chalk.cyan(name)
             }, marked as ${
               this.npm.chalk.bold('private')
             }`
@@ -185,14 +179,14 @@ class Publish extends BaseCommand {
       // This needs to be in-line w/ the rest of the output that non-JSON
       // publish generates
       if (!silent && !json) {
-        this.npm.output(`+ ${pkgContents.id}`)
+        output.standard(`+ ${pkgContents.id}`)
       } else {
         results[name] = pkgContents
       }
     }
 
     if (!silent && json) {
-      this.npm.output(JSON.stringify(results, null, 2))
+      output.standard(JSON.stringify(results, null, 2))
     }
   }
 
@@ -220,9 +214,15 @@ class Publish extends BaseCommand {
       })
     }
     if (manifest.publishConfig) {
-      flatten(manifest.publishConfig, opts)
+      const cliFlags = this.npm.config.data.get('cli').raw
+      // Filter out properties set in CLI flags to prioritize them over
+      // corresponding `publishConfig` settings
+      const filteredPublishConfig = Object.fromEntries(
+        Object.entries(manifest.publishConfig).filter(([key]) => !(key in cliFlags)))
+      flatten(filteredPublishConfig, opts)
     }
     return manifest
   }
 }
+
 module.exports = Publish

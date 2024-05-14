@@ -707,7 +707,7 @@ Type Typer::Visitor::ToNumeric(Type type, Typer* t) {
 Type Typer::Visitor::ToObject(Type type, Typer* t) {
   // ES6 section 7.1.13 ToObject ( argument )
   if (type.Is(Type::Receiver())) return type;
-  if (type.Is(Type::Primitive())) return Type::OtherObject();
+  if (type.Is(Type::Primitive())) return Type::StringWrapperOrOtherObject();
   if (!type.Maybe(Type::OtherUndetectable())) {
     return Type::DetectableReceiver();
   }
@@ -1689,6 +1689,8 @@ Type Typer::Visitor::TypeJSLoadContext(Node* node) {
 
 Type Typer::Visitor::TypeJSStoreContext(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeJSStoreScriptContext(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSCreateFunctionContext(Node* node) {
   return Type::OtherInternal();
 }
@@ -2363,12 +2365,21 @@ Type Typer::Visitor::TypeCheckString(Node* node) {
   return Type::Intersect(arg, Type::String(), zone());
 }
 
+Type Typer::Visitor::TypeCheckStringOrStringWrapper(Node* node) {
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::StringOrStringWrapper(), zone());
+}
+
 Type Typer::Visitor::TypeCheckSymbol(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::Symbol(), zone());
 }
 
 Type Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
+  return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
+}
+
+Type Typer::Visitor::TypeChangeFloat64HoleToTagged(Node* node) {
   return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
 }
 

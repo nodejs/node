@@ -1,9 +1,11 @@
 #pragma once
 
+#include "quic/defs.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "bindingdata.h"
+#include "defs.h"
 #include "session.h"
 #include "sessionticket.h"
 #include "streams.h"
@@ -18,10 +20,7 @@ class Session::Application : public MemoryRetainer {
   using Options = Session::Application_Options;
 
   Application(Session* session, const Options& options);
-  Application(const Application&) = delete;
-  Application(Application&&) = delete;
-  Application& operator=(const Application&) = delete;
-  Application& operator=(Application&&) = delete;
+  DISALLOW_COPY_AND_MOVE(Application)
 
   virtual bool Start();
 
@@ -115,26 +114,26 @@ class Session::Application : public MemoryRetainer {
   // the default stream priority.
   virtual StreamPriority GetStreamPriority(const Stream& stream);
 
- protected:
-  inline Environment* env() const { return session_->env(); }
-  inline Session& session() { return *session_; }
-  inline const Session& session() const { return *session_; }
-
-  Packet* CreateStreamDataPacket();
-
   struct StreamData;
 
   virtual int GetStreamData(StreamData* data) = 0;
   virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;
   virtual bool ShouldSetFin(const StreamData& data) = 0;
 
+  inline Environment* env() const { return session_->env(); }
+  inline Session& session() { return *session_; }
+  inline const Session& session() const { return *session_; }
+
+ private:
+  Packet* CreateStreamDataPacket();
+
   // Write the given stream_data into the buffer.
   ssize_t WriteVStream(PathStorage* path,
                        uint8_t* buf,
                        ssize_t* ndatalen,
+                       size_t max_packet_size,
                        const StreamData& stream_data);
 
- private:
   Session* session_;
 };
 
@@ -151,6 +150,8 @@ struct Session::Application::StreamData final {
   BaseObjectPtr<Stream> stream;
 
   inline operator nghttp3_vec() const { return {data[0].base, data[0].len}; }
+
+  std::string ToString() const;
 };
 
 }  // namespace quic

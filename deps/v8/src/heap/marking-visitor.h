@@ -35,6 +35,7 @@ struct EphemeronMarking {
 // - AddWeakReferenceForReferenceSummarizer
 // - TryMark
 // - IsMarked
+// - MarkPointerTableEntry
 // - retaining_path_mode
 // - RecordSlot
 // - RecordRelocSlot
@@ -153,7 +154,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 #ifdef THREAD_SANITIZER
     // This is needed because TSAN does not process the memory fence
     // emitted after page initialization.
-    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+    MemoryChunk::FromHeapObject(heap_object)->SynchronizedLoad();
 #endif
   }
 
@@ -267,6 +268,8 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
   bool IsMarked(Tagged<HeapObject> obj) const {
     return MarkBit::From(obj).Get<AccessMode::ATOMIC>();
   }
+
+  void MarkPointerTableEntry(Tagged<HeapObject> obj, IndirectPointerSlot slot);
 };
 
 }  // namespace internal

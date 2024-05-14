@@ -226,6 +226,10 @@ class Representation {
     UNREACHABLE();
   }
 
+  bool operator==(const Representation& other) const {
+    return kind_ == other.kind_;
+  }
+
  private:
   explicit constexpr Representation(Kind k) : kind_(k) {}
 

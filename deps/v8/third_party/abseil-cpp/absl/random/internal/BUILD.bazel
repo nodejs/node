@@ -137,7 +137,7 @@ cc_library(
 
 cc_library(
     name = "explicit_seed_seq",
-    testonly = 1,
+    testonly = True,
     hdrs = [
         "explicit_seed_seq.h",
     ],
@@ -151,7 +151,7 @@ cc_library(
 
 cc_library(
     name = "sequence_urbg",
-    testonly = 1,
+    testonly = True,
     hdrs = [
         "sequence_urbg.h",
     ],
@@ -375,7 +375,7 @@ cc_binary(
 
 cc_library(
     name = "distribution_test_util",
-    testonly = 1,
+    testonly = True,
     srcs = [
         "chi_square.cc",
         "distribution_test_util.cc",
@@ -534,7 +534,7 @@ cc_library(
 
 cc_library(
     name = "mock_overload_set",
-    testonly = 1,
+    testonly = True,
     hdrs = ["mock_overload_set.h"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [

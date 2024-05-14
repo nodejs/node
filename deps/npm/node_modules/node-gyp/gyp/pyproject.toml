@@ -38,7 +38,7 @@ gyp = "gyp:script_main"
 "Homepage" = "https://github.com/nodejs/gyp-next"
 
 [tool.ruff]
-select = [
+lint.select = [
   "C4",   # flake8-comprehensions
   "C90",  # McCabe cyclomatic complexity
   "DTZ",  # flake8-datetimez
@@ -87,7 +87,7 @@ select = [
   # "T20",  # flake8-print
   # "TRY",  # tryceratops
 ]
-ignore = [
+lint.ignore = [
   "E721",
   "PLC1901",
   "PLR0402",
@@ -105,10 +105,10 @@ extend-exclude = ["pylib/packaging"]
 line-length = 88
 target-version = "py37"
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 101
 
-[tool.ruff.pylint]
+[tool.ruff.lint.pylint]
 max-args = 11
 max-branches = 108
 max-returns = 10

@@ -120,7 +120,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprBlock, kAnyRefCode,
         kExprLocalGet, 0,
-        kGCPrefix, kExprBrOnCastGeneric,
+        kGCPrefix, kExprBrOnCast,
           ...wasmUnsignedLeb(value), 0, kAnyRefCode, struct,
         kExprDrop,
         kExprReturn,

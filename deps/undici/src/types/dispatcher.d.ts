@@ -217,7 +217,7 @@ declare namespace Dispatcher {
   export type StreamFactory = (data: StreamFactoryData) => Writable;
   export interface DispatchHandlers {
     /** Invoked before request is dispatched on socket. May be invoked multiple times when a request is retried when the request at the head of the pipeline fails. */
-    onConnect?(abort: () => void): void;
+    onConnect?(abort: (err?: Error) => void): void;
     /** Invoked when an error has occurred. */
     onError?(err: Error): void;
     /** Invoked when request is upgraded either due to a `Upgrade` header or `CONNECT` method. */
@@ -225,7 +225,7 @@ declare namespace Dispatcher {
     /** Invoked when response is received, before headers have been read. **/
     onResponseStarted?(): void;
     /** Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. */
-    onHeaders?(statusCode: number, headers: Buffer[] | string[] | null, resume: () => void, statusText: string): boolean;
+    onHeaders?(statusCode: number, headers: Buffer[], resume: () => void, statusText: string): boolean;
     /** Invoked when response payload data is received. */
     onData?(chunk: Buffer): boolean;
     /** Invoked when response payload and trailers have been received and the request has completed. */

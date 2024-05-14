@@ -75,6 +75,9 @@ class TypeCanonicalizer {
                                             const WasmModule* sub_module,
                                             const WasmModule* super_module);
 
+  // Deletes recursive groups. Used only by the Wasm compile fuzzer.
+  V8_EXPORT_PRIVATE void EmptyStorageForTesting();
+
   size_t EstimateCurrentMemoryConsumption() const;
 
  private:

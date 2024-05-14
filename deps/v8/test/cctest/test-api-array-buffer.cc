@@ -412,7 +412,7 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
   // Make sure the pointer looks like a heap object
   Local<v8::Object> tmp = v8::Object::New(isolate);
   uint8_t* store_ptr =
-      reinterpret_cast<uint8_t*>(*reinterpret_cast<uintptr_t*>(*tmp));
+      reinterpret_cast<uint8_t*>(i::ValueHelper::ValueAsAddress(*tmp));
   auto backing_store = v8::ArrayBuffer::NewBackingStore(
       store_ptr, 8, [](void*, size_t, void*) {}, nullptr);
 

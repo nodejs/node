@@ -480,6 +480,16 @@ inline const std::string& Environment::exec_path() const {
   return exec_path_;
 }
 
+inline CompileCacheHandler* Environment::compile_cache_handler() {
+  auto* result = compile_cache_handler_.get();
+  DCHECK_NOT_NULL(result);
+  return result;
+}
+
+inline bool Environment::use_compile_cache() const {
+  return compile_cache_handler_.get() != nullptr;
+}
+
 #if HAVE_INSPECTOR
 inline void Environment::set_coverage_directory(const char* dir) {
   coverage_directory_ = std::string(dir);
@@ -679,6 +689,10 @@ inline bool Environment::hide_console_windows() const {
 inline bool Environment::no_global_search_paths() const {
   return (flags_ & EnvironmentFlags::kNoGlobalSearchPaths) ||
          !options_->global_search_paths;
+}
+
+inline bool Environment::should_start_debug_signal_handler() const {
+  return (flags_ & EnvironmentFlags::kNoStartDebugSignalHandler) == 0;
 }
 
 inline bool Environment::no_browser_globals() const {

@@ -7,7 +7,11 @@ An HTTP/1.1 client, written from scratch for Node.js.
 > Undici means eleven in Italian. 1.1 -> 11 -> Eleven -> Undici.
 It is also a Stranger Things reference.
 
+## How to get involved
+
 Have a question about using Undici? Open a [Q&A Discussion](https://github.com/nodejs/undici/discussions/new) or join our official OpenJS [Slack](https://openjs-foundation.slack.com/archives/C01QF9Q31QD) channel.
+
+Looking to contribute? Start by reading the [contributing guide](./CONTRIBUTING.md)
 
 ## Install
 
@@ -242,6 +246,18 @@ const data = {
 }
 
 await fetch('https://example.com', { body: data, method: 'POST', duplex: 'half' })
+```
+
+[FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData) besides text data and buffers can also utilize streams via [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob) objects:
+
+```js
+import { openAsBlob } from 'node:fs'
+
+const file = await openAsBlob('./big.csv')
+const body = new FormData()
+body.set('file', file, 'big.csv')
+
+await fetch('http://example.com', { method: 'POST', body })
 ```
 
 #### `request.duplex`

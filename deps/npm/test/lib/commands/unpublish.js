@@ -408,6 +408,36 @@ t.test('publishConfig no spec', async t => {
   t.equal(joinedOutput(), '- test-package')
 })
 
+t.test('prioritize CLI flags over publishConfig no spec', async t => {
+  const alternateRegistry = 'https://other.registry.npmjs.org'
+  const publishConfig = { registry: 'http://publishconfig' }
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      '//other.registry.npmjs.org/:_authToken': 'test-other-token',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: pkg,
+        version: '1.0.0',
+        publishConfig,
+      }, null, 2),
+    },
+    argv: ['--registry', alternateRegistry],
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
+    authorization: 'test-other-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true }, times: 2 })
+  registry.unpublish({ manifest })
+  await npm.exec('unpublish', [])
+  t.equal(joinedOutput(), '- test-package')
+})
+
 t.test('publishConfig with spec', async t => {
   const alternateRegistry = 'https://other.registry.npmjs.org'
   const { joinedOutput, npm } = await loadMockNpm(t, {

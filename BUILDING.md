@@ -121,6 +121,8 @@ platforms. This is true regardless of entries in the table below.
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                          |                                      |
 | FreeBSD          | x64              | >= 13.2                           | Experimental                                    |                                      |
 
+<!--lint disable final-definition-->
+
 [^1]: Older kernel versions may work. However official Node.js release
     binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
     with kernel 4.18.
@@ -146,6 +148,8 @@ platforms. This is true regardless of entries in the table below.
 
 [^5]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
     required to compile.
+
+<!--lint enable final-definition-->
 
 ### Supported toolchains
 
@@ -173,6 +177,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | win-x64 and win-x86     | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
 
+<!--lint disable final-definition-->
+
 [^6]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
     distributions natively supporting GCC 8.1 or higher, such as Debian 10,
@@ -182,6 +188,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
     and libstdc++ >= 6.0.28 (`GLIBCXX_3.4.28`). These are available on
     distributions natively supporting GCC 9.3 or higher, such as Debian 11,
     Ubuntu 20.04.
+
+<!--lint enable final-definition-->
 
 #### OpenSSL asm support
 
@@ -214,9 +222,9 @@ Supported platforms and toolchains change with each major version of Node.js.
 This document is only valid for the current major version of Node.js.
 Consult previous versions of this document for older versions of Node.js:
 
-* [Node.js 19](https://github.com/nodejs/node/blob/v19.x/BUILDING.md)
+* [Node.js 21](https://github.com/nodejs/node/blob/v21.x/BUILDING.md)
+* [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
 * [Node.js 18](https://github.com/nodejs/node/blob/v18.x/BUILDING.md)
-* [Node.js 16](https://github.com/nodejs/node/blob/v16.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
@@ -318,6 +326,8 @@ documentation tests.
 
 To run the linter without running tests, use
 `make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
+
+To fix auto fixable JavaScript linting errors, use `make lint-js-fix`.
 
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
@@ -536,10 +546,13 @@ If you encounter any difficulties, consider disabling `mold` as a
 troubleshooting step.
 
 If you plan to frequently rebuild Node.js, especially if using several
-branches, installing `ccache` and `mold` can help to greatly reduce build
+branches, installing `ccache` can help to greatly reduce build
 times. Set up with:
 
 On GNU/Linux:
+
+Tips: `mold` can speed up the link process, which can't be cached, you may
+need to install the latest version but not the apt version.
 
 ```bash
 sudo apt install ccache mold   # for Debian/Ubuntu, included in most Linux distros
@@ -548,13 +561,17 @@ export CXX="ccache g++"        # add to your .profile
 export LDFLAGS="-fuse-ld=mold" # add to your .profile
 ```
 
+Refs:
+
+1. <https://ccache.dev/performance.html>
+2. <https://github.com/rui314/mold>
+
 On macOS:
 
 ```bash
-brew install ccache mold       # see https://brew.sh
+brew install ccache            # see https://brew.sh
 export CC="ccache cc"          # add to ~/.zshrc or other shell config file
 export CXX="ccache c++"        # add to ~/.zshrc or other shell config file
-export LDFLAGS="-fuse-ld=mold" # add to ~/.zshrc or other shell config file
 ```
 
 This will allow for near-instantaneous rebuilds when switching branches back
@@ -572,11 +589,6 @@ the specified directory. The JS debugger of Visual Studio Code supports this
 configuration since the November 2020 version and allows for setting
 breakpoints.
 
-Refs:
-
-1. <https://ccache.dev/performance.html>
-2. <https://github.com/rui314/mold>
-
 #### Troubleshooting Unix and macOS builds
 
 Stale builds can sometimes result in `file not found` errors while building.
@@ -589,6 +601,22 @@ ran `./configure` with non-default options (such as `--debug`), you will need
 to run it again before invoking `make -j4`.
 
 ### Windows
+
+#### Tips
+
+You may need disable vcpkg integration if you got link error about symbol
+redefine related to zlib.lib(zlib1.dll), even you never install it by hand,
+as vcpkg is part of CLion and Visual Studio now.
+
+```powershell
+# find your vcpkg
+# double check vcpkg install the related file
+vcpkg owns zlib.lib
+vcpkg owns zlib1.dll
+vcpkg integrate remove
+```
+
+Refs: #24448, <https://github.com/microsoft/vcpkg/issues/37518>, [vcpkg](https://github.com/microsoft/vcpkg/)
 
 #### Prerequisites
 
@@ -639,7 +667,7 @@ packages:
 To install Node.js prerequisites using
 [Boxstarter WebLauncher](https://boxstarter.org/weblauncher), open
 <https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter>
-with Internet Explorer or Edge browser on the target machine.
+with Edge browser on the target machine.
 
 Alternatively, you can use PowerShell. Run those commands from
 an elevated (Administrator) PowerShell terminal:

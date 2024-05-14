@@ -63,17 +63,17 @@
         'FD_SETSIZE=1024',
         # we need to use node's preferred "win32" rather than gyp's preferred "win"
         'NODE_PLATFORM="win32"',
-        # Stop <windows.h> from defining macros that conflict with
-        # std::min() and std::max().  We don't use <windows.h> (much)
-        # but we still inherit it from uv.h.
-        'NOMINMAX',
         '_UNICODE=1',
       ],
-      'msvs_precompiled_header': 'tools/msvs/pch/node_pch.h',
-      'msvs_precompiled_source': 'tools/msvs/pch/node_pch.cc',
-      'sources': [
-        '<(_msvs_precompiled_header)',
-        '<(_msvs_precompiled_source)',
+      'conditions': [
+        ['clang==0', {
+          'msvs_precompiled_header': 'tools/msvs/pch/node_pch.h',
+          'msvs_precompiled_source': 'tools/msvs/pch/node_pch.cc',
+          'sources': [
+            '<(_msvs_precompiled_header)',
+            '<(_msvs_precompiled_source)',
+          ],
+        }],
       ],
     }, { # POSIX
       'defines': [ '__POSIX__' ],
@@ -152,7 +152,7 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:zlib<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/zlib<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
@@ -191,7 +191,7 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:libuv<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/libuv<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
@@ -206,6 +206,10 @@
           ],
         }],
       ],
+    }],
+
+    [ 'node_shared_uvwasi=="false"', {
+      'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
     }],
 
     [ 'node_shared_nghttp2=="false"', {
@@ -370,7 +374,7 @@
               'msvs_settings': {
                 'VCLinkerTool': {
                   'AdditionalOptions': [
-                    '/WHOLEARCHIVE:<(openssl_product)',
+                    '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/<(openssl_product)',
                   ],
                 },
               },

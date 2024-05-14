@@ -10,7 +10,7 @@
 #include "src/compiler/turboshaft/duplication-optimization-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
-#include "src/compiler/turboshaft/stack-check-reducer.h"
+#include "src/compiler/turboshaft/stack-check-lowering-reducer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/turboshaft/wasm-js-lowering-reducer.h"
@@ -21,7 +21,7 @@ namespace v8::internal::compiler::turboshaft {
 void CodeEliminationAndSimplificationPhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(), DEBUG_BOOL);
 
-  CopyingPhase<DeadCodeEliminationReducer, StackCheckReducer,
+  CopyingPhase<DeadCodeEliminationReducer, StackCheckLoweringReducer,
 #if V8_ENABLE_WEBASSEMBLY
                WasmJSLoweringReducer,
 #endif
@@ -32,8 +32,7 @@ void CodeEliminationAndSimplificationPhase::Run(Zone* temp_zone) {
                // (which, for simplificy, doesn't use the Assembler helper
                // methods, but only calls Next::ReduceLoad/Store).
                DuplicationOptimizationReducer,
-               VariableReducerHotfix,
-               ValueNumberingReducer>::Run<false>(temp_zone);
+               ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -26,7 +26,6 @@
   # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
 
-  # Failing tests after the latest update.
   'proposals/gc/imports': [FAIL],
   'proposals/extended-const/imports': [FAIL],
   'proposals/js-types/imports': [FAIL],
@@ -53,11 +52,18 @@
   'proposals/extended-const/data': [FAIL],
   'proposals/multi-memory/data': [FAIL],
 
+  # These break with the GC proposal (because they check that certain modules
+  # don't validate that become valid with GC). The GC proposal will update them
+  # when it is merged into the main spec repository.
+  # With the GC proposal global.get is a constant instruction, independent on
+  # the type of the global. In the main spec repository, only global.get of
+  # imported globals are allowed.
   'elem': [FAIL],
   'proposals/extended-const/elem': [FAIL],
   'proposals/js-types/elem': [FAIL],
   'proposals/multi-memory/elem': [FAIL],
   'proposals/tail-call/elem': [FAIL],
+  'proposals/exception-handling/elem': [FAIL],
 
   'global': [FAIL],
   'proposals/extended-const/global': [FAIL],

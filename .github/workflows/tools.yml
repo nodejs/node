@@ -16,7 +16,6 @@ on:
           - acorn
           - acorn-walk
           - ada
-          - base64
           - brotli
           - c-ares
           - cjs-module-lexer
@@ -44,7 +43,7 @@ on:
           - zlib
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
 
 permissions:
   contents: read
@@ -78,14 +77,6 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-ada.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: base64
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-base64.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -127,7 +118,7 @@ jobs:
               npm ci
               NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
               if [ "$NEW_VERSION" != "" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                echo "NEW_VERSION=new version" >> $GITHUB_ENV
                 rm -rf package-lock.json node_modules
                 # Include $NEW_VERSION to explicitly update the package.json
                 # entry for the dependency and also so that semver-major updates
@@ -306,13 +297,13 @@ jobs:
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b  # v4.1.4
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: ${{ matrix.run }}
@@ -323,7 +314,7 @@ jobs:
         if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
         run: |
           echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
-      - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+      - uses: gr2m/create-or-update-pull-request-action@86ec1766034c8173518f61d2075cc2a173fb8c97  # v1.9.4
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.

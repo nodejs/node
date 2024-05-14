@@ -413,8 +413,10 @@ TF_BUILTIN(AsyncGeneratorAwaitResolveClosure, AsyncGeneratorBuiltinsAssembler) {
 TF_BUILTIN(AsyncGeneratorAwaitRejectClosure, AsyncGeneratorBuiltinsAssembler) {
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
+  // Restart in Rethrow mode, as this exception was already thrown and we don't
+  // want to trigger a second debug break event or change the message location.
   AsyncGeneratorAwaitResumeClosure(context, value,
-                                   JSAsyncGeneratorObject::kThrow);
+                                   JSAsyncGeneratorObject::kRethrow);
 }
 
 TF_BUILTIN(AsyncGeneratorAwaitUncaught, AsyncGeneratorBuiltinsAssembler) {

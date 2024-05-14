@@ -196,21 +196,6 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario frameworkCaught, breaking on caught exceptions, ignore listing off:
-Paused
-uncaughtAsync (framework.js:19:2)
--- await --
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-frameworkCaught (framework.js:14:8)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -265,6 +250,21 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario frameworkCaught, breaking on uncaught exceptions, ignore listing off:
+Paused
+uncaughtAsync (framework.js:19:2)
+-- await --
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+frameworkCaught (framework.js:14:8)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -292,21 +292,6 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario caughtInUser, breaking on caught exceptions, ignore listing on:
-Paused
-uncaughtAsync (framework.js:19:2)
--- await --
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-caughtInUser (user.js:66:10)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -341,21 +326,6 @@ console: finished without error
 
 Running test: testCase
 > Running scenario caughtInUser, breaking on caught exceptions, ignore listing off:
-Paused
-uncaughtAsync (framework.js:19:2)
--- await --
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-caughtInUser (user.js:66:10)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -390,6 +360,21 @@ console: finished without error
 
 Running test: testCase
 > Running scenario caughtInUser, breaking on uncaught exceptions, ignore listing on:
+Paused
+uncaughtAsync (framework.js:19:2)
+-- await --
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+caughtInUser (user.js:66:10)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -424,6 +409,21 @@ console: finished without error
 
 Running test: testCase
 > Running scenario caughtInUser, breaking on uncaught exceptions, ignore listing off:
+Paused
+uncaughtAsync (framework.js:19:2)
+-- await --
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+caughtInUser (user.js:66:10)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -458,21 +458,6 @@ console: finished without error
 
 Running test: testCase
 > Running scenario caughtInUserAndFramework, breaking on caught exceptions, ignore listing on:
-Paused
-uncaughtAsync (framework.js:19:2)
--- await --
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-caughtInUserAndFramework (user.js:74:10)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -496,6 +481,29 @@ console: finished without error
 
 Running test: testCase
 > Running scenario caughtInUserAndFramework, breaking on caught exceptions, ignore listing off:
+Uncaught exception: Uncaught Error: Failed
+-- <empty> --
+uncaughtAsync (framework.js:19:8)
+-- Promise.then --
+branchPromise (framework.js:31:15)
+frameworkAsync (framework.js:37:8)
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+caughtInUserAndFramework (user.js:74:10)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+console: Caught at Error: Failed
+    at uncaughtAsync (framework.js:20:9)
+console: Caught in user code at Error: Failed
+    at uncaughtAsync (framework.js:20:9)
+console: finished without error
+
+Running test: testCase
+> Running scenario caughtInUserAndFramework, breaking on uncaught exceptions, ignore listing on:
 Paused
 uncaughtAsync (framework.js:19:2)
 -- await --
@@ -533,12 +541,11 @@ console: Caught in user code at Error: Failed
 console: finished without error
 
 Running test: testCase
-> Running scenario caughtInUserAndFramework, breaking on uncaught exceptions, ignore listing on:
-Uncaught exception: Uncaught Error: Failed
--- <empty> --
-uncaughtAsync (framework.js:19:8)
--- Promise.then --
-branchPromise (framework.js:31:15)
+> Running scenario caughtInUserAndFramework, breaking on uncaught exceptions, ignore listing off:
+Paused
+uncaughtAsync (framework.js:19:2)
+-- await --
+branchPromise (framework.js:27:21)
 frameworkAsync (framework.js:37:8)
 branchPromise (framework.js:27:21)
 frameworkAsync (framework.js:37:8)
@@ -549,14 +556,7 @@ runWithResolution (framework.js:50:12)
 (anonymous) (framework.js:59:31)
 testWrapper (framework.js:59:8)
 (anonymous) (test_framework.js:0:0)
-console: Caught at Error: Failed
-    at uncaughtAsync (framework.js:20:9)
-console: Caught in user code at Error: Failed
-    at uncaughtAsync (framework.js:20:9)
-console: finished without error
 
-Running test: testCase
-> Running scenario caughtInUserAndFramework, breaking on uncaught exceptions, ignore listing off:
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -762,21 +762,6 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario uncaughtInUserCaughtInFramework, breaking on caught exceptions, ignore listing on:
-Paused
-uncaughtAsync (framework.js:19:2)
--- await --
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-uncaughtInUserCaughtInFramework (user.js:85:8)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -804,21 +789,6 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario uncaughtInUserCaughtInFramework, breaking on caught exceptions, ignore listing off:
-Paused
-uncaughtAsync (framework.js:19:2)
--- await --
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-uncaughtInUserCaughtInFramework (user.js:85:8)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -846,6 +816,21 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario uncaughtInUserCaughtInFramework, breaking on uncaught exceptions, ignore listing on:
+Paused
+uncaughtAsync (framework.js:19:2)
+-- await --
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+uncaughtInUserCaughtInFramework (user.js:85:8)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -873,6 +858,21 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario uncaughtInUserCaughtInFramework, breaking on uncaught exceptions, ignore listing off:
+Paused
+uncaughtAsync (framework.js:19:2)
+-- await --
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+uncaughtInUserCaughtInFramework (user.js:85:8)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -900,21 +900,6 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario branchInUser, breaking on caught exceptions, ignore listing on:
-Paused
-uncaughtAsync (framework.js:19:2)
--- await --
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-branchPromise (framework.js:27:21)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-branchInUser (user.js:89:12)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)
@@ -955,6 +940,46 @@ testWrapper (framework.js:59:8)
 
 Running test: testCase
 > Running scenario branchInUser, breaking on caught exceptions, ignore listing off:
+Uncaught exception: Uncaught Error: Failed
+-- <empty> --
+uncaughtAsync (framework.js:19:8)
+-- Promise.then --
+branchPromise (framework.js:31:15)
+frameworkAsync (framework.js:37:8)
+branchPromise (framework.js:27:21)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+branchInUser (user.js:89:12)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+Uncaught exception: Uncaught Error: Failed
+-- <empty> --
+uncaughtAsync (framework.js:19:8)
+-- Promise.then --
+branchPromise (framework.js:31:15)
+frameworkAsync (framework.js:37:8)
+complicatedThrow (framework.js:41:9)
+branchInUser (user.js:89:12)
+runWithResolution (framework.js:50:12)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+console: Caught in user code at Error: Failed
+    at uncaughtAsync (framework.js:20:9)
+Uncaught exception: Uncaught Error: Failed
+-- <empty> --
+uncaughtAsync (framework.js:19:8)
+-- setTimeout --
+(anonymous) (framework.js:59:31)
+testWrapper (framework.js:59:8)
+(anonymous) (test_framework.js:0:0)
+
+Running test: testCase
+> Running scenario branchInUser, breaking on uncaught exceptions, ignore listing on:
 Paused
 uncaughtAsync (framework.js:19:2)
 -- await --
@@ -1009,12 +1034,11 @@ testWrapper (framework.js:59:8)
 (anonymous) (test_framework.js:0:0)
 
 Running test: testCase
-> Running scenario branchInUser, breaking on uncaught exceptions, ignore listing on:
-Uncaught exception: Uncaught Error: Failed
--- <empty> --
-uncaughtAsync (framework.js:19:8)
--- Promise.then --
-branchPromise (framework.js:31:15)
+> Running scenario branchInUser, breaking on uncaught exceptions, ignore listing off:
+Paused
+uncaughtAsync (framework.js:19:2)
+-- await --
+branchPromise (framework.js:27:21)
 frameworkAsync (framework.js:37:8)
 branchPromise (framework.js:27:21)
 frameworkAsync (framework.js:37:8)
@@ -1025,31 +1049,7 @@ runWithResolution (framework.js:50:12)
 (anonymous) (framework.js:59:31)
 testWrapper (framework.js:59:8)
 (anonymous) (test_framework.js:0:0)
-Uncaught exception: Uncaught Error: Failed
--- <empty> --
-uncaughtAsync (framework.js:19:8)
--- Promise.then --
-branchPromise (framework.js:31:15)
-frameworkAsync (framework.js:37:8)
-complicatedThrow (framework.js:41:9)
-branchInUser (user.js:89:12)
-runWithResolution (framework.js:50:12)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
-console: Caught in user code at Error: Failed
-    at uncaughtAsync (framework.js:20:9)
-Uncaught exception: Uncaught Error: Failed
--- <empty> --
-uncaughtAsync (framework.js:19:8)
--- setTimeout --
-(anonymous) (framework.js:59:31)
-testWrapper (framework.js:59:8)
-(anonymous) (test_framework.js:0:0)
 
-Running test: testCase
-> Running scenario branchInUser, breaking on uncaught exceptions, ignore listing off:
 Uncaught exception: Uncaught Error: Failed
 -- <empty> --
 uncaughtAsync (framework.js:19:8)

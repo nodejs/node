@@ -504,6 +504,8 @@ macro JSToWasmWrapperHelper(
       } else if (retType == kWasmF64Type) {
         allocator.AllocFP64();
       } else {
+        const retKind = retType & kValueTypeKindBitsMask;
+        dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
         // Also check if there are any reference return values, as this allows
         // us to skip code when we process return values.
         hasRefReturns = true;
@@ -600,6 +602,8 @@ macro JSToWasmWrapperHelper(
         *toHighRef = Signed(pair.high);
       }
     } else {
+      const paramKind = paramType & kValueTypeKindBitsMask;
+      dcheck(paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull);
       // The byte array where we store converted parameters is not GC-safe.
       // Therefore we can only copy references into this array once no GC can
       // happen anymore. Any conversion of a primitive type can execute

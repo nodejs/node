@@ -33,7 +33,7 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
   } else {
     TrustedPointerTable::Space* space = isolate.GetTrustedPointerTableSpace();
     handle = isolate.GetTrustedPointerTable().AllocateAndInitializeEntry(
-        space, host.address(), tag);
+        space, host.ptr(), tag);
   }
 
   // Use a Release_Store to ensure that the store of the pointer into the table
@@ -52,7 +52,7 @@ template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) {
   const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
-  return Tagged<Object>(table.Get(handle));
+  return Tagged<Object>(table.Get(handle, tag));
 }
 
 V8_INLINE Tagged<Object> ResolveCodePointerHandle(

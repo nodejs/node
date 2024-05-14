@@ -316,7 +316,7 @@ TEST_F(TestWithIsolate, Issue23768) {
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
-      i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)),
+      i::ExternalTwoByteString::cast(*v8::Utils::OpenDirectHandle(*source)),
       i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
@@ -366,14 +366,14 @@ TEST_F(LogTest, LogCallbacks) {
   }
 }
 
-static void Prop1Getter(v8::Local<v8::String> property,
+static void Prop1Getter(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
-static void Prop1Setter(v8::Local<v8::String> property,
+static void Prop1Setter(v8::Local<v8::Name> property,
                         v8::Local<v8::Value> value,
                         const v8::PropertyCallbackInfo<void>& info) {}
 
-static void Prop2Getter(v8::Local<v8::String> property,
+static void Prop2Getter(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
 TEST_F(LogTest, LogAccessorCallbacks) {

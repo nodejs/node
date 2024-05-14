@@ -562,15 +562,9 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
     Tagged<FunctionTemplateInfo> fti) {
   // named_property_handler and indexed_property_handler are recorded as
   // INTERCEPTOR_INFO_TYPE.
-  Tagged<HeapObject> call_code = fti->call_code(kAcquireLoad);
-  if (!IsUndefined(call_code, isolate())) {
-    RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(call_code),
-        ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
-  }
   if (!IsUndefined(fti->GetInstanceCallHandler(), isolate())) {
     RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(fti->GetInstanceCallHandler()),
+        fti, FunctionTemplateInfo::cast(fti->GetInstanceCallHandler()),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
 }
@@ -655,8 +649,8 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(
 }
 
 static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
-    MaybeObject maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
-  if (maybe_obj->IsCleared())
+    Tagged<MaybeObject> maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
+  if (maybe_obj.IsCleared())
     return ObjectStats::FEEDBACK_VECTOR_SLOT_OTHER_TYPE;
   Tagged<Object> obj = maybe_obj.GetHeapObjectOrSmi();
   switch (kind) {
@@ -727,7 +721,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 
     // Log the monomorphic/polymorphic helper objects that this slot owns.
     for (int i = 0; i < it.entry_size(); i++) {
-      MaybeObject raw_object = vector->Get(slot.WithOffset(i));
+      Tagged<MaybeObject> raw_object = vector->Get(slot.WithOffset(i));
       Tagged<HeapObject> object;
       if (raw_object.GetHeapObject(&object)) {
         if (IsCell(object, cage_base()) ||
@@ -1017,11 +1011,11 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
       ObjectStats::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
-  Tagged<FixedArray> constant_pool =
-      FixedArray::cast(bytecode->constant_pool());
+  Tagged<TrustedFixedArray> constant_pool =
+      TrustedFixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
-    if (IsFixedArrayExact(entry, cage_base())) {
+    if (IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
           ObjectStats::EMBEDDED_OBJECT_TYPE);

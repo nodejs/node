@@ -52,7 +52,7 @@ typedef struct ares__llist_node ares__llist_node_t;
  *
  *  \param[in] data  user supplied data
  */
-typedef void                    (*ares__llist_destructor_t)(void *data);
+typedef void (*ares__llist_destructor_t)(void *data);
 
 /*! Create a linked list object
  *
@@ -201,8 +201,8 @@ void ares__llist_destroy(ares__llist_t *list);
 /*! Detach node from the current list and re-attach it to the new list as the
  *  last entry.
  *
- * \param[in] node   node to move
- * \param[in] parent new list
+ * \param[in] node       node to move
+ * \param[in] new_parent new list
  */
 void ares__llist_node_move_parent_last(ares__llist_node_t *node,
                                        ares__llist_t      *new_parent);
@@ -210,8 +210,8 @@ void ares__llist_node_move_parent_last(ares__llist_node_t *node,
 /*! Detach node from the current list and re-attach it to the new list as the
  *  first entry.
  *
- * \param[in] node   node to move
- * \param[in] parent new list
+ * \param[in] node       node to move
+ * \param[in] new_parent new list
  */
 void ares__llist_node_move_parent_first(ares__llist_node_t *node,
                                         ares__llist_t      *new_parent);

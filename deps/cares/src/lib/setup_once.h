@@ -274,7 +274,7 @@ Error Missing_definition_of_macro_sread
 #define ISPRINT(x)  (isprint((int)((unsigned char)x)))
 #define ISUPPER(x)  (isupper((int)((unsigned char)x)))
 #define ISLOWER(x)  (islower((int)((unsigned char)x)))
-#define ISASCII(x)  (isascii((int)((unsigned char)x)))
+#define ISASCII(x)  (((unsigned char)x) <= 127 ? 1 : 0)
 
 #define ISBLANK(x) \
   (int)((((unsigned char)x) == ' ') || (((unsigned char)x) == '\t'))
