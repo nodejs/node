@@ -254,16 +254,23 @@ function appendFetchMetadata (httpRequest) {
 
 // https://fetch.spec.whatwg.org/#append-a-request-origin-header
 function appendRequestOriginHeader (request) {
-  // 1. Let serializedOrigin be the result of byte-serializing a request origin with request.
+  // 1. Let serializedOrigin be the result of byte-serializing a request origin
+  //    with request.
+  // TODO: implement "byte-serializing a request origin"
   let serializedOrigin = request.origin
 
-  // 2. If request’s response tainting is "cors" or request’s mode is "websocket", then append (`Origin`, serializedOrigin) to request’s header list.
-  if (request.responseTainting === 'cors' || request.mode === 'websocket') {
-    if (serializedOrigin) {
-      request.headersList.append('origin', serializedOrigin, true)
-    }
+  // "'client' is changed to an origin during fetching."
+  // This doesn't happen in undici (in most cases) because undici, by default,
+  // has no concept of origin.
+  if (serializedOrigin === 'client') {
+    return
+  }
 
+  // 2. If request’s response tainting is "cors" or request’s mode is "websocket",
+  //    then append (`Origin`, serializedOrigin) to request’s header list.
   // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
+  if (request.responseTainting === 'cors' || request.mode === 'websocket') {
+    request.headersList.append('origin', serializedOrigin, true)
   } else if (request.method !== 'GET' && request.method !== 'HEAD') {
     // 1. Switch on request’s referrer policy:
     switch (request.referrerPolicy) {
@@ -274,13 +281,16 @@ function appendRequestOriginHeader (request) {
       case 'no-referrer-when-downgrade':
       case 'strict-origin':
       case 'strict-origin-when-cross-origin':
-        // If request’s origin is a tuple origin, its scheme is "https", and request’s current URL’s scheme is not "https", then set serializedOrigin to `null`.
+        // If request’s origin is a tuple origin, its scheme is "https", and
+        // request’s current URL’s scheme is not "https", then set
+        // serializedOrigin to `null`.
         if (request.origin && urlHasHttpsScheme(request.origin) && !urlHasHttpsScheme(requestCurrentURL(request))) {
           serializedOrigin = null
         }
         break
       case 'same-origin':
-        // If request’s origin is not same origin with request’s current URL’s origin, then set serializedOrigin to `null`.
+        // If request’s origin is not same origin with request’s current URL’s
+        // origin, then set serializedOrigin to `null`.
         if (!sameOrigin(request, requestCurrentURL(request))) {
           serializedOrigin = null
         }
@@ -289,10 +299,8 @@ function appendRequestOriginHeader (request) {
         // Do nothing.
     }
 
-    if (serializedOrigin) {
-      // 2. Append (`Origin`, serializedOrigin) to request’s header list.
-      request.headersList.append('origin', serializedOrigin, true)
-    }
+    // 2. Append (`Origin`, serializedOrigin) to request’s header list.
+    request.headersList.append('origin', serializedOrigin, true)
   }
 }
 

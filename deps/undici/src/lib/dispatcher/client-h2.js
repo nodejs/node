@@ -524,6 +524,7 @@ function writeH2 (client, request) {
       }
     } else if (util.isStream(body)) {
       writeStream({
+        abort,
         body,
         client,
         request,
@@ -535,6 +536,7 @@ function writeH2 (client, request) {
       })
     } else if (util.isIterable(body)) {
       writeIterable({
+        abort,
         body,
         client,
         request,

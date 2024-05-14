@@ -1,13 +1,14 @@
 'use strict'
 
-const { uid, states, sentCloseFrameState } = require('./constants')
+const { uid, states, sentCloseFrameState, emptyBuffer, opcodes } = require('./constants')
 const {
   kReadyState,
   kSentClose,
   kByteParser,
-  kReceivedClose
+  kReceivedClose,
+  kResponse
 } = require('./symbols')
-const { fireEvent, failWebsocketConnection } = require('./util')
+const { fireEvent, failWebsocketConnection, isClosing, isClosed, isEstablished } = require('./util')
 const { channels } = require('../../core/diagnostics')
 const { CloseEvent } = require('./events')
 const { makeRequest } = require('../fetch/request')
@@ -15,6 +16,7 @@ const { fetching } = require('../fetch/index')
 const { Headers } = require('../fetch/headers')
 const { getDecodeSplit } = require('../fetch/util')
 const { kHeadersList } = require('../../core/symbols')
+const { WebsocketFrameSend } = require('./frame')
 
 /** @type {import('crypto')} */
 let crypto
@@ -33,7 +35,7 @@ try {
  * @param {(response: any) => void} onEstablish
  * @param {Partial<import('../../types/websocket').WebSocketInit>} options
  */
-function establishWebSocketConnection (url, protocols, ws, onEstablish, options) {
+function establishWebSocketConnection (url, protocols, client, ws, onEstablish, options) {
   // 1. Let requestURL be a copy of url, with its scheme set to "http", if url’s
   //    scheme is "ws", and to "https" otherwise.
   const requestURL = url
@@ -46,6 +48,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
   //    and redirect mode is "error".
   const request = makeRequest({
     urlList: [requestURL],
+    client,
     serviceWorkers: 'none',
     referrer: 'no-referrer',
     mode: 'websocket',
@@ -211,6 +214,72 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
   return controller
 }
 
+function closeWebSocketConnection (ws, code, reason, reasonByteLength) {
+  if (isClosing(ws) || isClosed(ws)) {
+    // If this's ready state is CLOSING (2) or CLOSED (3)
+    // Do nothing.
+  } else if (!isEstablished(ws)) {
+    // If the WebSocket connection is not yet established
+    // Fail the WebSocket connection and set this's ready state
+    // to CLOSING (2).
+    failWebsocketConnection(ws, 'Connection was closed before it was established.')
+    ws[kReadyState] = states.CLOSING
+  } else if (ws[kSentClose] === sentCloseFrameState.NOT_SENT) {
+    // If the WebSocket closing handshake has not yet been started
+    // Start the WebSocket closing handshake and set this's ready
+    // state to CLOSING (2).
+    // - If neither code nor reason is present, the WebSocket Close
+    //   message must not have a body.
+    // - If code is present, then the status code to use in the
+    //   WebSocket Close message must be the integer given by code.
+    // - If reason is also present, then reasonBytes must be
+    //   provided in the Close message after the status code.
+
+    ws[kSentClose] = sentCloseFrameState.PROCESSING
+
+    const frame = new WebsocketFrameSend()
+
+    // If neither code nor reason is present, the WebSocket Close
+    // message must not have a body.
+
+    // If code is present, then the status code to use in the
+    // WebSocket Close message must be the integer given by code.
+    if (code !== undefined && reason === undefined) {
+      frame.frameData = Buffer.allocUnsafe(2)
+      frame.frameData.writeUInt16BE(code, 0)
+    } else if (code !== undefined && reason !== undefined) {
+      // If reason is also present, then reasonBytes must be
+      // provided in the Close message after the status code.
+      frame.frameData = Buffer.allocUnsafe(2 + reasonByteLength)
+      frame.frameData.writeUInt16BE(code, 0)
+      // the body MAY contain UTF-8-encoded data with value /reason/
+      frame.frameData.write(reason, 2, 'utf-8')
+    } else {
+      frame.frameData = emptyBuffer
+    }
+
+    /** @type {import('stream').Duplex} */
+    const socket = ws[kResponse].socket
+
+    socket.write(frame.createFrame(opcodes.CLOSE), (err) => {
+      if (!err) {
+        ws[kSentClose] = sentCloseFrameState.SENT
+      }
+    })
+
+    ws[kSentClose] = sentCloseFrameState.PROCESSING
+
+    // Upon either sending or receiving a Close control frame, it is said
+    // that _The WebSocket Closing Handshake is Started_ and that the
+    // WebSocket connection is in the CLOSING state.
+    ws[kReadyState] = states.CLOSING
+  } else {
+    // Otherwise
+    // Set this's ready state to CLOSING (2).
+    ws[kReadyState] = states.CLOSING
+  }
+}
+
 /**
  * @param {Buffer} chunk
  */
@@ -237,10 +306,10 @@ function onSocketClose () {
 
   const result = ws[kByteParser].closingInfo
 
-  if (result) {
+  if (result && !result.error) {
     code = result.code ?? 1005
     reason = result.reason
-  } else if (ws[kSentClose] !== sentCloseFrameState.SENT) {
+  } else if (!ws[kReceivedClose]) {
     // If _The WebSocket
     // Connection is Closed_ and no Close control frame was received by the
     // endpoint (such as could occur if the underlying transport connection
@@ -293,5 +362,6 @@ function onSocketError (error) {
 }
 
 module.exports = {
-  establishWebSocketConnection
+  establishWebSocketConnection,
+  closeWebSocketConnection
 }

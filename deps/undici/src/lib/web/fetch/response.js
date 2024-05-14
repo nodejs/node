@@ -26,8 +26,22 @@ const { URLSerializer } = require('./data-url')
 const { kHeadersList, kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
 const { types } = require('node:util')
+const { isDisturbed, isErrored } = require('node:stream')
 
 const textEncoder = new TextEncoder('utf-8')
+
+const hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf('v18') !== 0
+let registry
+
+if (hasFinalizationRegistry) {
+  registry = new FinalizationRegistry((stream) => {
+    if (!stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
+      stream.cancel('Response object has been garbage collected').catch(noop)
+    }
+  })
+}
+
+function noop () {}
 
 // https://fetch.spec.whatwg.org/#response-class
 class Response {
@@ -510,6 +524,11 @@ function fromInnerResponse (innerResponse, guard) {
   response[kHeaders] = new Headers(kConstruct)
   response[kHeaders][kHeadersList] = innerResponse.headersList
   response[kHeaders][kGuard] = guard
+
+  if (hasFinalizationRegistry && innerResponse.body?.stream) {
+    registry.register(response, innerResponse.body.stream)
+  }
+
   return response
 }
 
