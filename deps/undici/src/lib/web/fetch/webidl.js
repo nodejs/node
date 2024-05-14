@@ -250,6 +250,7 @@ webidl.sequenceConverter = function (converter) {
     /** @type {Generator} */
     const method = typeof Iterable === 'function' ? Iterable() : V?.[Symbol.iterator]?.()
     const seq = []
+    let index = 0
 
     // 3. If method is undefined, throw a TypeError.
     if (
@@ -270,7 +271,7 @@ webidl.sequenceConverter = function (converter) {
         break
       }
 
-      seq.push(converter(value, prefix, argument))
+      seq.push(converter(value, prefix, `${argument}[${index++}]`))
     }
 
     return seq
