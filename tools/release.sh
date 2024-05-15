@@ -17,7 +17,7 @@ promotecmd=dist-promote
 signcmd=dist-sign
 customsshkey="" # let ssh and scp use default key
 signversion=""
-cloudflare_bucket="dist-prod"
+cloudflare_bucket="dist-staging"
 cloudflare_endpoint=https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflarestorage.com # Node.js Cloudflare account
 cloudflare_profile="worker"
 
