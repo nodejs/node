@@ -224,6 +224,10 @@ This method has a custom variant for promises that is available using
 <!-- YAML
 added: v0.0.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46678
+    description: Passing `NaN` or negative number as `delay` will result
+                 the process to emit a warning, the warning will only be emitted once per process.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -252,6 +256,10 @@ This method has a custom variant for promises that is available using
 <!-- YAML
 added: v0.0.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46678
+    description: Passing `NaN` or negative number as `delay` will result
+                 the process to emit a warning, the warning will only be emitted once per process.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
