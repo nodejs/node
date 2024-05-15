@@ -3687,6 +3687,21 @@ changes:
 
 Type: Runtime
 
+### DEP0183: Passing `NaN` or a negative number as `delay`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53005
+    description: Passing `NaN` or a negative number as `delay` is deprecated.
+-->
+
+Type: Runtime
+
+Calling `setTimeout` or `setInterval` with `NaN` or a negative number will
+result the process emitting a warning, the warning will only be emitted once per
+process.
+
 Applications that intend to use authentication tags that are shorter than the
 default authentication tag length must set the `authTagLength` option of the
 [`crypto.createDecipheriv()`][] function to the appropriate length.
