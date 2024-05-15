@@ -423,9 +423,9 @@ static Local<Array> createModuleRequestsContainer(
 
     Local<String> specifier = module_request->GetSpecifier();
 
-    // Contains the import assertions for this request in the form:
+    // Contains the import attributes for this request in the form:
     // [key1, value1, source_offset1, key2, value2, source_offset2, ...].
-    Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
+    Local<FixedArray> raw_attributes = module_request->GetImportAttributes();
     Local<Object> attributes =
         createImportAttributesContainer(realm, isolate, raw_attributes, 3);
 
