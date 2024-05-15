@@ -776,6 +776,7 @@ static int32_t pkg_executeOptions(UPKGOptions *o) {
                         o->entryName,
                         (optMatchArch[0] == 0 ? nullptr : optMatchArch),
                         nullptr,
+                        nullptr,
                         gencFilePath,
                         sizeof(gencFilePath),
                         true);

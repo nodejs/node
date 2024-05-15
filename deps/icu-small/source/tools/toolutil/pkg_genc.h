@@ -99,6 +99,7 @@ writeObjectCode(
     const char *destdir,
     const char *optEntryPoint,
     const char *optMatchArch,
+    const char *optCpuArch,
     const char *optFilename,
     char *outFilePath,
     size_t outFilePathCapacity,
