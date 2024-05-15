@@ -79,6 +79,7 @@ def translate_config(out_dir, config, v8_config):
     },
     'variables': {
       'asan': bool_string_to_number(config['is_asan']),
+      'clang': bool_to_number(config['is_clang']),
       'enable_lto': config['use_thin_lto'],
       'is_debug': bool_string_to_number(config['is_debug']),
       'llvm_version': 13,
