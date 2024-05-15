@@ -148,6 +148,7 @@
                   # on Windows, we can go directly to .obj file (-o) option.
                   'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
                               '<@(icu_asm_opts)', # -o
+                              '-c', '<(target_arch)',
                               '-d', '<(SHARED_INTERMEDIATE_DIR)',
                               '-n', 'icudata',
                               '-e', 'icudt<(icu_ver_major)',
@@ -185,6 +186,7 @@
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
                   'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
                               '<@(icu_asm_opts)', # -o
+                              '-c', '<(target_arch)',
                               '-d', '<(SHARED_INTERMEDIATE_DIR)/',
                               '-n', 'icudata',
                               '-e', 'icusmdt<(icu_ver_major)',
