@@ -477,6 +477,20 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
+  void StopIfWaitingForFrontendEvent() {
+    if (!waiting_for_frontend_) {
+      return;
+    }
+    waiting_for_frontend_ = false;
+    for (const auto& id_channel : channels_) {
+      id_channel.second->unsetWaitingForDebugger();
+    }
+
+    if (interface_) {
+      interface_->StopWaitingForFrontendEvent();
+    }
+  }
+
   int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate,
                       bool prevent_shutdown) {
     int session_id = next_session_id_++;
@@ -717,8 +731,11 @@ bool Agent::Start(const std::string& path,
                               StartIoThreadAsyncCallback));
     uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
     start_io_thread_async.data = this;
-    // Ignore failure, SIGUSR1 won't work, but that should not block node start.
-    StartDebugSignalHandler();
+    if (parent_env_->should_start_debug_signal_handler()) {
+      // Ignore failure, SIGUSR1 won't work, but that should not block node
+      // start.
+      StartDebugSignalHandler();
+    }
 
     parent_env_->AddCleanupHook([](void* data) {
       Environment* env = static_cast<Environment*>(data);
@@ -743,20 +760,24 @@ bool Agent::Start(const std::string& path,
   }, parent_env_);
 
   bool wait_for_connect = options.wait_for_connect();
+  bool should_break_first_line = options.should_break_first_line();
   if (parent_handle_) {
-    wait_for_connect = parent_handle_->WaitForConnect();
-    parent_handle_->WorkerStarted(client_->getThreadHandle(), wait_for_connect);
+    should_break_first_line = parent_handle_->WaitForConnect();
+    parent_handle_->WorkerStarted(client_->getThreadHandle(),
+                                  should_break_first_line);
   } else if (!options.inspector_enabled || !options.allow_attaching_debugger ||
              !StartIoThread()) {
     return false;
   }
 
-  // Patch the debug options to implement waitForDebuggerOnStart for
-  // the NodeWorker.enable method.
-  if (wait_for_connect) {
-    CHECK(!parent_env_->has_serialized_options());
-    debug_options_.EnableBreakFirstLine();
-    parent_env_->options()->get_debug_options()->EnableBreakFirstLine();
+  if (wait_for_connect || should_break_first_line) {
+    // Patch the debug options to implement waitForDebuggerOnStart for
+    // the NodeWorker.enable method.
+    if (should_break_first_line) {
+      CHECK(!parent_env_->has_serialized_options());
+      debug_options_.EnableBreakFirstLine();
+      parent_env_->options()->get_debug_options()->EnableBreakFirstLine();
+    }
     client_->waitForFrontend();
   }
   return true;
@@ -1015,6 +1036,13 @@ void Agent::WaitForConnect() {
 
   CHECK_NOT_NULL(client_);
   client_->waitForFrontend();
+}
+
+void Agent::StopIfWaitingForConnect() {
+  if (client_ == nullptr) {
+    return;
+  }
+  client_->StopIfWaitingForFrontendEvent();
 }
 
 std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {

@@ -213,6 +213,10 @@ module.exports = {
         message: 'Use `new` keyword when throwing an `Error`.',
       },
       {
+        selector: "CallExpression[callee.property.name='substr']",
+        message: 'Use String.prototype.slice() or String.prototype.substring() instead of String.prototype.substr()',
+      },
+      {
         selector: "CallExpression[callee.name='isNaN']",
         message: 'Use Number.isNaN() instead of the global isNaN() function.',
       },
@@ -346,6 +350,7 @@ module.exports = {
     Crypto: 'readable',
     CryptoKey: 'readable',
     DecompressionStream: 'readable',
+    EventSource: 'readable',
     fetch: 'readable',
     FormData: 'readable',
     navigator: 'readable',

@@ -154,6 +154,8 @@ rules:
       message: Use `const { Crypto } = require('internal/crypto/webcrypto');` instead of the global.
     - name: CryptoKey
       message: Use `const { CryptoKey } = require('internal/crypto/webcrypto');` instead of the global.
+    - name: EventSource
+      message: Use `const { EventSource } = require('internal/deps/undici/undici');` instead of the global.
     - name: fetch
       message: Use `const { fetch } = require('internal/deps/undici/undici');` instead of the global.
     - name: global

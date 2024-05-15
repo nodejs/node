@@ -22417,7 +22417,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.28.0";
+var version = "0.28.1";
 
 // sources/Engine.ts
 var import_fs4 = __toESM(require("fs"));
@@ -22429,7 +22429,7 @@ var import_semver4 = __toESM(require_semver2());
 var config_default = {
   definitions: {
     npm: {
-      default: "10.5.2+sha1.0e9b72afaf5ecf8249b2abb4b7417db6739c1475",
+      default: "10.7.0+sha1.c87e0bbb7a53422670e423d0198120760f67c3b7",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -22466,7 +22466,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "9.0.3+sha1.ff3ad37177cbd0843e533aab13d5e40a05803b47",
+      default: "9.1.0+sha1.217063ce3fcbf44f3051666f38b810f1ddefee4a",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -22530,7 +22530,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.1.1+sha224.00f08619463229f8ba40c4ee90e8c2e4ced1f11c3115c26f3b98432e",
+        default: "4.2.2+sha224.1e50daf19e5e249a025569752c60b88005fddf57d10fcde5fc68b88f",
         commands: [
           [
             "yarn",
@@ -22702,7 +22702,7 @@ ${key.key}
 async function fetchLatestStableVersion(packageName) {
   const metadata = await fetchAsJson2(packageName, `latest`);
   const { version: version2, dist: { integrity, signatures } } = metadata;
-  if (process.env.COREPACK_INTEGRITY_KEYS !== ``) {
+  if (!shouldSkipIntegrityCheck()) {
     verifySignature({
       packageName,
       version: version2,
@@ -22736,8 +22736,8 @@ async function fetch(input, init) {
   if (typeof input === `string`)
     input = new URL(input);
   let headers = init?.headers;
-  const username = input.username ?? process.env.COREPACK_NPM_USERNAME;
-  const password = input.password ?? process.env.COREPACK_NPM_PASSWORD;
+  const username = input.username || process.env.COREPACK_NPM_USERNAME;
+  const password = input.password || process.env.COREPACK_NPM_PASSWORD;
   if (username || password) {
     headers = {
       ...headers,
@@ -23031,7 +23031,7 @@ async function installVersion(installTarget, locator, { spec }) {
   }
   if (!build[1]) {
     const registry = getRegistryFromPackageManagerSpec(spec);
-    if (registry.type === `npm` && !registry.bin && process.env.COREPACK_INTEGRITY_KEYS !== ``) {
+    if (registry.type === `npm` && !registry.bin && !shouldSkipIntegrityCheck()) {
       if (signatures == null || integrity == null)
         ({ signatures, integrity } = await fetchTarballURLAndSignature(registry.package, version2));
       verifySignature({ signatures, integrity, packageName: registry.package, version: version2 });
@@ -23135,6 +23135,9 @@ async function runVersion(locator, installSpec, binName, args) {
   process.execArgv = [];
   process.mainModule = void 0;
   process.nextTick(import_module.default.runMain, binPath);
+}
+function shouldSkipIntegrityCheck() {
+  return process.env.COREPACK_INTEGRITY_KEYS === `` || process.env.COREPACK_INTEGRITY_KEYS === `0`;
 }
 
 // sources/semverUtils.ts

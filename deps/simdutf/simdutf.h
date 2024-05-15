@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-11 09:56:55 -0400. Do not edit! */
+/* auto-generated on 2024-05-07 22:33:11 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -149,7 +149,7 @@
 #define SIMDUTF_HAS_RVV_TARGET_REGION 1
 #endif
 
-#if __riscv_v_intrinsic >= 11000 && !(__GNUC__ == 13 && __GNUC_MINOR__ == 2 && __GNUC_PATCHLEVEL__ == 0)
+#if __riscv_v_intrinsic >= 11000
 #define SIMDUTF_HAS_RVV_INTRINSICS 1
 #endif
 
@@ -594,7 +594,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "5.2.4"
+#define SIMDUTF_VERSION "5.2.8"
 
 namespace simdutf {
 enum {
@@ -609,7 +609,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 4
+  SIMDUTF_VERSION_REVISION = 8
 };
 } // namespace simdutf
 
@@ -682,6 +682,17 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+// RISC-V ISA detection utilities
+#if SIMDUTF_IS_RISCV64 && defined(__linux__)
+#include <unistd.h> // for syscall
+// We define these ourselves, for backwards compatibility
+struct simdutf_riscv_hwprobe { int64_t key; uint64_t value; };
+#define simdutf_riscv_hwprobe(...) syscall(258, __VA_ARGS__)
+#define SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0 4
+#define SIMDUTF_RISCV_HWPROBE_IMA_V    (1 << 2)
+#define SIMDUTF_RISCV_HWPROBE_EXT_ZVBB (1 << 17)
+#endif // SIMDUTF_IS_RISCV64 && defined(__linux__)
+
 namespace simdutf {
 namespace internal {
 
@@ -716,16 +727,6 @@ static inline uint32_t detect_supported_architectures() {
 
 #elif SIMDUTF_IS_RISCV64
 
-#if defined(__linux__)
-#include <unistd.h>
-// We define these our selfs, for backwards compatibility
-struct simdutf_riscv_hwprobe { int64_t key; uint64_t value; };
-#define simdutf_riscv_hwprobe(...) syscall(258, __VA_ARGS__)
-#define SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0 4
-#define SIMDUTF_RISCV_HWPROBE_IMA_V    (1 << 2)
-#define SIMDUTF_RISCV_HWPROBE_EXT_ZVBB (1 << 17)
-#endif
-
 static inline uint32_t detect_supported_architectures() {
   uint32_t host_isa = instruction_set::DEFAULT;
 #if SIMDUTF_IS_RVV
@@ -744,6 +745,10 @@ static inline uint32_t detect_supported_architectures() {
     if (extensions & SIMDUTF_RISCV_HWPROBE_EXT_ZVBB)
       host_isa |= instruction_set::ZVBB;
   }
+#endif
+#if defined(RUN_IN_SPIKE_SIMULATOR)
+  // Proxy Kernel does not implement yet hwprobe syscall
+  host_isa |= instruction_set::RVV;
 #endif
   return host_isa;
 }
@@ -2369,7 +2374,7 @@ simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_optio
  * @param length        the length of the input in bytes
  * @param output        the pointer to buffer that can hold the conversion result (should be at least base64_length_from_binary(length) bytes long)
  * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
- * @return number of written bytes, will be equal to base64_length_from_binary(length)
+ * @return number of written bytes, will be equal to base64_length_from_binary(length, options)
  */
 size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options = base64_default) noexcept;
 
@@ -2454,7 +2459,7 @@ public:
    *
    * @return the name of the implementation, e.g. "haswell", "westmere", "arm64"
    */
-  virtual const std::string &name() const { return _name; }
+  virtual std::string name() const { return std::string(_name); }
 
   /**
    * The description of this implementation.
@@ -2464,7 +2469,7 @@ public:
    *
    * @return the name of the implementation, e.g. "haswell", "westmere", "arm64"
    */
-  virtual const std::string &description() const { return _description; }
+  virtual std::string description() const { return std::string(_description); }
 
   /**
    * The instruction sets this implementation is compiled against
@@ -3594,7 +3599,7 @@ public:
    * @param length        the length of the input in bytes
    * @param output        the pointer to buffer that can hold the conversion result (should be at least base64_length_from_binary(length) bytes long)
    * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
-   * @return number of written bytes, will be equal to base64_length_from_binary(length)
+   * @return number of written bytes, will be equal to base64_length_from_binary(length, options)
    */
   virtual size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options = base64_default) const noexcept = 0;
 
@@ -3602,8 +3607,8 @@ public:
 protected:
   /** @private Construct an implementation with the given name and description. For subclasses. */
   simdutf_really_inline implementation(
-    std::string name,
-    std::string description,
+    const char* name,
+    const char* description,
     uint32_t required_instruction_sets
   ) :
     _name(name),
@@ -3611,18 +3616,18 @@ protected:
     _required_instruction_sets(required_instruction_sets)
   {
   }
-  virtual ~implementation()=default;
-
+protected:
+  ~implementation() = default;
 private:
   /**
    * The name of this implementation.
    */
-  const std::string _name;
+  const char* _name;
 
   /**
    * The description of this implementation.
    */
-  const std::string _description;
+  const char* _description;
 
   /**
    * Instruction sets required for this implementation.
