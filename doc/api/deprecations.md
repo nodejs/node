@@ -3687,21 +3687,6 @@ changes:
 
 Type: Runtime
 
-### DEP0183: Passing `NaN` or a negative number as `delay`
-
-<!-- YAML
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/53005
-    description: Passing `NaN` or a negative number as `delay` is deprecated.
--->
-
-Type: Runtime
-
-Calling `setTimeout` or `setInterval` with `NaN` or a negative number will
-result the process emitting a warning, the warning will only be emitted once per
-process.
-
 Applications that intend to use authentication tags that are shorter than the
 default authentication tag length must set the `authTagLength` option of the
 [`crypto.createDecipheriv()`][] function to the appropriate length.
@@ -3709,6 +3694,21 @@ default authentication tag length must set the `authTagLength` option of the
 For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function accepts
 authentication tags of any valid length (see [DEP0090](#DEP0090)). This behavior
 is deprecated to better align with recommendations per [NIST SP 800-38D][].
+
+### DEP0183: Passing `NaN` or a negative number as `delay` in `node:timers` functions
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53005
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling `setTimeout` or `setInterval` with `NaN` or a negative number will
+result the process emitting a warning, the warning will only be emitted once per
+process.
 
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
