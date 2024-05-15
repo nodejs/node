@@ -1,7 +1,7 @@
 const columns = require('cli-columns')
 const libteam = require('libnpmteam')
 const { output } = require('proc-log')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 
 const BaseCommand = require('../base-cmd.js')
 class Team extends BaseCommand {

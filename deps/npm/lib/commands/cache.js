@@ -132,7 +132,7 @@ class Cache extends BaseCommand {
       try {
         entry = await cacache.get(cachePath, key)
       } catch (err) {
-        log.warn(`Not Found: ${key}`)
+        log.warn('cache', `Not Found: ${key}`)
         break
       }
       output.standard(`Deleted: ${key}`)

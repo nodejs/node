@@ -31,10 +31,10 @@ const { homedir } = require('os')
 const { depth } = require('treeverse')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const { log, time } = require('proc-log')
-
 const { saveTypeMap } = require('../add-rm-pkg-deps.js')
 const AuditReport = require('../audit-report.js')
 const relpath = require('../relpath.js')
+const PackumentCache = require('../packument-cache.js')
 
 const mixins = [
   require('../tracker.js'),
@@ -82,7 +82,7 @@ class Arborist extends Base {
       installStrategy: options.global ? 'shallow' : (options.installStrategy ? options.installStrategy : 'hoisted'),
       lockfileVersion: lockfileVersion(options.lockfileVersion),
       packageLockOnly: !!options.packageLockOnly,
-      packumentCache: options.packumentCache || new Map(),
+      packumentCache: options.packumentCache || new PackumentCache(),
       path: options.path || '.',
       rebuildBundle: 'rebuildBundle' in options ? !!options.rebuildBundle : true,
       replaceRegistryHost: options.replaceRegistryHost,
