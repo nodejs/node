@@ -756,7 +756,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
           if (u.endsWith('/common/index.js')) {
             r.source = '"use strict";module.exports=require("node:module").createRequire(' +
                      `${JSON.stringify(u)})(${JSON.stringify(fileURLToPath(u))});\n`;
-          } else if (c.format === 'commonjs') {
+          } else if (r.format === 'commonjs') {
             r.source = await readFile(new URL(u));
           }
           return r;
