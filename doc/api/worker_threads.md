@@ -1008,7 +1008,10 @@ changes:
   * `execArgv` {string\[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this is provided
-    as [`process.execArgv`][] inside the worker. By default, options are
+    as [`process.execArgv`][] inside the worker. `--experimental-loader`
+    and `--import` with `module.register()` calls to contribute to the hooks
+    chain do not have an effect on the worker threads. These options affect
+    only the configuration of the main thread. By default, options are
     inherited from the parent thread.
   * `stdin` {boolean} If this is set to `true`, then `worker.stdin`
     provides a writable stream whose contents appear as `process.stdin`

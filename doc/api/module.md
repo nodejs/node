@@ -113,7 +113,9 @@ changes:
     `initialize` hook.
 
 Register a module that exports [hooks][] that customize Node.js module
-resolution and loading behavior. See [Customization hooks][].
+resolution and loading behavior. Registering modules that export [hooks][] only
+has an effect on the main thread. All worker threads inherit the customization
+hooks chain of the main thread. See [Customization hooks][].
 
 ### `module.syncBuiltinESMExports()`
 
