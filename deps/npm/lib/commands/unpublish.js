@@ -6,7 +6,7 @@ const { output, log } = require('proc-log')
 const pkgJson = require('@npmcli/package-json')
 const { flatten } = require('@npmcli/config/lib/definitions')
 const getIdentity = require('../utils/get-identity.js')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const BaseCommand = require('../base-cmd.js')
 
 const LAST_REMAINING_VERSION_ERROR = 'Refusing to delete the last version of the package. ' +

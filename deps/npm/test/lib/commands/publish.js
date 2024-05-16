@@ -291,7 +291,7 @@ t.test('shows usage with wrong set of arguments', async t => {
   await t.rejects(publish.exec(['a', 'b', 'c']), publish.usage)
 })
 
-t.test('throws when invalid tag', async t => {
+t.test('throws when invalid tag is semver', async t => {
   const { npm } = await loadMockNpm(t, {
     config: {
       tag: '0.0.13',
@@ -303,6 +303,24 @@ t.test('throws when invalid tag', async t => {
   await t.rejects(
     npm.exec('publish', []),
     { message: 'Tag name must not be a valid SemVer range: 0.0.13' }
+  )
+})
+
+t.test('throws when invalid tag when not url encodable', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      tag: '@test',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify(pkgJson, null, 2),
+    },
+  })
+  await t.rejects(
+    npm.exec('publish', []),
+    {
+      /* eslint-disable-next-line max-len */
+      message: 'Invalid tag name "@test" of package "test-package@@test": Tags may not have any characters that encodeURIComponent encodes.',
+    }
   )
 })
 

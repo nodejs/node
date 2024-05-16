@@ -554,7 +554,7 @@ const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
     }
   }
 
-  return JSON.stringify(result, null, 2)
+  return result
 }
 
 const parseableOutput = ({ global, long, seenNodes }) => {
