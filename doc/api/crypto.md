@@ -1762,8 +1762,7 @@ be used in one of two ways:
 * Using the [`hmac.update()`][] and [`hmac.digest()`][] methods to produce the
   computed HMAC digest.
 
-The [`crypto.createHmac()`][] method is used to create `Hmac` instances. `Hmac`
-objects are not to be created directly using the `new` keyword.
+The [`crypto.createHmac()`][] method is used to create `Hmac` instances.
 
 Example: Using `Hmac` objects as streams:
 

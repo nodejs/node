@@ -11,7 +11,6 @@ const crypto = require('crypto');
 // 'ClassName' : ['args', 'for', 'constructor']
 const TEST_CASES = {
   'Hash': ['sha1'],
-  'Hmac': ['sha1', 'Node'],
   'Cipheriv': ['des-ede3-cbc', '0123456789abcd0123456789', '12345678'],
   'Decipheriv': ['des-ede3-cbc', '0123456789abcd0123456789', '12345678'],
   'Sign': ['RSA-SHA1'],

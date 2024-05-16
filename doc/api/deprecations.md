@@ -3659,6 +3659,9 @@ deprecated due to being internals, not intended for public use.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53026
+    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52071
     description: Runtime deprecation.
@@ -3667,10 +3670,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Calling `Hmac` class directly with `Hmac()` or `new Hmac()` is
-deprecated due to being internals, not intended for public use.
+Calling `Hmac` class directly with `Hmac()` or `new Hmac()` has been
+removed due to being internals, not intended for public use.
 Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 
 ### DEP0182: Short GCM authentication tags without explicit `authTagLength`

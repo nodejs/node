@@ -6,13 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-{
-  const Hmac = crypto.Hmac;
-  const instance = crypto.Hmac('sha256', 'Node');
-  assert(instance instanceof Hmac, 'Hmac is expected to return a new instance' +
-                                   ' when called without `new`');
-}
-
 assert.throws(
   () => crypto.createHmac(null),
   {
@@ -461,11 +454,6 @@ assert.strictEqual(
 }
 
 {
-  crypto.Hmac('sha256', 'Node');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hmac constructor is deprecated.',
-       'DEP0181'],
-    ]
-  });
+  // the Hmac class is not exposed
+  assert.strictEqual('Hmac' in crypto, false);
 }
