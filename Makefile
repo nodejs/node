@@ -1364,6 +1364,11 @@ tools/.mdlintstamp: $(LINT_MD_FILES)
 # Lints the markdown documents maintained by us in the codebase.
 lint-md: lint-js-doc | tools/.mdlintstamp
 
+.PHONY: lint-md-fix
+# Fixes the markdown documents maintained by us in the codebase.
+lint-md-fix: lint-js-doc
+	@$(call available-node,$(run-lint-md) --fix)
+
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
 # Formats the markdown documents maintained by us in the codebase.
