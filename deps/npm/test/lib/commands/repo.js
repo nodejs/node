@@ -187,9 +187,11 @@ const loadMockNpm = async (t, prefixDir, config = {}) => {
   const mock = await mockNpm(t, {
     command: 'repo',
     mocks: {
-      '{LIB}/utils/open-url.js': async (_, url) => {
-        opened[url] = opened[url] || 0
-        opened[url]++
+      '{LIB}/utils/open-url.js': {
+        openUrl: async (_, url) => {
+          opened[url] = opened[url] || 0
+          opened[url]++
+        },
       },
     },
     config,

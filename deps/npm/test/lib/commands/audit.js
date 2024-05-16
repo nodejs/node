@@ -184,6 +184,7 @@ t.test('audit fix - bulk endpoint', async t => {
     tarballs: {
       '1.0.1': path.join(npm.prefix, 'test-dep-a-fixed'),
     },
+    times: 2,
   })
   const advisory = registry.advisory({ id: 100, vulnerable_versions: '1.0.0' })
   registry.nock.post('/-/npm/v1/security/advisories/bulk', body => {

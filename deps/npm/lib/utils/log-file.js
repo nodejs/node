@@ -48,7 +48,11 @@ class LogFiles {
     this.#endStream()
   }
 
-  load ({ path, logsMax = Infinity, timing } = {}) {
+  load ({ command, path, logsMax = Infinity, timing } = {}) {
+    if (['completion'].includes(command)) {
+      return
+    }
+
     // dir is user configurable and is required to exist so
     // this can error if the dir is missing or not configured correctly
     this.#path = path

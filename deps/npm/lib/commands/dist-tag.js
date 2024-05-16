@@ -2,7 +2,7 @@ const npa = require('npm-package-arg')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
 const { log, output } = require('proc-log')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-cmd.js')
 

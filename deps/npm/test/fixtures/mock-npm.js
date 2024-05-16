@@ -2,8 +2,6 @@ const os = require('os')
 const fs = require('fs').promises
 const path = require('path')
 const tap = require('tap')
-const { output, META } = require('proc-log')
-const errorMessage = require('../../lib/utils/error-message')
 const mockLogs = require('./mock-logs.js')
 const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('./tmock')
@@ -81,21 +79,6 @@ const getMockNpm = async (t, { mocks, init, load, npm: npmOpts }) => {
       // is left hanging on purpose as a best-effort and the process gets
       // closed regardless of if it has finished or not.
       await Promise.all(this.unrefPromises)
-      return res
-    }
-
-    async exec (...args) {
-      const [res, err] = await super.exec(...args).then((r) => [r]).catch(e => [null, e])
-      // This mimics how the exit handler flushes output for commands that have
-      // buffered output. It also uses the same json error processing from the
-      // error message fn. This is necessary for commands with buffered output
-      // to read the output after exec is called. This is not *exactly* how it
-      // works in practice, but it is close enough for now.
-      const jsonError = err && errorMessage(err, this).json
-      output.flush({ [META]: true, jsonError })
-      if (err) {
-        throw err
-      }
       return res
     }
   }

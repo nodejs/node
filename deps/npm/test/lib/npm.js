@@ -559,3 +559,11 @@ t.test('usage', async t => {
     }
   })
 })
+
+t.test('print usage if non-command param provided', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+
+  await t.rejects(npm.exec('tset'), { command: 'tset', exitCode: 1 })
+  t.match(joinedOutput(), 'Unknown command: "tset"')
+  t.match(joinedOutput(), 'Did you mean this?')
+})

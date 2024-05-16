@@ -82,7 +82,10 @@ t.test('should log scoped package output as valid json', async t => {
         },
       }),
     },
-    config: { json: true },
+    config: {
+      json: true,
+      progress: false,
+    },
   })
   await npm.exec('pack', [])
   const filename = 'myscope-test-package-1.0.0.tgz'

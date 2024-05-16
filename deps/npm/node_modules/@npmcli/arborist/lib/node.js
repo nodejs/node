@@ -119,6 +119,8 @@ class Node {
     // package's dependencies in a virtual root.
     this.sourceReference = sourceReference
 
+    // TODO if this came from pacote.manifest we don't have to do this,
+    // we can be told to skip this step
     const pkg = sourceReference ? sourceReference.package
       : normalize(options.pkg || {})
 

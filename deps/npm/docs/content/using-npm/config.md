@@ -1217,7 +1217,7 @@ a semver. Like the `rc` in `1.2.0-rc.8`.
 * Type: Boolean
 
 When set to `true`, npm will display a progress bar during time intensive
-operations, if `process.stderr` is a TTY.
+operations, if `process.stderr` and `process.stdout` are a TTY.
 
 Set to `false` to suppress the progress bar.
 
