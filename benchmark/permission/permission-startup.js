@@ -50,11 +50,9 @@ function main({ count, script, nFiles, prefixPath }) {
   const optionsWithScript = [
     '--experimental-permission',
     `--allow-fs-read=${script}`,
+    ...mockFiles(nFiles, prefixPath).map((file) => '--allow-fs-read=' + file),
+    script,
   ];
-  for (const file of mockFiles(nFiles, prefixPath)) {
-    optionsWithScript.push('--allow-fs-read=' + file);
-  }
-  optionsWithScript.push(script);
   const warmup = 3;
   const state = { count, finished: -warmup };
   spawnProcess(optionsWithScript, bench, state);
