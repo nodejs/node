@@ -121,7 +121,9 @@ Object {
 
 exports[`test/lib/commands/doctor.js TAP bad proxy > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -400,7 +402,9 @@ exports[`test/lib/commands/doctor.js TAP discrete checks git > output 1`] = `
 
 exports[`test/lib/commands/doctor.js TAP discrete checks invalid environment > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Finding git in your PATH",
@@ -514,7 +518,9 @@ current: v1.0.0, recommended: v1.0.0
 
 exports[`test/lib/commands/doctor.js TAP error reading directory > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -616,7 +622,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP incorrect owner > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -686,6 +694,7 @@ Object {
     "doctor checkFilesPermission Missing permissions on {CWD}/global/node_modules (expect: readable)",
     "doctor checkFilesPermission Missing permissions on {CWD}/prefix/node_modules/.bin (expect: readable, writable, executable)",
     "doctor checkFilesPermission Missing permissions on {CWD}/global/bin (expect: executable)",
+    "Some problems found. See above for recommendations.",
   ],
   "info": Array [
     "doctor Running checkup",
@@ -710,7 +719,9 @@ Object {
 
 exports[`test/lib/commands/doctor.js TAP missing git > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -731,11 +742,6 @@ Object {
   "warn": Array [
     String(
       doctor getGitPath Error: test error
-      doctor     at {STACK}
-      doctor     at {STACK}
-      doctor     at {STACK}
-      doctor     at {STACK}
-      doctor     at {STACK}
     ),
   ],
 }
@@ -776,7 +782,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP missing global directories > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -895,7 +903,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP node out of date - current > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -952,7 +962,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP node out of date - lts > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -1009,7 +1021,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP non-default registry > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -1066,7 +1080,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP npm out of date > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -1123,7 +1139,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP ping 404 > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -1181,7 +1199,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP ping 404 in color > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "/u001b[94mdoctor/u001b[39m Running checkup",
     "/u001b[94mdoctor/u001b[39m Pinging registry",
@@ -1239,7 +1259,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP ping exception with code > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",
@@ -1297,7 +1319,9 @@ verified 0 tarballs
 
 exports[`test/lib/commands/doctor.js TAP ping exception without code > logs 1`] = `
 Object {
-  "error": Array [],
+  "error": Array [
+    "Some problems found. See above for recommendations.",
+  ],
   "info": Array [
     "doctor Running checkup",
     "doctor Pinging registry",

@@ -8,6 +8,7 @@
 exports[`test/lib/commands/config.js TAP config list --json > output matches snapshot 1`] = `
 {
   "cache": "{CACHE}",
+  "color": {COLOR},
   "json": true,
   "projectloaded": "yes",
   "userloaded": "yes",
@@ -29,7 +30,6 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "call": "",
   "cert": null,
   "cidr": null,
-  "color": {COLOR},
   "commit-hooks": true,
   "cpu": null,
   "depth": null,
@@ -192,7 +192,7 @@ cafile = null
 call = ""
 cert = null
 cidr = null
-color = {COLOR}
+; color = {COLOR}
 commit-hooks = true
 cpu = null
 depth = null
@@ -345,6 +345,7 @@ projectloaded = "yes"
 ; "cli" config from command line options
 
 cache = "{CACHE}"
+color = {COLOR}
 long = true
 `
 
@@ -355,6 +356,10 @@ globalloaded = "yes"
 
 ; "user" config from {CWD}/home/.npmrc
 
+_auth = (protected)
+//nerfdart:_auth = (protected)
+//nerfdart:auth = (protected)
+auth = (protected)
 userloaded = "yes"
 
 ; "project" config from {CWD}/prefix/.npmrc
@@ -364,6 +369,7 @@ projectloaded = "yes"
 ; "cli" config from command line options
 
 cache = "{CACHE}"
+color = {COLOR}
 
 ; node bin location = {NODE-BIN-LOCATION}
 ; node version = {NODE-VERSION}
@@ -378,6 +384,7 @@ exports[`test/lib/commands/config.js TAP config list with publishConfig global >
 ; "cli" config from command line options
 
 cache = "{CACHE}"
+color = {COLOR}
 global = true
 
 ; node bin location = {NODE-BIN-LOCATION}
@@ -393,6 +400,7 @@ exports[`test/lib/commands/config.js TAP config list with publishConfig local > 
 ; "cli" config from command line options
 
 cache = "{CACHE}"
+color = {COLOR}
 
 ; node bin location = {NODE-BIN-LOCATION}
 ; node version = {NODE-VERSION}

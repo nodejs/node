@@ -300,6 +300,25 @@ dist-tags:
 published [36mover a year from now[39m
 `
 
+exports[`test/lib/commands/view.js TAP package with single version full json > must match snapshot 1`] = `
+{
+  "_id": "single-version",
+  "name": "single-version",
+  "dist-tags": {
+    "latest": "1.0.0"
+  },
+  "versions": [
+    "1.0.0"
+  ],
+  "version": "1.0.0",
+  "dist": {
+    "shasum": "123",
+    "tarball": "http://hm.single-version.com/1.0.0.tgz",
+    "fileCount": 1
+  }
+}
+`
+
 exports[`test/lib/commands/view.js TAP specific field names array field - 1 element > must match snapshot 1`] = `
 claudia
 `

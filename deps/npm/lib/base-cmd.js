@@ -1,4 +1,4 @@
-const { log, output } = require('proc-log')
+const { log } = require('proc-log')
 
 class BaseCommand {
   static workspaces = false
@@ -109,33 +109,6 @@ class BaseCommand {
     return Object.assign(new Error(`\n${prefix}${this.usage}`), {
       code: 'EUSAGE',
     })
-  }
-
-  async cmdExec (args) {
-    const { config } = this.npm
-
-    if (config.get('usage')) {
-      return output.standard(this.usage)
-    }
-
-    const hasWsConfig = config.get('workspaces') || config.get('workspace').length
-    // if cwd is a workspace, the default is set to [that workspace]
-    const implicitWs = config.get('workspace', 'default').length
-
-    // (-ws || -w foo) && (cwd is not a workspace || command is not ignoring implicit workspaces)
-    if (hasWsConfig && (!implicitWs || !this.constructor.ignoreImplicitWorkspace)) {
-      if (this.npm.global) {
-        throw new Error('Workspaces not supported for global packages')
-      }
-      if (!this.constructor.workspaces) {
-        throw Object.assign(new Error('This command does not support workspaces.'), {
-          code: 'ENOWORKSPACES',
-        })
-      }
-      return this.execWorkspaces(args)
-    }
-
-    return this.exec(args)
   }
 
   // Compare the number of entries with what was expected

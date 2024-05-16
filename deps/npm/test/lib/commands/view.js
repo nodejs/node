@@ -252,6 +252,24 @@ const packument = (nv, opts) => {
         },
       },
     },
+    'single-version': {
+      _id: 'single-version',
+      name: 'single-version',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
+      versions: {
+        '1.0.0': {
+          name: 'single-version',
+          version: '1.0.0',
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.single-version.com/1.0.0.tgz',
+            fileCount: 1,
+          },
+        },
+      },
+    },
   }
   if (nv.type === 'git') {
     return mocks[nv.hosted.project]
@@ -355,6 +373,27 @@ t.test('package with --json and no versions', async t => {
   const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
   await view.exec(['brown'])
   t.equal(joinedOutput(), '', 'no info to display')
+})
+
+t.test('package with single version', async t => {
+  t.test('full json', async t => {
+    const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+    await view.exec(['single-version'])
+    t.matchSnapshot(joinedOutput())
+  })
+
+  t.test('json and versions arg', async t => {
+    const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+    await view.exec(['single-version', 'versions'])
+    const parsed = JSON.parse(joinedOutput())
+    t.strictSame(parsed, ['1.0.0'], 'does not unwrap single item arrays in json')
+  })
+
+  t.test('no json and versions arg', async t => {
+    const { view, joinedOutput } = await loadMockNpm(t, { config: { json: false } })
+    await view.exec(['single-version', 'versions'])
+    t.strictSame(joinedOutput(), '1.0.0', 'unwraps single item arrays in basic mode')
+  })
 })
 
 t.test('package in cwd', async t => {
