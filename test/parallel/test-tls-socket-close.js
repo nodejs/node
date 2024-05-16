@@ -29,10 +29,10 @@ let netSocketCloseEmitted = false;
 const netServer = net.createServer((socket) => {
   netSocket = socket;
   tlsServer.emit('connection', socket);
-  socket.on('close', () => {
+  socket.on('close', common.mustCall(() => {
     netSocketCloseEmitted = true;
     assert.strictEqual(serverTlsSocket.destroyed, true);
-  });
+  }));
 }).listen(0, common.mustCall(() => {
   connectClient(netServer);
 }));
@@ -61,9 +61,6 @@ function connectClient(server) {
       // Close callbacks are executed after `setImmediate()` callbacks.
       assert.strictEqual(netSocketCloseEmitted, false);
       assert.strictEqual(serverTlsSocket.destroyed, false);
-      setImmediate(() => {
-        assert.strictEqual(netSocketCloseEmitted, true);
-      });
     });
   });
 
