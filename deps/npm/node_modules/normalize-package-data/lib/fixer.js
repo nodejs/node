@@ -139,7 +139,7 @@ module.exports = {
     }
   },
 
-  fixDependencies: function (data, strict) {
+  fixDependencies: function (data) {
     objectifyDeps(data, this.warn)
     addOptionalDepsToDeps(data, this.warn)
     this.fixBundleDependenciesField(data)
@@ -415,7 +415,7 @@ function parsePerson (person) {
   return obj
 }
 
-function addOptionalDepsToDeps (data, warn) {
+function addOptionalDepsToDeps (data) {
   var o = data.optionalDependencies
   if (!o) {
     return
