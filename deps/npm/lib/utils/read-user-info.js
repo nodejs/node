@@ -2,11 +2,6 @@ const { read: _read } = require('read')
 const userValidate = require('npm-user-validate')
 const { log, input } = require('proc-log')
 
-exports.otp = readOTP
-exports.password = readPassword
-exports.username = readUsername
-exports.email = readEmail
-
 const otpPrompt = `This command requires a one-time password (OTP) from your authenticator app.
 Enter one below. You can also pass one on the command line by appending --otp=123456.
 For more information, see:
@@ -62,4 +57,11 @@ function readEmail (msg = emailPrompt, email, isRetry) {
 
   return read({ prompt: msg, default: email || '' })
     .then((username) => readEmail(msg, username, true))
+}
+
+module.exports = {
+  otp: readOTP,
+  password: readPassword,
+  username: readUsername,
+  email: readEmail,
 }

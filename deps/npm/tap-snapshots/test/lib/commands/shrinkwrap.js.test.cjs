@@ -49,7 +49,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile ancient upgrad
     "created a lockfile as npm-shrinkwrap.json with version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
   ]
 }
 `
@@ -98,7 +98,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile existing downg
     "created a lockfile as npm-shrinkwrap.json with version 1"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v2 -> v1"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v2 -> v1"
   ]
 }
 `
@@ -125,7 +125,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile existing upgra
     "created a lockfile as npm-shrinkwrap.json with version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v2 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v2 -> v3"
   ]
 }
 `
@@ -188,7 +188,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json ancient > 
     "npm-shrinkwrap.json updated to version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
   ]
 }
 `
@@ -217,7 +217,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json ancient up
     "npm-shrinkwrap.json updated to version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
   ]
 }
 `
@@ -266,7 +266,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json existing d
     "npm-shrinkwrap.json updated to version 1"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v2 -> v1"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v2 -> v1"
   ]
 }
 `
@@ -295,7 +295,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json existing u
     "npm-shrinkwrap.json updated to version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v2 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v2 -> v3"
   ]
 }
 `
@@ -322,7 +322,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json ancient > mu
     "package-lock.json has been renamed to npm-shrinkwrap.json and updated to version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
   ]
 }
 `
@@ -351,7 +351,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json ancient upgr
     "package-lock.json has been renamed to npm-shrinkwrap.json and updated to version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v1 -> v3"
   ]
 }
 `
@@ -400,7 +400,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json existing dow
     "package-lock.json has been renamed to npm-shrinkwrap.json and updated to version 1"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v2 -> v1"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v2 -> v1"
   ]
 }
 `
@@ -429,7 +429,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json existing upg
     "package-lock.json has been renamed to npm-shrinkwrap.json and updated to version 3"
   ],
   "warn": [
-    "Converting lock file (npm-shrinkwrap.json) from v2 -> v3"
+    "shrinkwrap Converting lock file (npm-shrinkwrap.json) from v2 -> v3"
   ]
 }
 `

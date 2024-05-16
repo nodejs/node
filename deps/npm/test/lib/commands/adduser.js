@@ -9,9 +9,8 @@ const MockRegistry = require('@npmcli/mock-registry')
 const stream = require('stream')
 
 const mockAddUser = async (t, { stdin: stdinLines, registry: registryUrl, ...options } = {}) => {
-  let stdin
   if (stdinLines) {
-    stdin = new stream.PassThrough()
+    const stdin = new stream.PassThrough()
     for (const l of stdinLines) {
       stdin.write(l + '\n')
     }
@@ -30,7 +29,6 @@ const mockAddUser = async (t, { stdin: stdinLines, registry: registryUrl, ...opt
   })
   return {
     registry,
-    stdin,
     rc: () => ini.parse(fs.readFileSync(path.join(mock.home, '.npmrc'), 'utf8')),
     ...mock,
   }

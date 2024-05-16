@@ -5,8 +5,7 @@ const { output } = require('proc-log')
 const npa = require('npm-package-arg')
 const { depth } = require('treeverse')
 const { readTree: getFundingInfo, normalizeFunding, isValidFunding } = require('libnpmfund')
-
-const openUrl = require('../utils/open-url.js')
+const { openUrl } = require('../utils/open-url.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 const getPrintableName = ({ name, version }) => {

@@ -113,6 +113,11 @@ header.title > .description {
     line-height: 1;
 }
 
+header.title .version {
+    font-size: 0.8em;
+    color: #666666;
+}
+
 footer#edit {
     border-top: solid 1px #e1e4e8;
     margin: 3em 0 4em 0;
@@ -136,7 +141,10 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="config">config</h1>
+<h1 id="----config----1080">
+    <span>config</span>
+    <span class="version">@10.8.0</span>
+</h1>
 <span class="description">More than you probably want to know about npm configuration</span>
 </header>
 
@@ -1023,7 +1031,7 @@ a semver. Like the <code>rc</code> in <code>1.2.0-rc.8</code>.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>When set to <code>true</code>, npm will display a progress bar during time intensive
-operations, if <code>process.stderr</code> is a TTY.</p>
+operations, if <code>process.stderr</code> and <code>process.stdout</code> are a TTY.</p>
 <p>Set to <code>false</code> to suppress the progress bar.</p>
 <h4 id="provenance"><code>provenance</code></h4>
 <ul>

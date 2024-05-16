@@ -1,5 +1,5 @@
 const hookApi = require('libnpmhook')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const relativeDate = require('tiny-relative-date')
 const { output } = require('proc-log')
 const BaseCommand = require('../base-cmd.js')

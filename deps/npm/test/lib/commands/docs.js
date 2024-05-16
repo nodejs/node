@@ -84,7 +84,7 @@ const setup = async (t, { prefixDir = fixtures.pkg, config } = {}) => {
   const res = await mockNpm(t, {
     prefixDir,
     mocks: {
-      '{LIB}/utils/open-url.js': openUrl,
+      '{LIB}/utils/open-url.js': { openUrl },
     },
     config,
   })

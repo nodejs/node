@@ -53,18 +53,16 @@ class Pack extends BaseCommand {
         prefix: this.npm.localPrefix,
         workspaces: this.workspacePaths,
       })
-      const pkgContents = await getContents(manifest, tarballData)
-      tarballs.push(pkgContents)
+      tarballs.push(await getContents(manifest, tarballData))
     }
 
-    if (json) {
-      output.standard(JSON.stringify(tarballs, null, 2))
-      return
-    }
-
-    for (const tar of tarballs) {
-      logTar(tar, { unicode })
-      output.standard(tar.filename.replace(/^@/, '').replace(/\//, '-'))
+    for (const [index, tar] of Object.entries(tarballs)) {
+      // XXX(BREAKING_CHANGE): publish outputs a json object with package
+      // names as keys. Pack should do the same here instead of an array
+      logTar(tar, { unicode, json, key: index })
+      if (!json) {
+        output.standard(tar.filename.replace(/^@/, '').replace(/\//, '-'))
+      }
     }
   }
 

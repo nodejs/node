@@ -240,7 +240,7 @@ async function bucketEntries (bucket, filter) {
   return _bucketEntries(data, filter)
 }
 
-function _bucketEntries (data, filter) {
+function _bucketEntries (data) {
   const entries = []
   data.split('\n').forEach((entry) => {
     if (!entry) {

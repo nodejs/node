@@ -1,12 +1,9 @@
-const fsm = require('fs-minipass')
+const { resolve } = require('node:path')
+const { stat, chmod } = require('node:fs/promises')
 const cacache = require('cacache')
-const { resolve } = require('path')
-const { stat, chmod } = require('fs/promises')
+const fsm = require('fs-minipass')
 const Fetcher = require('./fetcher.js')
-
-const _exeBins = Symbol('_exeBins')
-const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
-const _readPackageJson = Symbol.for('package.Fetcher._readPackageJson')
+const _ = require('./util/protected.js')
 
 class FileFetcher extends Fetcher {
   constructor (spec, opts) {
@@ -27,7 +24,7 @@ class FileFetcher extends Fetcher {
     // have to unpack the tarball for this.
     return cacache.tmp.withTmp(this.cache, this.opts, dir =>
       this.extract(dir)
-        .then(() => this[_readPackageJson](dir))
+        .then(() => this[_.readPackageJson](dir))
         .then(mani => this.package = {
           ...mani,
           _integrity: this.integrity && String(this.integrity),
@@ -36,7 +33,7 @@ class FileFetcher extends Fetcher {
         }))
   }
 
-  [_exeBins] (pkg, dest) {
+  #exeBins (pkg, dest) {
     if (!pkg.bin) {
       return Promise.resolve()
     }
@@ -65,11 +62,11 @@ class FileFetcher extends Fetcher {
     // but if not, read the unpacked manifest and chmod properly.
     return super.extract(dest)
       .then(result => this.package ? result
-      : this[_readPackageJson](dest).then(pkg =>
-        this[_exeBins](pkg, dest)).then(() => result))
+      : this[_.readPackageJson](dest).then(pkg =>
+        this.#exeBins(pkg, dest)).then(() => result))
   }
 
-  [_tarballFromResolved] () {
+  [_.tarballFromResolved] () {
     // create a read stream and return it
     return new fsm.ReadStream(this.resolved)
   }

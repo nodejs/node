@@ -1,14 +1,17 @@
 const tar = require('tar')
 const ssri = require('ssri')
-const { log } = require('proc-log')
+const { log, output } = require('proc-log')
 const formatBytes = require('./format-bytes.js')
 const localeCompare = require('@isaacs/string-locale-compare')('en', {
   sensitivity: 'case',
   numeric: true,
 })
 
-const logTar = (tarball, opts = {}) => {
-  const { unicode = false } = opts
+const logTar = (tarball, { unicode = false, json, key } = {}) => {
+  if (json) {
+    output.buffer(key == null ? tarball : { [key]: tarball })
+    return
+  }
   log.notice('')
   log.notice('', `${unicode ? '📦 ' : 'package:'} ${tarball.name}@${tarball.version}`)
   log.notice('Tarball Contents')

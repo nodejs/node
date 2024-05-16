@@ -3,24 +3,21 @@ const setupMockNpm = require('../../fixtures/mock-npm')
 const tmock = require('../../fixtures/tmock')
 
 const setupOtplease = async (t, { otp = {}, ...rest }, fn) => {
-  const readUserInfo = {
-    otp: async () => '1234',
-  }
-
-  const webAuth = async (opener) => {
-    opener()
-    return '1234'
-  }
-
-  const otplease = tmock(t, '{LIB}/utils/otplease.js', {
-    '{LIB}/utils/read-user-info.js': readUserInfo,
-    '{LIB}/utils/open-url-prompt.js': () => {},
-    '{LIB}/utils/web-auth': webAuth,
+  const { otplease } = tmock(t, '{LIB}/utils/auth.js', {
+    '{LIB}/utils/read-user-info.js': {
+      otp: async () => '1234',
+    },
+    '{LIB}/utils/open-url.js': {
+      createOpener: () => () => {},
+    },
+    'npm-profile': {
+      webAuthOpener: async (opener) => {
+        opener()
+        return '1234'
+      },
+    },
   })
-
-  const { npm } = await setupMockNpm(t, rest)
-
-  return await otplease(npm, otp, fn)
+  return otplease(await setupMockNpm(t, rest).then(({ npm }) => npm), otp, fn)
 }
 
 t.test('returns function results on success', async (t) => {

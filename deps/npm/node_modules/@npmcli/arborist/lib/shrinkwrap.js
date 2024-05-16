@@ -1153,7 +1153,8 @@ class Shrinkwrap {
       && this.originalLockfileVersion !== this.lockfileVersion
     ) {
       log.warn(
-      `Converting lock file (${relative(process.cwd(), this.filename)}) from v${this.originalLockfileVersion} -> v${this.lockfileVersion}`
+        'shrinkwrap',
+        `Converting lock file (${relative(process.cwd(), this.filename)}) from v${this.originalLockfileVersion} -> v${this.lockfileVersion}`
       )
     }
 

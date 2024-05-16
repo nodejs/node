@@ -1,5 +1,5 @@
 const liborg = require('libnpmorg')
-const otplease = require('../utils/otplease.js')
+const { otplease } = require('../utils/auth.js')
 const BaseCommand = require('../base-cmd.js')
 const { output } = require('proc-log')
 

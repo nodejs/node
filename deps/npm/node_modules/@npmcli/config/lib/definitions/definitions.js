@@ -1549,13 +1549,16 @@ const definitions = {
     type: Boolean,
     description: `
       When set to \`true\`, npm will display a progress bar during time
-      intensive operations, if \`process.stderr\` is a TTY.
+      intensive operations, if \`process.stderr\` and \`process.stdout\` are a TTY.
 
       Set to \`false\` to suppress the progress bar.
     `,
     flatten (key, obj, flatOptions) {
       flatOptions.progress = !obj.progress ? false
-        : !!process.stderr.isTTY && process.env.TERM !== 'dumb'
+        // progress is only written to stderr but we disable it unless stdout is a tty
+        // also. This prevents the progress from appearing when piping output to another
+        // command which doesn't break anything, but does look very odd to users.
+        : !!process.stderr.isTTY && !!process.stdout.isTTY && process.env.TERM !== 'dumb'
     },
   }),
   provenance: new Definition('provenance', {

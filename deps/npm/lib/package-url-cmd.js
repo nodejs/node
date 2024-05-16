@@ -1,5 +1,5 @@
 const pacote = require('pacote')
-const openUrl = require('./utils/open-url.js')
+const { openUrl } = require('./utils/open-url.js')
 const { log } = require('proc-log')
 const BaseCommand = require('./base-cmd.js')
 
