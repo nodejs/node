@@ -263,11 +263,19 @@ Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
   return ParseResult::Valid;
 }
 
-void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
-  auto match = store_.find("NODE_OPTIONS");
+bool Dotenv::GetIfAvailable(const char* name, std::string* out) {
+  auto match = store_.find(name);
+  if (match == store_.end()) {
+    return false;
+  }
+  *out = match->second;
+  return true;
+}
 
+void Dotenv::DeleteEntry(const char* name) {
+  auto match = store_.find(name);
   if (match != store_.end()) {
-    *node_options = match->second;
+    store_.erase(match);
   }
 }
 

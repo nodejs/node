@@ -852,7 +852,7 @@ static ExitCode InitializeNodeWithArgsInternal(
       }
     }
 
-    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
+    per_process::dotenv_file.GetIfAvailable("NODE_OPTIONS", &node_options);
   }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
@@ -879,6 +879,47 @@ static ExitCode InitializeNodeWithArgsInternal(
     const ExitCode exit_code =
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
+  }
+
+  // Apply security reverts based on an environment variable.
+  const char* const security_revert_var = "NODE_SECURITY_REVERT";
+  std::string security_revert;
+  if (credentials::SafeGetenv(security_revert_var, &security_revert) ||
+      per_process::dotenv_file.GetIfAvailable(security_revert_var,
+                                              &security_revert)) {
+    // We unset the environment variable by default to prevent it from being
+    // inherited by child processes. This can be prevented by the user by
+    // appending "+sticky" to the value of the environment variable.
+    const char* const sticky_str = "+sticky";
+    size_t maybe_sticky_pos = security_revert.length() - strlen(sticky_str);
+    const bool sticky = security_revert.length() >= strlen(sticky_str) &&
+                        security_revert.rfind(sticky_str) == maybe_sticky_pos;
+    if (sticky) {
+      security_revert.erase(maybe_sticky_pos);
+    }
+
+    {
+      // Ignore the environment variable if the CLI argument was set.
+      Mutex::ScopedLock lock(per_process::cli_options_mutex);
+      if (per_process::reverted_cve == 0) {
+        std::string revert_error;
+        for (const std::string_view& cve : SplitString(security_revert, ",")) {
+          Revert(std::string(cve).c_str(), &revert_error);
+          if (!revert_error.empty()) {
+            errors->emplace_back(std::move(revert_error));
+            // TODO(joyeecheung): merge into kInvalidCommandLineArgument.
+            return ExitCode::kInvalidCommandLineArgument2;
+          }
+        }
+      }
+    }
+
+    // Unset the environment variable unless it has been marked as sticky.
+    if (!sticky) {
+      Mutex::ScopedLock lock(per_process::env_var_mutex);
+      per_process::dotenv_file.DeleteEntry(security_revert_var);
+      uv_os_unsetenv(security_revert_var);
+    }
   }
 
   // Set the process.title immediately after processing argv if --title is set.

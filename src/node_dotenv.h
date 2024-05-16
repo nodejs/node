@@ -23,9 +23,11 @@ class Dotenv {
 
   void ParseContent(const std::string_view content);
   ParseResult ParsePath(const std::string_view path);
-  void AssignNodeOptionsIfAvailable(std::string* node_options);
+  bool GetIfAvailable(const char* name, std::string* out);
   void SetEnvironment(Environment* env);
   v8::Local<v8::Object> ToObject(Environment* env);
+
+  void DeleteEntry(const char* name);
 
   static std::vector<std::string> GetPathFromArgs(
       const std::vector<std::string>& args);
