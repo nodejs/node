@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.20.3">18.20.3</a><br/>
 <a href="#18.20.2">18.20.2</a><br/>
 <a href="#18.20.1">18.20.1</a><br/>
 <a href="#18.20.0">18.20.0</a><br/>
@@ -70,6 +71,74 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.20.3"></a>
+
+## 2024-05-21, Version 18.20.3 'Hydrogen' (LTS), @richardlau
+
+### Notable Changes
+
+This release fixes a regression introduced in Node.js 18.19.0 where `http.server.close()` was incorrectly closing idle connections.
+
+A fix has also been included for compiling Node.js from source with newer versions of Clang.
+
+The list of keys used to sign releases has been synchronized with the current list from the `main` branch.
+
+#### Updated dependencies
+
+* acorn updated to 8.11.3.
+* acorn-walk updated to 8.3.2.
+* ada updated to 2.7.8.
+* c-ares updated to 1.28.1.
+* corepack updated to 0.28.0.
+* nghttp2 updated to 1.61.0.
+* ngtcp2 updated to 1.3.0.
+* npm updated to 10.7.0. Includes a fix from npm\@10.5.1 to limit the number of open connections [npm/cli#7324](https://github.com/npm/cli/pull/7324).
+* simdutf updated to 5.2.4.
+* zlib updated to 1.3.0.1-motley-7d77fb7.
+
+### Commits
+
+* \[[`0c260e10e7`](https://github.com/nodejs/node/commit/0c260e10e7)] - **deps**: update zlib to 1.3.0.1-motley-7d77fb7 (Node.js GitHub Bot) [#52516](https://github.com/nodejs/node/pull/52516)
+* \[[`1152d7f919`](https://github.com/nodejs/node/commit/1152d7f919)] - **deps**: update zlib to 1.3.0.1-motley-24c07df (Node.js GitHub Bot) [#52199](https://github.com/nodejs/node/pull/52199)
+* \[[`755399db9d`](https://github.com/nodejs/node/commit/755399db9d)] - **deps**: update zlib to 1.3.0.1-motley-24342f6 (Node.js GitHub Bot) [#52123](https://github.com/nodejs/node/pull/52123)
+* \[[`af3e32073b`](https://github.com/nodejs/node/commit/af3e32073b)] - **deps**: update ada to 2.7.8 (Node.js GitHub Bot) [#52517](https://github.com/nodejs/node/pull/52517)
+* \[[`e4ea2db58b`](https://github.com/nodejs/node/commit/e4ea2db58b)] - **deps**: update c-ares to 1.28.1 (Node.js GitHub Bot) [#52285](https://github.com/nodejs/node/pull/52285)
+* \[[`14e857bea2`](https://github.com/nodejs/node/commit/14e857bea2)] - **deps**: update corepack to 0.28.0 (Node.js GitHub Bot) [#52616](https://github.com/nodejs/node/pull/52616)
+* \[[`7f5dd44ca6`](https://github.com/nodejs/node/commit/7f5dd44ca6)] - **deps**: upgrade npm to 10.7.0 (npm team) [#52767](https://github.com/nodejs/node/pull/52767)
+* \[[`78f84ebb09`](https://github.com/nodejs/node/commit/78f84ebb09)] - **deps**: update ngtcp2 to 1.3.0 (Node.js GitHub Bot) [#51796](https://github.com/nodejs/node/pull/51796)
+* \[[`1f489a3753`](https://github.com/nodejs/node/commit/1f489a3753)] - **deps**: update ngtcp2 to 1.2.0 (Node.js GitHub Bot) [#51584](https://github.com/nodejs/node/pull/51584)
+* \[[`3034968225`](https://github.com/nodejs/node/commit/3034968225)] - **deps**: update ngtcp2 to 1.1.0 (Node.js GitHub Bot) [#51319](https://github.com/nodejs/node/pull/51319)
+* \[[`1aa9da467f`](https://github.com/nodejs/node/commit/1aa9da467f)] - **deps**: add nghttp3/\*\*/.deps to .gitignore (Luigi Pinca) [#51400](https://github.com/nodejs/node/pull/51400)
+* \[[`28c0c78c9a`](https://github.com/nodejs/node/commit/28c0c78c9a)] - **deps**: update ngtcp2 and nghttp3 (James M Snell) [#51291](https://github.com/nodejs/node/pull/51291)
+* \[[`8fd5a35364`](https://github.com/nodejs/node/commit/8fd5a35364)] - **deps**: upgrade npm to 10.5.2 (npm team) [#52458](https://github.com/nodejs/node/pull/52458)
+* \[[`2c53ff31c9`](https://github.com/nodejs/node/commit/2c53ff31c9)] - **deps**: update acorn-walk to 8.3.2 (Node.js GitHub Bot) [#51457](https://github.com/nodejs/node/pull/51457)
+* \[[`12f28f33c2`](https://github.com/nodejs/node/commit/12f28f33c2)] - **deps**: update acorn to 8.11.3 (Node.js GitHub Bot) [#51317](https://github.com/nodejs/node/pull/51317)
+* \[[`dddb7eb3e0`](https://github.com/nodejs/node/commit/dddb7eb3e0)] - **deps**: update acorn-walk to 8.3.1 (Node.js GitHub Bot) [#50457](https://github.com/nodejs/node/pull/50457)
+* \[[`c86550e607`](https://github.com/nodejs/node/commit/c86550e607)] - **deps**: update acorn-walk to 8.3.0 (Node.js GitHub Bot) [#50457](https://github.com/nodejs/node/pull/50457)
+* \[[`9500817f66`](https://github.com/nodejs/node/commit/9500817f66)] - **deps**: update acorn to 8.11.2 (Node.js GitHub Bot) [#50460](https://github.com/nodejs/node/pull/50460)
+* \[[`7a8c7b6275`](https://github.com/nodejs/node/commit/7a8c7b6275)] - **deps**: update ada to 2.7.7 (Node.js GitHub Bot) [#52028](https://github.com/nodejs/node/pull/52028)
+* \[[`b199889943`](https://github.com/nodejs/node/commit/b199889943)] - **deps**: update corepack to 0.26.0 (Node.js GitHub Bot) [#52027](https://github.com/nodejs/node/pull/52027)
+* \[[`052b0ba0c6`](https://github.com/nodejs/node/commit/052b0ba0c6)] - **deps**: upgrade npm to 10.5.1 (npm team) [#52351](https://github.com/nodejs/node/pull/52351)
+* \[[`209823d3af`](https://github.com/nodejs/node/commit/209823d3af)] - **deps**: update simdutf to 5.2.4 (Node.js GitHub Bot) [#52473](https://github.com/nodejs/node/pull/52473)
+* \[[`5114cbe18a`](https://github.com/nodejs/node/commit/5114cbe18a)] - **deps**: update simdutf to 5.2.3 (Yagiz Nizipli) [#52381](https://github.com/nodejs/node/pull/52381)
+* \[[`be30309ea0`](https://github.com/nodejs/node/commit/be30309ea0)] - **deps**: update simdutf to 5.0.0 (Daniel Lemire) [#52138](https://github.com/nodejs/node/pull/52138)
+* \[[`b56f66e250`](https://github.com/nodejs/node/commit/b56f66e250)] - **deps**: update simdutf to 4.0.9 (Node.js GitHub Bot) [#51655](https://github.com/nodejs/node/pull/51655)
+* \[[`a9f3b9d9d1`](https://github.com/nodejs/node/commit/a9f3b9d9d1)] - **deps**: update nghttp2 to 1.61.0 (Node.js GitHub Bot) [#52395](https://github.com/nodejs/node/pull/52395)
+* \[[`1b6fa70620`](https://github.com/nodejs/node/commit/1b6fa70620)] - **deps**: update nghttp2 to 1.60.0 (Node.js GitHub Bot) [#51948](https://github.com/nodejs/node/pull/51948)
+* \[[`3c9dbbf4d4`](https://github.com/nodejs/node/commit/3c9dbbf4d4)] - **deps**: update nghttp2 to 1.59.0 (Node.js GitHub Bot) [#51581](https://github.com/nodejs/node/pull/51581)
+* \[[`e28316da54`](https://github.com/nodejs/node/commit/e28316da54)] - **deps**: update nghttp2 to 1.58.0 (Node.js GitHub Bot) [#50441](https://github.com/nodejs/node/pull/50441)
+* \[[`678641f470`](https://github.com/nodejs/node/commit/678641f470)] - **deps**: V8: cherry-pick d15d49b09dc7 (Bo Anderson) [#52337](https://github.com/nodejs/node/pull/52337)
+* \[[`1147fee7d9`](https://github.com/nodejs/node/commit/1147fee7d9)] - **doc**: remove ableist language from crypto (Jamie King) [#52063](https://github.com/nodejs/node/pull/52063)
+* \[[`5e93eae972`](https://github.com/nodejs/node/commit/5e93eae972)] - **doc**: add release key for marco-ippolito (marco-ippolito) [#52257](https://github.com/nodejs/node/pull/52257)
+* \[[`6689a98488`](https://github.com/nodejs/node/commit/6689a98488)] - **http**: remove closeIdleConnections function while calling server close (Kumar Rishav) [#52336](https://github.com/nodejs/node/pull/52336)
+* \[[`71616e8a8a`](https://github.com/nodejs/node/commit/71616e8a8a)] - **node-api**: make tsfn accept napi\_finalize once more (Gabriel Schulhof) [#51801](https://github.com/nodejs/node/pull/51801)
+* \[[`d9d9e62474`](https://github.com/nodejs/node/commit/d9d9e62474)] - **src**: avoid draining platform tasks at FreeEnvironment (Chengzhong Wu) [#51290](https://github.com/nodejs/node/pull/51290)
+* \[[`e5fc8ec9fc`](https://github.com/nodejs/node/commit/e5fc8ec9fc)] - **test**: skip v8-updates/test-linux-perf (Michaël Zasso) [#49639](https://github.com/nodejs/node/pull/49639)
+* \[[`351ef189ca`](https://github.com/nodejs/node/commit/351ef189ca)] - **test**: v8: Add test-linux-perf-logger test suite (Luke Albao) [#50352](https://github.com/nodejs/node/pull/50352)
+* \[[`5cec2efc31`](https://github.com/nodejs/node/commit/5cec2efc31)] - **test**: reduce the number of requests and parsers (Luigi Pinca) [#50240](https://github.com/nodejs/node/pull/50240)
+* \[[`5186e453d9`](https://github.com/nodejs/node/commit/5186e453d9)] - **test**: deflake test-http-regr-gh-2928 (Luigi Pinca) [#49574](https://github.com/nodejs/node/pull/49574)
+* \[[`c60cd67e1c`](https://github.com/nodejs/node/commit/c60cd67e1c)] - **test**: skip test for dynamically linked OpenSSL (Richard Lau) [#52542](https://github.com/nodejs/node/pull/52542)
 
 <a id="18.20.2"></a>
 
