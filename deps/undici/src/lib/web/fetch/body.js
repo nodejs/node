@@ -385,6 +385,15 @@ function bodyMixinMethods (instance) {
           'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
         )
       }, instance, false)
+    },
+
+    bytes () {
+      // The bytes() method steps are to return the result of running consume body
+      // with this and the following step given a byte sequence bytes: return the
+      // result of creating a Uint8Array from bytes in this’s relevant realm.
+      return consumeBody(this, (bytes) => {
+        return new Uint8Array(bytes.buffer, 0, bytes.byteLength)
+      }, instance, true)
     }
   }
 

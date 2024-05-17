@@ -1,7 +1,7 @@
 'use strict'
 
 const assert = require('node:assert')
-const { kHeadersList } = require('../../core/symbols')
+const { getHeadersList: internalGetHeadersList } = require('../fetch/headers')
 
 /**
  * @param {string} value
@@ -278,8 +278,10 @@ function stringify (cookie) {
 let kHeadersListNode
 
 function getHeadersList (headers) {
-  if (headers[kHeadersList]) {
-    return headers[kHeadersList]
+  try {
+    return internalGetHeadersList(headers)
+  } catch {
+    // fall-through
   }
 
   if (!kHeadersListNode) {

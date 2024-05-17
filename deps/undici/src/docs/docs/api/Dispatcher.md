@@ -952,6 +952,38 @@ const client = new Client("http://example.com").compose(
 );
 ```
 
+##### `dump`
+
+The `dump` interceptor enables you to dump the response body from a request upon a given limit.
+
+**Options**
+- `maxSize` - The maximum size (in bytes) of the response body to dump. If the size of the request's body exceeds this value then the connection will be closed. Default: `1048576`.
+
+> The `Dispatcher#options` also gets extended with the options `dumpMaxSize`, `abortOnDumped`, and `waitForTrailers` which can be used to configure the interceptor at a request-per-request basis.
+
+**Example - Basic Dump Interceptor**
+
+```js
+const { Client, interceptors } = require("undici");
+const { dump } = interceptors;
+
+const client = new Client("http://example.com").compose(
+  dump({
+    maxSize: 1024,
+  })
+);
+
+// or 
+client.dispatch(
+  {
+    path: "/",
+    method: "GET",
+    dumpMaxSize: 1024,
+  },
+  handler
+);
+```
+
 ## Instance Events
 
 ### Event: `'connect'`
