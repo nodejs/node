@@ -25,10 +25,13 @@
 namespace node {
 
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::WrapperDescriptor;
 
 NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
                                    uv_loop_t* event_loop,
@@ -38,12 +41,20 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
     : args_(args),
       exec_args_(exec_args),
       array_buffer_allocator_(ArrayBufferAllocator::Create()),
+      cpp_heap_(CppHeap::Create(
+          platform,
+          CppHeapCreateParams{
+              {},
+              WrapperDescriptor(BaseObject::kEmbedderType,
+                                BaseObject::kSlot,
+                                BaseObject::kDefaultCppGCEmebdderTypeID)})),
       isolate_(nullptr),
       platform_(platform),
       isolate_data_(),
       isolate_params_(std::make_unique<Isolate::CreateParams>()),
       snapshot_data_(snapshot_data) {
   isolate_params_->array_buffer_allocator = array_buffer_allocator_.get();
+  isolate_params_->cpp_heap = cpp_heap_.get();
 
   isolate_ =
       NewIsolate(isolate_params_.get(), event_loop, platform, snapshot_data);
@@ -83,6 +94,8 @@ NodeMainInstance::~NodeMainInstance() {
     isolate_data_.reset();
     platform_->UnregisterIsolate(isolate_);
   }
+  // CppHeap is terminated by the isolate, no allocation is allowed at this
+  // point.
   isolate_->Dispose();
 }
 

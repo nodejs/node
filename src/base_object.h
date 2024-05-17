@@ -44,6 +44,7 @@ class TransferData;
 class BaseObject : public MemoryRetainer {
  public:
   enum InternalFields { kEmbedderType, kSlot, kInternalFieldCount };
+  constexpr static uint16_t kDefaultCppGCEmebdderTypeID = 0x90de;
 
   // Associates this object with `object`. It uses the 1st internal field for
   // that, and in particular aborts if there is no such field.
