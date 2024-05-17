@@ -474,11 +474,6 @@ register('./path-to-my-hooks.js', {
 <!-- YAML
 changes:
   - version:
-    - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/53015
-    description: The property `context.format` will no longer return `null`
-                 in place of `undefined`.
-  - version:
     - v21.0.0
     - v20.10.0
     - v18.19.0
@@ -514,7 +509,7 @@ changes:
   * `specifier` {string}
   * `context` {Object}
 * Returns: {Object|Promise}
-  * `format` {string|undefined} A hint to the load hook (it might be
+  * `format` {string|null|undefined} A hint to the load hook (it might be
     ignored)
     `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
   * `importAttributes` {Object|undefined} The import attributes to use when
@@ -584,11 +579,6 @@ export async function resolve(specifier, context, nextResolve) {
 
 <!-- YAML
 changes:
-  - version:
-    - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/53015
-    description: The property `context.format` will no longer return `null`
-                 in place of `undefined`.
   - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/47999
     description: Add support for `source` with format `commonjs`.
@@ -606,7 +596,7 @@ changes:
 * `url` {string} The URL returned by the `resolve` chain
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
-  * `format` {string|undefined} The format optionally supplied by the
+  * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain
   * `importAttributes` {Object}
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
