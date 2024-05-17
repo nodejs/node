@@ -7,6 +7,12 @@ doing so can be significantly quicker than using `make`. Please see
 [Ninja][] is supported in the Makefile. Run `./configure --ninja` to configure
 the project to run the regular `make` commands with Ninja.
 
+When modifying only the JS layer in `lib`, you can use:
+
+```bash
+./configure --ninja --node-builtin-modules-path "$(pwd)"
+```
+
 For example, `make` will execute `ninja -C out/Release` internally
 to produce a compiled release binary, It will also execute
 `ln -fs out/Release/node node`, so that you can execute `./node` at
