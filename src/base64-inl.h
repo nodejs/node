@@ -8,10 +8,6 @@
 
 namespace node {
 
-static constexpr char base64_table_url[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                           "abcdefghijklmnopqrstuvwxyz"
-                                           "0123456789-_";
-
 extern const int8_t unbase64_table[256];
 
 
