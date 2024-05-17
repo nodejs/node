@@ -148,7 +148,7 @@ There is the ECMAScript module loader:
   `'./startup/index.js'`) must be fully specified.
 * It does no extension searching. A file extension must be provided
   when the specifier is a relative or absolute file URL.
-* It can load JSON modules, but an import assertion is required.
+* It can load JSON modules, but an import type attribute is required.
 * It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
   files.
 * It can be used to load JavaScript CommonJS modules. Such modules
