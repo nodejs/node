@@ -989,6 +989,16 @@ added: REPLACEME
 
 Enable module mocking in the test runner.
 
+### `--experimental-test-snapshots`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable [snapshot testing][] in the test runner.
+
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -2144,6 +2154,18 @@ added:
 
 A number of milliseconds the test execution will fail after. If unspecified,
 subtests inherit this value from their parent. The default value is `Infinity`.
+
+### `--test-update-snapshots`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Regenerates the snapshot file used by the test runner for [snapshot testing][].
+Node.js must be started with the `--experimental-test-snapshots` flag in order
+to use this functionality.
 
 ### `--throw-deprecation`
 
@@ -3323,6 +3345,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [single executable application]: single-executable-applications.md
+[snapshot testing]: test.md#snapshot-testing
 [test reporters]: test.md#test-reporters
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
