@@ -174,6 +174,8 @@ class EnvironmentOptions : public Options {
   bool test_runner_coverage = false;
   bool test_runner_force_exit = false;
   bool test_runner_module_mocks = false;
+  bool test_runner_snapshots = false;
+  bool test_runner_update_snapshots = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
