@@ -173,13 +173,6 @@ assert.throws(
   }
 );
 
-{
-  const Hash = crypto.Hash;
-  const instance = crypto.Hash('sha256');
-  assert(instance instanceof Hash, 'Hash is expected to return a new instance' +
-                                   ' when called without `new`');
-}
-
 // Test XOF hash functions and the outputLength option.
 {
   // Default outputLengths.
@@ -278,11 +271,6 @@ assert.throws(
 }
 
 {
-  crypto.Hash('sha256');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hash constructor is deprecated.',
-       'DEP0179'],
-    ]
-  });
+  // the Hash class should not be exposed
+  assert.strictEqual('Hash' in crypto, false);
 }

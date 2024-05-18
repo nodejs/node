@@ -3622,6 +3622,9 @@ release lines. Please use [`dirent.parentPath`][] instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53026
+    description: End-of-Life deprecation.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51880
     description: Runtime deprecation.
@@ -3632,10 +3635,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Calling `Hash` class directly with `Hash()` or `new Hash()` is
-deprecated due to being internals, not intended for public use.
+Calling `Hash` class directly with `Hash()` or `new Hash()` has
+been removed due to being internals, not intended for public use.
 Please use the [`crypto.createHash()`][] method to create Hash instances.
 
 ### DEP0180: `fs.Stats` constructor
