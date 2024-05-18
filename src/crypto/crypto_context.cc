@@ -998,6 +998,7 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
 
   int32_t sessionTimeout = args[0].As<Int32>()->Value();
+  CHECK_GE(sessionTimeout, 0);
   SSL_CTX_set_timeout(sc->ctx_.get(), sessionTimeout);
 }
 
