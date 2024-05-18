@@ -1774,7 +1774,7 @@ added:
   * `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
     should stop.
 * Returns: {AsyncIterator} of objects with the properties:
-  * `eventType` {string} The type of change
+  * `eventType` {'change'|'rename'} The type of change
   * `filename` {string|Buffer|null} The name of the file changed.
 
 Returns an async iterator that watches for changes on `filename`, where `filename`
