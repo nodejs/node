@@ -393,3 +393,18 @@ describe('Wrapping a `require` of an ES module while using `--abort-on-uncaught-
     strictEqual(signal, null);
   });
 });
+
+describe('when working with Worker threads', () => {
+  it('should work', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+      '--experimental-detect-module',
+      '--eval',
+      'new worker_threads.Worker("let __filename,__dirname,require,module,exports;this.a",{eval:true})',
+    ]);
+
+    strictEqual(stderr, '');
+    strictEqual(stdout, '');
+    strictEqual(code, 0);
+    strictEqual(signal, null);
+  });
+});
