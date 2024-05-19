@@ -44,6 +44,19 @@ describe('--experimental-detect-module', { concurrency: !process.env.TEST_PARALL
       strictEqual(signal, null);
     });
 
+    it('should not switch to module if code is parsable as script', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--print',
+        'let __filename,__dirname,require,module,exports;this.a',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, '');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
     it('should be overridden by --experimental-default-type', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
         '--experimental-detect-module',
