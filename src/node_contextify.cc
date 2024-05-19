@@ -1708,6 +1708,8 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
     resource_name = args[2].As<String>();
   }
   // Argument 4: flag to indicate if CJS variables should not be in scope
+  // (they should be for normal CommonJS modules, but not for the
+  // CommonJS eval scope).
   bool cjs_var = !args[3]->IsString();
 
   bool cache_rejected = false;

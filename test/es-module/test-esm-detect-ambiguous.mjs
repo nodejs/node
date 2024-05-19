@@ -408,7 +408,7 @@ describe('Wrapping a `require` of an ES module while using `--abort-on-uncaught-
 });
 
 describe('when working with Worker threads', () => {
-  it('should work', async () => {
+  it('should evaluate a CommonJS worker as valid sloppy script where the CommonJS wrapper variables do not exist', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-detect-module',
       '--eval',
