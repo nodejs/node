@@ -12,6 +12,7 @@ static constexpr const char* bin_path = "/node_modules/.bin";
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
+                             const std::string& script_name,
                              std::string_view command,
                              const PositionalArgs& positional_args) {
   memset(&options_, 0, sizeof(uv_process_options_t));
@@ -51,39 +52,9 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
   // callback.
   process_.data = this;
 
+  SetEnvironmentVariables(current_bin_path, script_name);
+
   std::string command_str(command);
-
-  // Set environment variables
-  uv_env_item_t* env_items;
-  int env_count;
-  CHECK_EQ(0, uv_os_environ(&env_items, &env_count));
-  env = std::unique_ptr<char*[]>(new char*[env_count + 1]);
-  options_.env = env.get();
-
-  // Iterate over environment variables once to store them in the current
-  // ProcessRunner instance.
-  for (int i = 0; i < env_count; i++) {
-    std::string name = env_items[i].name;
-    auto value = env_items[i].value;
-
-#ifdef _WIN32
-    // We use comspec environment variable to find cmd.exe path on Windows
-    // Example: 'C:\\Windows\\system32\\cmd.exe'
-    // If we don't find it, we fallback to 'cmd.exe' for Windows
-    if (StringEqualNoCase(name.c_str(), "comspec")) {
-      file_ = value;
-    }
-#endif  // _WIN32
-
-    // Check if environment variable key is matching case-insensitive "path"
-    if (StringEqualNoCase(name.c_str(), "path")) {
-      env_vars_.push_back(name + "=" + current_bin_path + value);
-    } else {
-      // Environment variables should be in "KEY=value" format
-      env_vars_.push_back(name + "=" + value);
-    }
-  }
-  uv_os_free_environ(env_items, env_count);
 
   // Use the stored reference on the instance.
   options_.file = file_.c_str();
@@ -128,11 +99,47 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
     options_.args[i] = const_cast<char*>(command_args_[i].c_str());
   }
   options_.args[argc] = nullptr;
+}
 
+void ProcessRunner::SetEnvironmentVariables(const std::string& current_bin_path,
+                                            const std::string& script_name) {
+  uv_env_item_t* env_items;
+  int env_count;
+  CHECK_EQ(0, uv_os_environ(&env_items, &env_count));
+
+  // Iterate over environment variables once to store them in the current
+  // ProcessRunner instance.
   for (int i = 0; i < env_count; i++) {
+    std::string name = env_items[i].name;
+    std::string value = env_items[i].value;
+
+#ifdef _WIN32
+    // We use comspec environment variable to find cmd.exe path on Windows
+    // Example: 'C:\\Windows\\system32\\cmd.exe'
+    // If we don't find it, we fallback to 'cmd.exe' for Windows
+    if (StringEqualNoCase(name.c_str(), "comspec")) {
+      file_ = value;
+    }
+#endif  // _WIN32
+
+    if (StringEqualNoCase(name.c_str(), "path")) {
+      // Add bin_path to the beginning of the PATH
+      value = current_bin_path + value;
+    }
+    env_vars_.push_back(name + "=" + value);
+  }
+  uv_os_free_environ(env_items, env_count);
+
+  // Add NODE_RUN_SCRIPT_NAME environment variable to the environment
+  // to indicate which script is being run.
+  env_vars_.push_back("NODE_RUN_SCRIPT_NAME=" + script_name);
+
+  env = std::unique_ptr<char*[]>(new char*[env_vars_.size() + 1]);
+  options_.env = env.get();
+  for (size_t i = 0; i < env_vars_.size(); i++) {
     options_.env[i] = const_cast<char*>(env_vars_[i].c_str());
   }
-  options_.env[env_count] = nullptr;
+  options_.env[env_vars_.size()] = nullptr;
 }
 
 // EscapeShell escapes a string to be used as a command line argument.
@@ -276,7 +283,8 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
     return;
   }
 
-  auto runner = ProcessRunner(result, command, positional_args);
+  auto runner =
+      ProcessRunner(result, std::string(command_id), command, positional_args);
   runner.Run();
 }
 
