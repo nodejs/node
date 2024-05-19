@@ -1775,6 +1775,25 @@ added:
 Resets the implementation of the mock function to its original behavior. The
 mock can still be used after calling this function.
 
+## Class: `MockModuleContext`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+The `MockModuleContext` class is used to manipulate the behavior of module mocks
+created via the [`MockTracker`][] APIs.
+
+### `ctx.restore()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets the implementation of the mock module.
+
 ## Class: `MockTracker`
 
 <!-- YAML
@@ -1905,6 +1924,68 @@ test('spies on an object method', (t) => {
   assert.strictEqual(call.error, undefined);
   assert.strictEqual(call.target, undefined);
   assert.strictEqual(call.this, number);
+});
+```
+
+### `mock.module(specifier[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `specifier` {string} A string identifying the module to mock.
+* `options` {Object} Optional configuration options for the mock module. The
+  following properties are supported:
+  * `cache` {boolean} If `false`, each call to `require()` or `import()`
+    generates a new mock module. If `true`, subsequent calls will return the same
+    module mock, and the mock module is inserted into the CommonJS cache.
+    **Default:** false.
+  * `defaultExport` {any} An optional value used as the mocked module's default
+    export. If this value is not provided, ESM mocks do not include a default
+    export. If the mock is a CommonJS or builtin module, this setting is used as
+    the value of `module.exports`. If this value is not provided, CJS and builtin
+    mocks use an empty object as the value of `module.exports`.
+  * `namedExports` {Object} An optional object whose keys and values are used to
+    create the named exports of the mock module. If the mock is a CommonJS or
+    builtin module, these values are copied onto `module.exports`. Therefore, if a
+    mock is created with both named exports and a non-object default export, the
+    mock will throw an exception when used as a CJS or builtin module.
+* Returns: {MockModuleContext} An object that can be used to manipulate the mock.
+
+This function is used to mock the exports of ECMAScript modules, CommonJS
+modules, and Node.js builtin modules. Any references to the original module
+prior to mocking are not impacted. The following example demonstrates how a mock
+is created for a module.
+
+```js
+test('mocks a builtin module in both module systems', async (t) => {
+  // Create a mock of 'node:readline' with a named export named 'fn', which
+  // does not exist in the original 'node:readline' module.
+  const mock = t.mock.module('node:readline', {
+    namedExports: { fn() { return 42; } },
+  });
+
+  let esmImpl = await import('node:readline');
+  let cjsImpl = require('node:readline');
+
+  // cursorTo() is an export of the original 'node:readline' module.
+  assert.strictEqual(esmImpl.cursorTo, undefined);
+  assert.strictEqual(cjsImpl.cursorTo, undefined);
+  assert.strictEqual(esmImpl.fn(), 42);
+  assert.strictEqual(cjsImpl.fn(), 42);
+
+  mock.restore();
+
+  // The mock is restored, so the original builtin module is returned.
+  esmImpl = await import('node:readline');
+  cjsImpl = require('node:readline');
+
+  assert.strictEqual(typeof esmImpl.cursorTo, 'function');
+  assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
+  assert.strictEqual(esmImpl.fn, undefined);
+  assert.strictEqual(cjsImpl.fn, undefined);
 });
 ```
 
