@@ -23,7 +23,8 @@ using PositionalArgs = std::vector<std::string_view>;
 class ProcessRunner {
  public:
   ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
-                const std::string& script_name,
+                std::string_view package_json_path,
+                std::string_view script_name,
                 std::string_view command_id,
                 const PositionalArgs& positional_args);
   void Run();
@@ -45,7 +46,9 @@ class ProcessRunner {
   // OnExit is the callback function that is called when the process exits.
   void OnExit(int64_t exit_status, int term_signal);
   void SetEnvironmentVariables(const std::string& bin_path,
-                               const std::string& script_name);
+                               std::string_view cwd,
+                               std::string_view package_json_path,
+                               std::string_view script_name);
 
 #ifdef _WIN32
   std::string file_ = "cmd.exe";
