@@ -979,6 +979,16 @@ generated as part of the test runner output. If no tests are run, a coverage
 report is not generated. See the documentation on
 [collecting code coverage from tests][] for more details.
 
+### `--experimental-test-module-mocks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable module mocking in the test runner.
+
 ### `--experimental-vm-modules`
 
 <!-- YAML
