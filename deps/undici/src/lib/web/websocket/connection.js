@@ -13,9 +13,8 @@ const { channels } = require('../../core/diagnostics')
 const { CloseEvent } = require('./events')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
-const { Headers } = require('../fetch/headers')
+const { Headers, getHeadersList } = require('../fetch/headers')
 const { getDecodeSplit } = require('../fetch/util')
-const { kHeadersList } = require('../../core/symbols')
 const { WebsocketFrameSend } = require('./frame')
 
 /** @type {import('crypto')} */
@@ -59,7 +58,7 @@ function establishWebSocketConnection (url, protocols, client, ws, onEstablish, 
 
   // Note: undici extension, allow setting custom headers.
   if (options.headers) {
-    const headersList = new Headers(options.headers)[kHeadersList]
+    const headersList = getHeadersList(new Headers(options.headers))
 
     request.headersList = headersList
   }
@@ -261,13 +260,9 @@ function closeWebSocketConnection (ws, code, reason, reasonByteLength) {
     /** @type {import('stream').Duplex} */
     const socket = ws[kResponse].socket
 
-    socket.write(frame.createFrame(opcodes.CLOSE), (err) => {
-      if (!err) {
-        ws[kSentClose] = sentCloseFrameState.SENT
-      }
-    })
+    socket.write(frame.createFrame(opcodes.CLOSE))
 
-    ws[kSentClose] = sentCloseFrameState.PROCESSING
+    ws[kSentClose] = sentCloseFrameState.SENT
 
     // Upon either sending or receiving a Close control frame, it is said
     // that _The WebSocket Closing Handshake is Started_ and that the

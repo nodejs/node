@@ -40,7 +40,8 @@ module.exports.RedirectHandler = RedirectHandler
 module.exports.createRedirectInterceptor = createRedirectInterceptor
 module.exports.interceptors = {
   redirect: require('./lib/interceptor/redirect'),
-  retry: require('./lib/interceptor/retry')
+  retry: require('./lib/interceptor/retry'),
+  dump: require('./lib/interceptor/dump')
 }
 
 module.exports.buildConnector = buildConnector
@@ -108,7 +109,7 @@ module.exports.fetch = async function fetch (init, options = undefined) {
     return await fetchImpl(init, options)
   } catch (err) {
     if (err && typeof err === 'object') {
-      Error.captureStackTrace(err, this)
+      Error.captureStackTrace(err)
     }
 
     throw err

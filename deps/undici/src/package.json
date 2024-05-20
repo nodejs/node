@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "6.16.1",
+  "version": "6.17.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -88,6 +88,8 @@
     "test:typescript": "tsd && tsc --skipLibCheck test/imports/undici-import.ts",
     "test:webidl": "borp -p \"test/webidl/*.js\"",
     "test:websocket": "borp -p \"test/websocket/*.js\"",
+    "test:websocket:autobahn": "node test/autobahn/client.js",
+    "test:websocket:autobahn:report": "node test/autobahn/report.js",
     "test:wpt": "node test/wpt/start-fetch.mjs && node test/wpt/start-FileAPI.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs && node test/wpt/start-websockets.mjs && node test/wpt/start-cacheStorage.mjs && node test/wpt/start-eventsource.mjs",
     "test:wpt:withoutintl": "node test/wpt/start-fetch.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs && node test/wpt/start-cacheStorage.mjs && node test/wpt/start-eventsource.mjs",
     "coverage": "npm run coverage:clean && cross-env NODE_V8_COVERAGE=./coverage/tmp npm run test:javascript && npm run coverage:report",
@@ -135,7 +137,7 @@
     "ignore": [
       "lib/llhttp/constants.js",
       "lib/llhttp/utils.js",
-      "test/wpt/tests"
+      "test/fixtures/wpt"
     ]
   },
   "tsd": {
