@@ -737,6 +737,7 @@ module.exports = {
   collectAnHTTPQuotedString,
   serializeAMimeType,
   removeChars,
+  removeHTTPWhitespace,
   minimizeSupportedMimeType,
   HTTP_TOKEN_CODEPOINTS,
   isomorphicDecode
