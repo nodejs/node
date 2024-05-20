@@ -898,9 +898,7 @@ changes:
 > [`--import` with `register()`][module customization hooks: enabling] instead.
 
 Specify the `module` containing exported [module customization hooks][].
-`module` may be any string accepted as an [`import` specifier][]. This option
-has no effect on worker threads. Worker threads inherit the customization hooks
-chain configured on main thread.
+`module` may be any string accepted as an [`import` specifier][].
 
 ### `--experimental-network-imports`
 
