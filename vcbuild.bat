@@ -6,7 +6,7 @@ endlocal
 
 set "arg=%1"
 if /i "%arg:~-1%"=="?" goto help
-if /i "%arg%"=="help" goto help
+if /i "%arg:~-4%"=="help" goto help
 
 cd %~dp0
 
