@@ -168,7 +168,7 @@ describe('--experimental-detect-module', { concurrency: !process.env.TEST_PARALL
       });
     }
 
-    it('should not hint wrong format in resolve hook', async () => {
+    it('should hint format correctly for the resolve hook for extensionless modules', async () => {
       let writeSync;
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--experimental-detect-module',
@@ -185,7 +185,7 @@ describe('--experimental-detect-module', { concurrency: !process.env.TEST_PARALL
       ]);
 
       strictEqual(stderr, '');
-      strictEqual(stdout, 'null\nexecuted\n');
+      strictEqual(stdout, 'module\nexecuted\n');
       strictEqual(code, 0);
       strictEqual(signal, null);
 
@@ -382,6 +382,65 @@ describe('--experimental-detect-module', { concurrency: !process.env.TEST_PARALL
       strictEqual(stderr.match(/MODULE_TYPELESS_PACKAGE_JSON/g).length, 1);
       strictEqual(stdout, 'executed\nexecuted\n');
       strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+  });
+
+  describe('should work with module customization hooks', { concurrency: true }, () => {
+    it('should not break basic hooks functionality of substituting a module', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--import',
+        fixtures.fileURL('es-module-loaders/builtin-named-exports.mjs'),
+        fixtures.path('es-modules/require-esm-throws-with-loaders.js'),
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, '');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+    it('should detect the syntax of the source as returned by a custom load hook', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+        '--no-warnings',
+        '--experimental-detect-module',
+        '--import',
+        `data:text/javascript,${encodeURIComponent(
+          'import { register } from "node:module";' +
+          'import { pathToFileURL } from "node:url";' +
+          'register("./transpile-esm-to-cjs.mjs", pathToFileURL("./"));'
+        )}`,
+        fixtures.path('es-modules/package-without-type/module.js'),
+      ], { cwd: fixtures.fileURL('es-module-loaders/') });
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, `
+        Resolved format: module
+        Loaded original format: module
+        executed
+        Evaluated format: commonjs
+        `.replace(/^\s+/gm, ''));
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+    it('should throw the usual error for a missing file', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+        '--no-warnings',
+        '--experimental-detect-module',
+        '--import',
+        `data:text/javascript,${encodeURIComponent(
+          'import { register } from "node:module";' +
+          'import { pathToFileURL } from "node:url";' +
+          'register("./transpile-esm-to-cjs.mjs", pathToFileURL("./"));'
+        )}`,
+        fixtures.path('es-modules/package-without-type/imports-nonexistent.js'),
+      ], { cwd: fixtures.fileURL('es-module-loaders/') });
+
+      match(stderr, /ERR_MODULE_NOT_FOUND.+does-not-exist\.js/);
+      strictEqual(stdout, 'Resolved format: module\nLoaded original format: module\n');
+      strictEqual(code, 1);
       strictEqual(signal, null);
     });
   });
