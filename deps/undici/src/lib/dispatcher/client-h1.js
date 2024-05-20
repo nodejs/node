@@ -1101,7 +1101,7 @@ function writeStream ({ abort, body, client, request, socket, contentLength, hea
   }
 }
 
-async function writeBuffer ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+function writeBuffer ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
   try {
     if (!body) {
       if (contentLength === 0) {

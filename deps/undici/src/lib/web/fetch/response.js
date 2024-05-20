@@ -1,6 +1,6 @@
 'use strict'
 
-const { Headers, HeadersList, fill } = require('./headers')
+const { Headers, HeadersList, fill, getHeadersGuard, setHeadersGuard, setHeadersList } = require('./headers')
 const { extractBody, cloneBody, mixinBody } = require('./body')
 const util = require('../../core/util')
 const nodeUtil = require('node:util')
@@ -19,11 +19,11 @@ const {
   redirectStatusSet,
   nullBodyStatus
 } = require('./constants')
-const { kState, kHeaders, kGuard } = require('./symbols')
+const { kState, kHeaders } = require('./symbols')
 const { webidl } = require('./webidl')
 const { FormData } = require('./formdata')
 const { URLSerializer } = require('./data-url')
-const { kHeadersList, kConstruct } = require('../../core/symbols')
+const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
 const { types } = require('node:util')
 const { isDisturbed, isErrored } = require('node:stream')
@@ -141,8 +141,8 @@ class Response {
     // Realm, whose header list is this’s response’s header list and guard
     // is "response".
     this[kHeaders] = new Headers(kConstruct)
-    this[kHeaders][kGuard] = 'response'
-    this[kHeaders][kHeadersList] = this[kState].headersList
+    setHeadersGuard(this[kHeaders], 'response')
+    setHeadersList(this[kHeaders], this[kState].headersList)
 
     // 3. Let bodyWithType be null.
     let bodyWithType = null
@@ -255,7 +255,7 @@ class Response {
 
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
-    return fromInnerResponse(clonedResponse, this[kHeaders][kGuard])
+    return fromInnerResponse(clonedResponse, getHeadersGuard(this[kHeaders]))
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -522,8 +522,8 @@ function fromInnerResponse (innerResponse, guard) {
   const response = new Response(kConstruct)
   response[kState] = innerResponse
   response[kHeaders] = new Headers(kConstruct)
-  response[kHeaders][kHeadersList] = innerResponse.headersList
-  response[kHeaders][kGuard] = guard
+  setHeadersList(response[kHeaders], innerResponse.headersList)
+  setHeadersGuard(response[kHeaders], guard)
 
   if (hasFinalizationRegistry && innerResponse.body?.stream) {
     registry.register(response, innerResponse.body.stream)
