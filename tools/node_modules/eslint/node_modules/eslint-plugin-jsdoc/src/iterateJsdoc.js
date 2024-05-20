@@ -1614,7 +1614,7 @@ const getUtils = (
 
   /** @type {IsAsync} */
   utils.isAsync = () => {
-    return 'async' in /** @type {Node} */ (node) && node.async;
+    return Boolean(node && 'async' in node && node.async);
   };
 
   /** @type {GetTags} */

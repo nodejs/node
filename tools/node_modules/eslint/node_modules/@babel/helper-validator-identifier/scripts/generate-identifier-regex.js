@@ -13,7 +13,7 @@ let last = -1;
 const cont = require(
   "@unicode/unicode-" + version + "/Binary_Property/ID_Continue/code-points.js"
 ).filter(function (ch) {
-  return ch > 0x7f && search(start, ch, last + 1) == -1;
+  return ch > 0x7f && search(start, ch, last + 1) === -1;
 });
 
 function search(arr, ch, starting) {
@@ -40,13 +40,13 @@ function generate(chars) {
   for (let i = 0, at = 0x10000; i < chars.length; i++) {
     const from = chars[i];
     let to = from;
-    while (i < chars.length - 1 && chars[i + 1] == to + 1) {
+    while (i < chars.length - 1 && chars[i + 1] === to + 1) {
       i++;
       to++;
     }
     if (to <= 0xffff) {
-      if (from == to) re += esc(from);
-      else if (from + 1 == to) re += esc(from) + esc(to);
+      if (from === to) re += esc(from);
+      else if (from + 1 === to) re += esc(from) + esc(to);
       else re += esc(from) + "-" + esc(to);
     } else {
       astral.push(from - at, to - from);

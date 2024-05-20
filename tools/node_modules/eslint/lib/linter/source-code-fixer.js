@@ -107,7 +107,7 @@ SourceCodeFixer.applyFixes = function(sourceText, messages, shouldFix) {
     }
 
     messages.forEach(problem => {
-        if (Object.prototype.hasOwnProperty.call(problem, "fix")) {
+        if (Object.hasOwn(problem, "fix")) {
             fixes.push(problem);
         } else {
             remainingMessages.push(problem);

@@ -30,14 +30,28 @@ module.exports = {
         },
 
         schema: [{
-            type: "object",
-            properties: {
-                enforceForLogicalOperands: {
-                    type: "boolean",
-                    default: false
+            anyOf: [
+                {
+                    type: "object",
+                    properties: {
+                        enforceForInnerExpressions: {
+                            type: "boolean"
+                        }
+                    },
+                    additionalProperties: false
+                },
+
+                // deprecated
+                {
+                    type: "object",
+                    properties: {
+                        enforceForLogicalOperands: {
+                            type: "boolean"
+                        }
+                    },
+                    additionalProperties: false
                 }
-            },
-            additionalProperties: false
+            ]
         }],
         fixable: "code",
 
@@ -49,6 +63,9 @@ module.exports = {
 
     create(context) {
         const sourceCode = context.sourceCode;
+        const enforceForLogicalOperands = context.options[0]?.enforceForLogicalOperands === true;
+        const enforceForInnerExpressions = context.options[0]?.enforceForInnerExpressions === true;
+
 
         // Node types which have a test which will coerce values to booleans.
         const BOOLEAN_NODE_TYPES = new Set([
@@ -71,19 +88,6 @@ module.exports = {
                     node.callee.type === "Identifier" &&
                         node.callee.name === "Boolean";
         }
-
-        /**
-         * Checks whether the node is a logical expression and that the option is enabled
-         * @param {ASTNode} node the node
-         * @returns {boolean} if the node is a logical expression and option is enabled
-         */
-        function isLogicalContext(node) {
-            return node.type === "LogicalExpression" &&
-            (node.operator === "||" || node.operator === "&&") &&
-            (context.options.length && context.options[0].enforceForLogicalOperands === true);
-
-        }
-
 
         /**
          * Check if a node is in a context where its value would be coerced to a boolean at runtime.
@@ -115,12 +119,51 @@ module.exports = {
                 return isInFlaggedContext(node.parent);
             }
 
-            return isInBooleanContext(node) ||
-            (isLogicalContext(node.parent) &&
+            /*
+             * legacy behavior - enforceForLogicalOperands will only recurse on
+             * logical expressions, not on other contexts.
+             * enforceForInnerExpressions will recurse on logical expressions
+             * as well as the other recursive syntaxes.
+             */
 
-            // For nested logical statements
-            isInFlaggedContext(node.parent)
-            );
+            if (enforceForLogicalOperands || enforceForInnerExpressions) {
+                if (node.parent.type === "LogicalExpression") {
+                    if (node.parent.operator === "||" || node.parent.operator === "&&") {
+                        return isInFlaggedContext(node.parent);
+                    }
+
+                    // Check the right hand side of a `??` operator.
+                    if (enforceForInnerExpressions &&
+                        node.parent.operator === "??" &&
+                        node.parent.right === node
+                    ) {
+                        return isInFlaggedContext(node.parent);
+                    }
+                }
+            }
+
+            if (enforceForInnerExpressions) {
+                if (
+                    node.parent.type === "ConditionalExpression" &&
+                    (node.parent.consequent === node || node.parent.alternate === node)
+                ) {
+                    return isInFlaggedContext(node.parent);
+                }
+
+                /*
+                 * Check last expression only in a sequence, i.e. if ((1, 2, Boolean(3))) {}, since
+                 * the others don't affect the result of the expression.
+                 */
+                if (
+                    node.parent.type === "SequenceExpression" &&
+                    node.parent.expressions.at(-1) === node
+                ) {
+                    return isInFlaggedContext(node.parent);
+                }
+
+            }
+
+            return isInBooleanContext(node);
         }
 
 
@@ -147,7 +190,6 @@ module.exports = {
          * Determines whether the given node needs to be parenthesized when replacing the previous node.
          * It assumes that `previousNode` is the node to be reported by this rule, so it has a limited list
          * of possible parent node types. By the same assumption, the node's role in a particular parent is already known.
-         * For example, if the parent is `ConditionalExpression`, `previousNode` must be its `test` child.
          * @param {ASTNode} previousNode Previous node.
          * @param {ASTNode} node The node to check.
          * @throws {Error} (Unreachable.)
@@ -157,6 +199,7 @@ module.exports = {
             if (previousNode.parent.type === "ChainExpression") {
                 return needsParens(previousNode.parent, node);
             }
+
             if (isParenthesized(previousNode)) {
 
                 // parentheses around the previous node will stay, so there is no need for an additional pair
@@ -174,9 +217,18 @@ module.exports = {
                 case "DoWhileStatement":
                 case "WhileStatement":
                 case "ForStatement":
+                case "SequenceExpression":
                     return false;
                 case "ConditionalExpression":
-                    return precedence(node) <= precedence(parent);
+                    if (previousNode === parent.test) {
+                        return precedence(node) <= precedence(parent);
+                    }
+                    if (previousNode === parent.consequent || previousNode === parent.alternate) {
+                        return precedence(node) < precedence({ type: "AssignmentExpression" });
+                    }
+
+                    /* c8 ignore next */
+                    throw new Error("Ternary child must be test, consequent, or alternate.");
                 case "UnaryExpression":
                     return precedence(node) < precedence(parent);
                 case "LogicalExpression":

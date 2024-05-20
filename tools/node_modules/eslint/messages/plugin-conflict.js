@@ -15,7 +15,7 @@ module.exports = function(it) {
 
 Please remove the "plugins" setting from either config or remove either plugin installation.
 
-If you still can't figure out the problem, please stop by https://eslint.org/chat/help to chat with the team.
+If you still can't figure out the problem, please see https://eslint.org/docs/latest/use/troubleshooting.
 `;
 
     return result;

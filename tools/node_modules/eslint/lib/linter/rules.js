@@ -13,18 +13,10 @@
 const builtInRules = require("../rules");
 
 //------------------------------------------------------------------------------
-// Helpers
+// Typedefs
 //------------------------------------------------------------------------------
 
-/**
- * Normalizes a rule module to the new-style API
- * @param {(Function|{create: Function})} rule A rule object, which can either be a function
- * ("old-style") or an object with a `create` method ("new-style")
- * @returns {{create: Function}} A new-style rule.
- */
-function normalizeRule(rule) {
-    return typeof rule === "function" ? Object.assign({ create: rule }, rule) : rule;
-}
+/** @typedef {import("../shared/types").Rule} Rule */
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -41,18 +33,17 @@ class Rules {
     /**
      * Registers a rule module for rule id in storage.
      * @param {string} ruleId Rule id (file name).
-     * @param {Function} ruleModule Rule handler.
+     * @param {Rule} rule Rule object.
      * @returns {void}
      */
-    define(ruleId, ruleModule) {
-        this._rules[ruleId] = normalizeRule(ruleModule);
+    define(ruleId, rule) {
+        this._rules[ruleId] = rule;
     }
 
     /**
      * Access rule handler by id (file name).
      * @param {string} ruleId Rule id (file name).
-     * @returns {{create: Function, schema: JsonSchema[]}}
-     * A rule. This is normalized to always have the new-style shape with a `create` method.
+     * @returns {Rule} Rule object.
      */
     get(ruleId) {
         if (typeof this._rules[ruleId] === "string") {

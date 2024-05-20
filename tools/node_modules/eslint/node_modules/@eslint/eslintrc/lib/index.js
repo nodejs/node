@@ -8,7 +8,8 @@
 
 import {
     ConfigArrayFactory,
-    createContext as createConfigArrayFactoryContext
+    createContext as createConfigArrayFactoryContext,
+    loadConfigFile
 } from "./config-array-factory.js";
 
 import { CascadingConfigArrayFactory } from "./cascading-config-array-factory.js";
@@ -39,6 +40,7 @@ const Legacy = {
     OverrideTester,
     getUsedExtractedConfigs,
     environments,
+    loadConfigFile,
 
     // shared
     ConfigOps,

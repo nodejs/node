@@ -10,4 +10,4 @@ const toCamelCase = (str) => {
   });
 };
 
-export default toCamelCase;
+export {toCamelCase};
