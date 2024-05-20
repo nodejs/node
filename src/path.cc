@@ -7,12 +7,12 @@
 namespace node {
 
 #ifdef _WIN32
-bool IsPathSeparator(const char c) noexcept {
-  return c == kPathSeparator || c == '/';
+constexpr bool IsPathSeparator(char c) noexcept {
+  return c == '\\' || c == '/';
 }
 #else   // POSIX
-bool IsPathSeparator(const char c) noexcept {
-  return c == kPathSeparator;
+constexpr bool IsPathSeparator(char c) noexcept {
+  return c == '/';
 }
 #endif  // _WIN32
 
