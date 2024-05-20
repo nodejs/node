@@ -8,7 +8,6 @@ module.exports = {
   kQueue: Symbol('queue'),
   kConnect: Symbol('connect'),
   kConnecting: Symbol('connecting'),
-  kHeadersList: Symbol('headers list'),
   kKeepAliveDefaultTimeout: Symbol('default keep alive timeout'),
   kKeepAliveMaxTimeout: Symbol('max keep alive timeout'),
   kKeepAliveTimeoutThreshold: Symbol('keep alive timeout threshold'),

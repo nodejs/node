@@ -1,12 +1,22 @@
 'use strict'
 
 const { Writable } = require('node:stream')
+const assert = require('node:assert')
 const { parserStates, opcodes, states, emptyBuffer, sentCloseFrameState } = require('./constants')
 const { kReadyState, kSentClose, kResponse, kReceivedClose } = require('./symbols')
 const { channels } = require('../../core/diagnostics')
-const { isValidStatusCode, failWebsocketConnection, websocketMessageReceived, utf8Decode } = require('./util')
+const {
+  isValidStatusCode,
+  isValidOpcode,
+  failWebsocketConnection,
+  websocketMessageReceived,
+  utf8Decode,
+  isControlFrame,
+  isTextBinaryFrame,
+  isContinuationFrame
+} = require('./util')
 const { WebsocketFrameSend } = require('./frame')
-const { CloseEvent } = require('./events')
+const { closeWebSocketConnection } = require('./connection')
 
 // This code was influenced by ws released under the MIT license.
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
@@ -16,6 +26,7 @@ const { CloseEvent } = require('./events')
 class ByteParser extends Writable {
   #buffers = []
   #byteOffset = 0
+  #loop = false
 
   #state = parserStates.INFO
 
@@ -35,6 +46,7 @@ class ByteParser extends Writable {
   _write (chunk, _, callback) {
     this.#buffers.push(chunk)
     this.#byteOffset += chunk.length
+    this.#loop = true
 
     this.run(callback)
   }
@@ -45,7 +57,7 @@ class ByteParser extends Writable {
    * or not enough bytes are buffered to parse.
    */
   run (callback) {
-    while (true) {
+    while (this.#loop) {
       if (this.#state === parserStates.INFO) {
         // If there aren't enough bytes to parse the payload length, etc.
         if (this.#byteOffset < 2) {
@@ -53,29 +65,67 @@ class ByteParser extends Writable {
         }
 
         const buffer = this.consume(2)
+        const fin = (buffer[0] & 0x80) !== 0
+        const opcode = buffer[0] & 0x0F
+        const masked = (buffer[1] & 0x80) === 0x80
 
-        this.#info.fin = (buffer[0] & 0x80) !== 0
-        this.#info.opcode = buffer[0] & 0x0F
-        this.#info.masked = (buffer[1] & 0x80) === 0x80
+        const fragmented = !fin && opcode !== opcodes.CONTINUATION
+        const payloadLength = buffer[1] & 0x7F
 
-        if (this.#info.masked) {
+        const rsv1 = buffer[0] & 0x40
+        const rsv2 = buffer[0] & 0x20
+        const rsv3 = buffer[0] & 0x10
+
+        if (!isValidOpcode(opcode)) {
+          failWebsocketConnection(this.ws, 'Invalid opcode received')
+          return callback()
+        }
+
+        if (masked) {
           failWebsocketConnection(this.ws, 'Frame cannot be masked')
           return callback()
         }
 
-        // If we receive a fragmented message, we use the type of the first
-        // frame to parse the full message as binary/text, when it's terminated
-        this.#info.originalOpcode ??= this.#info.opcode
+        // MUST be 0 unless an extension is negotiated that defines meanings
+        // for non-zero values.  If a nonzero value is received and none of
+        // the negotiated extensions defines the meaning of such a nonzero
+        // value, the receiving endpoint MUST _Fail the WebSocket
+        // Connection_.
+        if (rsv1 !== 0 || rsv2 !== 0 || rsv3 !== 0) {
+          failWebsocketConnection(this.ws, 'RSV1, RSV2, RSV3 must be clear')
+          return
+        }
 
-        this.#info.fragmented = !this.#info.fin && this.#info.opcode !== opcodes.CONTINUATION
-
-        if (this.#info.fragmented && this.#info.opcode !== opcodes.BINARY && this.#info.opcode !== opcodes.TEXT) {
+        if (fragmented && !isTextBinaryFrame(opcode)) {
           // Only text and binary frames can be fragmented
           failWebsocketConnection(this.ws, 'Invalid frame type was fragmented.')
           return
         }
 
-        const payloadLength = buffer[1] & 0x7F
+        // If we are already parsing a text/binary frame and do not receive either
+        // a continuation frame or close frame, fail the connection.
+        if (isTextBinaryFrame(opcode) && this.#fragments.length > 0) {
+          failWebsocketConnection(this.ws, 'Expected continuation frame')
+          return
+        }
+
+        if (this.#info.fragmented && fragmented) {
+          // A fragmented frame can't be fragmented itself
+          failWebsocketConnection(this.ws, 'Fragmented frame exceeded 125 bytes.')
+          return
+        }
+
+        // "All control frames MUST have a payload length of 125 bytes or less
+        // and MUST NOT be fragmented."
+        if ((payloadLength > 125 || fragmented) && isControlFrame(opcode)) {
+          failWebsocketConnection(this.ws, 'Control frame either too large or fragmented')
+          return
+        }
+
+        if (isContinuationFrame(opcode) && this.#fragments.length === 0) {
+          failWebsocketConnection(this.ws, 'Unexpected continuation frame')
+          return
+        }
 
         if (payloadLength <= 125) {
           this.#info.payloadLength = payloadLength
@@ -86,115 +136,14 @@ class ByteParser extends Writable {
           this.#state = parserStates.PAYLOADLENGTH_64
         }
 
-        if (this.#info.fragmented && payloadLength > 125) {
-          // A fragmented frame can't be fragmented itself
-          failWebsocketConnection(this.ws, 'Fragmented frame exceeded 125 bytes.')
-          return
-        } else if (
-          (this.#info.opcode === opcodes.PING ||
-            this.#info.opcode === opcodes.PONG ||
-            this.#info.opcode === opcodes.CLOSE) &&
-          payloadLength > 125
-        ) {
-          // Control frames can have a payload length of 125 bytes MAX
-          failWebsocketConnection(this.ws, 'Payload length for control frame exceeded 125 bytes.')
-          return
-        } else if (this.#info.opcode === opcodes.CLOSE) {
-          if (payloadLength === 1) {
-            failWebsocketConnection(this.ws, 'Received close frame with a 1-byte body.')
-            return
-          }
-
-          const body = this.consume(payloadLength)
-
-          this.#info.closeInfo = this.parseCloseBody(body)
-
-          if (this.#info.closeInfo.error) {
-            const { code, reason } = this.#info.closeInfo
-
-            callback(new CloseEvent('close', { wasClean: false, reason, code }))
-            return
-          }
-
-          if (this.ws[kSentClose] !== sentCloseFrameState.SENT) {
-            // If an endpoint receives a Close frame and did not previously send a
-            // Close frame, the endpoint MUST send a Close frame in response.  (When
-            // sending a Close frame in response, the endpoint typically echos the
-            // status code it received.)
-            let body = emptyBuffer
-            if (this.#info.closeInfo.code) {
-              body = Buffer.allocUnsafe(2)
-              body.writeUInt16BE(this.#info.closeInfo.code, 0)
-            }
-            const closeFrame = new WebsocketFrameSend(body)
-
-            this.ws[kResponse].socket.write(
-              closeFrame.createFrame(opcodes.CLOSE),
-              (err) => {
-                if (!err) {
-                  this.ws[kSentClose] = sentCloseFrameState.SENT
-                }
-              }
-            )
-          }
-
-          // Upon either sending or receiving a Close control frame, it is said
-          // that _The WebSocket Closing Handshake is Started_ and that the
-          // WebSocket connection is in the CLOSING state.
-          this.ws[kReadyState] = states.CLOSING
-          this.ws[kReceivedClose] = true
-
-          this.end()
-
-          return
-        } else if (this.#info.opcode === opcodes.PING) {
-          // Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in
-          // response, unless it already received a Close frame.
-          // A Pong frame sent in response to a Ping frame must have identical
-          // "Application data"
-
-          const body = this.consume(payloadLength)
-
-          if (!this.ws[kReceivedClose]) {
-            const frame = new WebsocketFrameSend(body)
-
-            this.ws[kResponse].socket.write(frame.createFrame(opcodes.PONG))
-
-            if (channels.ping.hasSubscribers) {
-              channels.ping.publish({
-                payload: body
-              })
-            }
-          }
-
-          this.#state = parserStates.INFO
-
-          if (this.#byteOffset > 0) {
-            continue
-          } else {
-            callback()
-            return
-          }
-        } else if (this.#info.opcode === opcodes.PONG) {
-          // A Pong frame MAY be sent unsolicited.  This serves as a
-          // unidirectional heartbeat.  A response to an unsolicited Pong frame is
-          // not expected.
-
-          const body = this.consume(payloadLength)
-
-          if (channels.pong.hasSubscribers) {
-            channels.pong.publish({
-              payload: body
-            })
-          }
-
-          if (this.#byteOffset > 0) {
-            continue
-          } else {
-            callback()
-            return
-          }
+        if (isTextBinaryFrame(opcode)) {
+          this.#info.binaryType = opcode
         }
+
+        this.#info.opcode = opcode
+        this.#info.masked = masked
+        this.#info.fin = fin
+        this.#info.fragmented = fragmented
       } else if (this.#state === parserStates.PAYLOADLENGTH_16) {
         if (this.#byteOffset < 2) {
           return callback()
@@ -229,33 +178,28 @@ class ByteParser extends Writable {
         this.#state = parserStates.READ_DATA
       } else if (this.#state === parserStates.READ_DATA) {
         if (this.#byteOffset < this.#info.payloadLength) {
-          // If there is still more data in this chunk that needs to be read
           return callback()
-        } else if (this.#byteOffset >= this.#info.payloadLength) {
-          // If the server sent multiple frames in a single chunk
+        }
 
-          const body = this.consume(this.#info.payloadLength)
+        const body = this.consume(this.#info.payloadLength)
 
+        if (isControlFrame(this.#info.opcode)) {
+          this.#loop = this.parseControlFrame(body)
+        } else {
           this.#fragments.push(body)
 
-          // If the frame is unfragmented, or a fragmented frame was terminated,
-          // a message was received
-          if (!this.#info.fragmented || (this.#info.fin && this.#info.opcode === opcodes.CONTINUATION)) {
+          // If the frame is not fragmented, a message has been received.
+          // If the frame is fragmented, it will terminate with a fin bit set
+          // and an opcode of 0 (continuation), therefore we handle that when
+          // parsing continuation frames, not here.
+          if (!this.#info.fragmented && this.#info.fin) {
             const fullMessage = Buffer.concat(this.#fragments)
-
-            websocketMessageReceived(this.ws, this.#info.originalOpcode, fullMessage)
-
-            this.#info = {}
+            websocketMessageReceived(this.ws, this.#info.binaryType, fullMessage)
             this.#fragments.length = 0
           }
-
-          this.#state = parserStates.INFO
         }
-      }
 
-      if (this.#byteOffset === 0 && this.#info.payloadLength !== 0) {
-        callback()
-        break
+        this.#state = parserStates.INFO
       }
     }
   }
@@ -263,11 +207,11 @@ class ByteParser extends Writable {
   /**
    * Take n bytes from the buffered Buffers
    * @param {number} n
-   * @returns {Buffer|null}
+   * @returns {Buffer}
    */
   consume (n) {
     if (n > this.#byteOffset) {
-      return null
+      throw new Error('Called consume() before buffers satiated.')
     } else if (n === 0) {
       return emptyBuffer
     }
@@ -303,6 +247,8 @@ class ByteParser extends Writable {
   }
 
   parseCloseBody (data) {
+    assert(data.length !== 1)
+
     // https://datatracker.ietf.org/doc/html/rfc6455#section-7.1.5
     /** @type {number|undefined} */
     let code
@@ -334,6 +280,91 @@ class ByteParser extends Writable {
     }
 
     return { code, reason, error: false }
+  }
+
+  /**
+   * Parses control frames.
+   * @param {Buffer} body
+   */
+  parseControlFrame (body) {
+    const { opcode, payloadLength } = this.#info
+
+    if (opcode === opcodes.CLOSE) {
+      if (payloadLength === 1) {
+        failWebsocketConnection(this.ws, 'Received close frame with a 1-byte body.')
+        return false
+      }
+
+      this.#info.closeInfo = this.parseCloseBody(body)
+
+      if (this.#info.closeInfo.error) {
+        const { code, reason } = this.#info.closeInfo
+
+        closeWebSocketConnection(this.ws, code, reason, reason.length)
+        failWebsocketConnection(this.ws, reason)
+        return false
+      }
+
+      if (this.ws[kSentClose] !== sentCloseFrameState.SENT) {
+        // If an endpoint receives a Close frame and did not previously send a
+        // Close frame, the endpoint MUST send a Close frame in response.  (When
+        // sending a Close frame in response, the endpoint typically echos the
+        // status code it received.)
+        let body = emptyBuffer
+        if (this.#info.closeInfo.code) {
+          body = Buffer.allocUnsafe(2)
+          body.writeUInt16BE(this.#info.closeInfo.code, 0)
+        }
+        const closeFrame = new WebsocketFrameSend(body)
+
+        this.ws[kResponse].socket.write(
+          closeFrame.createFrame(opcodes.CLOSE),
+          (err) => {
+            if (!err) {
+              this.ws[kSentClose] = sentCloseFrameState.SENT
+            }
+          }
+        )
+      }
+
+      // Upon either sending or receiving a Close control frame, it is said
+      // that _The WebSocket Closing Handshake is Started_ and that the
+      // WebSocket connection is in the CLOSING state.
+      this.ws[kReadyState] = states.CLOSING
+      this.ws[kReceivedClose] = true
+
+      this.end()
+      return false
+    } else if (opcode === opcodes.PING) {
+      // Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in
+      // response, unless it already received a Close frame.
+      // A Pong frame sent in response to a Ping frame must have identical
+      // "Application data"
+
+      if (!this.ws[kReceivedClose]) {
+        const frame = new WebsocketFrameSend(body)
+
+        this.ws[kResponse].socket.write(frame.createFrame(opcodes.PONG))
+
+        if (channels.ping.hasSubscribers) {
+          channels.ping.publish({
+            payload: body
+          })
+        }
+      }
+    } else if (opcode === opcodes.PONG) {
+      // A Pong frame MAY be sent unsolicited.  This serves as a
+      // unidirectional heartbeat.  A response to an unsolicited Pong frame is
+      // not expected.
+
+      if (channels.pong.hasSubscribers) {
+        channels.pong.publish({
+          payload: body
+        })
+      }
+    }
+
+    return true
   }
 
   get closingInfo () {

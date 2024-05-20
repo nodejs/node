@@ -26,7 +26,7 @@ const { ByteParser } = require('./receiver')
 const { kEnumerableProperty, isBlobLike } = require('../../core/util')
 const { getGlobalDispatcher } = require('../../global')
 const { types } = require('node:util')
-const { ErrorEvent } = require('./events')
+const { ErrorEvent, CloseEvent } = require('./events')
 
 let experimentalWarned = false
 
@@ -287,7 +287,7 @@ class WebSocket extends EventTarget {
       // not throw an exception must increase the bufferedAmount attribute
       // by the length of data’s buffer in bytes.
 
-      const ab = new FastBuffer(data, data.byteOffset, data.byteLength)
+      const ab = new FastBuffer(data.buffer, data.byteOffset, data.byteLength)
 
       const frame = new WebsocketFrameSend(ab)
       const buffer = frame.createFrame(opcodes.BINARY)
@@ -594,9 +594,19 @@ function onParserDrain () {
 }
 
 function onParserError (err) {
-  fireEvent('error', this, () => new ErrorEvent('error', { error: err, message: err.reason }))
+  let message
+  let code
 
-  closeWebSocketConnection(this, err.code)
+  if (err instanceof CloseEvent) {
+    message = err.reason
+    code = err.code
+  } else {
+    message = err.message
+  }
+
+  fireEvent('error', this, () => new ErrorEvent('error', { error: err, message }))
+
+  closeWebSocketConnection(this, code)
 }
 
 module.exports = {

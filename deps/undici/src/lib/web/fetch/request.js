@@ -3,7 +3,7 @@
 'use strict'
 
 const { extractBody, mixinBody, cloneBody } = require('./body')
-const { Headers, fill: fillHeaders, HeadersList } = require('./headers')
+const { Headers, fill: fillHeaders, HeadersList, setHeadersGuard, getHeadersGuard, setHeadersList, getHeadersList } = require('./headers')
 const { FinalizationRegistry } = require('./dispatcher-weakref')()
 const util = require('../../core/util')
 const nodeUtil = require('node:util')
@@ -25,10 +25,10 @@ const {
   requestDuplex
 } = require('./constants')
 const { kEnumerableProperty } = util
-const { kHeaders, kSignal, kState, kGuard, kDispatcher } = require('./symbols')
+const { kHeaders, kSignal, kState, kDispatcher } = require('./symbols')
 const { webidl } = require('./webidl')
 const { URLSerializer } = require('./data-url')
-const { kHeadersList, kConstruct } = require('../../core/symbols')
+const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
 const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('node:events')
 
@@ -445,8 +445,8 @@ class Request {
     // Realm, whose header list is request’s header list and guard is
     // "request".
     this[kHeaders] = new Headers(kConstruct)
-    this[kHeaders][kHeadersList] = request.headersList
-    this[kHeaders][kGuard] = 'request'
+    setHeadersList(this[kHeaders], request.headersList)
+    setHeadersGuard(this[kHeaders], 'request')
 
     // 31. If this’s request’s mode is "no-cors", then:
     if (mode === 'no-cors') {
@@ -459,13 +459,13 @@ class Request {
       }
 
       // 2. Set this’s headers’s guard to "request-no-cors".
-      this[kHeaders][kGuard] = 'request-no-cors'
+      setHeadersGuard(this[kHeaders], 'request-no-cors')
     }
 
     // 32. If init is not empty, then:
     if (initHasKey) {
       /** @type {HeadersList} */
-      const headersList = this[kHeaders][kHeadersList]
+      const headersList = getHeadersList(this[kHeaders])
       // 1. Let headers be a copy of this’s headers and its associated header
       // list.
       // 2. If init["headers"] exists, then set headers to init["headers"].
@@ -519,7 +519,7 @@ class Request {
       // 3, If Content-Type is non-null and this’s headers’s header list does
       // not contain `Content-Type`, then append `Content-Type`/Content-Type to
       // this’s headers.
-      if (contentType && !this[kHeaders][kHeadersList].contains('content-type', true)) {
+      if (contentType && !getHeadersList(this[kHeaders]).contains('content-type', true)) {
         this[kHeaders].append('content-type', contentType)
       }
     }
@@ -785,7 +785,7 @@ class Request {
     }
 
     // 4. Return clonedRequestObject.
-    return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard])
+    return fromInnerRequest(clonedRequest, ac.signal, getHeadersGuard(this[kHeaders]))
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -894,8 +894,8 @@ function fromInnerRequest (innerRequest, signal, guard) {
   request[kState] = innerRequest
   request[kSignal] = signal
   request[kHeaders] = new Headers(kConstruct)
-  request[kHeaders][kHeadersList] = innerRequest.headersList
-  request[kHeaders][kGuard] = guard
+  setHeadersList(request[kHeaders], innerRequest.headersList)
+  setHeadersGuard(request[kHeaders], guard)
   return request
 }
 

@@ -66,4 +66,9 @@ declare namespace Undici {
   var File: typeof import('./file').File;
   var FileReader: typeof import('./filereader').FileReader;
   var caches: typeof import('./cache').caches;
+  var interceptors: {
+    dump: typeof import('./interceptors').dump;
+    retry: typeof import('./interceptors').retry;
+    redirect: typeof import('./interceptors').redirect;
+  }
 }
