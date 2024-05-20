@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import { isMainThread } from '../common/index.mjs';
 import assert from 'node:assert';
 import { builtinModules } from 'node:module';
 
@@ -15,17 +15,24 @@ for (const invalid of [
 
 // Check that createRequire()(id) returns the same thing as process.getBuiltinModule(id).
 const require = process.getBuiltinModule('module').createRequire(import.meta.url);
-for (const id of builtinModules) {
+const publicBuiltins = new Set(builtinModules);
+
+// Remove built-ins not available in the current setup.
+if (!isMainThread) {
+  publicBuiltins.delete('trace_events');
+}
+
+for (const id of publicBuiltins) {
   assert.strictEqual(process.getBuiltinModule(id), require(id));
 }
 // Check that import(id).default returns the same thing as process.getBuiltinModule(id).
-for (const id of builtinModules) {
+for (const id of publicBuiltins) {
   const imported = await import(`node:${id}`);
   assert.strictEqual(process.getBuiltinModule(id), imported.default);
 }
 
-// builtinModules does not include 'test' which requires the node: prefix.
-const ids = builtinModules.concat(['test']);
+// publicBuiltins does not include 'test' which requires the node: prefix.
+const ids = publicBuiltins.add('test');
 // Check that import(id).default returns the same thing as process.getBuiltinModule(id).
 for (const id of ids) {
   const prefixed = `node:${id}`;
