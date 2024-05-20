@@ -3298,6 +3298,7 @@ var require_data_url = __commonJS({
       collectAnHTTPQuotedString,
       serializeAMimeType,
       removeChars,
+      removeHTTPWhitespace,
       minimizeSupportedMimeType,
       HTTP_TOKEN_CODEPOINTS,
       isomorphicDecode
@@ -11233,6 +11234,12 @@ var require_constants4 = __commonJS({
       READ_DATA: 4
     };
     var emptyBuffer = Buffer.allocUnsafe(0);
+    var sendHints = {
+      string: 1,
+      typedArray: 2,
+      arrayBuffer: 3,
+      blob: 4
+    };
     module2.exports = {
       uid,
       sentCloseFrameState,
@@ -11241,7 +11248,8 @@ var require_constants4 = __commonJS({
       opcodes,
       maxUnsigned16Bit,
       parserStates,
-      emptyBuffer
+      emptyBuffer,
+      sendHints
     };
   }
 });
@@ -11271,6 +11279,7 @@ var require_util3 = __commonJS({
     var { states, opcodes } = require_constants4();
     var { ErrorEvent: ErrorEvent2, createFastMessageEvent: createFastMessageEvent2 } = require_events();
     var { isUtf8 } = require("node:buffer");
+    var { collectASequenceOfCodePointsFast, removeHTTPWhitespace } = require_data_url();
     function isConnecting(ws) {
       return ws[kReadyState] === states.CONNECTING;
     }
@@ -11393,6 +11402,31 @@ var require_util3 = __commonJS({
       return isTextBinaryFrame(opcode) || isContinuationFrame(opcode) || isControlFrame(opcode);
     }
     __name(isValidOpcode, "isValidOpcode");
+    function parseExtensions(extensions) {
+      const position = { position: 0 };
+      const extensionList = /* @__PURE__ */ new Map();
+      while (position.position < extensions.length) {
+        const pair = collectASequenceOfCodePointsFast(";", extensions, position);
+        const [name, value = ""] = pair.split("=");
+        extensionList.set(
+          removeHTTPWhitespace(name, true, false),
+          removeHTTPWhitespace(value, false, true)
+        );
+        position.position++;
+      }
+      return extensionList;
+    }
+    __name(parseExtensions, "parseExtensions");
+    function isValidClientWindowBits(value) {
+      for (let i = 0; i < value.length; i++) {
+        const byte = value.charCodeAt(i);
+        if (byte < 48 || byte > 57) {
+          return false;
+        }
+      }
+      return true;
+    }
+    __name(isValidClientWindowBits, "isValidClientWindowBits");
     var hasIntl = typeof process.versions.icu === "string";
     var fatalDecoder = hasIntl ? new TextDecoder("utf-8", { fatal: true }) : void 0;
     var utf8Decode = hasIntl ? fatalDecoder.decode.bind(fatalDecoder) : function(buffer) {
@@ -11415,7 +11449,9 @@ var require_util3 = __commonJS({
       isControlFrame,
       isContinuationFrame,
       isTextBinaryFrame,
-      isValidOpcode
+      isValidOpcode,
+      parseExtensions,
+      isValidClientWindowBits
     };
   }
 });
@@ -11513,7 +11549,7 @@ var require_connection = __commonJS({
       kReceivedClose,
       kResponse
     } = require_symbols3();
-    var { fireEvent, failWebsocketConnection, isClosing, isClosed, isEstablished } = require_util3();
+    var { fireEvent, failWebsocketConnection, isClosing, isClosed, isEstablished, parseExtensions } = require_util3();
     var { channels } = require_diagnostics();
     var { CloseEvent: CloseEvent2 } = require_events();
     var { makeRequest } = require_request2();
@@ -11549,7 +11585,8 @@ var require_connection = __commonJS({
       for (const protocol of protocols) {
         request.headersList.append("sec-websocket-protocol", protocol);
       }
-      const permessageDeflate = "";
+      const permessageDeflate = "permessage-deflate; client_max_window_bits";
+      request.headersList.append("sec-websocket-extensions", permessageDeflate);
       const controller = fetching({
         request,
         useParallelQueue: true,
@@ -11578,9 +11615,13 @@ var require_connection = __commonJS({
             return;
           }
           const secExtension = response.headersList.get("Sec-WebSocket-Extensions");
-          if (secExtension !== null && secExtension !== permessageDeflate) {
-            failWebsocketConnection(ws, "Received different permessage-deflate than the one set.");
-            return;
+          let extensions;
+          if (secExtension !== null) {
+            extensions = parseExtensions(secExtension);
+            if (!extensions.has("permessage-deflate")) {
+              failWebsocketConnection(ws, "Sec-WebSocket-Extensions header does not match.");
+              return;
+            }
           }
           const secProtocol = response.headersList.get("Sec-WebSocket-Protocol");
           if (secProtocol !== null) {
@@ -11600,7 +11641,7 @@ var require_connection = __commonJS({
               extensions: secExtension
             });
           }
-          onEstablish(response);
+          onEstablish(response, extensions);
         }
       });
       return controller;
@@ -11641,6 +11682,10 @@ var require_connection = __commonJS({
     __name(onSocketData, "onSocketData");
     function onSocketClose() {
       const { ws } = this;
+      const { [kResponse]: response } = ws;
+      response.socket.off("data", onSocketData);
+      response.socket.off("close", onSocketClose);
+      response.socket.off("error", onSocketError);
       const wasClean = ws[kSentClose] === sentCloseFrameState.SENT && ws[kReceivedClose];
       let code = 1005;
       let reason = "";
@@ -11682,6 +11727,64 @@ var require_connection = __commonJS({
   }
 });
 
+// lib/web/websocket/permessage-deflate.js
+var require_permessage_deflate = __commonJS({
+  "lib/web/websocket/permessage-deflate.js"(exports2, module2) {
+    "use strict";
+    var { createInflateRaw, Z_DEFAULT_WINDOWBITS } = require("node:zlib");
+    var { isValidClientWindowBits } = require_util3();
+    var tail = Buffer.from([0, 0, 255, 255]);
+    var kBuffer = Symbol("kBuffer");
+    var kLength = Symbol("kLength");
+    var PerMessageDeflate = class {
+      static {
+        __name(this, "PerMessageDeflate");
+      }
+      /** @type {import('node:zlib').InflateRaw} */
+      #inflate;
+      #options = {};
+      constructor(extensions) {
+        this.#options.serverNoContextTakeover = extensions.has("server_no_context_takeover");
+        this.#options.serverMaxWindowBits = extensions.get("server_max_window_bits");
+      }
+      decompress(chunk, fin, callback) {
+        if (!this.#inflate) {
+          let windowBits = Z_DEFAULT_WINDOWBITS;
+          if (this.#options.serverMaxWindowBits) {
+            if (!isValidClientWindowBits(this.#options.serverMaxWindowBits)) {
+              callback(new Error("Invalid server_max_window_bits"));
+              return;
+            }
+            windowBits = Number.parseInt(this.#options.serverMaxWindowBits);
+          }
+          this.#inflate = createInflateRaw({ windowBits });
+          this.#inflate[kBuffer] = [];
+          this.#inflate[kLength] = 0;
+          this.#inflate.on("data", (data) => {
+            this.#inflate[kBuffer].push(data);
+            this.#inflate[kLength] += data.length;
+          });
+          this.#inflate.on("error", (err) => {
+            this.#inflate = null;
+            callback(err);
+          });
+        }
+        this.#inflate.write(chunk);
+        if (fin) {
+          this.#inflate.write(tail);
+        }
+        this.#inflate.flush(() => {
+          const full = Buffer.concat(this.#inflate[kBuffer], this.#inflate[kLength]);
+          this.#inflate[kBuffer].length = 0;
+          this.#inflate[kLength] = 0;
+          callback(null, full);
+        });
+      }
+    };
+    module2.exports = { PerMessageDeflate };
+  }
+});
+
 // lib/web/websocket/receiver.js
 var require_receiver = __commonJS({
   "lib/web/websocket/receiver.js"(exports2, module2) {
@@ -11703,6 +11806,7 @@ var require_receiver = __commonJS({
     } = require_util3();
     var { WebsocketFrameSend } = require_frame();
     var { closeWebSocketConnection } = require_connection();
+    var { PerMessageDeflate } = require_permessage_deflate();
     var ByteParser = class extends Writable {
       static {
         __name(this, "ByteParser");
@@ -11713,9 +11817,15 @@ var require_receiver = __commonJS({
       #state = parserStates.INFO;
       #info = {};
       #fragments = [];
-      constructor(ws) {
+      /** @type {Map<string, PerMessageDeflate>} */
+      #extensions;
+      constructor(ws, extensions) {
         super();
         this.ws = ws;
+        this.#extensions = extensions == null ? /* @__PURE__ */ new Map() : extensions;
+        if (this.#extensions.has("permessage-deflate")) {
+          this.#extensions.set("permessage-deflate", new PerMessageDeflate(extensions));
+        }
       }
       /**
        * @param {Buffer} chunk
@@ -11755,7 +11865,11 @@ var require_receiver = __commonJS({
               failWebsocketConnection(this.ws, "Frame cannot be masked");
               return callback();
             }
-            if (rsv1 !== 0 || rsv2 !== 0 || rsv3 !== 0) {
+            if (rsv1 !== 0 && !this.#extensions.has("permessage-deflate")) {
+              failWebsocketConnection(this.ws, "Expected RSV1 to be clear.");
+              return;
+            }
+            if (rsv2 !== 0 || rsv3 !== 0) {
               failWebsocketConnection(this.ws, "RSV1, RSV2, RSV3 must be clear");
               return;
             }
@@ -11775,7 +11889,7 @@ var require_receiver = __commonJS({
               failWebsocketConnection(this.ws, "Control frame either too large or fragmented");
               return;
             }
-            if (isContinuationFrame(opcode) && this.#fragments.length === 0) {
+            if (isContinuationFrame(opcode) && this.#fragments.length === 0 && !this.#info.compressed) {
               failWebsocketConnection(this.ws, "Unexpected continuation frame");
               return;
             }
@@ -11789,6 +11903,7 @@ var require_receiver = __commonJS({
             }
             if (isTextBinaryFrame(opcode)) {
               this.#info.binaryType = opcode;
+              this.#info.compressed = rsv1 !== 0;
             }
             this.#info.opcode = opcode;
             this.#info.masked = masked;
@@ -11821,15 +11936,39 @@ var require_receiver = __commonJS({
             const body = this.consume(this.#info.payloadLength);
             if (isControlFrame(this.#info.opcode)) {
               this.#loop = this.parseControlFrame(body);
+              this.#state = parserStates.INFO;
             } else {
-              this.#fragments.push(body);
-              if (!this.#info.fragmented && this.#info.fin) {
-                const fullMessage = Buffer.concat(this.#fragments);
-                websocketMessageReceived(this.ws, this.#info.binaryType, fullMessage);
-                this.#fragments.length = 0;
+              if (!this.#info.compressed) {
+                this.#fragments.push(body);
+                if (!this.#info.fragmented && this.#info.fin) {
+                  const fullMessage = Buffer.concat(this.#fragments);
+                  websocketMessageReceived(this.ws, this.#info.binaryType, fullMessage);
+                  this.#fragments.length = 0;
+                }
+                this.#state = parserStates.INFO;
+              } else {
+                this.#extensions.get("permessage-deflate").decompress(body, this.#info.fin, (error, data) => {
+                  if (error) {
+                    closeWebSocketConnection(this.ws, 1007, error.message, error.message.length);
+                    return;
+                  }
+                  this.#fragments.push(data);
+                  if (!this.#info.fin) {
+                    this.#state = parserStates.INFO;
+                    this.#loop = true;
+                    this.run(callback);
+                    return;
+                  }
+                  websocketMessageReceived(this.ws, this.#info.binaryType, Buffer.concat(this.#fragments));
+                  this.#loop = true;
+                  this.#state = parserStates.INFO;
+                  this.run(callback);
+                  this.#fragments.length = 0;
+                });
+                this.#loop = false;
+                break;
               }
             }
-            this.#state = parserStates.INFO;
           }
         }
       }
@@ -11924,7 +12063,6 @@ var require_receiver = __commonJS({
           }
           this.ws[kReadyState] = states.CLOSING;
           this.ws[kReceivedClose] = true;
-          this.end();
           return false;
         } else if (opcode === opcodes.PING) {
           if (!this.ws[kReceivedClose]) {
@@ -11955,6 +12093,80 @@ var require_receiver = __commonJS({
   }
 });
 
+// lib/web/websocket/sender.js
+var require_sender = __commonJS({
+  "lib/web/websocket/sender.js"(exports2, module2) {
+    "use strict";
+    var { WebsocketFrameSend } = require_frame();
+    var { opcodes, sendHints } = require_constants4();
+    var FastBuffer = Buffer[Symbol.species];
+    var SendQueue = class {
+      static {
+        __name(this, "SendQueue");
+      }
+      #queued = /* @__PURE__ */ new Set();
+      #size = 0;
+      /** @type {import('net').Socket} */
+      #socket;
+      constructor(socket) {
+        this.#socket = socket;
+      }
+      add(item, cb, hint) {
+        if (hint !== sendHints.blob) {
+          const data = clone(item, hint);
+          if (this.#size === 0) {
+            this.#dispatch(data, cb, hint);
+          } else {
+            this.#queued.add([data, cb, true, hint]);
+            this.#size++;
+            this.#run();
+          }
+          return;
+        }
+        const promise = item.arrayBuffer();
+        const queue = [null, cb, false, hint];
+        promise.then((ab) => {
+          queue[0] = clone(ab, hint);
+          queue[2] = true;
+          this.#run();
+        });
+        this.#queued.add(queue);
+        this.#size++;
+      }
+      #run() {
+        for (const queued of this.#queued) {
+          const [data, cb, done, hint] = queued;
+          if (!done)
+            return;
+          this.#queued.delete(queued);
+          this.#size--;
+          this.#dispatch(data, cb, hint);
+        }
+      }
+      #dispatch(data, cb, hint) {
+        const frame = new WebsocketFrameSend();
+        const opcode = hint === sendHints.string ? opcodes.TEXT : opcodes.BINARY;
+        frame.frameData = data;
+        const buffer = frame.createFrame(opcode);
+        this.#socket.write(buffer, cb);
+      }
+    };
+    function clone(data, hint) {
+      switch (hint) {
+        case sendHints.string:
+          return Buffer.from(data);
+        case sendHints.arrayBuffer:
+        case sendHints.blob:
+          return new FastBuffer(data);
+        case sendHints.typedArray:
+          return Buffer.copyBytesFrom(data);
+      }
+    }
+    __name(clone, "clone");
+    module2.exports = { SendQueue };
+  }
+});
+
 // lib/web/websocket/websocket.js
 var require_websocket = __commonJS({
   "lib/web/websocket/websocket.js"(exports2, module2) {
@@ -11962,7 +12174,7 @@ var require_websocket = __commonJS({
     var { webidl } = require_webidl();
     var { URLSerializer } = require_data_url();
     var { environmentSettingsObject } = require_util2();
-    var { staticPropertyDescriptors, states, sentCloseFrameState, opcodes } = require_constants4();
+    var { staticPropertyDescriptors, states, sentCloseFrameState, sendHints } = require_constants4();
     var {
       kWebSocketURL,
       kReadyState,
@@ -11980,14 +12192,13 @@ var require_websocket = __commonJS({
       fireEvent
     } = require_util3();
     var { establishWebSocketConnection, closeWebSocketConnection } = require_connection();
-    var { WebsocketFrameSend } = require_frame();
     var { ByteParser } = require_receiver();
     var { kEnumerableProperty, isBlobLike } = require_util();
     var { getGlobalDispatcher: getGlobalDispatcher2 } = require_global2();
     var { types } = require("node:util");
     var { ErrorEvent: ErrorEvent2, CloseEvent: CloseEvent2 } = require_events();
+    var { SendQueue } = require_sender();
     var experimentalWarned = false;
-    var FastBuffer = Buffer[Symbol.species];
     var WebSocket = class _WebSocket extends EventTarget {
       static {
         __name(this, "WebSocket");
@@ -12001,6 +12212,8 @@ var require_websocket = __commonJS({
       #bufferedAmount = 0;
       #protocol = "";
       #extensions = "";
+      /** @type {SendQueue} */
+      #sendQueue;
       /**
        * @param {string} url
        * @param {string|string[]} protocols
@@ -12055,7 +12268,7 @@ var require_websocket = __commonJS({
           protocols,
           client,
           this,
-          (response) => this.#onConnectionEstablished(response),
+          (response, extensions) => this.#onConnectionEstablished(response, extensions),
           options
         );
         this[kReadyState] = _WebSocket.CONNECTING;
@@ -12108,42 +12321,27 @@ var require_websocket = __commonJS({
         if (!isEstablished(this) || isClosing(this)) {
           return;
         }
-        const socket = this[kResponse].socket;
         if (typeof data === "string") {
-          const value = Buffer.from(data);
-          const frame = new WebsocketFrameSend(value);
-          const buffer = frame.createFrame(opcodes.TEXT);
-          this.#bufferedAmount += value.byteLength;
-          socket.write(buffer, () => {
-            this.#bufferedAmount -= value.byteLength;
-          });
+          const length = Buffer.byteLength(data);
+          this.#bufferedAmount += length;
+          this.#sendQueue.add(data, () => {
+            this.#bufferedAmount -= length;
+          }, sendHints.string);
         } else if (types.isArrayBuffer(data)) {
-          const value = new FastBuffer(data);
-          const frame = new WebsocketFrameSend(value);
-          const buffer = frame.createFrame(opcodes.BINARY);
-          this.#bufferedAmount += value.byteLength;
-          socket.write(buffer, () => {
-            this.#bufferedAmount -= value.byteLength;
-          });
+          this.#bufferedAmount += data.byteLength;
+          this.#sendQueue.add(data, () => {
+            this.#bufferedAmount -= data.byteLength;
+          }, sendHints.arrayBuffer);
         } else if (ArrayBuffer.isView(data)) {
-          const ab = new FastBuffer(data.buffer, data.byteOffset, data.byteLength);
-          const frame = new WebsocketFrameSend(ab);
-          const buffer = frame.createFrame(opcodes.BINARY);
-          this.#bufferedAmount += ab.byteLength;
-          socket.write(buffer, () => {
-            this.#bufferedAmount -= ab.byteLength;
-          });
+          this.#bufferedAmount += data.byteLength;
+          this.#sendQueue.add(data, () => {
+            this.#bufferedAmount -= data.byteLength;
+          }, sendHints.typedArray);
         } else if (isBlobLike(data)) {
-          const frame = new WebsocketFrameSend();
-          data.arrayBuffer().then((ab) => {
-            const value = new FastBuffer(ab);
-            frame.frameData = value;
-            const buffer = frame.createFrame(opcodes.BINARY);
-            this.#bufferedAmount += value.byteLength;
-            socket.write(buffer, () => {
-              this.#bufferedAmount -= value.byteLength;
-            });
-          });
+          this.#bufferedAmount += data.size;
+          this.#sendQueue.add(data, () => {
+            this.#bufferedAmount -= data.size;
+          }, sendHints.blob);
         }
       }
       get readyState() {
@@ -12245,13 +12443,14 @@ var require_websocket = __commonJS({
       /**
        * @see https://websockets.spec.whatwg.org/#feedback-from-the-protocol
        */
-      #onConnectionEstablished(response) {
+      #onConnectionEstablished(response, parsedExtensions) {
         this[kResponse] = response;
-        const parser = new ByteParser(this);
+        const parser = new ByteParser(this, parsedExtensions);
         parser.on("drain", onParserDrain);
         parser.on("error", onParserError.bind(this));
         response.socket.ws = this;
         this[kByteParser] = parser;
+        this.#sendQueue = new SendQueue(response.socket);
         this[kReadyState] = states.OPEN;
         const extensions = response.headersList.get("sec-websocket-extensions");
         if (extensions !== null) {
@@ -12315,7 +12514,7 @@ var require_websocket = __commonJS({
       },
       {
         key: "dispatcher",
-        converter: (V) => V,
+        converter: webidl.converters.any,
         defaultValue: () => getGlobalDispatcher2()
       },
       {
