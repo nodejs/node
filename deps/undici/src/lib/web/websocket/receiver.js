@@ -17,6 +17,7 @@ const {
 } = require('./util')
 const { WebsocketFrameSend } = require('./frame')
 const { closeWebSocketConnection } = require('./connection')
+const { PerMessageDeflate } = require('./permessage-deflate')
 
 // This code was influenced by ws released under the MIT license.
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
@@ -33,10 +34,18 @@ class ByteParser extends Writable {
   #info = {}
   #fragments = []
 
-  constructor (ws) {
+  /** @type {Map<string, PerMessageDeflate>} */
+  #extensions
+
+  constructor (ws, extensions) {
     super()
 
     this.ws = ws
+    this.#extensions = extensions == null ? new Map() : extensions
+
+    if (this.#extensions.has('permessage-deflate')) {
+      this.#extensions.set('permessage-deflate', new PerMessageDeflate(extensions))
+    }
   }
 
   /**
@@ -91,7 +100,16 @@ class ByteParser extends Writable {
         // the negotiated extensions defines the meaning of such a nonzero
         // value, the receiving endpoint MUST _Fail the WebSocket
         // Connection_.
-        if (rsv1 !== 0 || rsv2 !== 0 || rsv3 !== 0) {
+        // This document allocates the RSV1 bit of the WebSocket header for
+        // PMCEs and calls the bit the "Per-Message Compressed" bit.  On a
+        // WebSocket connection where a PMCE is in use, this bit indicates
+        // whether a message is compressed or not.
+        if (rsv1 !== 0 && !this.#extensions.has('permessage-deflate')) {
+          failWebsocketConnection(this.ws, 'Expected RSV1 to be clear.')
+          return
+        }
+
+        if (rsv2 !== 0 || rsv3 !== 0) {
           failWebsocketConnection(this.ws, 'RSV1, RSV2, RSV3 must be clear')
           return
         }
@@ -122,7 +140,7 @@ class ByteParser extends Writable {
           return
         }
 
-        if (isContinuationFrame(opcode) && this.#fragments.length === 0) {
+        if (isContinuationFrame(opcode) && this.#fragments.length === 0 && !this.#info.compressed) {
           failWebsocketConnection(this.ws, 'Unexpected continuation frame')
           return
         }
@@ -138,6 +156,7 @@ class ByteParser extends Writable {
 
         if (isTextBinaryFrame(opcode)) {
           this.#info.binaryType = opcode
+          this.#info.compressed = rsv1 !== 0
         }
 
         this.#info.opcode = opcode
@@ -185,21 +204,50 @@ class ByteParser extends Writable {
 
         if (isControlFrame(this.#info.opcode)) {
           this.#loop = this.parseControlFrame(body)
+          this.#state = parserStates.INFO
         } else {
-          this.#fragments.push(body)
+          if (!this.#info.compressed) {
+            this.#fragments.push(body)
 
-          // If the frame is not fragmented, a message has been received.
-          // If the frame is fragmented, it will terminate with a fin bit set
-          // and an opcode of 0 (continuation), therefore we handle that when
-          // parsing continuation frames, not here.
-          if (!this.#info.fragmented && this.#info.fin) {
-            const fullMessage = Buffer.concat(this.#fragments)
-            websocketMessageReceived(this.ws, this.#info.binaryType, fullMessage)
-            this.#fragments.length = 0
+            // If the frame is not fragmented, a message has been received.
+            // If the frame is fragmented, it will terminate with a fin bit set
+            // and an opcode of 0 (continuation), therefore we handle that when
+            // parsing continuation frames, not here.
+            if (!this.#info.fragmented && this.#info.fin) {
+              const fullMessage = Buffer.concat(this.#fragments)
+              websocketMessageReceived(this.ws, this.#info.binaryType, fullMessage)
+              this.#fragments.length = 0
+            }
+
+            this.#state = parserStates.INFO
+          } else {
+            this.#extensions.get('permessage-deflate').decompress(body, this.#info.fin, (error, data) => {
+              if (error) {
+                closeWebSocketConnection(this.ws, 1007, error.message, error.message.length)
+                return
+              }
+
+              this.#fragments.push(data)
+
+              if (!this.#info.fin) {
+                this.#state = parserStates.INFO
+                this.#loop = true
+                this.run(callback)
+                return
+              }
+
+              websocketMessageReceived(this.ws, this.#info.binaryType, Buffer.concat(this.#fragments))
+
+              this.#loop = true
+              this.#state = parserStates.INFO
+              this.run(callback)
+              this.#fragments.length = 0
+            })
+
+            this.#loop = false
+            break
           }
         }
-
-        this.#state = parserStates.INFO
       }
     }
   }
@@ -333,7 +381,6 @@ class ByteParser extends Writable {
       this.ws[kReadyState] = states.CLOSING
       this.ws[kReceivedClose] = true
 
-      this.end()
       return false
     } else if (opcode === opcodes.PING) {
       // Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in

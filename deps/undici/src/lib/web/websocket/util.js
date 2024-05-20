@@ -4,6 +4,7 @@ const { kReadyState, kController, kResponse, kBinaryType, kWebSocketURL } = requ
 const { states, opcodes } = require('./constants')
 const { ErrorEvent, createFastMessageEvent } = require('./events')
 const { isUtf8 } = require('node:buffer')
+const { collectASequenceOfCodePointsFast, removeHTTPWhitespace } = require('../fetch/data-url')
 
 /* globals Blob */
 
@@ -234,6 +235,48 @@ function isValidOpcode (opcode) {
   return isTextBinaryFrame(opcode) || isContinuationFrame(opcode) || isControlFrame(opcode)
 }
 
+/**
+ * Parses a Sec-WebSocket-Extensions header value.
+ * @param {string} extensions
+ * @returns {Map<string, string>}
+ */
+// TODO(@Uzlopak, @KhafraDev): make compliant https://datatracker.ietf.org/doc/html/rfc6455#section-9.1
+function parseExtensions (extensions) {
+  const position = { position: 0 }
+  const extensionList = new Map()
+
+  while (position.position < extensions.length) {
+    const pair = collectASequenceOfCodePointsFast(';', extensions, position)
+    const [name, value = ''] = pair.split('=')
+
+    extensionList.set(
+      removeHTTPWhitespace(name, true, false),
+      removeHTTPWhitespace(value, false, true)
+    )
+
+    position.position++
+  }
+
+  return extensionList
+}
+
+/**
+ * @see https://www.rfc-editor.org/rfc/rfc7692#section-7.1.2.2
+ * @description "client-max-window-bits = 1*DIGIT"
+ * @param {string} value
+ */
+function isValidClientWindowBits (value) {
+  for (let i = 0; i < value.length; i++) {
+    const byte = value.charCodeAt(i)
+
+    if (byte < 0x30 || byte > 0x39) {
+      return false
+    }
+  }
+
+  return true
+}
+
 // https://nodejs.org/api/intl.html#detecting-internationalization-support
 const hasIntl = typeof process.versions.icu === 'string'
 const fatalDecoder = hasIntl ? new TextDecoder('utf-8', { fatal: true }) : undefined
@@ -265,5 +308,7 @@ module.exports = {
   isControlFrame,
   isContinuationFrame,
   isTextBinaryFrame,
-  isValidOpcode
+  isValidOpcode,
+  parseExtensions,
+  isValidClientWindowBits
 }
