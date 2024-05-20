@@ -47,7 +47,7 @@ describe('--experimental-detect-module', { concurrency: !process.env.TEST_PARALL
     it('should not switch to module if code is parsable as script', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
         '--experimental-detect-module',
-        '--print',
+        '--eval',
         'let __filename,__dirname,require,module,exports;this.a',
       ]);
 
