@@ -415,10 +415,6 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Environment* env, HeapSnapshotPointer&& snapshot);
 }  // namespace heap
 
-namespace fs {
-std::string Basename(const std::string& str, const std::string& extension);
-}  // namespace fs
-
 node_module napi_module_to_node_module(const napi_module* mod);
 
 std::ostream& operator<<(std::ostream& output, const SnapshotFlags& flags);
