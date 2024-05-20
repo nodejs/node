@@ -15,10 +15,7 @@ const USE_OBJ_DESTRUCTURING =
 const USE_ARRAY_METHODS =
   'Use primordials.ArrayPrototypeSlice to avoid unsafe array iteration.';
 
-new RuleTester({
-  parserOptions: { ecmaVersion: 2021 },
-  env: { es6: true }
-})
+new RuleTester()
   .run('no-array-destructuring', rule, {
     valid: [
       'const first = [1, 2, 3][0];',

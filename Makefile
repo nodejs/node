@@ -1372,7 +1372,7 @@ format-md:
 
 
 
-LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
+LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
 	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)

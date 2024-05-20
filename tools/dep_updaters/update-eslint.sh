@@ -45,6 +45,7 @@ rm -rf ../node_modules/eslint
         --ignore-scripts \
         eslint-plugin-jsdoc \
         eslint-plugin-markdown \
+        globals \
         @babel/core \
         @babel/eslint-parser \
         @babel/plugin-syntax-import-attributes \
@@ -61,6 +62,7 @@ rm -rf ../node_modules/eslint
         --omit=peer \
         eslint-plugin-jsdoc \
         eslint-plugin-markdown \
+        globals \
         @babel/core \
         @babel/eslint-parser \
         @babel/plugin-syntax-import-attributes \
