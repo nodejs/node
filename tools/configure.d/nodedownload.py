@@ -101,6 +101,15 @@ def checkGPG(targetfile, key_url, sig_url):
         os.remove(sig_file)
         raise Exception("Failed to verify signature. Check target file is valid. \n%s" % e.stderr.decode("utf-8"))
 
+def is_gpg_available():
+    try:
+        cmd = ["gpg", "--version"]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return True
+    except subprocess.CalledProcessError as e:
+        print("GPG not installed. Skipping signature verification. \n%s" % e.stderr.decode("utf-8"))
+        return False
+
 def download_file(url):
     with urlopen(url) as response:
         return response.read()
