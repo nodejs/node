@@ -16,7 +16,7 @@ if (!paths.length) {
 
 let format = false;
 const formatFlags = ['--fix', '--format'];
-if (formatFlags.includes(paths[0]) {
+if (formatFlags.includes(paths[0])) {
   paths.shift();
   format = true;
 }
