@@ -1783,9 +1783,7 @@ def configure_intl(o):
           warn(f'No GPG or MD5 hash provided for {url}')
           return None
 
-        if not nodedownload.is_gpg_available():
-          warn('GPG is not available, skipping GPG signature check.')
-        elif "gpg" in icu :
+        if "gpg" in icu and nodedownload.is_gpg_available():
           key_url = icu['gpg']["key"]
           sig_url = icu['gpg']["asc"]
           try:
@@ -1794,6 +1792,8 @@ def configure_intl(o):
           except Exception as e:
             warn(e)
             return None
+        elif not nodedownload.is_gpg_available():
+          warn('GPG is not available, skipping GPG signature check.')
         else:
           warn('No GPG signature to verify.')
 
