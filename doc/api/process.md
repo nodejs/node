@@ -1935,7 +1935,7 @@ having to use dynamic `import()` which either turns the module into
 an asynchronous module, or turns a synchronous API into an asynchronous one.
 
 ```mjs
-if (globalThis.process.getBuiltinModule) {
+if (globalThis.process?.getBuiltinModule) {
   // Run in Node.js, use the Node.js fs module.
   const fs = globalThis.process.getBuiltinModule('fs');
   // If `require()` is needed to load user-modules, use createRequire()
@@ -1950,7 +1950,7 @@ If `id` specifies a built-in module available in the current Node.js process,
 module. If `id` does not correspond to any built-in module, `undefined`
 is returned.
 
-`process.getBuiltinModule(id)` accept built-in module IDs that are recognized
+`process.getBuiltinModule(id)` accepts built-in module IDs that are recognized
 by [`module.isBuiltin(id)`][]. Some built-in modules must be loaded with the
 `node:` prefix, see [built-in modules with mandatory `node:` prefix][].
 The references returned by `process.getBuiltinModule(id)` always point to
