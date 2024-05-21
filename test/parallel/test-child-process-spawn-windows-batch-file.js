@@ -26,8 +26,8 @@ const expectedCode = isWindows && !isRevert ? 'EINVAL' : 'ENOENT';
 const expectedStatus = isWindows ? 1 : 127;
 
 const suffixes =
-    'BAT bAT BaT baT BAt bAt Bat bat CMD cMD CmD cmD CMd cMd Cmd cmd'
-    .split(' ');
+    'BAT|bAT|BaT|baT|BAt|bAt|Bat|bat|CMD|cMD|CmD|cmD|CMd|cMd|Cmd|cmd|cmd |cmd .|cmd ....'
+    .split('|');
 
 if (process.argv[2] === undefined) {
   const a = cp.spawnSync(process.execPath, [__filename, 'child']);
