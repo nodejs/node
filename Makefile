@@ -146,7 +146,8 @@ endif
 ifdef JOBS
 	NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
 else
-	NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
+	IMMEDIATE_NINJA_ARGS := $(NINJA_ARGS)
+	NINJA_ARGS = $(IMMEDIATE_NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
 	$(NINJA) -C out/Release $(NINJA_ARGS)
