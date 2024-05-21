@@ -1,6 +1,7 @@
 #include "node_task_runner.h"
 #include "util.h"
 
+#include <filesystem>
 #include <regex>  // NOLINT(build/c++11)
 
 namespace node::task_runner {
@@ -12,7 +13,8 @@ static constexpr const char* bin_path = "/node_modules/.bin";
 #endif  // _WIN32
 
 ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
-                             const std::string& script_name,
+                             std::string_view package_json_path,
+                             std::string_view script_name,
                              std::string_view command,
                              const PositionalArgs& positional_args) {
   memset(&options_, 0, sizeof(uv_process_options_t));
@@ -52,7 +54,10 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
   // callback.
   process_.data = this;
 
-  SetEnvironmentVariables(current_bin_path, script_name);
+  SetEnvironmentVariables(current_bin_path,
+                          std::string_view(cwd, cwd_size),
+                          package_json_path,
+                          script_name);
 
   std::string command_str(command);
 
@@ -102,7 +107,9 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
 }
 
 void ProcessRunner::SetEnvironmentVariables(const std::string& current_bin_path,
-                                            const std::string& script_name) {
+                                            std::string_view cwd,
+                                            std::string_view package_json_path,
+                                            std::string_view script_name) {
   uv_env_item_t* env_items;
   int env_count;
   CHECK_EQ(0, uv_os_environ(&env_items, &env_count));
@@ -132,7 +139,19 @@ void ProcessRunner::SetEnvironmentVariables(const std::string& current_bin_path,
 
   // Add NODE_RUN_SCRIPT_NAME environment variable to the environment
   // to indicate which script is being run.
-  env_vars_.push_back("NODE_RUN_SCRIPT_NAME=" + script_name);
+  env_vars_.push_back("NODE_RUN_SCRIPT_NAME=" + std::string(script_name));
+
+  // Add NODE_RUN_PACKAGE_JSON_PATH environment variable to the environment to
+  // indicate which package.json is being processed.
+  if (std::filesystem::path(package_json_path).is_absolute()) {
+    // TODO(anonrig): Traverse up the directory tree until we find a
+    // package.json
+    env_vars_.push_back("NODE_RUN_PACKAGE_JSON_PATH=" +
+                        std::string(package_json_path));
+  } else {
+    auto path = std::filesystem::path(cwd) / std::string(package_json_path);
+    env_vars_.push_back("NODE_RUN_PACKAGE_JSON_PATH=" + path.string());
+  }
 
   env = std::unique_ptr<char*[]>(new char*[env_vars_.size() + 1]);
   options_.env = env.get();
@@ -284,7 +303,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   }
 
   auto runner =
-      ProcessRunner(result, std::string(command_id), command, positional_args);
+      ProcessRunner(result, path, command_id, command, positional_args);
   runner.Run();
 }
 
