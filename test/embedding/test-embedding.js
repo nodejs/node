@@ -159,6 +159,7 @@ for (const extraSnapshotArgs of [
     ['require("os")'],
     {
       env: {
+        ...process.env,
         'NODE_REPL_EXTERNAL_MODULE': 'fs',
       },
     },
