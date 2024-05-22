@@ -66,7 +66,7 @@ subSystemLabels:
   /^tools\/build-addons.mjs/: needs-ci
   # All other tool changes should be marked as such
   /^tools\//: tools
-  /^\.eslint|\.editorconfig/: tools
+  /^eslint\.config|\.editorconfig/: tools
   /^typings\//: typings
 
   ## Dependencies
