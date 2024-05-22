@@ -64,7 +64,7 @@ async function runReplTests(socket, prompt, tests) {
 
         // Cut away the initial prompt
         while (lineBuffer.startsWith(prompt))
-          lineBuffer = lineBuffer.substr(prompt.length);
+          lineBuffer = lineBuffer.slice(prompt.length);
 
         // Allow to match partial text if no newline was received, because
         // sending newlines from the REPL itself would be redundant
@@ -76,13 +76,13 @@ async function runReplTests(socket, prompt, tests) {
 
       // Split off the current line.
       const newlineOffset = lineBuffer.indexOf('\n');
-      let actualLine = lineBuffer.substr(0, newlineOffset);
-      lineBuffer = lineBuffer.substr(newlineOffset + 1);
+      let actualLine = lineBuffer.slice(0, newlineOffset);
+      lineBuffer = lineBuffer.slice(newlineOffset + 1);
 
       // This might have been skipped in the loop above because the buffer
       // already contained a \n to begin with and the entire loop was skipped.
       while (actualLine.startsWith(prompt))
-        actualLine = actualLine.substr(prompt.length);
+        actualLine = actualLine.slice(prompt.length);
 
       console.error('in:', JSON.stringify(actualLine));
 
