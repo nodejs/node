@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <cstdarg>
+#include <filesystem>
 #include <sstream>
 
 #include "debug_utils-inl.h"
@@ -538,10 +539,11 @@ static void ReportFatalException(Environment* env,
       std::string argv0;
       if (!env->argv().empty()) argv0 = env->argv()[0];
       if (argv0.empty()) argv0 = "node";
+      auto filesystem_path = std::filesystem::path(argv0).replace_extension();
       FPrintF(stderr,
               "(Use `%s --trace-uncaught ...` to show where the exception "
               "was thrown)\n",
-              fs::Basename(argv0, ".exe"));
+              filesystem_path.filename().string());
     }
   }
 
