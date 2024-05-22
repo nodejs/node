@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 
 export const requireEslintTool = createRequire(new URL('./node_modules/eslint/', import.meta.url));
+export const resolveEslintTool = (request) => requireEslintTool.resolve(request);
 
 export const noRestrictedSyntaxCommonAll = [
   {

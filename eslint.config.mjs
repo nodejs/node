@@ -1,3 +1,4 @@
+import Module from 'node:module';
 import { fileURLToPath, URL } from 'node:url';
 
 import benchmarkConfig from './benchmark/eslint.config_partial.mjs';
@@ -10,6 +11,7 @@ import {
   noRestrictedSyntaxCommonLib,
   noRestrictedSyntaxCommonTest,
   requireEslintTool,
+  resolveEslintTool,
 } from './tools/eslint.config_utils.mjs';
 
 const js = requireEslintTool('@eslint/js');
@@ -21,6 +23,19 @@ const stylisticJs = requireEslintTool('@stylistic/eslint-plugin-js');
 
 const nodeCore = requireEslintTool('eslint-plugin-node-core');
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
+
+// The Module._resolveFilename() monkeypatching is to make it so that ESLint is able to
+// dynamically load extra modules that we install with it.
+const ModuleResolveFilename = Module._resolveFilename;
+const hacks = [
+  'eslint-formatter-tap',
+];
+Module._resolveFilename = (request, parent, isMain, options) => {
+  if (hacks.includes(request) && parent.id.endsWith('__placeholder__.js')) {
+    return resolveEslintTool(request);
+  }
+  return ModuleResolveFilename(request, parent, isMain, options);
+};
 
 export default [
   // #region ignores
