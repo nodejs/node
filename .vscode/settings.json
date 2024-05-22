@@ -1,0 +1,6 @@
+{
+  "editor.tabSize": 2,
+  "prettier.configPath": ".prettierrc.js",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
