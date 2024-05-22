@@ -657,6 +657,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, I8x32GtU, Operator::kNoProperties, 2, 0, 1)                       \
   IF_WASM(V, I8x32GeS, Operator::kNoProperties, 2, 0, 1)                       \
   IF_WASM(V, I8x32GeU, Operator::kNoProperties, 2, 0, 1)                       \
+  IF_WASM(V, I32x8SConvertF32x8, Operator::kNoProperties, 1, 0, 1)             \
   IF_WASM(V, I32x8UConvertF32x8, Operator::kNoProperties, 1, 0, 1)             \
   IF_WASM(V, F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)             \
   IF_WASM(V, F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)             \
@@ -709,7 +710,11 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
           1)                                                                   \
   IF_WASM(V, S256Not, Operator::kNoProperties, 1, 0, 1)                        \
   IF_WASM(V, S256Select, Operator::kNoProperties, 3, 0, 1)                     \
-  IF_WASM(V, S256AndNot, Operator::kNoProperties, 2, 0, 1)
+  IF_WASM(V, S256AndNot, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_WASM(V, F32x8Qfma, Operator::kNoProperties, 3, 0, 1)                      \
+  IF_WASM(V, F32x8Qfms, Operator::kNoProperties, 3, 0, 1)                      \
+  IF_WASM(V, F64x4Qfma, Operator::kNoProperties, 3, 0, 1)                      \
+  IF_WASM(V, F64x4Qfms, Operator::kNoProperties, 3, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)

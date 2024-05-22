@@ -92,13 +92,13 @@ INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
 
-inline Tagged<TrustedFixedArray> Code::deoptimization_data() const {
+inline Tagged<ProtectedFixedArray> Code::deoptimization_data() const {
   DCHECK(uses_deoptimization_data());
-  return TrustedFixedArray::cast(
+  return ProtectedFixedArray::cast(
       ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 
-inline void Code::set_deoptimization_data(Tagged<TrustedFixedArray> value,
+inline void Code::set_deoptimization_data(Tagged<ProtectedFixedArray> value,
                                           WriteBarrierMode mode) {
   DCHECK(uses_deoptimization_data());
   DCHECK(!ObjectInYoungGeneration(value));
@@ -280,8 +280,8 @@ int Code::constant_pool_size() const {
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
-Tagged<TrustedFixedArray> Code::unchecked_deoptimization_data() const {
-  return TrustedFixedArray::unchecked_cast(
+Tagged<ProtectedFixedArray> Code::unchecked_deoptimization_data() const {
+  return ProtectedFixedArray::unchecked_cast(
       ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 

@@ -24,6 +24,7 @@
 #include "src/heap/large-spaces.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/memory-chunk-inl.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces-inl.h"

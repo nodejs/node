@@ -665,7 +665,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
-  void ProcessPhi(OpIndex op_idx, const PhiOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
 
@@ -686,6 +685,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   // it was already visited).
   bool BackedgeHasSnapshot(const Block& loop_header) const;
 
+  void InvalidateAllNonAliasingInputs(const Operation& op);
   void InvalidateIfAlias(OpIndex op_idx);
 
   Graph& graph_;
@@ -755,12 +755,13 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
           DCHECK_EQ(Asm().output_graph().Get(replacement_idx).outputs_rep()[0],
                     RegisterRepresentation::Word32());
         } else {
-          DCHECK(
-              Asm()
-                  .output_graph()
-                  .Get(replacement_idx)
-                  .outputs_rep()[0]
-                  .AllowImplicitRepresentationChangeTo(load.outputs_rep()[0]));
+          DCHECK(Asm()
+                     .output_graph()
+                     .Get(replacement_idx)
+                     .outputs_rep()[0]
+                     .AllowImplicitRepresentationChangeTo(
+                         load.outputs_rep()[0],
+                         Asm().output_graph().IsCreatedFromTurbofan()));
         }
         return replacement_idx;
       } else if (replacement.IsTaggedLoadToInt32Load()) {

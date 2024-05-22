@@ -242,6 +242,7 @@ class MergePointInterpreterFrameState;
   V(UncheckedNumberOrOddballToFloat64)              \
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
+  V(HoleyFloat64IsHole)                             \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
   V(StringAt)                                       \
@@ -659,19 +660,6 @@ constexpr Condition ConditionForNaN();
 bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node);
 bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node);
 
-inline int ExternalArrayElementSize(const ExternalArrayType element_type) {
-  switch (element_type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case kExternal##Type##Array:                    \
-    DCHECK_LE(sizeof(ctype), 8);                  \
-    return sizeof(ctype);
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-#undef TYPED_ARRAY_CASE
-  }
-}
-
 inline int ElementsKindSize(ElementsKind element_kind) {
   switch (element_kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -899,6 +887,31 @@ struct FastFixedArray {
   };
 };
 
+struct FastContext {
+  FastContext(int id, compiler::MapRef map, int length,
+              compiler::ScopeInfoRef scope_info, ValueNode* previous_context,
+              base::Optional<ValueNode*> extension = {})
+      : id(id),
+        map(map),
+        length(length),
+        scope_info(scope_info),
+        previous_context(previous_context),
+        extension(extension) {
+    DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
+    DCHECK_IMPLIES(extension.has_value(),
+                   length >= Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  }
+
+  size_t GetInputLocationsArraySize() const;
+
+  int id;
+  compiler::MapRef map;
+  int length;
+  compiler::ScopeInfoRef scope_info;
+  ValueNode* previous_context;
+  base::Optional<ValueNode*> extension;
+};
+
 // Encoding of a fast allocation site boilerplate object.
 struct FastObject {
   FastObject(int id, compiler::MapRef map, Zone* zone, FastFixedArray elements)
@@ -934,7 +947,12 @@ struct FastField {
   explicit FastField(compiler::ObjectRef constant_value)
       : type(kConstant), constant_value(constant_value) {}
 
-  enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
+  enum {
+    kUninitialized,
+    kObject,
+    kMutableDouble,
+    kConstant
+  } type;
 
   bool IsInitialized();
 
@@ -946,57 +964,103 @@ struct FastField {
   };
 };
 
-struct FastSloppyArgumentsElements {
-  FastSloppyArgumentsElements(int id, int mapped_count, ValueNode* context,
-                              ArgumentsElements* unmapped_elements)
+struct FastRuntimeUnmappedArgumentsElements {
+  ArgumentsElements* value;
+  ValueNode* length;
+};
+
+struct FastInlinedUnmappedArgumentsElements {
+  CreateArgumentsType type;
+  int start_index;
+  int argument_count_without_receiver;
+
+  // Number of arguments to be copied.
+  int unmapped_argument_count() const {
+    return argument_count_without_receiver - start_index;
+  }
+
+  // The total length of the fixed array representing the arguments elements. In
+  // the case of kMappedArguments, it counts the hole values that are stored up
+  // to {start_index}.
+  int length() const {
+    if (type == CreateArgumentsType::kRestParameter) {
+      return std::max(0, argument_count_without_receiver - start_index);
+    }
+    return argument_count_without_receiver;
+  }
+};
+
+struct FastUnmappedArgumentsElements {
+  enum Type {
+    kMainFunction,
+    kInlinedFunction,
+  };
+
+  using Data =
+      base::DiscriminatedUnion<Type, FastRuntimeUnmappedArgumentsElements,
+                               FastInlinedUnmappedArgumentsElements>;
+
+  FastUnmappedArgumentsElements(ArgumentsElements* value, ValueNode* length)
+      : data(FastRuntimeUnmappedArgumentsElements{value, length}) {}
+
+  explicit FastUnmappedArgumentsElements(int argument_count_without_receiver)
+      : data(FastInlinedUnmappedArgumentsElements{
+            CreateArgumentsType::kUnmappedArguments, 0,
+            argument_count_without_receiver}) {}
+
+  FastUnmappedArgumentsElements(CreateArgumentsType type, int start_index,
+                                int argument_count_without_receiver)
+      : data(FastInlinedUnmappedArgumentsElements{
+            type, start_index, argument_count_without_receiver}) {}
+
+  Type type() { return data.tag(); }
+
+  const FastRuntimeUnmappedArgumentsElements& main() const {
+    return data.get<FastRuntimeUnmappedArgumentsElements>();
+  }
+
+  const FastInlinedUnmappedArgumentsElements& inlined() const {
+    return data.get<FastInlinedUnmappedArgumentsElements>();
+  }
+
+  Data data;
+};
+
+struct FastMappedArgumentsElements {
+  FastMappedArgumentsElements(int id, int mapped_count, ValueNode* context,
+                              FastUnmappedArgumentsElements unmapped_elements)
       : id(id),
         mapped_count(mapped_count),
         context(context),
-        unmapped_elements(unmapped_elements) {}
+        unmapped_elements({unmapped_elements}) {}
   int id;
   int mapped_count;
   ValueNode* context;
-  ArgumentsElements* unmapped_elements;
+  FastUnmappedArgumentsElements unmapped_elements;
 };
+
+enum class FastArgumentsElementsType {
+  kUnmapped,
+  kMapped,
+};
+
+using FastArgumentsElements =
+    base::DiscriminatedUnion<FastArgumentsElementsType,
+                             FastUnmappedArgumentsElements,
+                             FastMappedArgumentsElements>;
 
 struct FastArgumentsObject {
-  enum Type {
-    kDefault,
-    kSloppyWithMappedArguments,
-  };
-
-  FastArgumentsObject(int id, compiler::MapRef map, ValueNode* length,
-                      ArgumentsElements* elements,
-                      base::Optional<ValueNode*> callee_or_rest_length = {})
-      : id(id),
-        type(kDefault),
-        map(map),
-        length(length),
-        elements(elements),
-        callee_or_rest_length(callee_or_rest_length) {}
-
-  FastArgumentsObject(int id, compiler::MapRef map, ValueNode* length,
-                      FastSloppyArgumentsElements sloppy_elements,
-                      ValueNode* callee = {})
-      : id(id),
-        type(kSloppyWithMappedArguments),
-        map(map),
-        length(length),
-        sloppy_elements(sloppy_elements),
-        callee_or_rest_length(callee) {}
+  FastArgumentsObject(int id, compiler::MapRef map,
+                      FastArgumentsElements elements,
+                      base::Optional<ValueNode*> callee = {})
+      : id(id), map(map), elements({elements}), callee(callee) {}
 
   int id;
-  Type type;
   compiler::MapRef map;
-  ValueNode* length;
-  union {
-    ArgumentsElements* elements;
-    FastSloppyArgumentsElements sloppy_elements;
-  };
-  base::Optional<ValueNode*> callee_or_rest_length;
+  FastArgumentsElements elements;
+  base::Optional<ValueNode*> callee;
 };
 
-// Either a fast object, a number or a fast fixed array.
 struct DeoptObject {
   explicit DeoptObject(FastObject object) : type(kObject), object(object) {}
   explicit DeoptObject(FastFixedArray fixed_array)
@@ -1004,16 +1068,45 @@ struct DeoptObject {
   explicit DeoptObject(Float64 number) : type(kNumber), number(number) {}
   explicit DeoptObject(FastArgumentsObject arguments)
       : type(kArguments), arguments(arguments) {}
-  explicit DeoptObject(FastSloppyArgumentsElements sloppy_elements)
-      : type(kSloppyElements), sloppy_elements(sloppy_elements) {}
+  explicit DeoptObject(FastMappedArgumentsElements mapped_elements)
+      : type(kMappedArgumentsElements), mapped_elements(mapped_elements) {}
+  explicit DeoptObject(FastInlinedUnmappedArgumentsElements elements)
+      : type(kInlinedUnmappedArgumentsElements),
+        inlined_unmapped_elements(elements) {}
+  explicit DeoptObject(FastContext context)
+      : type(kContext), context(context) {}
 
-  enum { kObject, kNumber, kFixedArray, kArguments, kSloppyElements } type;
+  size_t GetInputLocationsArraySize() const {
+    switch (type) {
+      case DeoptObject::kObject:
+      case DeoptObject::kNumber:
+      case DeoptObject::kFixedArray:
+      case DeoptObject::kArguments:
+      case DeoptObject::kMappedArgumentsElements:
+      case DeoptObject::kInlinedUnmappedArgumentsElements:
+        return 0;
+      case DeoptObject::kContext:
+        return context.GetInputLocationsArraySize();
+    }
+  }
+
+  enum {
+    kObject,
+    kNumber,
+    kFixedArray,
+    kArguments,
+    kMappedArgumentsElements,
+    kInlinedUnmappedArgumentsElements,
+    kContext,
+  } type;
   union {
     FastObject object;
     FastFixedArray fixed_array;
     Float64 number;
     FastArgumentsObject arguments;
-    FastSloppyArgumentsElements sloppy_elements;
+    FastMappedArgumentsElements mapped_elements;
+    FastInlinedUnmappedArgumentsElements inlined_unmapped_elements;
+    FastContext context;
   };
 };
 
@@ -1369,6 +1462,8 @@ class DeoptFrame {
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
   inline bool IsJsFrame() const;
 
+  size_t GetInputLocationsArraySize() const;
+
  protected:
   DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
@@ -1559,7 +1654,8 @@ inline bool DeoptFrame::IsJsFrame() const {
 class DeoptInfo {
  protected:
   DeoptInfo(Zone* zone, const DeoptFrame top_frame,
-            compiler::FeedbackSource feedback_to_update);
+            compiler::FeedbackSource feedback_to_update,
+            size_t input_locations_size);
 
  public:
   DeoptFrame& top_frame() { return top_frame_; }
@@ -1592,7 +1688,8 @@ class EagerDeoptInfo : public DeoptInfo {
  public:
   EagerDeoptInfo(Zone* zone, const DeoptFrame top_frame,
                  compiler::FeedbackSource feedback_to_update)
-      : DeoptInfo(zone, top_frame, feedback_to_update) {}
+      : DeoptInfo(zone, top_frame, feedback_to_update,
+                  top_frame.GetInputLocationsArraySize()) {}
 
   DeoptimizeReason reason() const { return reason_; }
   void set_reason(DeoptimizeReason reason) { reason_ = reason; }
@@ -1606,7 +1703,8 @@ class LazyDeoptInfo : public DeoptInfo {
   LazyDeoptInfo(Zone* zone, const DeoptFrame top_frame,
                 interpreter::Register result_location, int result_size,
                 compiler::FeedbackSource feedback_to_update)
-      : DeoptInfo(zone, top_frame, feedback_to_update),
+      : DeoptInfo(zone, top_frame, feedback_to_update,
+                  top_frame.GetInputLocationsArraySize()),
         result_location_(result_location),
         bitfield_(
             DeoptingCallReturnPcField::encode(kUninitializedCallReturnPc) |
@@ -2282,6 +2380,8 @@ class ValueNode : public Node {
   void DoLoadToRegister(MaglevAssembler*, Register);
   void DoLoadToRegister(MaglevAssembler*, DoubleRegister);
   Handle<Object> Reify(LocalIsolate* isolate) const;
+
+  size_t GetInputLocationsArraySize() const;
 
   void Spill(compiler::AllocatedOperand operand) {
 #ifdef DEBUG
@@ -3985,6 +4085,22 @@ class HoleyFloat64ToMaybeNanFloat64
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;
+
+ public:
+  explicit HoleyFloat64IsHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class TruncateNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32> {
   using Base = FixedInputValueNodeT<1, TruncateNumberOrOddballToInt32>;
@@ -4982,35 +5098,20 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   void set_offset(int offset) { offset_ = offset; }
 
   int non_escaping_use_count() const { return non_escaping_use_count_; }
+
   void AddNonEscapingUses(int n = 1) { non_escaping_use_count_ += n; }
-  void RemoveNonEscapingUse() { non_escaping_use_count_--; }
-  void ForceEscape() { non_escaping_use_count_ = 0; }
+  bool IsEscaping() const { return use_count_ > non_escaping_use_count_; }
+  void ForceEscaping() { non_escaping_use_count_ = 0; }
 
-  const InlinedAllocation* dependency() const { return dependency_; }
-  void DependOn(InlinedAllocation* dep) {
-    // TODO(victorgomes): Current the escape analysis only works with
-    // initializing stores, we can only have single one directional dependency.
-    DCHECK_NULL(dependency_);
-    dependency_ = dep;
-    non_escaping_use_count_++;
-  }
-
-  bool HasEscaped() const {
-    if (dependency_ && dependency_->HasEscaped()) return true;
-    bool escaped = use_count_ > non_escaping_use_count_;
-    if (escaped && dependency_) {
-      // We are escaping, force dependency to escape as well.
-      dependency_->ForceEscape();
-    }
-    return escaped;
-  }
+  void SetHasEscaped(bool value) { has_escaped_ = value; }
+  bool HasEscaped() const { return has_escaped_; }
 
  private:
   int size_;
   DeoptObject value_;
   int non_escaping_use_count_ = 0;
+  bool has_escaped_ = true;  // Escaped by default.
   int offset_ = -1;  // Set by AllocationBlock.
-  InlinedAllocation* dependency_ = nullptr;
 
   InlinedAllocation* next_ = nullptr;
   InlinedAllocation** next() { return &next_; }
@@ -5754,6 +5855,8 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
 
   auto options() const { return std::tuple{element_type_}; }
 
+  ExternalArrayType element_type() const { return element_type_; }
+
  private:
   ExternalArrayType element_type_;
 };
@@ -5778,6 +5881,8 @@ class LoadTypedArrayLength
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
   auto options() const { return std::tuple{elements_kind_}; }
+
+  ElementsKind elements_kind() const { return elements_kind_; }
 
  private:
   ElementsKind elements_kind_;
@@ -6135,6 +6240,8 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   auto options() const { return std::tuple{mode_}; }
+
+  Mode mode() const { return mode_; }
 
  private:
   Mode mode_;
@@ -6678,6 +6785,8 @@ class LoadSignedIntDataViewElement
 
   auto options() const { return std::tuple{type_}; }
 
+  ExternalArrayType type() const { return type_; }
+
  private:
   ExternalArrayType type_;
 };
@@ -6745,6 +6854,8 @@ class LoadDoubleDataViewElement
                                                                        \
     auto options() const { return std::tuple{elements_kind_}; }        \
                                                                        \
+    ElementsKind elements_kind() const { return elements_kind_; }      \
+                                                                       \
    private:                                                            \
     ElementsKind elements_kind_;                                       \
   };
@@ -6786,6 +6897,8 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
     void SetValueLocationConstraints();                                    \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);           \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+                                                                           \
+    ElementsKind elements_kind() const { return elements_kind_; }          \
                                                                            \
    private:                                                                \
     ElementsKind elements_kind_;                                           \
@@ -6834,6 +6947,8 @@ class StoreSignedIntDataViewElement
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  ExternalArrayType type() const { return type_; }
 
  private:
   ExternalArrayType type_;
@@ -7579,6 +7694,8 @@ class Phi : public ValueNodeT<Phi> {
     DCHECK_NOT_NULL(merge_state);
   }
 
+  Input& backedge_input() { return input(input_count() - 1); }
+
   interpreter::Register owner() const { return owner_; }
   const MergePointInterpreterFrameState* merge_state() const {
     return merge_state_;
@@ -7733,8 +7850,11 @@ class Call : public ValueNodeT<Call> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 #ifdef V8_COMPRESS_POINTERS
@@ -7787,8 +7907,11 @@ class Construct : public ValueNodeT<Construct> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
 
   compiler::FeedbackSource feedback() const { return feedback_; }
 
@@ -7881,11 +8004,10 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
     return descriptor.GetRegisterParameterCount();
   }
 
-  auto stack_args_begin() {
-    return std::make_reverse_iterator(&input(InputsInRegisterCount() - 1));
-  }
-  auto stack_args_end() {
-    return std::make_reverse_iterator(&input(InputCountWithoutContext() - 1));
+  auto stack_args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&input(InputsInRegisterCount() - 1)),
+        std::make_reverse_iterator(&input(InputCountWithoutContext() - 1)));
   }
 
   void set_arg(int i, ValueNode* node) { set_input(i, node); }
@@ -7955,8 +8077,11 @@ class CallCPPBuiltin : public ValueNodeT<CallCPPBuiltin> {
     set_input(i + kFixedInputCount, node);
   }
 
-  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 #ifdef V8_COMPRESS_POINTERS
@@ -7998,8 +8123,11 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
 
   int ReturnCount() const {
     return Runtime::FunctionForId(function_id())->result_size;
@@ -8050,9 +8178,10 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  auto args_no_spread_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_no_spread_end() {
-    return std::make_reverse_iterator(&arg(num_args_no_spread() - 1));
+  auto args_no_spread() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args_no_spread() - 1)));
   }
   Input& spread() {
     // Spread is the last argument/input.
@@ -8147,8 +8276,11 @@ class CallSelf : public ValueNodeT<CallSelf> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
@@ -8216,8 +8348,11 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
@@ -8290,8 +8425,11 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
 
   Mode mode() const { return ModeField::decode(bitfield()); }
 
@@ -8364,9 +8502,10 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
     // Spread is the last argument/input.
     return input(input_count() - 1);
   }
-  auto args_no_spread_begin() { return std::make_reverse_iterator(&arg(-1)); }
-  auto args_no_spread_end() {
-    return std::make_reverse_iterator(&arg(num_args_no_spread() - 1));
+  auto args_no_spread() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args_no_spread() - 1)));
   }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
@@ -9250,6 +9389,8 @@ class BranchIfUint32Compare
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  Operation operation() const { return operation_; }
 
  private:
   Operation operation_;

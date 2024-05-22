@@ -652,17 +652,14 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
           ObjectAccess::ToTagged(WasmTrustedInstanceData::kMemory0StartOffset),
           sizeof(size_t));
     } else {
-      LoadTaggedPointerFromInstance(
+      LoadProtectedPointer(
           target.cached_mem_start, instance_data,
           ObjectAccess::ToTagged(
-              WasmTrustedInstanceData::kMemoryBasesAndSizesOffset));
+              WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset));
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * target.cached_mem_index * 2;
       LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
                       buffer_offset);
-#ifdef V8_ENABLE_SANDBOX
-      DecodeSandboxedPointer(target.cached_mem_start);
-#endif
     }
   }
 }

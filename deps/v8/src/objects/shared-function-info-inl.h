@@ -108,7 +108,6 @@ PROTECTED_POINTER_ACCESSORS(InterpreterData, interpreter_trampoline, Code,
                             kInterpreterTrampolineOffset)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info,
                           Tagged<Object>, kNameOrScopeInfoOffset)
@@ -1156,6 +1155,12 @@ bool SharedFunctionInfo::are_properties_final() const {
   bool bit = properties_are_final();
   return bit && is_class_constructor();
 }
+
+CAST_ACCESSOR(SharedFunctionInfoWrapper)
+OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWrapper, TrustedObject)
+
+ACCESSORS(SharedFunctionInfoWrapper, shared_info, Tagged<SharedFunctionInfo>,
+          kSharedInfoOffset)
 
 }  // namespace internal
 }  // namespace v8

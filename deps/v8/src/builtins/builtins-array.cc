@@ -704,9 +704,10 @@ class ArrayConcatVisitor {
     }
 
     if (!is_fixed_array()) {
-      LookupIterator it(isolate_, storage_, index, LookupIterator::OWN);
-      MAYBE_RETURN(
-          JSReceiver::CreateDataProperty(&it, elm, Just(kThrowOnError)), false);
+      MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate_, storage_,
+                                                  PropertyKey(isolate_, index),
+                                                  elm, Just(kThrowOnError)),
+                   false);
       return true;
     }
 
@@ -1073,6 +1074,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
   if (!iter.IsAtEnd()) {
     // The prototype will usually have no inherited element indices,
     // but we have to check.
+    // Casting to JSObject is safe because we ran {HasOnlySimpleElements} on
+    // the receiver before, which checks the prototype chain.
     CollectElementIndices(
         isolate, PrototypeIterator::GetCurrent<JSObject>(iter), range, indices);
   }

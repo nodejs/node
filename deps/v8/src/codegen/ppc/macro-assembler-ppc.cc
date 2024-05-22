@@ -3012,9 +3012,8 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
   // Here we are going to patch the `addi` instruction above to use the
   // correct offset.
-  // LoadPC emits two instructions and pc is the address of its
-  // second emitted instruction therefore there is one more instruction to
-  // count.
+  // LoadPC emits two instructions and pc is the address of its second emitted
+  // instruction. Add one more to the offset to point to after the Call.
   offset_since_start_call += kInstrSize;
   patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
 

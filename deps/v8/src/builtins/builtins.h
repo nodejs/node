@@ -191,6 +191,10 @@ class Builtins {
   // Address otherwise.
   static Address CppEntryOf(Builtin builtin);
 
+  // Loads the builtin's entry (start of instruction stream) from the isolate's
+  // builtin_entry_table, initialized earlier via {InitializeIsolateDataTables}.
+  static inline Address EntryOf(Builtin builtin, Isolate* isolate);
+
   static Kind KindOf(Builtin builtin);
   static const char* KindNameOf(Builtin builtin);
 

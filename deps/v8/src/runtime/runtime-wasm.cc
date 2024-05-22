@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
 #include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
@@ -136,7 +137,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
   Tagged<Object> value = args[0];
   if (IsWasmFuncRef(value)) {
     Tagged<WasmInternalFunction> internal =
-        WasmFuncRef::cast(value)->internal();
+        WasmFuncRef::cast(value)->internal(isolate);
     Tagged<JSFunction> external;
     if (internal->try_get_external(&external)) return external;
     // Slow path:
@@ -451,7 +452,7 @@ void ReplaceWrapper(Isolate* isolate,
   Tagged<WasmFuncRef> func_ref;
   CHECK(trusted_instance_data->try_get_func_ref(function_index, &func_ref));
   Tagged<JSFunction> external_function;
-  CHECK(func_ref->internal()->try_get_external(&external_function));
+  CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
   external_function->set_code(*wrapper_code);
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
@@ -559,9 +560,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     // code may move. `call_target` would become stale then.
     Handle<WasmInternalFunction> internal_function{
         WasmFuncRef::cast(*origin)->internal(isolate), isolate};
-    internal_function->set_code(*wasm_to_js_wrapper_code);
-    // Reset a possibly existing generic wrapper in the call target.
-    internal_function->init_call_target(isolate, 0);
+    ref->set_code(*wasm_to_js_wrapper_code);
+    internal_function->set_call_target(
+        Builtins::EntryOf(Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -693,7 +694,16 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     DCHECK_EQ(trusted_data, frame_finder.frame()->trusted_instance_data());
 
     if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up)) {
-      wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+      if (!trusted_data->module_object()->native_module()->HasCodeWithTier(
+              func_index, wasm::ExecutionTier::kTurbofan)) {
+        wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+      }
+      // We call this function when the tiering budget runs out, so reset that
+      // budget to appropriately delay the next call.
+      int array_index =
+          wasm::declared_function_index(trusted_data->module(), func_index);
+      trusted_data->tiering_budget_array()[array_index] =
+          v8_flags.wasm_tiering_budget;
     } else {
       wasm::TriggerTierUp(isolate, trusted_data, func_index);
     }

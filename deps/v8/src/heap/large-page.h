@@ -26,14 +26,13 @@ class LargePageMetadata : public MutablePageMetadata {
     return cast(MutablePageMetadata::cast(metadata));
   }
 
-  static LargePageMetadata* FromHeapObject(Tagged<HeapObject> o) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return cast(MutablePageMetadata::FromHeapObject(o));
-  }
+  V8_INLINE static LargePageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   LargePageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                     Address area_start, Address area_end,
                     VirtualMemory reservation, Executability executable);
+
+  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
 
   Tagged<HeapObject> GetObject() const {
     return HeapObject::FromAddress(area_start());
@@ -49,9 +48,6 @@ class LargePageMetadata : public MutablePageMetadata {
   void ClearOutOfLiveRangeSlots(Address free_start);
 
  private:
-  static LargePageMetadata* Initialize(Heap* heap, MutablePageMetadata* chunk,
-                                       Executability executable);
-
   friend class MemoryAllocator;
 };
 

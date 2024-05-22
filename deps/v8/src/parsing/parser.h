@@ -771,6 +771,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE const AstRawString* EmptyIdentifierString() const {
     return ast_value_factory()->empty_string();
   }
+  V8_INLINE bool IsEmptyIdentifier(const AstRawString* subject) const {
+    DCHECK_NOT_NULL(subject);
+    return subject->IsEmpty();
+  }
 
   // Producing data during the recursive descent.
   V8_INLINE const AstRawString* GetSymbol() const {

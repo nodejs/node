@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_MAP_H_
 #define V8_OBJECTS_MAP_H_
 
+#include "include/v8-memory-span.h"
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/internal-index.h"
@@ -96,7 +98,6 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmFunctionData)         \
   IF_WASM(V, WasmFuncRef)              \
   IF_WASM(V, WasmInstanceObject)       \
-  IF_WASM(V, WasmInternalFunction)     \
   IF_WASM(V, WasmJSFunctionData)       \
   IF_WASM(V, WasmResumeData)           \
   IF_WASM(V, WasmStruct)               \
@@ -135,6 +136,7 @@ enum class ObjectFields {
 };
 
 using MapHandles = std::vector<Handle<Map>>;
+using MapHandlesSpan = v8::MemorySpan<Handle<Map>>;
 
 #include "torque-generated/src/objects/map-tq.inc"
 
@@ -844,7 +846,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
   // found at all.
   V8_EXPORT_PRIVATE Tagged<Map> FindElementsKindTransitionedMap(
-      Isolate* isolate, MapHandles const& candidates, ConcurrencyMode cmode);
+      Isolate* isolate, MapHandlesSpan candidates, ConcurrencyMode cmode);
 
   inline bool CanTransition() const;
 

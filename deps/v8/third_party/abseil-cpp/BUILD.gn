@@ -136,7 +136,13 @@ source_set("absl_full") {
   }
 
   if (build_with_chromium) {
-    visibility = [ "//third_party/fuzztest:*" ]
+    visibility = [
+      "//third_party/fuzztest:*",
+
+      # GoogleTest doesn't actually need absl_full, but this makes gn check
+      # happier.
+      "//third_party/googletest:*",
+    ]
   }
 }
 
@@ -346,6 +352,7 @@ if (absl_build_tests) {
         "absl/synchronization:waiter_test",
         "absl/time:time_test",
         "absl/types:optional_test",
+        "absl/types:span_test",
         "absl/types:variant_test",
         "absl/utility:if_constexpr_test",
         "//third_party/googletest:gtest_main",

@@ -31,6 +31,7 @@
 #include "src/logging/log.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/objects/template-objects.h"
 #include "src/parsing/parse-info.h"
@@ -1255,6 +1256,29 @@ class V8_NODISCARD BytecodeGenerator::ForInScope final {
   Register cache_type_;
 };
 
+class V8_NODISCARD BytecodeGenerator::DisposablesStackScope final {
+ public:
+  explicit DisposablesStackScope(BytecodeGenerator* bytecode_generator)
+      : bytecode_generator_(bytecode_generator),
+        prev_disposables_stack_(
+            bytecode_generator_->current_disposables_stack()) {
+    bytecode_generator_->current_disposables_stack_ =
+        bytecode_generator->register_allocator()->NewRegister();
+    bytecode_generator->builder()->CallRuntime(
+        Runtime::kInitializeDisposableStack);
+    bytecode_generator->builder()->StoreAccumulatorInRegister(
+        bytecode_generator_->current_disposables_stack_);
+  }
+
+  ~DisposablesStackScope() {
+    bytecode_generator_->set_current_disposables_stack(prev_disposables_stack_);
+  }
+
+ private:
+  BytecodeGenerator* const bytecode_generator_;
+  Register prev_disposables_stack_;
+};
+
 namespace {
 
 template <typename PropertyT>
@@ -1344,6 +1368,7 @@ BytecodeGenerator::BytecodeGenerator(
       execution_context_(nullptr),
       execution_result_(nullptr),
       incoming_new_target_or_generator_(),
+      current_disposables_stack_(),
       optional_chaining_null_labels_(nullptr),
       dummy_feedback_slot_(feedback_spec(), FeedbackSlotKind::kCompareOp),
       generator_jump_table_(nullptr),
@@ -1674,6 +1699,17 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 }
 
 void BytecodeGenerator::GenerateBytecodeBodyWithoutImplicitFinalReturn() {
+  if (v8_flags.js_explicit_resource_management && closure_scope() != nullptr &&
+      closure_scope()->has_using_declaration()) {
+    BuildDisposeScope(
+        [&]() { GenerateBytecodeBodyWithoutImplicitFinalReturnOrDispose(); });
+  } else {
+    GenerateBytecodeBodyWithoutImplicitFinalReturnOrDispose();
+  }
+}
+
+void BytecodeGenerator::
+    GenerateBytecodeBodyWithoutImplicitFinalReturnOrDispose() {
   // Build the arguments object if it is used.
   VisitArgumentsObject(closure_scope()->arguments());
 
@@ -1777,7 +1813,16 @@ void BytecodeGenerator::VisitBlock(Block* stmt) {
   if (stmt->scope() != nullptr && stmt->scope()->NeedsContext()) {
     BuildNewLocalBlockContext(stmt->scope());
     ContextScope scope(this, stmt->scope());
-    VisitBlockDeclarationsAndStatements(stmt);
+    VisitBlockMaybeDispose(stmt);
+  } else {
+    VisitBlockMaybeDispose(stmt);
+  }
+}
+
+void BytecodeGenerator::VisitBlockMaybeDispose(Block* stmt) {
+  if (v8_flags.js_explicit_resource_management && stmt->scope() != nullptr &&
+      stmt->scope()->has_using_declaration()) {
+    BuildDisposeScope([&]() { VisitBlockDeclarationsAndStatements(stmt); });
   } else {
     VisitBlockDeclarationsAndStatements(stmt);
   }
@@ -2563,6 +2608,22 @@ void BytecodeGenerator::BuildTryFinally(
   commands.ApplyDeferredCommands();
 }
 
+template <typename WrappedFunc>
+void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func) {
+  RegisterAllocationScope allocation_scope(this);
+  DisposablesStackScope disposables_stack_scope(this);
+
+  BuildTryFinally(
+      // Try block
+      [&]() { wrapped_func(); },
+      // Finally block
+      [&](Register body_continuation_token) {
+        builder()->CallRuntime(Runtime::kDisposeDisposableStack,
+                               current_disposables_stack_);
+      },
+      catch_prediction());
+}
+
 void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
                                            LoopBuilder* loop_builder) {
   loop_builder->LoopBody();
@@ -2709,8 +2770,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
     LoopScope loop_scope(this, &loop_builder);
     HoleCheckElisionScope elider(this);
     builder()->SetExpressionAsStatementPosition(stmt->each());
-    builder()->ForInContinue(index, cache_length);
-    loop_builder.BreakIfFalse(ToBooleanMode::kAlreadyBoolean);
+    loop_builder.BreakIfForInDone(index, cache_length);
     builder()->ForInNext(receiver, index, triple.Truncate(2),
                          feedback_index(slot));
     loop_builder.ContinueIfUndefined();
@@ -2731,7 +2791,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       ForInScope scope(this, stmt, index, cache_type);
       VisitIterationBody(stmt, &loop_builder);
       builder()->ForInStep(index);
-      builder()->StoreAccumulatorInRegister(index);
     }
   }
   builder()->Bind(&subject_undefined_label);
@@ -4263,16 +4322,28 @@ void BytecodeGenerator::BuildVariableAssignment(
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if (mode != VariableMode::kConst || op == Token::kInit) {
+      if ((mode != VariableMode::kConst && mode != VariableMode::kUsing) ||
+          op == Token::kInit) {
         if (op == Token::kInit &&
             variable->HasHoleCheckUseInSameClosureScope()) {
           // After initializing a variable it won't be the hole anymore, so
           // elide subsequent checks.
           RememberHoleCheckInCurrentBlock(variable);
         }
+        if (op == Token::kInit && mode == VariableMode::kUsing) {
+          RegisterList args = register_allocator()->NewRegisterList(2);
+          builder()
+              ->MoveRegister(current_disposables_stack_, args[0])
+              .StoreAccumulatorInRegister(args[1])
+              .CallRuntime(Runtime::kAddDisposableValue, args);
+        }
         builder()->StoreAccumulatorInRegister(destination);
-      } else if (variable->throw_on_const_assignment(language_mode())) {
+      } else if (variable->throw_on_const_assignment(language_mode()) &&
+                 mode == VariableMode::kConst) {
         builder()->CallRuntime(Runtime::kThrowConstAssignError);
+      } else if (variable->throw_on_const_assignment(language_mode()) &&
+                 mode == VariableMode::kUsing) {
+        builder()->CallRuntime(Runtime::kThrowUsingAssignError);
       }
       break;
     }

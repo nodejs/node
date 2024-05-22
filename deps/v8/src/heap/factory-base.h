@@ -25,8 +25,8 @@ class CoverageInfo;
 class DeoptimizationLiteralArray;
 class DeoptimizationFrameTranslation;
 class FixedArray;
-template <typename T>
-class FixedIntegerArray;
+template <typename T, typename Base>
+class FixedIntegerArrayBase;
 class FreshlyAllocatedBigInt;
 class FunctionLiteral;
 class HeapObject;
@@ -56,8 +56,8 @@ class FactoryBase;
 
 enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
 
-using FixedInt32Array = FixedIntegerArray<int32_t>;
-using FixedUInt32Array = FixedIntegerArray<uint32_t>;
+using FixedInt32Array = FixedIntegerArrayBase<int32_t, ByteArray>;
+using FixedUInt32Array = FixedIntegerArrayBase<uint32_t, ByteArray>;
 
 // Putting Torque-generated definitions in a superclass allows to shadow them
 // easily when they shouldn't be used and to reference them when they happen to
@@ -179,6 +179,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<WeakFixedArray> NewWeakFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  // Allocates a trusted weak fixed array in trusted space, initialized with
+  // zeros.
+  Handle<TrustedWeakFixedArray> NewTrustedWeakFixedArray(int length);
+
   // The function returns a pre-allocated empty byte array for length = 0.
   Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);
@@ -244,6 +248,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // off-thread compilation
   Handle<SharedFunctionInfo> CloneSharedFunctionInfo(
       DirectHandle<SharedFunctionInfo> other);
+
+  Handle<SharedFunctionInfoWrapper> NewSharedFunctionInfoWrapper(
+      Handle<SharedFunctionInfo> sfi);
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 

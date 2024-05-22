@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#include "include/v8config.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/torque/ast.h"
 #include "src/torque/constants.h"

@@ -83,8 +83,6 @@ PageMetadata* PagedSpaceBase::InitializePage(
       page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
-  page->SetOldGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
   page->list_node().Initialize();
@@ -144,9 +142,6 @@ size_t PagedSpaceBase::CommittedPhysicalMemory() const {
     DCHECK_EQ(0, committed_physical_memory());
     return CommittedMemory();
   }
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Updating high water mark for Code pages requires write access to "
-      "the Code page headers");
   return committed_physical_memory();
 }
 
@@ -279,11 +274,6 @@ void PagedSpaceBase::ResetFreeList() {
 }
 
 void PagedSpaceBase::ShrinkImmortalImmovablePages() {
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace(
-        "ShrinkImmortalImmovablePages writes to the page header.");
-  }
   DCHECK(!heap()->deserialization_complete());
   ResetFreeList();
   for (PageMetadata* page : *this) {
@@ -294,10 +284,6 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
 
 bool PagedSpaceBase::TryExpand(LocalHeap* local_heap, AllocationOrigin origin) {
   DCHECK_EQ(!local_heap, origin == AllocationOrigin::kGC);
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace("TryExpand writes to the page header.");
-  }
   const size_t accounted_size =
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(identity());
   if (origin != AllocationOrigin::kGC && identity() != NEW_SPACE) {
@@ -340,7 +326,7 @@ size_t PagedSpaceBase::Available() const {
 }
 
 void PagedSpaceBase::ReleasePage(PageMetadata* page) {
-  ReleasePageImpl(page, MemoryAllocator::FreeMode::kPostpone);
+  ReleasePageImpl(page, MemoryAllocator::FreeMode::kImmediately);
 }
 
 void PagedSpaceBase::ReleasePageImpl(PageMetadata* page,
@@ -654,6 +640,16 @@ void OldSpace::AddPromotedPage(PageMetadata* page) {
 
 void OldSpace::ReleasePage(PageMetadata* page) {
   ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
+}
+
+// -----------------------------------------------------------------------------
+// SharedSpace implementation
+
+void SharedSpace::ReleasePage(PageMetadata* page) {
+  // Old-to-new slots in old objects may be overwritten with references to
+  // shared objects. Postpone releasing empty pages so that updating old-to-new
+  // slots in dead old objects may access the dead shared objects.
+  ReleasePageImpl(page, MemoryAllocator::FreeMode::kPostpone);
 }
 
 }  // namespace internal

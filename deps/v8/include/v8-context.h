@@ -107,6 +107,10 @@ class V8_EXPORT Context : public Data {
    * configured if the default context snapshot contains no pointer embedder
    * data, or if no custom startup snapshot is configured in the
    * v8::CreateParams used to create the isolate.
+   *
+   * \param api_wrapper_deserializer An optional callback used to deserialize
+   * API wrapper objects that was initially set with v8::Object::Wrap() and then
+   * serialized using SerializeAPIWrapperCallback.
    */
   static Local<Context> New(
       Isolate* isolate, ExtensionConfiguration* extensions = nullptr,
@@ -116,17 +120,19 @@ class V8_EXPORT Context : public Data {
           DeserializeInternalFieldsCallback(),
       MicrotaskQueue* microtask_queue = nullptr,
       DeserializeContextDataCallback context_data_deserializer =
-          DeserializeContextDataCallback());
+          DeserializeContextDataCallback(),
+      DeserializeAPIWrapperCallback api_wrapper_deserializer =
+          DeserializeAPIWrapperCallback());
 
   /**
    * Create a new context from a (non-default) context snapshot. There
    * is no way to provide a global object template since we do not create
    * a new global object from template, but we can reuse a global object.
    *
-   * \param isolate See v8::Context::New.
+   * \param isolate See v8::Context::New().
    *
    * \param context_snapshot_index The index of the context snapshot to
-   * deserialize from. Use v8::Context::New for the default snapshot.
+   * deserialize from. Use v8::Context::New() for the default snapshot.
    *
    * \param internal_fields_deserializer An optional callback used
    * to deserialize fields set by
@@ -136,19 +142,23 @@ class V8_EXPORT Context : public Data {
    * pointer fields in the default context snapshot or if no startup
    * snapshot is configured when the isolate is created.
    *
-   * \param extensions See v8::Context::New.
+   * \param extensions See v8::Context::New().
    *
-   * \param global_object See v8::Context::New.
+   * \param global_object See v8::Context::New().
    *
    * \param internal_fields_deserializer Similar to
-   * internal_fields_deserializer in v8::Context::New but applies to
+   * internal_fields_deserializer in v8::Context::New() but applies to
    * the context specified by the context_snapshot_index.
    *
-   * \param microtask_queue  See v8::Context::New.
+   * \param microtask_queue  See v8::Context::New().
    *
    * \param context_data_deserializer  Similar to
-   * context_data_deserializer in v8::Context::New but applies to
+   * context_data_deserializer in v8::Context::New() but applies to
    * the context specified by the context_snapshot_index.
+   *
+   *\param api_wrapper_deserializer Similar to api_wrapper_deserializer in
+   * v8::Context::New() but applies to the context specified by the
+   * context_snapshot_index.
    */
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
@@ -158,7 +168,9 @@ class V8_EXPORT Context : public Data {
       MaybeLocal<Value> global_object = MaybeLocal<Value>(),
       MicrotaskQueue* microtask_queue = nullptr,
       DeserializeContextDataCallback context_data_deserializer =
-          DeserializeContextDataCallback());
+          DeserializeContextDataCallback(),
+      DeserializeAPIWrapperCallback api_wrapper_deserializer =
+          DeserializeAPIWrapperCallback());
 
   /**
    * Returns an global object that isn't backed by an actual context.

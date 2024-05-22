@@ -97,10 +97,17 @@ class V8_EXPORT V8 {
    * is created. It always returns true.
    */
   V8_INLINE static bool Initialize() {
+#ifdef V8_TARGET_OS_ANDROID
+    const bool kV8TargetOsIsAndroid = true;
+#else
+    const bool kV8TargetOsIsAndroid = false;
+#endif
+
     const int kBuildConfiguration =
         (internal::PointerCompressionIsEnabled() ? kPointerCompression : 0) |
         (internal::SmiValuesAre31Bits() ? k31BitSmis : 0) |
-        (internal::SandboxIsEnabled() ? kSandbox : 0);
+        (internal::SandboxIsEnabled() ? kSandbox : 0) |
+        (kV8TargetOsIsAndroid ? kTargetOsIsAndroid : 0);
     return Initialize(kBuildConfiguration);
   }
 
@@ -271,6 +278,7 @@ class V8_EXPORT V8 {
     kPointerCompression = 1 << 0,
     k31BitSmis = 1 << 1,
     kSandbox = 1 << 2,
+    kTargetOsIsAndroid = 1 << 3,
   };
 
   /**

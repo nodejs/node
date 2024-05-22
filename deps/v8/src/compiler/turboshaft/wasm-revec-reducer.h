@@ -29,7 +29,7 @@ namespace v8::internal::compiler::turboshaft {
   V(32Splat, 32Splat)               \
   V(64Splat, 64Splat)
 
-#define SIMD256_UNARY_OP(V)                                \
+#define SIMD256_UNARY_SIMPLE_OP(V)                         \
   V(S128Not, S256Not)                                      \
   V(I8x16Abs, I8x32Abs)                                    \
   V(I8x16Neg, I8x32Neg)                                    \
@@ -46,7 +46,17 @@ namespace v8::internal::compiler::turboshaft {
   V(F32x4Sqrt, F32x8Sqrt)                                  \
   V(F64x2Sqrt, F64x4Sqrt)                                  \
   V(I32x4UConvertF32x4, I32x8UConvertF32x8)                \
-  V(F32x4UConvertI32x4, F32x8UConvertI32x8)
+  V(I32x4SConvertF32x4, I32x8SConvertF32x8)                \
+  V(F32x4UConvertI32x4, F32x8UConvertI32x8)                \
+  V(F32x4SConvertI32x4, F32x8SConvertI32x8)
+
+#define SIMD256_UNARY_SIGN_EXTENSION_OP(V)                              \
+  V(I64x2SConvertI32x4Low, I64x4SConvertI32x4, I64x2SConvertI32x4High)  \
+  V(I64x2UConvertI32x4Low, I64x4UConvertI32x4, I64x2UConvertI32x4High)  \
+  V(I32x4SConvertI16x8Low, I32x8SConvertI16x8, I32x4SConvertI16x8High)  \
+  V(I32x4UConvertI16x8Low, I32x8UConvertI16x8, I32x4UConvertI16x8High)  \
+  V(I16x8SConvertI8x16Low, I16x16SConvertI8x16, I16x8SConvertI8x16High) \
+  V(I16x8UConvertI8x16Low, I16x16UConvertI8x16, I16x8UConvertI8x16High)
 
 #define SIMD256_BINOP_SIMPLE_OP(V)                 \
   V(I8x16Eq, I8x32Eq)                              \
@@ -138,6 +148,14 @@ namespace v8::internal::compiler::turboshaft {
   V(F64x2Pmin, F64x4Pmin)                          \
   V(F64x2Pmax, F64x4Pmax)
 
+#define SIMD256_BINOP_SIGN_EXTENSION_OP(V)                           \
+  V(I16x8ExtMulLowI8x16S, I16x16ExtMulI8x16S, I16x8ExtMulHighI8x16S) \
+  V(I16x8ExtMulLowI8x16U, I16x16ExtMulI8x16U, I16x8ExtMulHighI8x16U) \
+  V(I32x4ExtMulLowI16x8S, I32x8ExtMulI16x8S, I32x4ExtMulHighI16x8S)  \
+  V(I32x4ExtMulLowI16x8U, I32x8ExtMulI16x8U, I32x4ExtMulHighI16x8U)  \
+  V(I64x2ExtMulLowI32x4S, I64x4ExtMulI32x4S, I64x2ExtMulHighI32x4S)  \
+  V(I64x2ExtMulLowI32x4U, I64x4ExtMulI32x4U, I64x2ExtMulHighI32x4U)
+
 #define SIMD256_SHIFT_OP(V) \
   V(I16x8Shl, I16x16Shl)    \
   V(I16x8ShrS, I16x16ShrS)  \
@@ -148,7 +166,20 @@ namespace v8::internal::compiler::turboshaft {
   V(I64x2Shl, I64x4Shl)     \
   V(I64x2ShrU, I64x4ShrU)
 
-#define SIMD256_TERNARY_OP(V) V(S128Select, S256Select)
+#define SIMD256_TERNARY_OP(V) \
+  V(S128Select, S256Select)   \
+  V(F32x4Qfma, F32x8Qfma)     \
+  V(F32x4Qfms, F32x8Qfms)     \
+  V(F64x2Qfma, F64x4Qfma)     \
+  V(F64x2Qfms, F64x4Qfms)
+
+#define SIMD256_SPLAT_OP(V) \
+  V(I8x16, I8x32)           \
+  V(I16x8, I16x16)          \
+  V(I32x4, I32x8)           \
+  V(I64x2, I64x4)           \
+  V(F32x4, F32x8)           \
+  V(F64x2, F64x4)
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
@@ -208,6 +239,77 @@ class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
   OpIndex revectorized_node_;
 };
 
+class ShufflePackNode : public PackNode {
+ public:
+  class SpecificInfo {
+   public:
+    enum class Kind {
+      kS256Load32Transform,
+      kS256Load64Transform,
+#ifdef V8_TARGET_ARCH_X64
+      kShufd,
+      kShufps,
+      kS32x8UnpackLow,
+      kS32x8UnpackHigh,
+#endif  // V8_TARGET_ARCH_X64
+    };
+    union Param {
+      int splat_index = 0;
+#ifdef V8_TARGET_ARCH_X64
+      uint8_t shufd_control;
+      uint8_t shufps_control;
+#endif  // V8_TARGET_ARCH_X64
+    };
+
+    Kind kind() { return kind_; }
+    void set_kind(Kind kind) { kind_ = kind; }
+
+    void set_splat_index(uint8_t value) {
+      DCHECK(kind_ == Kind::kS256Load32Transform ||
+             kind_ == Kind::kS256Load64Transform);
+      param_.splat_index = value;
+    }
+    int splat_index() const {
+      DCHECK(kind_ == Kind::kS256Load32Transform ||
+             kind_ == Kind::kS256Load64Transform);
+      return param_.splat_index;
+    }
+
+#ifdef V8_TARGET_ARCH_X64
+    void set_shufd_control(uint8_t control) {
+      DCHECK_EQ(kind_, Kind::kShufd);
+      param_.shufd_control = control;
+    }
+    uint8_t shufd_control() const {
+      DCHECK_EQ(kind_, Kind::kShufd);
+      return param_.shufd_control;
+    }
+
+    void set_shufps_control(uint8_t control) {
+      DCHECK_EQ(kind_, Kind::kShufps);
+      param_.shufps_control = control;
+    }
+    uint8_t shufps_control() const {
+      DCHECK_EQ(kind_, Kind::kShufps);
+      return param_.shufps_control;
+    }
+#endif  // V8_TARGET_ARCH_X64
+   private:
+    Kind kind_;
+    Param param_;
+  };
+
+  ShufflePackNode(const NodeGroup& node_group, SpecificInfo::Kind kind)
+      : PackNode(node_group) {
+    info_.set_kind(kind);
+  }
+
+  SpecificInfo& info() { return info_; }
+
+ private:
+  SpecificInfo info_;
+};
+
 class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit SLPTree(Graph& graph, Zone* zone)
@@ -236,6 +338,29 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   // Recursion: create a new PackNode and call BuildTreeRec recursively
   PackNode* NewPackNodeAndRecurs(const NodeGroup& node_group, int start_index,
                                  int count, unsigned depth);
+
+  ShufflePackNode* NewShufflePackNode(const NodeGroup& node_group,
+                                      ShufflePackNode::SpecificInfo::Kind kind);
+
+#ifdef V8_TARGET_ARCH_X64
+  // The Simd Shuffle in wasm is a high level representation, and it can map to
+  // different x64 intructions base on its shuffle array. And the performance of
+  // different intructions are varies greatly.
+  // For example, if the shuffle array are totally random, there is a high
+  // probability to use a general shuffle. Under x64, the general shuffle may
+  // consists of a series mov, a vpinsrq and a vpshufb. It's performance cost is
+  // high. However, if the shuffle array is in an particular pattern, for
+  // example: [0,  1,  2,  3,  32, 33, 34, 35, 4,  5,  6,  7,  36, 37, 38, 39,
+  //      16, 17, 18, 19, 48, 49, 50, 51, 20, 21, 22, 23, 52, 53, 54, 55]
+  // we can use a single vpunpckldq instruction. It's performance cost is much
+  // more lower than a general one.
+  //
+  // This function is used to try to match the shuffle array to the
+  // x64 instructions which has the best performance.
+  ShufflePackNode* X64TryMatch256Shuffle(const NodeGroup& node_group,
+                                         const uint8_t* shuffle0,
+                                         const uint8_t* shuffle1);
+#endif  // V8_TARGET_ARCH_X64
 
   bool IsSideEffectFree(OpIndex first, OpIndex second);
   bool CanBePacked(const NodeGroup& node_group);
@@ -335,6 +460,30 @@ class WasmRevecReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Constant)(
+      V<Simd128> ig_index, const Simd128ConstantOp& constant_op) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      V<Simd256> og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        NodeGroup inputs = pnode->Nodes();
+        const Simd128ConstantOp& op0 =
+            __ input_graph().Get(inputs[0]).template Cast<Simd128ConstantOp>();
+        const Simd128ConstantOp& op1 =
+            __ input_graph().Get(inputs[1]).template Cast<Simd128ConstantOp>();
+        uint8_t value[kSimd256Size] = {};
+        memcpy(value, op0.value, kSimd128Size);
+        memcpy(value + kSimd128Size, op1.value, kSimd128Size);
+
+        og_index = __ Simd256Constant(value);
+
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+    return Next::ReduceInputGraphSimd128Constant(ig_index, constant_op);
+  }
+
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128LoadTransform)(
       V<Simd128> ig_index, const Simd128LoadTransformOp& load_transform) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
@@ -422,8 +571,14 @@ class WasmRevecReducer : public Next {
       // Skip revectorized node.
       if (!og_index.valid()) {
         auto input = analyzer_.GetReduced(unary.input());
-        og_index = __ Simd256Unary(V<Simd256>::Cast(input),
-                                   GetSimd256UnaryKind(unary.kind));
+        if (!input.valid()) {
+          input = __ MapToNewGraph(unary.input());
+          og_index = __ Simd256Unary(V<Simd128>::Cast(input),
+                                     GetSimd256UnaryKind(unary.kind));
+        } else {
+          og_index = __ Simd256Unary(V<Simd256>::Cast(input),
+                                     GetSimd256UnaryKind(unary.kind));
+        }
         pnode->SetRevectorizedNode(og_index);
       }
       return GetExtractOpIfNeeded(pnode, ig_index, og_index);
@@ -439,7 +594,17 @@ class WasmRevecReducer : public Next {
       if (!og_index.valid()) {
         auto left = analyzer_.GetReduced(op.left());
         auto right = analyzer_.GetReduced(op.right());
-        og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
+        if (!left.valid() || !right.valid()) {
+          left = __ MapToNewGraph(op.left());
+          right = __ MapToNewGraph(op.right());
+          og_index =
+              __ Simd256Binop(V<Simd128>::Cast(left), V<Simd128>::Cast(right),
+                              GetSimd256BinOpKind(op.kind));
+        } else {
+          og_index =
+              __ Simd256Binop(V<Simd256>::Cast(left), V<Simd256>::Cast(right),
+                              GetSimd256BinOpKind(op.kind));
+        }
         pnode->SetRevectorizedNode(og_index);
       }
       return GetExtractOpIfNeeded(pnode, ig_index, og_index);
@@ -490,6 +655,106 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Ternary(ig_index, ternary);
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Splat)(OpIndex ig_index,
+                                           const Simd128SplatOp& op) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        og_index = __ Simd256Splat(__ MapToNewGraph(op.input()),
+                                   Get256SplatOpKindFrom128(op.kind));
+
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+
+    return Next::ReduceInputGraphSimd128Splat(ig_index, op);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Shuffle)(V<Simd128> ig_index,
+                                             const Simd128ShuffleOp& op) {
+    if (ShufflePackNode* pnode =
+            static_cast<ShufflePackNode*>(analyzer_.GetPackNode(ig_index))) {
+      OpIndex og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        const ShufflePackNode::SpecificInfo::Kind kind = pnode->info().kind();
+        switch (kind) {
+          case ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform:
+          case ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform: {
+            const bool is_32 =
+                kind ==
+                ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform;
+
+            const OpIndex load_index =
+                op.input(pnode->info().splat_index() >> (is_32 ? 2 : 1));
+            const LoadOp& load =
+                __ input_graph().Get(load_index).template Cast<LoadOp>();
+
+            const int bytes_per_lane = is_32 ? 4 : 8;
+            const int splat_index =
+                pnode->info().splat_index() * bytes_per_lane;
+            const int offset = splat_index + load.offset;
+
+            V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
+                                            __ IntPtrConstant(offset));
+
+            V<WordPtr> index = load.index().has_value()
+                                   ? __ MapToNewGraph(load.index().value())
+                                   : __ IntPtrConstant(0);
+
+            const Simd256LoadTransformOp::TransformKind transform_kind =
+                is_32 ? Simd256LoadTransformOp::TransformKind::k32Splat
+                      : Simd256LoadTransformOp::TransformKind::k64Splat;
+            og_index = __ Simd256LoadTransform(base, index, load.kind,
+                                               transform_kind, 0);
+            pnode->SetRevectorizedNode(og_index);
+            break;
+          }
+#ifdef V8_TARGET_ARCH_X64
+          case ShufflePackNode::SpecificInfo::Kind::kShufd: {
+            V<Simd256> og_left = analyzer_.GetReduced(op.left());
+            DCHECK_EQ(og_left, analyzer_.GetReduced(op.right()));
+            og_index = __ Simd256Shufd(og_left, pnode->info().shufd_control());
+            pnode->SetRevectorizedNode(og_index);
+            break;
+          }
+          case ShufflePackNode::SpecificInfo::Kind::kShufps: {
+            V<Simd256> og_left = analyzer_.GetReduced(op.left());
+            V<Simd256> og_right = analyzer_.GetReduced(op.right());
+            og_index = __ Simd256Shufps(og_left, og_right,
+                                        pnode->info().shufps_control());
+            pnode->SetRevectorizedNode(og_index);
+            break;
+          }
+          case ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackLow: {
+            V<Simd256> og_left = analyzer_.GetReduced(op.left());
+            V<Simd256> og_right = analyzer_.GetReduced(op.right());
+            og_index = __ Simd256Unpack(og_left, og_right,
+                                        Simd256UnpackOp::Kind::k32x8Low);
+            pnode->SetRevectorizedNode(og_index);
+            break;
+          }
+          case ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackHigh: {
+            V<Simd256> og_left = analyzer_.GetReduced(op.left());
+            V<Simd256> og_right = analyzer_.GetReduced(op.right());
+            og_index = __ Simd256Unpack(og_left, og_right,
+                                        Simd256UnpackOp::Kind::k32x8High);
+            pnode->SetRevectorizedNode(og_index);
+            break;
+          }
+#endif  // V8_TARGET_ARCH_X64
+          default:
+            UNREACHABLE();
+        }
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+
+    return Next::ReduceInputGraphSimd128Shuffle(ig_index, op);
+  }
+
  private:
   static Simd256UnaryOp::Kind GetSimd256UnaryKind(
       Simd128UnaryOp::Kind simd128_kind) {
@@ -497,8 +762,16 @@ class WasmRevecReducer : public Next {
 #define UNOP_KIND_MAPPING(from, to)   \
   case Simd128UnaryOp::Kind::k##from: \
     return Simd256UnaryOp::Kind::k##to;
-      SIMD256_UNARY_OP(UNOP_KIND_MAPPING)
+      SIMD256_UNARY_SIMPLE_OP(UNOP_KIND_MAPPING)
 #undef UNOP_KIND_MAPPING
+
+#define SIGN_EXTENSION_UNOP_KIND_MAPPING(from_1, to, from_2) \
+  case Simd128UnaryOp::Kind::k##from_1:                      \
+    return Simd256UnaryOp::Kind::k##to;                      \
+  case Simd128UnaryOp::Kind::k##from_2:                      \
+    return Simd256UnaryOp::Kind::k##to;
+      SIMD256_UNARY_SIGN_EXTENSION_OP(SIGN_EXTENSION_UNOP_KIND_MAPPING)
+#undef SIGN_EXTENSION_UNOP_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }
@@ -511,6 +784,14 @@ class WasmRevecReducer : public Next {
     return Simd256BinopOp::Kind::k##to;
       SIMD256_BINOP_SIMPLE_OP(BINOP_KIND_MAPPING)
 #undef BINOP_KIND_MAPPING
+
+#define SIGN_EXTENSION_BINOP_KIND_MAPPING(from_1, to, from_2) \
+  case Simd128BinopOp::Kind::k##from_1:                       \
+    return Simd256BinopOp::Kind::k##to;                       \
+  case Simd128BinopOp::Kind::k##from_2:                       \
+    return Simd256BinopOp::Kind::k##to;
+      SIMD256_BINOP_SIGN_EXTENSION_OP(SIGN_EXTENSION_BINOP_KIND_MAPPING)
+#undef SIGN_EXTENSION_UNOP_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }
@@ -549,6 +830,18 @@ class WasmRevecReducer : public Next {
     return Simd256LoadTransformOp::TransformKind::k##to;
       SIMD256_LOADTRANSFORM_OP(TRANSFORM_KIND_MAPPING)
 #undef TRANSFORM_KIND_MAPPING
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  static Simd256SplatOp::Kind Get256SplatOpKindFrom128(
+      Simd128SplatOp::Kind kind) {
+    switch (kind) {
+#define SPLAT_KIND_MAPPING(from, to)  \
+  case Simd128SplatOp::Kind::k##from: \
+    return Simd256SplatOp::Kind::k##to;
+      SIMD256_SPLAT_OP(SPLAT_KIND_MAPPING)
       default:
         UNREACHABLE();
     }

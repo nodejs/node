@@ -78,6 +78,8 @@ enum class FrameStateType {
                                    // JS to Wasm call.
   kWasmInlinedIntoJS,              // Represents a Wasm function inlined into a
                                    // JS function.
+  kLiftoffFunction,                // Represents an unoptimized (liftoff) wasm
+                                   // function.
 #endif                             // ↑ WebAssembly only
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.
@@ -90,16 +92,27 @@ class FrameStateFunctionInfo {
  public:
   FrameStateFunctionInfo(FrameStateType type, int parameter_count,
                          int local_count,
-                         Handle<SharedFunctionInfo> shared_info)
+                         Handle<SharedFunctionInfo> shared_info,
+                         uint32_t wasm_liftoff_frame_size = 0)
       : type_(type),
         parameter_count_(parameter_count),
         local_count_(local_count),
-        shared_info_(shared_info) {}
+#if V8_ENABLE_WEBASSEMBLY
+        wasm_liftoff_frame_size_(wasm_liftoff_frame_size),
+#endif
+        shared_info_(shared_info) {
+  }
 
   int local_count() const { return local_count_; }
   int parameter_count() const { return parameter_count_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateType type() const { return type_; }
+#if V8_ENABLE_WEBASSEMBLY
+  uint32_t wasm_liftoff_frame_size() const {
+    DCHECK_EQ(type_, FrameStateType::kLiftoffFunction);
+    return wasm_liftoff_frame_size_;
+  }
+#endif
 
   static bool IsJSFunctionType(FrameStateType type) {
     // This must be in sync with TRANSLATION_JS_FRAME_OPCODE_LIST in
@@ -110,10 +123,13 @@ class FrameStateFunctionInfo {
   }
 
  private:
-  FrameStateType const type_;
-  int const parameter_count_;
-  int const local_count_;
-  Handle<SharedFunctionInfo> const shared_info_;
+  const FrameStateType type_;
+  const int parameter_count_;
+  const int local_count_;
+#if V8_ENABLE_WEBASSEMBLY
+  const uint32_t wasm_liftoff_frame_size_ = 0;
+#endif
+  const Handle<SharedFunctionInfo> shared_info_;
 };
 
 #if V8_ENABLE_WEBASSEMBLY

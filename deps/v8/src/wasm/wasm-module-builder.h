@@ -352,6 +352,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
                     WasmInitExpr init);
+  uint32_t AddMemory(uint32_t min_size);
+  uint32_t AddMemory(uint32_t min_size, uint32_t max_size);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(base::Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
@@ -361,9 +363,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddExportedGlobal(ValueType type, bool mutability, WasmInitExpr init,
                              base::Vector<const char> name);
   void ExportImportedFunction(base::Vector<const char> name, int import_index);
-  void SetMinMemorySize(uint32_t value);
-  void SetMaxMemorySize(uint32_t value);
-  void SetHasSharedMemory();
 
   void StartRecursiveTypeGroup() {
     DCHECK_EQ(current_recursive_group_start_, -1);
@@ -479,6 +478,13 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     base::Optional<WasmInitExpr> init;
   };
 
+  struct WasmMemory {
+    uint32_t min_size;
+    uint32_t max_size;
+    bool has_max_size;
+    bool is_shared;
+  };
+
   struct WasmDataSegment {
     ZoneVector<uint8_t> data;
     uint32_t dest;
@@ -493,6 +499,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmExport> exports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmTable> tables_;
+  ZoneVector<WasmMemory> memories_;
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<WasmElemSegment> element_segments_;
   ZoneVector<WasmGlobal> globals_;
@@ -502,10 +509,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // first index -> size
   ZoneUnorderedMap<uint32_t, uint32_t> recursive_groups_;
   int start_function_index_;
-  uint32_t min_memory_size_;
-  uint32_t max_memory_size_;
-  bool has_max_memory_size_;
-  bool has_shared_memory_;
 #if DEBUG
   // Once AddExportedImport is called, no more imports can be added.
   bool adding_imports_allowed_ = true;

@@ -580,6 +580,8 @@ class Graph {
     dominator_tree_depth_ = 0;
 #ifdef DEBUG
     block_type_refinement_.Reset();
+    // Do not reset of graph_created_from_turbofan_ as it is propagated along
+    // the phases.
 #endif
   }
 
@@ -606,7 +608,7 @@ class Graph {
     return *ptr;
   }
 
-  void MarkAsUnused(OpIndex i) { Get(i).saturated_use_count.SetToZero(); }
+  void KillOperation(OpIndex i) { Replace<DeadOp>(i); }
 
   Block& StartBlock() { return Get(BlockIndex(0)); }
   const Block& StartBlock() const { return Get(BlockIndex(0)); }
@@ -693,15 +695,6 @@ class Graph {
     Op& op = Op::New(this, args...);
     IncrementInputUses(op);
 
-    if (op.IsRequiredWhenUnused()) {
-      // Once the graph is built, an operation with a `saturated_use_count` of 0
-      // is guaranteed to be unused and can be removed. Thus, to avoid removing
-      // operations that never have uses (such as Goto or Branch), we set the
-      // `saturated_use_count` of Operations that are `IsRequiredWhenUnused()`
-      // to 1.
-      op.saturated_use_count.SetToOne();
-    }
-
     DCHECK_EQ(result, Index(op));
 #ifdef DEBUG
     for (OpIndex input : op.inputs()) {
@@ -731,7 +724,9 @@ class Graph {
       OperationBuffer::ReplaceScope replace_scope(&operations_, replaced);
       new_op = &Op::New(this, args...);
     }
-    new_op->saturated_use_count = old_uses;
+    if (!std::is_same_v<Op, DeadOp>) {
+      new_op->saturated_use_count = old_uses;
+    }
     IncrementInputUses(*new_op);
   }
 
@@ -769,7 +764,13 @@ class Graph {
 
 #ifdef DEBUG
     if (v8_flags.turboshaft_trace_emitted) {
-      std::cout << "\nBound: " << block->index() << "\n";
+      std::cout << "\nBound: " << block->index() << " [predecessors: ";
+      auto preds = block->Predecessors();
+      if (preds.size() >= 1) std::cout << preds[0]->index();
+      for (size_t i = 1; i < preds.size(); i++) {
+        std::cout << ", " << preds[i]->index();
+      }
+      std::cout << "]\n";
     }
 #endif
 
@@ -1017,6 +1018,7 @@ class Graph {
       companion_ = graph_zone_->New<Graph>(graph_zone_, operations_.size());
 #ifdef DEBUG
       companion_->generation_ = generation_ + 1;
+      if (IsCreatedFromTurbofan()) companion_->SetCreatedFromTurbofan();
 #endif  // DEBUG
     }
     return *companion_;
@@ -1051,6 +1053,9 @@ class Graph {
   bool BelongsToThisGraph(OpIndex idx) const {
     return idx.generation_mod2() == generation_mod2();
   }
+
+  void SetCreatedFromTurbofan() { graph_created_from_turbofan_ = true; }
+  bool IsCreatedFromTurbofan() const { return graph_created_from_turbofan_; }
 #endif  // DEBUG
 
  private:
@@ -1064,6 +1069,9 @@ class Graph {
   template <class Op>
   void IncrementInputUses(const Op& op) {
     for (OpIndex input : op.inputs()) {
+      // Tuples should never be used as input, except in other tuples (which is
+      // used for instance in Int64Lowering::LowerCall).
+      DCHECK_IMPLIES(Get(input).Is<TupleOp>(), op.template Is<TupleOp>());
       Get(input).saturated_use_count.Incr();
     }
   }
@@ -1071,6 +1079,9 @@ class Graph {
   template <class Op>
   void DecrementInputUses(const Op& op) {
     for (OpIndex input : op.inputs()) {
+      // Tuples should never be used as input, except in other tuples (which is
+      // used for instance in Int64Lowering::LowerCall).
+      DCHECK_IMPLIES(Get(input).Is<TupleOp>(), op.template Is<TupleOp>());
       Get(input).saturated_use_count.Decr();
     }
   }
@@ -1126,6 +1137,7 @@ class Graph {
   GrowingOpIndexSidetable<Type> operation_types_;
 #ifdef DEBUG
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
+  bool graph_created_from_turbofan_ = false;
 #endif
 
   Graph* companion_ = nullptr;

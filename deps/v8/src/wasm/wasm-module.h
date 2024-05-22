@@ -576,6 +576,10 @@ struct FunctionTypeFeedback {
   // TODO(clemensb): This does not belong here; find a better place.
   int tierup_priority = 0;
 
+  static constexpr uint32_t kUninitializedLiftoffFrameSize = -1;
+  // The size of the stack frame in liftoff in bytes.
+  uint32_t liftoff_frame_size = kUninitializedLiftoffFrameSize;
+
   static constexpr uint32_t kNonDirectCall = 0xFFFFFFFF;
 };
 
@@ -596,6 +600,7 @@ struct TypeFeedbackStorage {
   mutable base::SharedMutex mutex;
 
   WellKnownImportsList well_known_imports;
+  bool has_magic_string_constants{false};
 
   size_t EstimateCurrentMemoryConsumption() const;
 };

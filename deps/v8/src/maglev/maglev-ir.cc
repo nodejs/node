@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "src/base/bounds.h"
+#include "src/base/logging.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -155,7 +156,6 @@ namespace {
 // Print
 // ---
 
-namespace {
 bool IsStoreToNonEscapedObject(const NodeBase* node) {
   switch (node->opcode()) {
     case Opcode::kStoreMap:
@@ -172,7 +172,6 @@ bool IsStoreToNonEscapedObject(const NodeBase* node) {
       return false;
   }
 }
-}  // namespace
 
 void PrintInputs(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                  const NodeBase* node) {
@@ -277,31 +276,22 @@ void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   }
 }
 
-size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
-  static constexpr int kClosureSize = 1;
-  static constexpr int kReceiverSize = 1;
-  static constexpr int kContextSize = 1;
+size_t GetInputLocationArraySizeFor(base::Vector<ValueNode*> array) {
   size_t size = 0;
-  const DeoptFrame* frame = &top_frame;
-  do {
-    switch (frame->type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        size += kClosureSize + frame->as_interpreted().frame_state()->size(
-                                   frame->as_interpreted().unit());
-        break;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        size += kClosureSize + frame->as_inlined_arguments().arguments().size();
-        break;
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        size += kReceiverSize + kContextSize;
-        break;
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        size +=
-            frame->as_builtin_continuation().parameters().size() + kContextSize;
-        break;
+  for (ValueNode* value : array) {
+    size += value->GetInputLocationsArraySize();
+  }
+  return size;
+}
+
+size_t GetInputLocationArraySizeFor(const MaglevCompilationUnit& unit,
+                                    const CompactInterpreterFrameState* frame) {
+  size_t size = 0;
+  frame->ForEachValue(unit, [&size](ValueNode* value, interpreter::Register) {
+    if (value != nullptr) {
+      size += value->GetInputLocationsArraySize();
     }
-    frame = frame->parent();
-  } while (frame != nullptr);
+  });
   return size;
 }
 
@@ -345,6 +335,61 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 
 }  // namespace
 
+size_t FastContext::GetInputLocationsArraySize() const {
+  size_t size = previous_context->GetInputLocationsArraySize();
+  if (extension.has_value()) {
+    size += extension.value()->GetInputLocationsArraySize();
+  }
+  return size;
+}
+
+size_t ValueNode::GetInputLocationsArraySize() const {
+  if (const InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
+    // The input location size for an InlinedAllocation is either 1 when
+    // escaped, or GetInputLocationsArraySize when captured.
+    return std::max<size_t>(alloc->value().GetInputLocationsArraySize(), 1);
+  }
+  return 1;
+}
+
+size_t DeoptFrame::GetInputLocationsArraySize() const {
+  size_t size = 0;
+  const DeoptFrame* frame = this;
+  do {
+    switch (frame->type()) {
+      case DeoptFrame::FrameType::kInterpretedFrame:
+        size +=
+            frame->as_interpreted().closure()->GetInputLocationsArraySize() +
+            GetInputLocationArraySizeFor(frame->as_interpreted().unit(),
+                                         frame->as_interpreted().frame_state());
+        break;
+      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+        size += frame->as_inlined_arguments()
+                    .closure()
+                    ->GetInputLocationsArraySize() +
+                GetInputLocationArraySizeFor(
+                    frame->as_inlined_arguments().arguments());
+        break;
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+        size +=
+            frame->as_construct_stub()
+                .receiver()
+                ->GetInputLocationsArraySize() +
+            frame->as_construct_stub().context()->GetInputLocationsArraySize();
+        break;
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        size += GetInputLocationArraySizeFor(
+                    frame->as_builtin_continuation().parameters()) +
+                frame->as_builtin_continuation()
+                    .context()
+                    ->GetInputLocationsArraySize();
+        break;
+    }
+    frame = frame->parent();
+  } while (frame != nullptr);
+  return size;
+}
+
 bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
 #ifdef DEBUG
   // (Ab)use static locals to call CheckToBooleanOnAllRoots once, on first
@@ -372,13 +417,14 @@ bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node) {
 }
 
 DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
-                     compiler::FeedbackSource feedback_to_update)
+                     compiler::FeedbackSource feedback_to_update,
+                     size_t input_locations_size)
     : top_frame_(top_frame),
       feedback_to_update_(feedback_to_update),
-      input_locations_(zone->AllocateArray<InputLocation>(
-          GetInputLocationsArraySize(top_frame))) {
+      input_locations_(
+          zone->AllocateArray<InputLocation>(input_locations_size)) {
   // Initialise InputLocations so that they correctly don't have a next use id.
-  for (size_t i = 0; i < GetInputLocationsArraySize(top_frame); ++i) {
+  for (size_t i = 0; i < input_locations_size; ++i) {
     new (&input_locations_[i]) InputLocation();
   }
 }
@@ -2436,7 +2482,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                   AbortReason::kUnexpectedValue);
   }
 
-  int element_size = ExternalArrayElementSize(type_);
+  int element_size = compiler::ExternalArrayElementSize(type_);
 
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register data_pointer = temps.Acquire();
@@ -2484,7 +2530,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
-  if (ExternalArrayElementSize(type_) > 1) {
+  if (compiler::ExternalArrayElementSize(type_) > 1) {
     UseAndClobberRegister(value_input());
   } else {
     UseRegister(value_input());
@@ -2510,7 +2556,7 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                   AbortReason::kUnexpectedValue);
   }
 
-  int element_size = ExternalArrayElementSize(type_);
+  int element_size = compiler::ExternalArrayElementSize(type_);
 
   // We ignore little endian argument if type is a byte size.
   if (element_size > 1) {
@@ -4929,7 +4975,7 @@ void Call::SetValueLocationConstraints() {
 }
 
 void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
+  __ PushReverse(args());
 
   uint32_t arg_count = num_args();
   if (target_type_ == TargetType::kAny) {
@@ -4993,12 +5039,10 @@ void CallSelf::GenerateCode(MaglevAssembler* masm,
     int number_of_undefineds =
         expected_parameter_count_ - actual_parameter_count;
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()),
+    __ PushReverse(receiver(), args(),
                    RepeatValue(scratch, number_of_undefineds));
   } else {
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()));
+    __ PushReverse(receiver(), args());
   }
   DCHECK_EQ(kContextRegister, ToRegister(context()));
   DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
@@ -5033,12 +5077,10 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     int number_of_undefineds =
         expected_parameter_count_ - actual_parameter_count;
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()),
+    __ PushReverse(receiver(), args(),
                    RepeatValue(scratch, number_of_undefineds));
   } else {
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()));
+    __ PushReverse(receiver(), args());
   }
   // From here on, we're going to do a call, so all registers are valid temps,
   // except for the ones we're going to write. This is needed in case one of the
@@ -5089,8 +5131,7 @@ void CallKnownApiFunction::SetValueLocationConstraints() {
 void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  __ PushReverse(receiver(),
-                 base::make_iterator_range(args_begin(), args_end()));
+  __ PushReverse(receiver(), args());
 
   // From here on, we're going to do a call, so all registers are valid temps,
   // except for the ones we're going to write. This is needed in case one of the
@@ -5310,11 +5351,10 @@ void CallBuiltin::PushArguments(MaglevAssembler* masm, Args... extra_args) {
   if (descriptor.GetStackArgumentOrder() == StackArgumentOrder::kDefault) {
     // In Default order we cannot have extra args (feedback).
     DCHECK_EQ(sizeof...(extra_args), 0);
-    __ Push(base::make_iterator_range(stack_args_begin(), stack_args_end()));
+    __ Push(stack_args());
   } else {
     DCHECK_EQ(descriptor.GetStackArgumentOrder(), StackArgumentOrder::kJS);
-    __ PushReverse(extra_args..., base::make_iterator_range(stack_args_begin(),
-                                                            stack_args_end()));
+    __ PushReverse(extra_args..., stack_args());
   }
 }
 
@@ -5415,7 +5455,7 @@ void CallCPPBuiltin::GenerateCode(MaglevAssembler* masm,
   // Push all arguments to the builtin (including the receiver).
   static_assert(BuiltinArguments::kNumExtraArgsWithReceiver == 5);
   static_assert(BuiltinArguments::kReceiverOffset == 4);
-  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
+  __ PushReverse(args());
 
   static_assert(BuiltinArguments::kNewTargetOffset == 0);
   static_assert(BuiltinArguments::kTargetOffset == 1);
@@ -5448,7 +5488,7 @@ void CallRuntime::SetValueLocationConstraints() {
 void CallRuntime::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   DCHECK_EQ(ToRegister(context()), kContextRegister);
-  __ Push(base::make_iterator_range(args_begin(), args_end()));
+  __ Push(args());
   __ CallRuntime(function_id(), num_args());
   // TODO(victorgomes): Not sure if this is needed for all runtime calls.
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -5476,8 +5516,7 @@ void CallWithSpread::GenerateCode(MaglevAssembler* masm,
       function(),            // target
       num_args_no_spread(),  // arguments count
       spread(),              // spread
-      base::make_iterator_range(args_no_spread_begin(),
-                                args_no_spread_end())  // pushed args
+      args_no_spread()       // pushed args
   );
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -5539,7 +5578,7 @@ void Construct::GenerateCode(MaglevAssembler* masm,
       num_args(),          // actual arguments count
       feedback().index(),  // feedback slot
       feedback().vector,   // feedback vector
-      base::make_iterator_range(args_begin(), args_end())  // args
+      args()               // args
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -5572,8 +5611,7 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
       feedback().index(),    // feedback slot
       spread(),              // spread
       feedback().vector,     // feedback vector
-      base::make_iterator_range(args_no_spread_begin(),
-                                args_no_spread_end())  // args
+      args_no_spread()       // args
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -6115,6 +6153,25 @@ void BranchIfFloat64IsHole::GenerateCode(MaglevAssembler* masm,
       __ Jump(if_true()->label(), Label::kFar);
     }
   }
+}
+
+void HoleyFloat64IsHole::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void HoleyFloat64IsHole::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DoubleRegister value = ToDoubleRegister(input());
+  Label done, if_not_hole;
+  __ JumpIfNotHoleNan(value, scratch, &if_not_hole, Label::kNear);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ Jump(&done);
+  __ bind(&if_not_hole);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ bind(&done);
 }
 
 void BranchIfFloat64Compare::SetValueLocationConstraints() {

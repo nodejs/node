@@ -51,7 +51,8 @@ Tagged<Object> ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+      JSObject::New(target, new_target, Handle<AllocationSite>::null(),
+                    NewJSObjectType::kAPIWrapper));
   auto array_buffer = Handle<JSArrayBuffer>::cast(result);
   // Ensure that all fields are initialized because BackingStore::Allocate is
   // allowed to GC. Note that we cannot move the allocation of the ArrayBuffer
@@ -593,15 +594,11 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
   auto from_backing_store = array_buffer->GetBackingStore();
   if (from_backing_store && !from_backing_store->is_resizable_by_js() &&
       resizable == ResizableFlag::kNotResizable &&
-      (new_byte_length == array_buffer->GetByteLength() ||
-       from_backing_store->CanReallocate())) {
-    // Reallocate covers steps 10-14.
-    if (new_byte_length != array_buffer->GetByteLength() &&
-        !from_backing_store->Reallocate(isolate, new_byte_length)) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
-    }
+      new_byte_length == array_buffer->GetByteLength()) {
+    // TODO(syg): Consider realloc when the default ArrayBuffer allocator's
+    // Reallocate does better than copy.
+    //
+    // See https://crbug.com/330575496#comment27
 
     // 15. Perform ! DetachArrayBuffer(arrayBuffer).
     JSArrayBuffer::Detach(array_buffer).Check();

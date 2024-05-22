@@ -223,7 +223,7 @@ await (async function testMacOSCppEntriesProvider() {
   };
   var shell_prov = new MacOSCppEntriesProvider();
   var shell_syms = [];
-  await shell_prov.parseVmSymbols('shell', 0x00001c00, 0x00163256, 0x100,
+  await shell_prov.parseVmSymbols('shell', 0x00001b00, 0x00163256, 0x100,
       (...params) => shell_syms.push(params));
   assertEquals(
       [['start', 0x00001c00, 0x00001c40],

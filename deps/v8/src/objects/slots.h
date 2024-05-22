@@ -300,7 +300,7 @@ class ExternalPointerSlot
  public:
   ExternalPointerSlot()
       : SlotBase(kNullAddress)
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
         ,
         tag_(kExternalPointerNullTag)
 #endif
@@ -309,7 +309,7 @@ class ExternalPointerSlot
 
   explicit ExternalPointerSlot(Address ptr, ExternalPointerTag tag)
       : SlotBase(ptr)
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
         ,
         tag_(tag)
 #endif
@@ -319,7 +319,7 @@ class ExternalPointerSlot
   template <ExternalPointerTag tag>
   explicit ExternalPointerSlot(ExternalPointerMember<tag>* member)
       : SlotBase(member->storage_address())
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
         ,
         tag_(tag)
 #endif
@@ -328,17 +328,23 @@ class ExternalPointerSlot
 
   inline void init(IsolateForSandbox isolate, Address value);
 
-#ifdef V8_ENABLE_SANDBOX
-  // When the external pointer is sandboxed, its slot stores a handle to an
-  // entry in an ExternalPointerTable. These methods allow access to the
-  // underlying handle while the load/store methods below resolve the handle to
-  // the real pointer.
+#ifdef V8_COMPRESS_POINTERS
+  // When the external pointer is sandboxed, or for array buffer extensions when
+  // pointer compression is on, its slot stores a handle to an entry in an
+  // ExternalPointerTable. These methods allow access to the underlying handle
+  // while the load/store methods below resolve the handle to the real pointer.
   // Handles should generally be accessed atomically as they may be accessed
   // from other threads, for example GC marking threads.
+  //
+  // TODO(wingo): Remove if we switch to use the EPT for all external pointers
+  // when pointer compression is enabled.
+  bool HasExternalPointerHandle() const {
+    return V8_ENABLE_SANDBOX_BOOL || tag() == kArrayBufferExtensionTag;
+  }
   inline ExternalPointerHandle Relaxed_LoadHandle() const;
   inline void Relaxed_StoreHandle(ExternalPointerHandle handle) const;
   inline void Release_StoreHandle(ExternalPointerHandle handle) const;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   inline Address load(IsolateForSandbox isolate);
   inline void store(IsolateForSandbox isolate, Address value);
@@ -362,17 +368,78 @@ class ExternalPointerSlot
   inline uint32_t GetContentAsIndexAfterDeserialization(
       const DisallowGarbageCollection& no_gc);
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   ExternalPointerTag tag() const { return tag_; }
 #else
   ExternalPointerTag tag() const { return kExternalPointerNullTag; }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
  private:
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
+  ExternalPointerHandle* handle_location() const {
+    DCHECK(HasExternalPointerHandle());
+    return reinterpret_cast<ExternalPointerHandle*>(address());
+  }
+
   // The tag associated with this slot.
   ExternalPointerTag tag_;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
+};
+
+// Similar to ExternalPointerSlot with the difference that it refers to an
+// `CppHeapPointer_t` which has different sizing and alignment than
+// `ExternalPointer_t`.
+class CppHeapPointerSlot
+    : public SlotBase<CppHeapPointerSlot, CppHeapPointer_t,
+                      /*SlotDataAlignment=*/sizeof(CppHeapPointer_t)> {
+ public:
+  CppHeapPointerSlot()
+      : SlotBase(kNullAddress)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_(kExternalPointerNullTag)
+#endif
+  {
+  }
+
+  CppHeapPointerSlot(Address ptr, ExternalPointerTag tag)
+      : SlotBase(ptr)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_(tag)
+#endif
+  {
+  }
+
+#ifdef V8_COMPRESS_POINTERS
+
+  // When V8 runs with pointer compression, the slots here store a handle to an
+  // entry in a dedicated ExternalPointerTable that is only used for CppHeap
+  // references. These methods allow access to the underlying handle while the
+  // load/store methods below resolve the handle to the real pointer. Handles
+  // should generally be accessed atomically as they may be accessed from other
+  // threads, for example GC marking threads.
+  inline CppHeapPointerHandle Relaxed_LoadHandle() const;
+  inline void Relaxed_StoreHandle(CppHeapPointerHandle handle) const;
+  inline void Release_StoreHandle(CppHeapPointerHandle handle) const;
+
+#endif  // V8_COMPRESS_POINTERS
+
+  inline Address try_load(IsolateForPointerCompression isolate) const;
+  inline void store(IsolateForPointerCompression isolate, Address value) const;
+  inline void reset() const;
+
+#ifdef V8_COMPRESS_POINTERS
+  ExternalPointerTag tag() const { return tag_; }
+#else
+  ExternalPointerTag tag() const { return kExternalPointerNullTag; }
+#endif  // V8_COMPRESS_POINTERS
+
+ private:
+#ifdef V8_COMPRESS_POINTERS
+  // The tag associated with this slot.
+  ExternalPointerTag tag_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // An IndirectPointerSlot instance describes a 32-bit field ("slot") containing

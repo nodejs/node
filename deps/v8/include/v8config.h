@@ -477,14 +477,23 @@ path. Add it with -I<path> to the command line
 # define V8_INLINE inline
 #endif
 
+#if V8_HAS_BUILTIN_ASSUME
 #ifdef DEBUG
-// In debug mode, check assumptions instead of actually adding annotations.
-# define V8_ASSUME DCHECK
-#elif V8_HAS_BUILTIN_ASSUME
+// In debug mode, check assumptions in addition to adding annotations.
+// This helps GCC (and maybe other compilers) figure out that certain
+// situations are unreachable.
+# define V8_ASSUME(condition)    \
+  do {                           \
+    DCHECK(condition);           \
+    __builtin_assume(condition); \
+  } while (false)
+#else  // DEBUG
 # define V8_ASSUME __builtin_assume
+#endif  // DEBUG
 #elif V8_HAS_BUILTIN_UNREACHABLE
 # define V8_ASSUME(condition)                  \
   do {                                         \
+    DCHECK(condition);                         \
     if (!(condition)) __builtin_unreachable(); \
   } while (false)
 #else

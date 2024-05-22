@@ -24,21 +24,13 @@ class Heap;
 class PageMetadata : public MutablePageMetadata {
  public:
   PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
-               Address area_end, VirtualMemory reservation,
-               Executability executable);
+               Address area_end, VirtualMemory reservation);
 
   // Returns the page containing a given address. The address ranges
-  // from [page_addr .. page_addr + kPageSize]. This only works if the object
-  // is in fact in a page.
-  static PageMetadata* FromAddress(Address addr) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<PageMetadata*>(
-        MemoryChunk::FromAddress(addr)->Metadata());
-  }
-  static PageMetadata* FromHeapObject(Tagged<HeapObject> o) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return FromAddress(o.ptr());
-  }
+  // from [page_addr .. page_addr + kPageSize]. This only works if the object is
+  // in fact in a page.
+  V8_INLINE static PageMetadata* FromAddress(Address addr);
+  V8_INLINE static PageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   static PageMetadata* cast(MemoryChunkMetadata* metadata) {
     return cast(MutablePageMetadata::cast(metadata));
@@ -53,10 +45,7 @@ class PageMetadata : public MutablePageMetadata {
   // potentially point righter after the page. To be also safe for tagged values
   // we subtract a hole word. The valid address ranges from
   // [page_addr + area_start_ .. page_addr + kPageSize + kTaggedSize].
-  static PageMetadata* FromAllocationAreaAddress(Address address) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return PageMetadata::FromAddress(address - kTaggedSize);
-  }
+  V8_INLINE static PageMetadata* FromAllocationAreaAddress(Address address);
 
   // Checks if address1 and address2 are on the same new space page.
   static bool OnSamePage(Address address1, Address address2) {
@@ -139,11 +128,11 @@ class PageMetadata : public MutablePageMetadata {
 
 // Validate our estimates on the header size.
 static_assert(sizeof(MemoryChunkMetadata) <=
-              MemoryChunkLayout::kBasicMemoryChunkHeaderSize);
+              MemoryChunkLayout::kMemoryChunkMetadataSize);
 static_assert(sizeof(MutablePageMetadata) <=
-              MemoryChunkLayout::kMemoryChunkHeaderSize);
+              MemoryChunkLayout::kMutablePageMetadataSize);
 static_assert(sizeof(PageMetadata) <=
-              MemoryChunkLayout::kMemoryChunkHeaderSize);
+              MemoryChunkLayout::kMutablePageMetadataSize);
 
 }  // namespace internal
 

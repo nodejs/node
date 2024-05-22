@@ -179,23 +179,13 @@ void HeapAllocator::VerifyLinearAllocationAreas() const {
 void HeapAllocator::MarkLinearAllocationAreasBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   trusted_space_allocator_->MarkLinearAllocationAreaBlack();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    code_space_allocator_->MarkLinearAllocationAreaBlack();
-  }
+  code_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
 void HeapAllocator::UnmarkLinearAllocationsArea() {
   old_space_allocator_->UnmarkLinearAllocationArea();
   trusted_space_allocator_->UnmarkLinearAllocationArea();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    code_space_allocator_->UnmarkLinearAllocationArea();
-  }
+  code_space_allocator_->UnmarkLinearAllocationArea();
 }
 
 void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
@@ -216,13 +206,7 @@ void HeapAllocator::FreeLinearAllocationAreas() {
   }
   old_space_allocator_->FreeLinearAllocationArea();
   trusted_space_allocator_->FreeLinearAllocationArea();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Setting the high water mark requires write access to the Code page "
-        "header");
-    code_space_allocator_->FreeLinearAllocationArea();
-  }
+  code_space_allocator_->FreeLinearAllocationArea();
 
   if (shared_space_allocator_) {
     shared_space_allocator_->FreeLinearAllocationArea();

@@ -23,8 +23,6 @@ namespace internal {
 class FreeListCategory;
 class Space;
 
-enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
-
 // MutablePageMetadata represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
@@ -48,22 +46,19 @@ class MutablePageMetadata : public MemoryChunkMetadata {
       MemoryChunkLayout::kSlotSetOffset;
 
   // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = 1 << kPageSizeBits;
+  static const int kPageSize = kRegularPageSize;
 
   MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
                       Address area_start, Address area_end,
-                      VirtualMemory reservation, Executability executable,
-                      PageSize page_size);
+                      VirtualMemory reservation, PageSize page_size);
+
+  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  static MutablePageMetadata* FromAddress(Address a) {
-    return cast(MemoryChunkMetadata::FromAddress(a));
-  }
+  V8_INLINE static MutablePageMetadata* FromAddress(Address a);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o) {
-    return cast(MemoryChunkMetadata::FromHeapObject(o));
-  }
+  V8_INLINE static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
     SLOW_DCHECK(!metadata || !metadata->Chunk()->InReadOnlySpace());
@@ -77,8 +72,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   size_t buckets() const { return SlotSet::BucketsForSize(size()); }
 
-  void SetOldGenerationPageFlags(MarkingMode marking_mode);
-  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
+  void SetOldGenerationPageFlags(MarkingMode marking_mode) {
+    return Chunk()->SetOldGenerationPageFlags(marking_mode, InSharedSpace());
+  }
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode) {
+    return Chunk()->SetYoungGenerationPageFlags(marking_mode);
+  }
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, MutablePageMetadata* from,
@@ -189,12 +188,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   inline AllocationSpace owner_identity() const;
 
   static PageAllocator::Permission GetCodeModificationPermission() {
-    DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
-    // On MacOS on ARM64 RWX permissions are allowed to be set only when
-    // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
-    return !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && !v8_flags.jitless
-               ? PageAllocator::kReadWriteExecute
-               : PageAllocator::kReadWrite;
+    return v8_flags.jitless ? PageAllocator::kReadWrite
+                            : PageAllocator::kReadWriteExecute;
   }
 
   heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }

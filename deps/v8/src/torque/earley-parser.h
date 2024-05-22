@@ -477,7 +477,7 @@ class Grammar {
   template <class From, class To>
   static base::Optional<ParseResult> CastParseResult(
       ParseResultIterator* child_results) {
-    To result = std::move(child_results->NextAs<From>());
+    To result = child_results->NextAs<From>();
     return ParseResult{std::move(result)};
   }
 

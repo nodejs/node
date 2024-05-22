@@ -9,8 +9,10 @@
 #include "src/heap/combined-heap.h"
 #include "src/numbers/math-random.h"
 #include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
+#include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/startup-serializer.h"
 
 namespace v8 {
@@ -114,6 +116,13 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
     sink_.Put(kSynchronize, "Finished with embedder fields data");
   }
 
+  // Add section for embedder-serializer API wrappers.
+  if (!api_wrapper_sink_.data()->empty()) {
+    sink_.Put(kApiWrapperFieldsData, "api wrapper fields data");
+    sink_.Append(api_wrapper_sink_);
+    sink_.Put(kSynchronize, "Finished with api wrapper fields data");
+  }
+
   Pad();
 }
 
@@ -202,6 +211,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       SerializeObjectWithEmbedderFields(js_obj, embedder_fields_count,
                                         InternalFieldSerializeWrapper,
                                         user_callback, api_obj);
+      if (IsJSApiWrapperObject(*js_obj)) {
+        SerializeApiWrapperFields(js_obj);
+      }
       return;
     }
     if (InstanceTypeChecker::IsJSFunction(instance_type)) {
@@ -244,6 +256,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_);
   serializer.Serialize(slot_type);
+  if (IsJSApiWrapperObject(obj->map())) {
+    SerializeApiWrapperFields(Handle<JSObject>::cast(obj));
+  }
 }
 
 bool ContextSerializer::ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o) {
@@ -266,6 +281,34 @@ bool ContextSerializer::ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o) {
 namespace {
 bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
+
+void ContextSerializer::SerializeApiWrapperFields(Handle<JSObject> js_object) {
+  DCHECK(IsJSApiWrapperObject(*js_object));
+  auto* cpp_heap_pointer =
+      JSApiWrapper(*js_object)
+          .GetCppHeapWrappable<kAnyExternalPointerTag>(isolate());
+  const auto& callback_data = serialize_embedder_fields_.api_wrapper_callback;
+  if (callback_data.callback == nullptr && cpp_heap_pointer == nullptr) {
+    // No need to serialize anything as empty handles or handles pointing to
+    // null objects will be preserved.
+    return;
+  }
+  DCHECK_NOT_NULL(callback_data.callback);
+  const auto data = callback_data.callback(
+      v8::Utils::ToLocal(js_object), cpp_heap_pointer, callback_data.data);
+  if (DataIsEmpty(data)) {
+    return;
+  }
+  const SerializerReference* reference =
+      reference_map()->LookupReference(*js_object);
+  DCHECK_NOT_NULL(reference);
+  DCHECK(reference->is_back_reference());
+  api_wrapper_sink_.Put(kNewObject, "api wrapper field holder");
+  api_wrapper_sink_.PutUint30(reference->back_ref_index(), "BackRefIndex");
+  api_wrapper_sink_.PutUint30(data.raw_size, "api wrapper raw field data size");
+  api_wrapper_sink_.PutRaw(reinterpret_cast<const uint8_t*>(data.data),
+                           data.raw_size, "api wrapper raw field data");
+}
 
 template <typename V8Type, typename UserSerializerWrapper,
           typename UserCallback, typename ApiObjectType>

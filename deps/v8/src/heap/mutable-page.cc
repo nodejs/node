@@ -36,7 +36,6 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
                                          VirtualMemory reservation,
-                                         Executability executable,
                                          PageSize page_size)
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
                           std::move(reservation)),
@@ -44,22 +43,6 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
       shared_mutex_(new base::SharedMutex()),
       page_protection_change_mutex_(new base::Mutex()) {
   DCHECK_NE(space->identity(), RO_SPACE);
-  MemoryChunk* chunk = Chunk();
-  if (executable == EXECUTABLE) {
-    chunk->SetFlag(MemoryChunk::IS_EXECUTABLE);
-    // Executable chunks are also trusted as they contain machine code and live
-    // outside the sandbox (when it is enabled). While mostly symbolic, this is
-    // needed for two reasons:
-    // 1. We have the invariant that IsTrustedObject(obj) implies
-    //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
-    //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
-    //   objects are
-    //    trusted, their host chunks must also be marked as such.
-    // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
-    //    remembered set. However, that will only be used if both the host
-    //    and the value chunk are marked as IS_TRUSTED.
-    chunk->SetFlag(MemoryChunk::IS_TRUSTED);
-  }
 
   if (page_size == PageSize::kRegular) {
     active_system_pages_ = new ActiveSystemPages;
@@ -71,26 +54,55 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
     active_system_pages_ = nullptr;
   }
 
-  // All pages of a shared heap need to be marked with this flag.
-  if (owner()->identity() == SHARED_SPACE ||
-      owner()->identity() == SHARED_LO_SPACE) {
-    chunk->SetFlag(MemoryChunk::IN_WRITABLE_SHARED_SPACE);
-  }
-
-  // All pages belonging to a trusted space need to be marked with this flag.
-  if (space->identity() == TRUSTED_SPACE ||
-      space->identity() == TRUSTED_LO_SPACE) {
-    chunk->SetFlag(MemoryChunk::IS_TRUSTED);
-  }
-
 #ifdef DEBUG
   ValidateOffsets(this);
 #endif
+}
+
+MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
+    Executability executable) const {
+  MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
+
+  if (owner()->identity() == NEW_SPACE || owner()->identity() == NEW_LO_SPACE) {
+    flags |= MemoryChunk::YoungGenerationPageFlags(
+        heap()->incremental_marking()->marking_mode());
+  } else {
+    flags |= MemoryChunk::OldGenerationPageFlags(
+        heap()->incremental_marking()->marking_mode(), InSharedSpace());
+  }
+
+  if (executable == EXECUTABLE) {
+    flags |= MemoryChunk::IS_EXECUTABLE;
+    // Executable chunks are also trusted as they contain machine code and live
+    // outside the sandbox (when it is enabled). While mostly symbolic, this is
+    // needed for two reasons:
+    // 1. We have the invariant that IsTrustedObject(obj) implies
+    //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
+    //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
+    //   objects are
+    //    trusted, their host chunks must also be marked as such.
+    // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
+    //    remembered set. However, that will only be used if both the host
+    //    and the value chunk are marked as IS_TRUSTED.
+    flags |= MemoryChunk::IS_TRUSTED;
+  }
+
+  // All pages of a shared heap need to be marked with this flag.
+  if (InSharedSpace()) {
+    flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;
+  }
+
+  // All pages belonging to a trusted space need to be marked with this flag.
+  if (InTrustedSpace()) {
+    flags |= MemoryChunk::IS_TRUSTED;
+  }
 
   // "Trusted" chunks should never be located inside the sandbox as they
   // couldn't be trusted in that case.
-  DCHECK_IMPLIES(chunk->IsFlagSet(MemoryChunk::IS_TRUSTED),
+  DCHECK_IMPLIES(flags & MemoryChunk::IS_TRUSTED,
                  !InsideSandbox(ChunkAddress()));
+
+  return flags;
 }
 
 size_t MutablePageMetadata::CommittedPhysicalMemory() const {
@@ -98,42 +110,6 @@ size_t MutablePageMetadata::CommittedPhysicalMemory() const {
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
-void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
-  MemoryChunk* chunk = Chunk();
-  if (marking_mode == MarkingMode::kMajorMarking) {
-    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
-  } else if (owner_identity() == SHARED_SPACE ||
-             owner_identity() == SHARED_LO_SPACE) {
-    // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
-    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
-    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
-  } else {
-    chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    if (marking_mode == MarkingMode::kMinorMarking) {
-      chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
-    } else {
-      chunk->ClearFlags(MemoryChunk::INCREMENTAL_MARKING);
-    }
-  }
-}
-
-void MutablePageMetadata::SetYoungGenerationPageFlags(
-    MarkingMode marking_mode) {
-  MemoryChunk* chunk = Chunk();
-  chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-  if (marking_mode != MarkingMode::kNoMarking) {
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
-  } else {
-    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
-  }
-}
 // -----------------------------------------------------------------------------
 // MutablePageMetadata implementation
 

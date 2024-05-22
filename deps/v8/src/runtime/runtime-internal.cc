@@ -243,7 +243,7 @@ RUNTIME_FUNCTION(Runtime_NewError) {
 RUNTIME_FUNCTION(Runtime_NewForeign) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  return *isolate->factory()->NewForeign(kNullAddress);
+  return *isolate->factory()->NewForeign<kGenericForeignTag>(kNullAddress);
 }
 
 RUNTIME_FUNCTION(Runtime_NewTypeError) {

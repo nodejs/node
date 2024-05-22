@@ -14,14 +14,18 @@ namespace internal {
 
 class Heap;
 class MemoryChunkMetadata;
+class ReadOnlyPageMetadata;
+class PageMetadata;
+class LargePageMetadata;
+class CodeStubAssembler;
+class ExternalReference;
 template <typename T>
 class Tagged;
 
+enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
+
 class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
-  explicit MemoryChunk(MemoryChunkMetadata* metadata)
-      : main_thread_flags_(NO_FLAGS), metadata_(metadata) {}
-
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
   // in order to have dense page flag checks in the write barrier.
@@ -124,6 +128,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(INCREMENTAL_MARKING);
 
+  MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata);
+
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
   static constexpr Address BaseAddress(Address a) {
@@ -144,17 +150,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return FromAddress(object.ptr());
   }
 
-  V8_INLINE MemoryChunkMetadata* Metadata() {
-    // If this changes, we also need to update
-    // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return metadata_;
-  }
+  V8_INLINE MemoryChunkMetadata* Metadata();
 
-  V8_INLINE const MemoryChunkMetadata* Metadata() const {
-    // If this changes, we also need to update
-    // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return metadata_;
-  }
+  V8_INLINE const MemoryChunkMetadata* Metadata() const;
 
   V8_INLINE bool IsFlagSet(Flag flag) const {
     return main_thread_flags_ & flag;
@@ -180,22 +178,40 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return GetFlags() & kYoungOrSharedChunkMask;
   }
 
+  void SetFlagSlow(Flag flag);
+  void ClearFlagSlow(Flag flag);
+
   V8_INLINE MainThreadFlags GetFlags() const { return main_thread_flags_; }
-  V8_INLINE void SetFlag(Flag flag) { main_thread_flags_ |= flag; }
-  V8_INLINE void ClearFlag(Flag flag) {
+
+  V8_INLINE void SetFlagUnlocked(Flag flag) { main_thread_flags_ |= flag; }
+  V8_INLINE void ClearFlagUnlocked(Flag flag) {
     main_thread_flags_ = main_thread_flags_.without(flag);
   }
   // Set or clear multiple flags at a time. `mask` indicates which flags are
   // should be replaced with new `flags`.
-  V8_INLINE void ClearFlags(MainThreadFlags flags) {
+  V8_INLINE void ClearFlagsUnlocked(MainThreadFlags flags) {
     main_thread_flags_ &= ~flags;
   }
-  V8_INLINE void SetFlags(MainThreadFlags flags,
-                          MainThreadFlags mask = kAllFlagsMask) {
+  V8_INLINE void SetFlagsUnlocked(MainThreadFlags flags,
+                                  MainThreadFlags mask = kAllFlagsMask) {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
-  Heap* GetHeap();
+  V8_INLINE void SetFlagNonExecutable(Flag flag) {
+    return SetFlagUnlocked(flag);
+  }
+  V8_INLINE void ClearFlagNonExecutable(Flag flag) {
+    return ClearFlagUnlocked(flag);
+  }
+  V8_INLINE void SetFlagsNonExecutable(MainThreadFlags flags,
+                                       MainThreadFlags mask = kAllFlagsMask) {
+    return SetFlagsUnlocked(flags, mask);
+  }
+  V8_INLINE void ClearFlagsNonExecutable(MainThreadFlags flags) {
+    return ClearFlagsUnlocked(flags);
+  }
+
+  V8_INLINE Heap* GetHeap();
 
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::SynchronizedLoad() to simulate the barrier.
@@ -213,7 +229,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE bool InTrustedSpace() const { return IsFlagSet(IS_TRUSTED); }
 
   bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
-  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
+  void MarkNeverEvacuate() { SetFlagSlow(NEVER_EVACUATE); }
 
   bool CanAllocate() const {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
@@ -247,6 +263,14 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return (address & kAlignmentMask) == 0;
   }
 
+  static MainThreadFlags OldGenerationPageFlags(MarkingMode marking_mode,
+                                                bool in_shared_space);
+  static MainThreadFlags YoungGenerationPageFlags(MarkingMode marking_mode);
+
+  void SetOldGenerationPageFlags(MarkingMode marking_mode,
+                                 bool in_shared_space);
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
+
 #ifdef DEBUG
   bool IsTrusted() const;
 #else
@@ -268,8 +292,16 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
 #ifdef DEBUG
   size_t Offset(Address addr) const;
+  // RememberedSetOperations take an offset to an end address that can be behind
+  // the allocated memory.
+  size_t OffsetMaybeOutOfRange(Address addr) const;
 #else
   size_t Offset(Address addr) const { return addr - address(); }
+  size_t OffsetMaybeOutOfRange(Address addr) const { return Offset(addr); }
+#endif
+
+#ifdef V8_ENABLE_SANDBOX
+  static void ClearMetadataPointer(MemoryChunkMetadata* metadata);
 #endif
 
  private:
@@ -277,11 +309,60 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   // component (e.g. marker, sweeper, compilation, allocation) is running.
   MainThreadFlags main_thread_flags_;
 
+#ifdef V8_ENABLE_SANDBOX
+  uint32_t metadata_index_;
+#else
   MemoryChunkMetadata* metadata_;
+#endif
 
   static constexpr intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
   static constexpr intptr_t kAlignmentMask = kAlignment - 1;
+
+#ifdef V8_ENABLE_SANDBOX
+#ifndef V8_EXTERNAL_CODE_SPACE
+#error The global metadata pointer table requires a single external code space.
+#endif
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+#error The global metadata pointer table is incompatible with third party heap.
+#endif
+
+  static constexpr size_t kPagesInMainCage =
+      kPtrComprCageReservationSize / kRegularPageSize;
+  static constexpr size_t kPagesInCodeCage =
+      kMaximalCodeRangeSize / kRegularPageSize;
+  static constexpr size_t kPagesInTrustedCage =
+      kMaximalTrustedRangeSize / kRegularPageSize;
+
+  static constexpr size_t kMainCageMetadataOffset = 0;
+  static constexpr size_t kTrustedSpaceMetadataOffset =
+      kMainCageMetadataOffset + kPagesInMainCage;
+  static constexpr size_t kCodeRangeMetadataOffset =
+      kTrustedSpaceMetadataOffset + kPagesInTrustedCage;
+
+  static constexpr size_t kMetadataPointerTableSizeLog2 = base::bits::BitWidth(
+      kPagesInMainCage + kPagesInCodeCage + kPagesInTrustedCage);
+  static constexpr size_t kMetadataPointerTableSize =
+      1 << kMetadataPointerTableSizeLog2;
+  static constexpr size_t kMetadataPointerTableSizeMask =
+      kMetadataPointerTableSize - 1;
+
+  static MemoryChunkMetadata*
+      metadata_pointer_table_[kMetadataPointerTableSize];
+
+  V8_INLINE static MemoryChunkMetadata* FromIndex(uint32_t index);
+  static uint32_t MetadataTableIndex(Address chunk_address);
+
+  V8_INLINE static Address MetadataTableAddress() {
+    return reinterpret_cast<Address>(metadata_pointer_table_);
+  }
+
+  // For access to the kMetadataPointerTableSizeMask;
+  friend class CodeStubAssembler;
+  // For access to the MetadataTableAddress;
+  friend class ExternalReference;
+
+#endif  // V8_ENABLE_SANDBOX
 
   friend class BasicMemoryChunkValidator;
 };

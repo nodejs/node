@@ -17,6 +17,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -771,6 +772,24 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       ObjectPair result = UnsafeGenericFunctionCall(
           external, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
           arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);
+#ifdef V8_USE_MEMORY_SANITIZER
+      // `UnsafeGenericFunctionCall()` dispatches calls to functions with
+      // varying signatures and relies on the fact that the mismatched prototype
+      // used by the caller and the prototype used by the callee (defined using
+      // the `RUNTIME_FUNCTION*()` macros happen to line up so that things more
+      // or less work out [1].
+      //
+      // Unfortunately, this confuses MSan's uninit tracking with eager checks
+      // enabled; it's unclear if these are all false positives or if there are
+      // legitimate reports. For now, unconditionally unpoison `result` to
+      // unblock finding and fixing more violations with MSan eager checks.
+      //
+      // TODO(crbug.com/v8/14712): Fix the MSan violations and migrate to
+      // something like crrev.com/c/5422076 instead.
+      //
+      // [1] Yes, this is undefined behaviour. 🙈🙉🙊
+      MSAN_MEMORY_IS_INITIALIZED(&result, sizeof(result));
+#endif
       TraceSim("Returned: {%p, %p}\n", reinterpret_cast<void*>(result.x),
                reinterpret_cast<void*>(result.y));
 #ifdef DEBUG
@@ -1077,6 +1096,32 @@ void Simulator::AddSubWithCarry(Instruction* instr) {
                             nzcv().C());
 
   set_reg<T>(instr->Rd(), new_val);
+}
+
+sim_uint128_t Simulator::PolynomialMult128(uint64_t op1, uint64_t op2,
+                                           int lane_size_in_bits) const {
+  DCHECK_LE(static_cast<unsigned>(lane_size_in_bits), kDRegSizeInBits);
+  sim_uint128_t result = std::make_pair(0, 0);
+  sim_uint128_t op2q = std::make_pair(0, op2);
+  for (int i = 0; i < lane_size_in_bits; i++) {
+    if ((op1 >> i) & 1) {
+      result = Eor128(result, Lsl128(op2q, i));
+    }
+  }
+  return result;
+}
+
+sim_uint128_t Simulator::Lsl128(sim_uint128_t x, unsigned shift) const {
+  DCHECK_LE(shift, 64);
+  if (shift == 0) return x;
+  if (shift == 64) return std::make_pair(x.second, 0);
+  uint64_t lo = x.second << shift;
+  uint64_t hi = (x.first << shift) | (x.second >> (64 - shift));
+  return std::make_pair(hi, lo);
+}
+
+sim_uint128_t Simulator::Eor128(sim_uint128_t x, sim_uint128_t y) const {
+  return std::make_pair(x.first ^ y.first, x.second ^ y.second);
 }
 
 template <typename T>
@@ -3715,6 +3760,7 @@ void Simulator::VisitSystem(Instruction* instr) {
     DCHECK(instr->Mask(SystemHintMask) == HINT);
     switch (instr->ImmHint()) {
       case NOP:
+      case YIELD:
       case CSDB:
       case BTI_jc:
       case BTI:
@@ -4777,13 +4823,24 @@ void Simulator::VisitNEON3Different(Instruction* instr) {
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
   SimVRegister& rm = vreg(instr->Rm());
+  int size = instr->NEONSize();
 
   switch (instr->Mask(NEON3DifferentMask)) {
     case NEON_PMULL:
-      pmull(vf_l, rd, rn, rm);
+      if ((size == 1) || (size == 2)) {  // S/D reserved.
+        VisitUnallocated(instr);
+      } else {
+        if (size == 3) vf_l = kFormat1Q;
+        pmull(vf_l, rd, rn, rm);
+      }
       break;
     case NEON_PMULL2:
-      pmull2(vf_l, rd, rn, rm);
+      if ((size == 1) || (size == 2)) {  // S/D reserved.
+        VisitUnallocated(instr);
+      } else {
+        if (size == 3) vf_l = kFormat1Q;
+        pmull2(vf_l, rd, rn, rm);
+      }
       break;
     case NEON_UADDL:
       uaddl(vf_l, rd, rn, rm);

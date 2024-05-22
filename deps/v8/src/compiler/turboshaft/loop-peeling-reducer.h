@@ -37,7 +37,7 @@ class LoopPeelingReducer : public Next {
       !reducer_list_contains<ReducerList, LoopUnrollingReducer>::value);
 #endif
 
-  OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_idx, const GotoOp& gto) {
+  V<None> REDUCE_INPUT_GRAPH(Goto)(V<None> ig_idx, const GotoOp& gto) {
     // Note that the "ShouldSkipOptimizationStep" is placed in the part of
     // this Reduce method triggering the peeling rather than at the begining.
     // This is because the backedge skipping is not an optimization but a
@@ -48,11 +48,11 @@ class LoopPeelingReducer : public Next {
     if (dst->IsLoop() && !gto.is_backedge && CanPeelLoop(dst)) {
       if (ShouldSkipOptimizationStep()) goto no_change;
       PeelFirstIteration(dst);
-      return OpIndex::Invalid();
+      return {};
     } else if (IsPeeling() && dst == current_loop_header_) {
       // We skip the backedge of the loop: PeelFirstIeration will instead emit a
       // forward edge to the non-peeled header.
-      return OpIndex::Invalid();
+      return {};
     }
 
     goto no_change;
@@ -61,14 +61,15 @@ class LoopPeelingReducer : public Next {
   // TODO(dmercadier): remove once StackCheckOp are kept in the pipeline until
   // the very end (which should happen when we have a SimplifiedLowering in
   // Turboshaft).
-  OpIndex REDUCE_INPUT_GRAPH(Call)(OpIndex ig_idx, const CallOp& call) {
+  V<AnyOrNone> REDUCE_INPUT_GRAPH(Call)(V<AnyOrNone> ig_idx,
+                                        const CallOp& call) {
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     if (IsPeeling() && call.IsStackCheck(__ input_graph(), broker_,
                                          StackCheckKind::kJSIterationBody)) {
       // We remove the stack check of the peeled iteration.
-      return OpIndex::Invalid();
+      return {};
     }
 
     goto no_change;

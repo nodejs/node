@@ -36,7 +36,7 @@ class MarkBit final {
   inline bool Set();
 
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  inline bool Get();
+  inline bool Get() const;
 
   // The function returns true if it succeeded to
   // transition the bit from 1 to 0. Only works in non-atomic contexts.
@@ -47,6 +47,9 @@ class MarkBit final {
     return cell_ == other.cell_ && mask_ == other.mask_;
   }
 #endif
+
+  const CellType* CellAddress() const { return cell_; }
+  CellType Mask() const { return mask_; }
 
  private:
   inline MarkBit(CellType* cell, CellType mask) : cell_(cell), mask_(mask) {}
@@ -71,12 +74,12 @@ inline bool MarkBit::Set<AccessMode::ATOMIC>() {
 }
 
 template <>
-inline bool MarkBit::Get<AccessMode::NON_ATOMIC>() {
+inline bool MarkBit::Get<AccessMode::NON_ATOMIC>() const {
   return (*cell_ & mask_) != 0;
 }
 
 template <>
-inline bool MarkBit::Get<AccessMode::ATOMIC>() {
+inline bool MarkBit::Get<AccessMode::ATOMIC>() const {
   return (base::AsAtomicWord::Acquire_Load(cell_) & mask_) != 0;
 }
 

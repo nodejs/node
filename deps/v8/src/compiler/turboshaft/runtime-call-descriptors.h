@@ -101,6 +101,16 @@ struct RuntimeCallDescriptor {
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
+  struct HandleNoHeapWritesInterrupts
+      : public Descriptor<HandleNoHeapWritesInterrupts> {
+    static constexpr auto kFunction = Runtime::kHandleNoHeapWritesInterrupts;
+    using arguments_t = std::tuple<>;
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoWrite;
+  };
+
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto kFunction = Runtime::kStringCharCodeAt;
     using arguments_t = std::tuple<V<String>, V<Number>>;
@@ -150,6 +160,19 @@ struct RuntimeCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct ThrowAccessedUninitializedVariable
+      : public Descriptor<ThrowAccessedUninitializedVariable> {
+    static constexpr auto kFunction =
+        Runtime::kThrowAccessedUninitializedVariable;
+    using arguments_t = std::tuple<V<Object>>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 };
 

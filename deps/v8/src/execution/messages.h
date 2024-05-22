@@ -14,6 +14,7 @@
 
 #include "include/v8-local-handle.h"
 #include "src/base/optional.h"
+#include "src/base/vector.h"
 #include "src/common/message-template.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
@@ -85,8 +86,14 @@ class ErrorUtils : public AllStatic {
       Handle<Object> message, Handle<Object> options, FrameSkipMode mode,
       Handle<Object> caller, StackTraceCollection stack_trace_collection);
 
-  V8_EXPORT_PRIVATE static MaybeHandle<String> ToString(Isolate* isolate,
-                                                        Handle<Object> recv);
+  enum class ToStringMessageSource {
+    kPreferOriginalMessage,
+    kCurrentMessageProperty
+  };
+  V8_EXPORT_PRIVATE static MaybeHandle<String> ToString(
+      Isolate* isolate, Handle<Object> recv,
+      ToStringMessageSource message_source =
+          ToStringMessageSource::kCurrentMessageProperty);
 
   static Handle<JSObject> MakeGenericError(
       Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
@@ -176,7 +183,7 @@ class MessageHandler {
   static void ReportMessageNoExceptions(Isolate* isolate,
                                         const MessageLocation* loc,
                                         Handle<Object> message_obj,
-                                        v8::Local<v8::Value> api_exception_obj);
+                                        Local<Value> api_exception_obj);
 };
 
 }  // namespace internal

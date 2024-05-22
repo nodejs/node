@@ -73,6 +73,11 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_ATOMICS)
   features |= 1u << LSE;
 #endif
+// There is no __ARM_FEATURE_PMULL macro; instead, __ARM_FEATURE_AES
+// covers the FEAT_PMULL feature too.
+#if defined(__ARM_FEATURE_AES)
+  features |= 1u << PMULL1Q;
+#endif
   return features;
 }
 
@@ -84,6 +89,7 @@ constexpr unsigned CpuFeaturesFromTargetOS() {
   features |= 1u << JSCVT;
   features |= 1u << DOTPROD;
   features |= 1u << LSE;
+  features |= 1u << PMULL1Q;
 #endif
   return features;
 }
@@ -120,6 +126,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_lse()) {
     runtime |= 1u << LSE;
+  }
+  if (cpu.has_pmull1q()) {
+    runtime |= 1u << PMULL1Q;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -1657,8 +1666,6 @@ void Assembler::NEON3DifferentHN(const VRegister& vd, const VRegister& vn,
 }
 
 #define NEON_3DIFF_LONG_LIST(V)                                                \
-  V(pmull, NEON_PMULL, vn.IsVector() && vn.Is8B())                             \
-  V(pmull2, NEON_PMULL2, vn.IsVector() && vn.Is16B())                          \
   V(saddl, NEON_SADDL, vn.IsVector() && vn.IsD())                              \
   V(saddl2, NEON_SADDL2, vn.IsVector() && vn.IsQ())                            \
   V(sabal, NEON_SABAL, vn.IsVector() && vn.IsD())                              \
@@ -4171,6 +4178,22 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
       Emit(LoadStorePostIndexFixed | memop | ImmLS(offset));
     }
   }
+}
+
+void Assembler::pmull(const VRegister& vd, const VRegister& vn,
+                      const VRegister& vm) {
+  DCHECK(AreSameFormat(vn, vm));
+  DCHECK((vn.Is8B() && vd.Is8H()) || (vn.Is1D() && vd.Is1Q()));
+  DCHECK(IsEnabled(PMULL1Q) || vd.Is8H());
+  Emit(VFormat(vn) | NEON_PMULL | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::pmull2(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm) {
+  DCHECK(AreSameFormat(vn, vm));
+  DCHECK((vn.Is16B() && vd.Is8H()) || (vn.Is2D() && vd.Is1Q()));
+  DCHECK(IsEnabled(PMULL1Q) || vd.Is8H());
+  Emit(VFormat(vn) | NEON_PMULL2 | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {

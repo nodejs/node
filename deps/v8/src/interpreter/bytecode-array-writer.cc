@@ -341,6 +341,8 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
       return Bytecode::kJumpIfUndefinedOrNullConstant;
     case Bytecode::kJumpIfJSReceiver:
       return Bytecode::kJumpIfJSReceiverConstant;
+    case Bytecode::kJumpIfForInDone:
+      return Bytecode::kJumpIfForInDoneConstant;
     default:
       UNREACHABLE();
   }
@@ -510,7 +512,8 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
   unbound_jumps_++;
   label->set_referrer(current_offset);
   OperandSize reserved_operand_size =
-      constant_array_builder()->CreateReservedEntry();
+      constant_array_builder()->CreateReservedEntry(
+          static_cast<OperandSize>(node->operand_scale()));
   DCHECK_NE(Bytecode::kJumpLoop, node->bytecode());
   switch (reserved_operand_size) {
     case OperandSize::kNone:

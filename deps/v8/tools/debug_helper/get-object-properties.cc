@@ -364,32 +364,13 @@ class ReadStringVisitor : public TqObjectVisitor {
 
   template <typename TChar>
   void ReadExternalString(const TqExternalString* object) {
-    // Cached external strings are easy to read; uncached external strings
-    // require knowledge of the embedder. For now, we only read cached external
-    // strings.
-    if (IsExternalStringCached(object)) {
+    // Cached external strings are easy to read if the sandbox is disabled;
+    // uncached external strings require knowledge of the embedder. For now, we
+    // only read cached external strings.
+    if (!V8_ENABLE_SANDBOX_BOOL && IsExternalStringCached(object)) {
       ExternalPointer_t resource_data =
           GetOrFinish(object->GetResourceDataValue(accessor_));
-#ifdef V8_ENABLE_SANDBOX
-      Address memory_chunk =
-          MemoryChunk::FromAddress(object->GetMapAddress())->address();
-      Address heap = GetOrFinish(
-          ReadValue<Address>(memory_chunk + MemoryChunkLayout::kHeapOffset));
-      Isolate* isolate = Isolate::FromHeap(reinterpret_cast<Heap*>(heap));
-      Address external_pointer_table_address_address =
-          isolate->shared_external_pointer_table_address_address();
-      Address external_pointer_table_address = GetOrFinish(
-          ReadValue<Address>(external_pointer_table_address_address));
-      Address external_pointer_table =
-          GetOrFinish(ReadValue<Address>(external_pointer_table_address));
-      int32_t index =
-          static_cast<int32_t>(resource_data >> kExternalPointerIndexShift);
-      Address tagged_data =
-          GetOrFinish(ReadValue<Address>(external_pointer_table, index));
-      Address data_address = tagged_data & ~kExternalStringResourceDataTag;
-#else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
-#endif  // V8_ENABLE_SANDBOX
       if (done_) return;
       ReadStringCharacters<TChar>(object, data_address);
     } else {

@@ -337,8 +337,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             CHECK(
                 WasmExportedFunction::IsWasmExportedFunction(*function_result));
             CHECK(*WasmInternalFunction::GetOrCreateExternal(handle(
-                      WasmFuncRef::cast(*global_val)->internal(), i_isolate)) ==
-                  *function_result);
+                      WasmFuncRef::cast(*global_val)->internal(i_isolate),
+                      i_isolate)) == *function_result);
           } else {
             // On arrays and structs, perform a deep comparison.
             DisallowGarbageCollection no_gc;

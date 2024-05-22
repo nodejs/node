@@ -106,7 +106,8 @@ template <Bytecode bytecode, OperandType operand_type, size_t i>
 void UpdateInLivenessForOutOperand(
     BytecodeLivenessState* in_liveness,
     const interpreter::BytecodeArrayIterator& iterator) {
-  if constexpr (operand_type == OperandType::kRegOut) {
+  if constexpr (operand_type == OperandType::kRegOut ||
+                operand_type == OperandType::kRegInOut) {
     Register r = iterator.GetRegisterOperand(i);
     if (!r.is_parameter()) {
       in_liveness->MarkRegisterDead(r.index());
@@ -145,7 +146,8 @@ template <Bytecode bytecode, OperandType operand_type, size_t i>
 void UpdateInLivenessForInOperand(
     BytecodeLivenessState* in_liveness,
     const interpreter::BytecodeArrayIterator& iterator) {
-  if constexpr (operand_type == OperandType::kReg) {
+  if constexpr (operand_type == OperandType::kReg ||
+                operand_type == OperandType::kRegInOut) {
     Register r = iterator.GetRegisterOperand(i);
     if (!r.is_parameter()) {
       in_liveness->MarkRegisterLive(r.index());
@@ -435,6 +437,7 @@ void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments* assignments,
 
   for (int i = 0; i < num_operands; ++i) {
     switch (operand_types[i]) {
+      case OperandType::kRegInOut:
       case OperandType::kRegOut: {
         assignments->Add(iterator.GetRegisterOperand(i));
         break;

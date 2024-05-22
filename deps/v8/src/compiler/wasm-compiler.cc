@@ -98,6 +98,12 @@ MachineType assert_size(int expected_size, MachineType type) {
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstanceData(), \
       wasm::ObjectAccess::ToTagged(WasmTrustedInstanceData::k##name##Offset))
 
+#define LOAD_PROTECTED_INSTANCE_FIELD(name) \
+  gasm_->LoadProtectedPointerFromObject(    \
+      GetInstanceData(),                    \
+      wasm::ObjectAccess::ToTagged(         \
+          WasmTrustedInstanceData::kProtected##name##Offset));
+
 #define LOAD_INSTANCE_FIELD_NO_ELIMINATION(name, type)                       \
   gasm_->Load(                                                               \
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstanceData(), \
@@ -2869,26 +2875,25 @@ Node* WasmGraphBuilder::BuildImportCall(
     base::Vector<Node*> rets, wasm::WasmCodePosition position, Node* func_index,
     IsReturnCall continuation, Node* frame_state) {
   // Load the imported function refs array from the instance.
-  Node* imported_function_refs = gasm_->LoadProtectedPointerFromObject(
-      GetInstanceData(),
-      wasm::ObjectAccess::ToTagged(
-          WasmTrustedInstanceData::kImportedFunctionRefsOffset));
+  Node* dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(DispatchTableForImports);
   // Access fixed array at {header_size - tag + func_index * kTaggedSize}.
   Node* func_index_intptr = gasm_->BuildChangeUint32ToUintPtr(func_index);
-  Node* ref = gasm_->LoadProtectedFixedArrayElement(imported_function_refs,
-                                                    func_index_intptr);
+  Node* dispatch_table_entry_offset = gasm_->IntMul(
+      func_index_intptr, gasm_->IntPtrConstant(WasmDispatchTable::kEntrySize));
+  Node* ref = gasm_->LoadProtectedPointerFromObject(
+      dispatch_table,
+      gasm_->IntAdd(dispatch_table_entry_offset,
+                    gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                        WasmDispatchTable::kEntriesOffset +
+                        WasmDispatchTable::kRefBias))));
 
-  // Load the target from the imported_targets array at the offset of
-  // {func_index}.
-  Node* offset = gasm_->IntAdd(
-      gasm_->IntMul(func_index_intptr,
-                    gasm_->IntPtrConstant(kSystemPointerSize)),
-      gasm_->IntPtrConstant(
-          wasm::ObjectAccess::ToTagged(FixedAddressArray::kHeaderSize)));
-  Node* imported_targets = LOAD_INSTANCE_FIELD(ImportedFunctionTargets,
-                                               MachineType::TaggedPointer());
-  Node* target = gasm_->LoadImmutableFromObject(MachineType::Pointer(),
-                                                imported_targets, offset);
+  Node* target = gasm_->LoadFromObject(
+      MachineType::Pointer(), dispatch_table,
+      gasm_->IntAdd(dispatch_table_entry_offset,
+                    gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                        WasmDispatchTable::kEntriesOffset +
+                        WasmDispatchTable::kTargetBias))));
+
   args[0] = target;
 
   switch (continuation) {
@@ -2939,13 +2944,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // Load the dispatch table.
   Node* dispatch_table;
   if (table_index == 0) {
-    dispatch_table = gasm_->LoadProtectedPointerFromObject(
-        GetInstanceData(), wasm::ObjectAccess::ToTagged(
-                               WasmTrustedInstanceData::kDispatchTable0Offset));
+    dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(DispatchTable0);
   } else {
-    Node* dispatch_tables = gasm_->LoadProtectedPointerFromObject(
-        GetInstanceData(), wasm::ObjectAccess::ToTagged(
-                               WasmTrustedInstanceData::kDispatchTablesOffset));
+    Node* dispatch_tables = LOAD_PROTECTED_INSTANCE_FIELD(DispatchTables);
     dispatch_table = gasm_->LoadProtectedPointerFromObject(
         dispatch_tables,
         wasm::ObjectAccess::ToTagged(
@@ -3080,43 +3081,18 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   }
 }
 
-Node* WasmGraphBuilder::BuildLoadCodeEntrypointViaCodePointer(Node* object,
-                                                              int offset) {
-#ifdef V8_ENABLE_SANDBOX
-  // In this case we can take a shortcut: the entrypoint is stored alongside
-  // the pointer to the Code object in the code pointer table (CPT), so we
-  // don't have to access the Code object at all.
-  Node* handle = gasm_->LoadFromObject(MachineType::Uint32(), object,
-                                       wasm::ObjectAccess::ToTagged(offset));
-  Node* index =
-      gasm_->Word32Shr(handle, gasm_->Int32Constant(kCodePointerHandleShift));
-  Node* table_offset = gasm_->ChangeUint32ToUint64(gasm_->Word32Shl(
-      index, gasm_->Int32Constant(kCodePointerTableEntrySizeLog2)));
-  Node* table =
-      gasm_->ExternalConstant(ExternalReference::code_pointer_table_address());
-
-  Node* entry = gasm_->Load(MachineType::Pointer(), table, table_offset);
-  return gasm_->WordXor(entry, gasm_->IntPtrConstant(kWasmEntrypointTag));
-#else
-  // In this case we have to load the Code object, then load its entrypoint.
-  Node* code_object =
-      gasm_->LoadImmutableFromObject(MachineType::TaggedPointer(), object,
-                                     wasm::ObjectAccess::ToTagged(offset));
-  return gasm_->LoadFromObject(
-      MachineType::Pointer(), code_object,
-      wasm::ObjectAccess::ToTagged(Code::kInstructionStartOffset));
-#endif
-}
-
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
-    Node* function) {
-  Node* internal = gasm_->LoadFromObject(
-      MachineType::TaggedPointer(), function,
-      wasm::ObjectAccess::ToTagged(WasmExportedFunctionData::kInternalOffset));
-  // TODO(saelo): should this become a CodePointer instead?
-  return gasm_->BuildLoadExternalPointerFromObject(
-      internal, WasmInternalFunction::kCallTargetOffset,
-      kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
+    Node* function_data) {
+  Node* func_ref = gasm_->LoadImmutableFromObject(
+      MachineType::TaggedPointer(), function_data,
+      wasm::ObjectAccess::ToTagged(WasmExportedFunctionData::kFuncRefOffset));
+  Node* internal = gasm_->LoadTrustedPointerFromObject(
+      func_ref,
+      wasm::ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
+      kWasmInternalFunctionIndirectPointerTag);
+  return gasm_->LoadFromObject(
+      MachineType::Pointer(), internal,
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
 }
 
 // TODO(9495): Support CAPI function refs.
@@ -3133,45 +3109,33 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
         AssertNotNull(func_ref, wasm::kWasmFuncRef /* good enough */, position);
   }
 
-  auto end_label = gasm_->MakeLabel(MachineType::PointerRepresentation());
-
   Node* internal_function;
   if (null_check == kWithNullCheck &&
       null_check_strategy_ == NullCheckStrategy::kTrapHandler) {
     // TODO(14564): Move WasmInternalFunction to trusted space and make
     // this a load of a trusted (immutable) pointer.
-    internal_function = gasm_->LoadTrapOnNull(
-        MachineType::TaggedPointer(), func_ref,
-        gasm_->IntPtrConstant(
-            wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset)));
-    SetSourcePosition(internal_function, position);
+    Node* load;
+    std::tie(load, internal_function) =
+        gasm_->LoadTrustedPointerFromObjectTrapOnNull(
+            func_ref,
+            wasm::ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
+            kWasmInternalFunctionIndirectPointerTag);
+    SetSourcePosition(load, position);
   } else {
-    internal_function = gasm_->LoadImmutableFromObject(
-        MachineType::TaggedPointer(), func_ref,
-        gasm_->IntPtrConstant(
-            wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset)));
+    internal_function = gasm_->LoadTrustedPointerFromObject(
+        func_ref,
+        wasm::ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
+        kWasmInternalFunctionIndirectPointerTag);
   }
 
-  Node* ref = gasm_->LoadTrustedPointerFromObject(
+  Node* ref = gasm_->LoadProtectedPointerFromObject(
       internal_function,
-      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kIndirectRefOffset),
-      kUnknownIndirectPointerTag);
-  Node* target = gasm_->BuildLoadExternalPointerFromObject(
-      internal_function, WasmInternalFunction::kCallTargetOffset,
-      kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
-  Node* is_null_target = gasm_->WordEqual(target, gasm_->IntPtrConstant(0));
-  gasm_->GotoIfNot(is_null_target, &end_label, target);
-  {
-    // Compute the call target from the (on-heap) wrapper code. The cached
-    // target can only be null for WasmJSFunctions.
-    Node* call_target = BuildLoadCodeEntrypointViaCodePointer(
-        internal_function, WasmInternalFunction::kCodeOffset);
-    gasm_->Goto(&end_label, call_target);
-  }
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kProtectedRefOffset));
+  Node* target = gasm_->LoadFromObject(
+      MachineType::Pointer(), internal_function,
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
 
-  gasm_->Bind(&end_label);
-
-  args[0] = end_label.PhiAt(0);
+  args[0] = target;
 
   Node* call = continuation == kCallContinues
                    ? BuildWasmCall(sig, args, rets, position, ref)
@@ -3418,10 +3382,14 @@ Node* WasmGraphBuilder::LoadMemStart(uint32_t mem_index) {
                                               MachineType::Pointer());
   }
   Node* memory_bases_and_sizes =
-      LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+      LOAD_PROTECTED_INSTANCE_FIELD(MemoryBasesAndSizes);
+  // Use {LoadByteArrayElement} even though it's a trusted array; their layout
+  // is the same.
+  static_assert(FixedAddressArray::OffsetOfElementAt(0) ==
+                TrustedFixedAddressArray::OffsetOfElementAt(0));
   return gasm_->LoadByteArrayElement(memory_bases_and_sizes,
                                      gasm_->IntPtrConstant(2 * mem_index),
-                                     kMaybeSandboxedPointer);
+                                     MachineType::Pointer());
 }
 
 Node* WasmGraphBuilder::LoadMemSize(uint32_t mem_index) {
@@ -3434,7 +3402,11 @@ Node* WasmGraphBuilder::LoadMemSize(uint32_t mem_index) {
         mem_type);
   }
   Node* memory_bases_and_sizes =
-      LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+      LOAD_PROTECTED_INSTANCE_FIELD(MemoryBasesAndSizes);
+  // Use {LoadByteArrayElement} even though it's a trusted array; their layout
+  // is the same.
+  static_assert(FixedAddressArray::OffsetOfElementAt(0) ==
+                TrustedFixedAddressArray::OffsetOfElementAt(0));
   return SetType(
       gasm_->LoadByteArrayElement(memory_bases_and_sizes,
                                   gasm_->IntPtrConstant(2 * mem_index + 1),
@@ -7182,9 +7154,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
               // Function reference. Extract the external function.
               auto done =
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-              Node* internal = gasm_->LoadFromObject(
-                  MachineType::TaggedPointer(), node,
-                  wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset));
+              Node* internal = gasm_->LoadTrustedPointerFromObject(
+                  node,
+                  wasm::ObjectAccess::ToTagged(
+                      WasmFuncRef::kTrustedInternalOffset),
+                  kWasmInternalFunctionIndirectPointerTag);
               Node* maybe_external = gasm_->LoadFromObject(
                   MachineType::TaggedPointer(), internal,
                   wasm::ObjectAccess::ToTagged(
@@ -7234,9 +7208,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
               auto null_label = gasm_->MakeLabel();
               gasm_->GotoIf(IsNull(node, type), &null_label);
-              Node* internal = gasm_->LoadFromObject(
-                  MachineType::TaggedPointer(), node,
-                  wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset));
+              Node* internal = gasm_->LoadTrustedPointerFromObject(
+                  node,
+                  wasm::ObjectAccess::ToTagged(
+                      WasmFuncRef::kTrustedInternalOffset),
+                  kWasmInternalFunctionIndirectPointerTag);
               Node* maybe_external = gasm_->LoadFromObject(
                   MachineType::TaggedPointer(), internal,
                   wasm::ObjectAccess::ToTagged(
@@ -7325,6 +7301,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           // TODO(14034): Add more fast paths?
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kNoExtern:
+          case wasm::HeapType::kExn:
+          case wasm::HeapType::kNoExn:
             if (type.kind() == wasm::kRef) {
               Node* null_value = gasm_->LoadImmutable(
                   MachineType::Pointer(), gasm_->LoadRootRegister(),
@@ -7345,9 +7323,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             return input;
           case wasm::HeapType::kString:
             return BuildCheckString(input, js_context, type);
-          case wasm::HeapType::kExn:
-          case wasm::HeapType::kNoExn:
-            return input;
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kI31:
@@ -7533,17 +7508,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
-        Node* internal = gasm_->LoadFromObject(
+        Node* func_ref = gasm_->LoadImmutableFromObject(
             MachineType::TaggedPointer(), function_data,
-            wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
-        args[0] = gasm_->BuildLoadExternalPointerFromObject(
-            internal, WasmInternalFunction::kCallTargetOffset,
-            kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
-        Node* instance_data = gasm_->LoadTrustedPointerFromObject(
-            internal,
-            wasm::ObjectAccess::ToTagged(
-                WasmInternalFunction::kIndirectRefOffset),
-            kUnknownIndirectPointerTag);
+            wasm::ObjectAccess::ToTagged(WasmFunctionData::kFuncRefOffset));
+        Node* internal = gasm_->LoadTrustedPointerFromObject(
+            func_ref,
+            wasm::ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
+            kWasmInternalFunctionIndirectPointerTag);
+        args[0] =
+            gasm_->LoadFromObject(MachineType::Pointer(), internal,
+                                  wasm::ObjectAccess::ToTagged(
+                                      WasmInternalFunction::kCallTargetOffset));
+        Node* instance_data = gasm_->LoadProtectedPointerFromObject(
+            internal, wasm::ObjectAccess::ToTagged(
+                          WasmInternalFunction::kProtectedRefOffset));
         BuildWasmCall(sig_, base::VectorOf(args), base::VectorOf(rets),
                       wasm::kNoCodePosition, instance_data, frame_state);
       }
@@ -8440,8 +8418,10 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   if (v8_flags.turboshaft_wasm_wrappers) {
     return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
         isolate, sig,
-        wasm::WrapperCompilationInfo{.code_kind = CodeKind::JS_TO_WASM_FUNCTION,
-                                     .is_import = is_import},
+        wasm::WrapperCompilationInfo{
+            .code_kind = CodeKind::JS_TO_WASM_FUNCTION,
+            .stub_mode = StubCallMode::kCallBuiltinPointer,
+            .is_import = is_import},
         module, std::move(debug_name), WasmAssemblerOptions());
   } else {
     std::unique_ptr<Zone> zone = std::make_unique<Zone>(
@@ -8617,7 +8597,8 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
         env->module, sig,
         wasm::WrapperCompilationInfo{
             .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
-            .import_info = {kind, expected_arity, suspend}},
+            .stub_mode = StubCallMode::kCallWasmRuntimeStub,
+            .wasm_js_info = {kind, expected_arity, suspend}},
         func_name, WasmStubAssemblerOptions(), nullptr);
   };
   auto compile_with_turbofan = [&]() {
@@ -8672,30 +8653,45 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
                                            const wasm::FunctionSig* sig) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmCapiFunction");
-
-  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
-
-  SourcePositionTable* source_positions = nullptr;
-  MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
-
-  WasmWrapperGraphBuilder builder(
-      &zone, mcgraph, sig, native_module->module(),
-      WasmGraphBuilder::kWasmApiFunctionRefMode, nullptr, source_positions,
-      StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
-
-  builder.BuildCapiCallWrapper();
-
-  // Run the compiler pipeline to generate machine code.
-  CallDescriptor* call_descriptor =
-      GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmCapiFunction);
-  if (mcgraph->machine()->Is32()) {
-    call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
-  }
-
   const char* debug_name = "WasmCapiCall";
-  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION, debug_name,
-      WasmStubAssemblerOptions(), source_positions);
+
+  auto compile_with_turboshaft = [&]() {
+    return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
+        native_module->module(), sig,
+        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION,
+                                     StubCallMode::kCallWasmRuntimeStub,
+                                     {}},
+        debug_name, WasmStubAssemblerOptions(), nullptr);
+  };
+
+  auto compile_with_turbofan = [&]() {
+    Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME,
+              kCompressGraphZone);
+
+    SourcePositionTable* source_positions = nullptr;
+    MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
+
+    WasmWrapperGraphBuilder builder(
+        &zone, mcgraph, sig, native_module->module(),
+        WasmGraphBuilder::kWasmApiFunctionRefMode, nullptr, source_positions,
+        StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
+
+    builder.BuildCapiCallWrapper();
+
+    // Run the compiler pipeline to generate machine code.
+    CallDescriptor* call_descriptor =
+        GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmCapiFunction);
+    if (mcgraph->machine()->Is32()) {
+      call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
+    }
+
+    return Pipeline::GenerateCodeForWasmNativeStub(
+        call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION, debug_name,
+        WasmStubAssemblerOptions(), source_positions);
+  };
+  wasm::WasmCompilationResult result = v8_flags.turboshaft_wasm_wrappers
+                                           ? compile_with_turboshaft()
+                                           : compile_with_turbofan();
   wasm::WasmCode* published_code;
   {
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
@@ -8779,7 +8775,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
             isolate, sig,
             wasm::WrapperCompilationInfo{
                 .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
-                .import_info = {kind, expected_arity, suspend}},
+                .stub_mode = StubCallMode::kCallBuiltinPointer,
+                .wasm_js_info = {kind, expected_arity, suspend}},
             nullptr, std::move(name_buffer), WasmAssemblerOptions());
 
     // Compile the wrapper

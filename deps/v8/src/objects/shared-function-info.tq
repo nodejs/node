@@ -104,6 +104,15 @@ extern class SharedFunctionInfo extends HeapObject {
   padding: uint16;
 }
 
+// A wrapper around a SharedFunctionInfo in trusted space.
+// Can be useful in cases where a protected pointer reference to a
+// SharedFunctionInfo is required, for example because it is stored inside an
+// ProtectedFixedArray.
+@cppObjectDefinition
+extern class SharedFunctionInfoWrapper extends TrustedObject {
+  shared_info: SharedFunctionInfo;
+}
+
 const kDontAdaptArgumentsSentinel: constexpr int32
     generates 'kDontAdaptArgumentsSentinel';
 

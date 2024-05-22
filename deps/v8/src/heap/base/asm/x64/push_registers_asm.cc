@@ -22,7 +22,8 @@
 // on the stack and we push 232 bytes which maintains 16-byte stack alignment
 // at the call.
 // Source: https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
-asm(".globl PushAllRegistersAndIterateStack             \n"
+asm(".att_syntax                                        \n"
+    ".globl PushAllRegistersAndIterateStack             \n"
     "PushAllRegistersAndIterateStack:                   \n"
     // rbp is callee-saved. Maintain proper frame pointer for debugging.
     "  push %rbp                                        \n"

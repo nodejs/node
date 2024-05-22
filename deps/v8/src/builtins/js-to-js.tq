@@ -73,7 +73,8 @@ transitioning javascript builtin JSToJSWrapper(
     ...arguments): JSAny {
   const functionData =
       UnsafeCast<WasmFunctionData>(target.shared_function_info.function_data);
-  const ref = UnsafeCast<WasmApiFunctionRef>(functionData.internal.ref);
+  const ref =
+      UnsafeCast<WasmApiFunctionRef>(functionData.func_ref.internal.ref);
 
   const signaturePod = &ref.sig.bytes;
   const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(

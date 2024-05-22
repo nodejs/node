@@ -759,6 +759,8 @@ TEST(BackingStore_ReleaseAllocator_NullptrBackingStore) {
   CHECK(allocator_weak.expired());
 }
 
+START_ALLOW_USE_DEPRECATED()
+
 TEST(BackingStore_ReallocateExpand) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -829,6 +831,8 @@ TEST(BackingStore_ReallocateShared) {
       v8::BackingStore::Reallocate(isolate, std::move(backing_store), 10);
   CHECK(new_backing_store->IsShared());
 }
+
+END_ALLOW_USE_DEPRECATED()
 
 TEST(ArrayBuffer_Resizable) {
   FLAG_SCOPE(harmony_rab_gsab);

@@ -7,8 +7,10 @@
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/strings.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/property-descriptor.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
@@ -93,7 +95,9 @@ struct IndexedDebugProxy {
                                  bool make_map_non_extensible = true) {
     auto object_map = GetOrCreateDebugProxyMap(isolate, kId, &T::CreateTemplate,
                                                make_map_non_extensible);
-    auto object = isolate->factory()->NewJSObjectFromMap(object_map);
+    auto object = isolate->factory()->NewFastOrSlowJSObjectFromMap(
+        object_map, 0, AllocationType::kYoung,
+        DirectHandle<AllocationSite>::null(), NewJSObjectType::kAPIWrapper);
     object->SetEmbedderField(kProviderField, *provider);
     return object;
   }
@@ -137,18 +141,20 @@ struct IndexedDebugProxy {
     return GetProvider(GetHolder(info), GetIsolate(info));
   }
 
-  static void IndexedGetter(uint32_t index,
-                            const PropertyCallbackInfo<v8::Value>& info) {
+  static v8::Intercepted IndexedGetter(
+      uint32_t index, const PropertyCallbackInfo<v8::Value>& info) {
     auto isolate = GetIsolate(info);
     auto provider = GetProvider(info);
     if (index < T::Count(isolate, provider)) {
       auto value = T::Get(isolate, provider, index);
       info.GetReturnValue().Set(Utils::ToLocal(value));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedDescriptor(uint32_t index,
-                                const PropertyCallbackInfo<v8::Value>& info) {
+  static v8::Intercepted IndexedDescriptor(
+      uint32_t index, const PropertyCallbackInfo<v8::Value>& info) {
     auto isolate = GetIsolate(info);
     auto provider = GetProvider(info);
     if (index < T::Count(isolate, provider)) {
@@ -158,16 +164,20 @@ struct IndexedDebugProxy {
       descriptor.set_writable(false);
       descriptor.set_value(T::Get(isolate, provider, index));
       info.GetReturnValue().Set(Utils::ToLocal(descriptor.ToObject(isolate)));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedQuery(uint32_t index,
-                           const PropertyCallbackInfo<v8::Integer>& info) {
+  static v8::Intercepted IndexedQuery(
+      uint32_t index, const PropertyCallbackInfo<v8::Integer>& info) {
     if (index < T::Count(GetIsolate(info), GetProvider(info))) {
       info.GetReturnValue().Set(Integer::New(
           info.GetIsolate(),
           PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 
   static void IndexedEnumerator(const PropertyCallbackInfo<v8::Array>& info) {
@@ -237,19 +247,28 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     return {};
   }
 
-  static void NamedGetter(Local<v8::Name> name,
-                          const PropertyCallbackInfo<v8::Value>& info) {
-    if (auto index = FindName(name, info)) T::IndexedGetter(*index, info);
+  static v8::Intercepted NamedGetter(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
+    if (auto index = FindName(name, info)) {
+      return T::IndexedGetter(*index, info);
+    }
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedQuery(Local<v8::Name> name,
-                         const PropertyCallbackInfo<v8::Integer>& info) {
-    if (auto index = FindName(name, info)) T::IndexedQuery(*index, info);
+  static v8::Intercepted NamedQuery(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Integer>& info) {
+    if (auto index = FindName(name, info)) {
+      return T::IndexedQuery(*index, info);
+    }
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedDescriptor(Local<v8::Name> name,
-                              const PropertyCallbackInfo<v8::Value>& info) {
-    if (auto index = FindName(name, info)) T::IndexedDescriptor(*index, info);
+  static v8::Intercepted NamedDescriptor(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
+    if (auto index = FindName(name, info)) {
+      return T::IndexedDescriptor(*index, info);
+    }
+    return v8::Intercepted::kNo;
   }
 
   static void NamedEnumerator(const PropertyCallbackInfo<v8::Array>& info) {
@@ -280,7 +299,7 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
         instance->trusted_data(isolate), isolate};
     Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
         isolate, trusted_data, index);
-    Handle<WasmInternalFunction> internal_function{func_ref->internal(),
+    Handle<WasmInternalFunction> internal_function{func_ref->internal(isolate),
                                                    isolate};
     return WasmInternalFunction::GetOrCreateExternal(internal_function);
   }
@@ -534,7 +553,9 @@ class ContextProxyPrototype {
   static Handle<JSObject> Create(Isolate* isolate) {
     auto object_map =
         GetOrCreateDebugProxyMap(isolate, kContextProxy, &CreateTemplate);
-    return isolate->factory()->NewJSObjectFromMap(object_map);
+    return isolate->factory()->NewJSObjectFromMap(
+        object_map, AllocationType::kYoung,
+        DirectHandle<AllocationSite>::null(), NewJSObjectType::kAPIWrapper);
   }
 
  private:
@@ -573,15 +594,17 @@ class ContextProxyPrototype {
     return {};
   }
 
-  static void NamedGetter(Local<v8::Name> name,
-                          const PropertyCallbackInfo<v8::Value>& info) {
+  static v8::Intercepted NamedGetter(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
     auto name_string = Handle<String>::cast(Utils::OpenHandle(*name));
     auto isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
     auto receiver = Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
     Handle<Object> value;
     if (GetNamedProperty(isolate, receiver, name_string).ToHandle(&value)) {
       info.GetReturnValue().Set(Utils::ToLocal(value));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 };
 
@@ -953,16 +976,16 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref), module);
       } else if (IsWasmFuncRef(*ref)) {
         Handle<WasmInternalFunction> internal_fct{
-            WasmFuncRef::cast(*ref)->internal(), isolate};
+            WasmFuncRef::cast(*ref)->internal(isolate), isolate};
         v = WasmInternalFunction::GetOrCreateExternal(internal_fct);
         // If the module is not provided by the caller, retrieve it from the
         // instance object. If the function was created in JavaScript using
         // `new WebAssembly.Function(...)`, a module for name resolution is not
         // available.
         if (module_object.is_null() &&
-            IsWasmTrustedInstanceData(internal_fct->ref(isolate))) {
+            IsWasmTrustedInstanceData(internal_fct->ref())) {
           module_object =
-              handle(WasmTrustedInstanceData::cast(internal_fct->ref(isolate))
+              handle(WasmTrustedInstanceData::cast(internal_fct->ref())
                          ->module_object(),
                      isolate);
         }

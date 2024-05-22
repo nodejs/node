@@ -1391,6 +1391,9 @@
 
   # Slow TF compilation.
   'wasm/large-struct': [SKIP],
+
+  # Requires tier-up.
+  'regress/wasm/regress-334687959': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -1441,6 +1444,7 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/speculative-inlining': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
+  'regress/wasm/regress-334687959': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -1755,7 +1759,6 @@
   # These tests rely on allocation site tracking which only works in the young generation.
   'array-constructor-feedback': [SKIP],
   'wasm/generic-wrapper': [SKIP],
-  'wasm/stack-switching-export': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-crbug-1151890': [SKIP],
   'regress/regress-crbug-1163184': [SKIP],
@@ -1776,6 +1779,8 @@
   # These tests use %SimulateNewspaceFull, which only works in the young generation
   'regress/regress-1424415': [SKIP],
   'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-conditional': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
   'wasm/stack-switching-generic-wrapper': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
 
@@ -1932,8 +1937,9 @@
 
 ##############################################################################
 ['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm) or (simulator_run and conservative_stack_scanning))', {
-  # Stack switching is only supported on x64/arm64.
+  # Stack switching is only supported on x64/arm64/ia32/arm.
   'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-conditional': [SKIP],
   'wasm/stack-switching-export': [SKIP],
   'wasm/stack-switching-generic-wrapper': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP]
@@ -1944,7 +1950,15 @@
   # Tests that include types only supported on x64/arm64.
   'compiler/fast-api-sequences-x64': [SKIP],
   'compiler/fast-api-annotations': [SKIP],
-}],  # arch != x64 and arch != arm64
+}],  # arch != x64 and arch != arm64 and arch != loong64 and arch != mips64'
+
+##############################################################################
+# TODO(14716): memory64 trap handling doesn't work on mac nor does it work on
+# arm64 without pointer compression.
+['(arch != x64 and arch != arm64) or system == macos or (arch == arm64 and not pointer_compression)', {
+  # --wasm-memory64-trap-handling only supported on non-macos x64 and arm64.
+  'regress/wasm/regress-332939161': [SKIP],
+}],
 
 ##############################################################################
 # Skip failing tests in google3

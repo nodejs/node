@@ -142,6 +142,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Uint64ToFloat64:
     case kArm64Float64ExtractLowWord32:
     case kArm64Float64ExtractHighWord32:
+    case kArm64Float64FromWord32Pair:
     case kArm64Float64InsertLowWord32:
     case kArm64Float64InsertHighWord32:
     case kArm64Float64Mod:

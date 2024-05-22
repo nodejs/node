@@ -5,11 +5,13 @@
 #ifndef V8_COMPILER_TURBOSHAFT_STACK_CHECK_LOWERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_STACK_CHECK_LOWERING_REDUCER_H_
 
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -21,11 +23,9 @@ class StackCheckLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(StackCheckLowering)
 
-  OpIndex REDUCE(StackCheck)(StackCheckOp::CheckOrigin origin,
-                             StackCheckOp::CheckKind kind) {
+  OpIndex REDUCE(StackCheck)(StackCheckOp::Kind kind) {
 #ifdef V8_ENABLE_WEBASSEMBLY
-    if (origin == StackCheckOp::CheckOrigin::kFromWasm &&
-        kind == StackCheckOp::CheckKind::kFunctionHeaderCheck &&
+    if (kind == StackCheckOp::Kind::kWasmFunctionHeader &&
         __ IsLeafFunction()) {
       return OpIndex::Invalid();
     }
@@ -36,23 +36,19 @@ class StackCheckLoweringReducer : public Next {
         __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
         MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
     compiler::StackCheckKind check_kind =
-        origin == StackCheckOp::CheckOrigin::kFromJS
+        kind == StackCheckOp::Kind::kJSFunctionHeader
             ? compiler::StackCheckKind::kJSFunctionEntry
             : compiler::StackCheckKind::kWasm;
     V<Word32> check = __ StackPointerGreaterThan(limit, check_kind);
     IF_NOT (LIKELY(check)) {
-      if (origin == StackCheckOp::CheckOrigin::kFromJS) {
-        if (kind == StackCheckOp::CheckKind::kLoopCheck) {
-          UNIMPLEMENTED();
-        }
-        DCHECK_EQ(kind, StackCheckOp::CheckKind::kFunctionHeaderCheck);
-
-        if (!isolate_) isolate_ = PipelineData::Get().isolate();
-        __ CallRuntime_StackGuardWithGap(isolate_, __ NoContextConstant(),
+      if (kind == StackCheckOp::Kind::kJSFunctionHeader) {
+        __ CallRuntime_StackGuardWithGap(isolate(), __ NoContextConstant(),
                                          __ StackCheckOffset());
       }
 #ifdef V8_ENABLE_WEBASSEMBLY
-      else if (origin == StackCheckOp::CheckOrigin::kFromWasm) {
+      else {
+        DCHECK(kind == StackCheckOp::Kind::kWasmFunctionHeader ||
+               kind == StackCheckOp::Kind::kWasmLoop);
         // TODO(14108): Cache descriptor.
         V<WordPtr> builtin =
             __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
@@ -79,10 +75,30 @@ class StackCheckLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  OpIndex REDUCE(JSLoopStackCheck)(V<Context> context,
+                                   V<FrameState> frame_state) {
+    V<Word32> limit = __ Load(
+        __ ExternalConstant(
+            ExternalReference::address_of_no_heap_write_interrupt_request(
+                isolate())),
+        LoadOp::Kind::RawAligned().NotLoadEliminable(),
+        MemoryRepresentation::Uint8());
+
+    IF_NOT (LIKELY(__ Word32Equal(limit, 0))) {
+      __ CallRuntime_HandleNoHeapWritesInterrupts(isolate(), frame_state,
+                                                  context);
+    }
+
+    return OpIndex::Invalid();
+  }
+
  private:
+  Isolate* isolate() {
+    if (!isolate_) isolate_ = PipelineData::Get().isolate();
+    return isolate_;
+  }
+
   Isolate* isolate_ = nullptr;
-  // We cache the instance because we need it to load the limit_address used to
-  // lower stack checks.
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

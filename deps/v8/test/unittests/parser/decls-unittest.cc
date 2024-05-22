@@ -86,12 +86,12 @@ class DeclarationContext {
 
   // The handlers are called as static functions that forward
   // to the instance specific virtual methods.
-  static void HandleGet(Local<Name> key,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
-  static void HandleSet(Local<Name> key, Local<Value> value,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
-  static void HandleQuery(Local<Name> key,
-                          const v8::PropertyCallbackInfo<v8::Integer>& info);
+  static v8::Intercepted HandleGet(
+      Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info);
+  static v8::Intercepted HandleSet(Local<Name> key, Local<Value> value,
+                                   const v8::PropertyCallbackInfo<void>& info);
+  static v8::Intercepted HandleQuery(
+      Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info);
 
   v8::Isolate* isolate() const { return isolate_; }
 
@@ -177,26 +177,41 @@ void DeclarationContext::Check(const char* source, int get, int set, int query,
   InvokeMemoryReducingMajorGCs(i_isolate());
 }
 
-void DeclarationContext::HandleGet(
+v8::Intercepted DeclarationContext::HandleGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->get_count_++;
-  info.GetReturnValue().Set(context->Get(key));
+  auto result = context->Get(key);
+  if (!result.IsEmpty()) {
+    info.GetReturnValue().SetNonEmpty(result);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
-void DeclarationContext::HandleSet(
+v8::Intercepted DeclarationContext::HandleSet(
     Local<Name> key, Local<Value> value,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::PropertyCallbackInfo<void>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->set_count_++;
-  info.GetReturnValue().Set(context->Set(key, value));
+  auto result = context->Set(key, value);
+  if (!result.IsEmpty()) {
+    info.GetReturnValue().SetNonEmpty(result);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
-void DeclarationContext::HandleQuery(
+v8::Intercepted DeclarationContext::HandleQuery(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->query_count_++;
-  info.GetReturnValue().Set(context->Query(key));
+  auto result = context->Query(key);
+  if (!result.IsEmpty()) {
+    info.GetReturnValue().SetNonEmpty(result);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
 DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
@@ -1060,26 +1075,6 @@ TEST_F(DeclsTest, TestUsing) {
                   EXPECT_ERROR);
     context.Check("{for(using {x} = {x:5}; x < 10 ; i++) {\n console.log(x);}}",
                   EXPECT_ERROR);
-    context.Check("{ using x = 1;}", EXPECT_RESULT, Undefined(isolate()));
-    context.Check(
-        "let label = \"1\"; \n switch (label) { \n case 1: \n using x = 1; }",
-        EXPECT_RESULT, Undefined(isolate()));
-    context.Check("for(let i = 0; i < 3; i++){\n using x = 1 + i;}",
-                  EXPECT_RESULT, Undefined(isolate()));
-    context.Check("for(let i in [1, 2]){\n using x = 1 + i;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("for(let i of [1, 2]){\n using x = 1 + i;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("function testUsing(){\n using x = 1;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("async function testUsing(){\n using x = 1;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("function* gen(){\n using x = 1; \n yield x;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("async function* gen(){\n using x = 1; \n yield await x;}",
-                  EXPECT_RESULT, Undefined(isolate()));
-    context.Check("class test {\n static { \n using x = 1;} \n }",
-                  EXPECT_RESULT, Undefined(isolate()));
   }
 }
 

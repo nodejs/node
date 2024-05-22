@@ -517,12 +517,12 @@ bool Heap::HasBeenSetUp() const {
 
 bool Heap::ShouldUseBackgroundThreads() const {
   return !v8_flags.single_threaded_gc_in_background ||
-         !isolate()->IsIsolateInBackground();
+         !isolate()->EfficiencyModeEnabled();
 }
 
 bool Heap::ShouldOptimizeForBattery() const {
   return v8_flags.optimize_gc_for_battery ||
-         isolate()->battery_saver_mode_enabled();
+         isolate()->BatterySaverModeEnabled();
 }
 
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
@@ -2587,7 +2587,6 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
       tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
       this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
-  double global_growing_factor = 0;
   double embedder_gc_speed = tracer()->EmbedderSpeedInBytesPerMillisecond();
   double embedder_speed =
       tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
@@ -2597,7 +2596,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
                 this, max_global_memory_size_, embedder_gc_speed,
                 embedder_speed)
           : 0;
-  global_growing_factor = std::max(v8_growing_factor, embedder_growing_factor);
+  double global_growing_factor =
+      std::max(v8_growing_factor, embedder_growing_factor);
 
   size_t old_gen_size = OldGenerationSizeOfObjects();
   size_t new_space_capacity = NewSpaceTargetCapacity();
@@ -2687,8 +2687,6 @@ void Heap::MarkCompact() {
   SetGCState(MARK_COMPACT);
 
   PROFILE(isolate_, CodeMovingGCEvent());
-  CodePageHeaderModificationScope code_modification(
-      "MarkCompact needs to access the marking bitmap in the page header");
 
   UpdateOldGenerationAllocationCounter();
   uint64_t size_of_objects_before_gc = SizeOfObjects();
@@ -3810,7 +3808,7 @@ bool Heap::HasHighFragmentation() {
 
 bool Heap::ShouldOptimizeForMemoryUsage() {
   const size_t kOldGenerationSlack = max_old_generation_size() / 8;
-  return v8_flags.optimize_for_size || isolate()->IsIsolateInBackground() ||
+  return v8_flags.optimize_for_size || isolate()->EfficiencyModeEnabled() ||
          HighMemoryPressure() || !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
@@ -3847,7 +3845,7 @@ void Heap::ActivateMemoryReducerIfNeededOnMainThread() {
   // 2 pages for the old, code, and map space + 1 page for new space.
   const int kMinCommittedMemory = 7 * PageMetadata::kPageSize;
   if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
-      isolate()->IsIsolateInBackground()) {
+      isolate()->is_backgrounded()) {
     memory_reducer_->NotifyPossibleGarbage();
   }
 }
@@ -4007,18 +4005,26 @@ void Heap::NotifyObjectLayoutChange(
     }
   }
 
-#ifdef V8_ENABLE_SANDBOX
   // During external pointer table compaction, the external pointer table
-  // records addresses of fields containing external pointers. As such, it
-  // needs to be informed when such a field is invalidated.
+  // records addresses of fields that index into the external pointer table. As
+  // such, it needs to be informed when such a field is invalidated.
   if (invalidate_external_pointer_slots ==
       InvalidateExternalPointerSlots::kYes) {
-    ExternalPointerSlotInvalidator external_pointer_slot_invalidator(isolate());
-    int num_invalidated_slots = external_pointer_slot_invalidator.Visit(object);
-    USE(num_invalidated_slots);
-    DCHECK_GT(num_invalidated_slots, 0);
-  }
+    // Currently, the only time this function receives
+    // InvalidateExternalPointerSlots::kYes is when an external string
+    // transitions to a thin string.  If this ever changed to happen for array
+    // buffer extension slots, we would have to run the invalidator in
+    // pointer-compression-but-no-sandbox configurations as well.
+    DCHECK(IsString(object));
+#ifdef V8_ENABLE_SANDBOX
+    if (V8_ENABLE_SANDBOX_BOOL) {
+      ExternalPointerSlotInvalidator slot_invalidator(isolate());
+      int num_invalidated_slots = slot_invalidator.Visit(object);
+      USE(num_invalidated_slots);
+      DCHECK_GT(num_invalidated_slots, 0);
+    }
 #endif
+  }
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -5494,7 +5500,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   DCHECK_NOT_NULL(heap_allocator_);
 
   // Set the stack start for the main thread that sets up the heap.
-  SetStackStart(base::Stack::GetStackStart());
+  SetStackStart();
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   heap_allocator_->UpdateAllocationTimeout();
@@ -5986,11 +5992,11 @@ std::optional<StackState> Heap::overridden_stack_state() const {
   return embedder_stack_state_;
 }
 
-void Heap::SetStackStart(void* stack_start) {
+void Heap::SetStackStart() {
   // If no main thread local heap has been set up (we're still in the
   // deserialization process), we don't need to set the stack start.
   if (main_thread_local_heap_ == nullptr) return;
-  stack().SetStackStart(stack_start);
+  stack().SetStackStart();
 }
 
 ::heap::base::Stack& Heap::stack() {
@@ -6137,13 +6143,8 @@ void Heap::TearDown() {
 
   pretenuring_handler_.reset();
 
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Deletion of CODE_SPACE and CODE_LO_SPACE requires write access to "
-        "Code page headers");
-    for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
-      space_[i].reset();
-    }
+  for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
+    space_[i].reset();
   }
 
   isolate()->read_only_heap()->OnHeapTearDown(this);
@@ -7470,12 +7471,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
                                    GCTracer::Scope::MC_COMPLETE_SWEEPING),
                                TRACE_EVENT_FLAG_FLOW_IN);
       old_space()->RefillFreeList();
-      {
-        CodePageHeaderModificationScope rwx_write_scope(
-            "Updating per-page stats stored in page headers requires write "
-            "access to Code page headers");
-        code_space()->RefillFreeList();
-      }
+      code_space()->RefillFreeList();
       if (shared_space()) {
         shared_space()->RefillFreeList();
       }
@@ -7560,7 +7556,8 @@ CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(
 CppClassNamesAsHeapObjectNameScope::~CppClassNamesAsHeapObjectNameScope() =
     default;
 
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || \
+    V8_HEAP_USE_PKU_JIT_WRITE_PROTECT || V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT
 
 CodePageMemoryModificationScopeForDebugging::
     CodePageMemoryModificationScopeForDebugging(Heap* heap,
@@ -7584,7 +7581,8 @@ CodePageMemoryModificationScopeForDebugging::
     ~CodePageMemoryModificationScopeForDebugging() {}
 
 #else  // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
-       // V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+       // V8_HEAP_USE_PKU_JIT_WRITE_PROTECT ||
+       // V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT
 
 CodePageMemoryModificationScopeForDebugging::
     CodePageMemoryModificationScopeForDebugging(Heap* heap,

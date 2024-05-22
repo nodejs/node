@@ -2128,6 +2128,76 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   }
 }
 
+TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
+#if V8_INTL_SUPPORT
+  class WorkerThread : public v8::base::Thread {
+   public:
+    WorkerThread(v8::base::Mutex& m, v8::base::ConditionVariable& cv)
+        : Thread(v8::base::Thread::Options("WorkerThread")), m_(m), cv_(cv) {}
+    void Run() override {
+      v8::Isolate::CreateParams create_params;
+      create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+      isolate = v8::Isolate::New(create_params);
+      {
+        v8::Isolate::Scope isolate_scope(isolate);
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
+        v8::Local<v8::Value> wrapper = v8::External::New(isolate, this);
+        global->Set(isolate, "notifyCV",
+                    v8::FunctionTemplate::New(
+                        isolate, (v8::FunctionCallback)&NotifyCallback, wrapper,
+                        Local<v8::Signature>(), 0, ConstructorBehavior::kThrow,
+                        SideEffectType::kHasNoSideEffect));
+        LocalContext context(isolate, nullptr, global);
+        v8::TryCatch try_catch(isolate);
+        auto result = CompileRun(
+            context.local(),
+            "const kSize = 4 * 1024 * 1024;\n"
+            "const baseText = 'Super big, super bad, itty bitty teeny weeny "
+            "mellow yellow stringy wingy. ';\n"
+            "let text = baseText.repeat(((kSize / baseText.length) + 1) | 0);\n"
+            "let iter = new Intl.Segmenter('en', { granularity: 'word' "
+            "}).segment(text);\n"
+            "notifyCV(); /* Signal CV that we are ready for interrupt */\n"
+            "Array.from(iter)\n");
+        CHECK(result.IsEmpty());
+        CHECK(try_catch.HasTerminated());
+      }
+      isolate->Dispose();
+    }
+    void TerminateExecution() { isolate->TerminateExecution(); }
+    inline void NotifyCV() {
+      v8::base::MutexGuard guard(&m_);
+      cv_.NotifyOne();
+    }
+
+   private:
+    static WorkerThread* Unwrap(Local<Value> value) {
+      CHECK(value->IsExternal());
+      return reinterpret_cast<WorkerThread*>(value.As<External>()->Value());
+    }
+    static void NotifyCallback(
+        const v8::FunctionCallbackInfo<v8::Value>& args) {
+      auto self = Unwrap(args.Data());
+      self->NotifyCV();
+    }
+    v8::Isolate* isolate{nullptr};
+    v8::base::Mutex& m_;
+    v8::base::ConditionVariable& cv_;
+  };
+  v8::base::Mutex m;
+  v8::base::ConditionVariable cv;
+  WorkerThread worker_thread(m, cv);
+  CHECK(worker_thread.Start());
+  {
+    v8::base::MutexGuard guard(&m);
+    cv.Wait(&m);
+  }
+  worker_thread.TerminateExecution();
+  worker_thread.Join();
+#endif
+}
+
 }  // namespace test_strings
 }  // namespace internal
 }  // namespace v8

@@ -48,7 +48,7 @@ template <typename Cage>
 void V8HeapCompressionSchemeImpl<Cage>::InitBase(Address base) {
   CHECK_EQ(base, GetPtrComprCageBaseAddress(base));
 #if defined(USING_V8_SHARED_PRIVATE) && \
-    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
   Cage::set_base_non_inlined(base);
 #else
   Cage::base_ = base;
@@ -59,7 +59,7 @@ void V8HeapCompressionSchemeImpl<Cage>::InitBase(Address base) {
 template <typename Cage>
 Address V8HeapCompressionSchemeImpl<Cage>::base() {
 #if defined(USING_V8_SHARED_PRIVATE) && \
-    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
   Address base = Cage::base_non_inlined();
 #else
   Address base = Cage::base_;
@@ -104,11 +104,11 @@ Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
 #ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   DCHECK_WITH_MSG(cage_base != kNullAddress,
                   "V8HeapCompressionSchemeImpl::base is not initialized for "
                   "current thread");
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
 #endif  // V8_COMPRESS_POINTERS
@@ -163,7 +163,7 @@ Address ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
 void ExternalCodeCompressionScheme::InitBase(Address base) {
   CHECK_EQ(base, PrepareCageBaseAddress(base));
 #if defined(USING_V8_SHARED_PRIVATE) && \
-    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
   set_base_non_inlined(base);
 #else
   base_ = base;
@@ -173,7 +173,7 @@ void ExternalCodeCompressionScheme::InitBase(Address base) {
 // static
 V8_CONST Address ExternalCodeCompressionScheme::base() {
 #if defined(USING_V8_SHARED_PRIVATE) && \
-    defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
   Address base = base_non_inlined();
 #else
   Address base = base_;
@@ -218,11 +218,11 @@ Address ExternalCodeCompressionScheme::DecompressTagged(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
 #ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   DCHECK_WITH_MSG(cage_base != kNullAddress,
                   "ExternalCodeCompressionScheme::base is not initialized for "
                   "current thread");
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
 #endif  // V8_COMPRESS_POINTERS
@@ -314,7 +314,7 @@ V8_INLINE PtrComprCageBase GetPtrComprCageBase(Tagged<HeapObject> object) {
   return GetPtrComprCageBaseFromOnHeapAddress(object.ptr());
 }
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
     : cage_base_(V8HeapCompressionScheme::base()) {
@@ -325,7 +325,7 @@ PtrComprCageAccessScope::~PtrComprCageAccessScope() {
   V8HeapCompressionScheme::InitBase(cage_base_);
 }
 
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 }  // namespace internal
 }  // namespace v8

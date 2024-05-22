@@ -464,9 +464,8 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Tagged<Smi> rhs) {
-  if (rhs.value() == 0) return;
-  __ add(lhs, Immediate(rhs));
+void BaselineAssembler::IncrementSmi(MemOperand lhs) {
+  __ add(lhs, Immediate(Smi::FromInt(1)));
 }
 
 void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {

@@ -117,7 +117,7 @@ class CppEntriesProvider {
       const funcInfo = this.parseNextLine();
       if (funcInfo === null) continue;
       if (funcInfo === false) break;
-      if (funcInfo.start < libStart - libASLRSlide &&
+      if (funcInfo.start < libStart &&
         funcInfo.start < libEnd - libStart) {
         funcInfo.start += libStart;
       } else {
@@ -740,7 +740,7 @@ export class TickProcessor extends LogReader {
   }
 
   processSharedLibrary(name, startAddr, endAddr, aslrSlide) {
-    const entry = this.profile_.addLibrary(name, startAddr, endAddr, aslrSlide);
+    const entry = this.profile_.addLibrary(name, startAddr, endAddr);
     this.setCodeType(entry.getName(), 'SHARED_LIB');
     this.cppEntriesProvider_.parseVmSymbols(
       name, startAddr, endAddr, aslrSlide, (fName, fStart, fEnd) => {

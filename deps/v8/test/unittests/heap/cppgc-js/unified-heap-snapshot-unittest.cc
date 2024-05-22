@@ -475,6 +475,20 @@ cppgc::Persistent<GCedWithJSRef> SetupWrapperWrappablePair(
   return gc_w_js_ref;
 }
 
+cppgc::Persistent<GCedWithJSRef> SetupNewWrapperWrappablePair(
+    JsTestingScope& testing_scope, cppgc::AllocationHandle& allocation_handle,
+    const char* name,
+    v8::EmbedderGraph::Node::Detachedness detachedness =
+        v8::EmbedderGraph::Node::Detachedness::kUnknown) {
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref =
+      cppgc::MakeGarbageCollected<GCedWithJSRef>(allocation_handle);
+  v8::Local<v8::Object> wrapper_object = NewWrapperHelper::CreateWrapper(
+      testing_scope.context(), gc_w_js_ref.Get(), name);
+  gc_w_js_ref->SetV8Object(testing_scope.isolate(), wrapper_object);
+  gc_w_js_ref->set_detachedness(detachedness);
+  return gc_w_js_ref;
+}
+
 template <typename Callback>
 void ForEachEntryWithName(const v8::HeapSnapshot* snapshot, const char* needle,
                           Callback callback) {
@@ -515,6 +529,50 @@ TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
       testing_scope, allocation_handle(), "MergedObject");
   v8::Local<v8::Object> next_object = WrapperHelper::CreateWrapper(
       testing_scope.context(), nullptr, nullptr, "NextObject");
+  v8::Local<v8::Object> wrapper_object =
+      gc_w_js_ref->wrapper().Get(v8_isolate());
+  // Chain another object to `wrapper_object`. Since `wrapper_object` should be
+  // merged into `GCedWithJSRef`, the additional object must show up as direct
+  // child from `GCedWithJSRef`.
+  wrapper_object
+      ->Set(testing_scope.context(),
+            v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), "link")
+                .ToLocalChecked(),
+            next_object)
+      .ToChecked();
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedCppRootsName, GetExpectedName<GCedWithJSRef>(),
+       // GCedWithJSRef is merged into MergedObject, replacing its name.
+       "NextObject"}));
+  const size_t js_size = Utils::OpenDirectHandle(*wrapper_object)->Size();
+#if CPPGC_SUPPORTS_OBJECT_NAMES
+  const size_t cpp_size =
+      cppgc::internal::HeapObjectHeader::FromObject(gc_w_js_ref.Get())
+          .AllocatedSize();
+  ForEachEntryWithName(snapshot, GetExpectedName<GCedWithJSRef>(),
+                       [cpp_size, js_size](const HeapEntry& entry) {
+                         EXPECT_EQ(cpp_size + js_size, entry.self_size());
+                       });
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+  ForEachEntryWithName(snapshot, GetExpectedName<GCedWithJSRef>(),
+                       [js_size](const HeapEntry& entry) {
+                         EXPECT_EQ(js_size, entry.self_size());
+                       });
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+}
+
+TEST_F(UnifiedHeapSnapshotTest, NewWrapper_MergedWrapperNode) {
+  // Test ensures that the snapshot sets a wrapper node for C++->JS references
+  // that have a valid back reference and that object nodes are merged. In
+  // practice, the C++ node is merged into the existing JS node.
+  JsTestingScope testing_scope(v8_isolate());
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref = SetupNewWrapperWrappablePair(
+      testing_scope, allocation_handle(), "MergedObject");
+  v8::Local<v8::Object> next_object = NewWrapperHelper::CreateWrapper(
+      testing_scope.context(), nullptr, "NextObject");
   v8::Local<v8::Object> wrapper_object =
       gc_w_js_ref->wrapper().Get(v8_isolate());
   // Chain another object to `wrapper_object`. Since `wrapper_object` should be

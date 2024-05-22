@@ -165,8 +165,7 @@ class WasmGCTypedOptimizationReducer : public Next {
                                                               cast_op.object()),
                                                           type)
                                               : __ Word32Constant(0);
-        __ TrapIfNot(non_trapping_condition, OpIndex::Invalid(),
-                     TrapId::kTrapIllegalCast);
+        __ TrapIfNot(non_trapping_condition, {}, TrapId::kTrapIllegalCast);
         if (!to_nullable) {
           __ Unreachable();
         }
@@ -263,8 +262,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(WasmTypeAnnotation)(
-      OpIndex op_idx, const WasmTypeAnnotationOp& type_annotation) {
+  V<Object> REDUCE_INPUT_GRAPH(WasmTypeAnnotation)(
+      V<Object> op_idx, const WasmTypeAnnotationOp& type_annotation) {
     // Remove type annotation operations as they are not needed any more.
     return __ MapToNewGraph(type_annotation.value());
   }
@@ -306,8 +305,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(ArrayLength)(OpIndex op_idx,
-                                          const ArrayLengthOp& array_length) {
+  V<Word32> REDUCE_INPUT_GRAPH(ArrayLength)(V<Word32> op_idx,
+                                            const ArrayLengthOp& array_length) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphArrayLength(op_idx, array_length);
     }

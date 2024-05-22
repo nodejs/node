@@ -260,7 +260,7 @@ void ArrayBufferSweeper::ReleaseAll(ArrayBufferList* list) {
   ArrayBufferExtension* current = list->head_;
   while (current) {
     ArrayBufferExtension* next = current->next();
-    delete current;
+    FinalizeAndDelete(current);
     current = next;
   }
   *list = ArrayBufferList();
@@ -325,6 +325,13 @@ void ArrayBufferSweeper::DecrementExternalMemoryCounters(size_t bytes) {
   heap_->update_external_memory(-static_cast<int64_t>(bytes));
 }
 
+void ArrayBufferSweeper::FinalizeAndDelete(ArrayBufferExtension* extension) {
+#ifdef V8_COMPRESS_POINTERS
+  extension->ZapExternalPointerTableEntry();
+#endif  // V8_COMPRESS_POINTERS
+  delete extension;
+}
+
 void ArrayBufferSweeper::SweepingJob::Sweep() {
   CHECK_EQ(state_, SweepingState::kInProgress);
   switch (type_) {
@@ -357,7 +364,7 @@ ArrayBufferList ArrayBufferSweeper::SweepingJob::SweepListFull(
 
     if (!current->IsMarked()) {
       const size_t bytes = current->accounting_length();
-      delete current;
+      FinalizeAndDelete(current);
       if (bytes) freed_bytes_ += bytes;
     } else {
       current->Unmark();
@@ -383,7 +390,7 @@ void ArrayBufferSweeper::SweepingJob::SweepYoung() {
 
     if (!current->IsYoungMarked()) {
       size_t bytes = current->accounting_length();
-      delete current;
+      FinalizeAndDelete(current);
       if (bytes) freed_bytes_ += bytes;
     } else if ((treat_all_young_as_promoted_ ==
                 TreatAllYoungAsPromoted::kYes) ||

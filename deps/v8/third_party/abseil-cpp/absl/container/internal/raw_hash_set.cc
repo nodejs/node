@@ -33,11 +33,11 @@ namespace container_internal {
 // Represents a control byte corresponding to a full slot with arbitrary hash.
 constexpr ctrl_t ZeroCtrlT() { return static_cast<ctrl_t>(0); }
 
-// We have space for `growth_left` before a single block of control bytes. A
+// We have space for `growth_info` before a single block of control bytes. A
 // single block of empty control bytes for tables without any slots allocated.
 // This enables removing a branch in the hot path of find(). In order to ensure
 // that the control bytes are aligned to 16, we have 16 bytes before the control
-// bytes even though growth_left only needs 8.
+// bytes even though growth_info only needs 8.
 alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[32] = {
     ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
     ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
@@ -133,7 +133,7 @@ size_t PrepareInsertAfterSoo(size_t hash, size_t slot_size,
   assert(HashSetResizeHelper::SooSlotIndex() == 1);
   PrepareInsertCommon(common);
   const size_t offset = H1(hash, common.control()) & 2;
-  common.set_growth_left(common.growth_left() - 1);
+  common.growth_info().OverwriteEmptyAsFull();
   SetCtrlInSingleGroupTable(common, offset, H2(hash), slot_size);
   common.infoz().RecordInsert(hash, /*distance_from_desired=*/0);
   return offset;
@@ -274,10 +274,11 @@ void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size) {
 
   if (WasNeverFull(c, index)) {
     SetCtrl(c, index, ctrl_t::kEmpty, slot_size);
-    c.set_growth_left(c.growth_left() + 1);
+    c.growth_info().OverwriteFullAsEmpty();
     return;
   }
 
+  c.growth_info().OverwriteFullAsDeleted();
   SetCtrl(c, index, ctrl_t::kDeleted, slot_size);
 }
 

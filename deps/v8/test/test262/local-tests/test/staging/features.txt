@@ -61,7 +61,7 @@ Temporal
 # https://github.com/tc39/proposal-realms
 ShadowRealm
 
-# Array.groupBy & Map.groupBy
+# Object.groupBy & Map.groupBy
 # https://github.com/tc39/proposal-array-grouping
 array-grouping
 
@@ -108,6 +108,14 @@ promise-with-resolvers
 # Set methods
 # https://github.com/tc39/proposal-set-methods
 set-methods
+
+# Explicit Resource Management
+# https://github.com/tc39/proposal-explicit-resource-management
+explicit-resource-management
+
+# Float16Array + Math.f16round
+# https://github.com/tc39/proposal-float16array
+Float16Array
 
 ## Standard language features
 #

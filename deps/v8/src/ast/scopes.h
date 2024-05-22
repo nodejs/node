@@ -380,6 +380,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return private_name_lookup_skips_outer_class_;
   }
 
+  bool has_using_declaration() const { return has_using_declaration_; }
+
 #if V8_ENABLE_WEBASSEMBLY
   bool IsAsmModule() const;
   // Returns true if this scope or any inner scopes that might be eagerly
@@ -651,6 +653,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     Variable* result = variables_.Declare(
         zone, this, name, mode, kind, initialization_flag, maybe_assigned_flag,
         IsStaticFlag::kNotStatic, was_added);
+    if (mode == VariableMode::kUsing) has_using_declaration_ = true;
     if (*was_added) locals_.Add(result);
     return result;
   }
@@ -846,6 +849,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool needs_home_object_ : 1;
   bool is_block_scope_for_object_literal_ : 1;
+
+  // If declarations include any `using` declarations.
+  bool has_using_declaration_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {

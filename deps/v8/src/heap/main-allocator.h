@@ -17,16 +17,17 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class LocalHeap;
 class MainAllocator;
-class SemiSpaceNewSpace;
-class SpaceWithLinearArea;
 class PagedNewSpace;
 class PagedSpaceBase;
+class SemiSpaceNewSpace;
+class SpaceWithLinearArea;
 
 class AllocatorPolicy {
  public:
   explicit AllocatorPolicy(MainAllocator* allocator);
-  virtual ~AllocatorPolicy() {}
+  virtual ~AllocatorPolicy() = default;
 
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry

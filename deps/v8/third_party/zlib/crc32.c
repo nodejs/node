@@ -706,7 +706,8 @@ unsigned long ZEXPORT crc32_z(unsigned long crc, const unsigned char FAR *buf,
      * place to cache CPU features if needed for those later, more
      * interesting crc32() calls.
      */
-#if defined(CRC32_SIMD_SSE42_PCLMUL) || defined(CRC32_ARMV8_CRC32)
+#if defined(CRC32_SIMD_SSE42_PCLMUL) || defined(CRC32_ARMV8_CRC32) \
+    || defined(RISCV_RVV)
     /*
      * Since this routine can be freely used, check CPU features here.
      */
@@ -1085,7 +1086,8 @@ unsigned long ZEXPORT crc32(unsigned long crc, const unsigned char FAR *buf,
     /* Some bots compile with optimizations disabled, others will emulate
      * ARM on x86 and other weird combinations.
      */
-#if defined(CRC32_SIMD_SSE42_PCLMUL) || defined(CRC32_ARMV8_CRC32)
+#if defined(CRC32_SIMD_SSE42_PCLMUL) || defined(CRC32_ARMV8_CRC32) \
+    || defined(RISCV_RVV)
     /* We got to verify CPU features, so exploit the common usage pattern
      * of calling this function with Z_NULL for an initial valid crc value.
      * This allows to cache the result of the feature check and avoid extraneous

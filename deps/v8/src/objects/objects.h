@@ -42,6 +42,7 @@ class LookupIterator;
 class PropertyDescriptorObject;
 class ReadOnlyRoots;
 class RootVisitor;
+class PropertyKey;
 
 // UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
 // SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
@@ -658,6 +659,9 @@ V8_INLINE bool IsWasmObject(T obj, Isolate* = nullptr) {
 
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
+
+V8_INLINE bool IsJSApiWrapperObject(Tagged<HeapObject> obj);
+V8_INLINE bool IsJSApiWrapperObject(Tagged<Map> map);
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name(Tagged<Object> obj);  \

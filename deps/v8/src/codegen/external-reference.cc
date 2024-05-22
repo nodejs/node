@@ -166,6 +166,21 @@ constexpr struct alignas(16) {
     uint32_t{0x4f00'0000},
 };
 
+constexpr struct alignas(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+  uint32_t e;
+  uint32_t f;
+  uint32_t g;
+  uint32_t h;
+} wasm_i32x8_int32_overflow_as_float = {
+    uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000},
+};
+
 // Implementation of ExternalReference
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -260,6 +275,10 @@ ExternalReference ExternalReference::trusted_pointer_table_base_address(
 ExternalReference ExternalReference::code_pointer_table_address() {
   // TODO(saelo): maybe rename to code_pointer_table_base_address?
   return ExternalReference(GetProcessWideCodePointerTable()->base_address());
+}
+
+ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
+  return ExternalReference(MemoryChunk::MetadataTableAddress());
 }
 
 #endif  // V8_ENABLE_SANDBOX
@@ -671,11 +690,6 @@ ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
   return ExternalReference(&v8_flags.mock_arraybuffer_allocator);
 }
 
-ExternalReference
-ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets() {
-  return ExternalReference(&v8_flags.harmony_regexp_unicode_sets);
-}
-
 // TODO(jgruber): Update the other extrefs pointing at v8_flags. addresses to be
 // called address_of_FLAG_foo (easier grep-ability).
 ExternalReference ExternalReference::address_of_log_or_trace_osr() {
@@ -794,6 +808,12 @@ ExternalReference ExternalReference::address_of_wasm_uint32_max_as_double() {
 ExternalReference ExternalReference::address_of_wasm_int32_overflow_as_float() {
   return ExternalReference(
       reinterpret_cast<Address>(&wasm_int32_overflow_as_float));
+}
+
+ExternalReference
+ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_i32x8_int32_overflow_as_float));
 }
 
 ExternalReference ExternalReference::supports_cetss_address() {

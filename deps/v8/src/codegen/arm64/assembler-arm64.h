@@ -2827,6 +2827,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static Instr VFormat(VRegister vd) {
     if (vd.Is64Bits()) {
       switch (vd.LaneCount()) {
+        case 1:
+          return NEON_1D;
         case 2:
           return NEON_2S;
         case 4:

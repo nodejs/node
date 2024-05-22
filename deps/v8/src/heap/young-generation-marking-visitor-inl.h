@@ -13,6 +13,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/young-generation-marking-visitor.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -50,11 +51,11 @@ YoungGenerationMarkingVisitor<marking_mode>::~YoungGenerationMarkingVisitor() {
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
-template <typename T>
+template <typename T, typename TBodyDescriptor>
 int YoungGenerationMarkingVisitor<marking_mode>::
     VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
                                                     Tagged<T> object) {
-  const int size = VisitJSObjectSubclass(map, object);
+  const int size = VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
   if (!marking_worklists_local_.SupportsExtractWrapper()) return size;
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
   const bool valid_snapshot =
@@ -76,7 +77,8 @@ int YoungGenerationMarkingVisitor<marking_mode>::VisitJSArrayBuffer(
 template <YoungGenerationMarkingVisitationMode marking_mode>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSApiObject(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+  return VisitEmbedderTracingSubClassWithEmbedderTracing<
+      JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>

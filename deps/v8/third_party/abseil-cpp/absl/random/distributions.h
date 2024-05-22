@@ -362,7 +362,7 @@ RealType Gaussian(URBG&& urbg,  // NOLINT(runtime/references)
 // If `lo` is nonzero then this distribution is shifted to the desired interval,
 // so LogUniform(lo, hi, b) is equivalent to LogUniform(0, hi-lo, b)+lo.
 //
-// See https://en.wikipedia.org/wiki/Log-normal_distribution
+// See https://en.wikipedia.org/wiki/Reciprocal_distribution
 //
 // Example:
 //

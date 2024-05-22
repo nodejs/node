@@ -2072,13 +2072,14 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_AtomicsConditionNumWaitersForTesting) {
+RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
   HandleScope scope(isolate);
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSAtomicsCondition> cv = args.at<JSAtomicsCondition>(0);
-  return cv->NumWaitersForTesting(isolate);
+  Handle<JSSynchronizationPrimitive> primitive =
+      args.at<JSSynchronizationPrimitive>(0);
+  return primitive->NumWaitersForTesting(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
@@ -2109,7 +2110,7 @@ RUNTIME_FUNCTION(Runtime_NotifyIsolateBackground) {
 }
 
 RUNTIME_FUNCTION(Runtime_IsEfficiencyModeEnabled) {
-  if (isolate->UseEfficiencyMode()) {
+  if (isolate->EfficiencyModeEnabled()) {
     return ReadOnlyRoots(isolate).true_value();
   }
   return ReadOnlyRoots(isolate).false_value();

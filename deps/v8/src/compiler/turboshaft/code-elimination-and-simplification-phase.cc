@@ -8,6 +8,7 @@
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/duplication-optimization-reducer.h"
+#include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/stack-check-lowering-reducer.h"
@@ -32,6 +33,7 @@ void CodeEliminationAndSimplificationPhase::Run(Zone* temp_zone) {
                // (which, for simplificy, doesn't use the Assembler helper
                // methods, but only calls Next::ReduceLoad/Store).
                DuplicationOptimizationReducer,
+               InstructionSelectionNormalizationReducer,
                ValueNumberingReducer>::Run(temp_zone);
 }
 

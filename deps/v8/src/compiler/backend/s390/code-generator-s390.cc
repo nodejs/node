@@ -2209,6 +2209,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lgdr(i.OutputRegister(), i.InputDoubleRegister(0));
       __ srlg(i.OutputRegister(), i.OutputRegister(), Operand(32));
       break;
+    case kS390_DoubleFromWord32Pair:
+      __ LoadU32(i.TempRegister(0), i.InputRegister(1));
+      __ ShiftLeftU64(kScratchReg, i.InputRegister(0), Operand(32));
+      __ OrP(i.TempRegister(0), i.TempRegister(0), kScratchReg);
+      __ MovInt64ToDouble(i.OutputDoubleRegister(), i.TempRegister(0));
+      break;
     case kS390_DoubleInsertLowWord32:
       __ lgdr(kScratchReg, i.InputDoubleRegister(0));
       __ lr(kScratchReg, i.InputRegister(1));

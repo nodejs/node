@@ -418,6 +418,7 @@ CPU::CPU()
       has_dot_prod_(false),
       has_lse_(false),
       has_mte_(false),
+      has_pmull1q_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
@@ -773,11 +774,21 @@ CPU::CPU()
 #if !defined(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE = 43;
 #endif
+#if !defined(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE = 34;
+#endif
+#if !defined(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE = 30;
+#endif
 
   has_jscvt_ =
       IsProcessorFeaturePresent(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE);
   has_dot_prod_ =
       IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE);
+  has_lse_ =
+      IsProcessorFeaturePresent(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE);
+  has_pmull1q_ =
+      IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
 
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
@@ -788,6 +799,7 @@ CPU::CPU()
     has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
     has_dot_prod_ = (hwcaps & HWCAP_ASIMDDP) != 0;
     has_lse_ = (hwcaps & HWCAP_ATOMICS) != 0;
+    has_pmull1q_ = (hwcaps & HWCAP_PMULL) != 0;
   } else {
     // Try to fallback to "Features" CPUInfo field
     CPUInfo cpu_info;
@@ -795,6 +807,7 @@ CPU::CPU()
     has_jscvt_ = HasListItem(features, "jscvt");
     has_dot_prod_ = HasListItem(features, "asimddp");
     has_lse_ = HasListItem(features, "atomics");
+    has_pmull1q_ = HasListItem(features, "pmull");
     delete[] features;
   }
 #elif V8_OS_DARWIN
@@ -823,11 +836,20 @@ CPU::CPU()
   } else {
     has_lse_ = feat_lse;
   }
+  int64_t feat_pmull = 0;
+  size_t feat_pmull_size = sizeof(feat_pmull);
+  if (sysctlbyname("hw.optional.arm.FEAT_PMULL", &feat_pmull, &feat_pmull_size,
+                   nullptr, 0) == -1) {
+    has_pmull1q_ = false;
+  } else {
+    has_pmull1q_ = feat_pmull;
+  }
 #else
   // ARM64 Macs always have JSCVT, ASIMDDP and LSE.
   has_jscvt_ = true;
   has_dot_prod_ = true;
   has_lse_ = true;
+  has_pmull1q_ = true;
 #endif  // V8_OS_IOS
 #endif  // V8_OS_WIN
 
@@ -914,6 +936,20 @@ CPU::CPU()
 #elif V8_HOST_ARCH_RISCV64
 #if V8_OS_LINUX
   CPUInfo cpu_info;
+#if (V8_GLIBC_PREREQ(2, 39))
+#include <asm/hwprobe.h>
+#include <asm/unistd.h>
+  riscv_hwprobe pairs[] = {{RISCV_HWPROBE_KEY_IMA_EXT_0, 0}};
+  if (!syscall(__NR_riscv_hwprobe, &pairs,
+               sizeof(pairs) / sizeof(riscv_hwprobe), 0, nullptr, 0)) {
+    if (pairs[0].value & RISCV_HWPROBE_IMA_V) {
+      has_rvv_ = true;
+    }
+    if (pairs[0].value & RISCV_HWPROBE_IMA_FD) {
+      has_fpu_ = true;
+    }
+  }
+#else
   char* features = cpu_info.ExtractField("isa");
 
   if (HasListItem(features, "rv64imafdc")) {
@@ -923,6 +959,8 @@ CPU::CPU()
     has_fpu_ = true;
     has_rvv_ = true;
   }
+#endif
+
   char* mmu = cpu_info.ExtractField("mmu");
   if (HasListItem(mmu, "sv48")) {
     riscv_mmu_ = RV_MMU_MODE::kRiscvSV48;

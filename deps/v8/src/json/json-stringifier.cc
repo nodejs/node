@@ -884,7 +884,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case SYMBOL_TYPE:
       return UNCHANGED;
     case JS_RAW_JSON_TYPE:
-      DCHECK(v8_flags.harmony_json_parse_with_source);
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       {
         Handle<JSRawJson> raw_json_obj = Handle<JSRawJson>::cast(object);
@@ -932,6 +931,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
           return SerializeJSProxy(Handle<JSProxy>::cast(object), key);
         }
+        // WASM_{STRUCT,ARRAY}_TYPE are handled in `case:` blocks above.
+        DCHECK(IsJSObject(*object));
         return SerializeJSObject(Handle<JSObject>::cast(object), key);
       }
   }

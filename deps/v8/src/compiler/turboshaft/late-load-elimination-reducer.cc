@@ -172,10 +172,6 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // Invalidate state (+ maybe invalidate aliases)
         ProcessCall(op_idx, op.Cast<CallOp>());
         break;
-      case Opcode::kPhi:
-        // Invalidate aliases
-        ProcessPhi(op_idx, op.Cast<PhiOp>());
-        break;
       case Opcode::kAssumeMap:
         // Update known maps
         ProcessAssumeMap(op_idx, op.Cast<AssumeMapOp>());
@@ -184,6 +180,11 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // Check for tagged -> word32 load replacement
         ProcessChange(op_idx, op.Cast<ChangeOp>());
         break;
+      case Opcode::kFrameState:
+        // We explicitely break for FrameStates so that we don't call
+        // InvalidateAllNonAliasingInputs on their inputs, since they don't
+        // really create aliases. (and also, FrameStates don't write so it's
+        // fine to break)
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
@@ -209,6 +210,18 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // operations should be already handled above, which means that we don't
         // need a `if (can_write) { Invalidate(); }` here.
         CHECK(!op.Effects().can_write());
+
+        // Even if the operation doesn't write, it could create an alias to its
+        // input by returning it. This happens for instance in Phis and in
+        // Change (although ChangeOp is already handled earlier by calling
+        // ProcessChange). We are conservative here by calling
+        // InvalidateAllNonAliasingInputs for all operations even though only
+        // few can actually create aliases to fresh allocations, the reason
+        // being that missing such a case would be a security issue, and it
+        // should be rare for fresh allocations to be used outside of
+        // Call/Store/Load/Change anyways.
+        InvalidateAllNonAliasingInputs(op);
+
         break;
     }
   }
@@ -373,13 +386,18 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // Not a builtin call, or not a builtin that we know doesn't invalidate
   // memory.
 
-  for (OpIndex input : op.inputs()) {
-    InvalidateIfAlias(input);
-  }
+  InvalidateAllNonAliasingInputs(op);
 
   // The call could modify arbitrary memory, so we invalidate every
   // potentially-aliasing object.
   memory_.InvalidateMaybeAliasing();
+}
+
+void LateLoadEliminationAnalyzer::InvalidateAllNonAliasingInputs(
+    const Operation& op) {
+  for (OpIndex input : op.inputs()) {
+    InvalidateIfAlias(input);
+  }
 }
 
 void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
@@ -407,18 +425,6 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
 void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
                                                   const AllocateOp&) {
   non_aliasing_objects_.Set(op_idx, true);
-}
-
-void LateLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
-  for (OpIndex input : phi.inputs()) {
-    if (auto key = non_aliasing_objects_.TryGetKeyFor(input)) {
-      non_aliasing_objects_.Set(*key, false);
-    }
-    // If {non_aliasing_objects_} has no key for {input}, then {input} was not
-    // known as non-aliasing (and is thus considered by default as
-    // maybe-aliasing), so there is no need to create an entry for it in
-    // {non_aliasing_objects_}.
-  }
 }
 
 void LateLoadEliminationAnalyzer::ProcessAssumeMap(
@@ -465,6 +471,8 @@ void LateLoadEliminationAnalyzer::ProcessChange(OpIndex op_idx,
                                   &load_idx)) {
     int32_truncated_loads_[load_idx][op_idx] = bitcast_idx;
   }
+
+  InvalidateIfAlias(change.input());
 }
 
 void LateLoadEliminationAnalyzer::FinishBlock(const Block* block) {

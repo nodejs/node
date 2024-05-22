@@ -104,7 +104,15 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
       #!/bin/sh
       BINARY_DIR="$(cd "${0%/*}"/..; pwd)"
       cd $BINARY_DIR
-      exec $BINARY_DIR/v8_unittests $@ --fuzz=FooTest.Test1""")
+      # Normal fuzzing.
+      if [ "$#" -eq  "0" ]; then
+         exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1
+      fi
+      # Fuzztest replay.
+      if [ "$#" -eq  "1" ]; then
+         FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1
+      fi
+      """)
     with open('/out/build/fuzztests/v8_foo_test_test1_fuzztest') as f:
       self.assertEqual(expected_wrapper, f.read())
 

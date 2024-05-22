@@ -709,9 +709,6 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
     // allocations (jump tables etc).
     CHECK_EQ(kUnrestrictedRegion, region);
 
-    Address hint = owned_code_space_.empty() ? kNullAddress
-                                             : owned_code_space_.back().end();
-
     size_t total_reserved = 0;
     for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
     size_t reserve_size = ReservationSize(
@@ -724,8 +721,7 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
       V8::FatalProcessOutOfMemory(nullptr, "Grow wasm code space",
                                   oom_detail.PrintToArray().data());
     }
-    VirtualMemory new_mem =
-        code_manager->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
+    VirtualMemory new_mem = code_manager->TryAllocate(reserve_size);
     if (!new_mem.IsReserved()) {
       auto oom_detail = base::FormattedString{}
                         << "cannot allocate more code space (" << reserve_size
@@ -1864,7 +1860,9 @@ NativeModule::~NativeModule() {
 
 WasmCodeManager::WasmCodeManager()
     : max_committed_code_space_(v8_flags.wasm_max_committed_code_mb * MB),
-      critical_committed_code_space_(max_committed_code_space_ / 2) {
+      critical_committed_code_space_(max_committed_code_space_ / 2),
+      next_code_space_hint_(reinterpret_cast<Address>(
+          GetPlatformPageAllocator()->GetRandomMmapAddr())) {
   // Check that --wasm-max-code-space-size-mb is not set bigger than the default
   // value. Otherwise we run into DCHECKs or other crashes later.
   CHECK_GE(kDefaultMaxWasmCodeSpaceSizeMb,
@@ -1885,8 +1883,6 @@ bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() {
 #endif  // V8_OS_WIN64
 
 void WasmCodeManager::Commit(base::AddressRegion region) {
-  // TODO(v8:8462): Remove eager commit once perf supports remapping.
-  if (v8_flags.perf_prof) return;
   DCHECK(IsAligned(region.begin(), CommitPageSize()));
   DCHECK(IsAligned(region.size(), CommitPageSize()));
   // Reserve the size. Use CAS loop to avoid overflow on
@@ -1908,32 +1904,12 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
       break;
     }
   }
-  // Allocate with RWX permissions; this will be restricted via PKU if
-  // available and enabled.
-  PageAllocator::Permission permission = PageAllocator::kReadWriteExecute;
 
-  bool success = false;
-  if (MemoryProtectionKeysEnabled()) {
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-    TRACE_HEAP(
-        "Setting rwx permissions and memory protection key for 0x%" PRIxPTR
-        ":0x%" PRIxPTR "\n",
-        region.begin(), region.end());
-    if (ThreadIsolation::Enabled()) {
-      success = ThreadIsolation::MakeExecutable(region.begin(), region.size());
-    } else {
-      success = base::MemoryProtectionKey::SetPermissionsAndKey(
-          region, permission, RwxMemoryWriteScope::memory_protection_key());
-    }
-#else
-    UNREACHABLE();
-#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
-  } else {
-    TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
-               region.begin(), region.end());
-    success = SetPermissions(GetPlatformPageAllocator(), region.begin(),
-                             region.size(), permission);
-  }
+  TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
+             region.begin(), region.end());
+  bool success = GetPlatformPageAllocator()->RecommitPages(
+      reinterpret_cast<void*>(region.begin()), region.size(),
+      PageAllocator::kReadWriteExecute);
 
   if (V8_UNLIKELY(!success)) {
     auto oom_detail = base::FormattedString{} << "region size: "
@@ -1945,8 +1921,6 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
 }
 
 void WasmCodeManager::Decommit(base::AddressRegion region) {
-  // TODO(v8:8462): Remove this once perf supports remapping.
-  if (v8_flags.perf_prof) return;
   PageAllocator* allocator = GetPlatformPageAllocator();
   DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
   DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));
@@ -1972,29 +1946,63 @@ void WasmCodeManager::AssignRange(base::AddressRegion region,
       region.begin(), std::make_pair(region.end(), native_module)));
 }
 
-VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
+VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
   size_t allocate_page_size = page_allocator->AllocatePageSize();
   size = RoundUp(size, allocate_page_size);
-  if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
+  Address hint =
+      next_code_space_hint_.fetch_add(size, std::memory_order_relaxed);
 
   // When we start exposing Wasm in jitless mode, then the jitless flag
   // will have to determine whether we set kMapAsJittable or not.
   DCHECK(!v8_flags.jitless);
-  VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
-                    JitPermission::kMapAsJittable);
-  if (!mem.IsReserved()) return {};
+  VirtualMemory mem(page_allocator, size, reinterpret_cast<void*>(hint),
+                    allocate_page_size,
+                    PageAllocator::Permission::kNoAccessWillJitLater);
+  if (!mem.IsReserved()) {
+    // Try resetting {next_code_space_hint_}, which might fail if another thread
+    // bumped it in the meantime.
+    Address bumped_hint = hint + size;
+    next_code_space_hint_.compare_exchange_weak(bumped_hint, hint,
+                                                std::memory_order_relaxed);
+    return {};
+  }
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
 
+  if (mem.address() != hint) {
+    // If the hint was ignored, just store the end of the new vmem area
+    // unconditionally, potentially racing with other concurrent allocations (it
+    // does not really matter which end pointer we keep in that case).
+    next_code_space_hint_.store(mem.end(), std::memory_order_relaxed);
+  }
+
+  // Don't pre-commit the code cage on Windows since it uses memory and it's not
+  // required for recommit.
+#if !defined(V8_OS_WIN)
+  if (MemoryProtectionKeysEnabled()) {
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+    if (ThreadIsolation::Enabled()) {
+      CHECK(ThreadIsolation::MakeExecutable(mem.address(), mem.size()));
+    } else {
+      CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+          mem.region(), PageAllocator::kReadWriteExecute,
+          RwxMemoryWriteScope::memory_protection_key()));
+    }
+#else
+    UNREACHABLE();
+#endif
+  } else {
+    CHECK(SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
+                         PageAllocator::kReadWriteExecute));
+  }
+  page_allocator->DiscardSystemPages(reinterpret_cast<void*>(mem.address()),
+                                     mem.size());
+#endif  // !defined(V8_OS_WIN)
+
   ThreadIsolation::RegisterJitPage(mem.address(), mem.size());
 
-  // TODO(v8:8462): Remove eager commit once perf supports remapping.
-  if (v8_flags.perf_prof) {
-    SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
-                   PageAllocator::kReadWriteExecute);
-  }
   return mem;
 }
 
@@ -2498,12 +2506,9 @@ void WasmCodeManager::FreeNativeModule(
   }
 
   DCHECK(IsAligned(committed_size, CommitPageSize()));
-  // TODO(v8:8462): Remove this once perf supports remapping.
-  if (!v8_flags.perf_prof) {
-    [[maybe_unused]] size_t old_committed =
-        total_committed_code_space_.fetch_sub(committed_size);
-    DCHECK_LE(committed_size, old_committed);
-  }
+  [[maybe_unused]] size_t old_committed =
+      total_committed_code_space_.fetch_sub(committed_size);
+  DCHECK_LE(committed_size, old_committed);
 }
 
 NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {

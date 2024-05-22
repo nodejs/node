@@ -7,11 +7,11 @@
 
 #include <cstdint>
 
+#include "include/v8-internal.h"
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/utils.h"
-#include "v8-internal.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -338,7 +338,7 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
   }
 
   constexpr bool AllowImplicitRepresentationChangeTo(
-      RegisterRepresentation dst_rep) const;
+      RegisterRepresentation dst_rep, bool graph_created_from_turbofan) const;
 
   constexpr RegisterRepresentation MapTaggedToWord() const {
     if (this->value() == RegisterRepresentation::Tagged()) {
@@ -363,23 +363,25 @@ V8_INLINE size_t hash_value(MaybeRegisterRepresentation rep) {
 }
 
 constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
-    RegisterRepresentation dst_rep) const {
+    RegisterRepresentation dst_rep, bool graph_created_from_turbofan) const {
   if (*this == dst_rep) {
     return true;
   }
   switch (dst_rep.value()) {
     case RegisterRepresentation::Word32():
-      // TODO(mliedtke): Remove this once JS graph building and JS reducers
-      // always produce explicit truncations.
-      // We allow implicit 64- to 32-bit truncation.
-      if (*this == RegisterRepresentation::Word64()) {
-        return true;
-      }
       // We allow implicit tagged -> untagged conversions.
       // Even without pointer compression, we use `Word32And` for Smi-checks on
       // tagged values.
       if (*this == any_of(RegisterRepresentation::Tagged(),
                           RegisterRepresentation::Compressed())) {
+        return true;
+      }
+      if (graph_created_from_turbofan &&
+          *this == RegisterRepresentation::Word64()) {
+        // TODO(12783): Remove this once Turboshaft graphs are not constructed
+        // via Turbofan any more. Unfortunately Turbofan has many implicit
+        // truncations which are hard to fix. Still, for wasm it is required
+        // that truncations in Turboshaft are explicit.
         return true;
       }
       break;

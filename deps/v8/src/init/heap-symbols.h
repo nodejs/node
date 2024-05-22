@@ -499,6 +499,7 @@
   V(_, class_fields_symbol)                               \
   V(_, class_positions_symbol)                            \
   V(_, error_end_pos_symbol)                              \
+  V(_, error_message_symbol)                              \
   V(_, error_script_symbol)                               \
   V(_, error_stack_symbol)                                \
   V(_, error_start_pos_symbol)                            \
@@ -535,7 +536,8 @@
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
   V(_, match_symbol, Symbol.match)                        \
   V(_, search_symbol, Symbol.search)                      \
-  V(_, unscopables_symbol, Symbol.unscopables)
+  V(_, unscopables_symbol, Symbol.unscopables)            \
+  V(_, dispose_symbol, Symbol.dispose)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
 // them to produce an undefined value when a load results in a failed access

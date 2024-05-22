@@ -250,7 +250,11 @@ GOMADIR = detect_goma()
 # Let reclient have precendence over goma.
 IS_GOMA_MACHINE = not RECLIENT_MODE and GOMADIR is not None
 
-RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs/linux"
+if platform.system() == "Linux":
+  RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs/linux"
+else:
+  RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs"
+
 BUILD_DISTRIBUTION_LINE = ""
 if RECLIENT_MODE:
   BUILD_DISTRIBUTION_LINE = "use_remoteexec = true"

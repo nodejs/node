@@ -946,7 +946,7 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
 #undef DISASSEMBLE_AVX2_BROADCAST
 
       default: {
-#define DECLARE_FMA_DISASM(instruction, _1, _2, _3, _4, _5, code)    \
+#define DECLARE_FMA_DISASM(instruction, _1, _2, _3, _4, code)        \
   case 0x##code: {                                                   \
     AppendToBuffer(#instruction " %s,%s,", NameOfAVXRegister(regop), \
                    NameOfAVXRegister(vvvv));                         \

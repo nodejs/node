@@ -512,21 +512,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   Ld(dst, MemOperand(instance, offset));
 }
 
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, ExternalPointerTag tag,
-                                           Register scratch) {
-  LoadFullPointer(dst, src_addr, offset);
-}
-
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, Register index,
-                                           ExternalPointerTag tag,
-                                           Register scratch) {
-  MemOperand src_op = liftoff::GetMemOp(this, src_addr, index, offset, false,
-                                        kSystemPointerSizeLog2);
-  Ld(dst, src_op);
-}
-
 void LiftoffAssembler::SpillInstanceData(Register instance) {
   Sd(instance, liftoff::GetInstanceDataOperand());
 }

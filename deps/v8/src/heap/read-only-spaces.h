@@ -31,6 +31,7 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   ReadOnlyPageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                        Address area_start, Address area_end,
                        VirtualMemory reservation);
+  MemoryChunk::MainThreadFlags InitialFlags() const;
 
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
@@ -41,11 +42,11 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   // Returns the address for a given offset in this page.
   Address OffsetToAddress(size_t offset) const {
     Address address_in_page = ChunkAddress() + offset;
-    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
-      // Pointer compression with a per-Isolate cage and shared ReadOnlyPages
-      // means that the area_start and area_end cannot be defined since they are
-      // stored within the pages which can be mapped at multiple memory
-      // addresses.
+    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
+      // Pointer compression with multiple pointer cages and shared
+      // ReadOnlyPages means that the area_start and area_end cannot be defined
+      // since they are stored within the pages which can be mapped at multiple
+      // memory addresses.
       DCHECK_LT(offset, size());
     } else {
       DCHECK_GE(address_in_page, area_start());
@@ -59,6 +60,12 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   Address GetAreaStart() const {
     return ChunkAddress() +
            MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
+  }
+
+  // A special case of the ChunkAddress since the ReadOnlyMetadata is inlined in
+  // the MemoryChunk.
+  Address ChunkAddress() const {
+    return MemoryChunk::FromAddress(MetadataAddress())->address();
   }
 
  private:

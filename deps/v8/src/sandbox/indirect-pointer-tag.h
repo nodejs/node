@@ -44,7 +44,10 @@ constexpr uint64_t kTrustedPointerTableFreeEntryBit = 0x4000000000000000;
   V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE) \
   IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,       \
           WASM_TRUSTED_INSTANCE_DATA_TYPE)                     \
-  IF_WASM(V, kWasmApiFunctionRefIndirectPointerTag, WASM_API_FUNCTION_REF_TYPE)
+  IF_WASM(V, kWasmApiFunctionRefIndirectPointerTag,            \
+          WASM_API_FUNCTION_REF_TYPE)                          \
+  IF_WASM(V, kWasmInternalFunctionIndirectPointerTag,          \
+          WASM_INTERNAL_FUNCTION_TYPE)
 
 #define MAKE_TAG(instance_type) \
   (uint64_t{instance_type} << kIndirectPointerTagShift)

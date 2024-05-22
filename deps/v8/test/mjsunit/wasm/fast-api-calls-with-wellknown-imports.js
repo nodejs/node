@@ -4,7 +4,7 @@
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --no-liftoff --wasm-fast-api
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestFastApiCallFromWasm() {
   const fast_c_api = new d8.test.FastCAPI();

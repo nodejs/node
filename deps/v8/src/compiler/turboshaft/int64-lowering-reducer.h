@@ -37,22 +37,27 @@ class Int64LoweringReducer : public Next {
     InitializeIndexMaps();
   }
 
-  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+  V<Word> REDUCE(WordBinop)(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
     if (rep == WordRepresentation::Word64()) {
+      V<Word64> left_w64 = V<Word64>::Cast(left);
+      V<Word64> right_w64 = V<Word64>::Cast(right);
       switch (kind) {
         case WordBinopOp::Kind::kAdd:
-          return LowerPairBinOp(left, right, Word32PairBinopOp::Kind::kAdd);
+          return LowerPairBinOp(left_w64, right_w64,
+                                Word32PairBinopOp::Kind::kAdd);
         case WordBinopOp::Kind::kSub:
-          return LowerPairBinOp(left, right, Word32PairBinopOp::Kind::kSub);
+          return LowerPairBinOp(left_w64, right_w64,
+                                Word32PairBinopOp::Kind::kSub);
         case WordBinopOp::Kind::kMul:
-          return LowerPairBinOp(left, right, Word32PairBinopOp::Kind::kMul);
+          return LowerPairBinOp(left_w64, right_w64,
+                                Word32PairBinopOp::Kind::kMul);
         case WordBinopOp::Kind::kBitwiseAnd:
-          return LowerBitwiseAnd(left, right);
+          return LowerBitwiseAnd(left_w64, right_w64);
         case WordBinopOp::Kind::kBitwiseOr:
-          return LowerBitwiseOr(left, right);
+          return LowerBitwiseOr(left_w64, right_w64);
         case WordBinopOp::Kind::kBitwiseXor:
-          return LowerBitwiseXor(left, right);
+          return LowerBitwiseXor(left_w64, right_w64);
         default:
           FATAL("WordBinopOp kind %d not supported by int64 lowering",
                 static_cast<int>(kind));
@@ -126,9 +131,9 @@ class Int64LoweringReducer : public Next {
                             low_comparison));
   }
 
-  OpIndex REDUCE(Call)(OpIndex callee, OptionalOpIndex frame_state,
-                       base::Vector<const OpIndex> arguments,
-                       const TSCallDescriptor* descriptor, OpEffects effects) {
+  V<Any> REDUCE(Call)(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+                      base::Vector<const OpIndex> arguments,
+                      const TSCallDescriptor* descriptor, OpEffects effects) {
     const bool is_tail_call = false;
     return LowerCall(callee, frame_state, arguments, descriptor, effects,
                      is_tail_call);
@@ -194,25 +199,27 @@ class Int64LoweringReducer : public Next {
     return Next::ReduceReturn(pop_count, base::VectorOf(lowered_values));
   }
 
-  OpIndex REDUCE(WordUnary)(OpIndex input, WordUnaryOp::Kind kind,
+  V<Word> REDUCE(WordUnary)(V<Word> input, WordUnaryOp::Kind kind,
                             WordRepresentation rep) {
     if (rep == RegisterRepresentation::Word64()) {
+      V<Word64> input_w64 = V<Word64>::Cast(input);
       switch (kind) {
         case WordUnaryOp::Kind::kCountLeadingZeros:
-          return LowerClz(input);
+          return LowerClz(input_w64);
         case WordUnaryOp::Kind::kCountTrailingZeros:
-          return LowerCtz(input);
+          return LowerCtz(input_w64);
         case WordUnaryOp::Kind::kPopCount:
-          return LowerPopCount(input);
+          return LowerPopCount(input_w64);
         case WordUnaryOp::Kind::kSignExtend8:
-          return LowerSignExtend(__ Word32SignExtend8(Unpack(input).first));
+          return LowerSignExtend(__ Word32SignExtend8(Unpack(input_w64).first));
         case WordUnaryOp::Kind::kSignExtend16:
-          return LowerSignExtend(__ Word32SignExtend16(Unpack(input).first));
+          return LowerSignExtend(
+              __ Word32SignExtend16(Unpack(input_w64).first));
         case WordUnaryOp::Kind::kReverseBytes: {
-          auto [low, high] = Unpack(input);
+          auto [low, high] = Unpack(input_w64);
           V<Word32> reversed_low = __ Word32ReverseBytes(low);
           V<Word32> reversed_high = __ Word32ReverseBytes(high);
-          return __ Tuple(reversed_high, reversed_low);
+          return V<Word64>::Cast(__ Tuple(reversed_high, reversed_low));
         }
         default:
           FATAL("WordUnaryOp kind %d not supported by int64 lowering",
@@ -236,7 +243,7 @@ class Int64LoweringReducer : public Next {
 
     if (from == word32 && to == word64) {
       if (kind == Kind::kZeroExtend) {
-        return __ Tuple(input, __ Word32Constant(0));
+        return __ Tuple(V<Word32>::Cast(input), __ Word32Constant(0));
       }
       if (kind == Kind::kSignExtend) {
         return LowerSignExtend(input);
@@ -250,12 +257,15 @@ class Int64LoweringReducer : public Next {
     }
     if (from == word64 && to == float64) {
       if (kind == Kind::kBitcast) {
-        return __ BitcastWord32PairToFloat64(__ Projection(input, 1, word32),
-                                             __ Projection(input, 0, word32));
+        auto input_w32p = V<Tuple<Word32, Word32>>::Cast(input);
+        return __ BitcastWord32PairToFloat64(
+            __ template Projection<1>(input_w32p),
+            __ template Projection<0>(input_w32p));
       }
     }
     if (from == word64 && to == word32 && kind == Kind::kTruncate) {
-      return __ Projection(input, 0, word32);
+      auto input_w32p = V<Tuple<Word32, Word32>>::Cast(input);
+      return __ template Projection<0>(input_w32p);
     }
     std::stringstream str;
     str << "ChangeOp " << kind << " from " << from << " to " << to
@@ -331,16 +341,16 @@ class Int64LoweringReducer : public Next {
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,
                             OptionalOpIndex expected, AtomicRMWOp::BinOp bin_op,
-                            RegisterRepresentation result_rep,
-                            MemoryRepresentation input_rep,
+                            RegisterRepresentation in_out_rep,
+                            MemoryRepresentation memory_rep,
                             MemoryAccessKind kind) {
-    if (result_rep != RegisterRepresentation::Word64()) {
+    if (in_out_rep != RegisterRepresentation::Word64()) {
       return Next::ReduceAtomicRMW(base, index, value, expected, bin_op,
-                                   result_rep, input_rep, kind);
+                                   in_out_rep, memory_rep, kind);
     }
     auto [value_low, value_high] = Unpack(value);
-    if (input_rep == MemoryRepresentation::Int64() ||
-        input_rep == MemoryRepresentation::Uint64()) {
+    if (memory_rep == MemoryRepresentation::Int64() ||
+        memory_rep == MemoryRepresentation::Uint64()) {
       if (bin_op == AtomicRMWOp::BinOp::kCompareExchange) {
         auto [expected_low, expected_high] = Unpack(expected.value());
         return __ AtomicWord32PairCompareExchange(
@@ -358,7 +368,7 @@ class Int64LoweringReducer : public Next {
     }
     return __ Tuple(Next::ReduceAtomicRMW(
                         base, index, value_low, new_expected, bin_op,
-                        RegisterRepresentation::Word32(), input_rep, kind),
+                        RegisterRepresentation::Word32(), memory_rep, kind),
                     __ Word32Constant(0));
   }
 
@@ -371,8 +381,9 @@ class Int64LoweringReducer : public Next {
       inputs_low.reserve(inputs.size());
       inputs_high.reserve(inputs.size());
       for (OpIndex input : inputs) {
-        inputs_low.push_back(__ Projection(input, 0, word32));
-        inputs_high.push_back(__ Projection(input, 1, word32));
+        auto input_w32p = V<Tuple<Word32, Word32>>::Cast(input);
+        inputs_low.push_back(__ template Projection<0>(input_w32p));
+        inputs_high.push_back(__ template Projection<1>(input_w32p));
       }
       return __ Tuple(Next::ReducePhi(base::VectorOf(inputs_low), word32),
                       Next::ReducePhi(base::VectorOf(inputs_high), word32));
@@ -380,15 +391,14 @@ class Int64LoweringReducer : public Next {
     return Next::ReducePhi(inputs, rep);
   }
 
-  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, RegisterRepresentation rep) {
+  OpIndex REDUCE(PendingLoopPhi)(OpIndex input, RegisterRepresentation rep) {
     if (rep == RegisterRepresentation::Word64()) {
-      V<Word32> low =
-          __ PendingLoopPhi(__ template Projection<Word32>(first, 0));
-      V<Word32> high =
-          __ PendingLoopPhi(__ template Projection<Word32>(first, 1));
+      auto input_w32p = V<Tuple<Word32, Word32>>::Cast(input);
+      V<Word32> low = __ PendingLoopPhi(__ template Projection<0>(input_w32p));
+      V<Word32> high = __ PendingLoopPhi(__ template Projection<1>(input_w32p));
       return __ Tuple(low, high);
     }
-    return Next::ReducePendingLoopPhi(first, rep);
+    return Next::ReducePendingLoopPhi(input, rep);
   }
 
   void FixLoopPhi(const PhiOp& input_phi, OpIndex output_index,
@@ -489,8 +499,9 @@ class Int64LoweringReducer : public Next {
 
   std::pair<V<Word32>, V<Word32>> Unpack(V<Word64> input) {
     DCHECK(CheckPairOrPairOp(input));
-    return {__ Projection(input, 0, RegisterRepresentation::Word32()),
-            __ Projection(input, 1, RegisterRepresentation::Word32())};
+    auto input_w32p = V<Tuple<Word32, Word32>>::Cast(input);
+    return {__ template Projection<0>(input_w32p),
+            __ template Projection<1>(input_w32p)};
   }
 
   OpIndex LowerSignExtend(V<Word32> input) {
@@ -642,10 +653,10 @@ class Int64LoweringReducer : public Next {
     return __ Tuple(low_node, high_node);
   }
 
-  OpIndex LowerCall(OpIndex callee, OptionalOpIndex frame_state,
-                    base::Vector<const OpIndex> arguments,
-                    const TSCallDescriptor* descriptor, OpEffects effects,
-                    bool is_tail_call) {
+  V<Any> LowerCall(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+                   base::Vector<const OpIndex> arguments,
+                   const TSCallDescriptor* descriptor, OpEffects effects,
+                   bool is_tail_call) {
     // Iterate over the call descriptor to skip lowering if the signature does
     // not contain an i64.
     const CallDescriptor* call_descriptor = descriptor->descriptor;
@@ -729,7 +740,7 @@ class Int64LoweringReducer : public Next {
     // This way projections on the original call node will be automatically
     // "rewired" to the correct projection of the lowered call.
     auto word32 = RegisterRepresentation::Word32();
-    base::SmallVector<OpIndex, 16> tuple_inputs;
+    base::SmallVector<V<Any>, 16> tuple_inputs;
     tuple_inputs.reserve(return_count);
     size_t projection_index = 0;  // index of the lowered call results.
 

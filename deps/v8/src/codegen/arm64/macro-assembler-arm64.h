@@ -1561,7 +1561,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // to native instructions. These helpers allow us to define the optimal code
   // sequence, and be used in both TurboFan and Liftoff.
   void PopcntHelper(Register dst, Register src);
-  void I8x16BitMask(Register dst, VRegister src);
+  void I8x16BitMask(Register dst, VRegister src, VRegister temp = NoVReg);
   void I16x8BitMask(Register dst, VRegister src);
   void I32x4BitMask(Register dst, VRegister src);
   void I64x2BitMask(Register dst, VRegister src);

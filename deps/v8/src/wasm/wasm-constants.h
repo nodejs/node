@@ -156,6 +156,8 @@ enum CatchKind : uint8_t {
   kLastCatchKind = kCatchAllRef,
 };
 
+constexpr char kMagicStringConstantsModuleName = '\'';
+
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
 static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");

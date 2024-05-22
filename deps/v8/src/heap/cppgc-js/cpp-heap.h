@@ -150,6 +150,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
   void WriteBarrier(Tagged<JSObject>);
+  void WriteBarrier(void*);
 
   bool ShouldFinalizeIncrementalMarking() const;
 

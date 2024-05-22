@@ -52,13 +52,14 @@ class MemoryAllocator {
     Pool& operator=(const Pool&) = delete;
 
     void Add(MutablePageMetadata* chunk) {
+      // This method is called only on the main thread and only during the
+      // atomic pause so a lock is not needed.
       DCHECK_NOT_NULL(chunk);
       DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
       DCHECK(!chunk->Chunk()->IsLargePage());
       DCHECK(!chunk->Chunk()->IsTrusted());
       DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
       chunk->ReleaseAllAllocatedMemory();
-      base::MutexGuard guard(&mutex_);
       pooled_chunks_.push_back(chunk);
     }
 
@@ -73,7 +74,6 @@ class MemoryAllocator {
     void ReleasePooledChunks();
 
     size_t NumberOfCommittedChunks() const;
-    int NumberOfChunks() const;
     size_t CommittedBufferedMemory() const;
 
    private:
@@ -255,17 +255,18 @@ class MemoryAllocator {
   // Used to store all data about MemoryChunk allocation, e.g. in
   // AllocateUninitializedChunk.
   struct MemoryChunkAllocationResult {
-    void* start;
+    void* chunk;
+    // If we reuse a pooled chunk return the metadata allocation here to be
+    // reused.
+    void* optional_metadata;
     size_t size;
     size_t area_start;
     size_t area_end;
     VirtualMemory reservation;
   };
 
-  // Computes the size of a MemoryChunk from the size of the object_area and
-  // whether the chunk is executable or not.
-  static size_t ComputeChunkSize(size_t area_size, AllocationSpace space,
-                                 Executability executable);
+  // Computes the size of a MemoryChunk from the size of the object_area.
+  static size_t ComputeChunkSize(size_t area_size, AllocationSpace space);
 
   // Internal allocation method for all pages/memory chunks. Returns data about
   // the unintialized memory region.
@@ -295,7 +296,7 @@ class MemoryAllocator {
   // header (RW), guard pages (no access) and the object area (code modification
   // permissions).
   V8_WARN_UNUSED_RESULT bool SetPermissionsOnExecutableMemoryChunk(
-      VirtualMemory* vm, Address start, size_t area_size, size_t reserved_size);
+      VirtualMemory* vm, Address start, size_t reserved_size);
 
   // Disallows any access on memory region owned by given reservation object.
   // Returns true if it succeeded and false otherwise.

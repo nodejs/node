@@ -3692,9 +3692,10 @@ void Assembler::vextractf128(XMMRegister dst, YMMRegister src, uint8_t imm8) {
   emit(imm8);
 }
 
-void Assembler::fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
-                          XMMRegister src2, VectorLength l, SIMDPrefix pp,
-                          LeadingOpcode m, VexW w) {
+template <typename Reg1, typename Reg2, typename Op>
+void Assembler::fma_instr(uint8_t op, Reg1 dst, Reg2 src1, Op src2,
+                          VectorLength l, SIMDPrefix pp, LeadingOpcode m,
+                          VexW w) {
   DCHECK(IsEnabled(FMA3));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, l, pp, m, w);
@@ -3702,15 +3703,21 @@ void Assembler::fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
   emit_sse_operand(dst, src2);
 }
 
-void Assembler::fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
-                          Operand src2, VectorLength l, SIMDPrefix pp,
-                          LeadingOpcode m, VexW w) {
-  DCHECK(IsEnabled(FMA3));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, l, pp, m, w);
-  emit(op);
-  emit_sse_operand(dst, src2);
-}
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::fma_instr(
+    uint8_t op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
+    VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::fma_instr(
+    uint8_t op, YMMRegister dst, YMMRegister src1, YMMRegister src2,
+    VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::fma_instr(
+    uint8_t op, XMMRegister dst, XMMRegister src1, Operand src2, VectorLength l,
+    SIMDPrefix pp, LeadingOpcode m, VexW w);
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::fma_instr(
+    uint8_t op, YMMRegister dst, YMMRegister src1, Operand src2, VectorLength l,
+    SIMDPrefix pp, LeadingOpcode m, VexW w);
 
 void Assembler::vmovd(XMMRegister dst, Register src) {
   DCHECK(IsEnabled(AVX));

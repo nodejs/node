@@ -213,7 +213,39 @@ int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
                                                  Address value) {
   DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_ &&
          !next_reference_is_protected_pointer);
+
+  #ifdef V8_ENABLE_SANDBOX
+  ExternalPointerTable::ManagedResource* managed_resource = nullptr;
+  ExternalPointerTable* owning_table = nullptr;
+  ExternalPointerHandle original_handle = kNullExternalPointerHandle;
+  if (IsManagedExternalPointerType(dest.tag())) {
+    // This can currently only happen during snapshot stress mode as we cannot
+    // normally serialized managed resources. In snapshot stress mode, the new
+    // isolate will be destroyed and the old isolate (really, the old isolate's
+    // external pointer table) therefore effectively retains ownership of the
+    // resource. As such, we need to save and restore the relevant fields of
+    // the external resource. Once the external pointer table itself destroys
+    // the managed resource when freeing the corresponding table entry, this
+    // workaround can be removed again.
+    DCHECK(v8_flags.stress_snapshot);
+    managed_resource =
+        reinterpret_cast<ExternalPointerTable::ManagedResource*>(value);
+    owning_table = managed_resource->owning_table_;
+    original_handle = managed_resource->ept_entry_;
+    managed_resource->owning_table_ = nullptr;
+    managed_resource->ept_entry_ = kNullExternalPointerHandle;
+  }
+#endif  // V8_ENABLE_SANDBOX
+
   dest.init(main_thread_isolate(), value);
+
+#ifdef V8_ENABLE_SANDBOX
+  if (managed_resource) {
+    managed_resource->owning_table_ = owning_table;
+    managed_resource->ept_entry_ = original_handle;
+  }
+#endif  // V8_ENABLE_SANDBOX
+
   // ExternalPointers can only be written into HeapObject fields, therefore they
   // cover (kExternalPointerSlotSize / kTaggedSize) slots.
   return (kExternalPointerSlotSize / kTaggedSize);

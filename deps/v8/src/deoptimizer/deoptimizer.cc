@@ -889,7 +889,9 @@ void Deoptimizer::DoComputeOutputFrames() {
         break;
 #if V8_ENABLE_WEBASSEMBLY
       case TranslatedFrame::kWasmInlinedIntoJS:
-        FATAL("inlined wasm frames may not appear in deopts for built-ins");
+        FATAL("inlined wasm frames may not appear in JS deopts");
+      case TranslatedFrame::kLiftoffFunction:
+        FATAL("wasm liftoff frames may not appear in JS deopts");
 #endif
       case TranslatedFrame::kInvalid:
         FATAL("invalid frame");

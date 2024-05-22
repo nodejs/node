@@ -1711,12 +1711,6 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastWord32PairToFloat64(
-    node_t node) {
-  UNIMPLEMENTED();
-}
-
 template <unsigned N, typename Adapter>
 static void VisitInt32PairBinop(InstructionSelectorT<Adapter>* selector,
                                 InstructionCode pair_opcode,

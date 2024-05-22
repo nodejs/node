@@ -150,9 +150,10 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
                            const PropertyCallbackInfo<Value>& info);
 
   // Callbacks that access maps
-  static void MapGet(Local<Name> name, const PropertyCallbackInfo<Value>& info);
-  static void MapSet(Local<Name> name, Local<Value> value,
-                     const PropertyCallbackInfo<Value>& info);
+  static v8::Intercepted MapGet(Local<Name> name,
+                                const PropertyCallbackInfo<Value>& info);
+  static v8::Intercepted MapSet(Local<Name> name, Local<Value> value,
+                                const PropertyCallbackInfo<void>& info);
 
   // Utility methods for wrapping C++ objects as JavaScript objects,
   // and going back again.
@@ -399,10 +400,9 @@ string ObjectToString(v8::Isolate* isolate, Local<Value> value) {
   return string(*utf8_value);
 }
 
-
-void JsHttpRequestProcessor::MapGet(Local<Name> name,
-                                    const PropertyCallbackInfo<Value>& info) {
-  if (name->IsSymbol()) return;
+v8::Intercepted JsHttpRequestProcessor::MapGet(
+    Local<Name> name, const PropertyCallbackInfo<Value>& info) {
+  if (name->IsSymbol()) return v8::Intercepted::kNo;
 
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.Holder());
@@ -414,7 +414,7 @@ void JsHttpRequestProcessor::MapGet(Local<Name> name,
   map<string, string>::iterator iter = obj->find(key);
 
   // If the key is not present return an empty handle as signal
-  if (iter == obj->end()) return;
+  if (iter == obj->end()) return v8::Intercepted::kNo;
 
   // Otherwise fetch the value and wrap it in a JavaScript string
   const string& value = (*iter).second;
@@ -422,12 +422,13 @@ void JsHttpRequestProcessor::MapGet(Local<Name> name,
       String::NewFromUtf8(info.GetIsolate(), value.c_str(),
                           NewStringType::kNormal,
                           static_cast<int>(value.length())).ToLocalChecked());
+  return v8::Intercepted::kYes;
 }
 
-
-void JsHttpRequestProcessor::MapSet(Local<Name> name, Local<Value> value_obj,
-                                    const PropertyCallbackInfo<Value>& info) {
-  if (name->IsSymbol()) return;
+v8::Intercepted JsHttpRequestProcessor::MapSet(
+    Local<Name> name, Local<Value> value_obj,
+    const PropertyCallbackInfo<void>& info) {
+  if (name->IsSymbol()) return v8::Intercepted::kNo;
 
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.Holder());
@@ -441,8 +442,8 @@ void JsHttpRequestProcessor::MapSet(Local<Name> name, Local<Value> value_obj,
 
   // Return the value; any non-empty handle will work.
   info.GetReturnValue().Set(value_obj);
+  return v8::Intercepted::kYes;
 }
-
 
 Local<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
     Isolate* isolate) {

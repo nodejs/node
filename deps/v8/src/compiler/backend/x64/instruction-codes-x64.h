@@ -262,6 +262,7 @@ namespace compiler {
   V(X64I64x2UConvertI32x4High)                       \
   V(X64I64x4UConvertI32x4)                           \
   V(X64I32x4SConvertF32x4)                           \
+  V(X64I32x8SConvertF32x8)                           \
   V(X64I32x4SConvertI16x8Low)                        \
   V(X64I32x4SConvertI16x8High)                       \
   V(X64I32x8SConvertI16x8)                           \
@@ -353,10 +354,12 @@ namespace compiler {
   V(X64S32x4UnpackHigh)                              \
   V(X64S16x8UnpackHigh)                              \
   V(X64S8x16UnpackHigh)                              \
+  V(X64S32x8UnpackHigh)                              \
   V(X64S64x2UnpackLow)                               \
   V(X64S32x4UnpackLow)                               \
   V(X64S16x8UnpackLow)                               \
   V(X64S8x16UnpackLow)                               \
+  V(X64S32x8UnpackLow)                               \
   V(X64S8x16TransposeLow)                            \
   V(X64S8x16TransposeHigh)                           \
   V(X64S8x8Reverse)                                  \
@@ -378,7 +381,12 @@ namespace compiler {
   V(X64F32x8Pmax)                                    \
   V(X64F64x4Pmin)                                    \
   V(X64F64x4Pmax)                                    \
-  V(X64ExtractF128)
+  V(X64ExtractF128)                                  \
+  V(X64F32x8Qfma)                                    \
+  V(X64F32x8Qfms)                                    \
+  V(X64F64x4Qfma)                                    \
+  V(X64F64x4Qfms)
+
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
 // are encoded into the InstructionCode of the instruction and tell the

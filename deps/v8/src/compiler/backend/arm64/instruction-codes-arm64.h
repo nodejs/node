@@ -342,6 +342,7 @@ namespace compiler {
   V(Arm64Uint64ToFloat64)                            \
   V(Arm64Float64ExtractLowWord32)                    \
   V(Arm64Float64ExtractHighWord32)                   \
+  V(Arm64Float64FromWord32Pair)                      \
   V(Arm64Float64InsertLowWord32)                     \
   V(Arm64Float64InsertHighWord32)                    \
   V(Arm64Float64MoveU64)                             \

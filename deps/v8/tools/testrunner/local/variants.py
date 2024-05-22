@@ -39,7 +39,6 @@ ALL_VARIANT_FLAGS = {
         "--turboshaft",
         "--turboshaft-future",
         "--turboshaft-wasm",
-        "--turboshaft-wasm-wrappers",
         "--no-wasm-generic-wrapper",
         "--no-wasm-to-js-generic-wrapper",
         "--no-liftoff",

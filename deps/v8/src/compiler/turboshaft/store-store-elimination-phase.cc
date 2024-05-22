@@ -9,7 +9,7 @@
 #include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
-#include "src/compiler/turboshaft/store-store-elimination-reducer.h"
+#include "src/compiler/turboshaft/store-store-elimination-reducer-inl.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/numbers/conversions-inl.h"

@@ -35,7 +35,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
-#include "src/init/isolate-allocator.h"
+#include "src/init/isolate-group.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
@@ -183,6 +183,7 @@ class Recorder;
 
 namespace wasm {
 class WasmCodeLookupCache;
+class WasmOrphanedGlobalHandle;
 }
 
 #define RETURN_FAILURE_IF_EXCEPTION(isolate)         \
@@ -1053,7 +1054,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     CAUGHT_BY_ASYNC_AWAIT,
   };
   CatchType PredictExceptionCatcher();
-  CatchType PredictExceptionCatchAtFrame(v8::internal::StackFrame* frame);
 
   void ReportPendingMessages(bool report = true);
 
@@ -1200,14 +1200,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_EXTERNAL_CODE_SPACE
   }
 
-  // When pointer compression is on, the PtrComprCage used by this
-  // Isolate. Otherwise nullptr.
-  VirtualMemoryCage* GetPtrComprCage() {
-    return isolate_allocator_->GetPtrComprCage();
+  IsolateGroup* isolate_group() const { return isolate_group_; }
+
+  VirtualMemoryCage* GetPtrComprCage() const {
+    return isolate_group()->GetPtrComprCage();
   }
-  const VirtualMemoryCage* GetPtrComprCage() const {
-    return isolate_allocator_->GetPtrComprCage();
-  }
+
   VirtualMemoryCage* GetPtrComprCodeCageForTesting();
 
   // Generated code can embed this address to get access to the isolate-specific
@@ -1340,6 +1338,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache() {
     return wasm_code_look_up_cache_;
   }
+  wasm::WasmOrphanedGlobalHandle* NewWasmOrphanedGlobalHandle();
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   GlobalHandles* global_handles() const { return global_handles_; }
@@ -1568,6 +1567,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnSetLength(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
+
+  void UpdateProtectorsOnSetPrototype(Handle<JSObject> object,
+                                      Handle<Object> new_prototype);
+
   void UpdateNoElementsProtectorOnSetPrototype(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
@@ -1579,7 +1582,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
-      Handle<JSObject> object);
+      Handle<JSObject> object, Handle<Object> new_prototype);
 
   // Returns true if array is the initial array prototype in any native context.
   inline bool IsAnyInitialArrayPrototype(Tagged<JSArray> array);
@@ -1614,6 +1617,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
            v8_flags.concurrent_recompilation);
     return optimizing_compile_dispatcher_ != nullptr;
   }
+
+  void IncreaseConcurrentOptimizationPriority(
+      CodeKind kind, Tagged<SharedFunctionInfo> function);
 
   OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
     DCHECK_NOT_NULL(optimizing_compile_dispatcher_);
@@ -1951,7 +1957,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void IsolateInBackgroundNotification();
 
-  bool IsIsolateInBackground() { return is_isolate_in_background_; }
+  bool is_backgrounded() { return is_backgrounded_; }
 
   // When efficiency mode is enabled we can favor single core throughput without
   // latency requirements. Any decision based on this flag must be quickly
@@ -1960,27 +1966,28 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // efficiency mode. The decision when to enable efficiency mode is steered by
   // the embedder. Currently the only signal (potentially) being considered is
   // if an isolate is in foreground or background mode.
-  bool UseEfficiencyMode() {
+  bool EfficiencyModeEnabled() {
     if (V8_UNLIKELY(v8_flags.efficiency_mode.value().has_value())) {
       return *v8_flags.efficiency_mode.value();
     }
-    return IsIsolateInBackground();
+    return is_backgrounded();
   }
+
   // This is a temporary api until we use it by default.
-  bool UseEfficiencyModeForTiering() {
-    if (!v8_flags.efficiency_mode_for_tiering_heuristics) return false;
-    return UseEfficiencyMode();
+  bool EfficiencyModeEnabledForTiering() {
+    return v8_flags.efficiency_mode_for_tiering_heuristics &&
+           EfficiencyModeEnabled();
   }
 
   // In battery saver mode we optimize to reduce total cpu cycles spent. Battery
   // saver mode is opt-in by the embedder. As with efficiency mode we must
   // expect that the mode is toggled off again and we should be able to ramp up
   // quickly after that.
-  bool UseBatterySaverMode() {
+  bool BatterySaverModeEnabled() {
     if (V8_UNLIKELY(v8_flags.battery_saver_mode.value().has_value())) {
       return *v8_flags.battery_saver_mode.value();
     }
-    return V8_UNLIKELY(battery_saver_mode_enabled());
+    return V8_UNLIKELY(battery_saver_mode_enabled_);
   }
 
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
@@ -2075,6 +2082,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address shared_external_pointer_table_address_address() {
     return reinterpret_cast<Address>(
         &isolate_data_.shared_external_pointer_table_);
+  }
+
+  ExternalPointerTable& cpp_heap_pointer_table() {
+    return isolate_data_.cpp_heap_pointer_table_;
+  }
+
+  const ExternalPointerTable& cpp_heap_pointer_table() const {
+    return isolate_data_.cpp_heap_pointer_table_;
   }
 
 #endif  // V8_COMPRESS_POINTERS
@@ -2211,16 +2226,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // stack.
   void PrepareForSuddenShutdown();
 
-  bool battery_saver_mode_enabled() const {
-    return battery_saver_mode_enabled_;
-  }
-
   void set_battery_saver_mode_enabled(bool battery_saver_mode_enabled) {
     battery_saver_mode_enabled_ = battery_saver_mode_enabled;
   }
 
  private:
-  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
+  explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
 
   static Isolate* Allocate();
@@ -2337,7 +2348,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Set to true if this isolate is used as main isolate with a shared space.
   bool is_shared_space_isolate_{false};
 
-  std::unique_ptr<IsolateAllocator> isolate_allocator_;
+  IsolateGroup* isolate_group_;
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
@@ -2461,7 +2472,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // True if the isolate is in background. This flag is used
   // to prioritize between memory usage and latency.
-  std::atomic<bool> is_isolate_in_background_ = false;
+  std::atomic<bool> is_backgrounded_ = false;
 
   // Indicates whether the isolate owns shareable data.
   // Only false for client isolates attached to a shared isolate.
@@ -2683,6 +2694,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   wasm::StackMemory* wasm_stacks_ = nullptr;
+  wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
 #endif
 
   // Enables the host application to provide a mechanism for recording a
@@ -2710,6 +2722,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   friend class GlobalSafepoint;
   friend class TestSerializer;
   friend class SharedHeapNoClientsTest;
+  friend class IsolateForPointerCompression;
   friend class IsolateForSandbox;
 };
 

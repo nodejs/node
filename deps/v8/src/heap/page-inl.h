@@ -5,12 +5,32 @@
 #ifndef V8_HEAP_PAGE_INL_H_
 #define V8_HEAP_PAGE_INL_H_
 
+#include "src/heap/memory-chunk-inl.h"
 #include "src/heap/page.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
 namespace internal {
+
+// static
+PageMetadata* PageMetadata::FromAddress(Address addr) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  return reinterpret_cast<PageMetadata*>(
+      MemoryChunk::FromAddress(addr)->Metadata());
+}
+
+// static
+PageMetadata* PageMetadata::FromHeapObject(Tagged<HeapObject> o) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  return FromAddress(o.ptr());
+}
+
+// static
+PageMetadata* PageMetadata::FromAllocationAreaAddress(Address address) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  return PageMetadata::FromAddress(address - kTaggedSize);
+}
 
 template <typename Callback>
 void PageMetadata::ForAllFreeListCategories(Callback callback) {
@@ -24,7 +44,7 @@ void PageMetadata::MarkEvacuationCandidate() {
   DCHECK(!Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  Chunk()->SetFlag(MemoryChunk::EVACUATION_CANDIDATE);
+  Chunk()->SetFlagSlow(MemoryChunk::EVACUATION_CANDIDATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
@@ -34,7 +54,7 @@ void PageMetadata::ClearEvacuationCandidate() {
     DCHECK_NULL(slot_set<OLD_TO_OLD>());
     DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   }
-  chunk->ClearFlag(MemoryChunk::EVACUATION_CANDIDATE);
+  chunk->ClearFlagSlow(MemoryChunk::EVACUATION_CANDIDATE);
   InitializeFreeListCategories();
 }
 

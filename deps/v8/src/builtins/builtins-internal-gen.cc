@@ -411,7 +411,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void IncrementalWriteBarrierMinor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
                                     SaveFPRegsMode fp_mode, Label* next) {
-    Label check_is_unmarked(this);
+    Label check_is_unmarked(this, Label::kDeferred);
 
     InYoungGeneration(value, &check_is_unmarked, next);
 
@@ -477,7 +477,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void IncrementalWriteBarrier(TNode<IntPtrT> slot, SaveFPRegsMode fp_mode) {
     Label next(this), write_into_shared_object(this),
-        write_into_local_object(this), local_object_and_value(this);
+        write_into_local_object(this),
+        local_object_and_value(this, Label::kDeferred);
 
     TNode<IntPtrT> object = BitcastTaggedToWord(
         UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));

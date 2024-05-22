@@ -1080,7 +1080,7 @@ class PreParser : public ParserBase<PreParser> {
                                        ClassScope* scope, VariableMode mode,
                                        IsStaticFlag is_static_flag,
                                        bool* was_added) {
-    DCHECK(IsConstVariableMode(mode));
+    DCHECK(IsImmutableLexicalOrPrivateVariableMode(mode));
     return scope->DeclarePrivateName(name, mode, is_static_flag, was_added);
   }
 
@@ -1190,7 +1190,7 @@ class PreParser : public ParserBase<PreParser> {
                                       const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {
-    DCHECK_IMPLIES(IsNull(name), class_info->is_anonymous);
+    DCHECK_IMPLIES(IsEmptyIdentifier(name), class_info->is_anonymous);
     // Declare a special class variable for anonymous classes with the dot
     // if we need to save it for static private method access.
     scope->DeclareClassVariable(ast_value_factory(), name.string_,
@@ -1516,6 +1516,9 @@ class PreParser : public ParserBase<PreParser> {
     PreParserIdentifier result = PreParserIdentifier::Default();
     result.string_ = ast_value_factory()->empty_string();
     return result;
+  }
+  V8_INLINE bool IsEmptyIdentifier(PreParserIdentifier subject) {
+    return subject.string_->IsEmpty();
   }
 
   // Producing data during the recursive descent.

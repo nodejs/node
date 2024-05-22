@@ -148,7 +148,7 @@ struct SynchWaitParams;
 //
 // See also `MutexLock`, below, for scoped `Mutex` acquisition.
 
-class ABSL_LOCKABLE Mutex {
+class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
  public:
   // Creates a `Mutex` that is not held by anyone. This constructor is
   // typically used for Mutexes allocated on the heap or the stack.

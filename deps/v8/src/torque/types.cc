@@ -1184,6 +1184,8 @@ size_t AbstractType::AlignmentLog2() const {
     alignment = TargetArchitecture::RawPtrSize();
   } else if (this == TypeOracle::GetExternalPointerType()) {
     alignment = TargetArchitecture::ExternalPointerSize();
+  } else if (this == TypeOracle::GetCppHeapPointerType()) {
+    alignment = TargetArchitecture::CppHeapPointerSize();
   } else if (this == TypeOracle::GetIndirectPointerType()) {
     alignment = TargetArchitecture::IndirectPointerSize();
   } else if (this == TypeOracle::GetProtectedPointerType()) {
@@ -1258,6 +1260,9 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
     size = TargetArchitecture::ExternalPointerSize();
     size_string = "kExternalPointerSlotSize";
+  } else if (type->IsSubtypeOf(TypeOracle::GetCppHeapPointerType())) {
+    size = TargetArchitecture::CppHeapPointerSize();
+    size_string = "kCppHeapPointerSlotSize";
   } else if (type->IsSubtypeOf(TypeOracle::GetIndirectPointerType())) {
     size = TargetArchitecture::IndirectPointerSize();
     size_string = "kIndirectPointerSize";

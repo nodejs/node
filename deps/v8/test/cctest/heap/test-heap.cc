@@ -50,6 +50,7 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -6978,6 +6979,7 @@ void HeapTester::UncommitUnusedMemory(Heap* heap) {
 
 class DeleteNative {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
   static void Deleter(void* arg) {
     delete reinterpret_cast<DeleteNative*>(arg);
   }

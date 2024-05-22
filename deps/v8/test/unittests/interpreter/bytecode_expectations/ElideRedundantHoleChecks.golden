@@ -264,7 +264,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 2
-bytecode array length: 72
+bytecode array length: 70
 bytecodes: [
   /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(1), U8(37),
                 B(Star0),
@@ -274,14 +274,13 @@ bytecodes: [
   /*   35 E> */ B(ThrowReferenceErrorIfHole), U8(1),
                 B(StaInArrayLiteral), R(0), R(1), U8(2),
                 B(Ldar), R(0),
-                B(JumpIfUndefinedOrNull), U8(43),
+                B(JumpIfUndefinedOrNull), U8(41),
                 B(ToObject), R(0),
                 B(ForInEnumerate), R(0),
                 B(ForInPrepare), R(1), U8(0),
                 B(LdaZero),
                 B(Star4),
-  /*   29 S> */ B(ForInContinue), R(4), R(3),
-                B(JumpIfFalse), U8(29),
+  /*   29 S> */ B(JumpIfForInDone), U8(30), R(4), R(3),
                 B(ForInNext), R(0), R(4), R(1), U8(0),
                 B(JumpIfUndefined), U8(15),
                 B(Star5),
@@ -292,8 +291,7 @@ bytecodes: [
   /*   41 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(ThrowReferenceErrorIfHole), U8(3),
                 B(ForInStep), R(4),
-                B(Star4),
-  /*   24 E> */ B(JumpLoop), U8(28), I8(0), U8(4),
+  /*   24 E> */ B(JumpLoop), U8(26), I8(0), U8(4),
   /*   46 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(ThrowReferenceErrorIfHole), U8(2),
   /*   49 S> */ B(LdaImmutableCurrentContextSlot), U8(3),

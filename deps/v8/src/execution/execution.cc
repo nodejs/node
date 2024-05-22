@@ -211,6 +211,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
                                 isolate);
         // If we are trying to re-declare a REPL-mode let as a let or REPL-mode
         // const as a const, allow it.
+        // TODO(rezvan): Add check and related tests for VariableMode::kUsing.
         if (!(((mode == VariableMode::kLet &&
                 lookup.mode == VariableMode::kLet) ||
                (mode == VariableMode::kConst &&

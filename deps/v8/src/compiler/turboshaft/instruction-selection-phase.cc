@@ -300,8 +300,11 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
 
   // Compute special RPO order....
   TurboshaftSpecialRPONumberer numberer(graph, temp_zone);
-  auto schedule = numberer.ComputeSpecialRPO();
-  graph.ReorderBlocks(base::VectorOf(schedule));
+  if (!data->graph_has_special_rpo()) {
+    auto schedule = numberer.ComputeSpecialRPO();
+    graph.ReorderBlocks(base::VectorOf(schedule));
+    data->set_graph_has_special_rpo();
+  }
 
   // Determine deferred blocks.
   PropagateDeferred(graph);

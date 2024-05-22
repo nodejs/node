@@ -64,6 +64,25 @@ class JSSegmentIterator
   TQ_OBJECT_CONSTRUCTORS(JSSegmentIterator)
 };
 
+class JSSegmentDataObject
+    : public TorqueGeneratedJSSegmentDataObject<JSSegmentDataObject, JSObject> {
+ public:
+  DECL_CAST(JSSegmentDataObject)
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(JSSegmentDataObject)
+};
+
+class JSSegmentDataObjectWithIsWordLike
+    : public TorqueGeneratedJSSegmentDataObjectWithIsWordLike<
+          JSSegmentDataObjectWithIsWordLike, JSSegmentDataObject> {
+ public:
+  DECL_CAST(JSSegmentDataObjectWithIsWordLike)
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(JSSegmentDataObjectWithIsWordLike)
+};
+
 }  // namespace internal
 }  // namespace v8
 

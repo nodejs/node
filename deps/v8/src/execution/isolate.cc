@@ -69,6 +69,8 @@
 #include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
 #include "src/init/v8.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
@@ -2379,6 +2381,43 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 
 namespace {
 
+class StackFrameSummaryIterator {
+ public:
+  explicit StackFrameSummaryIterator(Isolate* isolate)
+      : stack_iterator_(isolate), summaries_(), index_(0) {
+    InitSummaries();
+  }
+  void Advance() {
+    if (index_ == 0) {
+      summaries_.clear();
+      stack_iterator_.Advance();
+      InitSummaries();
+    } else {
+      index_--;
+    }
+  }
+  bool done() const { return stack_iterator_.done(); }
+  StackFrame* frame() const { return stack_iterator_.frame(); }
+  bool has_frame_summary() const { return index_ < summaries_.size(); }
+  const FrameSummary& frame_summary() const {
+    DCHECK(has_frame_summary());
+    return summaries_[index_];
+  }
+  Isolate* isolate() const { return stack_iterator_.isolate(); }
+
+ private:
+  void InitSummaries() {
+    if (!done() && frame()->is_java_script()) {
+      JavaScriptFrame::cast(frame())->Summarize(&summaries_);
+      DCHECK_GT(summaries_.size(), 0);
+      index_ = summaries_.size() - 1;
+    }
+  }
+  StackFrameIterator stack_iterator_;
+  std::vector<FrameSummary> summaries_;
+  size_t index_;
+};
+
 HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {
   switch (builtin_id) {
 #define CASE(Name)       \
@@ -2391,39 +2430,22 @@ HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {
   }
 }
 
-HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
-  HandlerTable::CatchPrediction prediction;
-  if (frame->is_optimized()) {
-    if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) {
-      // This optimized frame will catch. It's handler table does not include
-      // exception prediction, and we need to use the corresponding handler
-      // tables on the unoptimized code objects.
-      std::vector<FrameSummary> summaries;
-      frame->Summarize(&summaries);
-      PtrComprCageBase cage_base(frame->isolate());
-      for (size_t i = summaries.size(); i != 0; i--) {
-        const FrameSummary& summary = summaries[i - 1];
-        Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-        if (code->kind(cage_base) == CodeKind::BUILTIN) {
-          auto prediction = CatchPredictionFor(code->GetCode()->builtin_id());
-          if (prediction == HandlerTable::UNCAUGHT) continue;
-          return prediction;
-        }
-
-        // Must have been constructed from a bytecode array.
-        CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(cage_base));
-        int code_offset = summary.code_offset();
-        HandlerTable table(code->GetBytecodeArray());
-        int index = table.LookupRange(code_offset, nullptr, &prediction);
-        if (index <= 0) continue;
-        if (prediction == HandlerTable::UNCAUGHT) continue;
-        return prediction;
-      }
-    }
-  } else if (frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
-    return prediction;
+HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
+                                               Isolate* isolate) {
+  PtrComprCageBase cage_base(isolate);
+  Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
+  if (code->kind(cage_base) == CodeKind::BUILTIN) {
+    return CatchPredictionFor(code->GetCode()->builtin_id());
   }
-  return HandlerTable::UNCAUGHT;
+
+  // Must have been constructed from a bytecode array.
+  CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(cage_base));
+  int code_offset = summary.code_offset();
+  HandlerTable table(code->GetBytecodeArray());
+  HandlerTable::CatchPrediction prediction;
+  int index = table.LookupRange(code_offset, nullptr, &prediction);
+  if (index <= 0) return HandlerTable::UNCAUGHT;
+  return prediction;
 }
 
 Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
@@ -2441,38 +2463,22 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
       UNREACHABLE();
   }
 }
-}  // anonymous namespace
 
-Isolate::CatchType Isolate::PredictExceptionCatcher() {
-  if (TopExceptionHandlerType(Tagged<Object>()) ==
-      ExceptionHandlerType::kExternalTryCatch) {
-    return CAUGHT_BY_EXTERNAL;
-  }
-
-  // Search for an exception handler by performing a full walk over the stack.
-  for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
-    StackFrame* frame = iter.frame();
-    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(frame);
-    if (prediction != NOT_CAUGHT) return prediction;
-  }
-
-  // Handler not found.
-  return NOT_CAUGHT;
-}
-
-Isolate::CatchType Isolate::PredictExceptionCatchAtFrame(StackFrame* frame) {
+Isolate::CatchType PredictExceptionCatchAtFrame(
+    const StackFrameSummaryIterator& iterator) {
+  const StackFrame* frame = iterator.frame();
   switch (frame->type()) {
     case StackFrame::ENTRY:
     case StackFrame::CONSTRUCT_ENTRY: {
       Address external_handler =
-          thread_local_top()->try_catch_handler_address();
+          iterator.isolate()->thread_local_top()->try_catch_handler_address();
       Address entry_handler = frame->top_handler()->next_address();
       // The exception has been externally caught if and only if there is an
       // external handler which is on top of the top-most JS_ENTRY handler.
       if (external_handler != kNullAddress &&
-          !try_catch_handler()->is_verbose_) {
+          !iterator.isolate()->try_catch_handler()->IsVerbose()) {
         if (entry_handler == kNullAddress || entry_handler > external_handler) {
-          return CAUGHT_BY_EXTERNAL;
+          return Isolate::CAUGHT_BY_EXTERNAL;
         }
       }
     } break;
@@ -2483,8 +2489,9 @@ Isolate::CatchType Isolate::PredictExceptionCatchAtFrame(StackFrame* frame) {
     case StackFrame::TURBOFAN:
     case StackFrame::MAGLEV:
     case StackFrame::BUILTIN: {
-      JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-      return ToCatchType(PredictException(js_frame));
+      DCHECK(iterator.has_frame_summary());
+      return ToCatchType(
+          PredictException(iterator.frame_summary(), iterator.isolate()));
     }
 
     case StackFrame::STUB: {
@@ -2506,6 +2513,23 @@ Isolate::CatchType Isolate::PredictExceptionCatchAtFrame(StackFrame* frame) {
       // All other types can not handle exception.
       break;
   }
+  return Isolate::NOT_CAUGHT;
+}
+}  // anonymous namespace
+
+Isolate::CatchType Isolate::PredictExceptionCatcher() {
+  if (TopExceptionHandlerType(Tagged<Object>()) ==
+      ExceptionHandlerType::kExternalTryCatch) {
+    return CAUGHT_BY_EXTERNAL;
+  }
+
+  // Search for an exception handler by performing a full walk over the stack.
+  for (StackFrameSummaryIterator iter(this); !iter.done(); iter.Advance()) {
+    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(iter);
+    if (prediction != NOT_CAUGHT) return prediction;
+  }
+
+  // Handler not found.
   return NOT_CAUGHT;
 }
 
@@ -2904,6 +2928,206 @@ bool WalkPromiseTreeInternal(
   return caught;
 }
 
+// Helper functions to scan for calls to .catch.
+using interpreter::Bytecode;
+using interpreter::Bytecodes;
+
+enum PromiseMethod { kThen, kCatch, kFinally, kInvalid };
+
+// Requires the iterator to be on a GetNamedProperty instruction
+PromiseMethod GetPromiseMethod(
+    Isolate* isolate, const interpreter::BytecodeArrayIterator& iterator) {
+  Handle<Object> object = iterator.GetConstantForIndexOperand(1, isolate);
+  if (!IsString(*object)) {
+    return kInvalid;
+  }
+  Handle<String> str = Handle<String>::cast(object);
+  if (str->Equals(ReadOnlyRoots(isolate).then_string())) {
+    return kThen;
+  } else if (str->IsEqualTo(base::StaticCharVector("catch"))) {
+    return kCatch;
+  } else if (str->IsEqualTo(base::StaticCharVector("finally"))) {
+    return kFinally;
+  } else {
+    return kInvalid;
+  }
+}
+
+bool TouchesRegister(const interpreter::BytecodeArrayIterator& iterator,
+                     int index) {
+  Bytecode bytecode = iterator.current_bytecode();
+  int num_operands = Bytecodes::NumberOfOperands(bytecode);
+  const interpreter::OperandType* operand_types =
+      Bytecodes::GetOperandTypes(bytecode);
+
+  for (int i = 0; i < num_operands; ++i) {
+    if (Bytecodes::IsRegisterOperandType(operand_types[i])) {
+      int base_index = iterator.GetRegisterOperand(i).index();
+      int num_registers;
+      if (Bytecodes::IsRegisterListOperandType(operand_types[i])) {
+        num_registers = iterator.GetRegisterCountOperand(++i);
+      } else {
+        num_registers =
+            Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
+      }
+
+      if (base_index <= index && index < base_index + num_registers) {
+        return true;
+      }
+    }
+  }
+
+  if (Bytecodes::WritesImplicitRegister(bytecode)) {
+    return iterator.GetStarTargetRegister().index() == index;
+  }
+
+  return false;
+}
+
+bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
+                      int offset) {
+  interpreter::BytecodeArrayIterator iterator(bytecode_array, offset);
+
+  while (!iterator.done()) {
+    // We should be on a call instruction of some kind. While we could check
+    // this, it may be difficult to create an exhaustive list of instructions
+    // that could call, such as property getters, but at a minimum this
+    // instruction should write to the accumulator.
+    if (!Bytecodes::WritesAccumulator(iterator.current_bytecode())) {
+      return false;
+    }
+
+    iterator.Advance();
+    // While usually the next instruction is a Star, sometimes we store and
+    // reload from context first.
+    if (iterator.done()) {
+      return false;
+    }
+    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlot) {
+      unsigned int slot = iterator.GetIndexOperand(0);
+      iterator.Advance();
+      if (!iterator.done() &&
+          (iterator.current_bytecode() ==
+               Bytecode::kLdaImmutableCurrentContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot)) {
+        if (iterator.GetIndexOperand(0) != slot) {
+          return false;
+        }
+        iterator.Advance();
+      }
+    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlot) {
+      int context = iterator.GetRegisterOperand(0).index();
+      unsigned int slot = iterator.GetIndexOperand(1);
+      unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
+      iterator.Advance();
+      if (!iterator.done() &&
+          (iterator.current_bytecode() == Bytecode::kLdaImmutableContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaContextSlot)) {
+        if (iterator.GetRegisterOperand(0).index() != context ||
+            iterator.GetIndexOperand(1) != slot ||
+            iterator.GetUnsignedImmediateOperand(2) != depth) {
+          return false;
+        }
+        iterator.Advance();
+      }
+    }
+
+    // Next instruction should be a Star (store accumulator to register)
+    if (iterator.done() || !Bytecodes::IsAnyStar(iterator.current_bytecode())) {
+      return false;
+    }
+    // The register it stores to will be assumed to be our promise
+    int promise_register = iterator.GetStarTargetRegister().index();
+
+    // TODO(crbug/40283993): Should we loop over non-matching instructions here
+    // to allow code like
+    // `const promise = foo(); console.log(...); promise.catch(...);`?
+
+    iterator.Advance();
+    // We should be on a GetNamedProperty instruction.
+    if (iterator.done() ||
+        iterator.current_bytecode() != Bytecode::kGetNamedProperty ||
+        iterator.GetRegisterOperand(0).index() != promise_register) {
+      return false;
+    }
+    PromiseMethod method = GetPromiseMethod(isolate, iterator);
+    if (method == kInvalid) {
+      return false;
+    }
+
+    iterator.Advance();
+    // Next instruction should be a Star (save immediate to register)
+    if (iterator.done() || !Bytecodes::IsAnyStar(iterator.current_bytecode())) {
+      return false;
+    }
+    // This register contains the method we will eventually invoke
+    int method_register = iterator.GetStarTargetRegister().index();
+    if (method_register == promise_register) {
+      return false;
+    }
+
+    // Now we step over multiple instructions creating the arguments for the
+    // method.
+    while (true) {
+      iterator.Advance();
+      if (iterator.done()) {
+        return false;
+      }
+      Bytecode bytecode = iterator.current_bytecode();
+      if (bytecode == Bytecode::kCallProperty1 ||
+          bytecode == Bytecode::kCallProperty2) {
+        // This is a call property call of the right size, but is it a call of
+        // the method and on the promise?
+        if (iterator.GetRegisterOperand(0).index() == method_register &&
+            iterator.GetRegisterOperand(1).index() == promise_register) {
+          // This is our method call, but does it catch?
+          if (method == kCatch ||
+              (method == kThen && bytecode == Bytecode::kCallProperty2)) {
+            return true;
+          }
+          // Break out of the inner loop, continuing the outer loop. We
+          // will use the same procedure to check for chained method calls.
+          break;
+        }
+      }
+
+      // Check for some instructions that should make us give up scanning.
+      if (Bytecodes::IsJump(bytecode) || Bytecodes::IsSwitch(bytecode) ||
+          Bytecodes::Returns(bytecode) ||
+          Bytecodes::UnconditionallyThrows(bytecode)) {
+        // Stop scanning at control flow instructions that aren't calls
+        return false;
+      }
+
+      if (TouchesRegister(iterator, promise_register) ||
+          TouchesRegister(iterator, method_register)) {
+        // Stop scanning at instruction that unexpectedly interacts with one of
+        // the registers we care about.
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
+bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
+  if (!iterator.frame()->is_java_script()) {
+    return false;
+  }
+  if (iterator.frame_summary().IsJavaScript()) {
+    auto& js_summary = iterator.frame_summary().AsJavaScript();
+    if (IsBytecodeArray(*js_summary.abstract_code())) {
+      if (CallsCatchMethod(
+              iterator.isolate(),
+              Handle<BytecodeArray>::cast(js_summary.abstract_code()),
+              js_summary.code_offset())) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 bool Isolate::WalkCallStackAndPromiseTree(
@@ -2937,19 +3161,24 @@ bool Isolate::WalkCallStackAndPromiseTree(
   }
 
   // Search for an exception handler by performing a full walk over the stack.
-  for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
-    StackFrame* frame = iter.frame();
-    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(frame);
+  for (StackFrameSummaryIterator iter(this); !iter.done(); iter.Advance()) {
+    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(iter);
 
     bool caught;
     if (rejected_promise.is_null()) {
       switch (prediction) {
         case NOT_CAUGHT:
-          caught = false;
-          // TODO(b/40283993): if this is a promise rejection, scan for calls to
-          // .catch or a two argument .then.
+          // Uncaught unless this is a promise rejection and the code will call
+          // .catch()
+          caught = is_promise_rejection && CallsCatchMethod(iter);
           break;
         case CAUGHT_BY_ASYNC_AWAIT:
+          // Uncaught unless this is a promise rejection and the code will call
+          // .catch()
+          caught = is_promise_rejection && CallsCatchMethod(iter);
+          // Exceptions turn into promise rejections here
+          is_promise_rejection = true;
+          break;
         case CAUGHT_BY_PROMISE:
           // Exceptions turn into promise rejections here
           // TODO(leese): Perhaps we can handle the case where the reject method
@@ -2965,18 +3194,18 @@ bool Isolate::WalkCallStackAndPromiseTree(
         case CAUGHT_BY_JAVASCRIPT:
           caught = true;
           // Unless this is a promise rejection and the function is not async...
-          if (is_promise_rejection && frame->is_java_script()) {
-            std::vector<Handle<SharedFunctionInfo>> infos;
-            JavaScriptFrame::cast(frame)->GetFunctions(&infos);
-            caught = false;
-            for (auto info : infos) {
-              if (IsAsyncFunction(info->kind())) {
-                // If the catch happens in an async function, assume it will
-                // await this promise.
-                caught = true;
-                break;
-              }
-            }
+          DCHECK(iter.has_frame_summary());
+          const FrameSummary& summary = iter.frame_summary();
+          if (is_promise_rejection && summary.IsJavaScript()) {
+            // If the catch happens in an async function, assume it will
+            // await this promise. Alternately, if the code will call .catch,
+            // assume it is on this promise.
+            caught = IsAsyncFunction(iter.frame_summary()
+                                         .AsJavaScript()
+                                         .function()
+                                         ->shared()
+                                         ->kind()) ||
+                     CallsCatchMethod(iter);
           }
           break;
       }
@@ -2989,12 +3218,12 @@ bool Isolate::WalkCallStackAndPromiseTree(
       caught = false;
     }
 
-    if (frame->is_java_script()) {
-      std::vector<Handle<SharedFunctionInfo>> infos;
-      JavaScriptFrame::cast(frame)->GetFunctions(&infos);
-
+    if (iter.frame()->is_java_script()) {
       bool debuggable = false;
-      for (auto info : infos) {
+      DCHECK(iter.has_frame_summary());
+      const FrameSummary& summary = iter.frame_summary();
+      if (summary.IsJavaScript()) {
+        const auto& info = summary.AsJavaScript().function()->shared();
         if (info->IsSubjectToDebugging()) {
           callback({*info, false});
           debuggable = true;
@@ -3339,6 +3568,10 @@ void Isolate::UpdateCentralStackInfo() {
   }
 }
 
+wasm::WasmOrphanedGlobalHandle* Isolate::NewWasmOrphanedGlobalHandle() {
+  return wasm::WasmEngine::NewOrphanedGlobalHandle(&wasm_orphaned_handle_);
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
@@ -3515,6 +3748,12 @@ namespace {
 bool HasFlagThatRequiresSharedHeap() {
   return v8_flags.shared_string_table || v8_flags.harmony_struct;
 }
+
+IsolateGroup* AcquireGroupForNewIsolate() {
+  IsolateGroup* group = IsolateGroup::AcquireGlobal();
+  if (group) return group;
+  return IsolateGroup::New();
+}
 }  // namespace
 
 // static
@@ -3524,11 +3763,11 @@ Isolate* Isolate::New() { return Allocate(); }
 Isolate* Isolate::Allocate() {
   // v8::V8::Initialize() must be called before creating any isolates.
   DCHECK_NOT_NULL(V8::GetCurrentPlatform());
+  IsolateGroup* group = AcquireGroupForNewIsolate();
   // Allocate Isolate itself on C++ heap, ensuring page alignment.
   void* isolate_ptr = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
   // IsolateAllocator manages the virtual memory resources for the Isolate.
-  Isolate* isolate =
-      new (isolate_ptr) Isolate(std::make_unique<IsolateAllocator>());
+  Isolate* isolate = new (isolate_ptr) Isolate(group);
 
 #ifdef DEBUG
   non_disposed_isolates_++;
@@ -3550,7 +3789,7 @@ void Isolate::Delete(Isolate* isolate) {
   Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
-  isolate->heap()->SetStackStart(base::Stack::GetStackStart());
+  isolate->heap()->SetStackStart();
 
   isolate->Deinit();
 
@@ -3558,14 +3797,11 @@ void Isolate::Delete(Isolate* isolate) {
   non_disposed_isolates_--;
 #endif  // DEBUG
 
-  // Take ownership of the IsolateAllocator to ensure the Isolate memory will
-  // be available during Isolate destructor call.
-  std::unique_ptr<IsolateAllocator> isolate_allocator =
-      std::move(isolate->isolate_allocator_);
+  IsolateGroup* group = isolate->isolate_group();
   isolate->~Isolate();
-  // Now release the memory owned by the allocator.
-  isolate_allocator.reset();
-  // And free the isolate itself.
+  // Only release the group once all other Isolate members have been destroyed.
+  group->Release();
+  // Free the isolate itself.
   base::AlignedFree(isolate);
 
   // Restore the previous current isolate.
@@ -3588,13 +3824,13 @@ void Isolate::SetUpFromReadOnlyArtifacts(
 }
 
 v8::PageAllocator* Isolate::page_allocator() const {
-  return isolate_allocator_->page_allocator();
+  return isolate_group()->page_allocator();
 }
 
-Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
-    : isolate_data_(this, isolate_allocator->GetPtrComprCageBase(),
-                    isolate_allocator->GetTrustedPtrComprCageBase()),
-      isolate_allocator_(std::move(isolate_allocator)),
+Isolate::Isolate(IsolateGroup* isolate_group)
+    : isolate_data_(this, isolate_group->GetPtrComprCageBase(),
+                    isolate_group->GetTrustedPtrComprCageBase()),
+      isolate_group_(isolate_group),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
       traced_handles_(this),
@@ -4003,6 +4239,8 @@ void Isolate::Deinit() {
     delete shared_external_pointer_space_;
     shared_external_pointer_space_ = nullptr;
   }
+  cpp_heap_pointer_table().TearDownSpace(heap()->cpp_heap_pointer_space());
+  cpp_heap_pointer_table().TearDown();
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
@@ -4023,7 +4261,7 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
   g_current_isolate_ = isolate;
   g_current_per_isolate_thread_data_ = data;
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   if (isolate) {
     V8HeapCompressionScheme::InitBase(isolate->cage_base());
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -4035,7 +4273,7 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
     ExternalCodeCompressionScheme::InitBase(kNullAddress);
 #endif  // V8_EXTERNAL_CODE_SPACE
   }
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
   if (isolate && isolate->main_thread_local_isolate()) {
     WriteBarrier::SetForThread(
@@ -4100,6 +4338,10 @@ Isolate::~Isolate() {
   delete eternal_handles_;
   eternal_handles_ = nullptr;
 
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmEngine::FreeAllOrphanedGlobalHandles(wasm_orphaned_handle_);
+#endif
+
   delete string_stream_debug_object_cache_;
   string_stream_debug_object_cache_ = nullptr;
 
@@ -4130,6 +4372,9 @@ Isolate::~Isolate() {
     delete read_only_heap_;
     read_only_heap_ = nullptr;
   }
+
+  // isolate_group_ released in caller, to ensure that all member destructors
+  // run before potentially unmapping the isolate's VirtualMemoryArea.
 }
 
 void Isolate::InitializeThreadLocal() {
@@ -4460,7 +4705,8 @@ class BigIntPlatform : public bigint::Platform {
 }  // namespace
 
 VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
-  return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range() : GetPtrComprCage();
+  return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range()
+                                     : isolate_group_->GetPtrComprCage();
 }
 
 void Isolate::VerifyStaticRoots() {
@@ -4735,6 +4981,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     external_pointer_table().AttachSpaceToReadOnlySegment(
         heap()->read_only_external_pointer_space());
     external_pointer_table().InitializeSpace(heap()->external_pointer_space());
+    cpp_heap_pointer_table().Initialize();
+    cpp_heap_pointer_table().InitializeSpace(heap()->cpp_heap_pointer_space());
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
@@ -4771,11 +5019,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
       CHECK(jitless_);
       // In jitless mode the code space pages will be allocated in the main
       // pointer compression cage.
-      code_cage = GetPtrComprCage();
+      code_cage = isolate_group_->GetPtrComprCage();
     }
     code_cage_base_ = ExternalCodeCompressionScheme::PrepareCageBaseAddress(
         code_cage->base());
-    if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+    if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
       // .. now that it's available, initialize the thread-local base.
       ExternalCodeCompressionScheme::InitBase(code_cage_base_);
     }
@@ -5022,7 +5270,7 @@ void Isolate::Enter() {
 #endif
 
   // Set the stack start for the main thread that enters the isolate.
-  heap()->SetStackStart(base::Stack::GetStackStart());
+  heap()->SetStackStart();
 
   if (current_data != nullptr) {
     current_isolate = current_data->isolate_;
@@ -5180,6 +5428,12 @@ void Isolate::DumpAndResetStats() {
     // v8_enable_builtins_profiling=true
     CHECK_NULL(v8_flags.turbo_profiling_output);
   }
+}
+
+void Isolate::IncreaseConcurrentOptimizationPriority(
+    CodeKind kind, Tagged<SharedFunctionInfo> function) {
+  DCHECK(kind == CodeKind::TURBOFAN);
+  optimizing_compile_dispatcher()->Prioritize(function);
 }
 
 void Isolate::AbortConcurrentOptimization(BlockingBehavior behavior) {
@@ -5347,6 +5601,14 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   Protectors::InvalidateNoElements(this);
 }
 
+void Isolate::UpdateProtectorsOnSetPrototype(Handle<JSObject> object,
+                                             Handle<Object> new_prototype) {
+  UpdateNoElementsProtectorOnSetPrototype(object);
+  UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(object);
+  UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(object);
+  UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(object, new_prototype);
+}
+
 void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
     Handle<JSObject> object) {
   // Setting the __proto__ of TypedArray constructor could change TypedArray's
@@ -5376,12 +5638,16 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
 }
 
 void Isolate::UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
-    Handle<JSObject> object) {
+    Handle<JSObject> object, Handle<Object> new_prototype) {
   if (!Protectors::IsStringWrapperToPrimitiveIntact(this)) {
     return;
   }
 
-  if (IsStringWrapper(*object)) {
+  // We can have a custom @@toPrimitive on a string wrapper also if we subclass
+  // String and the subclass (or one of its subclasses) defines its own
+  // @@toPrimive. Thus we invalidate the protector whenever we detect
+  // subclassing String - it should be reasonably rare.
+  if (IsStringWrapper(*object) || IsStringWrapper(*new_prototype)) {
     Protectors::InvalidateStringWrapperToPrimitive(this);
   }
 }
@@ -6228,13 +6494,11 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
 }
 
 void Isolate::IsolateInBackgroundNotification() {
-  is_isolate_in_background_ = true;
+  is_backgrounded_ = true;
   heap()->ActivateMemoryReducerIfNeeded();
 }
 
-void Isolate::IsolateInForegroundNotification() {
-  is_isolate_in_background_ = false;
-}
+void Isolate::IsolateInForegroundNotification() { is_backgrounded_ = false; }
 
 void Isolate::PrintWithTimestamp(const char* format, ...) {
   base::OS::Print("[%d:%p] %8.0f ms: ", base::OS::GetCurrentProcessId(),

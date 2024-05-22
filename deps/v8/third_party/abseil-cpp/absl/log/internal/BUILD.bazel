@@ -384,7 +384,9 @@ cc_library(
     hdrs = ["vlog_config.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//absl/log:__subpackages__"],
+    visibility = [
+        "//absl/log:__subpackages__",
+    ],
     deps = [
         "//absl/base",
         "//absl/base:config",

@@ -103,12 +103,8 @@ class StackHandlerIterator {
 
 // -------------------------------------------------------------------------
 
-#define INITIALIZE_SINGLETON(type, field) field##_(this),
 StackFrameIteratorBase::StackFrameIteratorBase(Isolate* isolate)
-    : isolate_(isolate),
-      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON) frame_(nullptr),
-      handler_(nullptr) {}
-#undef INITIALIZE_SINGLETON
+    : isolate_(isolate), frame_(nullptr), handler_(nullptr) {}
 
 StackFrameIterator::StackFrameIterator(Isolate* isolate)
     : StackFrameIterator(isolate, isolate->thread_local_top()) {}
@@ -140,7 +136,7 @@ void StackFrameIterator::Advance() {
   handler_ = it.handler();
 
   // Advance to the calling frame.
-  frame_ = SingletonFor(type, &state);
+  SetNewFrame(type, &state);
   // When we're done iterating over the stack frames, the handler
   // chain must have been completely unwound. Except for wasm stack-switching:
   // we stop at the end of the current segment.
@@ -153,8 +149,9 @@ void StackFrameIterator::Advance() {
 }
 
 StackFrame* StackFrameIterator::Reframe() {
-  StackFrame::Type type = ComputeStackFrameType(&frame_->state_);
-  frame_ = SingletonFor(type, &frame_->state_);
+  StackFrame::State state = frame_->state_;
+  StackFrame::Type type = ComputeStackFrameType(&state);
+  SetNewFrame(type, &state);
   return frame();
 }
 
@@ -180,13 +177,13 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
     state.constant_pool_address = nullptr;
 
     handler_ = StackHandler::FromAddress(Isolate::handler(top));
-    frame_ = SingletonFor(StackFrame::TURBOFAN, &state);
+    SetNewFrame(StackFrame::TURBOFAN, &state);
 
   } else {
     StackFrame::Type type =
         ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     handler_ = StackHandler::FromAddress(Isolate::handler(top));
-    frame_ = SingletonFor(type, &state);
+    SetNewFrame(type, &state);
   }
 }
 
@@ -198,33 +195,35 @@ void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
   StackFrame::State state;
   StackSwitchFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
-  frame_ = SingletonFor(StackFrame::STACK_SWITCH, &state);
+  SetNewFrame(StackFrame::STACK_SWITCH, &state);
 }
 #endif
 
-StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
-                                                 StackFrame::State* state) {
-  StackFrame* result = SingletonFor(type);
-  DCHECK((!result) == (type == StackFrame::NO_FRAME_TYPE));
-  if (result) result->state_ = *state;
-  return result;
+void StackFrameIteratorBase::SetNewFrame(StackFrame::Type type,
+                                         StackFrame::State* state) {
+  SetNewFrame(type);
+  DCHECK_EQ(!frame_, type == StackFrame::NO_FRAME_TYPE);
+  if (frame_) frame_->state_ = *state;
 }
 
-StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
-#define FRAME_TYPE_CASE(type, field) \
-  case StackFrame::type:             \
-    return &field##_;
-
+void StackFrameIteratorBase::SetNewFrame(StackFrame::Type type) {
   switch (type) {
+#define FRAME_TYPE_CASE(type, class)      \
+  case StackFrame::type:                  \
+    frame_ = new (&class##_) class(this); \
+    return;
+    STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
+#undef FRAME_TYPE_CASE
+
     case StackFrame::NO_FRAME_TYPE:
-      return nullptr;
-      STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
-    default:
+    // We don't expect to see NUMBER_OF_TYPES or MANUAL, but stay robust against
+    // them rather than being UNREACHABLE in case stack frame iteration gets
+    // wonky.
+    case StackFrame::NUMBER_OF_TYPES:
+    case StackFrame::MANUAL:
       break;
   }
-  return nullptr;
-
-#undef FRAME_TYPE_CASE
+  frame_ = nullptr;
 }
 
 // -------------------------------------------------------------------------
@@ -498,7 +497,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     return;
   }
 
-  frame_ = SingletonFor(type, &state);
+  SetNewFrame(type, &state);
   if (advance_frame && !done()) {
     Advance();
   }
@@ -520,15 +519,23 @@ void StackFrameIteratorForProfiler::AdvanceOneFrame() {
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
 
   // Before advancing to the next stack frame, perform pointer validity tests.
-  if (!IsValidFrame(last_frame) || !IsValidCaller(last_frame)) {
+  if (!IsValidState(last_frame->state_) ||
+      !HasValidExitIfEntryFrame(last_frame)) {
     frame_ = nullptr;
     return;
   }
 
-  // Advance to the previous frame.
+  // Advance to the previous frame, and perform pointer validity tests there
+  // too.
   StackFrame::State state;
-  StackFrame::Type type = frame_->GetCallerState(&state);
-  frame_ = SingletonFor(type, &state);
+  last_frame->ComputeCallerState(&state);
+  if (!IsValidState(state)) {
+    frame_ = nullptr;
+    return;
+  }
+
+  StackFrame::Type type = ComputeStackFrameType(&state);
+  SetNewFrame(type, &state);
   if (!frame_) return;
 
   // Check that we have actually moved to the previous frame in the stack.
@@ -537,28 +544,26 @@ void StackFrameIteratorForProfiler::AdvanceOneFrame() {
   }
 }
 
-bool StackFrameIteratorForProfiler::IsValidFrame(StackFrame* frame) const {
-  return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp());
+bool StackFrameIteratorForProfiler::IsValidState(
+    const StackFrame::State& state) const {
+  return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp);
 }
 
-bool StackFrameIteratorForProfiler::IsValidCaller(StackFrame* frame) {
-  StackFrame::State state;
-  if (frame->is_entry() || frame->is_construct_entry()) {
-    // See EntryFrame::GetCallerState. It computes the caller FP address
-    // and calls ExitFrame::GetStateForFramePointer on it. We need to be
-    // sure that caller FP address is valid.
-    Address next_exit_frame_fp_address =
-        frame->fp() + EntryFrameConstants::kNextExitFrameFPOffset;
-    // Profiling tick might be triggered in the middle of JSEntry builtin
-    // before the next_exit_frame_fp value is initialized. IsValidExitFrame()
-    // is able to deal with such a case, so just suppress the MSan warning.
-    MSAN_MEMORY_IS_INITIALIZED(next_exit_frame_fp_address, kSystemPointerSize);
-    Address next_exit_frame_fp = Memory<Address>(next_exit_frame_fp_address);
-    if (!IsValidExitFrame(next_exit_frame_fp)) return false;
-  }
-  frame->ComputeCallerState(&state);
-  return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp) &&
-         SingletonFor(frame->GetCallerState(&state)) != nullptr;
+bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
+    const StackFrame* frame) const {
+  if (!frame->is_entry() && !frame->is_construct_entry()) return true;
+
+  // See EntryFrame::GetCallerState. It computes the caller FP address
+  // and calls ExitFrame::GetStateForFramePointer on it. We need to be
+  // sure that caller FP address is valid.
+  Address next_exit_frame_fp_address =
+      frame->fp() + EntryFrameConstants::kNextExitFrameFPOffset;
+  // Profiling tick might be triggered in the middle of JSEntry builtin
+  // before the next_exit_frame_fp value is initialized. IsValidExitFrame()
+  // is able to deal with such a case, so just suppress the MSan warning.
+  MSAN_MEMORY_IS_INITIALIZED(next_exit_frame_fp_address, kSystemPointerSize);
+  Address next_exit_frame_fp = Memory<Address>(next_exit_frame_fp_address);
+  return IsValidExitFrame(next_exit_frame_fp);
 }
 
 bool StackFrameIteratorForProfiler::IsValidExitFrame(Address fp) const {

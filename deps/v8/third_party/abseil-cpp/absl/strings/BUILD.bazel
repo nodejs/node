@@ -359,6 +359,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/meta:type_traits",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

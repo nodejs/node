@@ -1632,6 +1632,9 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
       case NOP:
         mnemonic = "nop";
         break;
+      case YIELD:
+        mnemonic = "yield";
+        break;
       case CSDB:
         mnemonic = "csdb";
         break;
@@ -2086,8 +2089,8 @@ void DisassemblingDecoder::VisitNEON3Different(Instruction* instr) {
   // Ignore the Q bit. Appending a "2" suffix is handled later.
   switch (instr->Mask(NEON3DifferentMask) & ~NEON_Q) {
     case NEON_PMULL:
-      mnemonic = "pmull";
-      break;
+      DisassembleNEONPolynomialMul(instr);
+      return;
     case NEON_SABAL:
       mnemonic = "sabal";
       break;
@@ -4450,6 +4453,29 @@ void DisassemblingDecoder::AppendToOutput(const char* format, ...) {
   va_start(args, format);
   buffer_pos_ += vsnprintf(&buffer_[buffer_pos_], buffer_size_, format, args);
   va_end(args);
+}
+
+void DisassemblingDecoder::DisassembleNEONPolynomialMul(Instruction* instr) {
+  int q = instr->Bit(30);
+  const char* mnemonic = q ? "pmull2" : "pmull";
+  const char* form = NULL;
+  int size = instr->NEONSize();
+  if (size == 0) {
+    if (q == 0) {
+      form = "'Vd.8h, 'Vn.8b, 'Vm.8b";
+    } else {
+      form = "'Vd.8h, 'Vn.16b, 'Vm.16b";
+    }
+  } else if (size == 3) {
+    if (q == 0) {
+      form = "'Vd.1q, 'Vn.1d, 'Vm.1d";
+    } else {
+      form = "'Vd.1q, 'Vn.2d, 'Vm.2d";
+    }
+  } else {
+    mnemonic = "undefined";
+  }
+  Format(instr, mnemonic, form);
 }
 
 void PrintDisassembler::ProcessOutput(Instruction* instr) {

@@ -327,9 +327,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(Projection)(OpIndex input, uint16_t idx,
-                             RegisterRepresentation rep) {
-    OpIndex index = Next::ReduceProjection(input, idx, rep);
+  V<Any> REDUCE(Projection)(V<Any> input, uint16_t idx,
+                            RegisterRepresentation rep) {
+    V<Any> index = Next::ReduceProjection(input, idx, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeProjection(GetType(input), idx);
@@ -337,9 +337,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+  V<Word> REDUCE(WordBinop)(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
-    OpIndex index = Next::ReduceWordBinop(left, right, kind, rep);
+    V<Word> index = Next::ReduceWordBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeWordBinop(GetType(left), GetType(right), kind, rep,
@@ -348,7 +348,7 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(OverflowCheckedBinop)(OpIndex left, OpIndex right,
+  OpIndex REDUCE(OverflowCheckedBinop)(V<Word> left, V<Word> right,
                                        OverflowCheckedBinopOp::Kind kind,
                                        WordRepresentation rep) {
     OpIndex index = Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
@@ -360,9 +360,10 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(FloatBinop)(OpIndex left, OpIndex right,
-                             FloatBinopOp::Kind kind, FloatRepresentation rep) {
-    OpIndex index = Next::ReduceFloatBinop(left, right, kind, rep);
+  V<Float> REDUCE(FloatBinop)(V<Float> left, V<Float> right,
+                              FloatBinopOp::Kind kind,
+                              FloatRepresentation rep) {
+    V<Float> index = Next::ReduceFloatBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeFloatBinop(GetType(left), GetType(right), kind, rep,

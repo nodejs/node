@@ -279,7 +279,7 @@ void V8::Initialize() {
     }
   }
 #endif
-  IsolateAllocator::InitializeOncePerProcess();
+  IsolateGroup::InitializeOncePerProcess();
   Isolate::InitializeOncePerProcess();
 
 #if defined(USE_SIMULATOR)

@@ -16,8 +16,10 @@
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"
+#include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
@@ -169,17 +171,38 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCodeTarget(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-  ExternalPointerTable* table = IsSharedExternalPointerType(slot.tag())
-                                    ? shared_external_pointer_table_
-                                    : external_pointer_table_;
-  ExternalPointerTable::Space* space = IsSharedExternalPointerType(slot.tag())
-                                           ? shared_external_pointer_space_
-                                           : heap_->external_pointer_space();
+  if (slot.HasExternalPointerHandle()) {
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+    ExternalPointerTable* table = IsSharedExternalPointerType(slot.tag())
+                                      ? shared_external_pointer_table_
+                                      : external_pointer_table_;
+    ExternalPointerTable::Space* space = IsSharedExternalPointerType(slot.tag())
+                                             ? shared_external_pointer_space_
+                                             : heap_->external_pointer_space();
+    table->Mark(space, handle, slot.address());
+  }
+#endif  // V8_COMPRESS_POINTERS
+}
+
+template <typename ConcreteVisitor>
+void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
+    Tagged<HeapObject> host, CppHeapPointerSlot slot) {
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
+  const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullExternalPointerHandle) {
+    return;
+  }
+  ExternalPointerTable* table = cpp_heap_pointer_table_;
+  ExternalPointerTable::Space* space = heap_->cpp_heap_pointer_space();
   table->Mark(space, handle, slot.address());
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
+  if (auto cpp_heap_pointer = slot.try_load(heap_->isolate())) {
+    local_marking_worklists_->cpp_marking_state()->MarkAndPush(
+        reinterpret_cast<void*>(cpp_heap_pointer));
+  }
 }
 
 template <typename ConcreteVisitor>
@@ -465,46 +488,54 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-template <typename T>
+template <typename T, typename TBodyDescriptor>
 inline int MarkingVisitorBase<ConcreteVisitor>::
     VisitEmbedderTracingSubClassNoEmbedderTracing(Tagged<Map> map,
                                                   Tagged<T> object) {
-  return concrete_visitor()->VisitJSObjectSubclass(map, object);
+  return concrete_visitor()->template VisitJSObjectSubclass<T, TBodyDescriptor>(
+      map, object);
 }
 
 template <typename ConcreteVisitor>
-template <typename T>
+template <typename T, typename TBodyDescriptor>
 inline int MarkingVisitorBase<ConcreteVisitor>::
     VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
                                                     Tagged<T> object) {
-  const bool requires_snapshot =
-      local_marking_worklists_->SupportsExtractWrapper();
+  const int size =
+      VisitEmbedderTracingSubClassNoEmbedderTracing<T, TBodyDescriptor>(map,
+                                                                        object);
+  if (size == 0) {
+    return 0;
+  }
+  if (!local_marking_worklists_->SupportsExtractWrapper()) {
+    return size;
+  }
+  // Process embedder fields
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
-  const bool valid_snapshot =
-      requires_snapshot &&
-      local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot);
-  const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
-  if (size && valid_snapshot) {
+  if (local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot)) {
     local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
   }
   return size;
 }
 
 template <typename ConcreteVisitor>
-template <typename T>
+template <typename T, typename TBodyDescriptor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitEmbedderTracingSubclass(
     Tagged<Map> map, Tagged<T> object) {
   DCHECK(object->MayHaveEmbedderFields());
   if (V8_LIKELY(trace_embedder_fields_)) {
-    return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+    return VisitEmbedderTracingSubClassWithEmbedderTracing<T, TBodyDescriptor>(
+        map, object);
   }
-  return VisitEmbedderTracingSubClassNoEmbedderTracing(map, object);
+  return VisitEmbedderTracingSubClassNoEmbedderTracing<T, TBodyDescriptor>(
+      map, object);
 }
 
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSApiObject(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitEmbedderTracingSubclass(map, object);
+  return VisitEmbedderTracingSubclass<
+      JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
 }
 
 template <typename ConcreteVisitor>

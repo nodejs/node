@@ -22,6 +22,7 @@ namespace internal {
 
 enum class MessageTemplate;
 class WasmTrustedInstanceData;
+class Zone;
 
 namespace wasm {
 

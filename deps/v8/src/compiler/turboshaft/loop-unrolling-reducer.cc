@@ -93,7 +93,7 @@ bool StaticCanonicalForLoopMatcher::MatchPhiCompareCst(
 }
 
 bool StaticCanonicalForLoopMatcher::MatchCheckedOverflowBinop(
-    OpIndex idx, OpIndex* left, OpIndex* right, BinOp* binop_op,
+    OpIndex idx, V<Word>* left, V<Word>* right, BinOp* binop_op,
     WordRepresentation* binop_rep) const {
   if (const ProjectionOp* proj = matcher_.TryCast<ProjectionOp>(idx)) {
     if (proj->index != OverflowCheckedBinopOp::kValueIndex) return false;
@@ -110,7 +110,7 @@ bool StaticCanonicalForLoopMatcher::MatchCheckedOverflowBinop(
 }
 
 bool StaticCanonicalForLoopMatcher::MatchWordBinop(
-    OpIndex idx, OpIndex* left, OpIndex* right, BinOp* binop_op,
+    OpIndex idx, V<Word>* left, V<Word>* right, BinOp* binop_op,
     WordRepresentation* binop_rep) const {
   WordBinopOp::Kind kind;
   if (matcher_.MatchWordBinop(idx, left, right, &kind, binop_rep) &&
@@ -137,7 +137,7 @@ bool StaticCanonicalForLoopMatcher::MatchStaticCanonicalForLoop(
   if (matcher_.MatchUnsignedIntegralConstant(phi.input(0), &phi_cst)) {
     // We have: phi(phi_cst, ...) cmp_op cmp_cst
     // eg, for (i = 0; i < 42; ...)
-    OpIndex left, right;
+    V<Word> left, right;
     BinOp binop_op;
     WordRepresentation binop_rep;
     if (MatchWordBinop(phi.input(1), &left, &right, &binop_op, &binop_rep) ||

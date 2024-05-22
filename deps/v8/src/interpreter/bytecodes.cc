@@ -237,6 +237,7 @@ bool Bytecodes::IsRegisterInputOperandType(OperandType operand_type) {
   case OperandType::k##Name: \
     return true;
     REGISTER_INPUT_OPERAND_TYPE_LIST(CASE)
+    CASE(RegInOut, _)
 #undef CASE
 #define CASE(Name, _)        \
   case OperandType::k##Name: \
@@ -255,6 +256,7 @@ bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
   case OperandType::k##Name: \
     return true;
     REGISTER_OUTPUT_OPERAND_TYPE_LIST(CASE)
+    CASE(RegInOut, _)
 #undef CASE
 #define CASE(Name, _)        \
   case OperandType::k##Name: \

@@ -423,8 +423,18 @@ class LiftoffRegList {
     return LiftoffRegList(regs_ & other.regs_);
   }
 
+  constexpr LiftoffRegList& operator&=(const LiftoffRegList other) {
+    regs_ &= other.regs_;
+    return *this;
+  }
+
   constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
     return LiftoffRegList(regs_ | other.regs_);
+  }
+
+  constexpr LiftoffRegList& operator|=(const LiftoffRegList other) {
+    regs_ |= other.regs_;
+    return *this;
   }
 
   constexpr LiftoffRegList GetAdjacentFpRegsSet() const {

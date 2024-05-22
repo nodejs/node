@@ -114,7 +114,7 @@ class YoungGenerationMarkingVisitor final
                                  Tagged<HeapObject>* heap_object);
 #endif  // V8_MINORMS_STRING_SHORTCUTTING
 
-  template <typename T>
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
                                                       Tagged<T> object);
 

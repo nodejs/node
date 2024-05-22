@@ -1547,6 +1547,55 @@ void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+template <typename T>
+void RunI32x8ConvertF32x8RevecTest(WasmOpcode opcode,
+                                   ConvertToIntOp expected_op,
+                                   compiler::IrOpcode::Value revec_opcode) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(16);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  BUILD_AND_CHECK_REVEC_NODE(
+      r, revec_opcode,
+      WASM_LOCAL_SET(
+          temp1,
+          WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+      WASM_LOCAL_SET(
+          temp2, WASM_SIMD_UNOP(opcode, WASM_SIMD_LOAD_MEM_OFFSET(
+                                            offset, WASM_LOCAL_GET(param1)))),
+      WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                 WASM_LOCAL_GET(temp2)),
+      WASM_ONE);
+
+  bool is_unsigned = std::is_same_v<T, uint32_t>;
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    for (int i = 0; i < 8; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 32);
+    int32_t expected_value = expected_op(x, is_unsigned);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(memcmp((const void*)&expected_value, &memory[8 + i], 4), 0);
+    }
+  }
+}
+
+// Explicit instantiations of uses.
+template void RunI32x8ConvertF32x8RevecTest<int32_t>(WasmOpcode, ConvertToIntOp,
+                                                     compiler::IrOpcode::Value);
+template void RunI32x8ConvertF32x8RevecTest<uint32_t>(
+    WasmOpcode, ConvertToIntOp, compiler::IrOpcode::Value);
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

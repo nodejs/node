@@ -25,22 +25,14 @@ namespace internal {
 class RegisterValues {
  public:
   intptr_t GetRegister(unsigned n) const {
-#if DEBUG
-    // This convoluted DCHECK is needed to work around a gcc problem that
-    // improperly detects an array bounds overflow in optimized debug builds
-    // when using a plain DCHECK.
-    if (n >= arraysize(registers_)) {
-      DCHECK(false);
-      return 0;
-    }
-#endif
+    V8_ASSUME(n < arraysize(registers_));
     return registers_[n];
   }
 
   Float32 GetFloatRegister(unsigned n) const;
 
   Float64 GetDoubleRegister(unsigned n) const {
-    DCHECK(n < arraysize(double_registers_));
+    V8_ASSUME(n < arraysize(double_registers_));
     return double_registers_[n];
   }
 
@@ -123,7 +115,7 @@ class FrameDescription {
 
   Address GetFramePointerAddress() {
     // We should not pad arguments in the bottom frame, since this
-    // already contain a padding if necessary and it might contain
+    // already contains a padding if necessary and it might contain
     // extra arguments (actual argument count > parameter count).
     const bool pad_arguments_bottom_frame = false;
     int fp_offset = GetLastArgumentSlotOffset(pad_arguments_bottom_frame) -

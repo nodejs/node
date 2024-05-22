@@ -19,6 +19,7 @@ class V8_EXPORT_PRIVATE FlagHelpers {
   static int FlagNamesCmp(const char* a, const char* b);
 
   static bool EqualNames(const char* a, const char* b);
+  static bool EqualNameWithSuffix(const char* a, const char* b);
 };
 
 struct Flag;

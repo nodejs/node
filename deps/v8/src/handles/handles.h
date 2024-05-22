@@ -12,7 +12,6 @@
 #include "src/common/checks.h"
 #include "src/common/globals.h"
 #include "src/objects/tagged.h"
-#include "src/zone/zone.h"
 #include "v8-handle-base.h"  // NOLINT(build/include_directory)
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -44,6 +43,7 @@ class SmallOrderedHashSet;
 class SmallOrderedNameDictionary;
 class SwissNameDictionary;
 class WasmExportedFunctionData;
+class ZoneAllocationPolicy;
 
 constexpr Address kTaggedNullAddress = 0x1;
 

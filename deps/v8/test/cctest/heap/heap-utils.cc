@@ -376,7 +376,8 @@ void EmptyNewSpaceUsingGC(Heap* heap) { InvokeMajorGC(heap); }
 void ForceEvacuationCandidate(PageMetadata* page) {
   IsolateSafepointScope safepoint(page->owner()->heap());
   CHECK(v8_flags.manual_evacuation_candidates_selection);
-  page->Chunk()->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  page->Chunk()->SetFlagNonExecutable(
+      MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   page->owner()->heap()->FreeLinearAllocationAreas();
 }
 

@@ -60,7 +60,31 @@ TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTable() {
 TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpace() {
   return isolate_->heap()->trusted_pointer_space();
 }
+
 #endif  // V8_ENABLE_SANDBOX
+
+template <typename IsolateT>
+IsolateForPointerCompression::IsolateForPointerCompression(IsolateT* isolate)
+#ifdef V8_COMPRESS_POINTERS
+    : isolate_(isolate->ForSandbox()) {
+}
+#else
+{
+}
+#endif
+
+#ifdef V8_COMPRESS_POINTERS
+
+ExternalPointerTable& IsolateForPointerCompression::GetCppHeapPointerTable() {
+  return isolate_->cpp_heap_pointer_table();
+}
+
+ExternalPointerTable::Space*
+IsolateForPointerCompression::GetCppHeapPointerTableSpace() {
+  return isolate_->heap()->cpp_heap_pointer_space();
+}
+
+#endif  // V8_COMPRESS_POINTERS
 
 }  // namespace internal
 }  // namespace v8

@@ -129,6 +129,11 @@ class ReferenceSummarizerMarkingVisitor
   void MarkPointerTableEntry(Tagged<HeapObject> host,
                              IndirectPointerSlot slot) {}
 
+  void VisitExternalPointer(Tagged<HeapObject> host,
+                            ExternalPointerSlot slot) override {}
+  void VisitCppHeapPointer(Tagged<HeapObject> host,
+                           CppHeapPointerSlot slot) override {}
+
  private:
   ReferenceSummarizerMarkingState* marking_state_;
 };

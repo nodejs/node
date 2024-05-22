@@ -190,29 +190,44 @@ class MjsunitNamesProvider {
   }
 
   // Format: HeapType::* enum value, JS global constant.
-#define ABSTRACT_TYPE_LIST(V)               \
-  V(kAny, kWasmAnyRef)                      \
-  V(kArray, kWasmArrayRef)                  \
-  V(kEq, kWasmEqRef)                        \
-  V(kExn, kWasmExnRef)                      \
-  V(kExtern, kWasmExternRef)                \
-  V(kFunc, kWasmFuncRef)                    \
-  V(kI31, kWasmI31Ref)                      \
-  V(kNone, kWasmNullRef)                    \
-  V(kNoExn, kWasmNullExnRef)                \
-  V(kNoExtern, kWasmNullExternRef)          \
-  V(kNoFunc, kWasmNullFuncRef)              \
-  V(kString, kWasmStringRef)                \
-  V(kStringViewWtf16, kWasmStringViewWtf16) \
-  V(kStringViewWtf8, kWasmStringViewWtf8)   \
-  V(kStringViewIter, kWasmStringViewIter)   \
-  V(kStruct, kWasmStructRef)
+#define ABSTRACT_TYPE_LIST(V)                                     \
+  V(kAny, kWasmAnyRef, kAnyRefCode)                               \
+  V(kArray, kWasmArrayRef, kArrayRefCode)                         \
+  V(kEq, kWasmEqRef, kEqRefCode)                                  \
+  V(kExn, kWasmExnRef, kExnRefCode)                               \
+  V(kExtern, kWasmExternRef, kExternRefCode)                      \
+  V(kFunc, kWasmFuncRef, kFuncRefCode)                            \
+  V(kI31, kWasmI31Ref, kI31RefCode)                               \
+  V(kNone, kWasmNullRef, kNullRefCode)                            \
+  V(kNoExn, kWasmNullExnRef, kNullExnRefCode)                     \
+  V(kNoExtern, kWasmNullExternRef, kNullExternRefCode)            \
+  V(kNoFunc, kWasmNullFuncRef, kNullFuncRefCode)                  \
+  V(kString, kWasmStringRef, kStringRefCode)                      \
+  V(kStringViewWtf16, kWasmStringViewWtf16, kStringViewWtf16Code) \
+  V(kStringViewWtf8, kWasmStringViewWtf8, kStringViewWtf8Code)    \
+  V(kStringViewIter, kWasmStringViewIter, kStringViewIterCode)    \
+  V(kStruct, kWasmStructRef, kStructRefCode)
 
   void PrintHeapType(StringBuilder& out, HeapType type) {
     switch (type.representation()) {
-#define CASE(kCpp, JS) \
-  case HeapType::kCpp: \
-    out << #JS;        \
+#define CASE(kCpp, JS, JSCode) \
+  case HeapType::kCpp:         \
+    out << #JS;                \
+    return;
+      ABSTRACT_TYPE_LIST(CASE)
+#undef CASE
+      case HeapType::kBottom:
+        UNREACHABLE();
+      default:
+        PrintTypeIndex(out, type.ref_index());
+    }
+  }
+
+  void PrintHeapTypeCode(StringBuilder& out, HeapType type) {
+    switch (type.representation()) {
+#define CASE(kCpp, JS, JSCode) \
+  case HeapType::kCpp:         \
+    out << #JSCode;            \
     return;
       ABSTRACT_TYPE_LIST(CASE)
 #undef CASE
@@ -236,7 +251,7 @@ class MjsunitNamesProvider {
       // clang-format on
       case kRefNull:
         switch (type.heap_representation()) {
-#define CASE(kCpp, _) case HeapType::kCpp:
+#define CASE(kCpp, _, _2) case HeapType::kCpp:
           ABSTRACT_TYPE_LIST(CASE)
 #undef CASE
           return PrintHeapType(out, type.heap_type());
@@ -714,7 +729,7 @@ class MjsunitImmediatesPrinter {
 
   void HeapType(HeapTypeImmediate& imm) {
     out_ << " ";
-    names()->PrintHeapType(out_, imm.type);
+    names()->PrintHeapTypeCode(out_, imm.type);
     out_ << ",";
   }
 
@@ -1548,7 +1563,7 @@ class MjsunitModuleDis {
         break;
       case ConstantExpression::kRefNull:
         out_ << "[kExprRefNull, ";
-        names()->PrintHeapType(out_, HeapType(init.repr()));
+        names()->PrintHeapTypeCode(out_, HeapType(init.repr()));
         out_ << "]";
         break;
       case ConstantExpression::kRefFunc:

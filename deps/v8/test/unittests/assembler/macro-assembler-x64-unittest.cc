@@ -29,6 +29,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <limits>
 
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/x64/assembler-x64-inl.h"
@@ -130,6 +131,7 @@ using F9 = int(int16_t*, int32_t*);
 using F10 = int(int8_t*, int16_t*);
 using F11 = int(uint16_t*, uint32_t*);
 using F12 = int(uint8_t*, uint16_t*);
+using F13 = int(float*, int32_t*);
 
 #define __ masm->
 
@@ -2106,6 +2108,74 @@ TEST_F(MacroAssemblerX64Test, F32x8Splat) {
     f.Call(&input, output);
     for (int i = 0; i < kLaneNum; ++i) {
       CHECK_EQ(0, std::memcmp(&input, &output[i], sizeof(float)));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, I32x8SConvertF32x8) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+
+  MacroAssembler* masm = &assembler;
+
+  __ set_root_array_available(false);
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister src = ymm1;
+  const YMMRegister tmp = ymm2;
+  const Register scratch = r10;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
+  // Calculation
+  __ I32x8SConvertF32x8(dst, src, tmp, scratch);
+  // Store result array
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  PrintCode(isolate, desc);
+
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F13>::FromBuffer(i_isolate(), buffer->start());
+
+  auto convert_to_int = [=](double val) -> int32_t {
+    if (std::isnan(val)) return 0;
+    if (val < kMinInt) return kMinInt;
+    if (val > kMaxInt) return kMaxInt;
+    return static_cast<int>(val);
+  };
+
+  constexpr float float_max = std::numeric_limits<float>::max();
+  constexpr float float_min = std::numeric_limits<float>::min();
+  constexpr float NaN = std::numeric_limits<float>::quiet_NaN();
+
+  std::vector<std::array<float, 8>> test_cases = {
+      {32.4, 2.5, 12.4, 62.346, 235.6, 2.36, 1253.4, 63.46},
+      {34.5, 2.63, 234.6, 34.68, -234.6, -1.264, -23.6, -2.36},
+      {NaN, 0, 0, -0, NaN, -NaN, -0, -0},
+      {float_max, float_max, float_min, float_min, float_max + 1, float_max + 1,
+       float_min - 1, float_min - 1}};
+  float input[8];
+  int32_t output[8];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 8; i++) {
+      input[i] = arr[i];
+    }
+    f.Call(input, output);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(output[i], convert_to_int(input[i]));
     }
   }
 }

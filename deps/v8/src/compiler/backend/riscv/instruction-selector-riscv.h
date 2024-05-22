@@ -793,6 +793,23 @@ void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
   }
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWord32PairToFloat64(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  const auto& bitcast =
+      this->Cast<turboshaft::BitcastWord32PairToFloat64Op>(node);
+  node_t hi = bitcast.high_word32();
+  node_t lo = bitcast.low_word32();
+  // TODO(nicohartmann@): We could try to emit a better sequence here.
+  InstructionOperand zero = sequence()->AddImmediate(Constant(0.0));
+  InstructionOperand temp = g.TempDoubleRegister();
+  Emit(kRiscvFloat64InsertHighWord32, temp, zero, g.Use(hi));
+  Emit(kRiscvFloat64InsertLowWord32, g.DefineSameAsFirst(node), temp,
+       g.Use(lo));
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
@@ -2238,18 +2255,6 @@ void InstructionSelectorT<Adapter>::VisitWord32Ctz(node_t node) {
   }
 }
 
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  UNIMPLEMENTED();
-}
 
 #define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                                 \
   template <typename Adapter>                                                 \

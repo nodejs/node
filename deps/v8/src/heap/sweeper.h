@@ -288,6 +288,7 @@ class Sweeper {
     void Resume();
 
     uint64_t trace_id() const { return trace_id_; }
+    uint64_t background_trace_id() const { return background_trace_id_; }
 
    private:
     Sweeper* sweeper_;
@@ -298,6 +299,7 @@ class Sweeper {
     std::unique_ptr<JobHandle> job_handle_;
     std::vector<ConcurrentSweeper> concurrent_sweepers_;
     uint64_t trace_id_ = 0;
+    uint64_t background_trace_id_ = 0;
     bool should_reduce_memory_ = false;
   };
 

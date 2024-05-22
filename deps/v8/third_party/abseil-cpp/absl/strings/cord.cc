@@ -425,8 +425,8 @@ Cord& Cord::operator=(absl::string_view src) {
 // we keep it here to make diffs easier.
 void Cord::InlineRep::AppendArray(absl::string_view src,
                                   MethodIdentifier method) {
-  MaybeRemoveEmptyCrcNode();
   if (src.empty()) return;  // memcpy(_, nullptr, 0) is undefined.
+  MaybeRemoveEmptyCrcNode();
 
   size_t appended = 0;
   CordRep* rep = tree();
@@ -1451,8 +1451,6 @@ absl::string_view Cord::FlattenSlowPath() {
 static void DumpNode(absl::Nonnull<CordRep*> rep, bool include_data,
                      absl::Nonnull<std::ostream*> os, int indent) {
   const int kIndentStep = 1;
-  absl::InlinedVector<CordRep*, kInlinedVectorSize> stack;
-  absl::InlinedVector<int, kInlinedVectorSize> indents;
   for (;;) {
     *os << std::setw(3) << rep->refcount.Get();
     *os << " " << std::setw(7) << rep->length;
@@ -1477,26 +1475,23 @@ static void DumpNode(absl::Nonnull<CordRep*> rep, bool include_data,
       if (rep->IsExternal()) {
         *os << "EXTERNAL [";
         if (include_data)
-          *os << absl::CEscape(std::string(rep->external()->base, rep->length));
+          *os << absl::CEscape(
+              absl::string_view(rep->external()->base, rep->length));
         *os << "]\n";
       } else if (rep->IsFlat()) {
         *os << "FLAT cap=" << rep->flat()->Capacity() << " [";
         if (include_data)
-          *os << absl::CEscape(std::string(rep->flat()->Data(), rep->length));
+          *os << absl::CEscape(
+              absl::string_view(rep->flat()->Data(), rep->length));
         *os << "]\n";
       } else {
         CordRepBtree::Dump(rep, /*label=*/"", include_data, *os);
       }
     }
     if (leaf) {
-      if (stack.empty()) break;
-      rep = stack.back();
-      stack.pop_back();
-      indent = indents.back();
-      indents.pop_back();
+      break;
     }
   }
-  ABSL_INTERNAL_CHECK(indents.empty(), "");
 }
 
 static std::string ReportError(absl::Nonnull<CordRep*> root,

@@ -7,12 +7,13 @@
 
 #include "src/base/logging.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/object-lock.h"
+#include "src/heap/object-lock-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
@@ -266,7 +267,9 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitJSObjectSubclass<JSObject, JSObject::BodyDescriptor>(map, object);
+  return VisitJSObjectSubclass<JSObject,
+                               JSAPIObjectWithEmbedderSlots::BodyDescriptor>(
+      map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>

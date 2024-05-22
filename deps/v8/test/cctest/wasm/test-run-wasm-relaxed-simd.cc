@@ -493,4 +493,155 @@ WASM_EXEC_TEST(I32x4DotI8x16I7x16AddS) {
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasm_F32x8Qfma_turbofan) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, float, float, float> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(8);
+
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+
+  r.Build(
+      {WASM_SIMD_STORE_MEM(
+           WASM_ZERO,
+           WASM_SIMD_F32x4_QFMA(WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_SIMD_STORE_MEM_OFFSET(
+           16, WASM_ZERO,
+           WASM_SIMD_F32x4_QFMA(WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_ONE});
+
+  for (FMOperation<float> x : qfma_vector<float>()) {
+    r.Call(x.a, x.b, x.c);
+    float expected = ExpectFused(TestExecutionTier::kTurbofan)
+                         ? x.fused_result
+                         : x.unfused_result;
+    for (int i = 0; i < 4; i++) {
+      float actual0 = r.builder().ReadMemory(memory + i);
+      float actual1 = r.builder().ReadMemory(memory + 4 + i);
+      CheckFloatResult(x.a, x.b, expected, actual0, true /* exact */);
+      CheckFloatResult(x.a, x.b, expected, actual1, true /* exact */);
+    }
+  }
+}
+
+TEST(RunWasm_F32x8Qfms_turbofan) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, float, float, float> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(8);
+
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+
+  r.Build(
+      {WASM_SIMD_STORE_MEM(
+           WASM_ZERO,
+           WASM_SIMD_F32x4_QFMS(WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_SIMD_STORE_MEM_OFFSET(
+           16, WASM_ZERO,
+           WASM_SIMD_F32x4_QFMS(WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_ONE});
+
+  for (FMOperation<float> x : qfms_vector<float>()) {
+    r.Call(x.a, x.b, x.c);
+    float expected = ExpectFused(TestExecutionTier::kTurbofan)
+                         ? x.fused_result
+                         : x.unfused_result;
+    for (int i = 0; i < 4; i++) {
+      float actual0 = r.builder().ReadMemory(memory + i);
+      float actual1 = r.builder().ReadMemory(memory + 4 + i);
+      CheckFloatResult(x.a, x.b, expected, actual0, true /* exact */);
+      CheckFloatResult(x.a, x.b, expected, actual1, true /* exact */);
+    }
+  }
+}
+
+TEST(RunWasm_F64x4Qfma_turbofan) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, double, double, double> r(TestExecutionTier::kTurbofan);
+  double* memory = r.builder().AddMemoryElems<double>(4);
+
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+
+  r.Build(
+      {WASM_SIMD_STORE_MEM(
+           WASM_ZERO,
+           WASM_SIMD_F64x2_QFMA(WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_SIMD_STORE_MEM_OFFSET(
+           16, WASM_ZERO,
+           WASM_SIMD_F64x2_QFMA(WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_ONE});
+
+  for (FMOperation<double> x : qfma_vector<double>()) {
+    r.Call(x.a, x.b, x.c);
+    double expected = ExpectFused(TestExecutionTier::kTurbofan)
+                          ? x.fused_result
+                          : x.unfused_result;
+    for (int i = 0; i < 2; i++) {
+      double actual0 = r.builder().ReadMemory(memory + i);
+      double actual1 = r.builder().ReadMemory(memory + 2 + i);
+      CheckFloatResult(x.a, x.b, expected, actual0, true /* exact */);
+      CheckFloatResult(x.a, x.b, expected, actual1, true /* exact */);
+    }
+  }
+}
+
+TEST(RunWasm_F64x4Qfms_turbofan) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, double, double, double> r(TestExecutionTier::kTurbofan);
+  double* memory = r.builder().AddMemoryElems<double>(4);
+
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+
+  r.Build(
+      {WASM_SIMD_STORE_MEM(
+           WASM_ZERO,
+           WASM_SIMD_F64x2_QFMS(WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_SIMD_STORE_MEM_OFFSET(
+           16, WASM_ZERO,
+           WASM_SIMD_F64x2_QFMS(WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param2)),
+                                WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param3)))),
+       WASM_ONE});
+
+  for (FMOperation<double> x : qfms_vector<double>()) {
+    r.Call(x.a, x.b, x.c);
+    double expected = ExpectFused(TestExecutionTier::kTurbofan)
+                          ? x.fused_result
+                          : x.unfused_result;
+    for (int i = 0; i < 2; i++) {
+      double actual0 = r.builder().ReadMemory(memory + i);
+      double actual1 = r.builder().ReadMemory(memory + 2 + i);
+      CheckFloatResult(x.a, x.b, expected, actual0, true /* exact */);
+      CheckFloatResult(x.a, x.b, expected, actual1, true /* exact */);
+    }
+  }
+}
+
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 }  // namespace v8::internal::wasm

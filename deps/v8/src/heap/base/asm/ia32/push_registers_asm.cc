@@ -19,6 +19,7 @@
 // Source: https://en.wikipedia.org/wiki/X86_calling_conventions#cdecl
 asm(
 #ifdef _WIN32
+    ".att_syntax                                        \n"
     ".globl _PushAllRegistersAndIterateStack            \n"
     "_PushAllRegistersAndIterateStack:                  \n"
 #else   // !_WIN32

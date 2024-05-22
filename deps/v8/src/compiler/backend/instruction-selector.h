@@ -982,6 +982,9 @@ class InstructionSelectorT final : public Adapter {
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
                                      node_t node);
 
+  void ConsumeEqualZero(turboshaft::OpIndex* user, turboshaft::OpIndex* value,
+                        FlagsContinuation* cont);
+
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
@@ -1026,6 +1029,12 @@ class InstructionSelectorT final : public Adapter {
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void VisitSimd256LoadTransform(node_t node);
+
+#ifdef V8_TARGET_ARCH_X64
+  void VisitSimd256Shufd(node_t node);
+  void VisitSimd256Shufps(node_t node);
+  void VisitSimd256Unpack(node_t node);
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #endif  // V8_ENABLE_WEBASSEMBLY

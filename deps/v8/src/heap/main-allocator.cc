@@ -323,12 +323,6 @@ void MainAllocator::FreeLinearAllocationArea() {
   Verify();
 #endif  // DEBUG
 
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace(
-        "FreeLinearAllocationArea writes to the page header.");
-  }
-
   MemoryChunkMetadata::UpdateHighWaterMark(top());
   allocator_policy_->FreeLinearAllocationArea();
 }
@@ -407,11 +401,6 @@ void MainAllocator::Verify() const {
 bool MainAllocator::EnsureAllocationForTesting(int size_in_bytes,
                                                AllocationAlignment alignment,
                                                AllocationOrigin origin) {
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace("Slow allocation path writes to the page header.");
-  }
-
   return EnsureAllocation(size_in_bytes, alignment, origin);
 }
 

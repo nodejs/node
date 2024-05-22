@@ -573,6 +573,13 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
+  // Libfuzzer sometimes runs a test twice (for detecting memory leaks), and in
+  // this case we do not want multiple outputs by this function.
+  // Similarly if we explicitly execute the same test multiple times (via
+  // `-runs=N`).
+  static std::atomic<bool> did_output_before{false};
+  if (did_output_before.exchange(true)) return;
+
   constexpr bool kVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(

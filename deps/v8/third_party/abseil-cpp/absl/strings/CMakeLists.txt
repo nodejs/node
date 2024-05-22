@@ -274,6 +274,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::dynamic_annotations
+    absl::type_traits
     GTest::gmock_main
 )
 

@@ -2249,7 +2249,17 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
   ASM_CODE_COMMENT(this);
-  CallBuiltin(target);
+#if V8_ENABLE_WEBASSEMBLY
+  if (options().is_wasm) {
+    CHECK(v8_flags.wasm_deopt);
+    wasm_call(static_cast<Address>(target), RelocInfo::WASM_STUB_CALL);
+#else
+  // For balance.
+  if (false) {
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else {
+    CallBuiltin(target);
+  }
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
                                             : Deoptimizer::kEagerDeoptExitSize);

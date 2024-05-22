@@ -14,6 +14,7 @@
 #include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/marking.h"
 #include "src/objects/heap-object.h"
+#include "src/utils/address-map.h"
 
 namespace v8 {
 namespace internal {
@@ -202,8 +203,9 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   MarkingWorklist::Local on_hold_;
   Address active_context_;
   const bool is_per_context_mode_;
-  const std::unordered_map<Address, std::unique_ptr<MarkingWorklist::Local>>
-      worklist_by_context_;
+
+  std::vector<MarkingWorklist::Local> context_worklists_;
+  AddressToIndexHashMap worklist_by_context_;
   MarkingWorklist::Local other_;
   std::unique_ptr<CppMarkingState> cpp_marking_state_;
 };

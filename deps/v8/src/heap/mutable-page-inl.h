@@ -5,11 +5,22 @@
 #ifndef V8_HEAP_MUTABLE_PAGE_INL_H_
 #define V8_HEAP_MUTABLE_PAGE_INL_H_
 
+#include "src/heap/memory-chunk-metadata-inl.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/spaces-inl.h"
 
 namespace v8 {
 namespace internal {
+
+// static
+MutablePageMetadata* MutablePageMetadata::FromAddress(Address a) {
+  return cast(MemoryChunkMetadata::FromAddress(a));
+}
+
+// static
+MutablePageMetadata* MutablePageMetadata::FromHeapObject(Tagged<HeapObject> o) {
+  return cast(MemoryChunkMetadata::FromHeapObject(o));
+}
 
 void MutablePageMetadata::IncrementExternalBackingStoreBytes(
     ExternalBackingStoreType type, size_t amount) {

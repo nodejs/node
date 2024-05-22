@@ -62,6 +62,7 @@ struct GraphBuilder {
   SourcePositionTable* source_positions =
       PipelineData::Get().source_positions();
   NodeOriginTable* origins = PipelineData::Get().node_origins();
+  TurboshaftPipelineKind pipeline_kind = PipelineData::Get().pipeline_kind();
 
   struct BlockData {
     Block* block;
@@ -75,11 +76,19 @@ struct GraphBuilder {
   AssemblerT& Asm() { return assembler; }
 
  private:
+  template <typename T>
+  V<T> Map(Node* old_node) {
+    V<T> result = V<T>::Cast(op_mapping.Get(old_node));
+    DCHECK(__ output_graph().IsValid(result));
+    return result;
+  }
+
   OpIndex Map(Node* old_node) {
     OpIndex result = op_mapping.Get(old_node);
     DCHECK(__ output_graph().IsValid(result));
     return result;
   }
+
   Block* Map(BasicBlock* block) {
     Block* result = block_mapping[block->rpo_number()].block;
     DCHECK_NOT_NULL(result);
@@ -140,7 +149,7 @@ struct GraphBuilder {
   }
 
   void BuildFrameStateData(FrameStateData::Builder* builder,
-                           FrameState frame_state) {
+                           compiler::FrameState frame_state) {
     if (frame_state.outer_frame_state()->opcode() != IrOpcode::kStart) {
       builder->AddParentFrameState(Map(frame_state.outer_frame_state()));
     }
@@ -474,8 +483,6 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Word32Ror, Word32RotateRight)
       BINOP_CASE(Word64Ror, Word64RotateRight)
 
-      BINOP_CASE(Word32Equal, Word32Equal)
-      BINOP_CASE(Word64Equal, Word64Equal)
       BINOP_CASE(Float32Equal, Float32Equal)
       BINOP_CASE(Float64Equal, Float64Equal)
 
@@ -500,6 +507,70 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Int32SubWithOverflow, Int32SubCheckOverflow)
       BINOP_CASE(Int64SubWithOverflow, Int64SubCheckOverflow)
 #undef BINOP_CASE
+
+    case IrOpcode::kWord32Equal: {
+      OpIndex left = Map(node->InputAt(0));
+      OpIndex right = Map(node->InputAt(1));
+      if constexpr (kTaggedSize == kInt32Size) {
+        // Unfortunately, CSA produces Word32Equal for tagged comparison.
+        if (V8_UNLIKELY(pipeline_kind == TurboshaftPipelineKind::kCSA)) {
+          // We need to detect these cases and construct a consistent graph.
+          const bool left_is_tagged =
+              __ output_graph().Get(left).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          const bool right_is_tagged =
+              __ output_graph().Get(right).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          if (left_is_tagged && right_is_tagged) {
+            return __ TaggedEqual(V<Object>::Cast(left),
+                                  V<Object>::Cast(right));
+          } else if (left_is_tagged) {
+            return __ Word32Equal(
+                __ TruncateWordPtrToWord32(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(left))),
+                V<Word32>::Cast(right));
+          } else if (right_is_tagged) {
+            return __ Word32Equal(
+                V<Word32>::Cast(left),
+                __ TruncateWordPtrToWord32(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(right))));
+          }
+        }
+      }
+      return __ Word32Equal(V<Word32>::Cast(left), V<Word32>::Cast(right));
+    }
+
+    case IrOpcode::kWord64Equal: {
+      OpIndex left = Map(node->InputAt(0));
+      OpIndex right = Map(node->InputAt(1));
+      if constexpr (kTaggedSize == kInt64Size) {
+        // Unfortunately, CSA produces Word32Equal for tagged comparison.
+        if (V8_UNLIKELY(pipeline_kind == TurboshaftPipelineKind::kCSA)) {
+          // We need to detect these cases and construct a consistent graph.
+          const bool left_is_tagged =
+              __ output_graph().Get(left).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          const bool right_is_tagged =
+              __ output_graph().Get(right).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          if (left_is_tagged && right_is_tagged) {
+            return __ TaggedEqual(V<Object>::Cast(left),
+                                  V<Object>::Cast(right));
+          } else if (left_is_tagged) {
+            DCHECK((std::is_same_v<WordPtr, Word64>));
+            return __ Word64Equal(V<Word64>::Cast(__ BitcastTaggedToWordPtr(
+                                      V<Object>::Cast(left))),
+                                  V<Word64>::Cast(right));
+          } else if (right_is_tagged) {
+            DCHECK((std::is_same_v<WordPtr, Word64>));
+            return __ Word64Equal(V<Word64>::Cast(left),
+                                  V<Word64>::Cast(__ BitcastTaggedToWordPtr(
+                                      V<Object>::Cast(right))));
+          }
+        }
+      }
+      return __ Word64Equal(V<Word64>::Cast(left), V<Word64>::Cast(right));
+    }
 
     case IrOpcode::kWord64Sar:
     case IrOpcode::kWord32Sar: {
@@ -667,23 +738,17 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kBitcastWordToTagged:
       return __ BitcastWordPtrToTagged(Map(node->InputAt(0)));
     case IrOpcode::kNumberIsFinite:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kFinite,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kFinite);
     case IrOpcode::kNumberIsInteger:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kInteger,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kInteger);
     case IrOpcode::kNumberIsSafeInteger:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kSafeInteger,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kSafeInteger);
     case IrOpcode::kNumberIsFloat64Hole:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kFloat64Hole,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kFloat64Hole);
     case IrOpcode::kNumberIsMinusZero:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kMinusZero,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kMinusZero);
     case IrOpcode::kNumberIsNaN:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kNaN,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kNaN);
     case IrOpcode::kObjectIsMinusZero:
       return __ ObjectIsNumericValue(Map(node->InputAt(0)),
                                      NumericKind::kMinusZero,
@@ -1096,7 +1161,7 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kStore:
     case IrOpcode::kUnalignedStore: {
       OpIndex base = Map(node->InputAt(0));
-      if (PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA) {
+      if (pipeline_kind == TurboshaftPipelineKind::kCSA) {
         // TODO(nicohartmann@): This is currently required to properly compile
         // builtins. We should fix them and remove this.
         if (__ output_graph().Get(base).outputs_rep()[0] ==
@@ -1212,7 +1277,7 @@ OpIndex GraphBuilder::Process(
 
       OpIndex frame_state_idx = OpIndex::Invalid();
       if (call_descriptor->NeedsFrameState()) {
-        FrameState frame_state{
+        compiler::FrameState frame_state{
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
         frame_state_idx = Map(frame_state);
       }
@@ -1266,7 +1331,7 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kFrameState: {
-      FrameState frame_state{node};
+      compiler::FrameState frame_state{node};
       FrameStateData::Builder builder;
       BuildFrameStateData(&builder, frame_state);
       if (builder.Inputs().size() >
@@ -1305,7 +1370,7 @@ OpIndex GraphBuilder::Process(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kDeoptimize: {
-      OpIndex frame_state = Map(node->InputAt(0));
+      V<FrameState> frame_state = Map(node->InputAt(0));
       __ Deoptimize(frame_state, &DeoptimizeParametersOf(op));
       return OpIndex::Invalid();
     }
@@ -1343,17 +1408,9 @@ OpIndex GraphBuilder::Process(
       return __ Projection(Map(input), index, rep);
     }
 
-    case IrOpcode::kStaticAssert: {
-      if (V8_UNLIKELY(PipelineData::Get().pipeline_kind() ==
-                      TurboshaftPipelineKind::kCSA)) {
-        // TODO(nicohartmann@): CSA code contains some static asserts (even in
-        // release builds) that we cannot prove currently, so we skip them here
-        // for now.
-        return OpIndex::Invalid();
-      }
+    case IrOpcode::kStaticAssert:
       __ StaticAssert(Map(node->InputAt(0)), StaticAssertSourceOf(node->op()));
       return OpIndex::Invalid();
-    }
 
     case IrOpcode::kAllocate: {
       AllocationType allocation = AllocationTypeOf(node->op());
@@ -1646,7 +1703,7 @@ OpIndex GraphBuilder::Process(
                                       Map(node->InputAt(1)));
 
     case IrOpcode::kBigIntNegate:
-      return __ BigIntNegate(Map(node->InputAt(0)));
+      return __ BigIntNegate(Map<BigInt>(node->InputAt(0)));
 
     case IrOpcode::kLoadRootRegister:
       // Inlined usage of wasm root register operation in JS.
@@ -1909,13 +1966,13 @@ OpIndex GraphBuilder::Process(
 
       Label<Object> done(this);
 
-      OpIndex fast_call_result =
+      V<Tuple<Word32, Any>> fast_call_result =
           __ FastApiCall(data_argument, base::VectorOf(arguments), parameters);
-      V<Word32> result_state =
-          __ template Projection<Word32>(fast_call_result, 0);
+      V<Word32> result_state = __ template Projection<0>(fast_call_result);
 
       IF (LIKELY(__ Word32Equal(result_state, FastApiCallOp::kSuccessValue))) {
-        GOTO(done, __ template Projection<Object>(fast_call_result, 1));
+        GOTO(done, V<Object>::Cast(__ template Projection<1>(
+                       fast_call_result, RegisterRepresentation::Tagged())));
       } ELSE {
         // We need to generate a fallback (both fast and slow call) in case:
         // 1) the generated code might fail, in case e.g. a Smi was passed where
@@ -1923,11 +1980,11 @@ OpIndex GraphBuilder::Process(
         // 2) the embedder requested fallback possibility via providing options
         // arg. None of the above usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
-        V<Object> slow_call_result =
+        V<Object> slow_call_result = V<Object>::Cast(
             __ Call(slow_call_callee, dominating_frame_state,
                     base::VectorOf(slow_call_arguments),
                     TSCallDescriptor::Create(params.descriptor(),
-                                             CanThrow::kYes, __ graph_zone()));
+                                             CanThrow::kYes, __ graph_zone())));
         GOTO(done, slow_call_result);
       }
 
@@ -2027,8 +2084,7 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
       // Currently this is only used by the CSA pipeline.
-      DCHECK_EQ(PipelineData::Get().pipeline_kind(),
-                TurboshaftPipelineKind::kCSA);
+      DCHECK_EQ(pipeline_kind, TurboshaftPipelineKind::kCSA);
       return __ BitcastTaggedToWordPtrForTagAndSmiBits(Map(node->InputAt(0)));
     case IrOpcode::kBitcastWordToTaggedSigned:
       return __ BitcastWordPtrToSmi(Map(node->InputAt(0)));
@@ -2258,9 +2314,45 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kJSStackCheck: {
       DCHECK_EQ(OpParameter<StackCheckKind>(node->op()),
                 StackCheckKind::kJSFunctionEntry);
-      __ StackCheck(StackCheckOp::CheckOrigin::kFromJS,
-                    StackCheckOp::CheckKind::kFunctionHeaderCheck);
+      __ StackCheck(StackCheckOp::Kind::kJSFunctionHeader);
       return OpIndex::Invalid();
+    }
+
+    case IrOpcode::kInt32PairAdd:
+    case IrOpcode::kInt32PairSub:
+    case IrOpcode::kInt32PairMul:
+    case IrOpcode::kWord32PairShl:
+    case IrOpcode::kWord32PairSar:
+    case IrOpcode::kWord32PairShr: {
+      V<Word32> left_low = Map(node->InputAt(0));
+      V<Word32> left_high = Map(node->InputAt(1));
+      V<Word32> right_low = Map(node->InputAt(2));
+      V<Word32> right_high = Map(node->InputAt(3));
+      Word32PairBinopOp::Kind kind;
+      switch (node->opcode()) {
+        case IrOpcode::kInt32PairAdd:
+          kind = Word32PairBinopOp::Kind::kAdd;
+          break;
+        case IrOpcode::kInt32PairSub:
+          kind = Word32PairBinopOp::Kind::kSub;
+          break;
+        case IrOpcode::kInt32PairMul:
+          kind = Word32PairBinopOp::Kind::kMul;
+          break;
+        case IrOpcode::kWord32PairShl:
+          kind = Word32PairBinopOp::Kind::kShiftLeft;
+          break;
+        case IrOpcode::kWord32PairSar:
+          kind = Word32PairBinopOp::Kind::kShiftRightArithmetic;
+          break;
+        case IrOpcode::kWord32PairShr:
+          kind = Word32PairBinopOp::Kind::kShiftRightLogical;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      return __ Word32PairBinop(left_low, left_high, right_low, right_high,
+                                kind);
     }
 
     default:
@@ -2274,7 +2366,11 @@ OpIndex GraphBuilder::Process(
 
 base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* phase_zone,
                                          Linkage* linkage) {
-  return GraphBuilder{phase_zone, *schedule, linkage}.Run();
+  GraphBuilder builder{phase_zone, *schedule, linkage};
+#if DEBUG
+  PipelineData::Get().graph().SetCreatedFromTurbofan();
+#endif
+  return builder.Run();
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

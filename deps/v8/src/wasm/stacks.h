@@ -35,6 +35,8 @@ constexpr int kJmpBufStateOffset = offsetof(JumpBuffer, state);
 
 class StackMemory {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kWasmStackMemoryTag;
+
   static StackMemory* New(Isolate* isolate) { return new StackMemory(isolate); }
 
   // Returns a non-owning view of the current (main) stack. This may be

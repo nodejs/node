@@ -20,6 +20,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/objects.h"
+#include "src/objects/string.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/strings-storage.h"
 #include "src/strings/string-hasher.h"
@@ -264,6 +265,9 @@ class HeapSnapshot {
   HeapEntry* GetEntryById(SnapshotObjectId id);
   void FillChildren();
 
+  void AddScriptLineEnds(int script_id, String::LineEndsVector&& line_ends);
+  String::LineEndsVector& GetScriptLineEnds(int script_id);
+
   void Print(int max_depth);
 
  private:
@@ -286,6 +290,13 @@ class HeapSnapshot {
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
   v8::HeapProfiler::HeapSnapshotMode snapshot_mode_;
   v8::HeapProfiler::NumericsMode numerics_mode_;
+
+  // The ScriptsLineEndsMap instance stores the line ends of scripts that did
+  // not get their line_ends() information populated in heap.
+  using ScriptId = int;
+  using ScriptsLineEndsMap =
+      std::unordered_map<ScriptId, String::LineEndsVector>;
+  ScriptsLineEndsMap scripts_line_ends_map_;
 };
 
 

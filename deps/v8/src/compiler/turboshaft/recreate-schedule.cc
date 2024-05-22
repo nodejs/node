@@ -192,6 +192,7 @@ TURBOSHAFT_JS_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 TURBOSHAFT_OTHER_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 TURBOSHAFT_WASM_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
+SHOULD_HAVE_BEEN_LOWERED(Dead)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
@@ -992,9 +993,10 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
   V(Exchange)            \
   V(CompareExchange)
 
-  AtomicOpParameters param(op.input_rep.ToMachineType(), op.memory_access_kind);
+  AtomicOpParameters param(op.memory_rep.ToMachineType(),
+                           op.memory_access_kind);
   const Operator* node_op;
-  if (op.result_rep == RegisterRepresentation::Word32()) {
+  if (op.in_out_rep == RegisterRepresentation::Word32()) {
     switch (op.bin_op) {
 #define CASE(Name)                               \
   case AtomicRMWOp::BinOp::k##Name:              \
@@ -1004,7 +1006,7 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
 #undef CASE
     }
   } else {
-    DCHECK_EQ(op.result_rep, RegisterRepresentation::Word64());
+    DCHECK_EQ(op.in_out_rep, RegisterRepresentation::Word64());
     switch (op.bin_op) {
 #define CASE(Name)                               \
   case AtomicRMWOp::BinOp::k##Name:              \
@@ -1046,10 +1048,14 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
     case ConstantOp::Kind::kSmi:
       if constexpr (Is64()) {
         return AddNode(
-            common.Int64Constant(static_cast<int64_t>(op.smi().ptr())), {});
+            machine.BitcastWordToTaggedSigned(),
+            {AddNode(common.Int64Constant(static_cast<int64_t>(op.smi().ptr())),
+                     {})});
       } else {
         return AddNode(
-            common.Int32Constant(static_cast<int32_t>(op.smi().ptr())), {});
+            machine.BitcastWordToTaggedSigned(),
+            {AddNode(common.Int32Constant(static_cast<int32_t>(op.smi().ptr())),
+                     {})});
       }
     case ConstantOp::Kind::kExternal:
       return AddNode(common.ExternalConstant(op.external_reference()), {});
@@ -1817,6 +1823,10 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ShuffleOp& op) {
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+Node* ScheduleBuilder::ProcessOperation(const Simd256ConstantOp& op) {
+  return AddNode(machine.S256Const(op.value), {});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const Simd256Extract128LaneOp& op) {
   const Operator* o = machine.ExtractF128(op.lane);
   return AddNode(o, {GetNode(op.input())});
@@ -1884,6 +1894,27 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256TernaryOp& op) {
   }
 }
 
+Node* ScheduleBuilder::ProcessOperation(const Simd256SplatOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)             \
+  case Simd256SplatOp::Kind::k##kind: \
+    return AddNode(machine.kind##Splat(), {GetNode(op.input())});
+    FOREACH_SIMD_256_SPLAT_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
+
+#ifdef V8_TARGET_ARCH_X64
+Node* ScheduleBuilder::ProcessOperation(const Simd256ShufdOp& op) {
+  UNIMPLEMENTED();
+}
+Node* ScheduleBuilder::ProcessOperation(const Simd256ShufpsOp& op) {
+  UNIMPLEMENTED();
+}
+Node* ScheduleBuilder::ProcessOperation(const Simd256UnpackOp& op) {
+  UNIMPLEMENTED();
+}
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {

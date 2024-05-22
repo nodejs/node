@@ -580,7 +580,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       }
       // Ensure the hoisted value is actually live at the hoist location.
       CHECK(input->Is<InitialValue>() ||
-            phi->is_loop_phi() && !phi->is_backedge_offset(i));
+            (phi->is_loop_phi() && !phi->is_backedge_offset(i)));
       ValueNode* untagged;
       switch (repr) {
         case ValueRepresentation::kInt32:

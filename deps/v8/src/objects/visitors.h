@@ -188,6 +188,11 @@ class ObjectVisitor {
   virtual void VisitExternalPointer(Tagged<HeapObject> host,
                                     ExternalPointerSlot slot) {}
 
+  // Same as `VisitExternalPointer` with the difference that the slot's contents
+  // are known to be managed by `CppHeap`.
+  virtual void VisitCppHeapPointer(Tagged<HeapObject> host,
+                                   CppHeapPointerSlot slot) {}
+
   virtual void VisitIndirectPointer(Tagged<HeapObject> host,
                                     IndirectPointerSlot slot,
                                     IndirectPointerMode mode) {}

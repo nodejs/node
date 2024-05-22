@@ -96,6 +96,7 @@ void TailCallOp::PrintOptions(std::ostream& os) const {
   os << '[' << *descriptor->descriptor << ']';
 }
 
+#if DEBUG
 bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_reps,
@@ -124,7 +125,8 @@ bool ValidOpInputRep(
     return false;
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
-    if (input_rep.AllowImplicitRepresentationChangeTo(expected_rep)) {
+    if (input_rep.AllowImplicitRepresentationChangeTo(
+            expected_rep, graph.IsCreatedFromTurbofan())) {
       return true;
     }
   }
@@ -141,6 +143,7 @@ bool ValidOpInputRep(const Graph& graph, OpIndex input,
                      base::Optional<size_t> projection_index) {
   return ValidOpInputRep(graph, input, {expected_rep}, projection_index);
 }
+#endif  // DEBUG
 
 const char* OpcodeName(Opcode opcode) {
 #define OPCODE_NAME(Name) #Name,
@@ -504,7 +507,7 @@ void Operation::PrintOptions(std::ostream& os) const {
 }
 
 void ConstantOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kWord32:
       os << "word32: " << static_cast<int32_t>(storage.integral);
@@ -545,13 +548,13 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
          << reinterpret_cast<void*>(storage.integral);
       break;
   }
-  os << "]";
+  os << ']';
 }
 
 void ParameterOp::PrintOptions(std::ostream& os) const {
-  os << "[" << parameter_index;
+  os << '[' << parameter_index;
   if (debug_name) os << ", " << debug_name;
-  os << "]";
+  os << ']';
 }
 
 MachineType LoadOp::machine_type() const {
@@ -575,12 +578,12 @@ void LoadOp::PrintInputs(std::ostream& os,
   }
   if (index().valid()) {
     os << " + " << op_index_prefix << index().value().id();
-    if (element_size_log2 > 0) os << "*" << (1 << element_size_log2);
+    if (element_size_log2 > 0) os << '*' << (1 << element_size_log2);
   }
   os << ") ";
 }
 void LoadOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
   if (kind.with_trap_handler) os << ", protected";
@@ -589,26 +592,25 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   if (element_size_log2 != 0)
     os << ", element size: 2^" << int{element_size_log2};
   if (offset != 0) os << ", offset: " << offset;
-  os << "]";
+  os << ']';
 }
 
 void AtomicRMWOp::PrintInputs(std::ostream& os,
                               const std::string& op_index_prefix) const {
   os << " *(" << op_index_prefix << base().id() << " + " << op_index_prefix
-     << index().id() << ").atomic_" << bin_op << "(";
+     << index().id() << ").atomic_" << bin_op << '(';
   if (bin_op == BinOp::kCompareExchange) {
     os << "expected: " << op_index_prefix << expected();
     os << ", new: " << op_index_prefix << value();
   } else {
     os << op_index_prefix << value().id();
   }
-  os << ")";
+  os << ')';
 }
 
 void AtomicRMWOp::PrintOptions(std::ostream& os) const {
-  os << "["
-     << "binop: " << bin_op << ", result_rep: " << result_rep
-     << ", input_rep: " << input_rep << "]";
+  os << '[' << "binop: " << bin_op << ", in_out_rep: " << in_out_rep
+     << ", memory_rep: " << memory_rep << ']';
 }
 
 void AtomicWord32PairOp::PrintInputs(std::ostream& os,
@@ -620,25 +622,25 @@ void AtomicWord32PairOp::PrintInputs(std::ostream& os,
   if (offset) {
     os << " + offset=" << offset;
   }
-  os << ").atomic_word32_pair_" << kind << "(";
+  os << ").atomic_word32_pair_" << kind << '(';
   if (kind == Kind::kCompareExchange) {
     os << "expected: {lo: " << op_index_prefix << value_low()
        << ", hi: " << op_index_prefix << value_high();
     os << "}, value: {lo: " << op_index_prefix << value_low()
-       << ", hi: " << op_index_prefix << value_high() << "}";
+       << ", hi: " << op_index_prefix << value_high() << '}';
   } else if (kind != Kind::kLoad) {
     os << "lo: " << op_index_prefix << value_low()
        << ", hi: " << op_index_prefix << value_high();
   }
-  os << ")";
+  os << ')';
 }
 
 void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
-  os << "[opkind: " << kind << "]";
+  os << "[opkind: " << kind << ']';
 }
 
 void MemoryBarrierOp::PrintOptions(std::ostream& os) const {
-  os << "[memory order: " << memory_order << "]";
+  os << "[memory order: " << memory_order << ']';
 }
 
 void StoreOp::PrintInputs(std::ostream& os,
@@ -651,12 +653,12 @@ void StoreOp::PrintInputs(std::ostream& os,
   }
   if (index().valid()) {
     os << " + " << op_index_prefix << index().value().id();
-    if (element_size_log2 > 0) os << "*" << (1 << element_size_log2);
+    if (element_size_log2 > 0) os << '*' << (1 << element_size_log2);
   }
-  os << ") = " << op_index_prefix << value().id() << " ";
+  os << ") = " << op_index_prefix << value().id() << ' ';
 }
 void StoreOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
   if (kind.with_trap_handler) os << ", protected";
@@ -666,59 +668,59 @@ void StoreOp::PrintOptions(std::ostream& os) const {
     os << ", element size: 2^" << int{element_size_log2};
   if (offset != 0) os << ", offset: " << offset;
   if (maybe_initializing_or_transitioning) os << ", initializing";
-  os << "]";
+  os << ']';
 }
 
 void AllocateOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   os << type;
-  os << "]";
+  os << ']';
 }
 
 void DecodeExternalPointerOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   os << "tag: " << std::hex << tag << std::dec;
-  os << "]";
+  os << ']';
 }
 
 void FrameStateOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   os << (inlined ? "inlined" : "not inlined");
   os << ", ";
   os << data->frame_state_info;
   os << ", state values:";
   FrameStateData::Iterator it = data->iterator(state_values());
   while (it.has_more()) {
-    os << " ";
+    os << ' ';
     switch (it.current_instr()) {
       case FrameStateData::Instr::kInput: {
         MachineType type;
         OpIndex input;
         it.ConsumeInput(&type, &input);
-        os << "#" << input.id() << "(" << type << ")";
+        os << '#' << input.id() << '(' << type << ')';
         break;
       }
       case FrameStateData::Instr::kUnusedRegister:
         it.ConsumeUnusedRegister();
-        os << ".";
+        os << '.';
         break;
       case FrameStateData::Instr::kDematerializedObject: {
         uint32_t id;
         uint32_t field_count;
         it.ConsumeDematerializedObject(&id, &field_count);
-        os << "$" << id << "(field count: " << field_count << ")";
+        os << '$' << id << "(field count: " << field_count << ')';
         break;
       }
       case FrameStateData::Instr::kDematerializedObjectReference: {
         uint32_t id;
         it.ConsumeDematerializedObjectReference(&id);
-        os << "$" << id;
+        os << '$' << id;
         break;
       }
       case FrameStateData::Instr::kArgumentsElements: {
         CreateArgumentsType type;
         it.ConsumeArgumentsElements(&type);
-        os << "ArgumentsElements(" << type << ")";
+        os << "ArgumentsElements(" << type << ')';
         break;
       }
       case FrameStateData::Instr::kArgumentsLength: {
@@ -728,7 +730,7 @@ void FrameStateOp::PrintOptions(std::ostream& os) const {
       }
     }
   }
-  os << "]";
+  os << ']';
 }
 
 void FrameStateOp::Validate(const Graph& graph) const {
@@ -779,6 +781,11 @@ void FrameStateOp::Validate(const Graph& graph) const {
   }
 }
 
+void DeoptimizeIfOp::PrintOptions(std::ostream& os) const {
+  static_assert(std::tuple_size_v<decltype(options())> == 2);
+  os << '[' << (negated ? "negated, " : "") << *parameters << ']';
+}
+
 void DidntThrowOp::Validate(const Graph& graph) const {
 #ifdef DEBUG
   DCHECK(MayThrow(graph.Get(throwing_operation()).opcode));
@@ -806,7 +813,7 @@ void DidntThrowOp::Validate(const Graph& graph) const {
 }
 
 void WordBinopOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kAdd:
       os << "Add, ";
@@ -846,11 +853,11 @@ void WordBinopOp::PrintOptions(std::ostream& os) const {
       break;
   }
   os << rep;
-  os << "]";
+  os << ']';
 }
 
 void FloatBinopOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kAdd:
       os << "Add, ";
@@ -881,11 +888,11 @@ void FloatBinopOp::PrintOptions(std::ostream& os) const {
       break;
   }
   os << rep;
-  os << "]";
+  os << ']';
 }
 
 void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kAdd:
       os << "Add";
@@ -906,11 +913,11 @@ void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
       os << "ShiftRightUnsigned";
       break;
   }
-  os << "]";
+  os << ']';
 }
 
 void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kSignedAdd:
       os << "signed add, ";
@@ -935,11 +942,11 @@ void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
       break;
   }
   os << rep;
-  os << "]";
+  os << ']';
 }
 
 void OverflowCheckedBinopOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kSignedAdd:
       os << "signed add, ";
@@ -952,7 +959,7 @@ void OverflowCheckedBinopOp::PrintOptions(std::ostream& os) const {
       break;
   }
   os << rep;
-  os << "]";
+  os << ']';
 }
 
 std::ostream& operator<<(std::ostream& os, OpIndex idx) {
@@ -1004,17 +1011,17 @@ std::ostream& operator<<(std::ostream& os, OpEffects effects) {
   os << produce_consume(effects.produces.control_flow,
                         effects.consumes.control_flow);
   os << "\u2003";  // em space
-  os << (effects.can_create_identity ? "i" : "_");
-  os << " " << (effects.can_allocate ? "a" : "_");
+  os << (effects.can_create_identity ? 'i' : '_');
+  os << ' ' << (effects.can_allocate ? 'a' : '_');
   return os;
 }
 
 void SwitchOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   for (const Case& c : cases) {
     os << "case " << c.value << ": " << c.destination << ", ";
   }
-  os << " default: " << default_case << "]";
+  os << " default: " << default_case << ']';
 }
 
 std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
@@ -1407,21 +1414,14 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
-std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckOrigin origin) {
-  switch (origin) {
-    case StackCheckOp::CheckOrigin::kFromJS:
-      return os << "JavaScript";
-    case StackCheckOp::CheckOrigin::kFromWasm:
-      return os << "WebAssembly";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckKind kind) {
+std::ostream& operator<<(std::ostream& os, StackCheckOp::Kind kind) {
   switch (kind) {
-    case StackCheckOp::CheckKind::kFunctionHeaderCheck:
-      return os << "function-entry";
-    case StackCheckOp::CheckKind::kLoopCheck:
-      return os << "loop";
+    case StackCheckOp::Kind::kJSFunctionHeader:
+      return os << "JS function-entry";
+    case StackCheckOp::Kind::kWasmFunctionHeader:
+      return os << "Wasm function-entry";
+    case StackCheckOp::Kind::kWasmLoop:
+      return os << "Wasm loop";
   }
 }
 
@@ -1465,12 +1465,13 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
 }
 
 namespace {
-void PrintSimd128Value(std::ostream& os, const uint8_t value[kSimd128Size]) {
+template <size_t size>
+void PrintSimdValue(std::ostream& os, const uint8_t (&value)[size]) {
   os << "0x" << std::hex << std::setfill('0');
 #ifdef V8_TARGET_BIG_ENDIAN
-  for (int i = 0; i < kSimd128Size; i++) {
+  for (int i = 0; i < static_cast<int>(size); i++) {
 #else
-  for (int i = kSimd128Size - 1; i >= 0; i--) {
+  for (int i = static_cast<int>(size) - 1; i >= 0; i--) {
 #endif
     os << std::setw(2) << static_cast<int>(value[i]);
   }
@@ -1479,7 +1480,7 @@ void PrintSimd128Value(std::ostream& os, const uint8_t value[kSimd128Size]) {
 }  // namespace
 
 void Simd128ConstantOp::PrintOptions(std::ostream& os) const {
-  PrintSimd128Value(os, value);
+  PrintSimdValue(os, value);
 }
 
 std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind) {
@@ -1543,7 +1544,7 @@ std::ostream& operator<<(std::ostream& os, Simd128TernaryOp::Kind kind) {
 }
 
 void Simd128ExtractLaneOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kI8x16S:
       os << "I8x16S";
@@ -1570,11 +1571,11 @@ void Simd128ExtractLaneOp::PrintOptions(std::ostream& os) const {
       os << "F64x2";
       break;
   }
-  os << ", " << static_cast<int32_t>(lane) << "]";
+  os << ", " << static_cast<int32_t>(lane) << ']';
 }
 
 void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   switch (kind) {
     case Kind::kI8x16:
       os << "I8x16";
@@ -1595,16 +1596,16 @@ void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
       os << "F64x2";
       break;
   }
-  os << ", " << static_cast<int32_t>(lane) << "]";
+  os << ", " << static_cast<int32_t>(lane) << ']';
 }
 
 void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
-  os << "[" << (mode == Mode::kLoad ? "Load" : "Store") << ", ";
+  os << '[' << (mode == Mode::kLoad ? "Load" : "Store") << ", ";
   if (kind.maybe_unaligned) os << "unaligned, ";
   if (kind.with_trap_handler) os << "protected, ";
   switch (lane_kind) {
     case LaneKind::k8:
-      os << "8";
+      os << '8';
       break;
     case LaneKind::k16:
       os << "16";
@@ -1618,11 +1619,11 @@ void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
   }
   os << "bit, lane: " << static_cast<int>(lane);
   if (offset != 0) os << ", offset: " << offset;
-  os << "]";
+  os << ']';
 }
 
 void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
   if (load_kind.with_trap_handler) os << "protected, ";
 
@@ -1635,16 +1636,20 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
 #undef PRINT_KIND
   }
 
-  os << ", offset: " << offset << "]";
+  os << ", offset: " << offset << ']';
 }
 
 void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
-  PrintSimd128Value(os, shuffle);
+  PrintSimdValue(os, shuffle);
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
+  PrintSimdValue(os, value);
+}
+
 void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
-  os << "[";
+  os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
   if (load_kind.with_trap_handler) os << "protected, ";
 
@@ -1657,7 +1662,7 @@ void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
 #undef PRINT_KIND
   }
 
-  os << ", offset: " << offset << "]";
+  os << ", offset: " << offset << ']';
 }
 
 std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind) {
@@ -1699,16 +1704,46 @@ std::ostream& operator<<(std::ostream& os, Simd256ShiftOp::Kind kind) {
   }
 #undef PRINT_KIND
 }
+
+std::ostream& operator<<(std::ostream& os, Simd256SplatOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)              \
+  case Simd256SplatOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_SPLAT_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+
+#ifdef V8_TARGET_ARCH_X64
+void Simd256ShufdOp::PrintOptions(std::ostream& os) const {
+  os << '[' << std::bitset<8>(control) << ']';
+}
+
+void Simd256ShufpsOp::PrintOptions(std::ostream& os) const {
+  os << '[' << std::bitset<8>(control) << ']';
+}
+
+std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)               \
+  case Simd256UnpackOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_UNPACK_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
-  os << '[' << array_type->element_type() << "]";
+  os << '[' << array_type->element_type() << ']';
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
-  os << "[" << (is_signed ? "signed " : "")
+  os << '[' << (is_signed ? "signed " : "")
      << (array_type->mutability() ? "" : "immutable ")
-     << array_type->element_type() << "]";
+     << array_type->element_type() << ']';
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY
@@ -1757,7 +1792,8 @@ bool SupportedOperations::IsUnalignedStoreSupported(MemoryRepresentation repr) {
 void CheckExceptionOp::Validate(const Graph& graph) const {
   DCHECK_NE(didnt_throw_block, catch_block);
   // `CheckException` should follow right after the throwing operation.
-  DCHECK_EQ(throwing_operation(), graph.PreviousIndex(graph.Index(*this)));
+  DCHECK_EQ(throwing_operation(),
+            V<Any>::Cast(graph.PreviousIndex(graph.Index(*this))));
 }
 
 namespace {

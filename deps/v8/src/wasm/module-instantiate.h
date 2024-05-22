@@ -129,13 +129,14 @@ V8_EXPORT_PRIVATE void CreateMapForType(
 // the wrapper compilation pipeline is independent of the code kind.
 struct WrapperCompilationInfo {
   CodeKind code_kind;
+  StubCallMode stub_mode;
   union {
     bool is_import;
     struct {
       wasm::ImportCallKind import_kind;
       int expected_arity;
       wasm::Suspend suspend;
-    } import_info;
+    } wasm_js_info;
   };
 };
 

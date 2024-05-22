@@ -496,7 +496,9 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
     builder.AddSubjectSlice(prev_index + 1, string_length);
   }
 
-  return *builder.ToString().ToHandleChecked();
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.ToString());
+  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_StringIsWellFormed) {

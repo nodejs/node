@@ -10,6 +10,7 @@
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
 #include "include/v8-cppgc.h"
+#include "include/v8-internal.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
@@ -22,6 +23,7 @@
 #include "src/heap/cppgc/visitor.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
 
 namespace v8 {
@@ -380,18 +382,31 @@ class StateStorage final {
 
 void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
                                  v8::Local<v8::Value> v8_value) {
-  if (!v8_value->IsObject()) return nullptr;
+  if (!v8_value->IsObject()) {
+    return nullptr;
+  }
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
   if (!IsJSObject(*v8_object) ||
-      !JSObject::cast(*v8_object)->MayHaveEmbedderFields())
+      !JSObject::cast(*v8_object)->MayHaveEmbedderFields()) {
     return nullptr;
+  }
 
   Tagged<JSObject> js_object = JSObject::cast(*v8_object);
 
   const auto maybe_info =
       WrappableInfo::From(isolate, js_object, cpp_heap.wrapper_descriptor());
-  return maybe_info.has_value() ? maybe_info->instance : nullptr;
+  if (maybe_info.has_value()) {
+    // Wrappers with 2 embedder fields.
+    return maybe_info->instance;
+  }
+  // Not every object that can have embedder fields is actually a JSApiWrapper.
+  if (!IsJSApiWrapperObject(*js_object)) {
+    return nullptr;
+  }
+  // Wrapper using cpp_heap_wrappable field.
+  return JSApiWrapper(*js_object)
+      .GetCppHeapWrappable<kAnyExternalPointerTag>(isolate);
 }
 
 // The following implements a snapshotting algorithm for C++ objects that also
@@ -673,17 +688,17 @@ class WeakVisitor : public JSVisitor {
                                 const HeapObjectHeader& weak_container_header)
         : weak_visitor_(weak_visitor),
           prev_weak_container_header_(
-              *weak_visitor_.current_weak_container_header_) {
+              weak_visitor_.current_weak_container_header_) {
       weak_visitor_.current_weak_container_header_ = &weak_container_header;
     }
     ~WeakContainerScope() {
       weak_visitor_.current_weak_container_header_ =
-          &prev_weak_container_header_;
+          prev_weak_container_header_;
     }
 
    private:
     WeakVisitor& weak_visitor_;
-    const HeapObjectHeader& prev_weak_container_header_;
+    const HeapObjectHeader* prev_weak_container_header_;
   };
 
   CppGraphBuilderImpl& graph_builder_;

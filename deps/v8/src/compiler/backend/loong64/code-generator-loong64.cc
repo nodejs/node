@@ -1645,6 +1645,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Float64ExtractHighWord32:
       __ movfrh2gr_s(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
+    case kLoong64Float64FromWord32Pair:
+      __ movgr2fr_w(i.OutputDoubleRegister(), i.InputRegister(1));
+      __ movgr2frh_w(i.OutputDoubleRegister(), i.InputRegister(0));
+      break;
     case kLoong64Float64InsertLowWord32:
       __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
       break;

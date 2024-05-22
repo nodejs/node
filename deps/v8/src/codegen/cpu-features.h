@@ -48,6 +48,8 @@ enum CpuFeature {
   // Large System Extension, include atomic operations on memory: CAS, LDADD,
   // STADD, SWP, etc.
   LSE,
+  // A form of PMULL{2} with a 128-bit (1Q) result.
+  PMULL1Q,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

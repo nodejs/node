@@ -397,23 +397,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, Operand(instance, offset));
 }
 
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, ExternalPointerTag tag,
-                                           Register scratch) {
-  LoadExternalPointerField(dst, Operand(src_addr, offset), tag, scratch,
-                           IsolateRootLocation::kInRootRegister);
-}
-
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, Register index,
-                                           ExternalPointerTag tag,
-                                           Register scratch) {
-  MemOperand src_op = liftoff::GetMemOp(this, src_addr, index, offset,
-                                        times_external_pointer_size);
-  LoadExternalPointerField(dst, src_op, tag, scratch,
-                           IsolateRootLocation::kInRootRegister);
-}
-
 void LiftoffAssembler::SpillInstanceData(Register instance) {
   movq(liftoff::kInstanceDataOperand, instance);
 }

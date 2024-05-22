@@ -38,15 +38,18 @@ class WasmRevecAnalyzer;
 class V8_EXPORT_PRIVATE PipelineData
     : public base::ContextualClass<PipelineData> {
  public:
-  explicit PipelineData(
-      TurboshaftPipelineKind pipeline_kind,
-      OptimizedCompilationInfo* const& info, Schedule*& schedule,
-      Zone*& graph_zone, Zone* shared_zone, JSHeapBroker*& broker,
-      Isolate* const& isolate, SourcePositionTable*& source_positions,
-      NodeOriginTable*& node_origins, InstructionSequence*& sequence,
-      Frame*& frame, AssemblerOptions& assembler_options,
-      size_t* address_of_max_unoptimized_frame_height,
-      size_t* address_of_max_pushed_argument_count, Zone*& instruction_zone)
+  explicit PipelineData(TurboshaftPipelineKind pipeline_kind,
+                        OptimizedCompilationInfo* const& info,
+                        Schedule*& schedule, Zone*& graph_zone,
+                        Zone* shared_zone, JSHeapBroker*& broker,
+                        Isolate* const& isolate,
+                        SourcePositionTable*& source_positions,
+                        NodeOriginTable*& node_origins,
+                        InstructionSequence*& sequence, Frame*& frame,
+                        AssemblerOptions& assembler_options,
+                        size_t* address_of_max_unoptimized_frame_height,
+                        size_t* address_of_max_pushed_argument_count,
+                        Zone*& instruction_zone, Graph* graph = nullptr)
       : pipeline_kind_(pipeline_kind),
         info_(info),
         schedule_(schedule),
@@ -64,7 +67,8 @@ class V8_EXPORT_PRIVATE PipelineData
         address_of_max_pushed_argument_count_(
             address_of_max_pushed_argument_count),
         instruction_zone_(instruction_zone),
-        graph_(graph_zone_->New<turboshaft::Graph>(graph_zone_)) {}
+        graph_(graph ? graph
+                     : graph_zone_->New<turboshaft::Graph>(graph_zone_)) {}
 
   bool has_graph() const { return graph_ != nullptr; }
   turboshaft::Graph& graph() const { return *graph_; }
@@ -156,6 +160,9 @@ class V8_EXPORT_PRIVATE PipelineData
     return loop_unrolling_analyzer_;
   }
 
+  bool graph_has_special_rpo() const { return graph_has_special_rpo_; }
+  void set_graph_has_special_rpo() { graph_has_special_rpo_ = true; }
+
  private:
   // Turbofan's PipelineData owns most of these objects. We only hold references
   // to them.
@@ -189,6 +196,8 @@ class V8_EXPORT_PRIVATE PipelineData
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   LoopUnrollingAnalyzer* loop_unrolling_analyzer_ = nullptr;
+
+  bool graph_has_special_rpo_ = false;
 
   turboshaft::Graph* graph_;
 };

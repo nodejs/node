@@ -333,7 +333,7 @@ declare_args() {
   # Sets -DV8_COMPRESS_ZONES.
   v8_enable_zone_compression = ""
 
-  # Enable the experimental V8 sandbox.
+  # Enable the V8 sandbox.
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
@@ -404,9 +404,7 @@ declare_args() {
   # when this is set to 'false', one can run V8 in jitless mode at runtime by
   # passing the `--jitless` flag; but then you miss out on compile-time
   # optimizations.
-  # iOS (non-simulator) does not have executable pages for 3rd party
-  # applications yet so disable jit.
-  v8_jitless = v8_enable_lite_mode || target_is_ios_device
+  v8_jitless = v8_enable_lite_mode
 
   # Enable Sparkplug
   # Sets -DV8_ENABLE_SPARKPLUG.
@@ -866,7 +864,6 @@ external_v8_defines = [
   "V8_ENABLE_CHECKS",
   "V8_COMPRESS_POINTERS",
   "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
-  "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE",
   "V8_31BIT_SMIS_ON_64BIT_ARCH",
   "V8_COMPRESS_ZONES",
   "V8_ENABLE_SANDBOX",
@@ -878,6 +875,14 @@ external_v8_defines = [
   "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
   "V8_ENABLE_DIRECT_LOCAL",
   "V8_MINORMS_STRING_SHORTCUTTING",
+  "V8_HAVE_TARGET_OS",
+  "V8_TARGET_OS_ANDROID",
+  "V8_TARGET_OS_FUCHSIA",
+  "V8_TARGET_OS_IOS",
+  "V8_TARGET_OS_LINUX",
+  "V8_TARGET_OS_MACOS",
+  "V8_TARGET_OS_WIN",
+  "V8_TARGET_OS_CHROMEOS",
 ]
 
 enabled_external_v8_defines = []
@@ -889,8 +894,6 @@ if (v8_enable_pointer_compression) {
   enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS" ]
   if (v8_enable_pointer_compression_shared_cage) {
     enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS_IN_SHARED_CAGE" ]
-  } else {
-    enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE" ]
   }
 }
 if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
@@ -926,6 +929,34 @@ if (v8_enable_direct_local) {
 if (v8_shortcut_strings_in_minor_ms) {
   enabled_external_v8_defines += [ "V8_MINORMS_STRING_SHORTCUTTING" ]
 }
+
+# V8_TARGET_OS_ defines. The target OS may differ from host OS e.g. in
+# mksnapshot. We additionally set V8_HAVE_TARGET_OS to determine that a
+# target OS has in fact been set; otherwise we internally assume that target
+# OS == host OS (see v8config.h).
+if (target_os == "android") {
+  enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
+  enabled_external_v8_defines += [ "V8_TARGET_OS_ANDROID" ]
+} else if (target_os == "fuchsia") {
+  enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
+  enabled_external_v8_defines += [ "V8_TARGET_OS_FUCHSIA" ]
+} else if (target_os == "ios") {
+  enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
+  enabled_external_v8_defines += [ "V8_TARGET_OS_IOS" ]
+} else if (target_os == "linux") {
+  enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
+  enabled_external_v8_defines += [ "V8_TARGET_OS_LINUX" ]
+} else if (target_os == "mac") {
+  enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
+  enabled_external_v8_defines += [ "V8_TARGET_OS_MACOS" ]
+} else if (target_os == "win") {
+  enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
+  enabled_external_v8_defines += [ "V8_TARGET_OS_WIN" ]
+} else if (target_os == "chromeos") {
+  enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
+  enabled_external_v8_defines += [ "V8_TARGET_OS_CHROMEOS" ]
+}
+
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
 
 # Put defines that are used in public headers here; public headers are
@@ -1020,6 +1051,11 @@ config("features") {
 
   if (cppgc_allow_allocations_in_prefinalizers) {
     defines += [ "CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS" ]
+  }
+
+  if (v8_enable_pointer_compression &&
+      !v8_enable_pointer_compression_shared_cage) {
+    defines += [ "V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES" ]
   }
 
   if (v8_embedder_string != "") {
@@ -1428,33 +1464,6 @@ config("toolchain") {
   }
   if (is_android && v8_android_log_stdout) {
     defines += [ "V8_ANDROID_LOG_STDOUT" ]
-  }
-
-  # V8_TARGET_OS_ defines. The target OS may differ from host OS e.g. in
-  # mksnapshot. We additionally set V8_HAVE_TARGET_OS to determine that a
-  # target OS has in fact been set; otherwise we internally assume that target
-  # OS == host OS (see v8config.h).
-  if (target_os == "android") {
-    defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_ANDROID" ]
-  } else if (target_os == "fuchsia") {
-    defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_FUCHSIA" ]
-  } else if (target_os == "ios") {
-    defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_IOS" ]
-  } else if (target_os == "linux") {
-    defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_LINUX" ]
-  } else if (target_os == "mac") {
-    defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_MACOS" ]
-  } else if (target_os == "win") {
-    defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_WIN" ]
-  } else if (target_os == "chromeos") {
-    defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_CHROMEOS" ]
   }
 
   # TODO(infra): Support v8_enable_prof on Windows.
@@ -2061,6 +2070,7 @@ torque_files = [
   "src/objects/js-atomics-synchronization.tq",
   "src/objects/js-collection-iterator.tq",
   "src/objects/js-collection.tq",
+  "src/objects/js-disposable-stack.tq",
   "src/objects/js-function.tq",
   "src/objects/js-generator.tq",
   "src/objects/js-iterator-helpers.tq",
@@ -3082,6 +3092,7 @@ v8_header_set("v8_headers") {
     "include/v8-promise.h",
     "include/v8-proxy.h",
     "include/v8-regexp.h",
+    "include/v8-sandbox.h",
     "include/v8-script.h",
     "include/v8-snapshot.h",
     "include/v8-statistics.h",
@@ -3327,13 +3338,11 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/const-tracking-let-helpers.h",
     "src/compiler/constant-folding-reducer.h",
     "src/compiler/control-equivalence.h",
-    "src/compiler/control-flow-optimizer.h",
     "src/compiler/control-path-state.h",
     "src/compiler/csa-load-elimination.h",
     "src/compiler/dead-code-elimination.h",
     "src/compiler/decompression-optimizer.h",
     "src/compiler/diamond.h",
-    "src/compiler/effect-control-linearizer.h",
     "src/compiler/escape-analysis-reducer.h",
     "src/compiler/escape-analysis.h",
     "src/compiler/fast-api-calls.h",
@@ -3411,7 +3420,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/simplified-operator-reducer.h",
     "src/compiler/simplified-operator.h",
     "src/compiler/state-values-utils.h",
-    "src/compiler/store-store-elimination.h",
     "src/compiler/string-builder-optimizer.h",
     "src/compiler/turbofan.h",
     "src/compiler/turboshaft/analyzer-iterator.h",
@@ -3439,6 +3447,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
     "src/compiler/turboshaft/index.h",
+    "src/compiler/turboshaft/instruction-selection-normalization-reducer.h",
     "src/compiler/turboshaft/instruction-selection-phase.h",
     "src/compiler/turboshaft/js-generic-lowering-reducer.h",
     "src/compiler/turboshaft/late-escape-analysis-reducer.h",
@@ -3477,7 +3486,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/snapshot-table.h",
     "src/compiler/turboshaft/stack-check-lowering-reducer.h",
     "src/compiler/turboshaft/store-store-elimination-phase.h",
-    "src/compiler/turboshaft/store-store-elimination-reducer.h",
+    "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
     "src/compiler/turboshaft/structural-optimization-reducer.h",
     "src/compiler/turboshaft/tracing.h",
     "src/compiler/turboshaft/type-assertions-phase.h",
@@ -3637,6 +3646,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/incremental-marking-job.h",
     "src/heap/incremental-marking.h",
     "src/heap/index-generator.h",
+    "src/heap/large-page-inl.h",
     "src/heap/large-page.h",
     "src/heap/large-spaces.h",
     "src/heap/linear-allocation-area.h",
@@ -3662,7 +3672,9 @@ v8_header_set("v8_internal_headers") {
     "src/heap/marking.h",
     "src/heap/memory-allocator.h",
     "src/heap/memory-balancer.h",
+    "src/heap/memory-chunk-inl.h",
     "src/heap/memory-chunk-layout.h",
+    "src/heap/memory-chunk-metadata-inl.h",
     "src/heap/memory-chunk-metadata.h",
     "src/heap/memory-chunk.h",
     "src/heap/memory-measurement-inl.h",
@@ -3675,6 +3687,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/mutable-page.h",
     "src/heap/new-spaces-inl.h",
     "src/heap/new-spaces.h",
+    "src/heap/object-lock-inl.h",
     "src/heap/object-lock.h",
     "src/heap/object-stats.h",
     "src/heap/objects-visiting-inl.h",
@@ -3717,7 +3730,7 @@ v8_header_set("v8_internal_headers") {
     "src/init/bootstrapper.h",
     "src/init/heap-symbols.h",
     "src/init/icu_util.h",
-    "src/init/isolate-allocator.h",
+    "src/init/isolate-group.h",
     "src/init/setup-isolate.h",
     "src/init/startup-data-util.h",
     "src/init/v8.h",
@@ -3841,6 +3854,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-collection-iterator-inl.h",
     "src/objects/js-collection-iterator.h",
     "src/objects/js-collection.h",
+    "src/objects/js-disposable-stack-inl.h",
+    "src/objects/js-disposable-stack.h",
     "src/objects/js-function-inl.h",
     "src/objects/js-function.h",
     "src/objects/js-generator-inl.h",
@@ -3983,6 +3998,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/value-serializer.h",
     "src/objects/visitors-inl.h",
     "src/objects/visitors.h",
+    "src/objects/waiter-queue-node.h",
     "src/parsing/expression-scope.h",
     "src/parsing/func-name-inferrer.h",
     "src/parsing/import-assertions.h",
@@ -4056,6 +4072,8 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/code-pointer-table-inl.h",
     "src/sandbox/code-pointer-table.h",
     "src/sandbox/code-pointer.h",
+    "src/sandbox/compactible-external-entity-table-inl.h",
+    "src/sandbox/compactible-external-entity-table.h",
     "src/sandbox/external-entity-table-inl.h",
     "src/sandbox/external-entity-table.h",
     "src/sandbox/external-pointer-inl.h",
@@ -4751,6 +4769,11 @@ v8_header_set("v8_internal_headers") {
     }
   }
 
+  frameworks = []
+  if (is_ios) {
+    frameworks += [ "BrowserEngineKit.framework" ]
+  }
+
   public_deps = [
     ":torque_runtime_support",
     ":v8_flags",
@@ -4805,11 +4828,9 @@ v8_compiler_sources = [
   "src/compiler/const-tracking-let-helpers.cc",
   "src/compiler/constant-folding-reducer.cc",
   "src/compiler/control-equivalence.cc",
-  "src/compiler/control-flow-optimizer.cc",
   "src/compiler/csa-load-elimination.cc",
   "src/compiler/dead-code-elimination.cc",
   "src/compiler/decompression-optimizer.cc",
-  "src/compiler/effect-control-linearizer.cc",
   "src/compiler/escape-analysis-reducer.cc",
   "src/compiler/escape-analysis.cc",
   "src/compiler/fast-api-calls.cc",
@@ -4876,7 +4897,6 @@ v8_compiler_sources = [
   "src/compiler/simplified-operator-reducer.cc",
   "src/compiler/simplified-operator.cc",
   "src/compiler/state-values-utils.cc",
-  "src/compiler/store-store-elimination.cc",
   "src/compiler/string-builder-optimizer.cc",
   "src/compiler/turbofan-enabled.cc",
   "src/compiler/type-cache.cc",
@@ -5131,6 +5151,7 @@ v8_source_set("v8_turboshaft") {
       "src/maglev/maglev-graph-printer.cc",
       "src/maglev/maglev-interpreter-frame-state.cc",
       "src/maglev/maglev-ir.cc",
+      "src/maglev/maglev-phi-representation-selector.cc",
     ]
   }
 
@@ -5407,7 +5428,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/ic/stub-cache.cc",
     "src/init/bootstrapper.cc",
     "src/init/icu_util.cc",
-    "src/init/isolate-allocator.cc",
+    "src/init/isolate-group.cc",
     "src/init/startup-data-util.cc",
     "src/init/v8.cc",
     "src/interpreter/bytecode-array-builder.cc",
@@ -5515,6 +5536,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/type-hints.cc",
     "src/objects/value-serializer.cc",
     "src/objects/visitors.cc",
+    "src/objects/waiter-queue-node.cc",
     "src/parsing/func-name-inferrer.cc",
     "src/parsing/import-assertions.cc",
     "src/parsing/literal-buffer.cc",
@@ -6243,7 +6265,10 @@ v8_source_set("torque_base") {
     ":v8_shared_internal_headers",
   ]
 
-  public_deps = [ ":v8_libbase" ]
+  public_deps = [
+    ":v8_config_headers",
+    ":v8_libbase",
+  ]
 
   # The use of exceptions for Torque in violation of the Chromium style-guide
   # is justified by the fact that it is only used from the non-essential
@@ -6406,6 +6431,8 @@ v8_component("v8_libbase") {
     "src/base/strings.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",
+    "src/base/template-meta-programming/algorithm.h",
+    "src/base/template-meta-programming/list.h",
     "src/base/template-utils.h",
     "src/base/threaded-list.h",
     "src/base/timezone-cache.h",
@@ -6512,7 +6539,6 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-darwin.cc",
-      "src/base/platform/platform-ios.cc",
     ]
   } else if (is_win) {
     # TODO(infra): Add support for cygwin.
@@ -7354,8 +7380,10 @@ group("v8_fuzzers") {
       ":v8_simple_multi_return_fuzzer",
       ":v8_simple_wasm_async_fuzzer",
       ":v8_simple_wasm_code_fuzzer",
+      ":v8_simple_wasm_compile_all_fuzzer",
       ":v8_simple_wasm_compile_fuzzer",
       ":v8_simple_wasm_compile_simd_fuzzer",
+      ":v8_simple_wasm_compile_wasmgc_fuzzer",
       ":v8_simple_wasm_fuzzer",
       ":v8_simple_wasm_init_expr_fuzzer",
       ":v8_simple_wasm_streaming_fuzzer",
@@ -7624,11 +7652,25 @@ v8_executable("cppgc_hello_world") {
 }
 
 template("v8_fuzzer") {
-  name = target_name
-  forward_variables_from(invoker, "*")
-  v8_executable("v8_simple_" + name) {
+  fuzzer_name = target_name
+
+  v8_source_set(fuzzer_name) {
+    sources = invoker.sources
+
+    deps = [ ":fuzzer_support" ]
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
+
+  v8_executable("v8_simple_${fuzzer_name}") {
     deps = [
-      ":" + name,
+      ":${fuzzer_name}",
       "//build/win:default_exe_manifest",
     ]
 
@@ -7638,61 +7680,21 @@ template("v8_fuzzer") {
   }
 }
 
-v8_source_set("json_fuzzer") {
-  sources = [ "test/fuzzer/json.cc" ]
-
-  deps = [ ":fuzzer_support" ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
-
 v8_fuzzer("json_fuzzer") {
-}
-
-v8_source_set("parser_fuzzer") {
-  sources = [ "test/fuzzer/parser.cc" ]
-
-  deps = [ ":fuzzer_support" ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
+  sources = [ "test/fuzzer/json.cc" ]
 }
 
 v8_fuzzer("parser_fuzzer") {
-}
-
-v8_source_set("regexp_fuzzer") {
-  sources = [ "test/fuzzer/regexp.cc" ]
-
-  deps = [ ":fuzzer_support" ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
+  sources = [ "test/fuzzer/parser.cc" ]
 }
 
 v8_fuzzer("regexp_fuzzer") {
+  sources = [ "test/fuzzer/regexp.cc" ]
 }
 
 if (v8_enable_webassembly) {
-  v8_source_set("multi_return_fuzzer") {
-    sources = [ "test/fuzzer/multi-return.cc" ]
-
-    deps = [ ":fuzzer_support" ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
   v8_fuzzer("multi_return_fuzzer") {
+    sources = [ "test/fuzzer/multi-return.cc" ]
   }
 
   v8_source_set("wasm_test_common") {
@@ -7723,64 +7725,7 @@ if (v8_enable_webassembly) {
     ]
   }
 
-  v8_source_set("wasm_fuzzer") {
-    sources = [ "test/fuzzer/wasm.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
-  v8_fuzzer("wasm_fuzzer") {
-  }
-
-  v8_source_set("wasm_async_fuzzer") {
-    sources = [ "test/fuzzer/wasm-async.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
-  v8_fuzzer("wasm_async_fuzzer") {
-  }
-
-  v8_source_set("wasm_code_fuzzer") {
-    sources = [
-      "test/common/wasm/test-signatures.h",
-      "test/fuzzer/wasm-code.cc",
-    ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
-  v8_fuzzer("wasm_code_fuzzer") {
-  }
-
-  v8_source_set("lib_wasm_fuzzer_common") {
+  v8_source_set("wasm_fuzzer_common") {
     sources = [
       "test/fuzzer/wasm-fuzzer-common.cc",
       "test/fuzzer/wasm-fuzzer-common.h",
@@ -7806,100 +7751,71 @@ if (v8_enable_webassembly) {
     ]
   }
 
-  v8_source_set("wasm_compile_fuzzer") {
+  template("v8_wasm_fuzzer") {
+    forward_variables_from(invoker, "*")
+    v8_fuzzer(target_name) {
+      deps = [
+        ":wasm_fuzzer_common",
+        ":wasm_test_common",
+      ]
+    }
+  }
+
+  v8_wasm_fuzzer("wasm_fuzzer") {
+    sources = [ "test/fuzzer/wasm.cc" ]
+  }
+
+  v8_wasm_fuzzer("wasm_async_fuzzer") {
+    sources = [ "test/fuzzer/wasm-async.cc" ]
+  }
+
+  v8_wasm_fuzzer("wasm_code_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-code.cc",
+    ]
+  }
+
+  v8_wasm_fuzzer("wasm_compile_all_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-compile-all.cc",
+    ]
+  }
+
+  v8_wasm_fuzzer("wasm_compile_fuzzer") {
     sources = [
       "test/common/wasm/test-signatures.h",
       "test/fuzzer/wasm-compile.cc",
     ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
   }
 
-  v8_fuzzer("wasm_compile_fuzzer") {
-  }
-
-  v8_source_set("wasm_compile_simd_fuzzer") {
+  v8_wasm_fuzzer("wasm_compile_simd_fuzzer") {
     sources = [
       "test/common/wasm/test-signatures.h",
       "test/fuzzer/wasm-compile-simd.cc",
     ]
+  }
 
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
+  v8_wasm_fuzzer("wasm_compile_wasmgc_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-compile-wasmgc.cc",
     ]
   }
 
-  v8_fuzzer("wasm_compile_simd_fuzzer") {
-  }
-
-  v8_source_set("wasm_streaming_fuzzer") {
+  v8_wasm_fuzzer("wasm_streaming_fuzzer") {
     sources = [ "test/fuzzer/wasm-streaming.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
   }
 
-  v8_fuzzer("wasm_streaming_fuzzer") {
-  }
-
-  v8_source_set("wasm_init_expr_fuzzer") {
+  v8_wasm_fuzzer("wasm_init_expr_fuzzer") {
     sources = [ "test/fuzzer/wasm-init-expr.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
   }
-
-  v8_fuzzer("wasm_init_expr_fuzzer") {
-  }
-}
-
-v8_source_set("inspector_fuzzer") {
-  sources = [ "test/fuzzer/inspector-fuzzer.cc" ]
-
-  deps = [
-    ":fuzzer_support",
-    "test/inspector:inspector_test",
-  ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
 }
 
 v8_fuzzer("inspector_fuzzer") {
+  sources = [ "test/fuzzer/inspector-fuzzer.cc" ]
+  deps = [ "test/inspector:inspector_test" ]
 }
 
 # Target to build all generated .cc files.

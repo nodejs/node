@@ -355,8 +355,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   //   Turbofan can use this for inlining the access.
   JSObject::OptimizeAsPrototype(ns);
 
-  Handle<PrototypeInfo> proto_info =
-      Map::GetOrCreatePrototypeInfo(Handle<JSObject>::cast(ns), isolate);
+  Handle<PrototypeInfo> proto_info = Map::GetOrCreatePrototypeInfo(ns, isolate);
   proto_info->set_module_namespace(*ns);
   return ns;
 }

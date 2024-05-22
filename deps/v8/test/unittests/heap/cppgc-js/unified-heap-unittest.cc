@@ -67,13 +67,30 @@ TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
   EXPECT_FALSE(api_object.IsEmpty());
   // With direct locals, api_object may be invalid after a stackless GC.
   auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
-
   Wrappable::destructor_callcount = 0;
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   WrapperHelper::ResetWrappableConnection(
       v8::Utils::ToLocal(handle_api_object));
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(1u, Wrappable::destructor_callcount);
+}
+
+TEST_F(UnifiedHeapTest, NewWrapper_FindingV8ToCppReference) {
+  auto* wrappable_object =
+      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
+  v8::Local<v8::Object> api_object = NewWrapperHelper::CreateWrapper(
+      v8_isolate()->GetCurrentContext(), wrappable_object);
+  EXPECT_FALSE(api_object.IsEmpty());
+  // With direct locals, api_object may be invalid after a stackless GC.
+  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
+  Wrappable::destructor_callcount = 0;
+  EXPECT_EQ(0u, Wrappable::destructor_callcount);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(0u, Wrappable::destructor_callcount);
+  NewWrapperHelper::ResetWrappableConnection(
+      v8_isolate(), v8::Utils::ToLocal(handle_api_object));
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
 }
@@ -87,13 +104,33 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   EXPECT_FALSE(api_object.IsEmpty());
   // With direct locals, api_object may be invalid after a stackless GC.
   auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
-
   Wrappable::destructor_callcount = 0;
   WrapperHelper::ResetWrappableConnection(api_object);
   SimulateIncrementalMarking();
   uint16_t type_info = WrapperHelper::kTracedEmbedderId;
   WrapperHelper::SetWrappableConnection(v8::Utils::ToLocal(handle_api_object),
                                         &type_info, wrappable);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(0u, Wrappable::destructor_callcount);
+}
+
+TEST_F(UnifiedHeapTest, NewWrapper_WriteBarrierV8ToCppReference) {
+  if (!v8_flags.incremental_marking) return;
+
+  void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
+  v8::Local<v8::Object> api_object = NewWrapperHelper::CreateWrapper(
+      v8_isolate()->GetCurrentContext(), nullptr);
+  EXPECT_FALSE(api_object.IsEmpty());
+  // With direct locals, api_object may be invalid after a stackless GC.
+  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
+  // Create an additional Global that gets picked up by the incremetnal marker
+  // as root.
+  Global<v8::Object> global(v8_isolate(), api_object);
+  Wrappable::destructor_callcount = 0;
+  NewWrapperHelper::ResetWrappableConnection(v8_isolate(), api_object);
+  SimulateIncrementalMarking();
+  NewWrapperHelper::SetWrappableConnection(
+      v8_isolate(), v8::Utils::ToLocal(handle_api_object), wrappable);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
 }

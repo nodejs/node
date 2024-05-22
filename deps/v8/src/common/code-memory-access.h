@@ -22,9 +22,6 @@ namespace internal {
 //
 // For this purposed, there are a few scope objects with different semantics:
 //
-// - CodePageHeaderModificationScope:
-//     Used when we write to the page header of CodeSpace pages. Only needed on
-//     Apple Silicon where we can't have RW- pages in the RWX space.
 // - CodePageMemoryModificationScopeForDebugging:
 //     A scope only used in non-release builds, e.g. for code zapping.
 // - wasm::CodeSpaceWriteScope:
@@ -123,11 +120,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // scope classes that affect executable pages permissions.
   V8_INLINE static void SetWritable();
   V8_INLINE static void SetExecutable();
-
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
-  // This counter is used for supporting scope reentrance.
-  V8_EXPORT_PRIVATE static thread_local int code_space_write_nesting_level_;
-#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
 };
 
 class WritableJitPage;
@@ -563,6 +555,13 @@ class V8_NODISCARD RwxMemoryWriteScopeForTesting final
   RwxMemoryWriteScopeForTesting& operator=(
       const RwxMemoryWriteScopeForTesting&) = delete;
 };
+
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+// Metadata are not protected yet with PTHREAD_JIT_WRITE_PROTECT
+using CFIMetadataWriteScope = NopRwxMemoryWriteScope;
+#else
+using CFIMetadataWriteScope = RwxMemoryWriteScope;
+#endif
 
 }  // namespace internal
 }  // namespace v8

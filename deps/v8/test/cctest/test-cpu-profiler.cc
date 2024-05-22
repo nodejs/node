@@ -4422,7 +4422,8 @@ struct FastApiReceiver {
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    v8::Object* receiver_obj =
+        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
     if (!IsValidUnwrapObject(receiver_obj)) {
       info.GetIsolate()->ThrowError("Called with a non-object.");
       return;

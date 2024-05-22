@@ -86,6 +86,14 @@ void FrameElider::MarkDeConstruction() {
           block->mark_must_deconstruct_frame();
         }
       }
+      if (block->SuccessorCount() == 0) {
+        const Instruction* last =
+            InstructionAt(block->last_instruction_index());
+        // The only cases when we need to deconstruct are ret and jump.
+        if (last->IsRet() || last->IsJump()) {
+          block->mark_must_deconstruct_frame();
+        }
+      }
     } else {
       // Find "no frame -> frame" transitions, inserting frame constructions.
       for (RpoNumber& succ : block->successors()) {

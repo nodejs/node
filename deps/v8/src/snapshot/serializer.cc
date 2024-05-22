@@ -4,6 +4,7 @@
 
 #include "src/snapshot/serializer.h"
 
+#include "include/v8-internal.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
@@ -12,11 +13,13 @@
 #include "src/heap/read-only-heap.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -656,6 +659,17 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     // Ensure deterministic output by setting extension to null during
     // serialization.
     buffer->set_extension(nullptr);
+
+#ifdef V8_COMPRESS_POINTERS
+    // With the above, we're effectively temporarily releasing ownership of the
+    // extension, so we should also invalidate it's entry in the external
+    // pointer table. Failure to do this here would result in DCHECK failures
+    // as set_extension takes ownership of the extension and verifies that
+    // there isn't already an owner.
+    if (extension) {
+      extension->ZapExternalPointerTableEntry();
+    }
+#endif  // V8_COMPRESS_POINTERS
   }
   SerializeObject();
   {
@@ -1060,6 +1074,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
   DCHECK_IMPLIES(sandboxify, V8_ENABLE_SANDBOX_BOOL);
   DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
+  DCHECK_NE(tag, kAnyExternalPointerTag);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
 
@@ -1113,6 +1128,25 @@ void Serializer::ObjectSerializer::OutputExternalReference(
   }
 }
 
+void Serializer::ObjectSerializer::VisitCppHeapPointer(
+    Tagged<HeapObject> host, CppHeapPointerSlot slot) {
+  PtrComprCageBase cage_base(isolate());
+  // Currently there's only very limited support for CppHeapPointerSlot
+  // serialization as it's only used for API wrappers.
+  //
+  // We serialize the slot as initialized-but-unused slot.  The actual API
+  // wrapper serialization is implemented in
+  // `ContextSerializer::SerializeApiWrapperFields()`.
+  DCHECK(IsJSApiWrapperObject(object_->map(cage_base)));
+  static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
+  sink_->Put(
+      FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),
+      "FixedRawData");
+  sink_->PutRaw(reinterpret_cast<const uint8_t*>(&kNullCppHeapPointer),
+                kCppHeapPointerSlotSize, "empty cpp heap pointer handle");
+  bytes_processed_so_far_ += kCppHeapPointerSlotSize;
+}
+
 void Serializer::ObjectSerializer::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
   PtrComprCageBase cage_base(isolate());
@@ -1124,11 +1158,18 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     // Output raw data payload, if any.
     OutputRawData(slot.address());
     Address value = slot.load(isolate());
-    const bool sandboxify =
-        V8_ENABLE_SANDBOX_BOOL && slot.tag() != kExternalPointerNullTag;
-    OutputExternalReference(value, kSystemPointerSize, sandboxify, slot.tag());
+#ifdef V8_ENABLE_SANDBOX
+    // We need to load the actual tag from the table here since the slot may
+    // use a generic tag (e.g. kAnyExternalPointerTag) if the concrete tag is
+    // unknown by the visitor (for example the case for Foreigns).
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+    ExternalPointerTag tag = isolate()->external_pointer_table().GetTag(handle);
+#else
+    ExternalPointerTag tag = kExternalPointerNullTag;
+#endif  // V8_ENABLE_SANDBOX
+    const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
+    OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     bytes_processed_so_far_ += kExternalPointerSlotSize;
-
   } else {
     // Serialization of external references in other objects is handled
     // elsewhere or not supported.

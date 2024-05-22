@@ -127,7 +127,7 @@ class InstructionStream : public TrustedObject {
 
   // Layout description.
 #define ISTREAM_FIELDS(V)                                                     \
-  V(kCodeOffset, kCodePointerSize)                                            \
+  V(kCodeOffset, kProtectedPointerSize)                                       \
   V(kStartOfStrongFieldsOffset, 0)                                            \
   V(kRelocationInfoOffset, kTaggedSize)                                       \
   V(kEndOfStrongFieldsOffset, 0)                                              \

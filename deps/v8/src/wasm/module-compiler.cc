@@ -628,8 +628,7 @@ class CompilationStateImpl {
   void CommitCompilationUnits(
       base::Vector<WasmCompilationUnit> baseline_units,
       base::Vector<WasmCompilationUnit> top_tier_units,
-      base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-          js_to_wasm_wrapper_units);
+      base::Vector<JSToWasmWrapperCompilationUnit> js_to_wasm_wrapper_units);
   void CommitTopTierCompilationUnit(WasmCompilationUnit);
   void AddTopTierPriorityCompilationUnit(WasmCompilationUnit, size_t);
 
@@ -638,8 +637,8 @@ class CompilationStateImpl {
   base::Optional<WasmCompilationUnit> GetNextCompilationUnit(
       CompilationUnitQueues::Queue*, CompilationTier tier);
 
-  std::shared_ptr<JSToWasmWrapperCompilationUnit>
-  GetJSToWasmWrapperCompilationUnit(size_t index);
+  JSToWasmWrapperCompilationUnit* GetJSToWasmWrapperCompilationUnit(
+      size_t index);
   void FinalizeJSToWasmWrappers(Isolate* isolate, const WasmModule* module);
 
   void OnFinishedUnits(base::Vector<WasmCode*>);
@@ -741,10 +740,7 @@ class CompilationStateImpl {
 
   CompilationUnitQueues compilation_unit_queues_;
 
-  // Wrapper compilation units are stored in shared_ptrs so that they are kept
-  // alive by the tasks even if the NativeModule dies.
-  std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-      js_to_wasm_wrapper_units_;
+  std::vector<JSToWasmWrapperCompilationUnit> js_to_wasm_wrapper_units_;
 
   // Cache the dynamic tiering configuration to be consistent for the whole
   // compilation.
@@ -1094,8 +1090,7 @@ class CompilationUnitBuilder {
                                  kNotForDebugging);
   }
 
-  void AddJSToWasmWrapperUnit(
-      std::shared_ptr<JSToWasmWrapperCompilationUnit> unit) {
+  void AddJSToWasmWrapperUnit(JSToWasmWrapperCompilationUnit unit) {
     js_to_wasm_wrapper_units_.emplace_back(std::move(unit));
   }
 
@@ -1134,8 +1129,7 @@ class CompilationUnitBuilder {
   NativeModule* const native_module_;
   std::vector<WasmCompilationUnit> baseline_units_;
   std::vector<WasmCompilationUnit> tiering_units_;
-  std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-      js_to_wasm_wrapper_units_;
+  std::vector<JSToWasmWrapperCompilationUnit> js_to_wasm_wrapper_units_;
 };
 
 DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
@@ -1362,9 +1356,9 @@ class FeedbackMaker {
 
   void AddCandidate(Tagged<WasmFuncRef> funcref, int count) {
     Tagged<WasmInternalFunction> internal_function =
-        WasmFuncRef::cast(funcref)->internal();
+        WasmFuncRef::cast(funcref)->internal(isolate_);
     // Only consider wasm function declared in this instance.
-    if (internal_function->ref(isolate_) != instance_data_) return;
+    if (internal_function->ref() != instance_data_) return;
     // Discard imports for now.
     if (internal_function->function_index() < num_imported_functions_) return;
     AddCall(internal_function->function_index(), count);
@@ -1550,6 +1544,8 @@ void TierUpAllForTesting(
   }
 }
 
+namespace {
+
 bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   uint32_t reftype = type.ref_index();
@@ -1567,6 +1563,24 @@ bool IsI8Array(wasm::ValueType type, const WasmModule* module,
   return module->isorecursive_canonical_type_ids[reftype] ==
          TypeCanonicalizer::kPredefinedArrayI8Index;
 }
+
+// Returns the start offset of a given import, for use in error messages.
+// The module_name payload is preceded by an i32v giving its length. That i32v
+// is preceded by another i32v, which is either a type index (specifying the
+// type of the previous import) or the imports count (in case of the first
+// import). So we scan backwards as long as we find non-last LEB bytes there.
+uint32_t ImportStartOffset(base::Vector<const uint8_t> wire_bytes,
+                           uint32_t module_name_start) {
+  DCHECK_LT(0, module_name_start);
+  uint32_t offset = module_name_start - 1;  // Last byte of the string length.
+  DCHECK_EQ(wire_bytes[offset] & 0x80, 0);
+  while (offset > 0 && (wire_bytes[offset - 1] & 0x80) != 0) {
+    offset--;
+  }
+  return offset;
+}
+
+}  // namespace
 
 // Validates the signatures of recognized compile-time imports, and stores
 // them on the {module}'s {well_known_imports} list.
@@ -1600,7 +1614,30 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
 
   std::vector<WellKnownImport> statuses;
   statuses.reserve(module->num_imported_functions);
-  for (const WasmImport& import : module->import_table) {
+  for (size_t i = 0; i < module->import_table.size(); i++) {
+    const WasmImport& import = module->import_table[i];
+
+    // When magic string imports are requested, check that imports with the
+    // string constant module name are globals of the right type.
+    if (imports.contains(CompileTimeImport::kStringConstants) &&
+        import.module_name.length() == 1 &&
+        wire_bytes[import.module_name.offset()] ==
+            kMagicStringConstantsModuleName) {
+      if (import.kind != kExternalGlobal ||
+          module->globals[import.index].type != kRefExtern ||
+          module->globals[import.index].mutability != false) {
+        TruncatedUserString<> name(
+            wire_bytes.data() + import.field_name.offset(),
+            import.field_name.length());
+        return WasmError(
+            ImportStartOffset(wire_bytes, import.module_name.offset()),
+            "String constant import #%zu \"%.*s\" must be an immutable global "
+            "of type (ref extern)",
+            i, name.length(), name.start());
+      }
+    }
+
+    // Check compile-time imported functions.
     if (import.kind != kExternalFunction) continue;
     base::Vector<const uint8_t> module_name = wire_bytes.SubVector(
         import.module_name.offset(), import.module_name.end_offset());
@@ -1611,10 +1648,6 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
       continue;
     }
     base::Vector<const uint8_t> collection = module_name.SubVectorFrom(5);
-    // TODO(14179): Can we get the actual offset?
-    // Idea: work backwards from {import.module_name.offset()}, we only have
-    // to find the beginning of the i32v giving the string length.
-    constexpr uint32_t kErrorOffset = 0;
     WellKnownImport status = WellKnownImport::kUninstantiated;
     const WasmFunction& func = module->functions[import.index];
     const FunctionSig* sig = func.sig;
@@ -1623,9 +1656,11 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
         wire_bytes.SubVector(field_name.offset(), field_name.end_offset());
     if (collection == base::StaticOneByteVector("js-string") &&
         imports.contains(CompileTimeImport::kJsString)) {
-#define RETURN_ERROR(module_name, import_name)                     \
-  return WasmError(kErrorOffset,                                   \
-                   "Imported builtin function \"wasm:" module_name \
+#define RETURN_ERROR(module_name_string, import_name)                     \
+  uint32_t error_offset =                                                 \
+      ImportStartOffset(wire_bytes, import.module_name.offset());         \
+  return WasmError(error_offset,                                          \
+                   "Imported builtin function \"wasm:" module_name_string \
                    "\" \"" import_name "\" has incorrect signature")
 
 #define CHECK_SIG(import_name, kSigName, kEnumName)      \
@@ -1716,6 +1751,9 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
   if (module->num_imported_functions != 0) {
     module->type_feedback.well_known_imports.Initialize(
         base::VectorOf(statuses));
+  }
+  if (imports.contains(CompileTimeImport::kStringConstants)) {
+    module->type_feedback.has_magic_string_constants = true;
   }
   return {};
 }
@@ -1882,10 +1920,9 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
     }
     JSToWasmWrapperKey key(function.imported, canonical_type_index);
     if (!keys.insert(key).second) continue;  // Already triggered.
-    auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
+    builder->AddJSToWasmWrapperUnit(JSToWasmWrapperCompilationUnit{
         isolate, function.sig, canonical_type_index, module, function.imported,
-        native_module->enabled_features());
-    builder->AddJSToWasmWrapperUnit(std::move(unit));
+        native_module->enabled_features()});
   }
 
   return static_cast<int>(keys.size());
@@ -2133,7 +2170,7 @@ class BaseCompileJSToWasmWrapperJob : public JobTask {
   bool GetNextUnitIndex(size_t* index_out) {
     size_t next_index = unit_index_.fetch_add(1, std::memory_order_relaxed);
     if (next_index >= total_units_) {
-      // {unit_index_} may exceeed {total_units_}, but only by the number of
+      // {unit_index_} may exceed {total_units_}, but only by the number of
       // workers at worst, thus it can't exceed 2 * {total_units_} and overflow
       // shouldn't happen.
       DCHECK_GE(2 * total_units_, next_index);
@@ -2188,24 +2225,25 @@ class AsyncCompileJSToWasmWrapperJob final
   void Run(JobDelegate* delegate) override {
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
-    std::shared_ptr<JSToWasmWrapperCompilationUnit> wrapper_unit = nullptr;
 
-    OperationsBarrier::Token wrapper_compilation_token;
-    Isolate* isolate;
 
     size_t index;
     if (!GetNextUnitIndex(&index)) return;
-    {
-      BackgroundCompileScope compile_scope(native_module_);
-      if (compile_scope.cancelled()) return FlushRemainingUnits();
-      wrapper_unit =
-          compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
-              index);
-      isolate = wrapper_unit->isolate();
-      wrapper_compilation_token =
-          wasm::GetWasmEngine()->StartWrapperCompilation(isolate);
-      if (!wrapper_compilation_token) return FlushRemainingUnits();
-    }
+
+    // The wrapper units keep a pointer to the signature, so execute the units
+    // inside the compile scope to keep the WasmModule's signature_zone alive.
+    // This also allows to hold the JSToWasmWrapperCompilationUnits as raw
+    // pointers.
+    BackgroundCompileScope compile_scope(native_module_);
+    if (compile_scope.cancelled()) return FlushRemainingUnits();
+
+    JSToWasmWrapperCompilationUnit* wrapper_unit =
+        compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
+            index);
+    Isolate* isolate = wrapper_unit->isolate();
+    OperationsBarrier::Token wrapper_compilation_token =
+        wasm::GetWasmEngine()->StartWrapperCompilation(isolate);
+    if (!wrapper_compilation_token) return FlushRemainingUnits();
 
     TRACE_EVENT0("v8.wasm", "wasm.JSToWasmWrapperCompilation");
     // In case multi-cage pointer compression mode is enabled ensure that
@@ -2213,30 +2251,18 @@ class AsyncCompileJSToWasmWrapperJob final
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     while (true) {
       DCHECK_EQ(isolate, wrapper_unit->isolate());
-      base::Optional<BackgroundCompileScope> compile_scope;
-      if (v8_flags.turboshaft_wasm_wrappers) {
-        compile_scope.emplace(native_module_);
-        if (compile_scope->cancelled()) return;
-        // The wrapper unit keeps a pointer to the signature, so execute the
-        // unit inside the compile scope to keep the WasmModule's signature_zone
-        // alive.
-      }
       wrapper_unit->Execute();
       bool complete_last_unit = CompleteUnit();
       bool yield = delegate && delegate->ShouldYield();
       if (yield && !complete_last_unit) return;
 
-      if (!v8_flags.turboshaft_wasm_wrappers) {
-        compile_scope.emplace(native_module_);
-        if (compile_scope->cancelled()) return;
-      }
       if (complete_last_unit) {
-        compile_scope->compilation_state()->OnFinishedJSToWasmWrapperUnits();
+        compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits();
       }
       if (yield) return;
       if (!GetNextUnitIndex(&index)) return;
       wrapper_unit =
-          compile_scope->compilation_state()->GetJSToWasmWrapperCompilationUnit(
+          compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
               index);
     }
   }
@@ -3850,15 +3876,16 @@ void CompilationStateImpl::AddCallback(
 void CompilationStateImpl::CommitCompilationUnits(
     base::Vector<WasmCompilationUnit> baseline_units,
     base::Vector<WasmCompilationUnit> top_tier_units,
-    base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-        js_to_wasm_wrapper_units) {
+    base::Vector<JSToWasmWrapperCompilationUnit> js_to_wasm_wrapper_units) {
   base::MutexGuard guard{&mutex_};
   if (!js_to_wasm_wrapper_units.empty()) {
-    // |js_to_wasm_wrapper_units_| will only be initialized once.
+    // |js_to_wasm_wrapper_units_| will only be initialized once. This ensures
+    // that pointers handed out by GetJSToWasmWrapperCompilationUnit stay valid.
     DCHECK_NULL(js_to_wasm_wrapper_job_);
-    js_to_wasm_wrapper_units_.insert(js_to_wasm_wrapper_units_.end(),
-                                     js_to_wasm_wrapper_units.begin(),
-                                     js_to_wasm_wrapper_units.end());
+    js_to_wasm_wrapper_units_.insert(
+        js_to_wasm_wrapper_units_.end(),
+        std::make_move_iterator(js_to_wasm_wrapper_units.begin()),
+        std::make_move_iterator(js_to_wasm_wrapper_units.end()));
     js_to_wasm_wrapper_job_ = V8::GetCurrentPlatform()->PostJob(
         TaskPriority::kUserBlocking,
         std::make_unique<AsyncCompileJSToWasmWrapperJob>(
@@ -3892,10 +3919,10 @@ void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
   top_tier_compile_job_->NotifyConcurrencyIncrease();
 }
 
-std::shared_ptr<JSToWasmWrapperCompilationUnit>
+JSToWasmWrapperCompilationUnit*
 CompilationStateImpl::GetJSToWasmWrapperCompilationUnit(size_t index) {
   DCHECK_LT(index, js_to_wasm_wrapper_units_.size());
-  return js_to_wasm_wrapper_units_[index];
+  return js_to_wasm_wrapper_units_.data() + index;
 }
 
 void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
@@ -3907,17 +3934,21 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
   isolate->heap()->EnsureWasmCanonicalRttsSize(module->MaxCanonicalTypeIndex() +
                                                1);
   for (auto& unit : js_to_wasm_wrapper_units_) {
-    DCHECK_EQ(isolate, unit->isolate());
-    Handle<Code> code = unit->Finalize();
+    DCHECK_EQ(isolate, unit.isolate());
+    Handle<Code> code = unit.Finalize();
     // Each JSToWasmWrapperCompilationUnit compiles an actual wrappers and never
     // returns the generic builtin.
     DCHECK(!code->is_builtin());
     uint32_t index =
-        GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
+        GetExportWrapperIndex(unit.canonical_sig_index(), unit.is_import());
     isolate->heap()->js_to_wasm_wrappers()->Set(index, code->wrapper());
     RecordStats(*code, isolate->counters());
     isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
   }
+  // Clearing needs to hold the mutex to avoid racing with
+  // {EstimateCurrentMemoryConsumption}.
+  base::MutexGuard guard{&mutex_};
+  js_to_wasm_wrapper_units_.clear();
 }
 
 CompilationUnitQueues::Queue* CompilationStateImpl::GetQueueForCompileTask(

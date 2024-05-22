@@ -468,6 +468,7 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(this);
   typename Adapter::StoreView store_view = this->store_view(node);
+  DCHECK_EQ(store_view.displacement(), 0);
   node_t base = store_view.base();
   node_t index = this->value(store_view.index());
   node_t value = store_view.value();
@@ -494,8 +495,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
-      node_t tag = store_view.indirect_pointer_tag();
-      inputs[input_count++] = g.UseImmediate(tag);
+      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+      inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else {
       code = kArchStoreWithWriteBarrier;
     }
@@ -1696,13 +1697,15 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else {
-        auto constant = constant_view(input_at(value, 1)).int64_value();
-        if (constant <= 63 && constant >= 32) {
-          // After smi untagging no need for truncate. Combine sequence.
-          Emit(kRiscvSar64, g.DefineSameAsFirst(node),
-               g.UseRegister(input_at(value, 0)),
-               g.UseImmediate(input_at(value, 1)));
-          return;
+        auto constant = constant_view(input_at(value, 1));
+        if (constant.is_int64()) {
+          if (constant.int64_value() <= 63 && constant.int64_value() >= 32) {
+            // After smi untagging no need for truncate. Combine sequence.
+            Emit(kRiscvSar64, g.DefineSameAsFirst(node),
+                 g.UseRegister(input_at(value, 0)),
+                 g.UseImmediate(input_at(value, 1)));
+            return;
+          }
         }
       }
     }

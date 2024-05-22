@@ -10,6 +10,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/maybe-handles.h"
+#include "src/heap/base/stack.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/address-map.h"
@@ -129,7 +130,8 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
 
   // We are pretty strict with handle dereferences on background threads: A
   // background local heap is only allowed to dereference its own local handles.
-  if (!local_heap->is_main_thread()) return HandleHelper::IsOnStack(this);
+  if (!local_heap->is_main_thread())
+    return ::heap::base::Stack::IsOnStack(this);
 
   // If LocalHeap::Current() is null, we're on the main thread -- if we were to
   // check main thread HandleScopes here, we should additionally check the

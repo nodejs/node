@@ -256,7 +256,10 @@ class DeadCodeAnalysis {
       if constexpr (trace_analysis) std::cout << index << ":" << op << "\n";
       OperationState::Liveness op_state = liveness_[index];
 
-      if (op.Is<CallOp>()) {
+      if (op.Is<DeadOp>()) {
+        // Operation is already recognized as dead by a previous analysis.
+        DCHECK_EQ(op_state, OperationState::kDead);
+      } else if (op.Is<CallOp>()) {
         // The function contains a call, so it's not a leaf function.
         is_leaf_function_ = false;
       } else if (op.Is<BranchOp>() || op.Is<GotoOp>()) {
@@ -277,9 +280,6 @@ class DeadCodeAnalysis {
             rewritable_branch_targets_.erase(it);
           }
         }
-      } else if (op.saturated_use_count.IsZero()) {
-        // Operation is already recognized as dead by a previous analysis.
-        DCHECK_EQ(op_state, OperationState::kDead);
       } else if (op.IsRequiredWhenUnused()) {
         op_state = OperationState::kLive;
       } else if (op.Is<PhiOp>()) {
@@ -444,8 +444,8 @@ class DeadCodeEliminationReducer
     return Next::ReduceInputGraphBranch(ig_index, branch);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_index, const GotoOp& gto) {
-    if (TryRewriteBranch(ig_index)) return OpIndex::Invalid();
+  V<None> REDUCE_INPUT_GRAPH(Goto)(V<None> ig_index, const GotoOp& gto) {
+    if (TryRewriteBranch(ig_index)) return {};
     return Next::ReduceInputGraphGoto(ig_index, gto);
   }
 

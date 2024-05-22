@@ -3183,6 +3183,67 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
       }
+
+      // We can also optimize for this case below:
+
+      // receiver(is a heap constant with fast map)
+      //  ^
+      //  |    object(all keys are enumerable)
+      //  |      ^
+      //  |      |
+      //  |   JSForInNext
+      //  |      ^
+      //  +----+ |
+      //       | |
+      //  JSCall[hasOwnProperty]
+
+      // We can replace the {JSCall} with several internalized string
+      // comparisons.
+
+      if (receiver->opcode() == IrOpcode::kHeapConstant) {
+        MapInference inference(broker(), receiver, effect);
+        if (!inference.HaveMaps()) {
+          return inference.NoChange();
+        }
+        const ZoneRefSet<Map>& receiver_maps = inference.GetMaps();
+        if (receiver_maps.size() == 1) {
+          const MapRef receiver_map = *receiver_maps.begin();
+          InstanceType instance_type = receiver_map.instance_type();
+          int const nof = receiver_map.NumberOfOwnDescriptors();
+          // We set a heuristic value to limit the compare instructions number.
+          if (nof > 4 || instance_type <= LAST_SPECIAL_RECEIVER_TYPE ||
+              receiver_map.is_dictionary_map()) {
+            return inference.NoChange();
+          }
+          // Replace builtin call with several internalized string comparisons.
+          CallParameters const& p = call_node.Parameters();
+          inference.RelyOnMapsPreferStability(dependencies(), jsgraph(),
+                                              &effect, control, p.feedback());
+#define __ gasm.
+          JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                                BranchSemantics::kJS);
+          gasm.InitializeEffectControl(effect, control);
+          auto done = __ MakeLabel(MachineRepresentation::kTagged);
+          const DescriptorArrayRef descriptor_array =
+              receiver_map.instance_descriptors(broker());
+          for (InternalIndex key_index : InternalIndex::Range(nof)) {
+            NameRef receiver_key =
+                descriptor_array.GetPropertyKey(broker(), key_index);
+            Node* lhs = jsgraph()->HeapConstantNoHole(receiver_key.object());
+            __ GotoIf(__ ReferenceEqual(TNode<Object>::UncheckedCast(lhs),
+                                        TNode<Object>::UncheckedCast(name)),
+                      &done, __ TrueConstant());
+          }
+          __ Goto(&done, __ FalseConstant());
+          __ Bind(&done);
+
+          Node* value = done.PhiAt(0);
+          ReplaceWithValue(node, value, gasm.effect(), gasm.control());
+          return Replace(value);
+#undef __
+        }
+        return inference.NoChange();
+      }
     }
   }
 
@@ -8213,21 +8274,6 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
-
-namespace {
-uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
-  switch (element_type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case kExternal##Type##Array:                    \
-    DCHECK_LE(sizeof(ctype), 8);                  \
-    return sizeof(ctype);
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-#undef TYPED_ARRAY_CASE
-  }
-}
-}  // namespace
 
 Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
                                               ExternalArrayType element_type) {

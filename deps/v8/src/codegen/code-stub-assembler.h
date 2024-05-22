@@ -23,6 +23,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/hole.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/objects.h"
@@ -550,8 +551,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                    \
     return IntPtrOpName(a, b);                                                 \
   }                                                                            \
-  /* IntPtrXXX comparisons shouldn't be used with unsigned types, use          \
-   * UintPtrXXX operations explicitly instead. */                              \
+  /* IntPtrXXX comparisons shouldn't be used with unsigned types, use       */ \
+  /* UintPtrXXX operations explicitly instead.                              */ \
   TNode<BoolT> OpName(TNode<UintPtrT> a, TNode<UintPtrT> b) { UNREACHABLE(); } \
   TNode<BoolT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) { UNREACHABLE(); }
   // TODO(v8:9708): Define BInt operations once all uses are ported.
@@ -1276,7 +1277,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
-                                         kForeignForeignAddressTag);
+                                         kGenericForeignTag);
   }
 
   TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(
@@ -1314,32 +1315,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns WasmApiFunctionRef or WasmTrustedInstanceData.
   TNode<ExposedTrustedObject> LoadRefFromWasmInternalFunction(
       TNode<WasmInternalFunction> object) {
-    TNode<TrustedObject> ref = LoadTrustedPointerFromObject(
-        object, WasmInternalFunction::kIndirectRefOffset,
-        kUnknownIndirectPointerTag);
+    TNode<Object> obj = LoadProtectedPointerField(
+        object, WasmInternalFunction::kProtectedRefOffset);
+    CSA_DCHECK(this, TaggedIsNotSmi(obj));
+    TNode<HeapObject> ref = CAST(obj);
     CSA_DCHECK(this,
                Word32Or(HasInstanceType(ref, WASM_TRUSTED_INSTANCE_DATA_TYPE),
                         HasInstanceType(ref, WASM_API_FUNCTION_REF_TYPE)));
     return CAST(ref);
-  }
-
-  TNode<RawPtrT> LoadWasmInternalFunctionCallTargetPtr(
-      TNode<WasmInternalFunction> object) {
-    return LoadExternalPointerFromObject(
-        object, WasmInternalFunction::kCallTargetOffset,
-        kWasmInternalFunctionCallTargetTag);
-  }
-
-  TNode<RawPtrT> LoadWasmInternalFunctionInstructionStart(
-      TNode<WasmInternalFunction> object) {
-#ifdef V8_ENABLE_SANDBOX
-    return LoadCodeEntrypointViaCodePointerField(
-        object, WasmInternalFunction::kCodeOffset, kWasmEntrypointTag);
-#else
-    TNode<Code> code =
-        LoadObjectField<Code>(object, WasmInternalFunction::kCodeOffset);
-    return LoadCodeInstructionStart(code, kWasmEntrypointTag);
-#endif  // V8_ENABLE_SANDBOX
   }
 
   TNode<RawPtrT> LoadWasmTypeInfoNativeTypePtr(TNode<WasmTypeInfo> object) {
@@ -1353,6 +1336,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                          WasmExportedFunctionData::kSigOffset,
                                          kWasmExportedFunctionDataSignatureTag);
   }
+
+  TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
+      TNode<WasmFuncRef> func_ref) {
+    return CAST(LoadTrustedPointerFromObject(
+        func_ref, WasmFuncRef::kTrustedInternalOffset,
+        kWasmInternalFunctionIndirectPointerTag));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
@@ -1365,6 +1355,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                            TNode<RawPtrT> value) {
     StoreSandboxedPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
                                   value);
+  }
+
+  void InitializeJSAPIObjectWithEmbedderSlotsCppHeapWrapperPtr(
+      TNode<JSAPIObjectWithEmbedderSlots> holder) {
+    auto zero_constant =
+#ifdef V8_COMPRESS_POINTERS
+        Int32Constant(0);
+#else   // !V8_COMPRESS_POINTERS
+        IntPtrConstant(0);
+#endif  // !V8_COMPRESS_POINTERS
+    StoreObjectFieldNoWriteBarrier(
+        holder, JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset,
+        zero_constant);
   }
 
   // Load value from current parent frame by given offset in bytes.
@@ -3069,6 +3072,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNumberStringNotRegexpLikeProtectorCellInvalid();
   TNode<BoolT> IsSetIteratorProtectorCellInvalid();
   TNode<BoolT> IsMapIteratorProtectorCellInvalid();
+  void InvalidateStringWrapperToPrimitiveProtector();
 
   TNode<IntPtrT> LoadBasicMemoryChunkFlags(TNode<HeapObject> object);
 

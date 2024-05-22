@@ -10,6 +10,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-ir.h"
 
 namespace v8 {
 namespace internal {
@@ -18,6 +19,29 @@ namespace maglev {
 using BlockConstIterator = ZoneVector<BasicBlock*>::const_iterator;
 using BlockConstReverseIterator =
     ZoneVector<BasicBlock*>::const_reverse_iterator;
+
+template <typename T>
+class DisjointZoneSet {
+ public:
+  explicit DisjointZoneSet(Zone* zone) : parent_(zone) {}
+
+  void MakeSet(T m) { parent_[m] = m; }
+
+  T Find(T m) {
+    if (parent_[m] == m) return m;
+    return Find(parent_[m]);
+  }
+
+  void Union(T m, T n) {
+    T idx = Find(m);
+    parent_[idx] = Find(n);
+  }
+
+  ZoneMap<T, T>& parent() { return parent_; }
+
+ private:
+  ZoneMap<T, T> parent_;
+};
 
 class Graph final : public ZoneObject {
  public:
@@ -37,6 +61,7 @@ class Graph final : public ZoneObject {
         float_(zone),
         external_references_(zone),
         parameters_(zone),
+        allocations_(zone),
         register_inputs_(),
         constants_(zone),
         inlined_functions_(zone),
@@ -99,6 +124,8 @@ class Graph final : public ZoneObject {
     return external_references_;
   }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
+  DisjointZoneSet<InlinedAllocation*>& allocations() { return allocations_; }
+
   RegList& register_inputs() { return register_inputs_; }
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
     return constants_;
@@ -137,6 +164,7 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
+  DisjointZoneSet<InlinedAllocation*> allocations_;
   RegList register_inputs_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>

@@ -122,8 +122,6 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
         case AllocationType::kCode: {
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
           DCHECK(AllowCodeAllocation::IsAllowed());
-          CodePageHeaderModificationScope header_modification_scope(
-              "Code allocation needs header access.");
           allocation = code_space_allocator_->AllocateRaw(
               size_in_bytes, AllocationAlignment::kTaggedAligned, origin);
           break;

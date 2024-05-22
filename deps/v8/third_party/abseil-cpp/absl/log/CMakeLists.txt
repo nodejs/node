@@ -807,6 +807,7 @@ absl_cc_test(
     absl::log_entry
     absl::log_globals
     absl::log_severity
+    absl::log_internal_globals
     absl::log_internal_test_actions
     absl::log_internal_test_helpers
     absl::log_internal_test_matchers

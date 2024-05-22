@@ -830,6 +830,30 @@ class SharedFunctionInfo
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
 };
 
+// A SharedFunctionInfoWrapper wraps a SharedFunctionInfo from trusted space.
+// It can be useful when a protected pointer reference to a SharedFunctionInfo
+// is needed, for example for a ProtectedFixedArray.
+class SharedFunctionInfoWrapper : public TrustedObject {
+ public:
+  DECL_ACCESSORS(shared_info, Tagged<SharedFunctionInfo>)
+
+  DECL_CAST(SharedFunctionInfoWrapper)
+  DECL_PRINTER(SharedFunctionInfoWrapper)
+  DECL_VERIFIER(SharedFunctionInfoWrapper)
+
+#define FIELD_LIST(V)               \
+  V(kSharedInfoOffset, kTaggedSize) \
+  V(kHeaderSize, 0)                 \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(SharedFunctionInfoWrapper, TrustedObject);
+};
+
 #ifdef V8_ENABLE_SANDBOX
 // When the sandbox is enabled, the data field is split into a trusted pointer
 // part and a tagged part.

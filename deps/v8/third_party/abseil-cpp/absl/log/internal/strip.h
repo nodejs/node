@@ -38,6 +38,13 @@
   ::absl::log_internal::NullStreamMaybeFatal(::absl::kLogDebugFatal)
 #define ABSL_LOGGING_INTERNAL_LOG_LEVEL(severity) \
   ::absl::log_internal::NullStreamMaybeFatal(absl_log_internal_severity)
+
+// Fatal `DLOG`s expand a little differently to avoid being `[[noreturn]]`.
+#define ABSL_LOGGING_INTERNAL_DLOG_FATAL \
+  ::absl::log_internal::NullStreamMaybeFatal(::absl::LogSeverity::kFatal)
+#define ABSL_LOGGING_INTERNAL_DLOG_QFATAL \
+  ::absl::log_internal::NullStreamMaybeFatal(::absl::LogSeverity::kFatal)
+
 #define ABSL_LOG_INTERNAL_CHECK(failure_message) ABSL_LOGGING_INTERNAL_LOG_FATAL
 #define ABSL_LOG_INTERNAL_QCHECK(failure_message) \
   ABSL_LOGGING_INTERNAL_LOG_QFATAL
@@ -60,6 +67,13 @@
 #define ABSL_LOGGING_INTERNAL_LOG_LEVEL(severity)      \
   ::absl::log_internal::LogMessage(__FILE__, __LINE__, \
                                    absl_log_internal_severity)
+
+// Fatal `DLOG`s expand a little differently to avoid being `[[noreturn]]`.
+#define ABSL_LOGGING_INTERNAL_DLOG_FATAL \
+  ::absl::log_internal::LogMessageDebugFatal(__FILE__, __LINE__)
+#define ABSL_LOGGING_INTERNAL_DLOG_QFATAL \
+  ::absl::log_internal::LogMessageQuietlyDebugFatal(__FILE__, __LINE__)
+
 // These special cases dispatch to special-case constructors that allow us to
 // avoid an extra function call and shrink non-LTO binaries by a percent or so.
 #define ABSL_LOG_INTERNAL_CHECK(failure_message) \
@@ -68,5 +82,12 @@
   ::absl::log_internal::LogMessageQuietlyFatal(__FILE__, __LINE__, \
                                                failure_message)
 #endif  // !defined(STRIP_LOG) || !STRIP_LOG
+
+// This part of a non-fatal `DLOG`s expands the same as `LOG`.
+#define ABSL_LOGGING_INTERNAL_DLOG_INFO ABSL_LOGGING_INTERNAL_LOG_INFO
+#define ABSL_LOGGING_INTERNAL_DLOG_WARNING ABSL_LOGGING_INTERNAL_LOG_WARNING
+#define ABSL_LOGGING_INTERNAL_DLOG_ERROR ABSL_LOGGING_INTERNAL_LOG_ERROR
+#define ABSL_LOGGING_INTERNAL_DLOG_DFATAL ABSL_LOGGING_INTERNAL_LOG_DFATAL
+#define ABSL_LOGGING_INTERNAL_DLOG_LEVEL ABSL_LOGGING_INTERNAL_LOG_LEVEL
 
 #endif  // ABSL_LOG_INTERNAL_STRIP_H_

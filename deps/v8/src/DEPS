@@ -41,6 +41,7 @@ include_rules = [
   "+src/heap/mutable-page.h",
   "+src/heap/mutable-page-inl.h",
   "+src/heap/memory-chunk.h",
+  "+src/heap/page-inl.h",
   "+src/heap/paged-spaces-inl.h",
   "+src/heap/parked-scope-inl.h",
   "+src/heap/parked-scope.h",

@@ -265,7 +265,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Configuration configuration);
 
   // Lookup private symbol on the prototype chain. Currently used only for
-  // error_stack_symbol.
+  // error_stack_symbol and error_message_symbol.
   inline LookupIterator(Isolate* isolate, Configuration configuration,
                         Handle<Object> receiver, Handle<Symbol> name,
                         Handle<Object> lookup_start_object);

@@ -177,89 +177,79 @@ void MarkingBarrier::RecordRelocSlot(Tagged<InstructionStream> host,
 }
 
 namespace {
-void ActivateSpace(PagedSpace* space, MarkingMode marking_mode) {
-  for (PageMetadata* p : *space) {
-    p->SetOldGenerationPageFlags(marking_mode);
+template <typename Space>
+void SetGenerationPageFlags(Space* space, MarkingMode marking_mode) {
+  if constexpr (std::is_same_v<Space, OldSpace> ||
+                std::is_same_v<Space, SharedSpace> ||
+                std::is_same_v<Space, TrustedSpace> ||
+                std::is_same_v<Space, CodeSpace>) {
+    for (auto* p : *space) {
+      p->SetOldGenerationPageFlags(marking_mode);
+    }
+  } else if constexpr (std::is_same_v<Space, OldLargeObjectSpace> ||
+                       std::is_same_v<Space, SharedLargeObjectSpace> ||
+                       std::is_same_v<Space, TrustedLargeObjectSpace> ||
+                       std::is_same_v<Space, CodeLargeObjectSpace>) {
+    for (auto* p : *space) {
+      DCHECK(p->Chunk()->IsLargePage());
+      p->SetOldGenerationPageFlags(marking_mode);
+    }
+  } else if constexpr (std::is_same_v<Space, NewSpace>) {
+    for (auto* p : *space) {
+      p->SetYoungGenerationPageFlags(marking_mode);
+    }
+  } else {
+    static_assert(std::is_same_v<Space, NewLargeObjectSpace>);
+    for (auto* p : *space) {
+      DCHECK(p->Chunk()->IsLargePage());
+      p->SetYoungGenerationPageFlags(marking_mode);
+    }
   }
 }
 
-void ActivateSpace(NewSpace* space, MarkingMode marking_mode) {
-  for (PageMetadata* p : *space) {
-    p->SetYoungGenerationPageFlags(marking_mode);
-  }
+template <typename Space>
+void ActivateSpace(Space* space, MarkingMode marking_mode) {
+  SetGenerationPageFlags(space, marking_mode);
+}
+
+template <typename Space>
+void DeactivateSpace(Space* space) {
+  SetGenerationPageFlags(space, MarkingMode::kNoMarking);
 }
 
 void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
   ActivateSpace(heap->old_space(), marking_mode);
-  for (LargePageMetadata* p : *heap->lo_space()) {
-    p->SetOldGenerationPageFlags(marking_mode);
-  }
-
+  ActivateSpace(heap->lo_space(), marking_mode);
   ActivateSpace(heap->new_space(), marking_mode);
-  for (LargePageMetadata* p : *heap->new_lo_space()) {
-    p->SetYoungGenerationPageFlags(marking_mode);
-    DCHECK(p->Chunk()->IsLargePage());
-  }
-
+  ActivateSpace(heap->new_lo_space(), marking_mode);
   {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Modification of InstructionStream page header flags requires write "
-        "access");
+    RwxMemoryWriteScope scope("For writing flags.");
     ActivateSpace(heap->code_space(), marking_mode);
-    for (LargePageMetadata* p : *heap->code_lo_space()) {
-      p->SetOldGenerationPageFlags(marking_mode);
-    }
+    ActivateSpace(heap->code_lo_space(), marking_mode);
   }
 
   if (marking_mode == MarkingMode::kMajorMarking) {
     if (heap->shared_space()) {
-      ActivateSpace(heap->shared_space(), MarkingMode::kMajorMarking);
+      ActivateSpace(heap->shared_space(), marking_mode);
     }
     if (heap->shared_lo_space()) {
-      for (LargePageMetadata* p : *heap->shared_lo_space()) {
-        p->SetOldGenerationPageFlags(MarkingMode::kMajorMarking);
-      }
+      ActivateSpace(heap->shared_lo_space(), marking_mode);
     }
   }
 
   ActivateSpace(heap->trusted_space(), marking_mode);
-  for (LargePageMetadata* p : *heap->trusted_lo_space()) {
-    p->SetOldGenerationPageFlags(marking_mode);
-  }
-}
-
-void DeactivateSpace(PagedSpace* space) {
-  for (PageMetadata* p : *space) {
-    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
-  }
-}
-
-void DeactivateSpace(NewSpace* space) {
-  for (PageMetadata* p : *space) {
-    p->SetYoungGenerationPageFlags(MarkingMode::kNoMarking);
-  }
+  ActivateSpace(heap->trusted_lo_space(), marking_mode);
 }
 
 void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
   DeactivateSpace(heap->old_space());
-  for (LargePageMetadata* p : *heap->lo_space()) {
-    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
-  }
-
+  DeactivateSpace(heap->lo_space());
   DeactivateSpace(heap->new_space());
-  for (LargePageMetadata* p : *heap->new_lo_space()) {
-    p->SetYoungGenerationPageFlags(MarkingMode::kNoMarking);
-    DCHECK(p->Chunk()->IsLargePage());
-  }
-
+  DeactivateSpace(heap->new_lo_space());
   {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Modification of InstructionStream page header flags requires write "
-        "access");
+    RwxMemoryWriteScope scope("For writing flags.");
     DeactivateSpace(heap->code_space());
-    for (LargePageMetadata* p : *heap->code_lo_space()) {
-      p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
-    }
+    DeactivateSpace(heap->code_lo_space());
   }
 
   if (marking_mode == MarkingMode::kMajorMarking) {
@@ -267,16 +257,12 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
       DeactivateSpace(heap->shared_space());
     }
     if (heap->shared_lo_space()) {
-      for (LargePageMetadata* p : *heap->shared_lo_space()) {
-        p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
-      }
+      DeactivateSpace(heap->shared_lo_space());
     }
   }
 
   DeactivateSpace(heap->trusted_space());
-  for (LargePageMetadata* p : *heap->trusted_lo_space()) {
-    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
-  }
+  DeactivateSpace(heap->trusted_lo_space());
 }
 }  // namespace
 

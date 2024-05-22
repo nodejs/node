@@ -372,6 +372,8 @@ class SimRegisterBase {
 using SimRegister = SimRegisterBase<kXRegSize>;   // r0-r31
 using SimVRegister = SimRegisterBase<kQRegSize>;  // v0-v31
 
+using sim_uint128_t = std::pair<uint64_t, uint64_t>;
+
 // Representation of a vector register, with typed getters and setters for lanes
 // and additional information to represent lane state.
 class LogicVRegister {
@@ -486,6 +488,16 @@ class LogicVRegister {
         UNREACHABLE();
         return;
     }
+  }
+
+  void SetUint(VectorFormat vform, int index, sim_uint128_t value) const {
+    if (LaneSizeInBitsFromFormat(vform) <= 64) {
+      SetUint(vform, index, value.second);
+      return;
+    }
+    DCHECK((vform == kFormat1Q) && (index == 0));
+    SetUint(kFormat2D, 0, value.second);
+    SetUint(kFormat2D, 1, value.first);
   }
 
   void SetUintArray(VectorFormat vform, const uint64_t* src) const {
@@ -1558,6 +1570,10 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   template <typename T>
   void BitfieldHelper(Instruction* instr);
   uint16_t PolynomialMult(uint8_t op1, uint8_t op2);
+  sim_uint128_t PolynomialMult128(uint64_t op1, uint64_t op2,
+                                  int lane_size_in_bits) const;
+  sim_uint128_t Lsl128(sim_uint128_t x, unsigned shift) const;
+  sim_uint128_t Eor128(sim_uint128_t x, sim_uint128_t y) const;
 
   void ld1(VectorFormat vform, LogicVRegister dst, uint64_t addr);
   void ld1(VectorFormat vform, LogicVRegister dst, int index, uint64_t addr);

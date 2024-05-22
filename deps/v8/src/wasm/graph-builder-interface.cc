@@ -1420,9 +1420,58 @@ class WasmGraphBuildingInterface {
     base::Vector<Value> values_without_exnref =
         catch_case.kind == kCatch ? values
                                   : values.SubVector(0, values.size() - 1);
-    CatchAndUnpackWasmException(decoder, block, exception,
-                                catch_case.maybe_tag.tag_imm.tag, caught_tag,
-                                expected_tag, values_without_exnref);
+
+    if (catch_case.maybe_tag.tag_imm.tag->sig->parameter_count() == 1 &&
+        catch_case.maybe_tag.tag_imm.tag->sig->GetParam(0) == kWasmExternRef) {
+      // Check for the special case where the tag is WebAssembly.JSTag and the
+      // exception is not a WebAssembly.Exception. In this case the exception is
+      // caught and pushed on the operand stack.
+      // Only perform this check if the tag signature is the same as
+      // the JSTag signature, i.e. a single externref, otherwise
+      // we know statically that it cannot be the JSTag.
+
+      TFNode* is_js_exn = builder_->IsExceptionTagUndefined(caught_tag);
+      auto [exn_is_js, exn_is_wasm] = builder_->BranchExpectFalse(is_js_exn);
+      SsaEnv* exn_is_js_env = Split(decoder->zone(), ssa_env_);
+      exn_is_js_env->control = exn_is_js;
+      SsaEnv* exn_is_wasm_env = Steal(decoder->zone(), ssa_env_);
+      exn_is_wasm_env->control = exn_is_wasm;
+
+      // Case 1: A wasm exception.
+      SetEnv(exn_is_wasm_env);
+      CatchAndUnpackWasmException(decoder, block, exception,
+                                  catch_case.maybe_tag.tag_imm.tag, caught_tag,
+                                  expected_tag, values_without_exnref);
+
+      // Case 2: A JS exception.
+      SetEnv(exn_is_js_env);
+      TFNode* js_tag = builder_->LoadJSTag();
+      TFNode* compare = builder_->ExceptionTagEqual(expected_tag, js_tag);
+      auto [if_catch, if_no_catch] = builder_->BranchNoHint(compare);
+      // Merge the wasm no-catch and JS no-catch paths.
+      SsaEnv* if_no_catch_env = Split(decoder->zone(), ssa_env_);
+      if_no_catch_env->control = if_no_catch;
+      SetEnv(if_no_catch_env);
+      Goto(decoder, block->try_info->catch_env);
+      // Merge the wasm catch and JS catch paths.
+      SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
+      if_catch_env->control = if_catch;
+      SetEnv(if_catch_env);
+      Goto(decoder, block->block_env);
+
+      // The final env is a merge of case 1 and 2. The unpacked value is a Phi
+      // of the unpacked value (case 1) and the exception itself (case 2).
+      SetEnv(block->block_env);
+      TFNode* phi_inputs[] = {values[0].node, exception,
+                              block->block_env->control};
+      TFNode* ref = builder_->Phi(wasm::kWasmExternRef, 2, phi_inputs);
+      SetAndTypeNode(&values[0], ref);
+    } else {
+      CatchAndUnpackWasmException(decoder, block, exception,
+                                  catch_case.maybe_tag.tag_imm.tag, caught_tag,
+                                  expected_tag, values_without_exnref);
+    }
+
     if (catch_case.kind == kCatchRef) {
       DCHECK_EQ(values.last().type, kWasmExnRef);
       values.last().node = block->try_info->exception;
@@ -1803,6 +1852,7 @@ class WasmGraphBuildingInterface {
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
+      case HeapType::kNoExn:
         DCHECK(null_succeeds);
         // This is needed for BrOnNull. {value_on_branch} is on the value stack
         // and BrOnNull interacts with the values on the stack.
@@ -1841,6 +1891,7 @@ class WasmGraphBuildingInterface {
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
+      case HeapType::kNoExn:
         DCHECK(null_succeeds);
         // We need to store a node in the stack where the decoder so far only
         // pushed a value and expects the `BrOnCastFailAbstract` to set it.

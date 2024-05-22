@@ -440,4 +440,31 @@ TEST(DeserializeTieringBudgetPartlyMissing) {
   }
   test.CollectGarbage();
 }
+
+TEST(SerializationFailsOnChangedFlags) {
+  WasmSerializationTest test;
+  {
+    HandleScope scope(CcTest::i_isolate());
+
+    FlagScope<bool> no_bounds_checks(&v8_flags.wasm_bounds_checks, false);
+    CHECK(test.Deserialize().is_null());
+
+    FlagScope<bool> bounds_checks(&v8_flags.wasm_bounds_checks, true);
+    CHECK(!test.Deserialize().is_null());
+  }
+}
+
+TEST(SerializationFailsOnChangedFeatures) {
+  WasmSerializationTest test;
+  {
+    HandleScope scope(CcTest::i_isolate());
+
+    CcTest::isolate()->SetWasmJSPIEnabledCallback([](auto) { return true; });
+    CHECK(test.Deserialize().is_null());
+
+    CcTest::isolate()->SetWasmJSPIEnabledCallback([](auto) { return false; });
+    CHECK(!test.Deserialize().is_null());
+  }
+}
+
 }  // namespace v8::internal::wasm

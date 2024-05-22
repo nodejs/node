@@ -85,6 +85,10 @@
   'proposals/tail-call/binary': [FAIL],
   'proposals/exception-handling/binary': [FAIL],
   'proposals/exception-handling/imports': [FAIL],
+
+  # The test is incorrect as it exports a function with an exnref in the
+  # signature, which is a runtime type error.
+  'proposals/exception-handling/ref_null': [FAIL]
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {

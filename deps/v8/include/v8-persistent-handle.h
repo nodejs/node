@@ -237,21 +237,6 @@ class NonCopyablePersistentTraits {
 };
 
 /**
- * Helper class traits to allow copying and assignment of Persistent.
- * This will clone the contents of storage cell, but not any of the flags, etc.
- */
-template <class T>
-struct CopyablePersistentTraits {
-  using CopyablePersistent = Persistent<T, CopyablePersistentTraits<T>>;
-  static const bool kResetInDestructor = true;
-  template <class S, class M>
-  static V8_INLINE void Copy(const Persistent<S, M>& source,
-                             CopyablePersistent* dest) {
-    // do nothing, just allow copy
-  }
-};
-
-/**
  * A PersistentBase which allows copy and assignment.
  *
  * Copy, assignment and destructor behavior is controlled by the traits

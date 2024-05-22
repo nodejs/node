@@ -1984,6 +1984,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64ExtractHighWord32:
       __ Umov(i.OutputRegister32(), i.InputFloat64Register(0).V2S(), 1);
       break;
+    case kArm64Float64FromWord32Pair:
+      __ uxtw(i.TempRegister(0), i.InputRegister64(1));
+      __ orr(i.TempRegister(0), i.TempRegister(0),
+             Operand(i.InputRegister64(0), LSL, 32));
+      __ Fmov(i.OutputFloat64Register(), i.TempRegister(0));
+      break;
     case kArm64Float64InsertLowWord32:
       DCHECK_EQ(i.OutputFloat64Register(), i.InputFloat64Register(0));
       __ Ins(i.OutputFloat64Register().V2S(), 0, i.InputRegister32(1));
@@ -2827,7 +2833,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I8x16BitMask: {
-      __ I8x16BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
+      VRegister temp = NoVReg;
+
+      if (CpuFeatures::IsSupported(PMULL1Q)) {
+        temp = i.TempSimd128Register(0);
+      }
+
+      __ I8x16BitMask(i.OutputRegister32(), i.InputSimd128Register(0), temp);
       break;
     }
     case kArm64S128Const: {

@@ -13,6 +13,7 @@
 #include <queue>
 #include <vector>
 
+#include "src/utils/utils.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone-containers.h"

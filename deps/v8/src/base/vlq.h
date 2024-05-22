@@ -106,13 +106,13 @@ VLQDecodeUnsigned(GetNextFunction&& get_next) {
 // Decodes a variable-length encoded unsigned value stored in contiguous memory
 // starting at data_start + index, updating index to where the next encoded
 // value starts.
-inline uint32_t VLQDecodeUnsigned(uint8_t* data_start, int* index) {
+inline uint32_t VLQDecodeUnsigned(const uint8_t* data_start, int* index) {
   return VLQDecodeUnsigned([&] { return data_start[(*index)++]; });
 }
 
 // Decodes a variable-length encoded value stored in contiguous memory starting
 // at data_start + index, updating index to where the next encoded value starts.
-inline int32_t VLQDecode(uint8_t* data_start, int* index) {
+inline int32_t VLQDecode(const uint8_t* data_start, int* index) {
   uint32_t bits = VLQDecodeUnsigned(data_start, index);
   bool is_negative = (bits & 1) == 1;
   int32_t result = bits >> 1;

@@ -127,6 +127,12 @@ class FunctionCallbackInfo {
    * referencing this callback was found (which in V8 internally is often
    * referred to as holder [sic]).
    */
+  V8_DEPRECATE_SOON(
+      "V8 will stop providing access to hidden prototype (i.e. "
+      "JSGlobalObject). Use This() instead. \n"
+      "DO NOT try to workaround this by accessing JSGlobalObject via "
+      "v8::Object::GetPrototype() - it'll be deprecated soon too. \n"
+      "See http://crbug.com/333672197. ")
   V8_INLINE Local<Object> Holder() const;
   /** For construct calls, this returns the "new.target" value. */
   V8_INLINE Local<Value> NewTarget() const;
@@ -138,6 +144,11 @@ class FunctionCallbackInfo {
   V8_INLINE Isolate* GetIsolate() const;
   /** The ReturnValue for the call. */
   V8_INLINE ReturnValue<T> GetReturnValue() const;
+
+  // This is a temporary replacement for Holder() added just for the purpose
+  // of testing the deprecated Holder() machinery until it's removed for real.
+  // DO NOT use it.
+  V8_INLINE Local<Object> HolderSoonToBeDeprecated() const;
 
  private:
   friend class internal::FunctionCallbackArguments;
@@ -265,7 +276,15 @@ class PropertyCallbackInfo {
    */
   V8_INLINE bool ShouldThrowOnError() const;
 
+  V8_DEPRECATE_SOON(
+      "This is a temporary workaround to ease migration of Chromium bindings "
+      "code to the new interceptors Api")
+  explicit PropertyCallbackInfo(const PropertyCallbackInfo<void>& info)
+      : PropertyCallbackInfo(info.args_) {}
+
  private:
+  template <typename U>
+  friend class PropertyCallbackInfo;
   friend class MacroAssembler;
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
@@ -532,8 +551,13 @@ Local<Object> FunctionCallbackInfo<T>::This() const {
 }
 
 template <typename T>
-Local<Object> FunctionCallbackInfo<T>::Holder() const {
+Local<Object> FunctionCallbackInfo<T>::HolderSoonToBeDeprecated() const {
   return Local<Object>::FromSlot(&implicit_args_[kHolderIndex]);
+}
+
+template <typename T>
+Local<Object> FunctionCallbackInfo<T>::Holder() const {
+  return HolderSoonToBeDeprecated();
 }
 
 template <typename T>

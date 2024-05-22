@@ -488,12 +488,18 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Tagged<Smi> rhs) {
+void BaselineAssembler::IncrementSmi(MemOperand lhs) {
+  BaselineAssembler::ScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireScratch();
   ASM_CODE_COMMENT(masm_);
   if (SmiValuesAre31Bits()) {
-    __ Add32(lhs, lhs, Operand(rhs));
+    __ Lw(tmp, lhs);
+    __ Add32(tmp, tmp, Operand(Smi::FromInt(1)));
+    __ Sw(tmp, lhs);
   } else {
-    __ AddWord(lhs, lhs, Operand(rhs));
+    __ LoadWord(tmp, lhs);
+    __ AddWord(tmp, tmp, Operand(Smi::FromInt(1)));
+    __ StoreWord(tmp, lhs);
   }
 }
 

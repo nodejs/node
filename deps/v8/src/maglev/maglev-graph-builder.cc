@@ -90,6 +90,12 @@ ValueNode* TryGetParentContext(ValueNode* node) {
     return n->context().node();
   }
 
+  if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+    if (alloc->value().type == DeoptObject::kContext) {
+      return alloc->value().context.previous_context;
+    }
+  }
+
   if (CallRuntime* n = node->TryCast<CallRuntime>()) {
     switch (n->function_id()) {
       case Runtime::kPushBlockContext:
@@ -754,8 +760,15 @@ void MaglevGraphBuilder::SetArgument(int i, ValueNode* value) {
 }
 
 ValueNode* MaglevGraphBuilder::GetTaggedArgument(int i) {
+  DCHECK_LT(i, parameter_count());
   interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
   return GetTaggedValue(reg);
+}
+
+ValueNode* MaglevGraphBuilder::GetInlinedTaggedArgument(int i) {
+  DCHECK(is_inline());
+  DCHECK_LT(i, argument_count());
+  return GetTaggedValue(inlined_arguments_[i]);
 }
 
 void MaglevGraphBuilder::InitializeRegister(interpreter::Register reg,
@@ -1014,12 +1027,14 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
         zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeoptHelper(
             interpreter::Register::invalid_value(), 0,
             parent_->current_deopt_scope_, true));
-    if (inlined_arguments_) {
+    // Only create InlinedArgumentsDeoptFrame if we have a mismatch between
+    // formal parameter and arguments count.
+    if (HasMismatchedArgumentAndParameterCount()) {
       parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
           *compilation_unit_, caller_bytecode_offset_, GetClosure(),
-          *inlined_arguments_, parent_deopt_frame_);
+          inlined_arguments_, parent_deopt_frame_);
       AddDeoptUse(GetClosure());
-      for (ValueNode* arg : *inlined_arguments_) {
+      for (ValueNode* arg : inlined_arguments_) {
         AddDeoptUse(arg);
       }
     }
@@ -2177,6 +2192,23 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
 
   if (!InstanceTypeChecker::IsReferenceComparable(type)) return false;
 
+  // If the constant is the undefined value, we can compare it
+  // against holey floats.
+  if (maybe_constant->IsUndefined()) {
+    ValueNode* holey_float = nullptr;
+    if (left->properties().value_representation() ==
+        ValueRepresentation::kHoleyFloat64) {
+      holey_float = left;
+    } else if (right->properties().value_representation() ==
+               ValueRepresentation::kHoleyFloat64) {
+      holey_float = right;
+    }
+    if (holey_float) {
+      SetAccumulator(AddNewNode<HoleyFloat64IsHole>({holey_float}));
+      return true;
+    }
+  }
+
   if (left->properties().value_representation() !=
           ValueRepresentation::kTagged ||
       right->properties().value_representation() !=
@@ -3138,12 +3170,14 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   return false;
 }
 
-void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
-                                       compiler::ObjectRef ref) {
+void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
+                                       NodeType new_node_type) {
   DCHECK(!node->Is<Constant>());
   DCHECK(!node->Is<RootConstant>());
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-  known_info->CombineType(StaticTypeForConstant(broker(), ref));
+  // ref type should be compatible with type.
+  DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
+  known_info->CombineType(new_node_type);
   known_info->alternative().set_constant(GetConstant(ref));
 }
 
@@ -3583,7 +3617,8 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
 void MaglevGraphBuilder::BuildInitializeStoreTaggedField(
     InlinedAllocation* object, ValueNode* value, int offset) {
   if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
-    inlined_value->DependOn(object);
+    graph()->allocations().Union(object, inlined_value);
+    inlined_value->AddNonEscapingUses();
   }
   BuildStoreTaggedField(object, value, offset);
 }
@@ -4222,6 +4257,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       switch (result.kind()) {
         case ReduceResult::kDoneWithValue:
           subgraph.set(ret_val, result.value());
+          subgraph.Goto(&done);
           break;
         case ReduceResult::kDoneWithAbort:
           break;
@@ -4237,7 +4273,6 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
         default:
           UNREACHABLE();
       }
-      subgraph.Goto(&done);
 
       if (check_next_map.has_value()) {
         subgraph.Bind(&*check_next_map);
@@ -4273,7 +4308,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
         auto& alternative =
             known_node_aspects().GetOrCreateInfoFor(object)->alternative();
         return alternative.get_or_set_int32(
-            [&]() { return AddNewNode<UnsafeSmiUntag>({object}); });
+            [&]() { return BuildSmiUntag(object); });
       } else {
         // TODO(leszeks): Cache this knowledge/converted value somehow on
         // the node info.
@@ -5799,7 +5834,7 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
 namespace {
 void ForceEscapeIfAllocation(ValueNode* value) {
   if (InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-    alloc->ForceEscape();
+    alloc->ForceEscaping();
   }
 }
 }  // namespace
@@ -5850,14 +5885,12 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
 
   // Save all arguments if we have a mismatch between arguments count and
   // parameter count.
-  if (arg_count != formal_parameter_count) {
-    inlined_arguments_.emplace(
-        zone()->AllocateVector<ValueNode*>(arg_count + 1));
-    (*inlined_arguments_)[0] = receiver;
-    for (int i = 0; i < arg_count; i++) {
-      (*inlined_arguments_)[i + 1] = args[i];
-    }
+  inlined_arguments_ = zone()->AllocateVector<ValueNode*>(arg_count + 1);
+  inlined_arguments_[0] = receiver;
+  for (int i = 0; i < arg_count; i++) {
+    inlined_arguments_[i + 1] = args[i];
   }
+
   inlined_new_target_ = new_target;
 
   BuildRegisterFrameInitialization(context, function, new_target);
@@ -5904,11 +5937,7 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     compiler::OptionalFeedbackVectorRef feedback_vector, float call_frequency) {
   if (graph()->total_inlined_bytecode_size() >
       v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
-    if (v8_flags.profile_guided_optimization) {
-      compilation_unit_->shared_function_info()
-          .object()
-          ->set_cached_tiering_decision(CachedTieringDecision::kNormal);
-    }
+    compilation_unit_->info()->set_could_not_inline_all_candidates();
     TRACE_CANNOT_INLINE("maximum inlined bytecode size");
     return false;
   }
@@ -5948,19 +5977,6 @@ bool MaglevGraphBuilder::ShouldInlineCall(
   if (bytecode.handler_table_size() > 0) {
     TRACE_CANNOT_INLINE("use unsupported expection handlers");
     return false;
-  }
-  // TODO(victorgomes): Support inlined allocation of the arguments object.
-  interpreter::BytecodeArrayIterator iterator(bytecode.object());
-  for (; !iterator.done(); iterator.Advance()) {
-    switch (iterator.current_bytecode()) {
-      case interpreter::Bytecode::kCreateMappedArguments:
-      case interpreter::Bytecode::kCreateUnmappedArguments:
-      case interpreter::Bytecode::kCreateRestParameter:
-        TRACE_CANNOT_INLINE("not supported inlined arguments object");
-        return false;
-      default:
-        break;
-    }
   }
   if (call_frequency < v8_flags.min_maglev_inlining_frequency) {
     TRACE_CANNOT_INLINE("call frequency ("
@@ -6021,11 +6037,9 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
           shared.object(), bytecode.object(), current_source_position_));
-  if (v8_flags.profile_guided_optimization &&
-      feedback_vector->object()->invocation_count_before_stable() >
-          v8_flags.invocation_count_for_early_optimization) {
-    shared.object()->set_cached_tiering_decision(
-        CachedTieringDecision::kNormal);
+  if (feedback_vector->object()->invocation_count_before_stable() >
+      v8_flags.invocation_count_for_early_optimization) {
+    compilation_unit_->info()->set_could_not_inline_all_candidates();
   }
   int inlining_id = static_cast<int>(graph()->inlined_functions().size() - 1);
 
@@ -7066,6 +7080,7 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
 
 ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
     compiler::JSFunctionRef target, CallArguments& args) {
+  // TODO(jialu): optimize for heap const receiver.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return ReduceResult::Fail();
   }
@@ -7526,10 +7541,12 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   if (ref.IsString()) {
     DCHECK(ref.IsInternalizedString());
     AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
+    SetKnownValue(node, ref, NodeType::kString);
   } else {
     AddNewNode<CheckValue>({node}, ref);
+    SetKnownValue(node, ref, StaticTypeForConstant(broker(), ref));
   }
-  SetKnownValue(node, ref);
+
   return ReduceResult::Done();
 }
 
@@ -7581,7 +7598,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
       AddNewNode<CheckValueEqualsFloat64>({GetFloat64(node)}, ref_value);
     }
   }
-  SetKnownValue(node, ref);
+  SetKnownValue(node, ref, NodeType::kNumber);
   return ReduceResult::Done();
 }
 
@@ -8345,11 +8362,9 @@ void MaglevGraphBuilder::VisitConstructForwardAllArgs() {
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
   if (is_inline()) {
-    int argc = inlined_arguments_ ? static_cast<int>(inlined_arguments_->size())
-                                  : parameter_count();
-    base::SmallVector<ValueNode*, 8> forwarded_args(argc);
-    for (int i = 1 /* skip receiver */; i < argc; ++i) {
-      forwarded_args[i] = GetTaggedArgument(i);
+    base::SmallVector<ValueNode*, 8> forwarded_args(argument_count());
+    for (int i = 1 /* skip receiver */; i < argument_count(); ++i) {
+      forwarded_args[i] = GetInlinedTaggedArgument(i);
     }
     CallArguments args(ConvertReceiverMode::kNullOrUndefined,
                        std::move(forwarded_args));
@@ -9194,6 +9209,7 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
   DCHECK_GE(current_size, 0);
   InlinedAllocation* allocation =
       AddNewNode<InlinedAllocation>({current_allocation_block_}, size, value);
+  graph()->allocations().MakeSet(allocation);
   current_allocation_block_->Add(allocation);
   return allocation;
 }
@@ -9217,6 +9233,30 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
   // add non escaping use.
   if (catch_block_stack_.size() > 0) return;
   allocation->AddNonEscapingUses(use_count);
+}
+
+void MaglevGraphBuilder::AddDeoptUse(FastContext context) {
+  AddDeoptUse(context.previous_context);
+  if (context.extension.has_value()) {
+    AddDeoptUse(context.extension.value());
+  }
+}
+
+void MaglevGraphBuilder::AddDeoptUse(DeoptObject value) {
+  switch (value.type) {
+    case DeoptObject::kObject:
+    case DeoptObject::kFixedArray:
+    case DeoptObject::kArguments:
+    case DeoptObject::kMappedArgumentsElements:
+    case DeoptObject::kInlinedUnmappedArgumentsElements:
+    case DeoptObject::kNumber:
+      // TODO(victorgomes); Either we do not support elision or it doesn't
+      // contain any runtime value.
+      break;
+    case DeoptObject::kContext:
+      AddDeoptUse(value.context);
+      break;
+  }
 }
 
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
@@ -9276,64 +9316,142 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   return allocation;
 }
 
-ValueNode* MaglevGraphBuilder::BuildArgumentsElements(
-    FastArgumentsObject arguments, ValueNode* arguments_length,
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastInlinedUnmappedArgumentsElements elements,
     AllocationType allocation_type) {
-  switch (arguments.type) {
-    case FastArgumentsObject::kDefault:
-      return arguments.elements;
-    case FastArgumentsObject::kSloppyWithMappedArguments: {
-      int allocation_size = SloppyArgumentsElements::SizeFor(
-          arguments.sloppy_elements.mapped_count);
-      InlinedAllocation* elements = ExtendOrReallocateCurrentAllocationBlock(
-          allocation_size, allocation_type,
-          DeoptObject(arguments.sloppy_elements));
-      // TODO(victorgomes): Add AddNonEscapingUses for the arguments object to
-      // be elided.
-      AddNewNode<StoreMap>({elements},
-                           broker()->sloppy_arguments_elements_map());
-      BuildInitializeStoreTaggedField(
-          elements, GetSmiConstant(arguments.sloppy_elements.mapped_count),
-          FixedArray::kLengthOffset);
-      BuildInitializeStoreTaggedField(elements,
-                                      arguments.sloppy_elements.context,
-                                      SloppyArgumentsElements::kContextOffset);
-      BuildInitializeStoreTaggedField(
-          elements, arguments.sloppy_elements.unmapped_elements,
-          SloppyArgumentsElements::kArgumentsOffset);
-      for (int i = 0; i < arguments.sloppy_elements.mapped_count; i++) {
-        int idx = compilation_unit_->shared_function_info()
-                      .context_parameters_start() +
-                  arguments.sloppy_elements.mapped_count - 1 - i;
-        ValueNode* value = Select<BranchIfInt32Compare>(
-            [&] { return GetSmiConstant(idx); },
-            [&] { return GetConstant(broker()->the_hole_value()); },
-            {GetInt32Constant(i), arguments_length}, Operation::kLessThan);
-        BuildInitializeStoreTaggedField(
-            elements, value,
-            SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize);
-      }
-      return elements;
+  // Inlined unmapped arguments is simply a fixed array.
+  if (elements.length() == 0) {
+    return GetRootConstant(RootIndex::kEmptyFixedArray);
+  }
+  // Before allocating the fixed array, be sure all the arguments are tagged. If
+  // we have a node that can allocate (for instance Float64ToTagged), we don't
+  // want to emit it just before a store to the arguments elements, otherwise
+  // the allocation of the elements will not be complete before a possible GC.
+  SmallZoneVector<ValueNode*, 8> tagged_values(
+      elements.unmapped_argument_count(), zone());
+  for (int i = 0; i < elements.unmapped_argument_count(); ++i) {
+    tagged_values[i] = GetInlinedTaggedArgument(elements.start_index + i + 1);
+  }
+  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
+      FixedArray::SizeFor(elements.length()), allocation_type,
+      DeoptObject(elements));
+  AddNewNode<StoreMap>(
+      {allocation},
+      MakeRefAssumeMemoryFence(broker(),
+                               local_isolate()->factory()->fixed_array_map()));
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation, GetSmiConstant(elements.length())},
+      FixedArray::kLengthOffset);
+  int index = 0;
+  if (elements.type == CreateArgumentsType::kMappedArguments) {
+    // Prefill with holes until start_index.
+    for (; index < elements.start_index; index++) {
+      ValueNode* the_hole = GetConstant(broker()->the_hole_value());
+      AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+          {allocation, the_hole}, Context::OffsetOfElementAt(index));
     }
+  }
+  // Fill the remaining with the unmapped arguments.
+  for (int i = 0; i < elements.unmapped_argument_count(); i++, index++) {
+    // TODO(leszeks): Elide the write barrier where possible.
+    BuildInitializeStoreTaggedField(allocation, tagged_values[i],
+                                    FixedArray::OffsetOfElementAt(index));
+  }
+  EnsureType(allocation, NodeType::kJSReceiver);
+  return allocation;
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastUnmappedArgumentsElements elements, AllocationType allocation) {
+  switch (elements.type()) {
+    case FastUnmappedArgumentsElements::kMainFunction:
+      return elements.main().value;
+    case FastUnmappedArgumentsElements::kInlinedFunction:
+      return BuildAllocateFastObject(elements.inlined(), allocation);
   }
 }
 
-template <CreateArgumentsType type>
+namespace {
+// Returns the arguments length if the unmapped elements if a runtime value.
+base::Optional<ValueNode*> GetArgumentsLengthIfRuntimeValue(
+    FastUnmappedArgumentsElements unmapped_elements) {
+  switch (unmapped_elements.type()) {
+    case FastUnmappedArgumentsElements::kMainFunction:
+      return unmapped_elements.main().length;
+    case FastUnmappedArgumentsElements::kInlinedFunction:
+      return {};
+  }
+}
+}  // namespace
+
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
-    FastArgumentsObject object, AllocationType allocation_type) {
-  constexpr int store_count =
-      type == CreateArgumentsType::kMappedArguments ? 5 : 4;
+    FastMappedArgumentsElements elements, AllocationType allocation_type) {
+  // Allocate unmapped elements.
+  ValueNode* unmapped_elements =
+      BuildAllocateFastObject(elements.unmapped_elements, allocation_type);
+  // Allocate sloppy arguments object.
+  int allocation_size = SloppyArgumentsElements::SizeFor(elements.mapped_count);
+  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
+      allocation_size, allocation_type, DeoptObject(elements));
+  // TODO(victorgomes): Add AddNonEscapingUses for the arguments object to
+  // be elided.
+  AddNewNode<StoreMap>({allocation}, broker()->sloppy_arguments_elements_map());
+  BuildInitializeStoreTaggedField(allocation,
+                                  GetSmiConstant(elements.mapped_count),
+                                  FixedArray::kLengthOffset);
+  BuildInitializeStoreTaggedField(allocation, elements.context,
+                                  SloppyArgumentsElements::kContextOffset);
+  BuildInitializeStoreTaggedField(allocation, unmapped_elements,
+                                  SloppyArgumentsElements::kArgumentsOffset);
+  int param_idx_in_ctxt =
+      compilation_unit_->shared_function_info().context_parameters_start() +
+      parameter_count_without_receiver() - 1;
+  base::Optional<ValueNode*> opt_runtime_length =
+      GetArgumentsLengthIfRuntimeValue(elements.unmapped_elements);
+  for (int i = 0; i < elements.mapped_count; i++) {
+    ValueNode* value;
+    if (opt_runtime_length.has_value()) {
+      value = Select<BranchIfInt32Compare>(
+          [&] { return GetSmiConstant(param_idx_in_ctxt); },
+          [&] { return GetConstant(broker()->the_hole_value()); },
+          {GetInt32Constant(i), opt_runtime_length.value()},
+          Operation::kLessThan);
+    } else {
+      value = GetSmiConstant(param_idx_in_ctxt);
+    }
+    BuildInitializeStoreTaggedField(
+        allocation, value,
+        SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize);
+    param_idx_in_ctxt--;
+  }
+  return allocation;
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastArgumentsElements elements, AllocationType allocation) {
+  switch (elements.tag()) {
+    case FastArgumentsElementsType::kUnmapped:
+      return BuildAllocateFastObject(
+          elements.get<FastUnmappedArgumentsElements>(), allocation);
+    case FastArgumentsElementsType::kMapped:
+      return BuildAllocateFastObject(
+          elements.get<FastMappedArgumentsElements>(), allocation);
+  }
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastArgumentsObject arguments, AllocationType allocation_type) {
+  int store_count = arguments.callee.has_value() ? 5 : 4;
   DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
-  ValueNode* length = type == CreateArgumentsType::kRestParameter
-                          ? *object.callee_or_rest_length
-                          : object.length;
-  ValueNode* elements = BuildArgumentsElements(object, length, allocation_type);
+  ValueNode* length = GetArgumentsElementsLength(arguments.elements);
+  ValueNode* elements =
+      BuildAllocateFastObject(arguments.elements, allocation_type);
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
-      store_count * kTaggedSize, allocation_type, DeoptObject(object));
+      store_count * kTaggedSize, allocation_type, DeoptObject(arguments));
   // TODO(victorgomes): Add AddNonEscapingUses for the arguments object to be
   // elided.
-  BuildStoreReceiverMap(allocation, object.map);
+  BuildStoreReceiverMap(allocation, arguments.map);
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetRootConstant(RootIndex::kEmptyFixedArray)},
       JSObject::kPropertiesOrHashOffset);
@@ -9346,89 +9464,140 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   RecordKnownProperty(allocation,
                       KnownNodeAspects::LoadedPropertyMapKey::Elements(),
                       elements, false, compiler::AccessMode::kLoad);
-  if constexpr (type == CreateArgumentsType::kMappedArguments) {
-    BuildInitializeStoreTaggedField(allocation, *object.callee_or_rest_length,
+  if (arguments.callee.has_value()) {
+    BuildInitializeStoreTaggedField(allocation, arguments.callee.value(),
                                     JSSloppyArgumentsObject::kCalleeOffset);
   }
   return allocation;
 }
 
-namespace {
-bool CanAllocateSloppyArgumentElements(int parameter_count) {
-  return SloppyArgumentsElements::SizeFor(parameter_count) <=
-         kMaxRegularHeapObjectSize;
+FastUnmappedArgumentsElements
+MaglevGraphBuilder::BuildUnmappedArgumentsElements() {
+  if (is_inline()) {
+    return FastUnmappedArgumentsElements(argument_count_without_receiver());
+  } else {
+    ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
+    EnsureType(length, NodeType::kSmi);
+    ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
+        {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
+        parameter_count_without_receiver());
+    return FastUnmappedArgumentsElements(elements, length);
+  }
 }
-}  // namespace
+
+FastUnmappedArgumentsElements MaglevGraphBuilder::BuildRestParameterElements() {
+  if (is_inline()) {
+    return FastUnmappedArgumentsElements(CreateArgumentsType::kRestParameter,
+                                         parameter_count_without_receiver(),
+                                         argument_count_without_receiver());
+  } else {
+    ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
+    EnsureType(length, NodeType::kSmi);
+    ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
+        {GetTaggedValue(length)}, CreateArgumentsType::kRestParameter,
+        parameter_count_without_receiver());
+    ValueNode* rest_length =
+        AddNewNode<RestLength>({}, parameter_count_without_receiver());
+    EnsureType(rest_length, NodeType::kSmi);
+    return FastUnmappedArgumentsElements(elements, rest_length);
+  }
+}
+
+FastMappedArgumentsElements MaglevGraphBuilder::BuildMappedArgumentsElements() {
+  // If the parameter count is zero, we should have used the unmapped backing
+  // store.
+  DCHECK_GT(parameter_count_without_receiver(), 0);
+  DCHECK(CanAllocateSloppyArgumentElements());
+  int param_count = parameter_count_without_receiver();
+  // The {unmapped_elements} correspond to the extra arguments
+  // (overapplication) that do not need be "mapped" to the actual
+  // arguments. Mapped arguments are accessed via the context, whereas
+  // unmapped arguments are simply accessed via this fixed array. See
+  // SloppyArgumentsElements in src/object/arguments.h.
+  if (is_inline()) {
+    int mapped_count = std::min(param_count, argument_count_without_receiver());
+    return FastMappedArgumentsElements(
+        NewObjectId(), mapped_count, GetContext(),
+        FastUnmappedArgumentsElements(CreateArgumentsType::kMappedArguments,
+                                      mapped_count,
+                                      argument_count_without_receiver()));
+  } else {
+    ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
+    EnsureType(length, NodeType::kSmi);
+    ArgumentsElements* unmapped_elements = AddNewNode<ArgumentsElements>(
+        {GetTaggedValue(length)}, CreateArgumentsType::kMappedArguments,
+        param_count);
+    return FastMappedArgumentsElements(
+        NewObjectId(), param_count, GetContext(),
+        FastUnmappedArgumentsElements(unmapped_elements, length));
+  }
+}
+
+ValueNode* MaglevGraphBuilder::GetArgumentsElementsLength(
+    FastUnmappedArgumentsElements elements) {
+  switch (elements.type()) {
+    case FastUnmappedArgumentsElements::kMainFunction:
+      return elements.main().length;
+    case FastUnmappedArgumentsElements::kInlinedFunction:
+      return GetInt32Constant(elements.inlined().length());
+  }
+}
+
+ValueNode* MaglevGraphBuilder::GetArgumentsElementsLength(
+    FastArgumentsElements elements) {
+  switch (elements.tag()) {
+    case FastArgumentsElementsType::kUnmapped:
+      return GetArgumentsElementsLength(
+          elements.get<FastUnmappedArgumentsElements>());
+    case FastArgumentsElementsType::kMapped:
+      return GetArgumentsElementsLength(
+          elements.get<FastMappedArgumentsElements>().unmapped_elements);
+  }
+}
 
 template <CreateArgumentsType type>
-ValueNode* MaglevGraphBuilder::BuildArgumentsObject() {
-  ValueNode* length = AddNewNode<ArgumentsLength>({});
-  EnsureType(length, NodeType::kSmi);
-  int param_count = parameter_count_without_receiver();
-  ValueNode* object;
+FastArgumentsObject MaglevGraphBuilder::BuildFastArgumentsObject() {
   switch (type) {
-    case CreateArgumentsType::kMappedArguments: {
-      if (param_count == 0) {
+    case CreateArgumentsType::kMappedArguments:
+      if (parameter_count_without_receiver() == 0) {
         // If there is no aliasing, the arguments object elements are not
         // special in any way, we can just return an unmapped backing store.
-        ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
-            {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
-            param_count);
-        FastArgumentsObject arguments(
+        return FastArgumentsObject(
             NewObjectId(),
             broker()->target_native_context().sloppy_arguments_map(broker()),
-            length, elements, GetClosure());
-        object =
-            BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+            FastArgumentsElements{BuildUnmappedArgumentsElements()},
+            GetClosure());
       } else {
-        // The {unmapped_elements} correspond to the extra arguments
-        // (overapplication) that do not need be "mapped" to the actual
-        // arguments. Mapped arguments are accessed via the context, whereas
-        // unmapped arguments are simply accessed via this fixed array. See
-        // SloppyArgumentsElements in src/object/arguments.h.
-        ArgumentsElements* unmapped_elements = AddNewNode<ArgumentsElements>(
-            {GetTaggedValue(length)}, CreateArgumentsType::kMappedArguments,
-            param_count);
-        FastSloppyArgumentsElements sloppy_elements(
-            NewObjectId(), param_count, GetContext(), unmapped_elements);
-        FastArgumentsObject arguments(
+        return FastArgumentsObject(
             NewObjectId(),
             broker()->target_native_context().fast_aliased_arguments_map(
                 broker()),
-            length, sloppy_elements, GetClosure());
-        object =
-            BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+            FastArgumentsElements{BuildMappedArgumentsElements()},
+            GetClosure());
       }
-      break;
-    }
-    case CreateArgumentsType::kUnmappedArguments: {
-      ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
-          {GetTaggedValue(length)}, type, param_count);
-      FastArgumentsObject arguments(
+    case CreateArgumentsType::kUnmappedArguments:
+      return FastArgumentsObject(
           NewObjectId(),
           broker()->target_native_context().strict_arguments_map(broker()),
-          length, elements);
-      object = BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
-      break;
-    }
-    case CreateArgumentsType::kRestParameter: {
-      ValueNode* rest_length = AddNewNode<RestLength>({}, param_count);
-      EnsureType(rest_length, NodeType::kSmi);
-      ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
-          {GetTaggedValue(length)}, type, param_count);
-      FastArgumentsObject arguments(
+          FastArgumentsElements{BuildUnmappedArgumentsElements()});
+    case CreateArgumentsType::kRestParameter:
+      return FastArgumentsObject(
           NewObjectId(),
           broker()->target_native_context().js_array_packed_elements_map(
               broker()),
-          length, elements, rest_length);
-      object = BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
-      break;
-    }
+          FastArgumentsElements{BuildRestParameterElements()});
   }
+}
+
+template <CreateArgumentsType type>
+ValueNode* MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
+  auto object = BuildFastArgumentsObject<type>();
+  ValueNode* arguments =
+      BuildAllocateFastObject(object, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
   ClearCurrentAllocationBlock();
-  return object;
+  return arguments;
 }
 
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
@@ -9512,6 +9681,35 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     case FastFixedArray::kEmpty:
       return GetRootConstant(RootIndex::kEmptyFixedArray);
   }
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastContext context, AllocationType allocation_type) {
+  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
+      Context::SizeFor(context.length), allocation_type, DeoptObject(context));
+  AddNonEscapingUses(allocation, context.length + 2);
+  AddNewNode<StoreMap>({allocation}, context.map);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation, GetSmiConstant(context.length)}, Context::kLengthOffset);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation, GetConstant(context.scope_info)},
+      Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX));
+  BuildInitializeStoreTaggedField(
+      allocation, context.previous_context,
+      Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+  if (context.extension.has_value()) {
+    BuildInitializeStoreTaggedField(
+        allocation, context.extension.value(),
+        Context::OffsetOfElementAt(Context::EXTENSION_INDEX));
+  }
+  int idx = context.extension.has_value() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
+                                          : Context::MIN_CONTEXT_SLOTS;
+  ValueNode* undefined = GetConstant(broker()->undefined_value());
+  for (; idx < context.length; ++idx) {
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({allocation, undefined},
+                                               Context::OffsetOfElementAt(idx));
+  }
+  return allocation;
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
@@ -9635,38 +9833,76 @@ void MaglevGraphBuilder::VisitCreateClosure() {
   }
 }
 
+ReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
+    compiler::MapRef map, compiler::ScopeInfoRef scope, int context_length) {
+  const int kContextAllocationLimit = 16;
+  if (context_length > kContextAllocationLimit) {
+    return ReduceResult::Fail();
+  }
+  DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
+  FastContext fast_context(NewObjectId(), map, context_length, scope,
+                           GetContext());
+  ValueNode* result =
+      BuildAllocateFastObject(fast_context, AllocationType::kYoung);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentAllocationBlock();
+  return result;
+}
+
 void MaglevGraphBuilder::VisitCreateBlockContext() {
-  // TODO(v8:7700): Inline allocation when context is small.
-  // TODO(v8:7700): Update TryGetParentContext if this ever emits its own Node
-  // type.
   // CreateBlockContext <scope_info_idx>
-  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(0));
-  SetAccumulator(BuildCallRuntime(Runtime::kPushBlockContext, {scope_info}));
+  compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(0);
+  compiler::MapRef map =
+      broker()->target_native_context().block_context_map(broker());
+  // We check if the scope info contains a bare minimum number of context slots
+  // even if it got corrupted.
+  SBXCHECK_GE(scope_info.ContextLength(), Context::MIN_CONTEXT_SLOTS);
+  PROCESS_AND_RETURN_IF_DONE(TryBuildInlinedAllocatedContext(
+                                 map, scope_info, scope_info.ContextLength()),
+                             SetAccumulator);
+  // Fallback.
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kPushBlockContext, {GetConstant(scope_info)}));
 }
 
 void MaglevGraphBuilder::VisitCreateCatchContext() {
-  // TODO(v8:7700): Inline allocation when context is small.
-  // TODO(v8:7700): Update TryGetParentContext if this ever emits its own Node
-  // type.
   // CreateCatchContext <exception> <scope_info_idx>
   ValueNode* exception = LoadRegisterTagged(0);
-  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
-  SetAccumulator(
-      BuildCallRuntime(Runtime::kPushCatchContext, {exception, scope_info}));
+  compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
+  FastContext fast_context(
+      NewObjectId(),
+      broker()->target_native_context().catch_context_map(broker()),
+      Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), exception);
+  SetAccumulator(BuildAllocateFastObject(fast_context, AllocationType::kYoung));
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentAllocationBlock();
 }
 
 void MaglevGraphBuilder::VisitCreateFunctionContext() {
   compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
   uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
+  compiler::MapRef map =
+      broker()->target_native_context().function_context_map(broker());
+  PROCESS_AND_RETURN_IF_DONE(
+      TryBuildInlinedAllocatedContext(map, info,
+                                      slot_count + Context::MIN_CONTEXT_SLOTS),
+      SetAccumulator);
+  // Fallback.
   SetAccumulator(AddNewNode<CreateFunctionContext>(
       {GetContext()}, info, slot_count, ScopeType::FUNCTION_SCOPE));
 }
 
 void MaglevGraphBuilder::VisitCreateEvalContext() {
-  // TODO(v8:7700): Update TryGetParentContext if this ever emits its own Node
-  // type.
   compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
   uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
+  compiler::MapRef map =
+      broker()->target_native_context().eval_context_map(broker());
+  PROCESS_AND_RETURN_IF_DONE(
+      TryBuildInlinedAllocatedContext(map, info,
+                                      slot_count + Context::MIN_CONTEXT_SLOTS),
+      SetAccumulator);
   if (slot_count <= static_cast<uint32_t>(
                         ConstructorBuiltins::MaximumFunctionContextSlots())) {
     SetAccumulator(AddNewNode<CreateFunctionContext>(
@@ -9678,47 +9914,69 @@ void MaglevGraphBuilder::VisitCreateEvalContext() {
 }
 
 void MaglevGraphBuilder::VisitCreateWithContext() {
-  // TODO(v8:7700): Inline allocation when context is small.
   // CreateWithContext <register> <scope_info_idx>
   ValueNode* object = LoadRegisterTagged(0);
-  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
-  SetAccumulator(
-      BuildCallRuntime(Runtime::kPushWithContext, {object, scope_info}));
+  compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
+  FastContext fast_context(
+      NewObjectId(),
+      broker()->target_native_context().with_context_map(broker()),
+      Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), object);
+  SetAccumulator(BuildAllocateFastObject(fast_context, AllocationType::kYoung));
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentAllocationBlock();
+}
+
+bool MaglevGraphBuilder::CanAllocateSloppyArgumentElements() {
+  return SloppyArgumentsElements::SizeFor(parameter_count()) <=
+         kMaxRegularHeapObjectSize;
+}
+
+bool MaglevGraphBuilder::CanAllocateInlinedArgumentElements() {
+  DCHECK(is_inline());
+  return FixedArray::SizeFor(argument_count_without_receiver()) <=
+         kMaxRegularHeapObjectSize;
 }
 
 void MaglevGraphBuilder::VisitCreateMappedArguments() {
   compiler::SharedFunctionInfoRef shared =
       compilation_unit_->shared_function_info();
-  if (is_inline() || shared.object()->has_duplicate_parameters()) {
-    SetAccumulator(
-        BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}));
-  } else if (CanAllocateSloppyArgumentElements(
-                 parameter_count_without_receiver())) {
-    SetAccumulator(
-        BuildArgumentsObject<CreateArgumentsType::kMappedArguments>());
-  } else {
-    SetAccumulator(
-        BuildCallBuiltin<Builtin::kFastNewSloppyArguments>({GetClosure()}));
+  if (!shared.object()->has_duplicate_parameters()) {
+    if (((is_inline() && CanAllocateInlinedArgumentElements()) ||
+         (!is_inline() && CanAllocateSloppyArgumentElements()))) {
+      SetAccumulator(BuildAndAllocateArgumentsObject<
+                     CreateArgumentsType::kMappedArguments>());
+      return;
+    } else if (!is_inline()) {
+      SetAccumulator(
+          BuildCallBuiltin<Builtin::kFastNewSloppyArguments>({GetClosure()}));
+      return;
+    }
   }
+  // Generic fallback.
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}));
 }
 
 void MaglevGraphBuilder::VisitCreateUnmappedArguments() {
-  if (is_inline()) {
-    SetAccumulator(
-        BuildCallRuntime(Runtime::kNewStrictArguments, {GetClosure()}));
-  } else {
-    SetAccumulator(
-        BuildArgumentsObject<CreateArgumentsType::kUnmappedArguments>());
+  if (!is_inline() || CanAllocateInlinedArgumentElements()) {
+    SetAccumulator(BuildAndAllocateArgumentsObject<
+                   CreateArgumentsType::kUnmappedArguments>());
+    return;
   }
+  // Generic fallback.
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kNewStrictArguments, {GetClosure()}));
 }
 
 void MaglevGraphBuilder::VisitCreateRestParameter() {
-  if (is_inline()) {
+  if (!is_inline() || CanAllocateInlinedArgumentElements()) {
     SetAccumulator(
-        BuildCallRuntime(Runtime::kNewRestParameter, {GetClosure()}));
-  } else {
-    SetAccumulator(BuildArgumentsObject<CreateArgumentsType::kRestParameter>());
+        BuildAndAllocateArgumentsObject<CreateArgumentsType::kRestParameter>());
+    return;
   }
+  // Generic fallback.
+  SetAccumulator(BuildCallRuntime(Runtime::kNewRestParameter, {GetClosure()}));
 }
 
 void MaglevGraphBuilder::PeelLoop() {
@@ -9849,6 +10107,9 @@ void MaglevGraphBuilder::VisitJumpIfTrueConstant() { VisitJumpIfTrue(); }
 void MaglevGraphBuilder::VisitJumpIfFalseConstant() { VisitJumpIfFalse(); }
 void MaglevGraphBuilder::VisitJumpIfJSReceiverConstant() {
   VisitJumpIfJSReceiver();
+}
+void MaglevGraphBuilder::VisitJumpIfForInDoneConstant() {
+  VisitJumpIfForInDone();
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanTrueConstant() {
   VisitJumpIfToBooleanTrue();
@@ -10078,6 +10339,11 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(
             node->Cast<TestUndetectable>()->check_type(), true_target,
             false_target);
         break;
+      case Opcode::kHoleyFloat64IsHole:
+        block = FinishBlock<BranchIfFloat64IsHole>(
+            {node->Cast<HoleyFloat64IsHole>()->input().node()}, true_target,
+            false_target);
+        break;
 
       default:
         block = FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
@@ -10296,6 +10562,17 @@ void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   StartFallthroughBlock(next_offset(), block);
 }
+void MaglevGraphBuilder::VisitJumpIfForInDone() {
+  // JumpIfForInDone <target> <index> <cache_length>
+  ValueNode* index = LoadRegisterInt32(1);
+  ValueNode* cache_length = LoadRegisterInt32(2);
+  BasicBlock* block = FinishBlock<BranchIfInt32Compare>(
+      {index, cache_length}, Operation::kEqual,
+      &jump_targets_[iterator_.GetJumpTargetOffset()],
+      &jump_targets_[next_offset()]);
+  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  StartFallthroughBlock(next_offset(), block);
+}
 
 void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   // SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>
@@ -10409,14 +10686,6 @@ void MaglevGraphBuilder::VisitForInPrepare() {
   }
 }
 
-void MaglevGraphBuilder::VisitForInContinue() {
-  // ForInContinue <index> <cache_length>
-  ValueNode* index = LoadRegisterInt32(0);
-  ValueNode* cache_length = LoadRegisterInt32(1);
-  SetAccumulator(
-      AddNewNode<Int32Compare>({index, cache_length}, Operation::kLessThan));
-}
-
 void MaglevGraphBuilder::VisitForInNext() {
   // ForInNext <receiver> <index> <cache_info_pair>
   ValueNode* receiver = LoadRegisterTagged(0);
@@ -10440,6 +10709,7 @@ void MaglevGraphBuilder::VisitForInNext() {
           AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
       AddNewNode<CheckDynamicValue>({receiver_map, cache_type});
       auto* key = AddNewNode<LoadFixedArrayElement>({cache_array, index});
+      EnsureType(key, NodeType::kInternalizedString);
       SetAccumulator(key);
 
       current_for_in_state.receiver = receiver;
@@ -10475,8 +10745,10 @@ void MaglevGraphBuilder::VisitForInNext() {
 }
 
 void MaglevGraphBuilder::VisitForInStep() {
-  ValueNode* index = LoadRegisterInt32(0);
-  SetAccumulator(AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
+  interpreter::Register index_reg = iterator_.GetRegisterOperand(0);
+  ValueNode* index = GetInt32(index_reg);
+  StoreRegister(index_reg,
+                AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
   if (!in_peeled_iteration_) {
     // With loop peeling, only the `ForInStep` in the non-peeled loop body marks
     // the end of for-in.

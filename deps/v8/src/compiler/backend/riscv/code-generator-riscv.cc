@@ -3867,6 +3867,12 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     __ Sra64(kScratchReg, i.OutputRegister(), 32);
     __ Sra64(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
+  } else if (instr->arch_opcode() == kRiscvAdd32 ||
+             instr->arch_opcode() == kRiscvSub32) {
+    Condition cc = FlagsConditionToConditionOvf(condition);
+    __ Sll64(kScratchReg, i.OutputRegister(), 32);
+    __ Srl64(kScratchReg, kScratchReg, 32);
+    __ Branch(tlabel, cc, i.OutputRegister(), Operand(kScratchReg));
   } else if (instr->arch_opcode() == kRiscvAddOvf64 ||
              instr->arch_opcode() == kRiscvSubOvf64) {
 #elif V8_TARGET_ARCH_RISCV32
@@ -3952,8 +3958,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
       __ BranchFalseF(kScratchReg, tlabel);
     }
   } else {
-    PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
-           instr->arch_opcode());
+    std::cout << "AssembleArchBranch Unimplemented arch_opcode:"
+              << instr->arch_opcode() << " " << condition << std::endl;
     UNIMPLEMENTED();
   }
   if (!fallthru) __ Branch(flabel);  // no fallthru to flabel.

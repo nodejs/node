@@ -95,6 +95,9 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                                                        size_t argc,
                                                        void** values);
 
+  static inline void MarkingFromCppHeapWrappable(Tagged<JSObject> host,
+                                                 void* value);
+
   static MarkingBarrier* SetForThread(MarkingBarrier*);
 
   static MarkingBarrier* CurrentMarkingBarrier(
@@ -124,6 +127,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                           Tagged<TrustedObject> value);
   static void MarkingSlowFromGlobalHandle(Tagged<HeapObject> value);
   static void MarkingSlowFromInternalFields(Heap* heap, Tagged<JSObject> host);
+  static void MarkingSlowFromCppHeapWrappable(Heap* heap, void* object);
 
   static inline void GenerationalBarrierFromInternalFields(
       Tagged<JSObject> host, void* value);

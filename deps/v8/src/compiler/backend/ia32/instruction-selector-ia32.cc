@@ -2171,7 +2171,6 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
   IA32OperandGeneratorT<Adapter> g(this);
 
   {  // Temporary scope to minimize indentation change churn below.
-
     // Prepare for C function call.
     if (call_descriptor->IsCFunctionCall()) {
       InstructionOperand temps[] = {g.TempRegister()};
@@ -2261,43 +2260,6 @@ void InstructionSelectorT<Adapter>::EmitPrepareResults(
 template <typename Adapter>
 bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
   return true;
-}
-
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  using namespace turboshaft;  // NOLINT(build/namespaces)
-  const turboshaft::Graph* graph = this->turboshaft_graph();
-  // Projections are always emitted right after the operation.
-  for (OpIndex next = graph->NextIndex(node); next.valid();
-       next = graph->NextIndex(next)) {
-    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
-    if (projection == nullptr) break;
-    if (projection->index == projection_index) return next;
-  }
-
-  // If there is no Projection with index {projection_index} following the
-  // operation, then there shouldn't be any such Projection in the graph. We
-  // verify this in Debug mode.
-#ifdef DEBUG
-  for (OpIndex use : turboshaft_uses(node)) {
-    if (const ProjectionOp* projection =
-            this->Get(use).TryCast<ProjectionOp>()) {
-      DCHECK_EQ(projection->input(), node);
-      if (projection->index == projection_index) {
-        UNREACHABLE();
-      }
-    }
-  }
-#endif  // DEBUG
-  return OpIndex::Invalid();
 }
 
 namespace {
@@ -2573,14 +2535,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (const ComparisonOp* equal = TryCast<Opmask::kWord32Equal>(value)) {
-    if (!CanCover(user, value)) break;
-    if (!MatchIntegralZero(equal->right())) break;
+  ConsumeEqualZero(&user, &value, cont);
 
-    user = value;
-    value = equal->left();
-    cont->Negate();
-  }
   if (CanCover(user, value)) {
     const Operation& value_op = Get(value);
     if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
@@ -3009,7 +2965,7 @@ MachineType AtomicOpType(InstructionSelectorT<TurboshaftAdapter>* selector,
                          turboshaft::OpIndex node) {
   const turboshaft::AtomicRMWOp& atomic_op =
       selector->Get(node).template Cast<turboshaft::AtomicRMWOp>();
-  return atomic_op.input_rep.ToMachineType();
+  return atomic_op.memory_rep.ToMachineType();
 }
 
 MachineType AtomicOpType(InstructionSelectorT<TurbofanAdapter>* selector,

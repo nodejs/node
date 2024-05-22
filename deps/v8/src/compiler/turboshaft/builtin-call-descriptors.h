@@ -198,10 +198,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    // TODO(chromium:1489500, nicohartmann@): We can probably relax this to
-    // base_effects.AssumesConsistentHeap().CanReadMemory() but for now we go
-    // with stronger effects until we better understand the recent crashes.
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+    static constexpr OpEffects kEffects =
+        base_effects.AssumesConsistentHeap().CanReadMemory().CanAllocate();
   };
   using FindOrderedHashMapEntry =
       FindOrderedHashEntry<Builtin::kFindOrderedHashMapEntry>;
@@ -427,7 +425,7 @@ struct BuiltinCallDescriptor {
 
   struct ToObject : public Descriptor<ToObject> {
     static constexpr auto kFunction = Builtin::kToObject;
-    using arguments_t = std::tuple<V<Object>>;
+    using arguments_t = std::tuple<V<JSPrimitive>>;
     using results_t = std::tuple<V<Object>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -436,6 +434,24 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects =
         base_effects.CanReadMemory().CanAllocate();
   };
+
+  template <Builtin B>
+  struct CreateFunctionContext : public Descriptor<CreateFunctionContext<B>> {
+    static constexpr auto kFunction = B;
+    using arguments_t = std::tuple<V<ScopeInfo>, V<Word32>>;
+    using results_t = std::tuple<V<Context>>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocate();
+  };
+
+  using FastNewFunctionContextFunction =
+      CreateFunctionContext<Builtin::kFastNewFunctionContextFunction>;
+  using FastNewFunctionContextEval =
+      CreateFunctionContext<Builtin::kFastNewFunctionContextEval>;
 
   struct Typeof : public Descriptor<Typeof> {
     static constexpr auto kFunction = Builtin::kTypeof;
@@ -589,20 +605,21 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoWrite;
     static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity();
+        base_effects.CanAllocateWithoutIdentity().CanLeaveCurrentFunction();
   };
 
   struct WasmStringNewWtf8Array : public Descriptor<WasmStringNewWtf8Array> {
     static constexpr auto kFunction = Builtin::kWasmStringNewWtf8Array;
     using arguments_t = std::tuple<V<Word32>, V<Word32>, V<WasmArray>, V<Smi>>;
-    using results_t = std::tuple<V<Object>>;  // String|Null
+    using results_t = std::tuple<V<WasmStringRefNullable>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringNewWtf16Array : public Descriptor<WasmStringNewWtf16Array> {
@@ -614,8 +631,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringViewWtf8Slice : public Descriptor<WasmStringViewWtf8Slice> {
@@ -679,8 +697,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteHeapMemory();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteHeapMemory()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmFloat64ToString : public Descriptor<WasmFloat64ToString> {
@@ -849,7 +868,7 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmArrayNewSegment;
     using arguments_t =
         std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Map>>;
-    using results_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<WasmArray>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -874,14 +893,15 @@ struct BuiltinCallDescriptor {
   struct WasmStringNewWtf8 : public Descriptor<WasmStringNewWtf8> {
     static constexpr auto kFunction = Builtin::kWasmStringNewWtf8;
     using arguments_t = std::tuple<V<Word32>, V<Word32>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<Object>>;  // String|Null
+    using results_t = std::tuple<V<WasmStringRefNullable>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringNewWtf16 : public Descriptor<WasmStringNewWtf16> {
@@ -893,8 +913,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringFromDataSegment
@@ -902,15 +923,14 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmStringFromDataSegment;
     using arguments_t =
         std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<WasmStringRefNullable>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
     // No "CanReadMemory" because data segments are immutable.
     static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity();
+        base_effects.CanAllocateWithoutIdentity().RequiredWhenUnused();
   };
 
   struct WasmStringConst : public Descriptor<WasmStringConst> {
@@ -971,7 +991,7 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory();
+        base_effects.CanReadMemory().CanWriteMemory().CanLeaveCurrentFunction();
   };
 
   struct WasmStringEqual : public Descriptor<WasmStringEqual> {
@@ -1021,7 +1041,7 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory();
+        base_effects.CanReadMemory().CanWriteMemory().CanLeaveCurrentFunction();
   };
 
   struct WasmStringViewWtf16Encode
@@ -1065,7 +1085,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringAsIter : public Descriptor<WasmStringAsIter> {
     static constexpr auto kFunction = Builtin::kWasmStringAsIter;
     using arguments_t = std::tuple<V<String>>;
-    using results_t = std::tuple<OpIndex /*WasmStringViewIter*/>;
+    using results_t = std::tuple<V<WasmStringViewIter>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -1075,7 +1095,7 @@ struct BuiltinCallDescriptor {
 
   struct WasmStringViewIterNext : public Descriptor<WasmStringViewIterNext> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterNext;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1088,7 +1108,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringViewIterAdvance
       : public Descriptor<WasmStringViewIterAdvance> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterAdvance;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/, V<Word32>>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>, V<Word32>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1101,7 +1121,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringViewIterRewind
       : public Descriptor<WasmStringViewIterRewind> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterRewind;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/, V<Word32>>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>, V<Word32>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1113,7 +1133,7 @@ struct BuiltinCallDescriptor {
 
   struct WasmStringViewIterSlice : public Descriptor<WasmStringViewIterSlice> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterSlice;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/, V<Word32>>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>, V<Word32>>;
     using results_t = std::tuple<V<String>>;
 
     static constexpr bool kNeedsFrameState = false;

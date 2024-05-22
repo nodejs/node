@@ -255,6 +255,8 @@ using kWord32Equal = ComparisonMask::For<ComparisonOp::Kind::kEqual,
                                          WordRepresentation::Word32()>;
 using kWord64Equal = ComparisonMask::For<ComparisonOp::Kind::kEqual,
                                          WordRepresentation::Word64()>;
+using ComparisonKindMask = MaskBuilder<ComparisonOp, FIELD(ComparisonOp, kind)>;
+using kComparisonEqual = ComparisonKindMask::For<ComparisonOp::Kind::kEqual>;
 
 using ChangeOpMask =
     MaskBuilder<ChangeOp, FIELD(ChangeOp, kind), FIELD(ChangeOp, assumption),
@@ -320,6 +322,11 @@ using Simd128BinopMask =
 using kSimd128I32x4Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI32x4Mul>;
 using kSimd128I16x8Mul = Simd128BinopMask::For<Simd128BinopOp::Kind::kI16x8Mul>;
 
+#define SIMD_SIGN_EXTENSION_BINOP_MASK(kind) \
+  using kSimd128##kind = Simd128BinopMask::For<Simd128BinopOp::Kind::k##kind>;
+FOREACH_SIMD_128_BINARY_SIGN_EXTENSION_OPCODE(SIMD_SIGN_EXTENSION_BINOP_MASK)
+#undef SIMD_SIGN_EXTENSION_BINOP_MASK
+
 using Simd128UnaryMask =
     MaskBuilder<Simd128UnaryOp, FIELD(Simd128UnaryOp, kind)>;
 using kSimd128I16x8ExtAddPairwiseI8x16S =
@@ -330,6 +337,13 @@ using kSimd128I32x4ExtAddPairwiseI16x8S =
     Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S>;
 using kSimd128I32x4ExtAddPairwiseI16x8U =
     Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8U>;
+using kSimd128ReverseBytes =
+    Simd128UnaryMask::For<Simd128UnaryOp::Kind::kSimd128ReverseBytes>;
+
+#define SIMD_SIGN_EXTENSION_UNARY_MASK(kind) \
+  using kSimd128##kind = Simd128UnaryMask::For<Simd128UnaryOp::Kind::k##kind>;
+FOREACH_SIMD_128_UNARY_SIGN_EXTENSION_OPCODE(SIMD_SIGN_EXTENSION_UNARY_MASK)
+#undef SIMD_SIGN_EXTENSION_UNARY_MASK
 
 using Simd128ShiftMask =
     MaskBuilder<Simd128ShiftOp, FIELD(Simd128ShiftOp, kind)>;

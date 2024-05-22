@@ -126,11 +126,13 @@ class Reader {
   const uint8_t* pos_;
 };
 
-void WriteHeader(Writer* writer) {
+void WriteHeader(Writer* writer, WasmFeatures enabled_features) {
+  DCHECK_EQ(0, writer->bytes_written());
   writer->Write(SerializedData::kMagicNumber);
   writer->Write(Version::Hash());
   writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer->Write(FlagList::Hash());
+  writer->Write(enabled_features.ToIntegral());
   DCHECK_EQ(WasmSerializer::kHeaderSize, writer->bytes_written());
 }
 
@@ -541,7 +543,7 @@ bool WasmSerializer::SerializeNativeModule(base::Vector<uint8_t> buffer) const {
   if (buffer.size() < measured_size) return false;
 
   Writer writer(buffer);
-  WriteHeader(&writer);
+  WriteHeader(&writer, native_module_->enabled_features());
 
   if (!serializer.Write(&writer)) return false;
   DCHECK_EQ(measured_size, writer.bytes_written());
@@ -927,11 +929,12 @@ void NativeModuleDeserializer::Publish(std::vector<DeserializationUnit> batch) {
   }
 }
 
-bool IsSupportedVersion(base::Vector<const uint8_t> header) {
+bool IsSupportedVersion(base::Vector<const uint8_t> header,
+                        WasmFeatures enabled_features) {
   if (header.size() < WasmSerializer::kHeaderSize) return false;
   uint8_t current_version[WasmSerializer::kHeaderSize];
   Writer writer({current_version, WasmSerializer::kHeaderSize});
-  WriteHeader(&writer);
+  WriteHeader(&writer, enabled_features);
   return memcmp(header.begin(), current_version, WasmSerializer::kHeaderSize) ==
          0;
 }
@@ -940,15 +943,14 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes_vec,
     CompileTimeImports compile_imports, base::Vector<const char> source_url) {
+  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
-  if (!IsSupportedVersion(data)) return {};
+  if (!IsSupportedVersion(data, enabled_features)) return {};
 
   // Make the copy of the wire bytes early, so we use the same memory for
   // decoding, lookup in the native module cache, and insertion into the cache.
   auto owned_wire_bytes = base::OwnedVector<uint8_t>::Of(wire_bytes_vec);
 
-  // TODO(titzer): module features should be part of the serialization format.
-  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, owned_wire_bytes.as_vector(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),

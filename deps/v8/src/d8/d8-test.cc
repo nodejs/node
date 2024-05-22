@@ -1426,7 +1426,7 @@ void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
         "FastCAPI helper must be constructed with new.");
     return;
   }
-  Local<Object> api_object = info.Holder();
+  Local<Object> api_object = info.This();
   api_object->SetAlignedPointerInInternalField(
       FastCApiObject::kV8WrapperObjectIndex,
       reinterpret_cast<void*>(&kFastCApiObject));

@@ -105,7 +105,8 @@ void ConstantExpressionInterface::RefNull(FullDecoder* decoder, ValueType type,
                                           Value* result) {
   if (!generate_value()) return;
   result->runtime_value =
-      WasmValue(type == kWasmExternRef || type == kWasmNullExternRef
+      WasmValue((IsSubtypeOf(type, kWasmExternRef, decoder->module_) ||
+                 IsSubtypeOf(type, kWasmExnRef, decoder->module_))
                     ? Handle<Object>::cast(isolate_->factory()->null_value())
                     : Handle<Object>::cast(isolate_->factory()->wasm_null()),
                 type);
@@ -201,7 +202,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
     case kRefNull:
       return WasmValue(
           type == kWasmExternRef || type == kWasmNullExternRef ||
-                  type == kWasmExnRef
+                  type == kWasmExnRef || type == kWasmNullExnRef
               ? Handle<Object>::cast(isolate->factory()->null_value())
               : Handle<Object>::cast(isolate->factory()->wasm_null()),
           type);

@@ -38,6 +38,11 @@ class Isolate;
  * logic for reclaiming entries such as garbage collection. This must be done
  * by the child classes.
  *
+ * For the purpose of memory management, the table is partitioned into Segments
+ * (for example 64kb memory chunks) that are grouped together in "Spaces". All
+ * segments in a space share a freelist, and so entry allocation and garbage
+ * collection happen on the level of spaces.
+ *
  * The Entry type defines how the freelist is represented. For that, it must
  * implement the following methods:
  * - void MakeFreelistEntry(uint32_t next_entry_index)

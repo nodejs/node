@@ -39,7 +39,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   }
 
   result.func_index = func_index_;
-  result.requested_tier = tier_;
 
   return result;
 }

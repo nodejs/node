@@ -23,6 +23,7 @@ namespace internal {
   V(BUILTIN_CONTINUATION_FRAME, 3)                     \
   IF_WASM(V, JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4) \
   IF_WASM(V, WASM_INLINED_INTO_JS_FRAME, 3)            \
+  IF_WASM(V, LIFTOFF_FRAME, 2)                         \
   V(INLINED_EXTRA_ARGUMENTS, 2)
 
 #define TRANSLATION_OPCODE_LIST(V)    \

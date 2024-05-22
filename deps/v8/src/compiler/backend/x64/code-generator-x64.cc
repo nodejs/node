@@ -1293,12 +1293,20 @@ void SetupSimdImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
 
 void SetupSimd256ImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
                                      YMMRegister reg, XMMRegister scratch) {
-  assembler->Move(reg, make_uint64(imms[3], imms[2]),
-                  make_uint64(imms[1], imms[0]));
-  assembler->Move(scratch, make_uint64(imms[7], imms[6]),
-                  make_uint64(imms[5], imms[4]));
-  CpuFeatureScope avx_scope(assembler, AVX2);
-  assembler->vinserti128(reg, reg, scratch, uint8_t{1});
+  bool is_splat = std::all_of(imms, imms + kSimd256Size,
+                              [imms](uint32_t v) { return v == imms[0]; });
+  if (is_splat) {
+    assembler->Move(scratch, imms[0]);
+    CpuFeatureScope avx_scope(assembler, AVX2);
+    assembler->vpbroadcastd(reg, scratch);
+  } else {
+    assembler->Move(reg, make_uint64(imms[3], imms[2]),
+                    make_uint64(imms[1], imms[0]));
+    assembler->Move(scratch, make_uint64(imms[7], imms[6]),
+                    make_uint64(imms[5], imms[4]));
+    CpuFeatureScope avx_scope(assembler, AVX2);
+    assembler->vinserti128(reg, reg, scratch, uint8_t{1});
+  }
 }
 
 }  // namespace
@@ -3220,12 +3228,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x8Splat
-            __ F32x8Splat(i.OutputSimd256Register(), i.InputSimd128Register(0));
+            __ F32x8Splat(i.OutputSimd256Register(), i.InputFloatRegister(0));
             break;
           }
           case kL64: {
             // F64X4Splat
-            __ F64x4Splat(i.OutputSimd256Register(), i.InputSimd128Register(0));
+            __ F64x4Splat(i.OutputSimd256Register(), i.InputDoubleRegister(0));
             break;
           }
           default:
@@ -3746,6 +3754,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    kScratchDoubleReg);
       break;
     }
+    case kX64F64x4Qfma: {
+      __ F64x4Qfma(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
+      break;
+    }
+    case kX64F64x4Qfms: {
+      __ F64x4Qfms(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
+      break;
+    }
     case kX64F64x2ConvertLowI32x4S: {
       __ Cvtdq2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -3842,6 +3862,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ F32x4Qfms(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1), i.InputSimd128Register(2),
                    kScratchDoubleReg);
+      break;
+    }
+    case kX64F32x8Qfma: {
+      __ F32x8Qfma(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
+      break;
+    }
+    case kX64F32x8Qfms: {
+      __ F32x8Qfms(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
       break;
     }
     case kX64Minps: {
@@ -4955,6 +4987,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                             kScratchRegister);
       break;
     }
+    case kX64I32x8SConvertF32x8: {
+      __ I32x8SConvertF32x8(i.OutputSimd256Register(),
+                            i.InputSimd256Register(0), kScratchSimd256Reg,
+                            kScratchRegister);
+      break;
+    }
     case kX64I32x4SConvertI16x8Low: {
       __ Pmovsxwd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -6043,8 +6081,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Shufps: {
-      __ Shufps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1), i.InputUint8(2));
+      if (instr->Output()->IsSimd128Register()) {
+        __ Shufps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputUint8(2));
+      } else {
+        DCHECK(instr->Output()->IsSimd256Register());
+        DCHECK(CpuFeatures::IsSupported(AVX));
+        CpuFeatureScope scope(masm(), AVX);
+        __ vshufps(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputUint8(2));
+      }
       break;
     }
     case kX64S32x4Rotate: {
@@ -6145,6 +6191,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S32x4UnpackHigh:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhdq);
       break;
+    case kX64S32x8UnpackHigh: {
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      YMMRegister dst = i.OutputSimd256Register();
+      __ vpunpckhdq(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
     case kX64S16x8UnpackHigh:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhwd);
       break;
@@ -6157,6 +6209,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S32x4UnpackLow:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckldq);
       break;
+    case kX64S32x8UnpackLow: {
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      YMMRegister dst = i.OutputSimd256Register();
+      __ vpunpckldq(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
     case kX64S16x8UnpackLow:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklwd);
       break;
@@ -6765,17 +6823,24 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
       branch->fallthru ? Label::kNear : Label::kFar;
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
-  if (branch->condition == kUnorderedEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
-  } else if (branch->condition == kUnorderedNotEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), tlabel);
-  }
-  __ j(FlagsConditionToCondition(branch->condition), tlabel);
-
-  if (!branch->fallthru) {
-    if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+  if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+    if (branch->condition == kUnorderedEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ aligned_j(FlagsConditionToCondition(branch->condition), tlabel);
+    if (!branch->fallthru) {
       __ aligned_jmp(flabel, flabel_distance);
-    } else {
+    }
+  } else {
+    if (branch->condition == kUnorderedEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ j(FlagsConditionToCondition(branch->condition), tlabel);
+    if (!branch->fallthru) {
       __ jmp(flabel, flabel_distance);
     }
   }
@@ -6788,14 +6853,24 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
   Label nodeopt;
-  if (branch->condition == kUnorderedEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
-  } else if (branch->condition == kUnorderedNotEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), tlabel);
+  if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+    if (branch->condition == kUnorderedEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ aligned_j(FlagsConditionToCondition(branch->condition), tlabel);
+  } else {
+    if (branch->condition == kUnorderedEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ j(FlagsConditionToCondition(branch->condition), tlabel);
   }
-  __ j(FlagsConditionToCondition(branch->condition), tlabel);
 
-  if (v8_flags.deopt_every_n_times > 0) {
+  // TODO(14667): Support this test mode in wasm in an isolate-independent way.
+  if (v8_flags.deopt_every_n_times > 0 && isolate() != nullptr) {
     ExternalReference counter =
         ExternalReference::stress_deopt_count(isolate());
 

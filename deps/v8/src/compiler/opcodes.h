@@ -1167,6 +1167,7 @@
   V(I8x32GtU)                      \
   V(I8x32GeS)                      \
   V(I8x32GeU)                      \
+  V(I32x8SConvertF32x8)            \
   V(I32x8UConvertF32x8)            \
   V(F64x4ConvertI32x4S)            \
   V(F32x8SConvertI32x8)            \
@@ -1229,7 +1230,11 @@
   V(F64x4Pmax)                     \
   V(F64x4Splat)                    \
   V(F32x8Splat)                    \
-  V(I8x32Shuffle)
+  V(I8x32Shuffle)                  \
+  V(F32x8Qfma)                     \
+  V(F32x8Qfms)                     \
+  V(F64x4Qfma)                     \
+  V(F64x4Qfms)
 
 #define VALUE_OP_LIST(V)              \
   COMMON_OP_LIST(V)                   \

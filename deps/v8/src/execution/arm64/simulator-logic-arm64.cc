@@ -911,14 +911,7 @@ LogicVRegister Simulator::sqrdmulh(VectorFormat vform, LogicVRegister dst,
 }
 
 uint16_t Simulator::PolynomialMult(uint8_t op1, uint8_t op2) {
-  uint16_t result = 0;
-  uint16_t extended_op2 = op2;
-  for (int i = 0; i < 8; ++i) {
-    if ((op1 >> i) & 1) {
-      result = result ^ (extended_op2 << i);
-    }
-  }
-  return result;
+  return PolynomialMult128(op1, op2, 8).second;
 }
 
 LogicVRegister Simulator::pmul(VectorFormat vform, LogicVRegister dst,
@@ -937,10 +930,13 @@ LogicVRegister Simulator::pmull(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src2) {
   VectorFormat vform_src = VectorFormatHalfWidth(vform);
   dst.ClearForWrite(vform);
-  for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+  // Process the elements in reverse to avoid problems when the destination
+  // register is the same as a source.
+  for (int i = LaneCountFromFormat(vform) - 1; i > -1; i--) {
     dst.SetUint(
         vform, i,
-        PolynomialMult(src1.Uint(vform_src, i), src2.Uint(vform_src, i)));
+        PolynomialMult128(src1.Uint(vform_src, i), src2.Uint(vform_src, i),
+                          LaneSizeInBitsFromFormat(vform_src)));
   }
   return dst;
 }
@@ -953,8 +949,9 @@ LogicVRegister Simulator::pmull2(VectorFormat vform, LogicVRegister dst,
   int lane_count = LaneCountFromFormat(vform);
   for (int i = 0; i < lane_count; i++) {
     dst.SetUint(vform, i,
-                PolynomialMult(src1.Uint(vform_src, lane_count + i),
-                               src2.Uint(vform_src, lane_count + i)));
+                PolynomialMult128(src1.Uint(vform_src, lane_count + i),
+                                  src2.Uint(vform_src, lane_count + i),
+                                  LaneSizeInBitsFromFormat(vform_src)));
   }
   return dst;
 }

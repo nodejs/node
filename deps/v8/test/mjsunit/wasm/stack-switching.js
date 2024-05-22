@@ -8,7 +8,7 @@
 // We pick a small stack size to run the stack overflow test quickly, but big
 // enough to run all the tests.
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestSuspender() {
   print(arguments.callee.name);

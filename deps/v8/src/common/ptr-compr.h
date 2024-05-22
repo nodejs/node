@@ -198,7 +198,7 @@ static inline void WriteMaybeUnalignedValue(Address p, V value) {
 // For all other configurations this scope object is a no-op.
 class PtrComprCageAccessScope final {
  public:
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate);
   V8_INLINE ~PtrComprCageAccessScope();
 #else
@@ -207,13 +207,13 @@ class PtrComprCageAccessScope final {
 #endif
 
  private:
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   const Address cage_base_;
 #ifdef V8_EXTERNAL_CODE_SPACE
 // In case this configuration is necessary the code cage base must be saved too.
 #error Multi-cage pointer compression with external code space is not supported
 #endif  // V8_EXTERNAL_CODE_SPACE
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
 
 }  // namespace v8::internal

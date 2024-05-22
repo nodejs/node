@@ -491,6 +491,7 @@ bool InitClassPrototype(Isolate* isolate,
   map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
   Map::SetPrototype(isolate, map, prototype_parent);
+  isolate->UpdateProtectorsOnSetPrototype(prototype, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
   map->SetConstructor(*constructor);
   Handle<FixedArray> computed_properties(

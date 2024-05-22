@@ -59,8 +59,8 @@ class ValueSerializerTest : public TestWithIsolate {
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
         isolate(), [](const FunctionCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
-          info.Holder()->SetInternalField(0, info[0]);
-          info.Holder()->SetInternalField(1, info[1]);
+          info.HolderSoonToBeDeprecated()->SetInternalField(0, info[0]);
+          info.HolderSoonToBeDeprecated()->SetInternalField(1, info[1]);
         });
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
     function_template->InstanceTemplate()->SetAccessor(

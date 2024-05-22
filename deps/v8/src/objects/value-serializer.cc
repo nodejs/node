@@ -1131,11 +1131,8 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
 
-  // TODO(titzer): introduce a Utils::ToLocal for WasmModuleObject.
   Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
-      reinterpret_cast<v8::Isolate*>(isolate_),
-      v8::Local<v8::WasmModuleObject>::Cast(
-          Utils::ToLocal(Handle<JSObject>::cast(object))));
+      reinterpret_cast<v8::Isolate*>(isolate_), Utils::ToLocal(object));
   RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
   uint32_t id = 0;
   if (transfer_id.To(&id)) {

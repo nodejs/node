@@ -28,7 +28,7 @@ class MaglevEarlyLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(MaglevEarlyLowering)
 
-  void CheckInstanceType(V<Object> input, OpIndex frame_state,
+  void CheckInstanceType(V<Object> input, V<FrameState> frame_state,
                          const FeedbackSource& feedback,
                          InstanceType first_instance_type,
                          InstanceType last_instance_type, bool check_smi) {

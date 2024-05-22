@@ -49,6 +49,7 @@ class ErrorThrower;
 struct ModuleWireBytes;
 class StreamingDecoder;
 class WasmFeatures;
+class WasmOrphanedGlobalHandle;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -392,6 +393,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
+
+  static WasmOrphanedGlobalHandle* NewOrphanedGlobalHandle(
+      WasmOrphanedGlobalHandle** pointer);
+  static void FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start);
 
  private:
   struct CurrentGCInfo;

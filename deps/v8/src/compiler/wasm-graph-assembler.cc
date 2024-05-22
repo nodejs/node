@@ -158,6 +158,31 @@ Node* WasmGraphAssembler::LoadProtectedPointerFromObject(Node* object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+std::pair<Node*, Node*>
+WasmGraphAssembler::LoadProtectedPointerFromObjectTrapOnNull(Node* object,
+                                                             Node* offset) {
+#if V8_ENABLE_SANDBOX
+  static_assert(COMPRESS_POINTERS_BOOL);
+  Node* tagged = LoadTrapOnNull(MachineType::Int32(), object, offset);
+  return {tagged, BuildDecompressProtectedPointer(tagged)};
+#else
+  Node* value = LoadFromObject(MachineType::AnyTagged(), object, offset);
+  return {value, value};
+#endif  // V8_ENABLE_SANDBOX
+}
+
+Node* WasmGraphAssembler::BuildDecompressProtectedPointer(Node* tagged) {
+#if V8_ENABLE_SANDBOX
+  static_assert(COMPRESS_POINTERS_BOOL);
+  Node* trusted_cage_base = Load(MachineType::Pointer(), LoadRootRegister(),
+                                 IsolateData::trusted_cage_base_offset());
+  return BitcastWordToTagged(
+      WordOr(trusted_cage_base, BuildChangeUint32ToUintPtr(tagged)));
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
 Node* WasmGraphAssembler::LoadImmutableFromObject(MachineType type, Node* base,
                                                   Node* offset) {
   return AddNode(graph()->NewNode(

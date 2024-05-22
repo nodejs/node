@@ -64,7 +64,9 @@ FEATURE_FLAGS = {
     'Array.fromAsync': '--harmony-array-from-async',
     'import-attributes': '--harmony-import-attributes',
     'regexp-duplicate-named-groups': '--js-regexp-duplicate-named-groups',
+    'regexp-modifiers': '--js-regexp-modifiers',
     'Float16Array': '--js-float16array',
+    'explicit-resource-management': '--js_explicit_resource_management',
 }
 
 SKIPPED_FEATURES = set([])

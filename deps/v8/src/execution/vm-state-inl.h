@@ -37,6 +37,8 @@ inline const char* StateToString(StateTag state) {
       return "ATOMICS_WAIT";
     case IDLE:
       return "IDLE";
+    case LOGGING:
+      return "LOGGING";
   }
 }
 

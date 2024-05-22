@@ -40,11 +40,9 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/constant-folding-reducer.h"
-#include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/csa-load-elimination.h"
 #include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/decompression-optimizer.h"
-#include "src/compiler/effect-control-linearizer.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/graph-trimmer.h"
@@ -59,6 +57,7 @@
 #include "src/compiler/js-native-context-specialization.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/late-escape-analysis.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
@@ -81,7 +80,6 @@
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/code-elimination-and-simplification-phase.h"
 #include "src/compiler/turboshaft/csa-optimize-phase.h"
@@ -183,7 +181,8 @@ class PipelineImpl final {
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
   turboshaft::PipelineData GetTurboshaftPipelineData(
-      turboshaft::TurboshaftPipelineKind kind);
+      turboshaft::TurboshaftPipelineKind kind,
+      turboshaft::Graph* graph = nullptr);
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void Revectorize();
@@ -1311,95 +1310,6 @@ struct EarlyOptimizationPhase {
   }
 };
 
-struct ControlFlowOptimizationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(ControlFlowOptimization)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    ControlFlowOptimizer optimizer(data->graph(), data->common(),
-                                   data->machine(),
-                                   &data->info()->tick_counter(), temp_zone);
-    optimizer.Optimize();
-  }
-};
-
-struct EffectControlLinearizationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(EffectLinearization)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    {
-      // Branch cloning in the effect control linearizer requires the graphs to
-      // be trimmed, so trim now before scheduling.
-      GraphTrimmer trimmer(temp_zone, data->graph());
-      NodeVector roots(temp_zone);
-      data->jsgraph()->GetCachedNodes(&roots);
-      {
-        UnparkedScopeIfNeeded scope(data->broker(),
-                                    v8_flags.trace_turbo_trimming);
-        trimmer.TrimGraph(roots.begin(), roots.end());
-      }
-
-      // Schedule the graph without node splitting so that we can
-      // fix the effect and control flow for nodes with low-level side
-      // effects (such as changing representation to tagged or
-      // 'floating' allocation regions.)
-      Schedule* schedule = Scheduler::ComputeSchedule(
-          temp_zone, data->graph(), Scheduler::kTempSchedule,
-          &data->info()->tick_counter(), data->profile_data());
-      TraceScheduleAndVerify(data->info(), data, schedule,
-                             "effect linearization schedule");
-
-      // LinearizeEffectControl accesses the heap for StringBuilderOptimizer.
-      UnparkedScopeIfNeeded scope(data->broker());
-
-      // Post-pass for wiring the control/effects
-      // - connect allocating representation changes into the control&effect
-      //   chains and lower them,
-      // - get rid of the region markers,
-      // - introduce effect phis and rewire effects to get SSA again.
-      LinearizeEffectControl(data->jsgraph(), schedule, temp_zone,
-                             data->source_positions(), data->node_origins(),
-                             data->broker());
-    }
-    {
-      // The {EffectControlLinearizer} might leave {Dead} nodes behind, so we
-      // run {DeadCodeElimination} to prune these parts of the graph.
-      // Also, the following store-store elimination phase greatly benefits from
-      // doing a common operator reducer and dead code elimination just before
-      // it, to eliminate conditional deopts with a constant condition.
-      GraphReducer graph_reducer(temp_zone, data->graph(),
-                                 &data->info()->tick_counter(), data->broker(),
-                                 data->jsgraph()->Dead(),
-                                 data->observe_node_manager());
-      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                                data->common(), temp_zone);
-      CommonOperatorReducer common_reducer(
-          &graph_reducer, data->graph(), data->broker(), data->common(),
-          data->machine(), temp_zone, BranchSemantics::kMachine);
-      AddReducer(data, &graph_reducer, &dead_code_elimination);
-      AddReducer(data, &graph_reducer, &common_reducer);
-      graph_reducer.ReduceGraph();
-    }
-  }
-};
-
-struct StoreStoreEliminationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(StoreStoreElimination)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    {
-      UnparkedScopeIfNeeded scope(data->broker(),
-                                  v8_flags.trace_turbo_trimming);
-      trimmer.TrimGraph(roots.begin(), roots.end());
-    }
-
-    StoreStoreElimination::Run(data->jsgraph(), &data->info()->tick_counter(),
-                               temp_zone);
-  }
-};
-
 struct LoadEliminationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LoadElimination)
 
@@ -1472,41 +1382,6 @@ struct MemoryOptimizationPhase {
             : MemoryLowering::AllocationFolding::kDontAllocationFolding,
         data->debug_name(), &data->info()->tick_counter(), is_wasm);
     optimizer.Optimize();
-  }
-};
-
-struct LateOptimizationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(LateOptimization)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    DCHECK(!v8_flags.turboshaft);
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    LateEscapeAnalysis escape_analysis(&graph_reducer, data->graph(),
-                                       data->common(), temp_zone);
-    BranchElimination branch_condition_elimination(&graph_reducer,
-                                                   data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
-    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
-    MachineOperatorReducer machine_reducer(
-        &graph_reducer, data->jsgraph(),
-        MachineOperatorReducer::kPropagateSignallingNan);
-    CommonOperatorReducer common_reducer(
-        &graph_reducer, data->graph(), data->broker(), data->common(),
-        data->machine(), temp_zone, BranchSemantics::kMachine);
-    JSGraphAssembler graph_assembler(data->broker(), data->jsgraph(), temp_zone,
-                                     BranchSemantics::kMachine);
-    SelectLowering select_lowering(&graph_assembler, data->graph());
-    AddReducer(data, &graph_reducer, &escape_analysis);
-    AddReducer(data, &graph_reducer, &branch_condition_elimination);
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &machine_reducer);
-    AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &select_lowering);
-    AddReducer(data, &graph_reducer, &value_numbering);
-    graph_reducer.ReduceGraph();
   }
 };
 
@@ -2391,7 +2266,7 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
-    defined(V8_TARGET_ARCH_PPC64)
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
   bool use_turboshaft_instruction_selection =
       v8_flags.turboshaft_wasm_instruction_selection_staged;
 #else
@@ -2408,6 +2283,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
     auto [new_graph, new_schedule] =
         pipeline_.Run<turboshaft::RecreateSchedulePhase>(&linkage);
     data_.set_graph(new_graph);
+    data_.set_node_origins(
+        data_.graph_zone()->New<NodeOriginTable>(data_.graph()));
     data_.set_schedule(new_schedule);
     TraceSchedule(data_.info(), &data_, data_.schedule(),
                   turboshaft::RecreateSchedulePhase::phase_name());
@@ -2603,49 +2480,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
     }
 
-    if (!v8_flags.turboshaft) {
-      Run<EffectControlLinearizationPhase>();
-      RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
-
-      if (v8_flags.turbo_store_elimination) {
-        Run<StoreStoreEliminationPhase>();
-        RunPrintAndVerify(StoreStoreEliminationPhase::phase_name(), true);
-      }
-
-      // Optimize control flow.
-      if (v8_flags.turbo_cf_optimization) {
-        Run<ControlFlowOptimizationPhase>();
-        RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
-      }
-
-      Run<LateOptimizationPhase>();
-      RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
-
-      // Optimize memory access and allocation operations.
-      Run<MemoryOptimizationPhase>();
-      RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
-
-      // Run value numbering and machine operator reducer to optimize load/store
-      // address computation (in particular, reuse the address computation
-      // whenever possible).
-      Run<MachineOperatorOptimizationPhase>(
-          MachineOperatorReducer::kPropagateSignallingNan);
-      RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
-
-      Run<DecompressionOptimizationPhase>();
-      RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
-
-#if V8_ENABLE_WEBASSEMBLY
-      if (data->has_js_wasm_calls()) {
-        Run<WasmJSLoweringPhase>();
-        RunPrintAndVerify(WasmJSLoweringPhase::phase_name(), true);
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-      Run<BranchConditionDuplicationPhase>();
-      RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
-    }
-
     data->source_positions()->RemoveDecorator();
     if (data->info()->trace_turbo_json()) {
       data->node_origins()->RemoveDecorator();
@@ -2654,101 +2488,100 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     ComputeScheduledGraph();
   }
 
-  if (v8_flags.turboshaft) {
-    UnparkedScopeIfNeeded scope(data->broker(),
-                                v8_flags.turboshaft_trace_reduction ||
-                                    v8_flags.turboshaft_trace_emitted);
+  CHECK_IMPLIES(!v8_flags.disable_optimizing_compilers, v8_flags.turboshaft);
 
-    base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data->GetTurboshaftPipelineData(
-            turboshaft::TurboshaftPipelineKind::kJS));
-    turboshaft::Tracing::Scope tracing_scope(data->info());
+  UnparkedScopeIfNeeded scope(
+      data->broker(),
+      v8_flags.turboshaft_trace_reduction || v8_flags.turboshaft_trace_emitted);
 
-    if (!v8_flags.turboshaft_from_maglev) {
-      if (base::Optional<BailoutReason> bailout =
-              Run<turboshaft::BuildGraphPhase>(linkage)) {
-        info()->AbortOptimization(*bailout);
-        data->EndPhaseKind();
-        return false;
-      }
+  base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
+      data->GetTurboshaftPipelineData(turboshaft::TurboshaftPipelineKind::kJS));
+  turboshaft::Tracing::Scope tracing_scope(data->info());
+
+  if (!v8_flags.turboshaft_from_maglev) {
+    if (base::Optional<BailoutReason> bailout =
+            Run<turboshaft::BuildGraphPhase>(linkage)) {
+      info()->AbortOptimization(*bailout);
+      data->EndPhaseKind();
+      return false;
     }
+  }
 
-    if (v8_flags.turboshaft_frontend) {
-      Run<turboshaft::SimplifiedLoweringPhase>();
-    }
+  if (v8_flags.turboshaft_frontend) {
+    Run<turboshaft::SimplifiedLoweringPhase>();
+  }
 
-    Run<turboshaft::MachineLoweringPhase>();
+  Run<turboshaft::MachineLoweringPhase>();
 
-    // TODO(dmercadier): find a way to merge LoopPeeling and LoopUnrolling. It's
-    // not currently possible for 2 reasons. First, LoopPeeling reduces the
-    // number of iteration of a loop, thus invalidating LoopUnrolling's
-    // analysis. This could probably be worked around fairly easily though.
-    // Second, LoopPeeling has to emit the non-peeled header of peeled loops, in
-    // order to fix their loop phis (because their 1st input should be replace
-    // by their 2nd input coming from the peeled iteration), but LoopUnrolling
-    // has to be triggered before emitting the loop header. This could be fixed
-    // by changing LoopUnrolling start unrolling after the 1st header has been
-    // emitted, but this would also require updating CloneSubgraph.
-    if (v8_flags.turboshaft_loop_peeling) {
-      Run<turboshaft::LoopPeelingPhase>();
-    }
+  // TODO(dmercadier): find a way to merge LoopPeeling and LoopUnrolling. It's
+  // not currently possible for 2 reasons. First, LoopPeeling reduces the
+  // number of iteration of a loop, thus invalidating LoopUnrolling's
+  // analysis. This could probably be worked around fairly easily though.
+  // Second, LoopPeeling has to emit the non-peeled header of peeled loops, in
+  // order to fix their loop phis (because their 1st input should be replace
+  // by their 2nd input coming from the peeled iteration), but LoopUnrolling
+  // has to be triggered before emitting the loop header. This could be fixed
+  // by changing LoopUnrolling start unrolling after the 1st header has been
+  // emitted, but this would also require updating CloneSubgraph.
+  if (v8_flags.turboshaft_loop_peeling) {
+    Run<turboshaft::LoopPeelingPhase>();
+  }
 
-    if (v8_flags.turboshaft_loop_unrolling) {
-      Run<turboshaft::LoopUnrollingPhase>();
-    }
+  if (v8_flags.turboshaft_loop_unrolling) {
+    Run<turboshaft::LoopUnrollingPhase>();
+  }
 
-    if (v8_flags.turbo_store_elimination) {
-      Run<turboshaft::StoreStoreEliminationPhase>();
-    }
+  if (v8_flags.turbo_store_elimination) {
+    Run<turboshaft::StoreStoreEliminationPhase>();
+  }
 
-    Run<turboshaft::OptimizePhase>();
+  Run<turboshaft::OptimizePhase>();
 
-    if (v8_flags.turboshaft_typed_optimizations) {
-      Run<turboshaft::TypedOptimizationsPhase>();
-    }
+  if (v8_flags.turboshaft_typed_optimizations) {
+    Run<turboshaft::TypedOptimizationsPhase>();
+  }
 
-    if (v8_flags.turboshaft_assert_types) {
-      Run<turboshaft::TypeAssertionsPhase>();
-    }
+  if (v8_flags.turboshaft_assert_types) {
+    Run<turboshaft::TypeAssertionsPhase>();
+  }
 
-    // Perform dead code elimination, reduce stack checks, simplify loads on
-    // platforms where required, ...
-    Run<turboshaft::CodeEliminationAndSimplificationPhase>();
+  // Perform dead code elimination, reduce stack checks, simplify loads on
+  // platforms where required, ...
+  Run<turboshaft::CodeEliminationAndSimplificationPhase>();
 
 #ifdef V8_ENABLE_DEBUG_CODE
-    if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
-      // This phase has to run very late to allow all previous phases to use
-      // debug features.
-      Run<turboshaft::DebugFeatureLoweringPhase>();
-    }
+  if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
+    // This phase has to run very late to allow all previous phases to use
+    // debug features.
+    Run<turboshaft::DebugFeatureLoweringPhase>();
+  }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-    Run<turboshaft::DecompressionOptimizationPhase>();
+  Run<turboshaft::DecompressionOptimizationPhase>();
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
-    defined(V8_TARGET_ARCH_PPC64)
-    if (v8_flags.turboshaft_instruction_selection) {
-      // Run Turboshaft instruction selection.
-      if (!SelectInstructionsTurboshaft(linkage)) {
-        return false;
-      }
-
-      turboshaft_pipeline.reset();
-      data->DeleteGraphZone();
-      return AllocateRegisters(linkage->GetIncomingDescriptor(), false);
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
+  if (v8_flags.turboshaft_instruction_selection) {
+    // Run Turboshaft instruction selection.
+    if (!SelectInstructionsTurboshaft(linkage)) {
+      return false;
     }
+
+    turboshaft_pipeline.reset();
+    data->DeleteGraphZone();
+    return AllocateRegisters(linkage->GetIncomingDescriptor(), false);
+  }
 #endif  // defined(V8_TARGET_ARCH_X64) or defined(V8_TARGET_ARCH_ARM64)
 
-    // Otherwise, translate back to Turbofan and run instruction selection on
-    // the sea of nodes graph.
-    auto [new_graph, new_schedule] =
-        Run<turboshaft::RecreateSchedulePhase>(linkage);
-    data->set_graph(new_graph);
-    data->set_schedule(new_schedule);
-    TraceSchedule(data->info(), data, data->schedule(),
-                  turboshaft::RecreateSchedulePhase::phase_name());
-  }
+  // Otherwise, translate back to Turbofan and run instruction selection on
+  // the sea of nodes graph.
+  auto [new_graph, new_schedule] =
+      Run<turboshaft::RecreateSchedulePhase>(linkage);
+  data->set_graph(new_graph);
+  data->set_schedule(new_schedule);
+  TraceSchedule(data->info(), data, data->schedule(),
+                turboshaft::RecreateSchedulePhase::phase_name());
 
   return SelectInstructions(linkage);
 }
@@ -2918,6 +2751,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     data.set_profile_data(profile_data);
   }
 
+  const bool build_with_turboshaft_instruction_selection =
+      v8_flags.turboshaft_csa && v8_flags.turboshaft_instruction_selection;
   if (!v8_flags.turboshaft_csa) {
     pipeline.Run<CsaEarlyOptimizationPhase>();
     pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
@@ -2943,12 +2778,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
 
+  base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline;
   if (v8_flags.turboshaft_csa) {
     UnparkedScopeIfNeeded scope(data.broker(),
                                 v8_flags.turboshaft_trace_reduction);
-    base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data.GetTurboshaftPipelineData(
-            turboshaft::TurboshaftPipelineKind::kCSA));
+    turboshaft_pipeline.emplace(data.GetTurboshaftPipelineData(
+        turboshaft::TurboshaftPipelineKind::kCSA));
     turboshaft::Tracing::Scope tracing_scope(data.info());
 
     Linkage linkage(call_descriptor);
@@ -2969,12 +2804,14 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     // representations.
     pipeline.Run<turboshaft::DecompressionOptimizationPhase>();
 
-    auto [new_graph, new_schedule] =
-        pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
-    data.set_graph(new_graph);
-    data.set_schedule(new_schedule);
-    TraceSchedule(data.info(), &data, data.schedule(),
-                  turboshaft::RecreateSchedulePhase::phase_name());
+    if (!build_with_turboshaft_instruction_selection) {
+      auto [new_graph, new_schedule] =
+          pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
+      data.set_graph(new_graph);
+      data.set_schedule(new_schedule);
+      TraceSchedule(data.info(), &data, data.schedule(),
+                    turboshaft::RecreateSchedulePhase::phase_name());
+    }
   }
 
   // First run code generation on a copy of the pipeline, in order to be able to
@@ -2989,7 +2826,15 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                                 isolate->counters()->runtime_call_stats());
   second_data.set_verify_graph(v8_flags.verify_csa);
   PipelineImpl second_pipeline(&second_data);
-  second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
+  base::Optional<turboshaft::PipelineData::Scope> second_turboshaft_pipeline;
+  if (build_with_turboshaft_instruction_selection) {
+    second_turboshaft_pipeline.emplace(
+        second_pipeline.GetTurboshaftPipelineData(
+            turboshaft::TurboshaftPipelineKind::kCSA,
+            &turboshaft_pipeline->Value().graph()));
+  }
+  second_pipeline.SelectInstructionsAndAssemble(
+      call_descriptor, build_with_turboshaft_instruction_selection);
 
   if (v8_flags.turbo_profiling) {
     info.profiler_data()->SetHash(initial_graph_hash);
@@ -2997,7 +2842,13 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
-    return pipeline.GenerateCode(call_descriptor);
+    if (build_with_turboshaft_instruction_selection) {
+      DCHECK(second_turboshaft_pipeline->Value().graph_has_special_rpo());
+      second_turboshaft_pipeline.reset();
+      turboshaft_pipeline->Value().set_graph_has_special_rpo();
+    }
+    return pipeline.GenerateCode(call_descriptor,
+                                 build_with_turboshaft_instruction_selection);
   } else {
     return second_pipeline.FinalizeCode();
   }
@@ -3126,8 +2977,12 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     const AssemblerOptions& options, SourcePositionTable* source_positions) {
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
   Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  WasmCallKind call_kind =
+      wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION
+          ? WasmCallKind::kWasmImportWrapper
+          : WasmCallKind::kWasmCapiFunction;
   CallDescriptor* call_descriptor =
-      GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmImportWrapper);
+      GetWasmCallDescriptor(&zone, sig, call_kind);
   if (!Is64()) {
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
@@ -3193,7 +3048,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
-    defined(V8_TARGET_ARCH_PPC64)
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
     bool use_turboshaft_instruction_selection =
         v8_flags.turboshaft_wasm_instruction_selection_staged;
 #else
@@ -3211,6 +3066,8 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       auto [new_graph, new_schedule] =
           pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
       data.set_graph(new_graph);
+      data.set_node_origins(
+          data.graph_zone()->New<NodeOriginTable>(data.graph()));
       data.set_schedule(new_schedule);
       TraceSchedule(data.info(), &data, data.schedule(),
                     turboshaft::RecreateSchedulePhase::phase_name());
@@ -3546,9 +3403,17 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
     data.BeginPhaseKind("V8.WasmOptimization");
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-    if (v8_flags.experimental_wasm_revectorize && detected->has_simd() &&
-        !env->enabled_features.has_memory64()) {
-      pipeline.Run<turboshaft::WasmRevecPhase>();
+    {
+      bool cpu_feature_support = false;
+#ifdef V8_TARGET_ARCH_X64
+      if (CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2)) {
+        cpu_feature_support = true;
+      }
+#endif
+      if (v8_flags.experimental_wasm_revectorize && cpu_feature_support &&
+          detected->has_simd() && !env->enabled_features.has_memory64()) {
+        pipeline.Run<turboshaft::WasmRevecPhase>();
+      }
     }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
     const bool uses_wasm_gc_features = detected->has_gc() ||
@@ -3599,7 +3464,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
-    defined(V8_TARGET_ARCH_PPC64)
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
     bool use_turboshaft_instruction_selection =
         v8_flags.turboshaft_wasm_instruction_selection_staged;
 #else
@@ -3863,8 +3728,8 @@ void PipelineImpl::ComputeScheduledGraph() {
 }
 
 turboshaft::PipelineData PipelineImpl::GetTurboshaftPipelineData(
-    turboshaft::TurboshaftPipelineKind kind) {
-  return data_->GetTurboshaftPipelineData(kind);
+    turboshaft::TurboshaftPipelineKind kind, turboshaft::Graph* graph) {
+  return data_->GetTurboshaftPipelineData(kind, graph);
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
@@ -4163,6 +4028,14 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
 
   info()->SetCode(code);
   PrintCode(isolate(), code, info());
+
+  // Functions with many inline candidates are sensitive to correct call
+  // frequency feedback and should therefore not be tiered up early.
+  if (v8_flags.profile_guided_optimization &&
+      info()->could_not_inline_all_candidates()) {
+    info()->shared_info()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
 
   if (info()->trace_turbo_json()) {
     TurboJsonFile json_of(info(), std::ios_base::app);

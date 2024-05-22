@@ -1475,7 +1475,7 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
   CHECK(IsWasmFuncRef(*result_cast));
   Handle<WasmInternalFunction> result_cast_internal{
-      WasmFuncRef::cast(*result_cast)->internal(), i_isolate};
+      WasmFuncRef::cast(*result_cast)->internal(i_isolate), i_isolate};
   Handle<JSFunction> cast_function =
       WasmInternalFunction::GetOrCreateExternal(result_cast_internal);
 
@@ -1483,7 +1483,8 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       tester.GetResultObject(cast_reference).ToHandleChecked();
   CHECK(IsWasmFuncRef(*result_cast_reference));
   Handle<WasmInternalFunction> result_cast_reference_internal{
-      WasmFuncRef::cast(*result_cast_reference)->internal(), i_isolate};
+      WasmFuncRef::cast(*result_cast_reference)->internal(i_isolate),
+      i_isolate};
   Handle<JSFunction> cast_function_reference =
       WasmInternalFunction::GetOrCreateExternal(result_cast_reference_internal);
 

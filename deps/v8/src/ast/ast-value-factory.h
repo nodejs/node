@@ -36,6 +36,7 @@
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/name.h"
+#include "src/zone/zone.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
 // values independent of the V8 heap and internalizing them later. During

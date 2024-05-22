@@ -106,10 +106,6 @@ MaglevCompilationInfo::MaglevCompilationInfo(
   }
 
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
-  if (collect_source_positions_) {
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(
-        isolate, handle(function->shared(), isolate));
-  }
 }
 
 MaglevCompilationInfo::~MaglevCompilationInfo() {

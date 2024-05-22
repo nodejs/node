@@ -202,6 +202,15 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
 
 // Corresponding locker object that arranges to acquire a spinlock for
 // the duration of a C++ scope.
+//
+// TODO(b/176172494): Use only [[nodiscard]] when baseline is raised.
+// TODO(b/6695610): Remove forward declaration when #ifdef is no longer needed.
+#if ABSL_HAVE_CPP_ATTRIBUTE(nodiscard)
+class [[nodiscard]] SpinLockHolder;
+#else
+class ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_TRIVIAL_ABI SpinLockHolder;
+#endif
+
 class ABSL_SCOPED_LOCKABLE SpinLockHolder {
  public:
   inline explicit SpinLockHolder(SpinLock* l) ABSL_EXCLUSIVE_LOCK_FUNCTION(l)

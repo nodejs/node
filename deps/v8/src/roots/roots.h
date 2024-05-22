@@ -154,9 +154,11 @@ class RootVisitor;
   V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, external_pointer_array_map, ExternalPointerArrayMap)                  \
   V(Map, trusted_fixed_array_map, TrustedFixedArrayMap)                        \
+  V(Map, trusted_weak_fixed_array_map, TrustedWeakFixedArrayMap)               \
   V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
   V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
+  V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)       \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
   V(Map, cons_two_byte_string_map, ConsTwoByteStringMap)                       \
@@ -249,6 +251,8 @@ class RootVisitor;
 #define TRUSTED_ROOT_LIST(V)                                              \
   V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
   V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
+  V(TrustedWeakFixedArray, empty_trusted_weak_fixed_array,                \
+    EmptyTrustedWeakFixedArray)                                           \
   V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
 
 // Mutable roots that are known to be immortal immovable, for which we can

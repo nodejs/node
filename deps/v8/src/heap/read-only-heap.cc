@@ -38,7 +38,7 @@ base::LazyInstance<std::weak_ptr<ReadOnlyArtifacts>>::type
 
 std::shared_ptr<ReadOnlyArtifacts> InitializeSharedReadOnlyArtifacts() {
   std::shared_ptr<ReadOnlyArtifacts> artifacts;
-  if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+  if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
     artifacts = std::make_shared<PointerCompressedReadOnlyArtifacts>();
   } else {
     artifacts = std::make_shared<SingleCopyReadOnlyArtifacts>();
@@ -170,7 +170,10 @@ void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
   InitFromIsolate(isolate);
 
 #ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) HeapVerifier::VerifyReadOnlyHeap(isolate->heap());
+  if (v8_flags.verify_heap) {
+    HeapVerifier::VerifyReadOnlyHeap(isolate->heap());
+    HeapVerifier::VerifyHeap(isolate->heap());
+  }
 #endif
 }
 
@@ -178,7 +181,7 @@ void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
 ReadOnlyHeap::ReadOnlyHeap(ReadOnlyHeap* ro_heap, ReadOnlySpace* ro_space)
     : read_only_space_(ro_space) {
   DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
-  DCHECK(COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL);
+  DCHECK(COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL);
 }
 
 // static
@@ -188,7 +191,7 @@ ReadOnlyHeap* ReadOnlyHeap::CreateInitialHeapForBootstrapping(
 
   std::unique_ptr<ReadOnlyHeap> ro_heap;
   auto* ro_space = new ReadOnlySpace(isolate->heap());
-  if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+  if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
     ro_heap.reset(new ReadOnlyHeap(ro_space));
   } else {
     std::unique_ptr<SoleReadOnlyHeap> sole_ro_heap(

@@ -422,9 +422,9 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
   bool success = false;
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
-  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
 
   if (IsSymbol(*key) && Symbol::cast(*key)->is_private_name()) {
+    LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, true);
     MAYBE_RETURN_NULL(can_store);
     // If the state is ACCESS_CHECK, the faliled access check callback
@@ -437,8 +437,8 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
     MAYBE_RETURN_NULL(
         JSReceiver::AddPrivateField(&it, value, Nothing<ShouldThrow>()));
   } else {
-    MAYBE_RETURN_NULL(
-        JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
+    MAYBE_RETURN_NULL(JSReceiver::CreateDataProperty(
+        isolate, object, lookup_key, value, Nothing<ShouldThrow>()));
   }
 
   return value;
@@ -1267,8 +1267,8 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   bool success;
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
-  LookupIterator it(isolate, o, lookup_key, LookupIterator::OWN);
-  MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, value, Just(kThrowOnError)),
+  MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate, o, lookup_key, value,
+                                              Just(kThrowOnError)),
                ReadOnlyRoots(isolate).exception());
   return *value;
 }

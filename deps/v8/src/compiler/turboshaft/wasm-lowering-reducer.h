@@ -70,7 +70,7 @@ class WasmLoweringReducer : public Next {
             wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
             wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
             wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)) {
-          __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
+          __ TrapIf(__ IsNull(object, type), {}, trap_id);
         } else {
           // Otherwise, load the word after the map word.
           static_assert(WasmStruct::kHeaderSize > kTaggedSize);
@@ -81,7 +81,7 @@ class WasmLoweringReducer : public Next {
         }
       }
     } else {
-      __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
+      __ TrapIf(__ IsNull(object, type), {}, trap_id);
     }
     return object;
   }
@@ -199,7 +199,7 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(WasmTypeAnnotation)(OpIndex value, wasm::ValueType type) {
+  V<Object> REDUCE(WasmTypeAnnotation)(V<Object> value, wasm::ValueType type) {
     // Remove type annotation operations as they are not needed any more.
     return value;
   }
@@ -211,7 +211,7 @@ class WasmLoweringReducer : public Next {
         null_checks_for_struct_op(null_check, field_index);
 
     if (explicit_null_check) {
-      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), OpIndex::Invalid(),
+      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), {},
                 TrapId::kTrapNullDereference);
     }
 
@@ -233,7 +233,7 @@ class WasmLoweringReducer : public Next {
         null_checks_for_struct_op(null_check, field_index);
 
     if (explicit_null_check) {
-      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), OpIndex::Invalid(),
+      __ TrapIf(__ IsNull(object, wasm::kWasmAnyRef), {},
                 TrapId::kTrapNullDereference);
     }
 
@@ -251,8 +251,8 @@ class WasmLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
-  OpIndex REDUCE(ArrayGet)(OpIndex array, OpIndex index,
-                           const wasm::ArrayType* array_type, bool is_signed) {
+  V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
+                          const wasm::ArrayType* array_type, bool is_signed) {
     bool is_mutable = array_type->mutability();
     LoadOp::Kind load_kind = is_mutable
                                  ? LoadOp::Kind::TaggedBase()
@@ -263,16 +263,17 @@ class WasmLoweringReducer : public Next {
                    array_type->element_type().value_kind_size_log2());
   }
 
-  OpIndex REDUCE(ArraySet)(OpIndex array, OpIndex index, OpIndex value,
-                           wasm::ValueType element_type) {
+  V<None> REDUCE(ArraySet)(V<WasmArrayNullable> array, V<Word32> index,
+                           V<Any> value, wasm::ValueType element_type) {
     __ Store(array, __ ChangeInt32ToIntPtr(index), value,
              LoadOp::Kind::TaggedBase(), RepresentationFor(element_type, true),
              element_type.is_reference() ? kFullWriteBarrier : kNoWriteBarrier,
              WasmArray::kHeaderSize, element_type.value_kind_size_log2());
-    return OpIndex::Invalid();
+    return {};
   }
 
-  OpIndex REDUCE(ArrayLength)(OpIndex array, CheckForNull null_check) {
+  V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,
+                                CheckForNull null_check) {
     bool explicit_null_check =
         null_check == kWithNullCheck &&
         null_check_strategy_ == NullCheckStrategy::kExplicit;
@@ -281,7 +282,7 @@ class WasmLoweringReducer : public Next {
         null_check_strategy_ == NullCheckStrategy::kTrapHandler;
 
     if (explicit_null_check) {
-      __ TrapIf(__ IsNull(array, wasm::kWasmAnyRef), OpIndex::Invalid(),
+      __ TrapIf(__ IsNull(array, wasm::kWasmAnyRef), {},
                 TrapId::kTrapNullDereference);
     }
 
@@ -298,7 +299,7 @@ class WasmLoweringReducer : public Next {
     __ TrapIfNot(
         __ Uint32LessThanOrEqual(
             length, __ Word32Constant(WasmArray::MaxLength(array_type))),
-        OpIndex::Invalid(), TrapId::kTrapArrayTooLarge);
+        {}, TrapId::kTrapArrayTooLarge);
     wasm::ValueType element_type = array_type->element_type();
 
     // RoundUp(length * value_size, kObjectAlignment) =
@@ -556,7 +557,8 @@ class WasmLoweringReducer : public Next {
       // The none-types only perform a null check. They need no control flow.
       if (to_rep == wasm::HeapType::kNone ||
           to_rep == wasm::HeapType::kNoExtern ||
-          to_rep == wasm::HeapType::kNoFunc) {
+          to_rep == wasm::HeapType::kNoFunc ||
+          to_rep == wasm::HeapType::kNoExn) {
         result = __ IsNull(object, config.from);
         break;
       }
@@ -628,8 +630,9 @@ class WasmLoweringReducer : public Next {
       // The none-types only perform a null check.
       if (to_rep == wasm::HeapType::kNone ||
           to_rep == wasm::HeapType::kNoExtern ||
-          to_rep == wasm::HeapType::kNoFunc) {
-        __ TrapIfNot(__ IsNull(object, config.from), OpIndex::Invalid(),
+          to_rep == wasm::HeapType::kNoFunc ||
+          to_rep == wasm::HeapType::kNoExn) {
+        __ TrapIfNot(__ IsNull(object, config.from), {},
                      TrapId::kTrapIllegalCast);
         break;
       }
@@ -645,30 +648,29 @@ class WasmLoweringReducer : public Next {
         // transformations, we could DCHECK(object_can_be_i31) here.
         V<Word32> success =
             object_can_be_i31 ? __ IsSmi(object) : __ Word32Constant(0);
-        __ TrapIfNot(success, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        __ TrapIfNot(success, {}, TrapId::kTrapIllegalCast);
         break;
       }
       if (to_rep == wasm::HeapType::kEq) {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label);
         }
-        __ TrapIfNot(IsDataRefMap(__ LoadMapField(object)), OpIndex::Invalid(),
+        __ TrapIfNot(IsDataRefMap(__ LoadMapField(object)), {},
                      TrapId::kTrapIllegalCast);
         break;
       }
       // array, struct, string: i31 fails.
       if (object_can_be_i31) {
-        __ TrapIf(__ IsSmi(object), OpIndex::Invalid(),
-                  TrapId::kTrapIllegalCast);
+        __ TrapIf(__ IsSmi(object), {}, TrapId::kTrapIllegalCast);
       }
       if (to_rep == wasm::HeapType::kArray) {
-        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE),
-                     OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE), {},
+                     TrapId::kTrapIllegalCast);
         break;
       }
       if (to_rep == wasm::HeapType::kStruct) {
-        __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE),
-                     OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE), {},
+                     TrapId::kTrapIllegalCast);
         break;
       }
       if (to_rep == wasm::HeapType::kString ||
@@ -677,7 +679,7 @@ class WasmLoweringReducer : public Next {
             __ LoadInstanceTypeField(__ LoadMapField(object));
         __ TrapIfNot(__ Uint32LessThan(instance_type,
                                        __ Word32Constant(FIRST_NONSTRING_TYPE)),
-                     OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+                     {}, TrapId::kTrapIllegalCast);
         break;
       }
       UNREACHABLE();
@@ -707,18 +709,18 @@ class WasmLoweringReducer : public Next {
       if (config.to.is_nullable()) {
         GOTO_IF(UNLIKELY(is_null), end_label);
       } else if (!v8_flags.experimental_wasm_skip_null_checks) {
-        __ TrapIf(is_null, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        __ TrapIf(is_null, {}, TrapId::kTrapIllegalCast);
       }
     }
 
     if (object_can_be_i31) {
-      __ TrapIf(__ IsSmi(object), OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+      __ TrapIf(__ IsSmi(object), {}, TrapId::kTrapIllegalCast);
     }
 
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
-      __ TrapIfNot(__ TaggedEqual(map, rtt.value()), OpIndex::Invalid(),
+      __ TrapIfNot(__ TaggedEqual(map, rtt.value()), {},
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
@@ -729,7 +731,7 @@ class WasmLoweringReducer : public Next {
       // Check if map instance type identifies a wasm object.
       if (is_cast_from_any) {
         V<Word32> is_wasm_obj = IsDataRefMap(map);
-        __ TrapIfNot(is_wasm_obj, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+        __ TrapIfNot(is_wasm_obj, {}, TrapId::kTrapIllegalCast);
       }
 
       V<Object> type_info = LoadWasmTypeInfo(map);
@@ -745,7 +747,7 @@ class WasmLoweringReducer : public Next {
                     WasmTypeInfo::kSupertypesLengthOffset));
         __ TrapIfNot(
             __ UintPtrLessThan(__ IntPtrConstant(rtt_depth), supertypes_length),
-            OpIndex::Invalid(), TrapId::kTrapIllegalCast);
+            {}, TrapId::kTrapIllegalCast);
       }
 
       V<Object> maybe_match =
@@ -753,7 +755,7 @@ class WasmLoweringReducer : public Next {
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
 
-      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()), OpIndex::Invalid(),
+      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()), {},
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     }
@@ -924,15 +926,19 @@ class WasmLoweringReducer : public Next {
             : RootIndex::kWasmNull;
     // We load WasmNull as a pointer here and not as a TaggedPointer because
     // WasmNull is stored uncompressed in the IsolateData, and a load of a
-    // TaggedPointer loads compressed pointers. We do not bitcast the WasmNull
-    // to Tagged at the moment because it would increase graph size, which may
-    // affect optimizations negatively. These regressions would be worth it if
-    // there was any benefit of the bitcast. However, the graph validation
-    // currently allows implicit representation changes from `WordPtr` to
-    // `Tagged`.
+    // TaggedPointer loads compressed pointers.
+#if V8_TARGET_BIG_ENDIAN
+    // On big endian a full pointer load is needed as otherwise the wrong half
+    // of the 64 bit address is loaded.
+    return __ BitcastWordPtrToTagged(__ Load(
+        roots, LoadOp::Kind::RawAligned().Immutable(),
+        MemoryRepresentation::UintPtr(), IsolateData::root_slot_offset(index)));
+#else
+    // On little endian a tagged load is enough and saves the bitcast.
     return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
-                   MemoryRepresentation::UintPtr(),
+                   MemoryRepresentation::TaggedPointer(),
                    IsolateData::root_slot_offset(index));
+#endif
   }
 
   V<WordPtr> ChangeSmiToWordPtr(V<Smi> smi) {

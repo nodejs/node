@@ -2020,7 +2020,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference::Create(f));
 
-  bool switch_to_central = this->options().is_wasm;
+  bool switch_to_central = options().is_wasm;
   CallBuiltin(Builtins::RuntimeCEntry(f->result_size, switch_to_central));
 }
 
@@ -4391,20 +4391,36 @@ void MacroAssembler::PopcntHelper(Register dst, Register src) {
   Fmov(dst, tmp);
 }
 
-void MacroAssembler::I8x16BitMask(Register dst, VRegister src) {
+void MacroAssembler::I8x16BitMask(Register dst, VRegister src, VRegister temp) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   VRegister tmp = temps.AcquireQ();
   VRegister mask = temps.AcquireQ();
-  // Set i-th bit of each lane i. When AND with tmp, the lanes that
-  // are signed will have i-th bit set, unsigned will be 0.
-  Sshr(tmp.V16B(), src.V16B(), 7);
-  Movi(mask.V2D(), 0x8040'2010'0804'0201);
-  And(tmp.V16B(), mask.V16B(), tmp.V16B());
-  Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
-  Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
-  Addv(tmp.H(), tmp.V8H());
-  Mov(dst.W(), tmp.V8H(), 0);
+
+  if (CpuFeatures::IsSupported(PMULL1Q) && temp.is_valid()) {
+    CpuFeatureScope scope(this, PMULL1Q);
+
+    Movi(mask.V2D(), 0x0102'0408'1020'4080);
+    // Normalize the input - at most 1 bit per vector element should be set.
+    Ushr(tmp.V16B(), src.V16B(), 7);
+    // Collect the input bits into a byte of the output - once for each
+    // half of the input.
+    Pmull2(temp.V1Q(), mask.V2D(), tmp.V2D());
+    Pmull(tmp.V1Q(), mask.V1D(), tmp.V1D());
+    // Combine the bits from both input halves.
+    Trn2(tmp.V8B(), tmp.V8B(), temp.V8B());
+    Mov(dst.W(), tmp.V8H(), 3);
+  } else {
+    // Set i-th bit of each lane i. When AND with tmp, the lanes that
+    // are signed will have i-th bit set, unsigned will be 0.
+    Sshr(tmp.V16B(), src.V16B(), 7);
+    Movi(mask.V2D(), 0x8040'2010'0804'0201);
+    And(tmp.V16B(), mask.V16B(), tmp.V16B());
+    Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
+    Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
+    Addv(tmp.H(), tmp.V8H());
+    Mov(dst.W(), tmp.V8H(), 0);
+  }
 }
 
 void MacroAssembler::I16x8BitMask(Register dst, VRegister src) {
@@ -4412,13 +4428,28 @@ void MacroAssembler::I16x8BitMask(Register dst, VRegister src) {
   UseScratchRegisterScope temps(this);
   VRegister tmp = temps.AcquireQ();
   VRegister mask = temps.AcquireQ();
-  Sshr(tmp.V8H(), src.V8H(), 15);
-  // Set i-th bit of each lane i. When AND with tmp, the lanes that
-  // are signed will have i-th bit set, unsigned will be 0.
-  Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
-  And(tmp.V16B(), mask.V16B(), tmp.V16B());
-  Addv(tmp.H(), tmp.V8H());
-  Mov(dst.W(), tmp.V8H(), 0);
+
+  if (CpuFeatures::IsSupported(PMULL1Q)) {
+    CpuFeatureScope scope(this, PMULL1Q);
+
+    // Normalize the input - at most 1 bit per vector element should be set.
+    Ushr(tmp.V8H(), src.V8H(), 15);
+    Movi(mask.V1D(), 0x0102'0408'1020'4080);
+    // Trim some of the redundant 0 bits, so that we can operate on
+    // only 64 bits.
+    Xtn(tmp.V8B(), tmp.V8H());
+    // Collect the input bits into a byte of the output.
+    Pmull(tmp.V1Q(), tmp.V1D(), mask.V1D());
+    Mov(dst.W(), tmp.V16B(), 7);
+  } else {
+    Sshr(tmp.V8H(), src.V8H(), 15);
+    // Set i-th bit of each lane i. When AND with tmp, the lanes that
+    // are signed will have i-th bit set, unsigned will be 0.
+    Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
+    And(tmp.V16B(), mask.V16B(), tmp.V16B());
+    Addv(tmp.H(), tmp.V8H());
+    Mov(dst.W(), tmp.V8H(), 0);
+  }
 }
 
 void MacroAssembler::I32x4BitMask(Register dst, VRegister src) {

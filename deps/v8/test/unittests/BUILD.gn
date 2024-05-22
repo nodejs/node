@@ -516,12 +516,10 @@ v8_source_set("v8_unittests_sources") {
       "compiler/compiler-unittest.cc",
       "compiler/constant-folding-reducer-unittest.cc",
       "compiler/control-equivalence-unittest.cc",
-      "compiler/control-flow-optimizer-unittest.cc",
       "compiler/csa-load-elimination-unittest.cc",
       "compiler/dead-code-elimination-unittest.cc",
       "compiler/decompression-optimizer-unittest.cc",
       "compiler/diamond-unittest.cc",
-      "compiler/effect-control-linearizer-unittest.cc",
       "compiler/frame-unittest.cc",
       "compiler/function-tester.cc",
       "compiler/function-tester.h",
@@ -722,7 +720,10 @@ v8_source_set("v8_unittests_sources") {
       "assembler/macro-assembler-x64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
-      sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
+      sources += [
+        "compiler/x64/instruction-selector-x64-unittest.cc",
+        "compiler/x64/turboshaft-instruction-selector-x64-unittest.cc",
+      ]
     }
     if (v8_enable_webassembly) {
       sources += [ "wasm/trap-handler-native-unittest.cc" ]
@@ -802,6 +803,8 @@ v8_source_set("v8_unittests_sources") {
     sources += [
       "fuzztest-adapter.h",
       "fuzztest-init-adapter.h",
+      "regexp/regexp-fuzzer.cc",
+      "regexp/regexp-grammar.h",
     ]
 
     deps += [

@@ -330,7 +330,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   template <bool can_be_invalid = false>
   OptionalOpIndex MapToNewGraph(OptionalOpIndex old_index,
                                 int predecessor_index = -1) {
-    if (!old_index.has_value()) return OptionalOpIndex::Invalid();
+    if (!old_index.has_value()) return OptionalOpIndex::Nullopt();
     return MapToNewGraph<can_be_invalid>(old_index.value(), predecessor_index);
   }
 
@@ -560,7 +560,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
           DCHECK_EQ(new_op.outputs_rep().size(), op.outputs_rep().size());
           for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
             DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
-                op.outputs_rep()[i]));
+                op.outputs_rep()[i],
+                Asm().output_graph().IsCreatedFromTurbofan()));
           }
         }
         Asm().Verify(index, new_index);
@@ -851,7 +852,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     }
     return result;
   }
-  OpIndex AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
+
+  V<None> AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
     Graph::OpIndexIterator it(op.didnt_throw_block->begin(),
                               &Asm().input_graph());
     Graph::OpIndexIterator end(op.didnt_throw_block->end(),
@@ -867,7 +869,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       CatchScope scope(Asm(), MapToNewGraph(op.catch_block));
       DCHECK(Asm().input_graph().Get(*it).template Is<DidntThrowOp>());
       if (!Asm().InlineOp(*it, op.didnt_throw_block)) {
-        return OpIndex::Invalid();
+        return V<None>::Invalid();
       }
       ++it;
     }
@@ -879,7 +881,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         break;
       }
     }
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
