@@ -626,10 +626,6 @@ Reflect.deleteProperty(Headers, 'setHeadersGuard')
 Reflect.deleteProperty(Headers, 'getHeadersList')
 Reflect.deleteProperty(Headers, 'setHeadersList')
 
-Object.defineProperty(Headers.prototype, util.inspect.custom, {
-  enumerable: false
-})
-
 iteratorMixin('Headers', Headers, kHeadersSortedMap, 0, 1)
 
 Object.defineProperties(Headers.prototype, {
@@ -642,6 +638,17 @@ Object.defineProperties(Headers.prototype, {
   [Symbol.toStringTag]: {
     value: 'Headers',
     configurable: true
+  },
+  [util.inspect.custom]: {
+    enumerable: false
+  },
+  // Compatibility for global headers
+  [Symbol('headers list')]: {
+    configurable: false,
+    enumerable: false,
+    get: function () {
+      return getHeadersList(this)
+    }
   }
 })
 
