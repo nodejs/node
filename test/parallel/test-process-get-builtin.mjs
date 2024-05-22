@@ -1,4 +1,4 @@
-import { isMainThread } from '../common/index.mjs';
+import { isMainThread, hasCrypto, hasIntl } from '../common/index.mjs';
 import assert from 'node:assert';
 import { builtinModules } from 'node:module';
 
@@ -19,6 +19,20 @@ const publicBuiltins = new Set(builtinModules);
 
 // Remove built-ins not available in the current setup.
 if (!isMainThread) {
+  publicBuiltins.delete('trace_events');
+}
+if (!hasCrypto) {
+  publicBuiltins.delete('crypto');
+  publicBuiltins.delete('tls');
+  publicBuiltins.delete('_tls_common');
+  publicBuiltins.delete('_tls_wrap');
+  publicBuiltins.delete('http2');
+  publicBuiltins.delete('https');
+  publicBuiltins.delete('inspector');
+  publicBuiltins.delete('inspector/promises');
+}
+if (!hasIntl) {
+  publicBuiltins.delete('inspector');
   publicBuiltins.delete('trace_events');
 }
 
