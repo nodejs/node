@@ -240,8 +240,8 @@ class ByteParser extends Writable {
 
               this.#loop = true
               this.#state = parserStates.INFO
-              this.run(callback)
               this.#fragments.length = 0
+              this.run(callback)
             })
 
             this.#loop = false
