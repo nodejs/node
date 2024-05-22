@@ -8631,9 +8631,6 @@ var require_headers = __commonJS({
     Reflect.deleteProperty(Headers, "setHeadersGuard");
     Reflect.deleteProperty(Headers, "getHeadersList");
     Reflect.deleteProperty(Headers, "setHeadersList");
-    Object.defineProperty(Headers.prototype, util.inspect.custom, {
-      enumerable: false
-    });
     iteratorMixin("Headers", Headers, kHeadersSortedMap, 0, 1);
     Object.defineProperties(Headers.prototype, {
       append: kEnumerableProperty,
@@ -8645,6 +8642,17 @@ var require_headers = __commonJS({
       [Symbol.toStringTag]: {
         value: "Headers",
         configurable: true
+      },
+      [util.inspect.custom]: {
+        enumerable: false
+      },
+      // Compatibility for global headers
+      [Symbol("headers list")]: {
+        configurable: false,
+        enumerable: false,
+        get: function() {
+          return getHeadersList(this);
+        }
       }
     });
     webidl.converters.HeadersInit = function(V, prefix, argument) {
@@ -11962,8 +11970,8 @@ var require_receiver = __commonJS({
                   websocketMessageReceived(this.ws, this.#info.binaryType, Buffer.concat(this.#fragments));
                   this.#loop = true;
                   this.#state = parserStates.INFO;
-                  this.run(callback);
                   this.#fragments.length = 0;
+                  this.run(callback);
                 });
                 this.#loop = false;
                 break;
@@ -12099,59 +12107,72 @@ var require_sender = __commonJS({
     "use strict";
     var { WebsocketFrameSend } = require_frame();
     var { opcodes, sendHints } = require_constants4();
+    var FixedQueue = require_fixed_queue();
     var FastBuffer = Buffer[Symbol.species];
     var SendQueue = class {
       static {
         __name(this, "SendQueue");
       }
-      #queued = /* @__PURE__ */ new Set();
-      #size = 0;
-      /** @type {import('net').Socket} */
+      /**
+       * @type {FixedQueue}
+       */
+      #queue = new FixedQueue();
+      /**
+       * @type {boolean}
+       */
+      #running = false;
+      /** @type {import('node:net').Socket} */
       #socket;
       constructor(socket) {
         this.#socket = socket;
       }
       add(item, cb, hint) {
         if (hint !== sendHints.blob) {
-          const data = clone(item, hint);
-          if (this.#size === 0) {
-            this.#dispatch(data, cb, hint);
+          const frame = createFrame(item, hint);
+          if (!this.#running) {
+            this.#socket.write(frame, cb);
           } else {
-            this.#queued.add([data, cb, true, hint]);
-            this.#size++;
-            this.#run();
+            const node2 = {
+              promise: null,
+              callback: cb,
+              frame
+            };
+            this.#queue.push(node2);
           }
           return;
         }
-        const promise = item.arrayBuffer();
-        const queue = [null, cb, false, hint];
-        promise.then((ab) => {
-          queue[0] = clone(ab, hint);
-          queue[2] = true;
+        const node = {
+          promise: item.arrayBuffer().then((ab) => {
+            node.promise = null;
+            node.frame = createFrame(ab, hint);
+          }),
+          callback: cb,
+          frame: null
+        };
+        this.#queue.push(node);
+        if (!this.#running) {
           this.#run();
-        });
-        this.#queued.add(queue);
-        this.#size++;
-      }
-      #run() {
-        for (const queued of this.#queued) {
-          const [data, cb, done, hint] = queued;
-          if (!done)
-            return;
-          this.#queued.delete(queued);
-          this.#size--;
-          this.#dispatch(data, cb, hint);
         }
       }
-      #dispatch(data, cb, hint) {
-        const frame = new WebsocketFrameSend();
-        const opcode = hint === sendHints.string ? opcodes.TEXT : opcodes.BINARY;
-        frame.frameData = data;
-        const buffer = frame.createFrame(opcode);
-        this.#socket.write(buffer, cb);
+      async #run() {
+        this.#running = true;
+        const queue = this.#queue;
+        while (!queue.isEmpty()) {
+          const node = queue.shift();
+          if (node.promise !== null) {
+            await node.promise;
+          }
+          this.#socket.write(node.frame, node.callback);
+          node.callback = node.frame = null;
+        }
+        this.#running = false;
       }
     };
-    function clone(data, hint) {
+    function createFrame(data, hint) {
+      return new WebsocketFrameSend(toBuffer(data, hint)).createFrame(hint === sendHints.string ? opcodes.TEXT : opcodes.BINARY);
+    }
+    __name(createFrame, "createFrame");
+    function toBuffer(data, hint) {
       switch (hint) {
         case sendHints.string:
           return Buffer.from(data);
@@ -12159,10 +12180,10 @@ var require_sender = __commonJS({
         case sendHints.blob:
           return new FastBuffer(data);
         case sendHints.typedArray:
-          return Buffer.copyBytesFrom(data);
+          return new FastBuffer(data.buffer, data.byteOffset, data.byteLength);
       }
     }
-    __name(clone, "clone");
+    __name(toBuffer, "toBuffer");
     module2.exports = { SendQueue };
   }
 });
