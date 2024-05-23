@@ -35,8 +35,15 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
   std::shared_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
           args,
-          {node::ProcessInitializationFlags::kNoInitializeV8,
-           node::ProcessInitializationFlags::kNoInitializeNodeV8Platform});
+          {
+              node::ProcessInitializationFlags::kNoInitializeV8,
+              node::ProcessInitializationFlags::kNoInitializeNodeV8Platform,
+              // This is used to test NODE_REPL_EXTERNAL_MODULE is disabled with
+              // kDisableNodeOptionsEnv. If other tests need NODE_OPTIONS
+              // support in the future, split this configuration out as a
+              // command line option.
+              node::ProcessInitializationFlags::kDisableNodeOptionsEnv,
+          });
 
   for (const std::string& error : result->errors())
     fprintf(stderr, "%s: %s\n", args[0].c_str(), error.c_str());
