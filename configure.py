@@ -397,7 +397,7 @@ shared_optgroup.add_argument('--shared-uvwasi-libname',
     action='store',
     dest='shared_uvwasi_libname',
     default='uvwasi',
-    help='alternative lib name to link to [default: %default]')
+    help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-uvwasi-libpath',
     action='store',
