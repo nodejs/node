@@ -981,6 +981,7 @@ for (const input of inputs) {
 {
 
   assert.throws(() => {
+    // eslint-disable-next-line no-constant-binary-expression
     assert.ok((() => Boolean('' === false))());
   }, {
     message: 'The expression evaluated to a falsy value:\n\n' +

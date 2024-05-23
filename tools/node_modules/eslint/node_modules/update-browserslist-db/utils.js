@@ -3,8 +3,11 @@ const { EOL } = require('os')
 const getFirstRegexpMatchOrDefault = (text, regexp, defaultValue) => {
   regexp.lastIndex = 0 // https://stackoverflow.com/a/11477448/4536543
   let match = regexp.exec(text)
-  if (match !== null) return match[1]
-  return defaultValue
+  if (match !== null) {
+    return match[1]
+  } else {
+    return defaultValue
+  }
 }
 
 const DEFAULT_INDENT = '  '

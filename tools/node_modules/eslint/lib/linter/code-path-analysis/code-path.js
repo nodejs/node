@@ -126,20 +126,6 @@ class CodePath {
     }
 
     /**
-     * Tracks the traversal of the code path through each segment. This array
-     * starts empty and segments are added or removed as the code path is
-     * traversed. This array always ends up empty at the end of a code path
-     * traversal. The `CodePathState` uses this to track its progress through
-     * the code path.
-     * This is a passthrough to the underlying `CodePathState`.
-     * @type {CodePathSegment[]}
-     * @deprecated
-     */
-    get currentSegments() {
-        return this.internal.currentSegments;
-    }
-
-    /**
      * Traverses all segments in this code path.
      *
      *     codePath.traverseSegments((segment, controller) => {
@@ -180,9 +166,9 @@ class CodePath {
         const lastSegment = resolvedOptions.last;
 
         // set up initial location information
-        let record = null;
-        let index = 0;
-        let end = 0;
+        let record;
+        let index;
+        let end;
         let segment = null;
 
         // segments that have already been visited during traversal
@@ -191,8 +177,8 @@ class CodePath {
         // tracks the traversal steps
         const stack = [[startSegment, 0]];
 
-        // tracks the last skipped segment during traversal
-        let skippedSegment = null;
+        // segments that have been skipped during traversal
+        const skipped = new Set();
 
         // indicates if we exited early from the traversal
         let broken = false;
@@ -207,11 +193,7 @@ class CodePath {
              * @returns {void}
              */
             skip() {
-                if (stack.length <= 1) {
-                    broken = true;
-                } else {
-                    skippedSegment = stack[stack.length - 2][0];
-                }
+                skipped.add(segment);
             },
 
             /**
@@ -236,6 +218,18 @@ class CodePath {
             );
         }
 
+        /**
+         * Checks if a given previous segment has been skipped.
+         * @param {CodePathSegment} prevSegment A previous segment to check.
+         * @returns {boolean} `true` if the segment has been skipped.
+         */
+        function isSkipped(prevSegment) {
+            return (
+                skipped.has(prevSegment) ||
+                segment.isLoopedPrevSegment(prevSegment)
+            );
+        }
+
         // the traversal
         while (stack.length > 0) {
 
@@ -251,7 +245,7 @@ class CodePath {
              * Otherwise, we just read the value and sometimes modify the
              * record as we traverse.
              */
-            record = stack[stack.length - 1];
+            record = stack.at(-1);
             segment = record[0];
             index = record[1];
 
@@ -272,17 +266,21 @@ class CodePath {
                     continue;
                 }
 
-                // Reset the skipping flag if all branches have been skipped.
-                if (skippedSegment && segment.prevSegments.includes(skippedSegment)) {
-                    skippedSegment = null;
-                }
                 visited.add(segment);
+
+
+                // Skips the segment if all previous segments have been skipped.
+                const shouldSkip = (
+                    skipped.size > 0 &&
+                    segment.prevSegments.length > 0 &&
+                    segment.prevSegments.every(isSkipped)
+                );
 
                 /*
                  * If the most recent segment hasn't been skipped, then we call
                  * the callback, passing in the segment and the controller.
                  */
-                if (!skippedSegment) {
+                if (!shouldSkip) {
                     resolvedCallback.call(this, segment, controller);
 
                     // exit if we're at the last segment
@@ -298,6 +296,10 @@ class CodePath {
                     if (broken) {
                         break;
                     }
+                } else {
+
+                    // If the most recent segment has been skipped, then mark it as skipped.
+                    skipped.add(segment);
                 }
             }
 

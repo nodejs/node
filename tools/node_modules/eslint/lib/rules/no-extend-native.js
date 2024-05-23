@@ -10,7 +10,6 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const globals = require("globals");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -54,7 +53,7 @@ module.exports = {
         const sourceCode = context.sourceCode;
         const exceptions = new Set(config.exceptions || []);
         const modifiedBuiltins = new Set(
-            Object.keys(globals.builtin)
+            Object.keys(astUtils.ECMASCRIPT_GLOBALS)
                 .filter(builtin => builtin[0].toUpperCase() === builtin[0])
                 .filter(builtin => !exceptions.has(builtin))
         );

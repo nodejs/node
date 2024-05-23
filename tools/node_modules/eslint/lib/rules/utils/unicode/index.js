@@ -3,9 +3,14 @@
  */
 "use strict";
 
+const isCombiningCharacter = require("./is-combining-character");
+const isEmojiModifier = require("./is-emoji-modifier");
+const isRegionalIndicatorSymbol = require("./is-regional-indicator-symbol");
+const isSurrogatePair = require("./is-surrogate-pair");
+
 module.exports = {
-    isCombiningCharacter: require("./is-combining-character"),
-    isEmojiModifier: require("./is-emoji-modifier"),
-    isRegionalIndicatorSymbol: require("./is-regional-indicator-symbol"),
-    isSurrogatePair: require("./is-surrogate-pair")
+    isCombiningCharacter,
+    isEmojiModifier,
+    isRegionalIndicatorSymbol,
+    isSurrogatePair
 };

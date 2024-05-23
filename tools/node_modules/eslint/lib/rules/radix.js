@@ -133,8 +133,8 @@ module.exports = {
                                     messageId: "addRadixParameter10",
                                     fix(fixer) {
                                         const tokens = sourceCode.getTokens(node);
-                                        const lastToken = tokens[tokens.length - 1]; // Parenthesis.
-                                        const secondToLastToken = tokens[tokens.length - 2]; // May or may not be a comma.
+                                        const lastToken = tokens.at(-1); // Parenthesis.
+                                        const secondToLastToken = tokens.at(-2); // May or may not be a comma.
                                         const hasTrailingComma = secondToLastToken.type === "Punctuator" && secondToLastToken.value === ",";
 
                                         return fixer.insertTextBefore(lastToken, hasTrailingComma ? " 10," : ", 10");

@@ -166,7 +166,7 @@ module.exports = {
                 reportError(firstDirective, "before", false);
             }
 
-            const lastDirective = directives[directives.length - 1];
+            const lastDirective = directives.at(-1);
             const statements = node.type === "Program" ? node.body : node.body.body;
 
             /*
@@ -174,7 +174,7 @@ module.exports = {
              * contains a directive prologue and isn't followed by a comment to ensure
              * this rule behaves well with padded-blocks.
              */
-            if (lastDirective === statements[statements.length - 1] && !lastDirective.trailingComments) {
+            if (lastDirective === statements.at(-1) && !lastDirective.trailingComments) {
                 return;
             }
 

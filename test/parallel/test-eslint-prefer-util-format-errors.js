@@ -12,7 +12,7 @@ common.skipIfEslintMissing();
 const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-util-format-errors');
 
-new RuleTester({ parserOptions: { ecmaVersion: 6 } })
+new RuleTester()
   .run('prefer-util-format-errors', rule, {
     valid: [
       'E(\'ABC\', \'abc\');',

@@ -70,6 +70,7 @@ const es2015 = {
     Int16Array: false,
     Int32Array: false,
     Int8Array: false,
+    Intl: false,
     Map: false,
     Promise: false,
     Proxy: false,

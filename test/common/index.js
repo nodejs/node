@@ -189,7 +189,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       }
       initHandles[id] = {
         resource,
-        stack: inspect(new Error()).substr(6),
+        stack: inspect(new Error()).slice(6),
       };
     },
     before() { },

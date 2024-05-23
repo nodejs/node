@@ -129,8 +129,7 @@ module.exports = {
                     comments = sourceCode.getAllComments(),
                     commentLineNumbers = getCommentLineNumbers(comments);
 
-                let totalLength = 0,
-                    fixRange = [];
+                let totalLength = 0;
 
                 for (let i = 0, ii = lines.length; i < ii; i++) {
                     const lineNumber = i + 1;
@@ -177,7 +176,7 @@ module.exports = {
                             continue;
                         }
 
-                        fixRange = [rangeStart, rangeEnd];
+                        const fixRange = [rangeStart, rangeEnd];
 
                         if (!ignoreComments || !commentLineNumbers.has(lineNumber)) {
                             report(node, location, fixRange);

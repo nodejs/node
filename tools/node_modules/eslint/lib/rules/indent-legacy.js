@@ -789,7 +789,7 @@ module.exports = {
             if (elements.length > 0) {
 
                 // Skip last block line check if last item in same line
-                if (elements[elements.length - 1].loc.end.line === node.loc.end.line) {
+                if (elements.at(-1).loc.end.line === node.loc.end.line) {
                     return;
                 }
             }
@@ -830,7 +830,7 @@ module.exports = {
             }
 
             let indent;
-            let nodesToCheck = [];
+            let nodesToCheck;
 
             /*
              * For this statements we should check indent from statement beginning,
@@ -873,7 +873,7 @@ module.exports = {
          */
         function filterOutSameLineVars(node) {
             return node.declarations.reduce((finalCollection, elem) => {
-                const lastElem = finalCollection[finalCollection.length - 1];
+                const lastElem = finalCollection.at(-1);
 
                 if ((elem.loc.start.line !== node.loc.start.line && !lastElem) ||
                     (lastElem && lastElem.loc.start.line !== elem.loc.start.line)) {
@@ -892,7 +892,7 @@ module.exports = {
         function checkIndentInVariableDeclarations(node) {
             const elements = filterOutSameLineVars(node);
             const nodeIndent = getNodeIndent(node).goodChar;
-            const lastElement = elements[elements.length - 1];
+            const lastElement = elements.at(-1);
 
             const elementsIndent = nodeIndent + indentSize * options.VariableDeclarator[node.kind];
 
@@ -999,7 +999,7 @@ module.exports = {
             },
 
             VariableDeclaration(node) {
-                if (node.declarations[node.declarations.length - 1].loc.start.line > node.declarations[0].loc.start.line) {
+                if (node.declarations.at(-1).loc.start.line > node.declarations[0].loc.start.line) {
                     checkIndentInVariableDeclarations(node);
                 }
             },

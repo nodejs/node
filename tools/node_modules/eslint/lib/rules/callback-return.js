@@ -147,7 +147,7 @@ module.exports = {
                 if (closestBlock.type === "BlockStatement") {
 
                     // find the last item in the block
-                    const lastItem = closestBlock.body[closestBlock.body.length - 1];
+                    const lastItem = closestBlock.body.at(-1);
 
                     // if the callback is the last thing in a block that might be ok
                     if (isCallbackExpression(node, lastItem)) {
@@ -168,7 +168,7 @@ module.exports = {
                     if (lastItem.type === "ReturnStatement") {
 
                         // but only if the callback is immediately before
-                        if (isCallbackExpression(node, closestBlock.body[closestBlock.body.length - 2])) {
+                        if (isCallbackExpression(node, closestBlock.body.at(-2))) {
                             return;
                         }
                     }
