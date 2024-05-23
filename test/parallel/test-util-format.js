@@ -556,7 +556,7 @@ assert.strictEqual(
 
 assert.strictEqual(
   util.formatWithOptions({ colors: true }, '%cfoo', 'color: red'),
-  '\x1b[31mfoo\x1b[0m'
+  util.styleText('red', 'foo')
 );
 
 assert.strictEqual(
@@ -565,17 +565,17 @@ assert.strictEqual(
     '%cfoo',
     'color: red; background-color: blue'
   ),
-  '\x1B[44m\x1B[31mfoo\x1B[0m'
+  util.styleText(['red', 'bgBlue'], 'foo')
 );
 
 assert.strictEqual(
   util.formatWithOptions({ colors: true }, '%cfoo', 'color: red', 'bar'),
-  '\x1b[31mfoo\x1b[0m bar'
+  `${util.styleText('red', 'foo')} bar`
 );
 
 assert.strictEqual(
   util.formatWithOptions({ colors: true }, '%cfoo%c bar', 'color: red', ''),
-  '\x1b[31mfoo\x1b[39m bar\x1b[0m'
+  `${util.styleText('red', 'foo')} bar`
 );
 
 assert.strictEqual(
@@ -585,5 +585,5 @@ assert.strictEqual(
     'color: red',
     'color: blue'
   ),
-  '\x1b[31mfoo \x1b[34mbar\x1b[0m'
+  `${util.styleText('red', 'foo ')}${util.styleText('blue', 'bar')}`
 );
