@@ -18,3 +18,12 @@ assert.throws(
     message: /Cannot find package 'target'/
   }
 );
+
+assert.throws(
+  () => resolve('fs/promisesx'),
+  {
+    code: 'ERR_MODULE_NOT_FOUND',
+    name: 'Error',
+    message: /Cannot find package 'fs\/promisesx'/
+  }
+);
