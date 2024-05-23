@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.14.0">20.14.0</a><br/>
 <a href="#20.13.1">20.13.1</a><br/>
 <a href="#20.13.0">20.13.0</a><br/>
 <a href="#20.12.2">20.12.2</a><br/>
@@ -60,6 +61,60 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.14.0"></a>
+
+## 2024-05-28, Version 20.14.0 'Iron' (LTS), @marco-ippolito
+
+### Notable Changes
+
+* \[[`28d2baa17c`](https://github.com/nodejs/node/commit/28d2baa17c)] - **src,permission**: throw async errors on async APIs (Rafael Gonzaga) [#52730](https://github.com/nodejs/node/pull/52730)
+* \[[`77e2bf029a`](https://github.com/nodejs/node/commit/77e2bf029a)] - **(SEMVER-MINOR)** **test\_runner**: support forced exit (Colin Ihrig) [#52038](https://github.com/nodejs/node/pull/52038)
+
+### Commits
+
+* \[[`e3ad05d8b0`](https://github.com/nodejs/node/commit/e3ad05d8b0)] - **deps**: V8: cherry-pick 500de8bd371b (Richard Lau) [#52676](https://github.com/nodejs/node/pull/52676)
+* \[[`053282e661`](https://github.com/nodejs/node/commit/053282e661)] - **deps**: V8: backport c4be0a97f981 (Richard Lau) [#52183](https://github.com/nodejs/node/pull/52183)
+* \[[`200dadb879`](https://github.com/nodejs/node/commit/200dadb879)] - **deps**: V8: cherry-pick f8d5e576b814 (Richard Lau) [#52183](https://github.com/nodejs/node/pull/52183)
+* \[[`f5cd125e02`](https://github.com/nodejs/node/commit/f5cd125e02)] - **deps**: update googletest to fa6de7f (Node.js GitHub Bot) [#52949](https://github.com/nodejs/node/pull/52949)
+* \[[`bbbfd7f4e1`](https://github.com/nodejs/node/commit/bbbfd7f4e1)] - **deps**: update corepack to 0.28.1 (Node.js GitHub Bot) [#52946](https://github.com/nodejs/node/pull/52946)
+* \[[`7ba30a57a6`](https://github.com/nodejs/node/commit/7ba30a57a6)] - **deps**: update simdutf to 5.2.8 (Node.js GitHub Bot) [#52727](https://github.com/nodejs/node/pull/52727)
+* \[[`b21a480a28`](https://github.com/nodejs/node/commit/b21a480a28)] - **deps**: update simdutf to 5.2.6 (Node.js GitHub Bot) [#52727](https://github.com/nodejs/node/pull/52727)
+* \[[`6cfad60d97`](https://github.com/nodejs/node/commit/6cfad60d97)] - **deps**: update googletest to 2d16ed0 (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`34708d1429`](https://github.com/nodejs/node/commit/34708d1429)] - **deps**: update googletest to d83fee1 (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`c1d3e558e8`](https://github.com/nodejs/node/commit/c1d3e558e8)] - **deps**: update googletest to 5a37b51 (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`69959d0fca`](https://github.com/nodejs/node/commit/69959d0fca)] - **deps**: update googletest to 5197b1a (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`c8305f6057`](https://github.com/nodejs/node/commit/c8305f6057)] - **deps**: update googletest to eff443c (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`760b788704`](https://github.com/nodejs/node/commit/760b788704)] - **deps**: update googletest to c231e6f (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`301541cc8f`](https://github.com/nodejs/node/commit/301541cc8f)] - **deps**: update googletest to e4fdb87 (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`981d57e401`](https://github.com/nodejs/node/commit/981d57e401)] - **deps**: update googletest to 5df0241 (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`a1817f534d`](https://github.com/nodejs/node/commit/a1817f534d)] - **deps**: update googletest to b75ecf1 (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`42070ca189`](https://github.com/nodejs/node/commit/42070ca189)] - **deps**: update googletest to 4565741 (Node.js GitHub Bot) [#51657](https://github.com/nodejs/node/pull/51657)
+* \[[`edc3e5d056`](https://github.com/nodejs/node/commit/edc3e5d056)] - **deps**: update uvwasi to 0.0.21 (Node.js GitHub Bot) [#52863](https://github.com/nodejs/node/pull/52863)
+* \[[`26b1231ffb`](https://github.com/nodejs/node/commit/26b1231ffb)] - **deps**: upgrade npm to 10.7.0 (npm team) [#52767](https://github.com/nodejs/node/pull/52767)
+* \[[`e6d9fbece2`](https://github.com/nodejs/node/commit/e6d9fbece2)] - **doc**: update process.versions properties (ishabi) [#52736](https://github.com/nodejs/node/pull/52736)
+* \[[`8c1f837c0a`](https://github.com/nodejs/node/commit/8c1f837c0a)] - **doc**: remove mold use on mac for speeding up build (Cong Zhang) [#52252](https://github.com/nodejs/node/pull/52252)
+* \[[`d9c5114694`](https://github.com/nodejs/node/commit/d9c5114694)] - **doc**: fix grammatical mistake (codershiba) [#52808](https://github.com/nodejs/node/pull/52808)
+* \[[`b350f435b7`](https://github.com/nodejs/node/commit/b350f435b7)] - **meta**: add mailmap entry for legendecas (Chengzhong Wu) [#52795](https://github.com/nodejs/node/pull/52795)
+* \[[`61f9f12eff`](https://github.com/nodejs/node/commit/61f9f12eff)] - **meta**: bump actions/checkout from 4.1.1 to 4.1.4 (dependabot\[bot]) [#52787](https://github.com/nodejs/node/pull/52787)
+* \[[`ac563667d6`](https://github.com/nodejs/node/commit/ac563667d6)] - **meta**: bump github/codeql-action from 3.24.9 to 3.25.3 (dependabot\[bot]) [#52786](https://github.com/nodejs/node/pull/52786)
+* \[[`70611d7924`](https://github.com/nodejs/node/commit/70611d7924)] - **meta**: bump actions/upload-artifact from 4.3.1 to 4.3.3 (dependabot\[bot]) [#52785](https://github.com/nodejs/node/pull/52785)
+* \[[`30482ea273`](https://github.com/nodejs/node/commit/30482ea273)] - **meta**: bump actions/download-artifact from 4.1.4 to 4.1.7 (dependabot\[bot]) [#52784](https://github.com/nodejs/node/pull/52784)
+* \[[`d1607cdebb`](https://github.com/nodejs/node/commit/d1607cdebb)] - **meta**: bump codecov/codecov-action from 4.1.1 to 4.3.1 (dependabot\[bot]) [#52783](https://github.com/nodejs/node/pull/52783)
+* \[[`21f1b6bfc3`](https://github.com/nodejs/node/commit/21f1b6bfc3)] - **meta**: bump step-security/harden-runner from 2.7.0 to 2.7.1 (dependabot\[bot]) [#52782](https://github.com/nodejs/node/pull/52782)
+* \[[`0c6019a222`](https://github.com/nodejs/node/commit/0c6019a222)] - **meta**: standardize regex (Aviv Keller) [#52693](https://github.com/nodejs/node/pull/52693)
+* \[[`28d2baa17c`](https://github.com/nodejs/node/commit/28d2baa17c)] - **src,permission**: throw async errors on async APIs (Rafael Gonzaga) [#52730](https://github.com/nodejs/node/pull/52730)
+* \[[`cffd2cc0c9`](https://github.com/nodejs/node/commit/cffd2cc0c9)] - _**Revert**_ "**stream**: revert fix cloned webstreams not being unref'd" (Marco Ippolito) [#53144](https://github.com/nodejs/node/pull/53144)
+* \[[`3dd96f1fab`](https://github.com/nodejs/node/commit/3dd96f1fab)] - **stream**: implement TransformStream cleanup using "transformer.cancel" (Debadree Chatterjee) [#50126](https://github.com/nodejs/node/pull/50126)
+* \[[`8e7e778e01`](https://github.com/nodejs/node/commit/8e7e778e01)] - **test**: skip v8-updates/test-linux-perf (Michaël Zasso) [#49639](https://github.com/nodejs/node/pull/49639)
+* \[[`f8e18869e9`](https://github.com/nodejs/node/commit/f8e18869e9)] - **test**: replace always-opt flag with alway-turbofan (Michaël Zasso) [#50115](https://github.com/nodejs/node/pull/50115)
+* \[[`a501860d63`](https://github.com/nodejs/node/commit/a501860d63)] - **test\_runner**: don't await the same promise for each test (Colin Ihrig) [#52185](https://github.com/nodejs/node/pull/52185)
+* \[[`e2ae4367f4`](https://github.com/nodejs/node/commit/e2ae4367f4)] - **test\_runner**: run top level tests in a microtask (Colin Ihrig) [#52092](https://github.com/nodejs/node/pull/52092)
+* \[[`77e2bf029a`](https://github.com/nodejs/node/commit/77e2bf029a)] - **(SEMVER-MINOR)** **test\_runner**: support forced exit (Colin Ihrig) [#52038](https://github.com/nodejs/node/pull/52038)
+* \[[`b7bc63565e`](https://github.com/nodejs/node/commit/b7bc63565e)] - **test\_runner**: ignore todo flag when running suites (Colin Ihrig) [#52117](https://github.com/nodejs/node/pull/52117)
+* \[[`be587e3ae3`](https://github.com/nodejs/node/commit/be587e3ae3)] - **test\_runner**: use paths for test locations (Colin Ihrig) [#52010](https://github.com/nodejs/node/pull/52010)
+* \[[`743281ab25`](https://github.com/nodejs/node/commit/743281ab25)] - **test\_runner**: support source mapped test locations (Colin Ihrig) [#52010](https://github.com/nodejs/node/pull/52010)
+* \[[`4051316d95`](https://github.com/nodejs/node/commit/4051316d95)] - **tools**: update lint-md-dependencies to rollup\@4.17.0 (Node.js GitHub Bot) [#52729](https://github.com/nodejs/node/pull/52729)
 
 <a id="20.13.1"></a>
 
