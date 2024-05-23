@@ -1,4 +1,4 @@
-#created by ketan
+#created by ketan mahajan,,,,,
 # Node.js
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
@@ -8,7 +8,7 @@ For information on using Node.js, see the [Node.js website][].
 The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
 
-Contributors are expected to act in a collaborative manner to move
+Contributors are expected in a collaborative manner to move
 the project forward. We encourage the constructive exchange of contrary
 opinions and compromise. The [TSC](./GOVERNANCE.md#technical-steering-committee)
 reserves the right to limit or block contributors who repeatedly act in ways
