@@ -691,9 +691,11 @@ disk space.
   git clone https://github.com/nodejs/node.git
   cd node
   ```
-> [!TIP]
+
+> \[!TIP]
 > If you are building from a Windows machine, symlinks are disabled by default, and can be enabled by cloning
 > with the `-c core.symlinks=true` flag.
+>
 > ```powershell
 > git clone -c core.symlinks=true <repository_url>
 > ```
