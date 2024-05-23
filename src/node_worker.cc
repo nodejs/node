@@ -590,9 +590,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
         exec_argv.push_back(arg_string);
       }
     } else {
-      exec_argv_out = env->exec_argv();
       exec_argv.insert(
-          exec_argv.end(), exec_argv_out.begin(), exec_argv_out.end());
+          exec_argv.end(), env->exec_argv().begin(), env->exec_argv().end());
     }
 
     std::vector<std::string> invalid_args{};
@@ -608,7 +607,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
-    if (errors.size() > 0 || invalid_args.size() > 0) {
+    // Only fail for explicitly provided execArgv, this protects from failures
+    // when execArgv from parent's execArgv is used (which is the default).
+    if (errors.size() > 0 || (invalid_args.size() > 0 && args[2]->IsArray())) {
       Local<Value> error;
       if (!ToV8Value(env->context(), errors.size() > 0 ? errors : invalid_args)
                .ToLocal(&error)) {
