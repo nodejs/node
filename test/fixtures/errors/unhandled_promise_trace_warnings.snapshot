@@ -18,6 +18,7 @@
     at *
     at *
     at *
+    at *
 (node:*) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
     at *
     at *
