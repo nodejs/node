@@ -66,7 +66,7 @@ module.exports = {
             NewExpression: true
         };
 
-        if (context.options.length === 2 && Object.prototype.hasOwnProperty.call(context.options[1], "exceptions")) {
+        if (context.options.length === 2 && Object.hasOwn(context.options[1], "exceptions")) {
             const keys = Object.keys(context.options[1].exceptions);
 
             for (let i = 0; i < keys.length; i++) {
@@ -218,7 +218,7 @@ module.exports = {
 
                         previousItemToken = tokenAfterItem
                             ? sourceCode.getTokenBefore(tokenAfterItem)
-                            : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
+                            : sourceCode.ast.tokens.at(-1);
                     } else {
                         previousItemToken = currentItemToken;
                     }

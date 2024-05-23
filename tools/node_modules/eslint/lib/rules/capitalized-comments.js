@@ -8,7 +8,6 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const LETTER_PATTERN = require("./utils/patterns/letters");
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -17,7 +16,8 @@ const astUtils = require("./utils/ast-utils");
 
 const DEFAULT_IGNORE_PATTERN = astUtils.COMMENTS_IGNORE_PATTERN,
     WHITESPACE = /\s/gu,
-    MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/u; // TODO: Combine w/ max-len pattern?
+    MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/u, // TODO: Combine w/ max-len pattern?
+    LETTER_PATTERN = /\p{L}/u;
 
 /*
  * Base schema body for defining the basic capitalization rule, ignorePattern,
@@ -233,7 +233,8 @@ module.exports = {
                 return true;
             }
 
-            const firstWordChar = commentWordCharsOnly[0];
+            // Get the first Unicode character (1 or 2 code units).
+            const [firstWordChar] = commentWordCharsOnly;
 
             if (!LETTER_PATTERN.test(firstWordChar)) {
                 return true;
@@ -273,12 +274,14 @@ module.exports = {
                     messageId,
                     fix(fixer) {
                         const match = comment.value.match(LETTER_PATTERN);
+                        const char = match[0];
+
+                        // Offset match.index by 2 to account for the first 2 characters that start the comment (// or /*)
+                        const charIndex = comment.range[0] + match.index + 2;
 
                         return fixer.replaceTextRange(
-
-                            // Offset match.index by 2 to account for the first 2 characters that start the comment (// or /*)
-                            [comment.range[0] + match.index + 2, comment.range[0] + match.index + 3],
-                            capitalize === "always" ? match[0].toLocaleUpperCase() : match[0].toLocaleLowerCase()
+                            [charIndex, charIndex + char.length],
+                            capitalize === "always" ? char.toLocaleUpperCase() : char.toLocaleLowerCase()
                         );
                     }
                 });

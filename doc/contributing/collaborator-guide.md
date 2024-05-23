@@ -855,7 +855,7 @@ might impact an LTS release.
 | `src/node_api.*`                                                           | @nodejs/node-api                                                              |
 | `src/node_crypto.*`, `src/crypto`                                          | @nodejs/crypto                                                                |
 | `test/*`                                                                   | @nodejs/testing                                                               |
-| `tools/node_modules/eslint`, `.eslintrc`                                   | @nodejs/linting                                                               |
+| `tools/node_modules/eslint`, `eslint.config.mjs`                           | @nodejs/linting                                                               |
 | build                                                                      | @nodejs/build                                                                 |
 | `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                                                               |
 | GYP                                                                        | @nodejs/gyp                                                                   |

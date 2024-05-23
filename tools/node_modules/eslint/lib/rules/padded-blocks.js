@@ -84,18 +84,18 @@ module.exports = {
             options.switches = shouldHavePadding;
             options.classes = shouldHavePadding;
         } else {
-            if (Object.prototype.hasOwnProperty.call(typeOptions, "blocks")) {
+            if (Object.hasOwn(typeOptions, "blocks")) {
                 options.blocks = typeOptions.blocks === "always";
             }
-            if (Object.prototype.hasOwnProperty.call(typeOptions, "switches")) {
+            if (Object.hasOwn(typeOptions, "switches")) {
                 options.switches = typeOptions.switches === "always";
             }
-            if (Object.prototype.hasOwnProperty.call(typeOptions, "classes")) {
+            if (Object.hasOwn(typeOptions, "classes")) {
                 options.classes = typeOptions.classes === "always";
             }
         }
 
-        if (Object.prototype.hasOwnProperty.call(exceptOptions, "allowSingleLineBlocks")) {
+        if (Object.hasOwn(exceptOptions, "allowSingleLineBlocks")) {
             options.allowSingleLineBlocks = exceptOptions.allowSingleLineBlocks === true;
         }
 
@@ -277,7 +277,7 @@ module.exports = {
 
         const rule = {};
 
-        if (Object.prototype.hasOwnProperty.call(options, "switches")) {
+        if (Object.hasOwn(options, "switches")) {
             rule.SwitchStatement = function(node) {
                 if (node.cases.length === 0) {
                     return;
@@ -286,7 +286,7 @@ module.exports = {
             };
         }
 
-        if (Object.prototype.hasOwnProperty.call(options, "blocks")) {
+        if (Object.hasOwn(options, "blocks")) {
             rule.BlockStatement = function(node) {
                 if (node.body.length === 0) {
                     return;
@@ -296,7 +296,7 @@ module.exports = {
             rule.StaticBlock = rule.BlockStatement;
         }
 
-        if (Object.prototype.hasOwnProperty.call(options, "classes")) {
+        if (Object.hasOwn(options, "classes")) {
             rule.ClassBody = function(node) {
                 if (node.body.length === 0) {
                     return;

@@ -94,7 +94,7 @@ module.exports = {
                     break;
                 case "SequenceExpression":
                     checkUndefinedShortCircuit(
-                        node.expressions[node.expressions.length - 1],
+                        node.expressions.at(-1),
                         reportFunc
                     );
                     break;

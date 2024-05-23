@@ -35,6 +35,7 @@ module.exports = {
         },
 
         schema: [{
+            type: "object",
             properties: {
                 allowInParentheses: {
                     type: "boolean",

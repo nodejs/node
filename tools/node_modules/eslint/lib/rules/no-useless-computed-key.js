@@ -101,7 +101,7 @@ module.exports = {
             properties: {
                 enforceForClassMembers: {
                     type: "boolean",
-                    default: false
+                    default: true
                 }
             },
             additionalProperties: false
@@ -114,7 +114,7 @@ module.exports = {
     },
     create(context) {
         const sourceCode = context.sourceCode;
-        const enforceForClassMembers = context.options[0] && context.options[0].enforceForClassMembers;
+        const enforceForClassMembers = context.options[0]?.enforceForClassMembers ?? true;
 
         /**
          * Reports a given node if it violated this rule.

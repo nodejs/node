@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to enforce the position of line comments
  * @author Alberto Rodríguez
+ * @deprecated in ESLint v9.3.0
  */
 "use strict";
 
@@ -13,6 +14,8 @@ const astUtils = require("./utils/ast-utils");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {
@@ -68,7 +71,7 @@ module.exports = {
             above = !options.position || options.position === "above";
             ignorePattern = options.ignorePattern;
 
-            if (Object.prototype.hasOwnProperty.call(options, "applyDefaultIgnorePatterns")) {
+            if (Object.hasOwn(options, "applyDefaultIgnorePatterns")) {
                 applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns;
             } else {
                 applyDefaultIgnorePatterns = options.applyDefaultPatterns !== false;

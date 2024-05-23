@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const fs = require("fs"),
-    path = require("path");
+const fs = require("node:fs"),
+    path = require("node:path");
 
 const rulesDirCache = {};
 

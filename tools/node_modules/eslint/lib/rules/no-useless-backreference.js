@@ -138,7 +138,7 @@ module.exports = {
 
                             // the opposite of the previous when the regex is matching backward in a lookbehind context.
                             messageId = "backward";
-                        } else if (groupCut[groupCut.length - 1].type === "Alternative") {
+                        } else if (groupCut.at(-1).type === "Alternative") {
 
                             // group's and bref's ancestor nodes below the lowest common ancestor are sibling alternatives => they're disjunctive.
                             messageId = "disjunctive";

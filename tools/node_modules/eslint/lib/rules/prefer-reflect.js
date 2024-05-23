@@ -105,7 +105,7 @@ module.exports = {
             CallExpression(node) {
                 const methodName = (node.callee.property || {}).name;
                 const isReflectCall = (node.callee.object || {}).name === "Reflect";
-                const hasReflectSubstitute = Object.prototype.hasOwnProperty.call(reflectSubstitutes, methodName);
+                const hasReflectSubstitute = Object.hasOwn(reflectSubstitutes, methodName);
                 const userConfiguredException = exceptions.includes(methodName);
 
                 if (hasReflectSubstitute && !isReflectCall && !userConfiguredException) {

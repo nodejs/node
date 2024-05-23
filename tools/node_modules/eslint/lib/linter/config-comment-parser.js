@@ -40,7 +40,7 @@ module.exports = class ConfigCommentParser {
 
     /**
      * Parses a list of "name:string_value" or/and "name" options divided by comma or
-     * whitespace. Used for "global" and "exported" comments.
+     * whitespace. Used for "global" comments.
      * @param {string} string The string to parse.
      * @param {Comment} comment The comment node which has the string.
      * @returns {Object} Result map object of names and string values, or null values if no value was provided
@@ -75,11 +75,9 @@ module.exports = class ConfigCommentParser {
     parseJsonConfig(string, location) {
         debug("Parsing JSON config");
 
-        let items = {};
-
         // Parses a JSON-like comment by the same way as parsing CLI option.
         try {
-            items = levn.parse("Object", string) || {};
+            const items = levn.parse("Object", string) || {};
 
             // Some tests say that it should ignore invalid comments such as `/*eslint no-alert:abc*/`.
             // Also, commaless notations have invalid severity:
@@ -102,11 +100,15 @@ module.exports = class ConfigCommentParser {
          * Optionator cannot parse commaless notations.
          * But we are supporting that. So this is a fallback for that.
          */
-        items = {};
         const normalizedString = string.replace(/([-a-zA-Z0-9/]+):/gu, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/u, "$1,");
 
         try {
-            items = JSON.parse(`{${normalizedString}}`);
+            const items = JSON.parse(`{${normalizedString}}`);
+
+            return {
+                success: true,
+                config: items
+            };
         } catch (ex) {
             debug("Manual parsing failed.");
 
@@ -124,11 +126,6 @@ module.exports = class ConfigCommentParser {
             };
 
         }
-
-        return {
-            success: true,
-            config: items
-        };
     }
 
     /**

@@ -76,7 +76,7 @@ module.exports = {
          * @returns {string} A string representing an inverted expression
          */
         function invertExpression(node) {
-            if (node.type === "BinaryExpression" && Object.prototype.hasOwnProperty.call(OPERATOR_INVERSES, node.operator)) {
+            if (node.type === "BinaryExpression" && Object.hasOwn(OPERATOR_INVERSES, node.operator)) {
                 const operatorToken = sourceCode.getFirstTokenBetween(
                     node.left,
                     node.right,

@@ -78,7 +78,7 @@ module.exports = {
 
             const block = node.parent;
 
-            if (loneBlocks[loneBlocks.length - 1] === block) {
+            if (loneBlocks.at(-1) === block) {
                 loneBlocks.pop();
             }
         }
@@ -101,7 +101,7 @@ module.exports = {
                     }
                 },
                 "BlockStatement:exit"(node) {
-                    if (loneBlocks.length > 0 && loneBlocks[loneBlocks.length - 1] === node) {
+                    if (loneBlocks.length > 0 && loneBlocks.at(-1) === node) {
                         loneBlocks.pop();
                         report(node);
                     } else if (
@@ -117,7 +117,7 @@ module.exports = {
             };
 
             ruleDef.VariableDeclaration = function(node) {
-                if (node.kind === "let" || node.kind === "const") {
+                if (node.kind !== "var") {
                     markLoneBlock(node);
                 }
             };

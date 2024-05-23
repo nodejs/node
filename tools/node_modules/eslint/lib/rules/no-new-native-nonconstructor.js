@@ -22,7 +22,7 @@ module.exports = {
 
         docs: {
             description: "Disallow `new` operators with global non-constructor functions",
-            recommended: false,
+            recommended: true,
             url: "https://eslint.org/docs/latest/rules/no-new-native-nonconstructor"
         },
 

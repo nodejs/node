@@ -5,6 +5,23 @@
 
 "use strict";
 
+//------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/** @typedef {import("../shared/types").Rule} Rule */
+
+//------------------------------------------------------------------------------
+// Private Members
+//------------------------------------------------------------------------------
+
+// JSON schema that disallows passing any options
+const noOptionsSchema = Object.freeze({
+    type: "array",
+    minItems: 0,
+    maxItems: 0
+});
+
 //-----------------------------------------------------------------------------
 // Functions
 //-----------------------------------------------------------------------------
@@ -52,32 +69,39 @@ function getRuleFromConfig(ruleId, config) {
     const { pluginName, ruleName } = parseRuleId(ruleId);
 
     const plugin = config.plugins && config.plugins[pluginName];
-    let rule = plugin && plugin.rules && plugin.rules[ruleName];
-
-
-    // normalize function rules into objects
-    if (rule && typeof rule === "function") {
-        rule = {
-            create: rule
-        };
-    }
+    const rule = plugin && plugin.rules && plugin.rules[ruleName];
 
     return rule;
 }
 
 /**
  * Gets a complete options schema for a rule.
- * @param {{create: Function, schema: (Array|null)}} rule A new-style rule object
- * @returns {Object} JSON Schema for the rule's options.
+ * @param {Rule} rule A rule object
+ * @throws {TypeError} If `meta.schema` is specified but is not an array, object or `false`.
+ * @returns {Object|null} JSON Schema for the rule's options. `null` if `meta.schema` is `false`.
  */
 function getRuleOptionsSchema(rule) {
 
-    if (!rule) {
+    if (!rule.meta) {
+        return { ...noOptionsSchema }; // default if `meta.schema` is not specified
+    }
+
+    const schema = rule.meta.schema;
+
+    if (typeof schema === "undefined") {
+        return { ...noOptionsSchema }; // default if `meta.schema` is not specified
+    }
+
+    // `schema:false` is an allowed explicit opt-out of options validation for the rule
+    if (schema === false) {
         return null;
     }
 
-    const schema = rule.schema || rule.meta && rule.meta.schema;
+    if (typeof schema !== "object" || schema === null) {
+        throw new TypeError("Rule's `meta.schema` must be an array or object");
+    }
 
+    // ESLint-specific array form needs to be converted into a valid JSON Schema definition
     if (Array.isArray(schema)) {
         if (schema.length) {
             return {
@@ -87,16 +111,13 @@ function getRuleOptionsSchema(rule) {
                 maxItems: schema.length
             };
         }
-        return {
-            type: "array",
-            minItems: 0,
-            maxItems: 0
-        };
 
+        // `schema:[]` is an explicit way to specify that the rule does not accept any options
+        return { ...noOptionsSchema };
     }
 
-    // Given a full schema, leave it alone
-    return schema || null;
+    // `schema:<object>` is assumed to be a valid JSON Schema definition
+    return schema;
 }
 
 

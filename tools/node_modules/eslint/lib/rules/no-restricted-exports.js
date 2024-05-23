@@ -37,7 +37,8 @@ module.exports = {
                                 type: "string"
                             },
                             uniqueItems: true
-                        }
+                        },
+                        restrictedNamedExportsPattern: { type: "string" }
                     },
                     additionalProperties: false
                 },
@@ -52,6 +53,7 @@ module.exports = {
                             },
                             uniqueItems: true
                         },
+                        restrictedNamedExportsPattern: { type: "string" },
                         restrictDefaultExports: {
                             type: "object",
                             properties: {
@@ -98,6 +100,7 @@ module.exports = {
     create(context) {
 
         const restrictedNames = new Set(context.options[0] && context.options[0].restrictedNamedExports);
+        const restrictedNamePattern = context.options[0] && context.options[0].restrictedNamedExportsPattern;
         const restrictDefaultExports = context.options[0] && context.options[0].restrictDefaultExports;
         const sourceCode = context.sourceCode;
 
@@ -109,7 +112,15 @@ module.exports = {
         function checkExportedName(node) {
             const name = astUtils.getModuleExportName(node);
 
-            if (restrictedNames.has(name)) {
+            let matchesRestrictedNamePattern = false;
+
+            if (restrictedNamePattern && name !== "default") {
+                const patternRegex = new RegExp(restrictedNamePattern, "u");
+
+                matchesRestrictedNamePattern = patternRegex.test(name);
+            }
+
+            if (matchesRestrictedNamePattern || restrictedNames.has(name)) {
                 context.report({
                     node,
                     messageId: "restrictedNamed",

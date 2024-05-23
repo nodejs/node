@@ -74,7 +74,7 @@ module.exports = {
          *   an object which has a flag that whether or not `this` keyword is valid.
          */
         stack.getCurrent = function() {
-            const current = this[this.length - 1];
+            const current = this.at(-1);
 
             if (!current.init) {
                 current.init = true;

@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const Cursor = require("./cursor");
-const utils = require("./utils");
+const { getFirstIndex, search } = require("./utils");
 
 //------------------------------------------------------------------------------
 // Exports
@@ -32,8 +32,8 @@ module.exports = class ForwardTokenCommentCursor extends Cursor {
         super();
         this.tokens = tokens;
         this.comments = comments;
-        this.tokenIndex = utils.getFirstIndex(tokens, indexMap, startLoc);
-        this.commentIndex = utils.search(comments, startLoc);
+        this.tokenIndex = getFirstIndex(tokens, indexMap, startLoc);
+        this.commentIndex = search(comments, startLoc);
         this.border = endLoc;
     }
 

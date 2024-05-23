@@ -212,6 +212,12 @@ export default iterateJsdoc(({
       continue;
     }
 
+    if (tag.tag === 'import') {
+      // A named import will look like a type, but not be valid; we also don't
+      //  need to check the name/namepath
+      continue;
+    }
+
     if (tag.tag === 'borrows') {
       const thisNamepath = /** @type {string} */ (
         utils.getTagDescription(tag)

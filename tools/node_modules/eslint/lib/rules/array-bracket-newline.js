@@ -74,7 +74,7 @@ module.exports = {
         function normalizeOptionValue(option) {
             let consistent = false;
             let multiline = false;
-            let minItems = 0;
+            let minItems;
 
             if (option) {
                 if (option === "consistent") {

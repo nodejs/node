@@ -66,6 +66,25 @@ function throwRuleNotFoundError({ pluginName, ruleName }, config) {
     throw new TypeError(errorMessage);
 }
 
+/**
+ * The error type when a rule has an invalid `meta.schema`.
+ */
+class InvalidRuleOptionsSchemaError extends Error {
+
+    /**
+     * Creates a new instance.
+     * @param {string} ruleId Id of the rule that has an invalid `meta.schema`.
+     * @param {Error} processingError Error caught while processing the `meta.schema`.
+     */
+    constructor(ruleId, processingError) {
+        super(
+            `Error while processing options validation schema of rule '${ruleId}': ${processingError.message}`,
+            { cause: processingError }
+        );
+        this.code = "ESLINT_INVALID_RULE_OPTIONS_SCHEMA";
+    }
+}
+
 //-----------------------------------------------------------------------------
 // Exports
 //-----------------------------------------------------------------------------
@@ -130,10 +149,14 @@ class RuleValidator {
 
             // Precompile and cache validator the first time
             if (!this.validators.has(rule)) {
-                const schema = getRuleOptionsSchema(rule);
+                try {
+                    const schema = getRuleOptionsSchema(rule);
 
-                if (schema) {
-                    this.validators.set(rule, ajv.compile(schema));
+                    if (schema) {
+                        this.validators.set(rule, ajv.compile(schema));
+                    }
+                } catch (err) {
+                    throw new InvalidRuleOptionsSchemaError(ruleId, err);
                 }
             }
 
@@ -144,9 +167,22 @@ class RuleValidator {
                 validateRule(ruleOptions.slice(1));
 
                 if (validateRule.errors) {
-                    throw new Error(`Key "rules": Key "${ruleId}": ${
+                    throw new Error(`Key "rules": Key "${ruleId}":\n${
                         validateRule.errors.map(
-                            error => `\tValue ${JSON.stringify(error.data)} ${error.message}.\n`
+                            error => {
+                                if (
+                                    error.keyword === "additionalProperties" &&
+                                    error.schema === false &&
+                                    typeof error.parentSchema?.properties === "object" &&
+                                    typeof error.params?.additionalProperty === "string"
+                                ) {
+                                    const expectedProperties = Object.keys(error.parentSchema.properties).map(property => `"${property}"`);
+
+                                    return `\tValue ${JSON.stringify(error.data)} ${error.message}.\n\t\tUnexpected property "${error.params.additionalProperty}". Expected properties: ${expectedProperties.join(", ")}.\n`;
+                                }
+
+                                return `\tValue ${JSON.stringify(error.data)} ${error.message}.\n`;
+                            }
                         ).join("")
                     }`);
                 }

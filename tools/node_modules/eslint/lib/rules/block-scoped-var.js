@@ -79,7 +79,7 @@ module.exports = {
             }
 
             // Defines a predicate to check whether or not a given reference is outside of valid scope.
-            const scopeRange = stack[stack.length - 1];
+            const scopeRange = stack.at(-1);
 
             /**
              * Check if a reference is out of scope

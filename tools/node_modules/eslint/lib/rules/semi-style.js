@@ -65,7 +65,7 @@ function isLastChild(node) {
     }
     const nodeList = getChildren(node.parent);
 
-    return nodeList !== null && nodeList[nodeList.length - 1] === node; // before `}` or etc.
+    return nodeList !== null && nodeList.at(-1) === node; // before `}` or etc.
 }
 
 /** @type {import('../shared/types').Rule} */

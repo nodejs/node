@@ -10,22 +10,6 @@
 //------------------------------------------------------------------------------
 
 /**
- * Checks all segments in a set and returns true if any are reachable.
- * @param {Set<CodePathSegment>} segments The segments to check.
- * @returns {boolean} True if any segment is reachable; false otherwise.
- */
-function isAnySegmentReachable(segments) {
-
-    for (const segment of segments) {
-        if (segment.reachable) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/**
  * Checks whether or not a given node is a constructor.
  * @param {ASTNode} node A node to check. This node type is one of
  *   `Program`, `FunctionDeclaration`, `FunctionExpression`, and
@@ -109,7 +93,7 @@ function isPossibleConstructor(node) {
             );
 
         case "SequenceExpression": {
-            const lastExpression = node.expressions[node.expressions.length - 1];
+            const lastExpression = node.expressions.at(-1);
 
             return isPossibleConstructor(lastExpression);
         }
@@ -117,6 +101,30 @@ function isPossibleConstructor(node) {
         default:
             return false;
     }
+}
+
+/**
+ * A class to store information about a code path segment.
+ */
+class SegmentInfo {
+
+    /**
+     * Indicates if super() is called in all code paths.
+     * @type {boolean}
+     */
+    calledInEveryPaths = false;
+
+    /**
+     * Indicates if super() is called in any code paths.
+     * @type {boolean}
+     */
+    calledInSomePaths = false;
+
+    /**
+     * The nodes which have been validated and don't need to be reconsidered.
+     * @type {ASTNode[]}
+     */
+    validNodes = [];
 }
 
 //------------------------------------------------------------------------------
@@ -141,8 +149,7 @@ module.exports = {
             missingAll: "Expected to call 'super()'.",
 
             duplicate: "Unexpected duplicate 'super()'.",
-            badSuper: "Unexpected 'super()' because 'super' is not a constructor.",
-            unexpected: "Unexpected 'super()'."
+            badSuper: "Unexpected 'super()' because 'super' is not a constructor."
         }
     },
 
@@ -159,14 +166,10 @@ module.exports = {
          */
         let funcInfo = null;
 
-        /*
-         * {Map<string, {calledInSomePaths: boolean, calledInEveryPaths: boolean}>}
-         * Information for each code path segment.
-         * - calledInSomePaths:  A flag of be called `super()` in some code paths.
-         * - calledInEveryPaths: A flag of be called `super()` in all code paths.
-         * - validNodes:
+        /**
+         * @type {Record<string, SegmentInfo>}
          */
-        let segInfoMap = Object.create(null);
+        const segInfoMap = Object.create(null);
 
         /**
          * Gets the flag which shows `super()` is called in some paths.
@@ -178,22 +181,20 @@ module.exports = {
         }
 
         /**
+         * Determines if a segment has been seen in the traversal.
+         * @param {CodePathSegment} segment A code path segment to check.
+         * @returns {boolean} `true` if the segment has been seen.
+         */
+        function hasSegmentBeenSeen(segment) {
+            return !!segInfoMap[segment.id];
+        }
+
+        /**
          * Gets the flag which shows `super()` is called in all paths.
          * @param {CodePathSegment} segment A code path segment to get.
          * @returns {boolean} The flag which shows `super()` is called in all paths.
          */
         function isCalledInEveryPath(segment) {
-
-            /*
-             * If specific segment is the looped segment of the current segment,
-             * skip the segment.
-             * If not skipped, this never becomes true after a loop.
-             */
-            if (segment.nextSegments.length === 1 &&
-                segment.nextSegments[0].isLoopedPrevSegment(segment)
-            ) {
-                return true;
-            }
             return segment.reachable && segInfoMap[segment.id].calledInEveryPaths;
         }
 
@@ -250,9 +251,9 @@ module.exports = {
                 }
 
                 // Reports if `super()` lacked.
-                const segments = codePath.returnedSegments;
-                const calledInEveryPaths = segments.every(isCalledInEveryPath);
-                const calledInSomePaths = segments.some(isCalledInSomePath);
+                const returnedSegments = codePath.returnedSegments;
+                const calledInEveryPaths = returnedSegments.every(isCalledInEveryPath);
+                const calledInSomePaths = returnedSegments.some(isCalledInSomePath);
 
                 if (!calledInEveryPaths) {
                     context.report({
@@ -267,29 +268,37 @@ module.exports = {
             /**
              * Initialize information of a given code path segment.
              * @param {CodePathSegment} segment A code path segment to initialize.
+             * @param {CodePathSegment} node Node that starts the segment.
              * @returns {void}
              */
-            onCodePathSegmentStart(segment) {
+            onCodePathSegmentStart(segment, node) {
 
                 funcInfo.currentSegments.add(segment);
 
-                if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
+                if (!(funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
 
                 // Initialize info.
-                const info = segInfoMap[segment.id] = {
-                    calledInSomePaths: false,
-                    calledInEveryPaths: false,
-                    validNodes: []
-                };
+                const info = segInfoMap[segment.id] = new SegmentInfo();
+
+                const seenPrevSegments = segment.prevSegments.filter(hasSegmentBeenSeen);
 
                 // When there are previous segments, aggregates these.
-                const prevSegments = segment.prevSegments;
+                if (seenPrevSegments.length > 0) {
+                    info.calledInSomePaths = seenPrevSegments.some(isCalledInSomePath);
+                    info.calledInEveryPaths = seenPrevSegments.every(isCalledInEveryPath);
+                }
 
-                if (prevSegments.length > 0) {
-                    info.calledInSomePaths = prevSegments.some(isCalledInSomePath);
-                    info.calledInEveryPaths = prevSegments.every(isCalledInEveryPath);
+                /*
+                 * ForStatement > *.update segments are a special case as they are created in advance,
+                 * without seen previous segments. Since they logically don't affect `calledInEveryPaths`
+                 * calculations, and they can never be a lone previous segment of another one, we'll set
+                 * their `calledInEveryPaths` to `true` to effectively ignore them in those calculations.
+                 * .
+                 */
+                if (node.parent && node.parent.type === "ForStatement" && node.parent.update === node) {
+                    info.calledInEveryPaths = true;
                 }
             },
 
@@ -316,25 +325,30 @@ module.exports = {
              * @returns {void}
              */
             onCodePathSegmentLoop(fromSegment, toSegment) {
-                if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
+                if (!(funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
 
-                // Update information inside of the loop.
-                const isRealLoop = toSegment.prevSegments.length >= 2;
-
                 funcInfo.codePath.traverseSegments(
                     { first: toSegment, last: fromSegment },
-                    segment => {
+                    (segment, controller) => {
                         const info = segInfoMap[segment.id];
-                        const prevSegments = segment.prevSegments;
 
-                        // Updates flags.
-                        info.calledInSomePaths = prevSegments.some(isCalledInSomePath);
-                        info.calledInEveryPaths = prevSegments.every(isCalledInEveryPath);
+                        // skip segments after the loop
+                        if (!info) {
+                            controller.skip();
+                            return;
+                        }
+
+                        const seenPrevSegments = segment.prevSegments.filter(hasSegmentBeenSeen);
+                        const calledInSomePreviousPaths = seenPrevSegments.some(isCalledInSomePath);
+                        const calledInEveryPreviousPaths = seenPrevSegments.every(isCalledInEveryPath);
+
+                        info.calledInSomePaths ||= calledInSomePreviousPaths;
+                        info.calledInEveryPaths ||= calledInEveryPreviousPaths;
 
                         // If flags become true anew, reports the valid nodes.
-                        if (info.calledInSomePaths || isRealLoop) {
+                        if (calledInSomePreviousPaths) {
                             const nodes = info.validNodes;
 
                             info.validNodes = [];
@@ -358,7 +372,7 @@ module.exports = {
              * @returns {void}
              */
             "CallExpression:exit"(node) {
-                if (!(funcInfo && funcInfo.isConstructor)) {
+                if (!(funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
 
@@ -368,41 +382,34 @@ module.exports = {
                 }
 
                 // Reports if needed.
-                if (funcInfo.hasExtends) {
-                    const segments = funcInfo.currentSegments;
-                    let duplicate = false;
-                    let info = null;
+                const segments = funcInfo.currentSegments;
+                let duplicate = false;
+                let info = null;
 
-                    for (const segment of segments) {
+                for (const segment of segments) {
 
-                        if (segment.reachable) {
-                            info = segInfoMap[segment.id];
+                    if (segment.reachable) {
+                        info = segInfoMap[segment.id];
 
-                            duplicate = duplicate || info.calledInSomePaths;
-                            info.calledInSomePaths = info.calledInEveryPaths = true;
-                        }
+                        duplicate = duplicate || info.calledInSomePaths;
+                        info.calledInSomePaths = info.calledInEveryPaths = true;
                     }
+                }
 
-                    if (info) {
-                        if (duplicate) {
-                            context.report({
-                                messageId: "duplicate",
-                                node
-                            });
-                        } else if (!funcInfo.superIsConstructor) {
-                            context.report({
-                                messageId: "badSuper",
-                                node
-                            });
-                        } else {
-                            info.validNodes.push(node);
-                        }
+                if (info) {
+                    if (duplicate) {
+                        context.report({
+                            messageId: "duplicate",
+                            node
+                        });
+                    } else if (!funcInfo.superIsConstructor) {
+                        context.report({
+                            messageId: "badSuper",
+                            node
+                        });
+                    } else {
+                        info.validNodes.push(node);
                     }
-                } else if (isAnySegmentReachable(funcInfo.currentSegments)) {
-                    context.report({
-                        messageId: "unexpected",
-                        node
-                    });
                 }
             },
 
@@ -412,7 +419,7 @@ module.exports = {
              * @returns {void}
              */
             ReturnStatement(node) {
-                if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
+                if (!(funcInfo.isConstructor && funcInfo.hasExtends)) {
                     return;
                 }
 
@@ -432,14 +439,6 @@ module.exports = {
                         info.calledInSomePaths = info.calledInEveryPaths = true;
                     }
                 }
-            },
-
-            /**
-             * Resets state.
-             * @returns {void}
-             */
-            "Program:exit"() {
-                segInfoMap = Object.create(null);
             }
         };
     }

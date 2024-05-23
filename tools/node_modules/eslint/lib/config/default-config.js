@@ -42,6 +42,9 @@ exports.defaultConfig = [
             ecmaVersion: "latest",
             parser: require("espree"),
             parserOptions: {}
+        },
+        linterOptions: {
+            reportUnusedDisableDirectives: 1
         }
     },
 

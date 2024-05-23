@@ -146,7 +146,9 @@ module.exports = {
                     continue;
                 }
 
-                uselessReturns.push(...segmentInfoMap.get(segment).uselessReturns);
+                if (segmentInfoMap.has(segment)) {
+                    uselessReturns.push(...segmentInfoMap.get(segment).uselessReturns);
+                }
             }
 
             return uselessReturns;
@@ -181,6 +183,10 @@ module.exports = {
             }
 
             const info = segmentInfoMap.get(segment);
+
+            if (!info) {
+                return;
+            }
 
             info.uselessReturns = info.uselessReturns.filter(node => {
                 if (scopeInfo.traversedTryBlockStatements && scopeInfo.traversedTryBlockStatements.length > 0) {
@@ -275,7 +281,6 @@ module.exports = {
              * NOTE: This event is notified for only reachable segments.
              */
             onCodePathSegmentStart(segment) {
-
                 scopeInfo.currentSegments.add(segment);
 
                 const info = {

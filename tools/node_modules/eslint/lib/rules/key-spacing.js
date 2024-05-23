@@ -28,7 +28,7 @@ function containsLineTerminator(str) {
  * @returns {any} Last element of arr.
  */
 function last(arr) {
-    return arr[arr.length - 1];
+    return arr.at(-1);
 }
 
 /**
@@ -489,7 +489,7 @@ module.exports = {
                     }
                 }
 
-                let messageId = "";
+                let messageId;
 
                 if (isExtra) {
                     messageId = side === "key" ? "extraKey" : "extraValue";

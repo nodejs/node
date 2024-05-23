@@ -1,9 +1,9 @@
 "use strict";
 
 const { ESLint } = require("./eslint");
-const { FlatESLint } = require("./flat-eslint");
+const { LegacyESLint } = require("./legacy-eslint");
 
 module.exports = {
     ESLint,
-    FlatESLint
+    LegacyESLint
 };

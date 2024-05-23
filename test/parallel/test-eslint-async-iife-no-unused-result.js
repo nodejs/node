@@ -11,7 +11,7 @@ const rule = require('../../tools/eslint-rules/async-iife-no-unused-result');
 const message = 'The result of an immediately-invoked async function needs ' +
   'to be used (e.g. with `.then(common.mustCall())`)';
 
-const tester = new RuleTester({ parserOptions: { ecmaVersion: 8 } });
+const tester = new RuleTester();
 tester.run('async-iife-no-unused-result', rule, {
   valid: [
     '(() => {})()',
@@ -27,12 +27,10 @@ tester.run('async-iife-no-unused-result', rule, {
     {
       code: '(async () => {})()',
       errors: [{ message }],
-      output: '(async () => {})()',
     },
     {
       code: '(async function() {})()',
       errors: [{ message }],
-      output: '(async function() {})()',
     },
     {
       code: "const common = require('../common');(async () => {})()",

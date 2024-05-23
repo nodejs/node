@@ -185,7 +185,7 @@ module.exports = {
                     });
 
                     // check blank line between the current node and the last token
-                    if (!isBlankLineBetweenNodes && (node.loc.start.line - tokens[tokens.length - 1].loc.end.line > 1)) {
+                    if (!isBlankLineBetweenNodes && (node.loc.start.line - tokens.at(-1).loc.end.line > 1)) {
                         isBlankLineBetweenNodes = true;
                     }
 

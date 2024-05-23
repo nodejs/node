@@ -70,7 +70,7 @@ module.exports = {
         const sourceCode = context.sourceCode;
 
         // Swallow the final newline, as some editors add it automatically and we don't want it to cause an issue
-        const allLines = sourceCode.lines[sourceCode.lines.length - 1] === "" ? sourceCode.lines.slice(0, -1) : sourceCode.lines;
+        const allLines = sourceCode.lines.at(-1) === "" ? sourceCode.lines.slice(0, -1) : sourceCode.lines;
         const templateLiteralLines = new Set();
 
         //--------------------------------------------------------------------------

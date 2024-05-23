@@ -208,7 +208,7 @@ module.exports = {
                                 }
 
                                 return fixer.replaceTextRange(
-                                    [importSpecifiers[0].range[0], importSpecifiers[importSpecifiers.length - 1].range[1]],
+                                    [importSpecifiers[0].range[0], importSpecifiers.at(-1).range[1]],
                                     importSpecifiers
 
                                         // Clone the importSpecifiers array to avoid mutating it

@@ -15,7 +15,7 @@ module.exports = {
 
         docs: {
             description: "Disallow empty static blocks",
-            recommended: false,
+            recommended: true,
             url: "https://eslint.org/docs/latest/rules/no-empty-static-block"
         },
 

@@ -97,7 +97,7 @@ module.exports = {
          * @private
          */
         function isRestricted(name) {
-            return Object.prototype.hasOwnProperty.call(restrictedGlobalMessages, name);
+            return Object.hasOwn(restrictedGlobalMessages, name);
         }
 
         return {

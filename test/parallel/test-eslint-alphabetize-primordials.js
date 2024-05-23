@@ -10,10 +10,7 @@ common.skipIfEslintMissing();
 const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/alphabetize-primordials');
 
-new RuleTester({
-  parserOptions: { ecmaVersion: 6 },
-  env: { es6: true }
-})
+new RuleTester()
   .run('alphabetize-primordials', rule, {
     valid: [
       'new Array()',

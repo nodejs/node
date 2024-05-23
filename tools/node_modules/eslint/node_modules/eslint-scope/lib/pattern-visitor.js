@@ -22,8 +22,6 @@
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/* eslint-disable no-undefined */
-
 import estraverse from "estraverse";
 import esrecurse from "esrecurse";
 
@@ -38,6 +36,9 @@ function getLast(xs) {
     return xs[xs.length - 1] || null;
 }
 
+/**
+ * Visitor for destructuring patterns.
+ */
 class PatternVisitor extends esrecurse.Visitor {
     static isPattern(node) {
         const nodeType = node.type;
@@ -66,7 +67,7 @@ class PatternVisitor extends esrecurse.Visitor {
 
         this.callback(pattern, {
             topLevel: pattern === this.rootPattern,
-            rest: lastRestElement !== null && lastRestElement !== undefined && lastRestElement.argument === pattern,
+            rest: lastRestElement !== null && lastRestElement !== void 0 && lastRestElement.argument === pattern,
             assignments: this.assignments
         });
     }

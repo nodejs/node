@@ -43,8 +43,10 @@ rm -rf ../node_modules/eslint
         "$NODE" "$NPM" uninstall \
         --install-links=false \
         --ignore-scripts \
+        eslint-formatter-tap \
         eslint-plugin-jsdoc \
         eslint-plugin-markdown \
+        globals \
         @babel/core \
         @babel/eslint-parser \
         @babel/plugin-syntax-import-attributes \
@@ -59,8 +61,10 @@ rm -rf ../node_modules/eslint
         --no-save \
         --omit=dev \
         --omit=peer \
+        eslint-formatter-tap \
         eslint-plugin-jsdoc \
         eslint-plugin-markdown \
+        globals \
         @babel/core \
         @babel/eslint-parser \
         @babel/plugin-syntax-import-attributes \

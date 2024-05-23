@@ -66,7 +66,7 @@ module.exports = {
                                     return null;
                                 }
                                 return fixer.replaceTextRange(
-                                    [idDeclarations[0].range[0], idDeclarations[idDeclarations.length - 1].range[1]],
+                                    [idDeclarations[0].range[0], idDeclarations.at(-1).range[1]],
                                     idDeclarations
 
                                         // Clone the idDeclarations array to avoid mutating it

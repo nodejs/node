@@ -64,7 +64,7 @@ module.exports = {
          */
         function notBaseTenLosesPrecision(node) {
             const rawString = getRaw(node).toUpperCase();
-            let base = 0;
+            let base;
 
             if (rawString.startsWith("0B")) {
                 base = 2;

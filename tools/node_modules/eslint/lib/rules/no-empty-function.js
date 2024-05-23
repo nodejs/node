@@ -40,7 +40,7 @@ const ALLOW_OPTIONS = Object.freeze([
  */
 function getKind(node) {
     const parent = node.parent;
-    let kind = "";
+    let kind;
 
     if (node.type === "ArrowFunctionExpression") {
         return "arrowFunctions";
@@ -73,7 +73,7 @@ function getKind(node) {
     }
 
     // Detects prefix.
-    let prefix = "";
+    let prefix;
 
     if (node.generator) {
         prefix = "generator";

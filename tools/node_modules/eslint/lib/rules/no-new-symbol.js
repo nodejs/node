@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to disallow use of the new operator with the `Symbol` object
  * @author Alberto Rodríguez
+ * @deprecated in ESLint v9.0.0
  */
 
 "use strict";
@@ -16,9 +17,15 @@ module.exports = {
 
         docs: {
             description: "Disallow `new` operators with the `Symbol` object",
-            recommended: true,
+            recommended: false,
             url: "https://eslint.org/docs/latest/rules/no-new-symbol"
         },
+
+        deprecated: true,
+
+        replacedBy: [
+            "no-new-native-nonconstructor"
+        ],
 
         schema: [],
 

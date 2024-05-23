@@ -118,7 +118,7 @@ module.exports = {
             if (node.parent.type === "LogicalExpression" && node === node.parent.right) {
                 return isInTailCallPosition(node.parent);
             }
-            if (node.parent.type === "SequenceExpression" && node === node.parent.expressions[node.parent.expressions.length - 1]) {
+            if (node.parent.type === "SequenceExpression" && node === node.parent.expressions.at(-1)) {
                 return isInTailCallPosition(node.parent);
             }
             return false;

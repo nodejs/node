@@ -31,8 +31,7 @@ module.exports = {
                 type: "object",
                 properties: {
                     checkLoops: {
-                        type: "boolean",
-                        default: true
+                        enum: ["all", "allExceptWhileTrue", "none", true, false]
                     }
                 },
                 additionalProperties: false
@@ -45,10 +44,16 @@ module.exports = {
     },
 
     create(context) {
-        const options = context.options[0] || {},
-            checkLoops = options.checkLoops !== false,
-            loopSetStack = [];
+        const options = context.options[0] || {};
+        let checkLoops = options.checkLoops ?? "allExceptWhileTrue";
+        const loopSetStack = [];
         const sourceCode = context.sourceCode;
+
+        if (options.checkLoops === true) {
+            checkLoops = "all";
+        } else if (options.checkLoops === false) {
+            checkLoops = "none";
+        }
 
         let loopsInCurrentScope = new Set();
 
@@ -120,7 +125,7 @@ module.exports = {
          * @private
          */
         function checkLoop(node) {
-            if (checkLoops) {
+            if (checkLoops === "all" || checkLoops === "allExceptWhileTrue") {
                 trackConstantConditionLoop(node);
             }
         }
@@ -132,7 +137,13 @@ module.exports = {
         return {
             ConditionalExpression: reportIfConstant,
             IfStatement: reportIfConstant,
-            WhileStatement: checkLoop,
+            WhileStatement(node) {
+                if (node.test.type === "Literal" && node.test.value === true && checkLoops === "allExceptWhileTrue") {
+                    return;
+                }
+
+                checkLoop(node);
+            },
             "WhileStatement:exit": checkConstantConditionLoopInSet,
             DoWhileStatement: checkLoop,
             "DoWhileStatement:exit": checkConstantConditionLoopInSet,

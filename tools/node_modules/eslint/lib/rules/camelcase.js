@@ -47,11 +47,9 @@ module.exports = {
                     },
                     allow: {
                         type: "array",
-                        items: [
-                            {
-                                type: "string"
-                            }
-                        ],
+                        items: {
+                            type: "string"
+                        },
                         minItems: 0,
                         uniqueItems: true
                     }
