@@ -154,7 +154,7 @@ module.exports = {
              * @returns {any} The last element
              */
             function last(array) {
-                return array[array.length - 1];
+                return array.at(-1);
             }
 
             switch (node.type) {

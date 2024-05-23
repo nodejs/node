@@ -77,7 +77,7 @@ module.exports = {
 
         if (
             typeof option === "object" &&
-            Object.prototype.hasOwnProperty.call(option, "max")
+            Object.hasOwn(option, "max")
         ) {
             max = option.max;
         } else if (typeof option === "number") {
@@ -148,7 +148,7 @@ module.exports = {
                  * If file ends with a linebreak, `sourceCode.lines` will have one extra empty line at the end.
                  * That isn't a real line, so we shouldn't count it.
                  */
-                if (lines.length > 1 && lines[lines.length - 1].text === "") {
+                if (lines.length > 1 && lines.at(-1).text === "") {
                     lines.pop();
                 }
 
@@ -174,7 +174,7 @@ module.exports = {
                         },
                         end: {
                             line: sourceCode.lines.length,
-                            column: sourceCode.lines[sourceCode.lines.length - 1].length
+                            column: sourceCode.lines.at(-1).length
                         }
                     };
 
