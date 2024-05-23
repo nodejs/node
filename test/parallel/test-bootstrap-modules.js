@@ -44,6 +44,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/assert',
   'NativeModule internal/util/inspect',
   'NativeModule internal/util/debuglog',
+  'NativeModule internal/util/trace_timer',
   'NativeModule internal/timers',
   'NativeModule events',
   'Internal Binding buffer',
