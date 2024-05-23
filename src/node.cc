@@ -872,6 +872,15 @@ static ExitCode InitializeNodeWithArgsInternal(
           &env_argv, nullptr, errors, kAllowedInEnvvar);
       if (exit_code != ExitCode::kNoFailure) return exit_code;
     }
+  } else {
+    std::string node_repl_external_env = {};
+    if (credentials::SafeGetenv("NODE_REPL_EXTERNAL_MODULE",
+                                &node_repl_external_env) ||
+        !node_repl_external_env.empty()) {
+      errors->emplace_back("NODE_REPL_EXTERNAL_MODULE can't be used with "
+                           "kDisableNodeOptionsEnv");
+      return ExitCode::kInvalidCommandLineArgument;
+    }
   }
 #endif
 
