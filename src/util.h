@@ -162,7 +162,11 @@ void DumpJavaScriptBacktrace(FILE* fp);
 #else
 #define LIKELY(expr) expr
 #define UNLIKELY(expr) expr
+#if defined(_MSC_VER)
+#define PRETTY_FUNCTION_NAME __FUNCSIG__
+#else
 #define PRETTY_FUNCTION_NAME ""
+#endif
 #endif
 
 #define STRINGIFY_(x) #x
