@@ -40,9 +40,9 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     env:
-      CC: sccache gcc
-      CXX: sccache g++
-      LINK: sccache g++
+      CC: sccache clang
+      CXX: sccache clang++
+      LINK: sccache clang++
       CONFIG_FLAGS: --enable-ubsan
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
