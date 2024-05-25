@@ -44,6 +44,19 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       strictEqual(signal, null);
     });
 
+    it('should not switch to module if code is parsable as script', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'let __filename,__dirname,require,module,exports;this.a',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, '');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
     it('should be overridden by --experimental-default-type', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
         '--experimental-detect-module',
@@ -386,6 +399,21 @@ describe('Wrapping a `require` of an ES module while using `--abort-on-uncaught-
     ], {
       cwd: fixtures.path('es-modules'),
     });
+
+    strictEqual(stderr, '');
+    strictEqual(stdout, '');
+    strictEqual(code, 0);
+    strictEqual(signal, null);
+  });
+});
+
+describe('when working with Worker threads', () => {
+  it('should support sloppy scripts that declare CJS "global-like" variables', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+      '--experimental-detect-module',
+      '--eval',
+      'new worker_threads.Worker("let __filename,__dirname,require,module,exports;this.a",{eval:true})',
+    ]);
 
     strictEqual(stderr, '');
     strictEqual(stdout, '');
