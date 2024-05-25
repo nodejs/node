@@ -580,8 +580,8 @@ There are constraints you need to know before using this system:
   not subject to the rules of the Permission Model.
 * OpenSSL engines cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
-* The Permission Model is not upheld when utilizing existing file descriptors
-  via the `node:fs` module.
+* Using existing file descriptors via the `node:fs` module bypasses the
+  Permission Model.
 
 #### Limitations and Known Issues
 
