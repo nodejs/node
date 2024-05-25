@@ -10,7 +10,7 @@ tmpdir.refresh();
 it('should print the timing information for cjs', async () => {
   const result = await spawnPromisified(execPath, ['--eval', 'require("url");'], {
     env: {
-      NODE_DEBUG: 'module_cjs',
+      NODE_DEBUG: 'module_timer',
     },
   });
 
@@ -21,7 +21,7 @@ it('should print the timing information for cjs', async () => {
   const firstLine = result.stderr.split('\n').find((line) => line.includes('[url]'));
 
   assert.notStrictEqual(firstLine, undefined);
-  assert.ok(firstLine.includes('MODULE_CJS'), `Not found MODULE_CJS on ${firstLine}`);
+  assert.ok(firstLine.includes('MODULE_TIMER'), `Not found MODULE_TIMER on ${firstLine}`);
   assert.ok(firstLine.includes('[url]:'), `Not found [url]: on ${firstLine}`);
   assert.ok(firstLine.endsWith('ms'), `Not found ms on ${firstLine}`);
 });
@@ -30,7 +30,7 @@ it('should write tracing information for cjs', async () => {
   const outputFile = tmpdir.resolve('output-trace.log');
   const result = await spawnPromisified(execPath, [
     '--trace-event-categories',
-    'node.debuglog_module_cjs',
+    'node.module_timer',
     '--trace-event-file-pattern',
     outputFile,
     '--eval',
@@ -58,14 +58,14 @@ it('should write tracing & print logs for cjs', async () => {
   const outputFile = tmpdir.resolve('output-trace-and-log.log');
   const result = await spawnPromisified(execPath, [
     '--trace-event-categories',
-    'node.debuglog_module_cjs',
+    'node.module_timer',
     '--trace-event-file-pattern',
     outputFile,
     '--eval',
     'require("url");',
   ], {
     env: {
-      NODE_DEBUG: 'module_cjs',
+      NODE_DEBUG: 'module_timer',
     },
   });
 
@@ -76,7 +76,7 @@ it('should write tracing & print logs for cjs', async () => {
   const firstLine = result.stderr.split('\n').find((line) => line.includes('[url]'));
 
   assert.notStrictEqual(firstLine, undefined);
-  assert.ok(firstLine.includes('MODULE_CJS'), `Not found MODULE_CJS on ${firstLine}`);
+  assert.ok(firstLine.includes('MODULE_TIMER'), `Not found MODULE_TIMER on ${firstLine}`);
   assert.ok(firstLine.includes('[url]:'), `Not found [url]: on ${firstLine}`);
   assert.ok(firstLine.endsWith('ms'), `Not found ms on ${firstLine}`);
 
