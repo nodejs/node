@@ -4,14 +4,9 @@
 :: explicitly allow them to persist in the calling shell.
 endlocal
 
-if /i "%1"=="help" goto help
-if /i "%1"=="--help" goto help
-if /i "%1"=="-help" goto help
-if /i "%1"=="/help" goto help
-if /i "%1"=="?" goto help
-if /i "%1"=="-?" goto help
-if /i "%1"=="--?" goto help
-if /i "%1"=="/?" goto help
+set "arg=%1"
+if /i "%arg:~-1%"=="?" goto help
+if /i "%arg:~-4%"=="help" goto help
 
 cd %~dp0
 
