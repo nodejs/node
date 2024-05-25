@@ -1451,7 +1451,8 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(Environment* env,
                                                         Local<Context> context,
                                                         Local<String> code,
                                                         Local<String> filename,
-                                                        bool* cache_rejected) {
+                                                        bool* cache_rejected,
+                                                        bool is_cjs_scope) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
 
@@ -1504,7 +1505,10 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(Environment* env,
     options = ScriptCompiler::kConsumeCodeCache;
   }
 
-  std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
+  std::vector<Local<String>> params;
+  if (is_cjs_scope) {
+    params = GetCJSParameters(env->isolate_data());
+  }
   MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunction(
       context,
       &source,
@@ -1566,7 +1570,7 @@ static void CompileFunctionForCJSLoader(
     ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
     TryCatchScope try_catch(env);
     if (!CompileFunctionForCJSLoader(
-             env, context, code, filename, &cache_rejected)
+             env, context, code, filename, &cache_rejected, true)
              .ToLocal(&fn)) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.HasTerminated());
@@ -1704,11 +1708,15 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
   Local<String> filename = args[1].As<String>();
 
-  // Argument 2: resource name (URL for ES module).
+  // Argument 3: resource name (URL for ES module).
   Local<String> resource_name = filename;
   if (args[2]->IsString()) {
     resource_name = args[2].As<String>();
   }
+  // Argument 4: flag to indicate if CJS variables should not be in scope
+  // (they should be for normal CommonJS modules, but not for the
+  // CommonJS eval scope).
+  bool cjs_var = !args[3]->IsString();
 
   bool cache_rejected = false;
   Local<String> message;
@@ -1717,7 +1725,7 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
     TryCatchScope try_catch(env);
     ShouldNotAbortOnUncaughtScope no_abort_scope(env);
     if (CompileFunctionForCJSLoader(
-            env, context, code, filename, &cache_rejected)
+            env, context, code, filename, &cache_rejected, cjs_var)
             .ToLocal(&fn)) {
       args.GetReturnValue().Set(false);
       return;
