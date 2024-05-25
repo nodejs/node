@@ -339,8 +339,7 @@ size_t StringBytes::Write(Isolate* isolate,
       // the Buffer, so we need to reorder on BE platforms.  See
       // https://nodejs.org/api/buffer.html regarding Node's "ucs2"
       // encoding specification
-      if (IsBigEndian())
-        SwapBytes16(buf, nbytes);
+      if constexpr (IsBigEndian()) SwapBytes16(buf, nbytes);
 
       break;
     }
@@ -756,7 +755,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
 
     case UCS2: {
       size_t str_len = buflen / 2;
-      if (IsBigEndian()) {
+      if constexpr (IsBigEndian()) {
         uint16_t* dst = node::UncheckedMalloc<uint16_t>(str_len);
         if (str_len != 0 && dst == nullptr) {
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
@@ -803,7 +802,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   // Buffer, so we need to reorder on BE platforms.  See
   // https://nodejs.org/api/buffer.html regarding Node's "ucs2"
   // encoding specification
-  if (IsBigEndian()) {
+  if constexpr (IsBigEndian()) {
     uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen);
     if (dst == nullptr) {
       *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
