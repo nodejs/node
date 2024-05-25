@@ -3,6 +3,8 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 import { hostname } from 'node:os';
+import { chdir } from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
@@ -14,8 +16,10 @@ function replaceTestDuration(str) {
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
 }
 
+const root = fileURLToPath(new URL('../..', import.meta.url));
+
 const color = '(\\[\\d+m)';
-const stackTraceBasePath = new RegExp(`${color}\\(${process.cwd().replaceAll(/[\\^$*+?.()|[\]{}]/g, '\\$&')}/?${color}(.*)${color}\\)`, 'g');
+const stackTraceBasePath = new RegExp(`${color}\\(${root.replaceAll(/[\\^$*+?.()|[\]{}]/g, '\\$&')}/?${color}(.*)${color}\\)`, 'g');
 
 function replaceSpecDuration(str) {
   return str
@@ -151,6 +155,7 @@ const tests = [
   }),
 }));
 
+chdir(root);
 describe('test runner output', { concurrency: true }, () => {
   for (const { name, fn } of tests) {
     it(name, fn);
