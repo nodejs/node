@@ -309,8 +309,8 @@ export function toLink(typeInput) {
           `<a href="${typeUrl}" class="type">&lt;${typeTextFull}&gt;</a>`);
       } else {
         throw new Error(
-          `Unrecognized type: '${typeTextFull}'.\n` +
-          `Please, edit the type or update '${import.meta.url}'.`,
+          `Unrecognized type: '${typeTextFull}' in '${import.meta.url}'.\n` +
+          'Valid types can be found at https://github.com/nodejs/node/blob/HEAD/tools/doc/type-parser.mjs',
         );
       }
     } else {
