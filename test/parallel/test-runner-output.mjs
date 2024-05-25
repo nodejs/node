@@ -3,7 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 import { hostname } from 'node:os';
-import { chdir } from 'node:process';
+import { chdir, cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const skipForceColors =
@@ -16,7 +16,7 @@ function replaceTestDuration(str) {
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
 }
 
-const root = fileURLToPath(new URL('../..', import.meta.url));
+const root = fileURLToPath(new URL('../..', import.meta.url)).slice(0, -1);
 
 const color = '(\\[\\d+m)';
 const stackTraceBasePath = new RegExp(`${color}\\(${root.replaceAll(/[\\^$*+?.()|[\]{}]/g, '\\$&')}/?${color}(.*)${color}\\)`, 'g');
@@ -155,7 +155,9 @@ const tests = [
   }),
 }));
 
-chdir(root);
+if (cwd() !== root) {
+  chdir(root);
+}
 describe('test runner output', { concurrency: true }, () => {
   for (const { name, fn } of tests) {
     it(name, fn);
