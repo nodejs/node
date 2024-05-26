@@ -180,7 +180,9 @@ longer be used.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.1.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version:
@@ -265,8 +267,10 @@ added: v16.11.0
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
-  * `signal` {AbortSignal|undefined} **Default:** `undefined`
 * Returns: {fs.ReadStream}
+
+Unlike the 16 KiB default `highWaterMark` for a {stream.Readable}, the stream
+returned by this method has a default `highWaterMark` of 64 KiB.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
@@ -322,7 +326,9 @@ fd.createReadStream({ start: 90, end: 99 });
 <!-- YAML
 added: v16.11.0
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.0.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
 -->
@@ -378,6 +384,10 @@ added: v10.0.0
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: Accepts bigint values as `position`.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -407,6 +417,10 @@ number of bytes read is zero.
 added:
  - v13.11.0
  - v12.17.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: Accepts bigint values as `position`.
 -->
 
 * `options` {Object}
@@ -416,10 +430,11 @@ added:
     **Default:** `0`
   * `length` {integer} The number of bytes to read. **Default:**
     `buffer.byteLength - offset`
-  * `position` {integer|null} The location where to begin reading data from the
-    file. If `null`, data will be read from the current file position, and
-    the position will be updated. If `position` is an integer, the current
-    file position will remain unchanged. **Default:**: `null`
+  * `position` {integer|bigint|null} The location where to begin reading data
+    from the file. If `null` or `-1`, data will be read from the current file
+    position, and the position will be updated. If `position` is a non-negative
+    integer, the current file position will remain unchanged.
+    **Default:**: `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -436,6 +451,10 @@ number of bytes read is zero.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: Accepts bigint values as `position`.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -445,10 +464,11 @@ added:
     **Default:** `0`
   * `length` {integer} The number of bytes to read. **Default:**
     `buffer.byteLength - offset`
-  * `position` {integer} The location where to begin reading data from the
-    file. If `null`, data will be read from the current file position, and
-    the position will be updated. If `position` is an integer, the current
-    file position will remain unchanged. **Default:**: `null`
+  * `position` {integer|bigint|null} The location where to begin reading data
+    from the file. If `null` or `-1`, data will be read from the current file
+    position, and the position will be updated. If `position` is a non-negative
+    integer, the current file position will remain unchanged.
+    **Default:**: `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -464,7 +484,9 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v20.0.0
+  - version:
+    - v20.0.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/46933
     description: Added option to create a 'bytes' stream.
 -->
@@ -833,7 +855,9 @@ the end of the file.
 #### `filehandle[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v20.4.0
+added:
+ - v20.4.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -885,7 +909,9 @@ the error raised if the file is not accessible.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.1.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
 -->
@@ -995,7 +1021,12 @@ try {
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: v20.1.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53127
+    description: This API is no longer experimental.
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47084
     description: Accept an additional `mode` option to specify
                  the copy behavior as the `mode` argument of `fs.copyFile()`.
@@ -1006,8 +1037,6 @@ changes:
     description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
 -->
-
-> Stability: 1 - Experimental
 
 * `src` {string|URL} source path to copy.
 * `dest` {string|URL} destination path to copy to.
@@ -1021,8 +1050,7 @@ changes:
     that resolves to `true` or `false` **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
-    * Returns: {boolean|Promise} A value that is coercible to `boolean` or
-      a `Promise` that fulfils with such value.
+    * Returns: {boolean|Promise}
   * `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
@@ -1041,6 +1069,44 @@ including subdirectories and files.
 
 When copying a directory to another directory, globs are not supported and
 behavior is similar to `cp dir1/ dir2/`.
+
+### `fsPromises.glob(pattern[, options])`
+
+<!-- YAML
+added: v22.0.0
+changes:
+  - version: v22.2.0
+    pr-url: https://github.com/nodejs/node/pull/52837
+    description: Add support for `withFileTypes` as an option.
+-->
+
+> Stability: 1 - Experimental
+
+* `pattern` {string|string\[]}
+* `options` {Object}
+  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `exclude` {Function} Function to filter out files/directories. Return
+    `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
+* Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
+  that match the pattern.
+
+```mjs
+import { glob } from 'node:fs/promises';
+
+for await (const entry of glob('**/*.js'))
+  console.log(entry);
+```
+
+```cjs
+const { glob } = require('node:fs/promises');
+
+(async () => {
+  for await (const entry of glob('**/*.js'))
+    console.log(entry);
+})();
+```
 
 ### `fsPromises.lchmod(path, mode)`
 
@@ -1180,7 +1246,9 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:
@@ -1254,7 +1322,9 @@ a colon, Node.js will open a file system stream, as described by
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version:
@@ -1305,7 +1375,9 @@ closed after the iterator exits.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v10.11.0
@@ -1739,7 +1811,9 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.0.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version:
@@ -2041,7 +2115,9 @@ the user from reading or writing to it.
 <!-- YAML
 added: v0.6.7
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.1.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version: v18.0.0
@@ -2312,7 +2388,6 @@ changes:
 * `dest` {string|Buffer|URL} destination filename of the copy operation
 * `mode` {integer} modifiers for copy operation. **Default:** `0`.
 * `callback` {Function}
-  * `err` {Error}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. No arguments other than a possible exception are given to the
@@ -2354,7 +2429,12 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: v20.1.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53127
+    description: This API is no longer experimental.
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47084
     description: Accept an additional `mode` option to specify
                  the copy behavior as the `mode` argument of `fs.copyFile()`.
@@ -2371,8 +2451,6 @@ changes:
                  whether to perform path resolution for symlinks.
 -->
 
-> Stability: 1 - Experimental
-
 * `src` {string|URL} source path to copy.
 * `dest` {string|URL} destination path to copy to.
 * `options` {Object}
@@ -2385,8 +2463,7 @@ changes:
     that resolves to `true` or `false` **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
-    * Returns: {boolean|Promise} A value that is coercible to `boolean` or
-      a `Promise` that fulfils with such value.
+    * Returns: {boolean|Promise}
   * `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
@@ -2399,7 +2476,6 @@ changes:
   * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
 * `callback` {Function}
-  * `err` {Error}
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.
@@ -2470,6 +2546,9 @@ changes:
   * `signal` {AbortSignal|null} **Default:** `null`
 * Returns: {fs.ReadStream}
 
+Unlike the 16 KiB default `highWaterMark` for a {stream.Readable}, the stream
+returned by this method has a default `highWaterMark` of 64 KiB.
+
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
 start counting at 0, allowed values are in the
@@ -2538,7 +2617,9 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.0.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
   - version: v16.10.0
@@ -2651,7 +2732,7 @@ changes:
 * `callback` {Function}
   * `exists` {boolean}
 
-Test whether or not the element at the given `path` exists by checking with the file system.
+Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false:
 
 ```mjs
@@ -2667,9 +2748,6 @@ callbacks.** Normally, the first parameter to a Node.js callback is an `err`
 parameter, optionally followed by other parameters. The `fs.exists()` callback
 has only one boolean parameter. This is one reason `fs.access()` is recommended
 instead of `fs.exists()`.
-
-If `path` is a symbolic link, it is followed. Thus, if `path` exists but points
-to a non-existent element, the callback will receive the value `false`.
 
 Using `fs.exists()` to check for the existence of a file before calling
 `fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended. Doing
@@ -3035,6 +3113,50 @@ changes:
 Change the file system timestamps of the object referenced by the supplied file
 descriptor. See [`fs.utimes()`][].
 
+### `fs.glob(pattern[, options], callback)`
+
+<!-- YAML
+added: v22.0.0
+changes:
+  - version: v22.2.0
+    pr-url: https://github.com/nodejs/node/pull/52837
+    description: Add support for `withFileTypes` as an option.
+-->
+
+> Stability: 1 - Experimental
+
+* `pattern` {string|string\[]}
+
+* `options` {Object}
+  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `exclude` {Function} Function to filter out files/directories. Return
+    `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
+
+* `callback` {Function}
+  * `err` {Error}
+
+* Retrieves the files matching the specified pattern.
+
+```mjs
+import { glob } from 'node:fs';
+
+glob('**/*.js', (err, matches) => {
+  if (err) throw err;
+  console.log(matches);
+});
+```
+
+```cjs
+const { glob } = require('node:fs');
+
+glob('**/*.js', (err, matches) => {
+  if (err) throw err;
+  console.log(matches);
+});
+```
+
 ### `fs.lchmod(path, mode, callback)`
 
 <!-- YAML
@@ -3295,7 +3417,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version: v18.0.0
@@ -3476,7 +3600,9 @@ const { openAsBlob } = require('node:fs');
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v18.0.0
@@ -3540,8 +3666,8 @@ changes:
 * `length` {integer} The number of bytes to read.
 * `position` {integer|bigint|null} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
-  file position, and the file position will be updated. If `position` is an
-  integer, the file position will be unchanged.
+  file position, and the file position will be updated. If `position` is
+  a non-negative integer, the file position will be unchanged.
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
@@ -3647,7 +3773,9 @@ above values.
 <!-- YAML
 added: v0.1.8
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v18.0.0
@@ -4925,7 +5053,9 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.0.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0
@@ -5167,7 +5297,9 @@ try {
 <!-- YAML
 added: v0.6.7
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.1.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version: v7.0.0
@@ -5336,7 +5468,12 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: v20.1.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53127
+    description: This API is no longer experimental.
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47084
     description: Accept an additional `mode` option to specify
                  the copy behavior as the `mode` argument of `fs.copyFile()`.
@@ -5347,8 +5484,6 @@ changes:
     description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
 -->
-
-> Stability: 1 - Experimental
 
 * `src` {string|URL} source path to copy.
 * `dest` {string|URL} destination path to copy to.
@@ -5361,8 +5496,7 @@ changes:
     all of its contents will be skipped as well. **Default:** `undefined`
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
-    * Returns: {boolean} Any non-`Promise` value that is coercible
-      to `boolean`.
+    * Returns: {boolean}
   * `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
@@ -5514,6 +5648,39 @@ changes:
 
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
+### `fs.globSync(pattern[, options])`
+
+<!-- YAML
+added: v22.0.0
+changes:
+  - version: v22.2.0
+    pr-url: https://github.com/nodejs/node/pull/52837
+    description: Add support for `withFileTypes` as an option.
+-->
+
+> Stability: 1 - Experimental
+
+* `pattern` {string|string\[]}
+* `options` {Object}
+  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `exclude` {Function} Function to filter out files/directories. Return
+    `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
+* Returns: {string\[]} paths of files that match the pattern.
+
+```mjs
+import { globSync } from 'node:fs';
+
+console.log(globSync('**/*.js'));
+```
+
+```cjs
+const { globSync } = require('node:fs');
+
+console.log(globSync('**/*.js'));
+```
+
 ### `fs.lchmodSync(path, mode)`
 
 <!-- YAML
@@ -5653,7 +5820,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:
@@ -5681,7 +5850,9 @@ object with an `encoding` property specifying the character encoding to use.
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version:
@@ -5741,7 +5912,9 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v10.10.0
@@ -6221,7 +6394,9 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v20.10.0
+  - version:
+    - v21.0.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0
@@ -6622,10 +6797,12 @@ value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 
 <!-- YAML
 added:
+  - v21.4.0
   - v20.12.0
+  - v18.20.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1 – Experimental
 
 * {string}
 
@@ -6637,7 +6814,10 @@ The path to the parent directory of the file this {fs.Dirent} object refers to.
 added:
   - v20.1.0
   - v18.17.0
-deprecated: v20.12.0
+deprecated:
+  - v21.5.0
+  - v20.12.0
+  - v18.20.0
 -->
 
 > Stability: 0 - Deprecated: Use [`dirent.parentPath`][] instead.
@@ -6879,7 +7059,7 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v20.13.0
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51879
     description: Public constructor is deprecated.
   - version: v8.1.0
