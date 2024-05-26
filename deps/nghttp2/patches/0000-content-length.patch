@@ -1,0 +1,29 @@
+From 92c120c0ba2ed5806960f8ec9a338fefc17b0427 Mon Sep 17 00:00:00 2001
+From: Gil Pedersen <gpdev@gpost.dk>
+Date: Tue, 15 Sep 2020 12:36:34 +0000
+Subject: [PATCH] Check content-length before calling stream_close_callback
+ with error code 0
+
+---
+ deps/nghttp2/lib/nghttp2_session.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/deps/nghttp2/lib/nghttp2_session.c b/deps/nghttp2/lib/nghttp2_session.c
+index 004a4dff..008f9d34 100644
+--- a/deps/nghttp2/lib/nghttp2_session.c
++++ b/deps/nghttp2/lib/nghttp2_session.c
+@@ -1485,6 +1485,11 @@ int nghttp2_session_close_stream(nghttp2_session *session, int32_t stream_id,
+ 
+   DEBUGF("stream: stream(%p)=%d close\n", stream, stream->stream_id);
+ 
++  if (error_code == NGHTTP2_NO_ERROR &&
++      nghttp2_http_on_remote_end_stream(stream) == -1) {
++    error_code = NGHTTP2_PROTOCOL_ERROR;
++  }
++
+   /* We call on_stream_close_callback even if stream->state is
+      NGHTTP2_STREAM_INITIAL. This will happen while sending request
+      HEADERS, a local endpoint receives RST_STREAM for that stream. It
+-- 
+2.40.1
+

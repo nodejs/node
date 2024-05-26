@@ -102,7 +102,7 @@ const { getEventListeners } = require('events');
   }));
 }
 
-// Test destroy before goaway
+// Test server session destroy
 {
   const server = h2.createServer();
   server.on('stream', common.mustCall((stream) => {
@@ -114,8 +114,32 @@ const { getEventListeners } = require('events');
 
     client.on('close', () => {
       server.close();
-      // Calling destroy in here should not matter
-      client.destroy();
+    });
+
+    const req = client.request();
+    req.once('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+    }));
+  }));
+}
+
+// Test client session destroy
+{
+  let client;
+  const server = h2.createServer();
+  server.on('stream', common.mustCall((stream) => {
+    stream.on('error', common.mustNotCall());
+    stream.once('aborted', common.mustCall());
+    client.destroy();
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    client = h2.connect(`http://localhost:${server.address().port}`);
+
+    client.on('close', () => {
+      server.close();
     });
 
     client.request();

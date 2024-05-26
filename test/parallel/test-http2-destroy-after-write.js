@@ -25,6 +25,11 @@ server.on('session', common.mustCall(function(session) {
 server.listen(0, function() {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const stream = client.request({ ':method': 'POST' });
+  stream.once('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
   stream.on('response', common.mustCall(function(headers) {
     assert.strictEqual(headers[':status'], 200);
   }));

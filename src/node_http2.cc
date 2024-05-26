@@ -2656,6 +2656,11 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   if (stream->available_outbound_length_ == 0 && !stream->is_writable()) {
     Debug(session, "no more data for stream %d", id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
+
+    if (session->has_pending_rststream(id)) {
+      *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
+    }
+
     if (stream->has_trailers()) {
       *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
       stream->OnTrailers();
