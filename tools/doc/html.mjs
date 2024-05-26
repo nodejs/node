@@ -205,6 +205,65 @@ function linkJsTypeDocs(text) {
 }
 
 const isJSFlavorSnippet = (node) => node.lang === 'cjs' || node.lang === 'mjs';
+const copyButton = '<button class="copy-button">copy</button>';
+
+function processJSFlavorSnippet(node, filename, index, parent) {
+  const previousNode = parent.children[index - 1] || {};
+  const nextNode = parent.children[index + 1] || {};
+  const highlighted = `<code class='language-js ${node.lang}'>${(getLanguage(node.lang || '') ? highlight(node.value, { language: node.lang }) : node).value}</code>`;
+  const charCountFirstTwoLines = Math.max(...node.value.split('\n', 2).map((str) => str.length));
+
+  if (!isJSFlavorSnippet(previousNode) &&
+    isJSFlavorSnippet(nextNode) &&
+    nextNode.lang !== node.lang) {
+    // Saving the highlight code as value to be added in the next node.
+    node.value = highlighted;
+    node.charCountFirstTwoLines = charCountFirstTwoLines;
+  } else if (isJSFlavorSnippet(previousNode) &&
+    previousNode.lang !== node.lang) {
+    const actualCharCount = Math.max(charCountFirstTwoLines, previousNode.charCountFirstTwoLines);
+    (dynamicSizes[filename] ??= new Set()).add(actualCharCount);
+    node.value = `<pre class="with-${actualCharCount}-chars">` +
+      '<input class="js-flavor-toggle" type="checkbox"' +
+      // If CJS comes in second, ESM should display by default.
+      (node.lang === 'cjs' ? ' checked' : '') +
+      ' aria-label="Show modern ES modules syntax">' +
+      previousNode.value +
+      highlighted +
+      copyButton +
+      '</pre>';
+    node.lang = null;
+    previousNode.value = '';
+    previousNode.lang = null;
+  } else {
+    // Isolated JS snippet, no need to add the checkbox.
+    node.value = `<pre>${highlighted} ${copyButton}</pre>`;
+  }
+}
+
+function toCJS(value) {
+  // Find import comments '//@import '{ Buffer }' 'node:buffer'
+  const importComment = /\/\/@import\s*'([^']+?)'\s*'([^']+?)'[^\n]*/g;
+  // Replace import comments with require statements
+  value = value.replace(importComment, (match, module, requirePath) => {
+    return `const ${module} = require('${requirePath}');`;
+  });
+
+  return value;
+}
+
+function toMJS(value) {
+  // Find import comments '//@import '{ Buffer }' 'node:buffer' !star
+  // If '!star' is present, replace with import * as module from 'module'
+  const importComment = /\/\/@import\s*'([^']+?)'\s*'([^']+?)'([^\n]*)/g;
+  // Replace import comments with import statements
+  value = value.replace(importComment, (match, module, importPath, star) => {
+    star = star.includes('!star');
+    return `import ${star ? '* as ' : ''}${module} from '${importPath}';`;
+  });
+
+  return value;
+}
 
 // Preprocess headers, stability blockquotes, and YAML blocks.
 export function preprocessElements({ filename }) {
@@ -223,49 +282,30 @@ export function preprocessElements({ filename }) {
             `No language set in ${filename}, line ${node.position.start.line}`,
           );
         }
-        const className = isJSFlavorSnippet(node) ?
-          `language-js ${node.lang}` :
-          `language-${node.lang}`;
 
-        const highlighted =
-          `<code class='${className}'>${(getLanguage(node.lang || '') ? highlight(node.value, { language: node.lang }) : node).value}</code>`;
+        // If the code type is 'js', duplicate it (one for CJS, one for ESM)
+        if (node.lang === 'js' && node.value.includes('//@import')) {
+          const cjsNode = { ...node, lang: 'cjs', type: 'html', value: toCJS(node.value) };
+          parent.children.splice(index + 1, 0, cjsNode);
+
+          const mjsNode = { ...node, lang: 'mjs', type: 'html', value: toMJS(node.value) };
+          parent.children.splice(index + 2, 0, mjsNode);
+
+          // Delete the original node
+          parent.children.splice(index, 1);
+
+          processJSFlavorSnippet(cjsNode, filename, index, parent);
+          processJSFlavorSnippet(mjsNode, filename, index + 1, parent);
+          return;
+        }
+
         node.type = 'html';
 
-        const copyButton = '<button class="copy-button">copy</button>';
-
         if (isJSFlavorSnippet(node)) {
-          const previousNode = parent.children[index - 1] || {};
-          const nextNode = parent.children[index + 1] || {};
-
-          const charCountFirstTwoLines = Math.max(...node.value.split('\n', 2).map((str) => str.length));
-
-          if (!isJSFlavorSnippet(previousNode) &&
-              isJSFlavorSnippet(nextNode) &&
-              nextNode.lang !== node.lang) {
-            // Saving the highlight code as value to be added in the next node.
-            node.value = highlighted;
-            node.charCountFirstTwoLines = charCountFirstTwoLines;
-          } else if (isJSFlavorSnippet(previousNode) &&
-                     previousNode.lang !== node.lang) {
-            const actualCharCount = Math.max(charCountFirstTwoLines, previousNode.charCountFirstTwoLines);
-            (dynamicSizes[filename] ??= new Set()).add(actualCharCount);
-            node.value = `<pre class="with-${actualCharCount}-chars">` +
-              '<input class="js-flavor-toggle" type="checkbox"' +
-              // If CJS comes in second, ESM should display by default.
-              (node.lang === 'cjs' ? ' checked' : '') +
-              ' aria-label="Show modern ES modules syntax">' +
-              previousNode.value +
-              highlighted +
-              copyButton +
-              '</pre>';
-            node.lang = null;
-            previousNode.value = '';
-            previousNode.lang = null;
-          } else {
-            // Isolated JS snippet, no need to add the checkbox.
-            node.value = `<pre>${highlighted} ${copyButton}</pre>`;
-          }
+          processJSFlavorSnippet(node, filename, index, parent);
         } else {
+          const highlighted =
+            `<code class='language-${node.lang}'>${(getLanguage(node.lang || '') ? highlight(node.value, { language: node.lang }) : node).value}</code>`;
           node.value = `<pre>${highlighted} ${copyButton}</pre>`;
         }
       } else if (node.type === 'html' && common.isYAMLBlock(node.value)) {

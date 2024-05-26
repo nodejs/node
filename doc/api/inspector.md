@@ -11,22 +11,8 @@ inspector.
 
 It can be accessed using:
 
-```mjs
-import * as inspector from 'node:inspector/promises';
-```
-
-```cjs
-const inspector = require('node:inspector/promises');
-```
-
-or
-
-```mjs
-import * as inspector from 'node:inspector';
-```
-
-```cjs
-const inspector = require('node:inspector');
+```js
+//@import 'inspector' 'node:inspector/promises' !star
 ```
 
 ## Promises API
@@ -144,8 +130,9 @@ added: v19.0.0
 
 Posts a message to the inspector back-end.
 
-```mjs
-import { Session } from 'node:inspector/promises';
+```js
+//@import '{ Session }' 'node:inspector/promises'
+
 try {
   const session = new Session();
   session.connect();
@@ -174,9 +161,10 @@ protocol.
 
 Here's an example showing how to use the [CPU Profiler][]:
 
-```mjs
-import { Session } from 'node:inspector/promises';
-import fs from 'node:fs';
+```js
+//@import '{ Session }' 'node:inspector/promises'
+//@import 'fs' 'node:fs'
+
 const session = new Session();
 session.connect();
 
@@ -195,9 +183,10 @@ fs.writeFileSync('./profile.cpuprofile', JSON.stringify(profile));
 
 Here's an example showing how to use the [Heap Profiler][]:
 
-```mjs
-import { Session } from 'node:inspector/promises';
-import fs from 'node:fs';
+```js
+//@import '{ Session }' 'node:inspector/promises'
+//@import 'fs' 'node:fs'
+
 const session = new Session();
 
 const fd = fs.openSync('profile.heapsnapshot', 'w');
@@ -359,9 +348,10 @@ protocol.
 Here's an example showing how to use the [CPU Profiler][]:
 
 ```js
-const inspector = require('node:inspector');
-const fs = require('node:fs');
-const session = new inspector.Session();
+//@import '{ Session }' 'node:inspector/promises'
+//@import 'fs' 'node:fs'
+
+const session = new Session();
 session.connect();
 
 session.post('Profiler.enable', () => {
@@ -384,9 +374,11 @@ session.post('Profiler.enable', () => {
 Here's an example showing how to use the [Heap Profiler][]:
 
 ```js
-const inspector = require('node:inspector');
-const fs = require('node:fs');
-const session = new inspector.Session();
+//@import '{ Session }' 'node:inspector/promises'
+//@import 'fs' 'node:fs'
+
+const session = new Session();
+session.connect();
 
 const fd = fs.openSync('profile.heapsnapshot', 'w');
 
