@@ -48,10 +48,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     if (testRuns?.length >= 2) ran2.resolve();
   });
 
-  if (action === 'update') {
+  const testUpdate = async () => {
     await ran1.promise;
-    runs.push(currentRun);
-    currentRun = '';
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
     const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
@@ -65,10 +63,10 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
       assert.match(run, /# fail 0/);
       assert.match(run, /# cancelled 0/);
     }
-  } else if (action === 'rename') {
+  };
+
+  const testRename = async () => {
     await ran1.promise;
-    runs.push(currentRun);
-    currentRun = '';
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
     const interval = setInterval(() => renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000));
@@ -83,10 +81,10 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
       assert.match(run, /# fail 0/);
       assert.match(run, /# cancelled 0/);
     }
-  } else if (action === 'delete') {
+  };
+
+  const testDelete = async () => {
     await ran1.promise;
-    runs.push(currentRun);
-    currentRun = '';
     const fileToDeletePath = tmpdir.resolve(fileToUpdate);
     const interval = setInterval(() => {
       if (existsSync(fileToDeletePath)) {
@@ -96,7 +94,6 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
       }
     }, common.platformTimeout(1000));
     await ran2.promise;
-
     runs.push(currentRun);
     clearInterval(interval);
     child.kill();
@@ -104,7 +101,11 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     for (const run of runs) {
       assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
     }
-  }
+  };
+
+  action === 'update' && await testUpdate();
+  action === 'rename' && await testRename();
+  action === 'delete' && await testDelete();
 }
 
 describe('test runner watch mode', () => {
