@@ -106,6 +106,11 @@ const { getEventListeners } = require('events');
 {
   const server = h2.createServer();
   server.on('stream', common.mustCall((stream) => {
+    stream.once('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+    }));
     stream.session.destroy();
   }));
 
@@ -130,7 +135,11 @@ const { getEventListeners } = require('events');
   let client;
   const server = h2.createServer();
   server.on('stream', common.mustCall((stream) => {
-    stream.on('error', common.mustNotCall());
+    // FIXME: race condition with ECONNRESET?
+    // It receives GOAWAY from the client,
+    // so it throws with NGHTTP2_INTERNAL_ERROR instead.
+    // At least on macOS.
+    stream.on('error', common.mustCall());
     stream.once('aborted', common.mustCall());
     client.destroy();
   }));
@@ -142,11 +151,16 @@ const { getEventListeners } = require('events');
       server.close();
     });
 
-    client.request();
+    const req = client.request();
+    req.once('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
   }));
 }
 
-// Test destroy before connect
+// Test destroy before connect (endStream)
 {
   const server = h2.createServer();
   server.on('stream', common.mustNotCall());
@@ -160,6 +174,30 @@ const { getEventListeners } = require('events');
     }));
 
     const req = client.request();
+    req.once('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
+    req.destroy();
+  }));
+}
+
+// Test destroy before connect (no endStream)
+{
+  const server = h2.createServer();
+  server.on('stream', common.mustNotCall());
+
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+
+    server.on('connection', common.mustCall(() => {
+      server.close();
+      client.close();
+    }));
+
+    const req = client.request({}, { endStream: false });
+    req.on('error', common.mustNotCall());
     req.destroy();
   }));
 }

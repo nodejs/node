@@ -34,9 +34,13 @@ server.on('stream', common.mustCall((stream) => {
       name: 'Error'
     }
   );
-  // When session is destroyed all streams are destroyed and no further
-  // error should be emitted.
-  stream.on('error', common.mustNotCall());
+  // When session is forcibly destroyed,
+  // all streams are destroyed with an error.
+  stream.on('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
   assert.strictEqual(stream.write('data', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_WRITE_AFTER_END',

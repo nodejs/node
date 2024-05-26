@@ -38,6 +38,11 @@ const h2 = require('http2');
         ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
+      request.once('error', common.expectsError({
+        name: 'Error',
+        code: 'ERR_HTTP2_STREAM_ERROR',
+        message: 'Stream closed with error code NGHTTP2_CANCEL'
+      }));
       request.on('data', common.mustCall(function(chunk) {
         // Cause an error on the server side
         client.destroy();
@@ -78,6 +83,11 @@ const h2 = require('http2');
         ':authority': `localhost:${port}`,
       };
       const request = client.request(headers);
+      request.once('error', common.expectsError({
+        name: 'Error',
+        code: 'ERR_HTTP2_STREAM_ERROR',
+        message: 'Stream closed with error code NGHTTP2_CANCEL'
+      }));
       request.on('data', common.mustCall(function(chunk) {
         // Cause an error on the server side
         client.destroy();
