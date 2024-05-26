@@ -32,27 +32,33 @@ function onStream(stream) {
   stream.on('aborted', common.mustCall());
 
   assert.notStrictEqual(stream.session, undefined);
-  socket.destroy();
+
+  // With destroy():
+  // The client may have an ECONNRESET or NGHTTP2_INTERNAL_ERROR error
+  // depending on the operating system, due mainly to differences
+  // in the timing of socket closing. The test would be flaky.
+
+  // With resetAndDestroy():
+  // TCP is always reset, no flakiness.
+  socket.resetAndDestroy();
 }
 
 server.listen(0);
 
 server.on('listening', common.mustCall(async () => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
-  // The client may have an ECONNRESET error here depending on the operating
-  // system, due mainly to differences in the timing of socket closing. Do
-  // not wrap this in a common mustCall.
-  client.on('error', (err) => {
-    if (err.code !== 'ECONNRESET')
-      throw err;
-  });
+  client.on('error', common.expectsError({
+    name: 'Error',
+    code: 'ECONNRESET',
+    message: 'read ECONNRESET'
+  }));
   client.on('close', common.mustCall());
 
   const req = client.request({ ':method': 'POST' });
   req.on('error', common.expectsError({
     name: 'Error',
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+    code: 'ECONNRESET',
+    message: 'read ECONNRESET'
   }));
 
   req.on('aborted', common.mustCall());
