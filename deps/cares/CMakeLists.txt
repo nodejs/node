@@ -12,10 +12,10 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.28.1" )
+PROJECT (c-ares LANGUAGES C VERSION "1.29.0" )
 
 # Set this version before release
-SET (CARES_VERSION "1.28.1")
+SET (CARES_VERSION "1.29.0")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "15:1:13")
+SET (CARES_LIB_VERSIONINFO "16:0:14")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -172,7 +172,7 @@ return 0;
 	MACOS_V1012)
 ENDIF ()
 
-IF ((IOS OR APPLE OR ZOS) AND HAVE_LIBRESOLV)
+IF (ZOS AND HAVE_LIBRESOLV)
 	SET (CARES_USE_LIBRESOLV 1)
 ENDIF()
 
@@ -227,7 +227,6 @@ CHECK_INCLUDE_FILES (sys/select.h          HAVE_SYS_SELECT_H)
 CHECK_INCLUDE_FILES (sys/stat.h            HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILES (sys/time.h            HAVE_SYS_TIME_H)
 CHECK_INCLUDE_FILES (sys/uio.h             HAVE_SYS_UIO_H)
-CHECK_INCLUDE_FILES (sys/random.h          HAVE_SYS_RANDOM_H)
 CHECK_INCLUDE_FILES (sys/event.h           HAVE_SYS_EVENT_H)
 CHECK_INCLUDE_FILES (sys/epoll.h           HAVE_SYS_EPOLL_H)
 CHECK_INCLUDE_FILES (ifaddrs.h             HAVE_IFADDRS_H)
@@ -341,7 +340,6 @@ CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_SOCKIO_H	sys/sockio.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_TIME_H     sys/time.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_STAT_H     sys/stat.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_UIO_H      sys/uio.h)
-CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_RANDOM_H   sys/random.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_EVENT_H    sys/event.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_EPOLL_H    sys/epoll.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_TIME_H         time.h)

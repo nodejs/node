@@ -30,7 +30,7 @@
 #include "ares.h"
 #include "ares_private.h"
 
-int ares_fds(ares_channel_t *channel, fd_set *read_fds, fd_set *write_fds)
+int ares_fds(const ares_channel_t *channel, fd_set *read_fds, fd_set *write_fds)
 {
   ares_socket_t       nfds;
   ares__slist_node_t *snode;
