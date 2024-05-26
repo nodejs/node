@@ -49,13 +49,11 @@ server.on('listening', common.mustCall(async () => {
   client.on('close', common.mustCall());
 
   const req = client.request({ ':method': 'POST' });
-  // The client may have an ECONNRESET error here depending on the operating
-  // system, due mainly to differences in the timing of socket closing. Do
-  // not wrap this in a common mustCall.
-  req.on('error', (err) => {
-    if (err.code !== 'ECONNRESET')
-      throw err;
-  });
+  req.on('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
 
   req.on('aborted', common.mustCall());
   req.resume();
