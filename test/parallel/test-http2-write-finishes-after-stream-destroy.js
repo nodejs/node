@@ -18,6 +18,8 @@ process.on('exit', global.gc);
   let serverSideHttp2StreamDestroyed = false;
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, headers) => {
+    stream.once('error', common.mustCall());
+
     serverSideHttp2Stream = stream;
     stream.respond({
       'content-type': 'text/html',

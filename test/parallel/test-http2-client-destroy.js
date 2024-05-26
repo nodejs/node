@@ -135,11 +135,11 @@ const { getEventListeners } = require('events');
   let client;
   const server = h2.createServer();
   server.on('stream', common.mustCall((stream) => {
-    // FIXME: race condition with ECONNRESET?
-    // It receives GOAWAY from the client,
-    // so it throws with NGHTTP2_INTERNAL_ERROR instead.
-    // At least on macOS.
-    stream.on('error', common.mustCall());
+    stream.on('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+    }));
     stream.once('aborted', common.mustCall());
     client.destroy();
   }));
@@ -197,7 +197,11 @@ const { getEventListeners } = require('events');
     }));
 
     const req = client.request({}, { endStream: false });
-    req.on('error', common.mustNotCall());
+    req.once('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
     req.destroy();
   }));
 }
@@ -354,7 +358,11 @@ const { getEventListeners } = require('events');
   const controller = new AbortController();
 
   server.on('stream', common.mustCall((stream) => {
-    stream.on('error', common.mustNotCall());
+    stream.on('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      name: 'Error',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
     stream.on('close', common.mustCall(() => {
       assert.strictEqual(stream.rstCode, h2.constants.NGHTTP2_CANCEL);
       server.close();

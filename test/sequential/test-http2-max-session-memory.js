@@ -13,7 +13,6 @@ const largeBuffer = Buffer.alloc(2e6);
 const server = http2.createServer({ maxSessionMemory: 1 });
 
 server.on('stream', common.mustCall((stream) => {
-  stream.on('error', common.mustNotCall());
   stream.respond();
   stream.end(largeBuffer);
 }));
@@ -28,9 +27,14 @@ server.listen(0, common.mustCall(() => {
       // This one should be rejected because the server is over budget
       // on the current memory allocation
       const req = client.request();
+      req.on('error', common.expectsError({
+        code: 'ERR_HTTP2_STREAM_ERROR',
+        name: 'Error',
+        message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM'
+      }));
       req.on('close', common.mustCall(() => {
         server.close();
-        client.destroy();
+        client.close();
       }));
     });
 

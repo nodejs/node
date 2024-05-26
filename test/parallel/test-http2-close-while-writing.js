@@ -23,6 +23,11 @@ let client_stream;
 
 server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
+    stream.once('error', common.expectsError({
+      name: 'Error',
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
     stream.resume();
     stream.on('data', function() {
       this.write(Buffer.alloc(1));
@@ -37,6 +42,11 @@ server.listen(0, function() {
     maxSessionMemory: 1000
   });
   client_stream = client.request({ ':method': 'POST' });
+  client_stream.once('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_CANCEL'
+  }));
   client_stream.on('close', common.mustCall(() => {
     client.close();
     server.close();

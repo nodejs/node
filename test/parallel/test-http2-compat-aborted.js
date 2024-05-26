@@ -22,6 +22,11 @@ server.listen(0, common.mustCall(function() {
   const url = `http://localhost:${server.address().port}`;
   const client = h2.connect(url, common.mustCall(() => {
     const request = client.request({}, { endStream: false });
+    request.once('error', common.expectsError({
+      name: 'Error',
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
     request.on('data', common.mustCall((chunk) => {
       client.destroy();
     }));

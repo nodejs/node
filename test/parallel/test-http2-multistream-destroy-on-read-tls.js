@@ -17,6 +17,12 @@ const server = http2.createSecureServer({
 const filenames = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
 
 server.on('stream', common.mustCall((stream) => {
+  stream.once('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_CANCEL'
+  }));
+
   function write() {
     stream.write('a'.repeat(10240));
     stream.once('drain', write);
@@ -35,6 +41,11 @@ server.listen(0, common.mustCall(() => {
     const stream = client.request({
       ':path': `/${entry}`
     });
+    stream.once('error', common.expectsError({
+      name: 'Error',
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      message: 'Stream closed with error code NGHTTP2_CANCEL'
+    }));
     stream.once('data', common.mustCall(() => {
       stream.destroy();
 
