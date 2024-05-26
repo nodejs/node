@@ -3081,7 +3081,7 @@ expected count, the test will fail.
 test('top level test', (t) => {
   t.plan(2);
   t.assert.ok('some relevant assertion here');
-  t.subtest('subtest', () => {});
+  t.test('subtest', () => {});
 });
 ```
 
