@@ -3047,6 +3047,14 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.fullName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The name of the test and each of its ancestors, separated by `>`.
+
 ### `context.name`
 
 <!-- YAML
