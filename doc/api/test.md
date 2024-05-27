@@ -2226,10 +2226,10 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
-  const twoSeconds = 3000;
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
+  const threeSeconds = 3000;
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
 
   assert.strictEqual(fn.mock.callCount(), 1);
 });
@@ -2245,10 +2245,10 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
-  const twoSeconds = 3000;
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
+  const threeSeconds = 3000;
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
 
   assert.strictEqual(fn.mock.callCount(), 1);
 });
@@ -2298,8 +2298,8 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
 #### Using clear functions
 
-As mentioned, all clear functions from timers (`clearTimeout` and `clearInterval`)
-are implicity mocked. Take a look at this example using `setTimeout`:
+As mentioned, all clear functions from timers (`clearTimeout`, `clearInterval`,and
+`clearImmediate`) are implicitly mocked. Take a look at this example using `setTimeout`:
 
 ```mjs
 import assert from 'node:assert';
@@ -2312,7 +2312,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
-  // Implicity mocked as well
+  // Implicitly mocked as well
   clearTimeout(id);
   context.mock.timers.tick(9999);
 
@@ -2332,7 +2332,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
-  // Implicity mocked as well
+  // Implicitly mocked as well
   clearTimeout(id);
   context.mock.timers.tick(9999);
 
