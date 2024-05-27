@@ -39,7 +39,7 @@ server.on('stream', common.mustCall((stream) => {
       code: 'ERR_HTTP2_STREAM_ERROR',
       message: 'Stream closed with error code NGHTTP2_CANCEL'
     }));
-    pushedStream.on('close', common.mustNotCall(() => {
+    pushedStream.on('close', common.mustCall(() => {
       assert.strictEqual(pushedStream.rstCode, 8);
       countdown.dec();
     }));

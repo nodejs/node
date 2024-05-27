@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const h2 = require('http2');
 
 const server = h2.createServer();
-server.once('stream', stream => {
+server.once('stream', (stream) => {
   stream.once('error', common.expectsError({
     name: 'Error',
     code: 'ERR_HTTP2_STREAM_ERROR',

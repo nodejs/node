@@ -33,14 +33,13 @@ function onStream(stream) {
 
   assert.notStrictEqual(stream.session, undefined);
 
-  // With destroy():
-  // The client may have an ECONNRESET or NGHTTP2_INTERNAL_ERROR error
-  // depending on the operating system, due mainly to differences
-  // in the timing of socket closing. The test would be flaky.
+  stream.once('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_CANCEL'
+  }));
 
-  // With resetAndDestroy():
-  // TCP is always reset, no flakiness.
-  socket.resetAndDestroy();
+  socket.destroy();
 }
 
 server.listen(0);
