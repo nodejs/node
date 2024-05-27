@@ -7,7 +7,7 @@
 <!-- source_link=lib/http.js -->
 
 This module, containing both a client and server, can be imported via
-`require('node:http')` (CJS) or `import * as http from 'http'` (ESM).
+`require('node:http')` (CJS) or `import * as http from 'node:http'` (ESM).
 
 The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
