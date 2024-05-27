@@ -9,6 +9,12 @@ const http2 = require('http2');
 const server = http2.createServer();
 
 server.on('stream', common.mustCall((stream) => {
+  stream.once('error', common.expectsError({
+    name: 'Error',
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
+
   const session = stream.session;
   session.goaway(1);
   session.goaway(2);
