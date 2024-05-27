@@ -366,9 +366,9 @@ added:
 > Stability: 1.2 - Release candidate
 
 * {string} The full absolute path and filename of the current module, with
-* symlinks resolved.
+  symlinks resolved.
 * This is the same as the [`url.fileURLToPath()`][] of the
-* [`import.meta.url`][].
+  [`import.meta.url`][].
 
 > **Caveat** only local modules support this property. Modules not using the
 > `file:` protocol will not provide it.
