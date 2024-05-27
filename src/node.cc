@@ -845,7 +845,7 @@ static ExitCode InitializeNodeWithArgsInternal(
           errors->push_back(file_path + ": invalid format");
           break;
         case Dotenv::ParseResult::FileError:
-          errors->push_back(file_path + ": not found");
+          fprintf(stderr, "Warning: Requested .env file not found\n\n");
           break;
         default:
           UNREACHABLE();

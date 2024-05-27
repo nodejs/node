@@ -732,6 +732,8 @@ in the file, the value from the environment takes precedence.
 You can pass multiple `--env-file` arguments. Subsequent files override
 pre-existing variables defined in previous files.
 
+If the file is not found, a warning will be printed.
+
 ```bash
 node --env-file=.env --env-file=.development.env index.js
 ```

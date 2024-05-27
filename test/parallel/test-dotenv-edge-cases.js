@@ -48,8 +48,8 @@ describe('.env supports edge cases', () => {
       [ '--env-file=.env', '--eval', code ],
       { cwd: __dirname },
     );
-    assert.notStrictEqual(child.stderr.toString(), '');
-    assert.strictEqual(child.code, 9);
+    assert.ok(child.stderr.includes('Requested .env file not found'));
+    assert.strictEqual(child.code, 0);
   });
 
   it('should not override existing environment variables but introduce new vars', async () => {
