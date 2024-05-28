@@ -321,8 +321,7 @@ if defined nobuild goto :after-build
 @rem Build the sln with msbuild.
 set "msbcpu=/m:2"
 if "%NUMBER_OF_PROCESSORS%"=="1" set "msbcpu=/m:1"
-set "msbplatform=Win32"
-if "%target_arch%"=="x64" set "msbplatform=x64"
+set "msbplatform=x64"
 if "%target_arch%"=="arm64" set "msbplatform=ARM64"
 if "%target%"=="Build" (
   if defined no_cctest set target=node
