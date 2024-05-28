@@ -1270,7 +1270,7 @@ def host_arch_cc():
 def host_arch_win():
   """Host architecture check using environ vars (better way to do this?)"""
 
-  observed_arch = os.environ.get('PROCESSOR_ARCHITECTURE', 'x64')
+  observed_arch = os.environ.get('PROCESSOR_ARCHITECTURE', 'AMD64')
   arch = os.environ.get('PROCESSOR_ARCHITEW6432', observed_arch)
 
   matchup = {
