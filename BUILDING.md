@@ -111,11 +111,10 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. Ubuntu 20.04, RHEL 8            |
 | GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. RHEL 8                          |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental                                    |                                      |
-| Windows          | x64, x86 (WoW64) | >= Windows 10/Server 2016         | Tier 1                                          | [^2],[^3]                            |
-| Windows          | x86 (native)     | >= Windows 10/Server 2016         | Tier 1 (running) / Experimental (compiling)[^4] |                                      |
-| Windows          | x64, x86         | Windows 8.1/Server 2012           | Experimental                                    |                                      |
+| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1                                          | [^2],[^3]                            |
+| Windows          | x64              | Windows 8.1/Server 2012           | Experimental                                    |                                      |
 | Windows          | arm64            | >= Windows 10                     | Tier 2                                          |                                      |
-| macOS            | x64              | >= 11.0                           | Tier 1                                          | For notes about compilation see [^5] |
+| macOS            | x64              | >= 11.0                           | Tier 1                                          | For notes about compilation see [^4] |
 | macOS            | arm64            | >= 11.0                           | Tier 1                                          |                                      |
 | SmartOS          | x64              | >= 18                             | Tier 2                                          |                                      |
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                          |                                      |
@@ -141,12 +140,7 @@ platforms. This is true regardless of entries in the table below.
     Windows binary (`node.exe`) in WSL will not work without workarounds such as
     stdio redirection.
 
-[^4]: Running Node.js on x86 Windows should work and binaries
-    are provided. However, tests in our infrastructure only run on WoW64.
-    Furthermore, compiling on x86 Windows is Experimental and
-    may not be possible.
-
-[^5]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
+[^4]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
     required to compile.
 
 <!--lint enable final-definition-->
@@ -175,7 +169,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | linux-s390x             | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
-| win-x64 and win-x86     | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
+| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
 
 <!--lint disable final-definition-->
 
