@@ -799,16 +799,11 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
   // make a best effort.
   if (!socket_closed) {
     Debug(this, "goaway session with code %d", code);
-    int32_t lastStreamID = nghttp2_session_get_last_proc_stream_id(
-        session_.get());
+    int32_t lastStreamID =
+        nghttp2_session_get_last_proc_stream_id(session_.get());
     CHECK_EQ(
         nghttp2_submit_goaway(
-            session_.get(),
-            NGHTTP2_FLAG_NONE,
-            lastStreamID,
-            code,
-            nullptr,
-            0),
+            session_.get(), NGHTTP2_FLAG_NONE, lastStreamID, code, nullptr, 0),
         0);
     SendPendingData();
   } else if (stream_ != nullptr) {
