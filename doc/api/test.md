@@ -2867,11 +2867,7 @@ The corresponding execution ordered event is `'test:dequeue'`.
 ### Event: `'test:stderr'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
-  * `line` {number|undefined} The line number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stderr`.
 
 Emitted when a running test writes to `stderr`.
@@ -2882,11 +2878,7 @@ defined.
 ### Event: `'test:stdout'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
-  * `line` {number|undefined} The line number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stdout`.
 
 Emitted when a running test writes to `stdout`.
