@@ -270,6 +270,14 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // Initialize an empty slot for source map cache before the object is frozen.
+  if (that->SetPrivate(context,
+                       realm->isolate_data()->source_map_data_private_symbol(),
+                       Undefined(isolate))
+          .IsNothing()) {
+    return;
+  }
+
   // Use the extras object as an object whose GetCreationContext() will be the
   // original `context`, since the `Context` itself strictly speaking cannot
   // be stored in an internal field.
