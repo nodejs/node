@@ -38,8 +38,9 @@ make -j4 # With this flag, Ninja will limit itself to 4 parallel jobs,
          # regardless of the number of cores on the current machine.
 ```
 
-Note: if you are on macOS and use GNU Make version `v3.8.x`, the `-jn` flag
-will be ignored, you can either upgrade to v4.x from [Homebrew](https://formulae.brew.sh/formula/make#default) or use `make JOBS=n`.
+Note: if you are on macOS and use GNU Make version `3.x`, the `-jn` flag
+will not work. You can either upgrade to `v4.x` (e.g. using a package manager
+such as [Homebrew](https://formulae.brew.sh/formula/make#default)) or use `make JOBS=n`.
 
 ## Producing a debug build
 
