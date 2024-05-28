@@ -1357,7 +1357,7 @@ static Tagged<Object> SearchRegExpMultiple(
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
       Handle<FixedArray> result_fixed_array = FixedArray::RightTrimOrEmpty(
-          isolate, builder.array(), builder.length());
+          isolate, indirect_handle(builder.array(), isolate), builder.length());
       // Cache the result and copy the FixedArray into a COW array.
       Handle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1442,7 +1442,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
 
     builder.AppendString(
         factory->NewSubString(string, end_index, string->length()));
-    return builder.Finish();
+    return indirect_handle(builder.Finish(), isolate);
   } else {
     // Global regexp search, string replace.
     DCHECK(global);
@@ -2032,13 +2032,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
                               JSRegExp::Initialize(regexp, source, flags));
 
   return *regexp;
-}
-
-RUNTIME_FUNCTION(Runtime_IsRegExp) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSRegExp(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {

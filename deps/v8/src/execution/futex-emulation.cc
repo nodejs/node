@@ -981,23 +981,6 @@ int FutexEmulation::NumWaitersForTesting(Tagged<JSArrayBuffer> array_buffer,
   return num_waiters;
 }
 
-int FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
-  FutexWaitList* wait_list = GetWaitList();
-  NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
-
-  int num_waiters = 0;
-  for (const auto& it : wait_list->location_lists_) {
-    for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
-      if (!node->IsAsync()) continue;
-      if (!node->waiting_) continue;
-      if (node->async_state_->isolate_for_async_waiters != isolate) continue;
-      num_waiters++;
-    }
-  }
-
-  return num_waiters;
-}
-
 int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
     Tagged<JSArrayBuffer> array_buffer, size_t addr) {
   void* wait_location = FutexWaitList::ToWaitLocation(array_buffer, addr);

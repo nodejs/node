@@ -72,6 +72,9 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // - Updates the MarkingConfig if the stack state has changed;
   void EnterAtomicPause(StackState);
 
+  // Re-enable concurrent marking assuming it isn't enabled yet in GC cycle.
+  void ReEnableConcurrentMarking();
+
   // Makes marking progress.  A `marked_bytes_limit` of 0 means that the limit
   // is determined by the internal marking scheduler.
   //

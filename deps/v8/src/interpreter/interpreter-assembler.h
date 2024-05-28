@@ -212,8 +212,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<Object> ConstructForwardAllArgs(TNode<Object> target,
                                         TNode<Context> context,
                                         TNode<Object> new_target,
-
-                                        TNode<UintPtrT> slot_id);
+                                        TNode<TaggedIndex> slot_id);
 
   // Call runtime function with |args| arguments.
   template <class T = Object>

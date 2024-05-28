@@ -983,7 +983,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
 // a proxy, return an empty object.
 Handle<JSObject> ScopeIterator::WithContextExtension() {
   DCHECK(context_->IsWithContext());
-  if (IsJSProxy(context_->extension_receiver())) {
+  if (!IsJSObject(context_->extension_receiver())) {
+    DCHECK(IsJSProxy(context_->extension_receiver()) ||
+           IsWasmObject(context_->extension_receiver()));
     return isolate_->factory()->NewSlowJSObjectWithNullProto();
   }
   return handle(JSObject::cast(context_->extension_receiver()), isolate_);

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/code-memory-access.h"
+
 #include "src/common/code-memory-access-inl.h"
 #include "src/utils/allocation.h"
 
@@ -9,10 +11,6 @@ namespace v8 {
 namespace internal {
 
 ThreadIsolation::TrustedData ThreadIsolation::trusted_data_;
-
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
-thread_local int RwxMemoryWriteScope::code_space_write_nesting_level_ = 0;
-#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 
@@ -82,6 +80,14 @@ void ThreadIsolation::Initialize(
 
   bool enable = thread_isolated_allocator != nullptr && !v8_flags.jitless;
 
+#ifdef THREAD_SANITIZER
+  // TODO(sroettger): with TSAN enabled, we get crashes because
+  // SetDefaultPermissionsForSignalHandler gets called while a
+  // RwxMemoryWriteScope is active. It seems that tsan's ProcessPendingSignals
+  // doesn't restore the pkru value after executing the signal handler.
+  enable = false;
+#endif
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   if (enable &&
       !base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport()) {
@@ -99,7 +105,7 @@ void ThreadIsolation::Initialize(
   {
     // We need to allocate the memory for jit page tracking even if we don't
     // enable the ThreadIsolation protections.
-    RwxMemoryWriteScope write_scope("Initialize thread isolation.");
+    CFIMetadataWriteScope write_scope("Initialize thread isolation.");
     ConstructNew(&trusted_data_.jit_pages_mutex_);
     ConstructNew(&trusted_data_.jit_pages_);
   }
@@ -385,7 +391,7 @@ ThreadIsolation::JitPageReference::AllocationContaining(
 
 // static
 void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
-  RwxMemoryWriteScope write_scope("Adding new executable memory.");
+  CFIMetadataWriteScope write_scope("Adding new executable memory.");
 
   base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
   CheckForRegionOverlap(*trusted_data_.jit_pages_, address, size);
@@ -395,18 +401,8 @@ void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
 }
 
 void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
-  RwxMemoryWriteScope write_scope("Removing executable memory.");
-
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  if (Enabled()) {
-    // Remove the pkey tag in case this page will be reused later for
-    // non-executable memory. This can happen if a JS large page gets freed and
-    // regular pages get allocated in its place.
-    CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-        {address, size}, PageAllocator::Permission::kNoAccess,
-        base::MemoryProtectionKey::kDefaultProtectionKey));
-  }
-#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+  // TODO(sroettger): merge the write scopes higher up.
+  CFIMetadataWriteScope write_scope("Removing executable memory.");
 
   JitPage* to_delete;
   {
@@ -451,14 +447,7 @@ void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
 bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
   DCHECK(Enabled());
 
-  RwxMemoryWriteScope write_scope("ThreadIsolation::MakeExecutable");
-
-  // TODO(sroettger): need to make sure that the memory is zero-initialized.
-  // maybe map over it with MAP_FIXED, or call MADV_DONTNEED, or fall back to
-  // memset.
-
-  // Check that the range is inside a tracked jit page.
-  JitPageReference jit_page = LookupJitPage(address, size);
+  // TODO(sroettger): ensure that this can only happen at prcoess startup.
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   return base::MemoryProtectionKey::SetPermissionsAndKey(
@@ -501,7 +490,7 @@ WritableJumpTablePair ThreadIsolation::LookupJumpTableAllocations(
 void ThreadIsolation::RegisterJitAllocations(Address start,
                                              const std::vector<size_t>& sizes,
                                              JitAllocationType type) {
-  RwxMemoryWriteScope write_scope("Register bulk allocations.");
+  CFIMetadataWriteScope write_scope("Register bulk allocations.");
 
   size_t total_size = 0;
   for (auto size : sizes) {
@@ -532,7 +521,7 @@ void ThreadIsolation::UnregisterJitAllocationForTesting(Address addr,
 
 // static
 void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
-  RwxMemoryWriteScope write_scope("UnregisterWasmAllocation");
+  CFIMetadataWriteScope write_scope("UnregisterWasmAllocation");
   LookupJitPage(addr, size).UnregisterAllocation(addr);
 }
 
@@ -586,7 +575,7 @@ ThreadIsolation::SplitJitPages(Address addr1, size_t size1, Address addr2,
 // static
 base::Optional<Address> ThreadIsolation::StartOfJitAllocationAt(
     Address inner_pointer) {
-  RwxMemoryWriteScope write_scope("StartOfJitAllocationAt");
+  CFIMetadataWriteScope write_scope("StartOfJitAllocationAt");
   base::Optional<JitPageReference> page = TryLookupJitPage(inner_pointer, 1);
   if (!page) {
     return {};
@@ -615,7 +604,7 @@ class MutexUnlocker {
 
 // static
 bool ThreadIsolation::CanLookupStartOfJitAllocationAt(Address inner_pointer) {
-  RwxMemoryWriteScope write_scope("CanLookupStartOfJitAllocationAt");
+  CFIMetadataWriteScope write_scope("CanLookupStartOfJitAllocationAt");
 
   // Try to lock the pages mutex and the mutex of the page itself to prevent
   // potential dead locks. The profiler can try to do a lookup from a signal

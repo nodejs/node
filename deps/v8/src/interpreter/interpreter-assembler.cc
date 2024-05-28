@@ -824,8 +824,10 @@ TNode<Object> InterpreterAssembler::Construct(
       construct_array(this, &var_site);
 
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
+  // TODO(42200059): Propagate TaggedIndex usage.
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           slot_id, UpdateFeedbackMode::kOptionalFeedback,
+                           IntPtrToTaggedIndex(Signed(slot_id)),
+                           UpdateFeedbackMode::kOptionalFeedback,
                            &try_fast_construct, &construct_array, &var_site);
 
   BIND(&try_fast_construct);
@@ -1000,7 +1002,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
 // (once here, and once again in construct stub).
 TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
     TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
-    TNode<UintPtrT> slot_id) {
+    TNode<TaggedIndex> slot_id) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
   TVARIABLE(AllocationSite, var_site);

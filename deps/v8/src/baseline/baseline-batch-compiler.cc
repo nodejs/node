@@ -42,12 +42,13 @@ class BaselineCompilerTask {
 
   // Executed in the background thread.
   void Compile(LocalIsolate* local_isolate) {
+    RCS_SCOPE(local_isolate, RuntimeCallCounterId::kCompileBackgroundBaseline);
     base::ScopedTimer timer(v8_flags.log_function_events ? &time_taken_
                                                          : nullptr);
     BaselineCompiler compiler(local_isolate, shared_function_info_, bytecode_);
     compiler.GenerateCode();
-    maybe_code_ = local_isolate->heap()->NewPersistentMaybeHandle(
-        compiler.Build(local_isolate));
+    maybe_code_ =
+        local_isolate->heap()->NewPersistentMaybeHandle(compiler.Build());
   }
 
   // Executed in the main thread.
@@ -248,7 +249,7 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
 
 bool BaselineBatchCompiler::concurrent() const {
   return v8_flags.concurrent_sparkplug &&
-         !isolate_->UseEfficiencyModeForTiering();
+         !isolate_->EfficiencyModeEnabledForTiering();
 }
 
 void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {

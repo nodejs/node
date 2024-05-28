@@ -32,6 +32,7 @@ extern enum VariableMode extends uint32 {
   kLet,
   kConst,
   kUsing,
+  kAwaitUsing,
   kVar,
   kTemporary,
   kDynamic,

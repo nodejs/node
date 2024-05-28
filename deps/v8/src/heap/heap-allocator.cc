@@ -25,21 +25,35 @@ void HeapAllocator::Setup(LinearAllocationArea* new_allocation_info,
     spaces_[i] = heap_->space(i);
   }
 
-  if (heap_->new_space() && local_heap_->is_main_thread()) {
-    new_space_allocator_.emplace(local_heap_, heap_->new_space(),
-                                 new_allocation_info);
+  if ((heap_->new_space() || v8_flags.sticky_mark_bits) &&
+      local_heap_->is_main_thread()) {
+    new_space_allocator_.emplace(
+        local_heap_,
+        v8_flags.sticky_mark_bits
+            ? static_cast<SpaceWithLinearArea*>(heap_->sticky_space())
+            : static_cast<SpaceWithLinearArea*>(heap_->new_space()),
+        MainAllocator::IsNewGeneration::kYes, new_allocation_info);
   }
 
   old_space_allocator_.emplace(local_heap_, heap_->old_space(),
+                               MainAllocator::IsNewGeneration::kNo,
                                old_allocation_info);
 
-  trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space());
-  code_space_allocator_.emplace(local_heap_, heap_->code_space());
+  trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space(),
+                                   MainAllocator::IsNewGeneration::kNo);
+  code_space_allocator_.emplace(local_heap_, heap_->code_space(),
+                                MainAllocator::IsNewGeneration::kNo);
 
   if (heap_->isolate()->has_shared_space()) {
     shared_space_allocator_.emplace(local_heap_,
-                                    heap_->shared_allocation_space());
+                                    heap_->shared_allocation_space(),
+                                    MainAllocator::IsNewGeneration::kNo);
     shared_lo_space_ = heap_->shared_lo_allocation_space();
+
+    shared_trusted_space_allocator_.emplace(
+        local_heap_, heap_->shared_trusted_allocation_space(),
+        MainAllocator::IsNewGeneration::kNo);
+    shared_trusted_lo_space_ = heap_->shared_trusted_lo_allocation_space();
   }
 }
 
@@ -62,6 +76,8 @@ AllocationResult HeapAllocator::AllocateRawLargeInternal(
       return shared_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kTrusted:
       return trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+    case AllocationType::kSharedTrusted:
+      return shared_trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
@@ -84,6 +100,7 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
+    case AllocationType::kSharedTrusted:
       UNREACHABLE();
   }
 }
@@ -159,6 +176,10 @@ void HeapAllocator::MakeLinearAllocationAreasIterable() {
   if (shared_space_allocator_) {
     shared_space_allocator_->MakeLinearAllocationAreaIterable();
   }
+
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
 }
 
 #if DEBUG
@@ -173,40 +194,40 @@ void HeapAllocator::VerifyLinearAllocationAreas() const {
   if (shared_space_allocator_) {
     shared_space_allocator_->Verify();
   }
+
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->Verify();
+  }
 }
 #endif  // DEBUG
 
 void HeapAllocator::MarkLinearAllocationAreasBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   trusted_space_allocator_->MarkLinearAllocationAreaBlack();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    code_space_allocator_->MarkLinearAllocationAreaBlack();
-  }
+  code_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
 void HeapAllocator::UnmarkLinearAllocationsArea() {
   old_space_allocator_->UnmarkLinearAllocationArea();
   trusted_space_allocator_->UnmarkLinearAllocationArea();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking Code objects requires write access to the Code page header");
-    code_space_allocator_->UnmarkLinearAllocationArea();
-  }
+  code_space_allocator_->UnmarkLinearAllocationArea();
 }
 
 void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
   if (shared_space_allocator_) {
     shared_space_allocator_->MarkLinearAllocationAreaBlack();
   }
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
 }
 
 void HeapAllocator::UnmarkSharedLinearAllocationAreas() {
   if (shared_space_allocator_) {
     shared_space_allocator_->UnmarkLinearAllocationArea();
+  }
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->UnmarkLinearAllocationArea();
   }
 }
 
@@ -216,16 +237,14 @@ void HeapAllocator::FreeLinearAllocationAreas() {
   }
   old_space_allocator_->FreeLinearAllocationArea();
   trusted_space_allocator_->FreeLinearAllocationArea();
-
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Setting the high water mark requires write access to the Code page "
-        "header");
-    code_space_allocator_->FreeLinearAllocationArea();
-  }
+  code_space_allocator_->FreeLinearAllocationArea();
 
   if (shared_space_allocator_) {
     shared_space_allocator_->FreeLinearAllocationArea();
+  }
+
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->FreeLinearAllocationArea();
   }
 }
 

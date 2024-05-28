@@ -461,16 +461,5 @@ void ErrorStackData::EnsureStackFrameInfos(Isolate* isolate,
   error_stack->set_limit_or_stack_frame_infos(*stack_frame_infos);
 }
 
-// static
-MaybeHandle<JSObject> PromiseOnStack::GetPromise(
-    Handle<PromiseOnStack> promise_on_stack) {
-  Tagged<HeapObject> promise;
-  Isolate* isolate = promise_on_stack->GetIsolate();
-  if (promise_on_stack->promise().GetHeapObjectIfWeak(isolate, &promise)) {
-    return handle(JSObject::cast(promise), isolate);
-  }
-  return {};
-}
-
 }  // namespace internal
 }  // namespace v8

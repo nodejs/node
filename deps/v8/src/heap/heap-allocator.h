@@ -25,6 +25,7 @@ class NewLargeObjectSpace;
 class OldLargeObjectSpace;
 class PagedSpace;
 class ReadOnlySpace;
+class SharedTrustedLargeObjectSpace;
 class Space;
 
 // Allocator for the main thread. All exposed functions internally call the
@@ -134,6 +135,7 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   V8_INLINE NewLargeObjectSpace* new_lo_space() const;
   V8_INLINE OldLargeObjectSpace* lo_space() const;
   V8_INLINE OldLargeObjectSpace* shared_lo_space() const;
+  V8_INLINE OldLargeObjectSpace* shared_trusted_lo_space() const;
   V8_INLINE PagedSpace* old_space() const;
   V8_INLINE ReadOnlySpace* read_only_space() const;
   V8_INLINE PagedSpace* trusted_space() const;
@@ -167,7 +169,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
   // Allocators for the shared spaces.
   base::Optional<MainAllocator> shared_space_allocator_;
+  base::Optional<MainAllocator> shared_trusted_space_allocator_;
   OldLargeObjectSpace* shared_lo_space_;
+  SharedTrustedLargeObjectSpace* shared_trusted_lo_space_;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Specifies how many allocations should be performed until returning

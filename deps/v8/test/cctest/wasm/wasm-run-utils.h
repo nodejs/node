@@ -105,7 +105,8 @@ class TestingModuleBuilder {
   ~TestingModuleBuilder();
 
   uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
-                     TestingModuleMemoryType = kMemory32);
+                     TestingModuleMemoryType = kMemory32,
+                     std::optional<size_t> max_size = {});
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
@@ -187,14 +188,6 @@ class TestingModuleBuilder {
     v8::base::RandomNumberGenerator rng;
     rng.SetSeed(seed);
     rng.NextBytes(raw, end - raw);
-  }
-
-  void SetMaxMemPages(uint32_t maximum_pages) {
-    CHECK_EQ(1, test_module_->memories.size());
-    test_module_->memories[0].maximum_pages = maximum_pages;
-    DCHECK_EQ(trusted_instance_data_->memory_objects()->length(),
-              test_module_->memories.size());
-    trusted_instance_data_->memory_object(0)->set_maximum_pages(maximum_pages);
   }
 
   void SetMemoryShared() {

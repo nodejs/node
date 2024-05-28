@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-object.h"        // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
 namespace v8 {
@@ -58,6 +59,13 @@ class V8_EXPORT Exception {
    * of a given exception, or an empty handle if not available.
    */
   static Local<StackTrace> GetStackTrace(Local<Value> exception);
+
+  /**
+   * Captures the current stack trace and attaches it to the given object in the
+   * form of `stack` property.
+   */
+  static Maybe<bool> CaptureStackTrace(Local<Context> context,
+                                       Local<Object> object);
 };
 
 /**

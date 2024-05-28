@@ -4,10 +4,12 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
+#include "src/objects/promise-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace {
+
 base::Optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
   double ms = Object::Number(*timeout_obj);
   if (!std::isnan(ms)) {
@@ -19,19 +21,24 @@ base::Optional<base::TimeDelta> GetTimeoutDelta(Handle<Object> timeout_obj) {
   return base::nullopt;
 }
 
-// TODO(lpardosixtos): Consider making and caching a canonical map for this
-// result object, like we do for the iterator result object.
-Handle<JSObject> CreateResultObject(Isolate* isolate, Handle<Object> value,
-                                    bool success) {
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<Object> success_value = isolate->factory()->ToBoolean(success);
-  JSObject::AddProperty(isolate, result, "value", value,
-                        PropertyAttributes::NONE);
-  JSObject::AddProperty(isolate, result, "success", success_value,
-                        PropertyAttributes::NONE);
-  return result;
+Handle<JSPromise> UnlockAsyncLockedMutexFromPromiseHandler(Isolate* isolate) {
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+  Handle<Object> mutex = Handle<Object>(
+      context->get(JSAtomicsMutex::kMutexAsyncContextSlot), isolate);
+  Handle<Object> unlock_promise = Handle<Object>(
+      context->get(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot), isolate);
+  Handle<Object> waiter_wrapper_obj = Handle<Object>(
+      context->get(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot),
+      isolate);
+
+  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(mutex);
+  Handle<JSPromise> js_unlock_promise = Handle<JSPromise>::cast(unlock_promise);
+  Handle<Foreign> async_locked_waiter_wrapper =
+      Handle<Foreign>::cast(waiter_wrapper_obj);
+  js_mutex->UnlockAsyncLockedMutex(isolate, async_locked_waiter_wrapper);
+  return js_unlock_promise;
 }
+
 }  // namespace
 
 BUILTIN(AtomicsMutexConstructor) {
@@ -117,7 +124,7 @@ BUILTIN(AtomicsMutexTryLock) {
     }
   }
   Handle<JSObject> result =
-      CreateResultObject(isolate, callback_result, success);
+      JSAtomicsMutex::CreateResultObject(isolate, callback_result, success);
   return *result;
 }
 
@@ -176,8 +183,75 @@ BUILTIN(AtomicsMutexLockWithTimeout) {
     }
   }
   Handle<JSObject> result =
-      CreateResultObject(isolate, callback_result, success);
+      JSAtomicsMutex::CreateResultObject(isolate, callback_result, success);
   return *result;
+}
+
+BUILTIN(AtomicsMutexLockAsync) {
+  DCHECK(v8_flags.harmony_struct);
+  constexpr char method_name[] = "Atomics.Mutex.lockAsync";
+  HandleScope scope(isolate);
+
+  Handle<Object> js_mutex_obj = args.atOrUndefined(isolate, 1);
+  if (!IsJSAtomicsMutex(*js_mutex_obj)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  Handle<Object> run_under_lock = args.atOrUndefined(isolate, 2);
+  if (!IsCallable(*run_under_lock)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotCallable, run_under_lock));
+  }
+
+  Handle<Object> timeout_obj = args.atOrUndefined(isolate, 3);
+  base::Optional<base::TimeDelta> timeout = base::nullopt;
+  if (!IsUndefined(*timeout_obj, isolate)) {
+    if (!IsNumber(*timeout_obj)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kIsNotNumber, timeout_obj,
+                                Object::TypeOf(isolate, timeout_obj)));
+    }
+    timeout = GetTimeoutDelta(timeout_obj);
+  }
+
+  Handle<JSPromise> result_promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_promise,
+      JSAtomicsMutex::LockOrEnqueuePromise(isolate, js_mutex, run_under_lock,
+                                           timeout));
+
+  return *result_promise;
+}
+
+BUILTIN(AtomicsMutexAsyncUnlockResolveHandler) {
+  DCHECK(v8_flags.harmony_struct);
+  HandleScope scope(isolate);
+
+  Handle<Object> previous_result = args.atOrUndefined(isolate, 1);
+  Handle<JSPromise> js_unlock_promise =
+      UnlockAsyncLockedMutexFromPromiseHandler(isolate);
+
+  Handle<JSObject> result =
+      JSAtomicsMutex::CreateResultObject(isolate, previous_result, true);
+  auto resolve_result = JSPromise::Resolve(js_unlock_promise, result);
+  USE(resolve_result);
+  return *isolate->factory()->undefined_value();
+}
+
+BUILTIN(AtomicsMutexAsyncUnlockRejectHandler) {
+  DCHECK(v8_flags.harmony_struct);
+  HandleScope scope(isolate);
+
+  Handle<Object> error = args.atOrUndefined(isolate, 1);
+  Handle<JSPromise> js_unlock_promise =
+      UnlockAsyncLockedMutexFromPromiseHandler(isolate);
+
+  auto reject_result = JSPromise::Reject(js_unlock_promise, error);
+  USE(reject_result);
+  return *isolate->factory()->undefined_value();
 }
 
 BUILTIN(AtomicsConditionConstructor) {
@@ -266,6 +340,62 @@ BUILTIN(AtomicsConditionNotify) {
       Handle<JSAtomicsCondition>::cast(js_condition_obj);
   return *isolate->factory()->NewNumberFromUint(
       JSAtomicsCondition::Notify(isolate, js_condition, count));
+}
+
+BUILTIN(AtomicsConditionWaitAsync) {
+  DCHECK(v8_flags.harmony_struct);
+  constexpr char method_name[] = "Atomics.Condition.waitAsync";
+  HandleScope scope(isolate);
+
+  Handle<Object> js_condition_obj = args.atOrUndefined(isolate, 1);
+  Handle<Object> js_mutex_obj = args.atOrUndefined(isolate, 2);
+  if (!IsJSAtomicsCondition(*js_condition_obj) ||
+      !IsJSAtomicsMutex(*js_mutex_obj)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  Handle<Object> timeout_obj = args.atOrUndefined(isolate, 3);
+  base::Optional<base::TimeDelta> timeout = base::nullopt;
+  if (!IsUndefined(*timeout_obj, isolate)) {
+    if (!IsNumber(*timeout_obj)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kIsNotNumber, timeout_obj,
+                                Object::TypeOf(isolate, timeout_obj)));
+    }
+    timeout = GetTimeoutDelta(timeout_obj);
+  }
+
+  Handle<JSAtomicsCondition> js_condition =
+      Handle<JSAtomicsCondition>::cast(js_condition_obj);
+  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+
+  if (!js_mutex->IsCurrentThreadOwner()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kAtomicsMutexNotOwnedByCurrentThread));
+  }
+
+  Handle<JSPromise> result_promise;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_promise,
+      JSAtomicsCondition::WaitAsync(isolate, js_condition, js_mutex, timeout));
+  return *result_promise;
+}
+
+BUILTIN(AtomicsConditionAcquireLock) {
+  DCHECK(v8_flags.harmony_struct);
+  HandleScope scope(isolate);
+
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+  Handle<Object> js_mutex_obj = Handle<Object>(
+      context->get(JSAtomicsCondition::kMutexAsyncContextSlot), isolate);
+  Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
+  Handle<JSPromise> lock_promise =
+      JSAtomicsMutex::LockAsyncWrapperForWait(isolate, js_mutex);
+  return *lock_promise;
 }
 
 }  // namespace internal

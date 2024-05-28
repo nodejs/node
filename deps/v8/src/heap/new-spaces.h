@@ -475,19 +475,9 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   void SetAllocationTop(Address top) { allocation_top_ = top; }
 
-  void IncrementAllocationTop(Address new_top) {
-    DCHECK_LE(allocation_top_, new_top);
-    DCHECK_EQ(PageMetadata::FromAllocationAreaAddress(allocation_top_),
-              PageMetadata::FromAllocationAreaAddress(new_top));
-    allocation_top_ = new_top;
-  }
+  V8_INLINE void IncrementAllocationTop(Address new_top);
 
-  void DecrementAllocationTop(Address new_top) {
-    DCHECK_LE(new_top, allocation_top_);
-    DCHECK_EQ(PageMetadata::FromAllocationAreaAddress(allocation_top_),
-              PageMetadata::FromAllocationAreaAddress(new_top));
-    allocation_top_ = new_top;
-  }
+  V8_INLINE void DecrementAllocationTop(Address new_top);
 
   Address allocation_top() const { return allocation_top_; }
 

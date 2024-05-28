@@ -16,7 +16,6 @@ namespace internal {
 // https://tc39.es/proposal-json-parse-with-source/#sec-json.rawjson
 MaybeHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
                                          Handle<Object> text) {
-  DCHECK(v8_flags.harmony_json_parse_with_source);
   Handle<String> json_string;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, json_string,
                              Object::ToString(isolate, text), JSRawJson);

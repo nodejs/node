@@ -5,9 +5,7 @@
 #include "src/heap/cppgc/marking-verifier.h"
 
 #include "src/base/logging.h"
-#include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-view.h"
 
@@ -29,9 +27,17 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
         "# Hint:\n"
         "#   %s (%p)\n"
         "#     \\-> %s (%p)",
-        parent_ ? parent_->GetName().value : "Stack",
+        parent_
+            ? parent_
+                  ->GetName(
+                      HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+                  .value
+            : "Stack",
         parent_ ? parent_->ObjectStart() : nullptr,
-        child_header.GetName().value, child_header.ObjectStart());
+        child_header
+            .GetName(HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+            .value,
+        child_header.ObjectStart());
   }
 }
 

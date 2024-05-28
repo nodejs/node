@@ -72,7 +72,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
           AllocationType::kOld);
       PageMetadata* to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
@@ -144,7 +144,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
           AllocationType::kOld, object_size);
       PageMetadata* to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
@@ -235,7 +235,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
               AllocationType::kOld, object_size);
       to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {
         compaction_page_handles[i]->set(0, *compaction_page_handles[i - 1]);
@@ -340,7 +340,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       CHECK_GE(compaction_page_handles.front()->length(), 2);
       to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
 
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {

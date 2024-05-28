@@ -56,7 +56,7 @@ class JSBoundFunction
 
   // The bound function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSBoundFunction> function);
+  static Handle<String> ToString(DirectHandle<JSBoundFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
@@ -81,7 +81,7 @@ class JSWrappedFunction
 
   // The wrapped function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSWrappedFunction> function);
+  static Handle<String> ToString(DirectHandle<JSWrappedFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
 };
@@ -195,8 +195,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                            ConcurrencyMode mode);
 
-  inline TieringState osr_tiering_state();
-  inline void set_osr_tiering_state(TieringState marker);
+  inline bool osr_tiering_in_progress();
+  inline void set_osr_tiering_in_progress(bool osr_in_progress);
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
@@ -359,7 +359,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSFunction> function);
+  static Handle<String> ToString(DirectHandle<JSFunction> function);
 
   class BodyDescriptor;
 

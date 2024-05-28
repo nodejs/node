@@ -23,7 +23,20 @@
 namespace v8 {
 namespace internal {
 
+constexpr MainAllocator::BlackAllocation MainAllocator::ComputeBlackAllocation(
+    MainAllocator::IsNewGeneration is_new_generation) {
+  if (is_new_generation == IsNewGeneration::kYes) {
+    return BlackAllocation::kAlwaysDisabled;
+  }
+  if (v8_flags.sticky_mark_bits) {
+    // Allocate black on all non-young spaces.
+    return BlackAllocation::kAlwaysEnabled;
+  }
+  return BlackAllocation::kEnabledOnMarking;
+}
+
 MainAllocator::MainAllocator(LocalHeap* local_heap, SpaceWithLinearArea* space,
+                             IsNewGeneration is_new_generation,
                              LinearAllocationArea* allocation_info)
     : local_heap_(local_heap),
       isolate_heap_(local_heap->heap()),
@@ -31,7 +44,8 @@ MainAllocator::MainAllocator(LocalHeap* local_heap, SpaceWithLinearArea* space,
       allocation_info_(allocation_info != nullptr ? allocation_info
                                                   : &owned_allocation_info_),
       allocator_policy_(space->CreateAllocatorPolicy(this)),
-      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()) {
+      supports_extending_lab_(allocator_policy_->SupportsExtendingLAB()),
+      black_allocation_(ComputeBlackAllocation(is_new_generation)) {
   CHECK_NOT_NULL(local_heap_);
   if (local_heap_->is_main_thread()) {
     allocation_counter_.emplace();
@@ -45,7 +59,8 @@ MainAllocator::MainAllocator(Heap* heap, SpaceWithLinearArea* space, InGCTag)
       space_(space),
       allocation_info_(&owned_allocation_info_),
       allocator_policy_(space->CreateAllocatorPolicy(this)),
-      supports_extending_lab_(false) {
+      supports_extending_lab_(false),
+      black_allocation_(BlackAllocation::kAlwaysDisabled) {
   DCHECK(!allocation_counter_.has_value());
   DCHECK(!linear_area_original_data_.has_value());
 }
@@ -77,10 +92,10 @@ AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
 }
 
 bool MainAllocator::IsBlackAllocationEnabled() const {
-  // Use the space heap to check whether black allocation is enabled. For shared
-  // space this might be different from the LocalHeap's heap.
-  return identity() != NEW_SPACE && !in_gc() &&
-         space_heap()->incremental_marking()->black_allocation();
+  if (black_allocation_ == BlackAllocation::kAlwaysDisabled) return false;
+  if (black_allocation_ == BlackAllocation::kAlwaysEnabled) return true;
+  DCHECK_EQ(black_allocation_, BlackAllocation::kEnabledOnMarking);
+  return space_heap()->incremental_marking()->black_allocation();
 }
 
 void MainAllocator::AddAllocationObserver(AllocationObserver* observer) {
@@ -323,12 +338,6 @@ void MainAllocator::FreeLinearAllocationArea() {
   Verify();
 #endif  // DEBUG
 
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace(
-        "FreeLinearAllocationArea writes to the page header.");
-  }
-
   MemoryChunkMetadata::UpdateHighWaterMark(top());
   allocator_policy_->FreeLinearAllocationArea();
 }
@@ -407,11 +416,6 @@ void MainAllocator::Verify() const {
 bool MainAllocator::EnsureAllocationForTesting(int size_in_bytes,
                                                AllocationAlignment alignment,
                                                AllocationOrigin origin) {
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace("Slow allocation path writes to the page header.");
-  }
-
   return EnsureAllocation(size_in_bytes, alignment, origin);
 }
 

@@ -15,8 +15,11 @@
 #include "absl/container/internal/compressed_tuple.h"
 
 #include <memory>
+#include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -55,6 +58,7 @@ namespace {
 
 using absl::test_internal::CopyableMovableInstance;
 using absl::test_internal::InstanceTracker;
+using ::testing::Each;
 
 TEST(CompressedTupleTest, Sizeof) {
   EXPECT_EQ(sizeof(int), sizeof(CompressedTuple<int>));
@@ -69,6 +73,30 @@ TEST(CompressedTupleTest, Sizeof) {
             sizeof(CompressedTuple<int, Empty<0>, NotEmpty<double>>));
   EXPECT_EQ(sizeof(TwoValues<int, double>),
             sizeof(CompressedTuple<int, Empty<0>, NotEmpty<double>, Empty<1>>));
+}
+
+TEST(CompressedTupleTest, PointerToEmpty) {
+  auto to_void_ptrs = [](const auto&... objs) {
+    return std::vector<const void*>{static_cast<const void*>(&objs)...};
+  };
+  {
+    using Tuple = CompressedTuple<int, Empty<0>>;
+    EXPECT_EQ(sizeof(int), sizeof(Tuple));
+    Tuple t;
+    EXPECT_THAT(to_void_ptrs(t.get<1>()), Each(&t));
+  }
+  {
+    using Tuple = CompressedTuple<int, Empty<0>, Empty<1>>;
+    EXPECT_EQ(sizeof(int), sizeof(Tuple));
+    Tuple t;
+    EXPECT_THAT(to_void_ptrs(t.get<1>(), t.get<2>()), Each(&t));
+  }
+  {
+    using Tuple = CompressedTuple<int, Empty<0>, Empty<1>, Empty<2>>;
+    EXPECT_EQ(sizeof(int), sizeof(Tuple));
+    Tuple t;
+    EXPECT_THAT(to_void_ptrs(t.get<1>(), t.get<2>(), t.get<3>()), Each(&t));
+  }
 }
 
 TEST(CompressedTupleTest, OneMoveOnRValueConstructionTemp) {

@@ -1997,17 +1997,6 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
                   ExternalReference::fast_c_call_caller_fp_address(isolate()),
                   scratch),
         ebp);
-
-#if DEBUG
-    // Reset Isolate::context field right before the fast C call such that the
-    // GC can visit this field unconditionally. This is necessary because
-    // CEntry sets it to kInvalidContext in debug build only.
-    mov(root_array_available()
-            ? Operand(kRootRegister, IsolateData::context_offset())
-            : ExternalReferenceAsOperand(
-                  ExternalReference::context_address(isolate()), scratch),
-        Immediate(Context::kNoContext));
-#endif
   }
 
   call(function);
@@ -2249,7 +2238,17 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
   ASM_CODE_COMMENT(this);
-  CallBuiltin(target);
+#if V8_ENABLE_WEBASSEMBLY
+  if (options().is_wasm) {
+    CHECK(v8_flags.wasm_deopt);
+    wasm_call(static_cast<Address>(target), RelocInfo::WASM_STUB_CALL);
+#else
+  // For balance.
+  if (false) {
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else {
+    CallBuiltin(target);
+  }
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
                                             : Deoptimizer::kEagerDeoptExitSize);

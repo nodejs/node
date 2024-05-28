@@ -36,6 +36,7 @@
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/name.h"
+#include "src/zone/zone.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
 // values independent of the V8 heap and internalizing them later. During
@@ -239,7 +240,6 @@ using AstRawStringMap =
   F(as, "as")                                      \
   F(assert, "assert")                              \
   F(async, "async")                                \
-  F(await, "await")                                \
   F(bigint, "bigint")                              \
   F(boolean, "boolean")                            \
   F(computed, "<computed>")                        \
@@ -266,7 +266,6 @@ using AstRawStringMap =
   F(length, "length")                              \
   F(let, "let")                                    \
   F(meta, "meta")                                  \
-  F(name, "name")                                  \
   F(native, "native")                              \
   F(new_target, ".new.target")                     \
   F(next, "next")                                  \

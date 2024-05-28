@@ -523,9 +523,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void HandleStoreToProxy(const StoreICParameters* p, TNode<JSProxy> proxy,
                           Label* miss, ElementSupport support_elements);
 
-  void HandleStoreAccessor(const StoreICParameters* p, TNode<HeapObject> holder,
-                           TNode<Word32T> handler_word);
-
   // KeyedLoadIC_Generic implementation.
 
   void GenericElementLoad(TNode<HeapObject> lookup_start_object,

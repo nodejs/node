@@ -39,9 +39,11 @@ struct PointerWithPayloadTraits<void> : public PointerWithPayloadTraits<void*> {
 template <typename PointerType, typename PayloadType, int NumPayloadBits>
 class PointerWithPayload {
  public:
+  static_assert(std::is_pointer<PointerType>::value);
+
   PointerWithPayload() = default;
 
-  explicit PointerWithPayload(PointerType* pointer)
+  explicit PointerWithPayload(PointerType pointer)
       : pointer_with_payload_(reinterpret_cast<uintptr_t>(pointer)) {
     DCHECK_EQ(GetPointer(), pointer);
     DCHECK_EQ(GetPayload(), static_cast<PayloadType>(0));
@@ -53,31 +55,31 @@ class PointerWithPayload {
     DCHECK_EQ(GetPayload(), payload);
   }
 
-  PointerWithPayload(PointerType* pointer, PayloadType payload) {
+  PointerWithPayload(PointerType pointer, PayloadType payload) {
     Update(pointer, payload);
   }
 
-  V8_INLINE PointerType* GetPointer() const {
-    return reinterpret_cast<PointerType*>(pointer_with_payload_ & kPointerMask);
+  V8_INLINE PointerType GetPointer() const {
+    return reinterpret_cast<PointerType>(pointer_with_payload_ & kPointerMask);
   }
 
   // An optimized version of GetPointer for when we know the payload value.
-  V8_INLINE PointerType* GetPointerWithKnownPayload(PayloadType payload) const {
+  V8_INLINE PointerType GetPointerWithKnownPayload(PayloadType payload) const {
     DCHECK_EQ(GetPayload(), payload);
-    return reinterpret_cast<PointerType*>(pointer_with_payload_ -
-                                          static_cast<uintptr_t>(payload));
+    return reinterpret_cast<PointerType>(pointer_with_payload_ -
+                                         static_cast<uintptr_t>(payload));
   }
 
-  V8_INLINE PointerType* operator->() const { return GetPointer(); }
+  V8_INLINE PointerType operator->() const { return GetPointer(); }
 
-  V8_INLINE void Update(PointerType* new_pointer, PayloadType new_payload) {
+  V8_INLINE void Update(PointerType new_pointer, PayloadType new_payload) {
     pointer_with_payload_ = reinterpret_cast<uintptr_t>(new_pointer) |
                             static_cast<uintptr_t>(new_payload);
     DCHECK_EQ(GetPayload(), new_payload);
     DCHECK_EQ(GetPointer(), new_pointer);
   }
 
-  V8_INLINE void SetPointer(PointerType* newptr) {
+  V8_INLINE void SetPointer(PointerType newptr) {
     DCHECK_EQ(reinterpret_cast<uintptr_t>(newptr) & kPayloadMask, 0);
     pointer_with_payload_ = reinterpret_cast<uintptr_t>(newptr) |
                             (pointer_with_payload_ & kPayloadMask);

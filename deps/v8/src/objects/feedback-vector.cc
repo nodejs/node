@@ -4,6 +4,8 @@
 
 #include "src/objects/feedback-vector.h"
 
+#include <bit>
+
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -174,6 +176,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "ForIn";
     case FeedbackSlotKind::kInstanceOf:
       return "InstanceOf";
+    case FeedbackSlotKind::kTypeOf:
+      return "TypeOf";
     case FeedbackSlotKind::kCloneObject:
       return "CloneObject";
     case FeedbackSlotKind::kJumpLoop:
@@ -265,6 +269,7 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
+      case FeedbackSlotKind::kTypeOf:
         vector->Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kLiteral:
@@ -426,22 +431,17 @@ void FeedbackVector::reset_flags() {
             LogNextExecutionBit::encode(false) |
             MaybeHasMaglevCodeBit::encode(false) |
             MaybeHasTurbofanCodeBit::encode(false) |
-            OsrTieringStateBit::encode(TieringState::kNone) |
+            OsrTieringInProgressBit::encode(false) |
             MaybeHasMaglevOsrCodeBit::encode(false) |
             MaybeHasTurbofanOsrCodeBit::encode(false));
 }
 
-TieringState FeedbackVector::osr_tiering_state() {
-  return OsrTieringStateBit::decode(flags());
+bool FeedbackVector::osr_tiering_in_progress() {
+  return OsrTieringInProgressBit::decode(flags());
 }
 
-void FeedbackVector::set_osr_tiering_state(TieringState marker) {
-  DCHECK(marker == TieringState::kNone || marker == TieringState::kInProgress);
-  static_assert(TieringState::kNone <= OsrTieringStateBit::kMax);
-  static_assert(TieringState::kInProgress <= OsrTieringStateBit::kMax);
-  int32_t state = flags();
-  state = OsrTieringStateBit::update(state, marker);
-  set_flags(state);
+void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
+  set_flags(OsrTieringInProgressBit::update(flags(), osr_in_progress));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
@@ -627,6 +627,7 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kBinaryOp:
+    case FeedbackSlotKind::kTypeOf:
       if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
         // We don't clear these, either.
       } else if (!IsCleared()) {
@@ -842,6 +843,18 @@ InlineCacheState FeedbackNexus::ic_state() const {
         return InlineCacheState::GENERIC;
       }
       return InlineCacheState::MONOMORPHIC;
+    }
+    case FeedbackSlotKind::kTypeOf: {
+      if (feedback == Smi::zero()) {
+        return InlineCacheState::UNINITIALIZED;
+      } else if (feedback == Smi::FromInt(TypeOfFeedback::kAny)) {
+        return InlineCacheState::MEGAMORPHIC;
+      } else if (base::bits::CountPopulation(
+                     static_cast<uint32_t>(feedback.ToSmi().value())) == 1) {
+        return InlineCacheState::MONOMORPHIC;
+      } else {
+        return InlineCacheState::POLYMORPHIC;
+      }
     }
     case FeedbackSlotKind::kInstanceOf: {
       if (feedback == UninitializedSentinel()) {
@@ -1361,6 +1374,11 @@ CompareOperationHint FeedbackNexus::GetCompareOperationFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kCompareOp);
   int feedback = GetFeedback().ToSmi().value();
   return CompareOperationHintFromFeedback(feedback);
+}
+
+TypeOfFeedback::Result FeedbackNexus::GetTypeOfFeedback() const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kTypeOf);
+  return static_cast<TypeOfFeedback::Result>(GetFeedback().ToSmi().value());
 }
 
 ForInHint FeedbackNexus::GetForInFeedback() const {

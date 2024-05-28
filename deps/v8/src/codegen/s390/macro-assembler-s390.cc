@@ -2541,13 +2541,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                               IsolateData::fast_c_call_caller_pc_offset()));
       StoreU64(fp, MemOperand(kRootRegister,
                               IsolateData::fast_c_call_caller_fp_offset()));
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      mov(r0, Operand(Context::kNoContext));
-      StoreRootRelative(IsolateData::context_offset(), r0);
-#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       Register addr_scratch = r1;
@@ -2557,15 +2550,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       StoreU64(fp, MemOperand(addr_scratch));
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      mov(r0, Operand(Context::kNoContext));
-      StoreU64(
-          r0, ExternalReferenceAsOperand(
-                  ExternalReference::context_address(isolate()), addr_scratch));
-#endif
     }
   }
 
@@ -6256,6 +6240,7 @@ void MacroAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
 void MacroAssembler::I32x4DotI8x16AddS(
     Simd128Register dst, Simd128Register src1, Simd128Register src2,
     Simd128Register src3, Simd128Register scratch1, Simd128Register scratch2) {
+  DCHECK_NE(dst, src3);
   // I8 -> I16.
   vme(scratch1, src1, src2, Condition(0), Condition(0), Condition(0));
   vmo(dst, src1, src2, Condition(0), Condition(0), Condition(0));

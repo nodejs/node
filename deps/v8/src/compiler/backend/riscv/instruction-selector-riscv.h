@@ -725,6 +725,19 @@ void EmitWordCompareZero(InstructionSelectorT<Adapter>* selector,
                                  g.UseRegisterOrImmediateZero(value), cont);
 }
 
+#ifdef V8_TARGET_ARCH_RISCV64
+template <typename Adapter>
+void EmitWord32CompareZero(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t value,
+                         FlagsContinuationT<Adapter>* cont) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
+  InstructionOperand inputs[] = {g.UseRegisterOrImmediateZero(value)};
+  InstructionOperand temps[] = {g.TempRegister()};
+  selector->EmitWithContinuation(kRiscvCmpZero32, 0, nullptr, arraysize(inputs),
+                                 inputs, arraysize(temps), temps, cont);
+}
+#endif
+
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Equal(node_t node) {
@@ -791,6 +804,23 @@ void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
   } else {
     VisitRR(this, kRiscvFloat64SilenceNaN, node);
   }
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWord32PairToFloat64(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  const auto& bitcast =
+      this->Cast<turboshaft::BitcastWord32PairToFloat64Op>(node);
+  node_t hi = bitcast.high_word32();
+  node_t lo = bitcast.low_word32();
+  // TODO(nicohartmann@): We could try to emit a better sequence here.
+  InstructionOperand zero = sequence()->AddImmediate(Constant(0.0));
+  InstructionOperand temp = g.TempDoubleRegister();
+  Emit(kRiscvFloat64InsertHighWord32, temp, zero, g.Use(hi));
+  Emit(kRiscvFloat64InsertLowWord32, g.DefineSameAsFirst(node), temp,
+       g.Use(lo));
 }
 
 template <typename Adapter>
@@ -2238,18 +2268,6 @@ void InstructionSelectorT<Adapter>::VisitWord32Ctz(node_t node) {
   }
 }
 
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  UNIMPLEMENTED();
-}
 
 #define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                                 \
   template <typename Adapter>                                                 \
@@ -2381,15 +2399,7 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
   OperandGenerator g(this);
   auto input = g.UseRegister(this->input_at(node, 0));
-  wasm::FPRelativeScope fp_scope;
-  if constexpr (Adapter::IsTurboshaft) {
-    fp_scope =
-        this->Get(node).template Cast<turboshaft::SetStackPointerOp>().fp_scope;
-  } else {
-    fp_scope = OpParameter<wasm::FPRelativeScope>(node->op());
-  }
-  Emit(kArchSetStackPointer | MiscField::encode(fp_scope), 0, nullptr, 1,
-       &input);
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 #endif
 }  // namespace compiler

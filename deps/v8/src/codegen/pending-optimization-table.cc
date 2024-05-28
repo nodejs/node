@@ -41,20 +41,6 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
   isolate->heap()->SetFunctionsMarkedForManualOptimization(*table);
 }
 
-void ManualOptimizationTable::CheckMarkedForManualOptimization(
-    Isolate* isolate, Tagged<JSFunction> function) {
-  if (!IsMarkedForManualOptimization(isolate, function)) {
-    PrintF("Error: Function ");
-    ShortPrint(function);
-    PrintF(
-        " should be prepared for optimization with "
-        "%%PrepareFunctionForOptimization before  "
-        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall / "
-        "%%OptimizeOsr ");
-    UNREACHABLE();
-  }
-}
-
 bool ManualOptimizationTable::IsMarkedForManualOptimization(
     Isolate* isolate, Tagged<JSFunction> function) {
   DCHECK(v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax);

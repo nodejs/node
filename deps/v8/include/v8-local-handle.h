@@ -51,8 +51,6 @@ class Isolate;
 class Object;
 template <class F1, class F2, class F3>
 class PersistentValueMapBase;
-template <class F1, class F2>
-class PersistentValueVector;
 class Primitive;
 class Private;
 template <class F>
@@ -382,8 +380,6 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
   friend class InternalEscapableScope;
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
-  template <class F1, class F2>
-  friend class PersistentValueVector;
   template <class F>
   friend class ReturnValue;
   template <class F>
@@ -440,12 +436,12 @@ class V8_TRIVIAL_ABI LocalUnchecked : public Local<T> {
   // In this case, the check is also enforced in the copy constructor and we
   // need to suppress it.
   LocalUnchecked(const LocalUnchecked& other)
-      : Local<T>(other, Local<T>::do_not_check) {}
-  LocalUnchecked& operator=(const LocalUnchecked&) = default;
+      : Local<T>(other, Local<T>::do_not_check) noexcept {}
+  LocalUnchecked& operator=(const LocalUnchecked&) noexcept = default;
 #endif
 
   // Implicit conversion from Local.
-  LocalUnchecked(const Local<T>& other)  // NOLINT(runtime/explicit)
+  LocalUnchecked(const Local<T>& other) noexcept  // NOLINT(runtime/explicit)
       : Local<T>(other, Local<T>::do_not_check) {}
 };
 
@@ -461,8 +457,10 @@ class StrongRootAllocator<LocalUnchecked<T>> : public StrongRootAllocatorBase {
   static_assert(sizeof(value_type) == sizeof(Address));
 
   explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate)
+  explicit StrongRootAllocator(Isolate* isolate)
       : StrongRootAllocatorBase(isolate) {}
+  explicit StrongRootAllocator(v8::Isolate* isolate)
+      : StrongRootAllocatorBase(reinterpret_cast<Isolate*>(isolate)) {}
   template <typename U>
   StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept
       : StrongRootAllocatorBase(other) {}
@@ -561,6 +559,7 @@ class LocalVector {
 
   LocalVector<T>& operator=(std::initializer_list<Local<T>> init) {
     backing_.clear();
+    backing_.reserve(init.size());
     backing_.insert(backing_.end(), init.begin(), init.end());
     return *this;
   }

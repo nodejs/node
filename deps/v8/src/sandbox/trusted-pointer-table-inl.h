@@ -55,7 +55,7 @@ uint32_t TrustedPointerTableEntry::GetNextFreelistEntryIndex() const {
 
 void TrustedPointerTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsTrustedPointer());
+  DCHECK(old_payload.ContainsPointer());
 
   auto new_payload = old_payload;
   new_payload.SetMarkBit();

@@ -91,6 +91,7 @@ enum class CompileTimeImport {
   kJsString,
   kTextEncoder,
   kTextDecoder,
+  kStringConstants,
 };
 
 inline std::ostream& operator<<(std::ostream& os, CompileTimeImport imp) {

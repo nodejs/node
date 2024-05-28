@@ -107,7 +107,7 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
   // Do not recursively call Share, so directly compute the sharing strategy for
   // the flat string, which could already be a copy or an existing string from
   // e.g. a shortcut ConsString.
-  MaybeHandle<Map> new_map;
+  MaybeDirectHandle<Map> new_map;
   switch (isolate->factory()->ComputeSharingStrategyForString(flat, &new_map)) {
     case StringTransitionStrategy::kCopy:
       break;
@@ -178,11 +178,11 @@ void MigrateExternalString(Isolate* isolate, Tagged<String> string,
 
 void ExternalString::InitExternalPointerFieldsDuringExternalization(
     Tagged<Map> new_map, Isolate* isolate) {
-  resource_.Init(isolate, kNullAddress);
+  resource_.Init(address(), isolate, kNullAddress);
   bool is_uncached = (new_map->instance_type() & kUncachedExternalStringMask) ==
                      kUncachedExternalStringTag;
   if (!is_uncached) {
-    resource_data_.Init(isolate, kNullAddress);
+    resource_data_.Init(address(), isolate, kNullAddress);
   }
 }
 
@@ -1382,7 +1382,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
     const int peek_ix = next_dollar_ix + 1;
     if (peek_ix >= replacement_length) {
       builder.AppendCharacter('$');
-      return builder.Finish();
+      return indirect_handle(builder.Finish(), isolate);
     }
 
     int continue_from_ix = -1;
@@ -1499,7 +1499,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         builder.AppendString(factory->NewSubString(
             replacement, continue_from_ix, replacement_length));
       }
-      return builder.Finish();
+      return indirect_handle(builder.Finish(), isolate);
     }
 
     // Append substring between the previous and the next $ character.

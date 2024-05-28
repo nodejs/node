@@ -77,6 +77,8 @@ UDisplayContext ToUDisplayContext(JSDisplayNames::Style style) {
 // Abstract class for all different types.
 class DisplayNamesInternal {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kDisplayNamesInternalTag;
+
   DisplayNamesInternal() = default;
   virtual ~DisplayNamesInternal() = default;
   virtual const char* type() const = 0;

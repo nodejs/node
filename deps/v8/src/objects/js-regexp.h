@@ -100,10 +100,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
         !v8_flags.enable_experimental_regexp_engine) {
       return {};
     }
-    if (f.value() == RegExpFlag::kUnicodeSets &&
-        !v8_flags.harmony_regexp_unicode_sets) {
-      return {};
-    }
     return f;
   }
 
@@ -235,11 +231,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   // Descriptor array index to important methods in the prototype.
   static constexpr int kExecFunctionDescriptorIndex = 1;
-  static constexpr int kSymbolMatchFunctionDescriptorIndex = 14;
-  static constexpr int kSymbolMatchAllFunctionDescriptorIndex = 15;
-  static constexpr int kSymbolReplaceFunctionDescriptorIndex = 16;
-  static constexpr int kSymbolSearchFunctionDescriptorIndex = 17;
-  static constexpr int kSymbolSplitFunctionDescriptorIndex = 18;
+  static constexpr int kSymbolMatchFunctionDescriptorIndex = 15;
+  static constexpr int kSymbolMatchAllFunctionDescriptorIndex = 16;
+  static constexpr int kSymbolReplaceFunctionDescriptorIndex = 17;
+  static constexpr int kSymbolSearchFunctionDescriptorIndex = 18;
+  static constexpr int kSymbolSplitFunctionDescriptorIndex = 19;
 
   // The uninitialized value for a regexp code object.
   static constexpr int kUninitializedValue = -1;

@@ -852,10 +852,14 @@ inline void Assembler::DataProcImmediate(const Register& rd, const Register& rn,
        RnSP(rn));
 }
 
-int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
+int Assembler::LinkAndGetBranchInstructionOffsetTo(Label* label) {
   DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);
   DCHECK(IsAligned(offset, kInstrSize));
+  if (label->is_linked() && (offset != kStartOfLabelLinkChain)) {
+    branch_link_chain_back_edge_.emplace(
+        std::pair<int, int>(pc_offset() + offset, pc_offset()));
+  }
   return offset >> kInstrSizeLog2;
 }
 

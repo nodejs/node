@@ -42,6 +42,7 @@ class LookupIterator;
 class PropertyDescriptorObject;
 class ReadOnlyRoots;
 class RootVisitor;
+class PropertyKey;
 
 // UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
 // SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
@@ -199,7 +200,7 @@ class Object : public AllStatic {
       Isolate* isolate, Handle<Object> object,
       const char* method_name = nullptr);
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> ToObjectImpl(
-      Isolate* isolate, Handle<Object> object,
+      Isolate* isolate, DirectHandle<Object> object,
       const char* method_name = nullptr);
 
   // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
@@ -235,14 +236,30 @@ class Object : public AllStatic {
       Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.12 ToString
+  // TODO(b/42203211): ToString is templatized so that passing a Handle<T>
+  // is not ambiguous when T is a subtype of Object (it could be implicitly
+  // converted both to Handle<Object> and to DirectHandle<Object>). Here, T
+  // should be a subtype of Object, which is enforced by the second template
+  // argument and the similar restriction on Handle's constructor. When the
+  // migration to DirectHandle is complete, this function can accept simply
+  // a DirectHandle<Object>.
+  template <typename T, typename = std::enable_if_t<
+                            std::is_convertible_v<Handle<T>, Handle<Object>>>>
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<String> ToString(
-      Isolate* isolate, Handle<Object> input);
+      Isolate* isolate, Handle<T> input);
 
-  V8_EXPORT_PRIVATE static MaybeHandle<String> NoSideEffectsToMaybeString(
-      Isolate* isolate, Handle<Object> input);
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  template <typename T, typename = std::enable_if_t<std::is_convertible_v<
+                            DirectHandle<T>, DirectHandle<Object>>>>
+  V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<String> ToString(
+      Isolate* isolate, DirectHandle<T> input);
+#endif
 
-  V8_EXPORT_PRIVATE static Handle<String> NoSideEffectsToString(
-      Isolate* isolate, Handle<Object> input);
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<String> NoSideEffectsToMaybeString(
+      Isolate* isolate, DirectHandle<Object> input);
+
+  V8_EXPORT_PRIVATE static DirectHandle<String> NoSideEffectsToString(
+      Isolate* isolate, DirectHandle<Object> input);
 
   // ES6 section 7.1.14 ToPropertyKey
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToPropertyKey(
@@ -658,6 +675,9 @@ V8_INLINE bool IsWasmObject(T obj, Isolate* = nullptr) {
 
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
+
+V8_INLINE bool IsJSApiWrapperObject(Tagged<HeapObject> obj);
+V8_INLINE bool IsJSApiWrapperObject(Tagged<Map> map);
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name(Tagged<Object> obj);  \

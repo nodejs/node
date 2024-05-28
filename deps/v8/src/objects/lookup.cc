@@ -37,6 +37,8 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
     return;
   }
   if (!name_->AsIntegerIndex(&index_)) {
+    // Make sure the name is internalized.
+    name_ = isolate->factory()->InternalizeName(name_);
     // {AsIntegerIndex} may modify {index_} before deciding to fail.
     index_ = LookupIterator::kInvalidIndex;
   }

@@ -32,8 +32,8 @@
 //     continuously and independently at a constant average rate
 //   * `absl::Gaussian` (also known as "normal distributions") for continuous
 //     distributions using an associated quadratic function
-//   * `absl::LogUniform` for continuous uniform distributions where the log
-//     to the given base of all values is uniform
+//   * `absl::LogUniform` for discrete distributions where the log to the given
+//     base of all values is uniform
 //   * `absl::Poisson` for discrete probability distributions that express the
 //     probability of a given number of events occurring within a fixed interval
 //   * `absl::Zipf` for discrete probability distributions commonly used for
@@ -362,7 +362,7 @@ RealType Gaussian(URBG&& urbg,  // NOLINT(runtime/references)
 // If `lo` is nonzero then this distribution is shifted to the desired interval,
 // so LogUniform(lo, hi, b) is equivalent to LogUniform(0, hi-lo, b)+lo.
 //
-// See https://en.wikipedia.org/wiki/Log-normal_distribution
+// See https://en.wikipedia.org/wiki/Reciprocal_distribution
 //
 // Example:
 //

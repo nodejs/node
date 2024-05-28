@@ -115,7 +115,7 @@ class InterpreterTester {
 
   static Handle<Object> NewObject(const char* script);
 
-  static Handle<String> GetName(Isolate* isolate, const char* name);
+  static DirectHandle<String> GetName(Isolate* isolate, const char* name);
 
   static std::string SourceForBody(const char* body);
 

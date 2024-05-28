@@ -49,9 +49,15 @@ class CppMarkingState final {
   inline void MarkAndPush(const EmbedderDataSnapshot&);
   inline void MarkAndPush(const EmbedderDataSlot type_slot,
                           const EmbedderDataSlot instance_slot);
+  inline void MarkAndPush(void* instance);
 
-  bool IsLocalEmpty() {
+  bool IsLocalEmpty() const {
     return marking_state_.marking_worklist().IsLocalEmpty();
+  }
+
+  bool SupportsWrappableExtraction() const {
+    return wrapper_descriptor_.embedder_id_for_garbage_collected !=
+           WrapperDescriptor::kUnknownEmbedderId;
   }
 
  private:

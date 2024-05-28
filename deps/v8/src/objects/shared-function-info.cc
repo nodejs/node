@@ -455,7 +455,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCStringLiteral(") {\n");
   builder.AppendString(source);
   builder.AppendCStringLiteral("\n}");
-  return builder.Finish().ToHandleChecked();
+  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
@@ -707,10 +707,10 @@ int SharedFunctionInfo::StartPosition() const {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
-    Tagged<WasmInstanceObject> instance =
-        wasm_exported_function_data()->instance();
+    Tagged<WasmTrustedInstanceData> instance_data =
+        wasm_exported_function_data()->instance_data();
     int func_index = wasm_exported_function_data()->function_index();
-    auto& function = instance->module()->functions[func_index];
+    auto& function = instance_data->module()->functions[func_index];
     return static_cast<int>(function.code.offset());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -735,10 +735,10 @@ int SharedFunctionInfo::EndPosition() const {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
-    Tagged<WasmInstanceObject> instance =
-        wasm_exported_function_data()->instance();
+    Tagged<WasmTrustedInstanceData> instance_data =
+        wasm_exported_function_data()->instance_data();
     int func_index = wasm_exported_function_data()->function_index();
-    auto& function = instance->module()->functions[func_index];
+    auto& function = instance_data->module()->functions[func_index];
     return static_cast<int>(function.code.end_offset());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

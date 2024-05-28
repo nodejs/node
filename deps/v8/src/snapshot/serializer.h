@@ -495,6 +495,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                                      IndirectPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot) override;
+  void VisitCppHeapPointer(Tagged<HeapObject> host,
+                           CppHeapPointerSlot slot) override;
 
   Isolate* isolate() { return isolate_; }
 

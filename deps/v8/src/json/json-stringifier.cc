@@ -272,22 +272,21 @@ class JsonStringifier {
   // type. This cache is cleared on GC, since the GC could move those strings.
   // Using Handles for the cache has been tried, but is too expensive to set up
   // when JSON.stringify is called for tiny inputs.
-  class SimplePropertyKeyCache : public Isolate::ToDestroyBeforeSuddenShutdown {
+  class SimplePropertyKeyCache {
    public:
-    explicit SimplePropertyKeyCache(Isolate* isolate)
-        : Isolate::ToDestroyBeforeSuddenShutdown(isolate) {
+    explicit SimplePropertyKeyCache(Isolate* isolate) : isolate_(isolate) {
       Clear();
       isolate->main_thread_local_heap()->AddGCEpilogueCallback(
           UpdatePointersCallback, this);
     }
 
     ~SimplePropertyKeyCache() {
-      isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+      isolate_->main_thread_local_heap()->RemoveGCEpilogueCallback(
           UpdatePointersCallback, this);
     }
 
     void TryInsert(Tagged<String> string) {
-      ReadOnlyRoots roots(isolate());
+      ReadOnlyRoots roots(isolate_);
       if (string->map() == roots.internalized_one_byte_string_map()) {
         keys_[GetIndex(string)] = MaybeCompress(string);
       }
@@ -320,6 +319,7 @@ class JsonStringifier {
     static constexpr size_t kSize = 1 << kSizeBits;
     static constexpr size_t kIndexMask = kSize - 1;
 
+    Isolate* isolate_;
     Tagged_t keys_[kSize];
   };
 
@@ -694,14 +694,14 @@ class CircularStructureMessageBuilder {
     AppendConstructorName(start_object);
   }
 
-  void AppendNormalLine(Handle<Object> key, Handle<Object> object) {
+  void AppendNormalLine(DirectHandle<Object> key, Handle<Object> object) {
     builder_.AppendCString(kLinePrefix);
     AppendKey(key);
     builder_.AppendCStringLiteral(" -> object with constructor ");
     AppendConstructorName(object);
   }
 
-  void AppendClosingLine(Handle<Object> closing_key) {
+  void AppendClosingLine(DirectHandle<Object> closing_key) {
     builder_.AppendCString(kEndPrefix);
     AppendKey(closing_key);
     builder_.AppendCStringLiteral(" closes the circle");
@@ -712,7 +712,7 @@ class CircularStructureMessageBuilder {
     builder_.AppendCStringLiteral("...");
   }
 
-  MaybeHandle<String> Finish() { return builder_.Finish(); }
+  MaybeDirectHandle<String> Finish() { return builder_.Finish(); }
 
  private:
   void AppendConstructorName(Handle<Object> object) {
@@ -724,7 +724,7 @@ class CircularStructureMessageBuilder {
   }
 
   // A key can either be a string, the empty string or a Smi.
-  void AppendKey(Handle<Object> key) {
+  void AppendKey(DirectHandle<Object> key) {
     if (IsSmi(*key)) {
       builder_.AppendCStringLiteral("index ");
       AppendSmi(Smi::cast(*key));
@@ -732,7 +732,7 @@ class CircularStructureMessageBuilder {
     }
 
     CHECK(IsString(*key));
-    Handle<String> key_as_string = Handle<String>::cast(key);
+    DirectHandle<String> key_as_string = DirectHandle<String>::cast(key);
     if (key_as_string->length() == 0) {
       builder_.AppendCStringLiteral("<anonymous>");
     } else {
@@ -789,7 +789,8 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
   builder.AppendClosingLine(last_key);
 
   Handle<String> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, result, builder.Finish(),
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, result,
+                                   indirect_handle(builder.Finish(), isolate_),
                                    factory()->empty_string());
   return result;
 }
@@ -884,7 +885,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case SYMBOL_TYPE:
       return UNCHANGED;
     case JS_RAW_JSON_TYPE:
-      DCHECK(v8_flags.harmony_json_parse_with_source);
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       {
         Handle<JSRawJson> raw_json_obj = Handle<JSRawJson>::cast(object);
@@ -932,6 +932,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
           return SerializeJSProxy(Handle<JSProxy>::cast(object), key);
         }
+        // WASM_{STRUCT,ARRAY}_TYPE are handled in `case:` blocks above.
+        DCHECK(IsJSObject(*object));
         return SerializeJSObject(Handle<JSObject>::cast(object), key);
       }
   }
@@ -1278,8 +1280,16 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
         *map == object->map(cage_base)) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDetails(*map, details);
-      property = JSObject::FastPropertyAt(
-          isolate_, object, details.representation(), field_index);
+      if (replacer_function_.is_null()) {
+        // If there's no replacer function, read the raw property to avoid
+        // reboxing doubles in mutable boxes.
+        property = handle(object->RawFastPropertyAt(field_index), isolate_);
+      } else {
+        // Rebox the value if there is a replacer function since it could change
+        // the value in the box.
+        property = JSObject::FastPropertyAt(
+            isolate_, object, details.representation(), field_index);
+      }
     } else {
       if (!need_stack_) {
         need_stack_ = true;

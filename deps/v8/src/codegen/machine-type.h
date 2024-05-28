@@ -42,6 +42,7 @@ enum class MachineRepresentation : uint8_t {
   kTagged,             // (uncompressed) Object (Smi or HeapObject)
   kCompressedPointer,  // (compressed) HeapObject
   kCompressed,         // (compressed) Object (Smi or HeapObject)
+  kProtectedPointer,   // (uncompressed) TrustedObject
   kIndirectPointer,    // (indirect) HeapObject
   // A 64-bit pointer encoded in a way (e.g. as offset) that guarantees it will
   // point into the sandbox.
@@ -246,6 +247,10 @@ class MachineType {
     return MachineType(MachineRepresentation::kSandboxedPointer,
                        MachineSemantic::kInt64);
   }
+  constexpr static MachineType ProtectedPointer() {
+    return MachineType(MachineRepresentation::kProtectedPointer,
+                       MachineSemantic::kAny);
+  }
   constexpr static MachineType IndirectPointer() {
     return MachineType(MachineRepresentation::kIndirectPointer,
                        MachineSemantic::kInt32);
@@ -397,9 +402,12 @@ constexpr inline bool CanBeIndirectPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kIndirectPointer;
 }
 
+// Note: this is used in particular to decide which spill slots need
+// to be visited by the GC.
 constexpr inline bool CanBeTaggedOrCompressedPointer(
     MachineRepresentation rep) {
-  return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep);
+  return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep) ||
+         rep == MachineRepresentation::kProtectedPointer;
 }
 
 constexpr inline bool CanBeTaggedOrCompressedOrIndirectPointer(
@@ -438,6 +446,7 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kProtectedPointer:
       return kTaggedSizeLog2;
     case MachineRepresentation::kSandboxedPointer:
       return kSystemPointerSizeLog2;

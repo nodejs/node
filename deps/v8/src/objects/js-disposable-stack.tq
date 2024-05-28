@@ -1,0 +1,19 @@
+// Copyright 2024 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern enum DisposableStackState extends uint31 { kDisposed, kPending }
+
+bitfield struct DisposableStackStatus extends uint31 {
+  state: DisposableStackState: 1 bit;
+  length: int32: 30 bit;
+}
+
+extern class JSDisposableStack extends JSObject {
+  // In the stack, [i] is the value that the initializer evaluates to, [i+1]
+  // is dispose method, and [i+2] determines if the value is the argument of the
+  // method or not. `disposablestack.prototype.adopt` is the only case that the
+  // value is the argument of method.
+  stack: FixedArray;
+  status: SmiTagged<DisposableStackStatus>;
+}

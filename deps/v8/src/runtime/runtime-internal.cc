@@ -106,7 +106,7 @@ Tagged<Object> NewError(Isolate* isolate, RuntimeArguments args,
   int message_id_smi = args.smi_value_at(0);
 
   constexpr int kMaxMessageArgs = 3;
-  Handle<Object> message_args[kMaxMessageArgs];
+  DirectHandle<Object> message_args[kMaxMessageArgs];
   int num_message_args = 0;
   while (num_message_args < kMaxMessageArgs &&
          args.length() > num_message_args + 1) {
@@ -240,12 +240,6 @@ RUNTIME_FUNCTION(Runtime_NewError) {
   return *isolate->factory()->NewError(message_template, arg0);
 }
 
-RUNTIME_FUNCTION(Runtime_NewForeign) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  return *isolate->factory()->NewForeign(kNullAddress);
-}
-
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   return NewError(isolate, args, &Isolate::type_error_function);
 }
@@ -257,15 +251,6 @@ RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   Handle<Object> arg0 = args.at(1);
   MessageTemplate message_template = MessageTemplateFromInt(template_index);
   return *isolate->factory()->NewReferenceError(message_template, arg0);
-}
-
-RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  int template_index = args.smi_value_at(0);
-  Handle<Object> arg0 = args.at(1);
-  MessageTemplate message_template = MessageTemplateFromInt(template_index);
-  return *isolate->factory()->NewSyntaxError(message_template, arg0);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
@@ -531,28 +516,6 @@ RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
   int length = args.smi_value_at(0);
   DCHECK_LT(0, length);
   return *isolate->factory()->NewByteArray(length);
-}
-
-RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  int length = args.smi_value_at(0);
-  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
-  Handle<SeqOneByteString> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, isolate->factory()->NewRawOneByteString(length));
-  return *result;
-}
-
-RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  int length = args.smi_value_at(0);
-  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
-  Handle<SeqTwoByteString> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, isolate->factory()->NewRawTwoByteString(length));
-  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorError) {

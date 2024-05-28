@@ -236,7 +236,8 @@ bool IsolateLoadScriptData::MaybeAddLoadedScript(Isolate* isolate,
 }  // namespace
 
 void MaybeSetHandlerNow(Isolate* isolate) {
-  if (is_etw_enabled) {
+  // Iterating read-only heap before sealed might not be safe.
+  if (is_etw_enabled && !isolate->heap()->read_only_space()->writable()) {
     if (etw_filter_payload.Pointer()->empty()) {
       IsolateLoadScriptData::EnableLog(isolate, 0);
     } else {

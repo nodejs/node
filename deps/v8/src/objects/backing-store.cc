@@ -338,7 +338,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
       if (fn()) return true;
       // Collect garbage and retry.
       did_retry = true;
-      // TODO(wasm): try Heap::EagerlyFreeExternalMemory() first?
       if (isolate != nullptr) {
         isolate->heap()->MemoryPressureNotification(
             MemoryPressureLevel::kCritical, true);
@@ -751,8 +750,10 @@ bool BackingStore::Reallocate(Isolate* isolate, size_t new_byte_length) {
   auto allocator = get_v8_api_array_buffer_allocator();
   CHECK_EQ(isolate->array_buffer_allocator(), allocator);
   CHECK_EQ(byte_length_, byte_capacity_);
+  START_ALLOW_USE_DEPRECATED()
   void* new_start =
       allocator->Reallocate(buffer_start_, byte_length_, new_byte_length);
+  END_ALLOW_USE_DEPRECATED()
   if (!new_start) return false;
   buffer_start_ = new_start;
   byte_capacity_ = new_byte_length;

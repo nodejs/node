@@ -121,9 +121,9 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
 
 void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
                         Handle<Object> value) {
-  LookupIterator it(object->GetIsolate(), object, name, object,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
+  Isolate* isolate = object->GetIsolate();
+  Maybe<bool> result = JSObject::CreateDataProperty(
+      isolate, object, PropertyKey(isolate, Handle<Name>::cast(name)), value);
   CHECK(result.IsJust() && result.FromJust());
 }
 

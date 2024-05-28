@@ -147,23 +147,21 @@ Local<String> GetFunctionDescription(Local<Function> function) {
     auto js_function = i::Handle<i::JSFunction>::cast(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     if (js_function->shared()->HasWasmExportedFunctionData()) {
-      auto i_isolate = js_function->GetIsolate();
-      auto func_index = js_function->shared()
-                            ->wasm_exported_function_data()
-                            ->function_index();
-      auto instance = i::handle(
-          js_function->shared()->wasm_exported_function_data()->instance(),
-          i_isolate);
-      if (instance->module()->origin == i::wasm::kWasmOrigin) {
+      i::Handle<i::WasmExportedFunctionData> function_data(
+          js_function->shared()->wasm_exported_function_data(), i_isolate);
+      int func_index = function_data->function_index();
+      i::Handle<i::WasmTrustedInstanceData> instance_data(
+          function_data->instance_data(), i_isolate);
+      if (instance_data->module()->origin == i::wasm::kWasmOrigin) {
         // For asm.js functions, we can still print the source
         // code (hopefully), so don't bother with them here.
         auto debug_name =
-            i::GetWasmFunctionDebugName(i_isolate, instance, func_index);
+            i::GetWasmFunctionDebugName(i_isolate, instance_data, func_index);
         i::IncrementalStringBuilder builder(i_isolate);
         builder.AppendCStringLiteral("function ");
         builder.AppendString(debug_name);
         builder.AppendCStringLiteral("() { [native code] }");
-        return Utils::ToLocal(builder.Finish().ToHandleChecked());
+        return Utils::ToLocal(builder.Finish().ToHandleChecked(), i_isolate);
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY

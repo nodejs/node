@@ -4,6 +4,7 @@
 
 #include "src/objects/dependent-code.h"
 
+#include "src/base/bits.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/dependent-code-inl.h"
@@ -135,7 +136,13 @@ bool DependentCode::MarkCodeForDeoptimization(
     if ((groups & deopt_groups) == 0) return false;
 
     if (!code->marked_for_deoptimization()) {
-      code->SetMarkedForDeoptimization(isolate, "code dependencies");
+      // Pick a single group out of the applicable deopt groups, to use as the
+      // deopt reason. Only one group is reported to avoid string concatenation.
+      DependencyGroup first_group = static_cast<DependencyGroup>(
+          1 << base::bits::CountTrailingZeros32(groups & deopt_groups));
+      const char* reason = DependentCode::DependencyGroupName(first_group);
+
+      code->SetMarkedForDeoptimization(isolate, reason);
       marked_something = true;
     }
 

@@ -613,8 +613,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
   // JS frames on top.
   __ StoreWord(zero_reg, MemOperand(s5));
+
+  __ li(s1, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadWord(s2, MemOperand(s1, 0));
+  __ StoreWord(zero_reg, MemOperand(s1, 0));
+  __ li(s1, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadWord(s3, MemOperand(s1, 0));
+  __ StoreWord(zero_reg, MemOperand(s1, 0));
+  __ Push(s2, s3);
   // Set up frame pointer for the frame to be pushed.
-  __ AddWord(fp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
+  __ AddWord(fp, sp, -EntryFrameConstants::kNextFastCallFramePCOffset);
   // Registers:
   //  either
   //   a1: entry address
@@ -626,13 +634,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   a1: microtask_queue
   //
   // Stack:
+  // fast api call pc
+  // fast api call fp
   // caller fp          |
   // function slot      | entry frame
   // context slot       |
   // bad fp (0xFF...F)  |
   // callee saved registers + ra
-  // [ O32: 4 args slots]
-  // args
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -692,6 +700,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   a1: microtask_queue
   //
   // Stack:
+  // fast api call pc.
+  // fast api call fp.
+  // JS entry frame marker
+  // caller fp          |
+  // function slot      | entry frame
+  // context slot       |
+  // bad fp (0xFF...F)  |
   // handler frame
   // entry frame
   // callee saved registers + ra
@@ -707,6 +722,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   __ bind(&exit);  // a0 holds result
   // Check if the current stack frame is marked as the outermost JS frame.
+
   Label non_outermost_js_2;
   __ pop(a5);
   __ Branch(&non_outermost_js_2, ne, a5,
@@ -716,6 +732,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ StoreWord(zero_reg, MemOperand(a5));
   __ bind(&non_outermost_js_2);
 
+  __ Pop(s2, s3);
+  __ li(s1, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ StoreWord(s2, MemOperand(s1, 0));
+  __ li(s1, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ StoreWord(s3, MemOperand(s1, 0));
   // Restore the top frame descriptors from the stack.
   __ pop(a5);
   __ li(a4, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
@@ -2999,6 +3020,28 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   }
   __ Ret();
 }
+
+void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
+  // Load the code pointer from the WasmApiFunctionRef and tail-call there.
+  Register api_function_ref = wasm::kGpParamRegisters[0];
+  // Use t6 which is not in kGpParamRegisters.
+  Register call_target = t6;
+  UseScratchRegisterScope temps{masm};
+  temps.Exclude(t6);
+#ifdef V8_ENABLE_SANDBOX
+  __ LoadCodeEntrypointViaCodePointer(
+      call_target,
+      FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset),
+      kWasmEntrypointTag);
+#else
+  Register code = call_target;
+  __ LoadTaggedField(
+      code, FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ LoadWord(call_target,
+              FieldMemOperand(code, Code::kInstructionStartOffset));
+#endif
+  __ Jump(call_target);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
@@ -3821,8 +3864,9 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  // Copy FPU registers to
-  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
+  // int simd128_regs_offset = FrameDescription::simd128_registers_offset();
+  //  Copy FPU registers to
+  //  double_registers_[DoubleRegister::kNumAllocatableRegisters]
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
@@ -3831,6 +3875,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ LoadDouble(ft0, MemOperand(sp, src_offset));
     __ StoreDouble(ft0, MemOperand(a1, dst_offset));
   }
+  // TODO(riscv): Add Simd128 copy
 
   // Remove the saved registers from the stack.
   __ AddWord(sp, sp, Operand(kSavedRegistersAreaSize));

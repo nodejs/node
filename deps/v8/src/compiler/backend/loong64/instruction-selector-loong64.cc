@@ -762,7 +762,13 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
 #ifdef V8_COMPRESS_POINTERS
         opcode = kLoong64Ld_wu;
         break;
+#else
+        UNREACHABLE();
 #endif
+      case MachineRepresentation::kProtectedPointer:
+        CHECK(V8_ENABLE_SANDBOX_BOOL);
+        opcode = kLoong64LoadDecompressProtected;
+        break;
       case MachineRepresentation::kSandboxedPointer:
         opcode = kLoong64LoadDecodeSandboxedPointer;
         break;
@@ -841,8 +847,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
-      node_t tag = store_view.indirect_pointer_tag();
-      inputs[input_count++] = g.UseImmediate(tag);
+      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+      inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else {
       code = kArchStoreWithWriteBarrier;
     }
@@ -861,7 +867,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kFloat64:
         code = kLoong64Fst_d;
         break;
-      case MachineRepresentation::kBit:  // Fall through.
+      case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
         code = kLoong64St_b;
         break;
@@ -874,12 +880,12 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kWord64:
         code = kLoong64St_d;
         break;
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
         code = kLoong64StoreCompressTagged;
         break;
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
         code = kLoong64StoreCompressTagged;
@@ -891,10 +897,12 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kIndirectPointer:
         code = kLoong64StoreIndirectPointer;
         break;
-      case MachineRepresentation::kMapWord:  // Fall through.
-      case MachineRepresentation::kNone:     // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
+      case MachineRepresentation::kMapWord:
+      case MachineRepresentation::kNone:
+      case MachineRepresentation::kSimd128:
       case MachineRepresentation::kSimd256:
+      // We never store directly to protected pointers from generated code.
+      case MachineRepresentation::kProtectedPointer:
         UNREACHABLE();
     }
 
@@ -1798,19 +1806,6 @@ void InstructionSelectorT<Adapter>::VisitUint64Mod(node_t node) {
   VisitRRR(this, kLoong64Mod_du, node);
 }
 
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  UNIMPLEMENTED();
-}
-
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat32ToFloat64(node_t node) {
   VisitRR(this, kLoong64Float32ToFloat64, node);
@@ -2304,7 +2299,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else {
-        auto constant = constant_view(input_at(value, 1)).int64_value();
+        auto shift_value = input_at(value, 1);
+        DCHECK(g.IsIntegerConstant(shift_value));
+        auto constant = g.GetIntegerConstantValue(constant_view(shift_value));
+
         if (constant >= 32 && constant <= 63) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kLoong64Sra_d, g.DefineAsRegister(node),
@@ -3760,6 +3758,20 @@ void InstructionSelectorT<Adapter>::VisitFloat64ExtractLowWord32(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64ExtractHighWord32(node_t node) {
   VisitRR(this, kLoong64Float64ExtractHighWord32, node);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWord32PairToFloat64(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  Loong64OperandGeneratorT<TurboshaftAdapter> g(this);
+  const auto& bitcast = this->Cast<BitcastWord32PairToFloat64Op>(node);
+  node_t hi = bitcast.high_word32();
+  node_t lo = bitcast.low_word32();
+
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kLoong64Float64FromWord32Pair, g.DefineAsRegister(node), g.Use(hi),
+       g.Use(lo), arraysize(temps), temps);
 }
 
 template <typename Adapter>

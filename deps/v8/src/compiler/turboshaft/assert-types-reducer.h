@@ -144,7 +144,7 @@ class AssertTypesReducer
 
  private:
   Factory* factory() { return isolate_->factory(); }
-  Isolate* isolate_ = PipelineData::Get().isolate();
+  Isolate* isolate_ = __ data() -> isolate();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

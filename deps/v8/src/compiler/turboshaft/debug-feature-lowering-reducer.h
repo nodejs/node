@@ -39,7 +39,7 @@ class DebugFeatureLoweringReducer : public Next {
       }
     } else {
 #if V8_ENABLE_WEBASSEMBLY
-      DCHECK(PipelineData::Get().is_wasm());
+      DCHECK(__ data()->is_wasm());
       switch (rep.value()) {
         case RegisterRepresentation::Float64():
           __ template WasmCallBuiltinThroughJumptable<
@@ -62,7 +62,7 @@ class DebugFeatureLoweringReducer : public Next {
     return {};
   }
 
-  OpIndex REDUCE(StaticAssert)(OpIndex condition, const char* source) {
+  V<None> REDUCE(StaticAssert)(V<Word32> condition, const char* source) {
     // Static asserts should be (statically asserted and) removed by turboshaft.
     UnparkedScopeIfNeeded scope(broker_);
     AllowHandleDereference allow_handle_dereference;
@@ -86,8 +86,8 @@ class DebugFeatureLoweringReducer : public Next {
   }
 
  private:
-  Isolate* isolate_ = PipelineData::Get().isolate();
-  JSHeapBroker* broker_ = PipelineData::Get().broker();
+  Isolate* isolate_ = __ data() -> isolate();
+  JSHeapBroker* broker_ = __ data() -> broker();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

@@ -4,9 +4,11 @@
 
 #include "src/maglev/maglev-compiler.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <ostream>
 #include <type_traits>
+#include <unordered_map>
 
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
@@ -180,15 +182,6 @@ class AnyUseMarkingProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
 
-  ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
-    if (!node->HasEscaped()) {
-      node->input(0).node()->remove_use();
-      return ProcessResult::kRemove;
-    }
-    escaped_allocations_.push_back(node);
-    return ProcessResult::kContinue;
-  }
-
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
@@ -203,15 +196,8 @@ class AnyUseMarkingProcessor {
     }
 
     if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
-      if (InlinedAllocation* object =
-              node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        if (!object->HasEscaped()) {
-          // Make sure to remove the uses of the other inputs.
-          for (int i = 1; i < node->input_count(); i++) {
-            DropInputUses(node->Node::input(i));
-          }
-          return ProcessResult::kRemove;
-        }
+      if (node->input(0).node()->template Is<InlinedAllocation>()) {
+        stores_to_allocations_.push_back(node);
       }
     }
 
@@ -219,17 +205,69 @@ class AnyUseMarkingProcessor {
   }
 
   void PostProcessGraph(Graph* graph) {
-    // Somes escaped allocation might have been marked as non-escaping.
-    // Fix the AllocationBlock usages. They will be removed in the
-    // DeadNodeSweepingProcessor.
-    for (InlinedAllocation* alloc : escaped_allocations_) {
-      if (!alloc->HasEscaped()) {
-        alloc->allocation_block().node()->remove_use();
+    RunEscapeAnalysis(graph);
+    DropUseOfValueInStoresToCapturedAllocations();
+  }
+
+ private:
+  std::vector<Node*> stores_to_allocations_;
+
+  void EscapeAllocation(Graph* graph, InlinedAllocation* alloc,
+                        Graph::AllocationDependencies& deps) {
+    if (alloc->HasBeenAnalysed() && alloc->HasEscaped()) return;
+    alloc->SetEscaped();
+    for (auto dep : deps) {
+      EscapeAllocation(graph, dep, graph->allocations().find(dep)->second);
+    }
+  }
+
+  void VerifyEscapeAnalysis(Graph* graph) {
+#ifdef DEBUG
+    for (auto it : graph->allocations()) {
+      auto alloc = it.first;
+      DCHECK(alloc->HasBeenAnalysed());
+      if (alloc->HasEscaped()) {
+        for (auto dep : it.second) {
+          DCHECK(dep->HasEscaped());
+        }
+      }
+    }
+#endif  // DEBUG
+  }
+
+  void RunEscapeAnalysis(Graph* graph) {
+    for (auto it : graph->allocations()) {
+      auto alloc = it.first;
+      if (alloc->HasBeenAnalysed()) continue;
+      // Check if all its uses are non escaping.
+      if (alloc->IsEscaping()) {
+        // Escape this allocation and all its dependencies.
+        EscapeAllocation(graph, alloc, it.second);
+      } else {
+        // Try to capture the allocation. This can still change if a escaped
+        // allocation has this value as one of its dependencies.
+        alloc->SetElided();
+      }
+    }
+    // Check that we've reached a fixpoint.
+    VerifyEscapeAnalysis(graph);
+  }
+
+  void DropUseOfValueInStoresToCapturedAllocations() {
+    for (Node* node : stores_to_allocations_) {
+      InlinedAllocation* alloc =
+          node->input(0).node()->Cast<InlinedAllocation>();
+      // Since we don't analyze if allocations will escape until a fixpoint,
+      // this could drop an use of an allocation and turn it non-escaping.
+      if (alloc->HasBeenElided()) {
+        // Skip first input.
+        for (int i = 1; i < node->input_count(); i++) {
+          DropInputUses(node->input(i));
+        }
       }
     }
   }
 
- private:
   void DropInputUses(Input& input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
@@ -249,8 +287,6 @@ class AnyUseMarkingProcessor {
     DCHECK(!node->properties().can_lazy_deopt());
     node->mark_unused_inputs_visited();
   }
-
-  std::vector<InlinedAllocation*> escaped_allocations_;
 };
 
 class DeadNodeSweepingProcessor {
@@ -260,9 +296,6 @@ class DeadNodeSweepingProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {}
 
   ProcessResult Process(AllocationBlock* node, const ProcessingState& state) {
-    if (!node->is_used()) return ProcessResult::kRemove;
-    // All non-escaped InlinedAllocations were already removed. We can now set
-    // the offsets of the escaped ones.
     // Note: this need to be done before ValueLocationConstraintProcessor, since
     // it access the allocation offsets.
     int size = 0;
@@ -274,12 +307,19 @@ class DeadNodeSweepingProcessor {
     }
     // ... and update its size.
     node->set_size(size);
+    // If size is zero, then none of the inlined allocations have escaped, we
+    // can remove the allocation block.
+    if (size == 0) return ProcessResult::kRemove;
     return ProcessResult::kContinue;
   }
 
   ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
     // Remove inlined allocation that became non-escaping.
     if (!node->HasEscaped()) {
+      if (v8_flags.trace_maglev_escape_analysis) {
+        std::cout << "* Removing allocation node "
+                  << PrintNodeLabel(labeller_, node) << std::endl;
+      }
       return ProcessResult::kRemove;
     }
     return ProcessResult::kContinue;
@@ -306,9 +346,11 @@ class DeadNodeSweepingProcessor {
       if (InlinedAllocation* object =
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
         if (!object->HasEscaped()) {
-          // We might still have stores that have not been cleared for
-          // allocations that were initially escaping and then became
-          // non-escaping.
+          if (v8_flags.trace_maglev_escape_analysis) {
+            std::cout << "* Removing store node "
+                      << PrintNodeLabel(labeller_, node) << " to allocation "
+                      << PrintNodeLabel(labeller_, object) << std::endl;
+          }
           return ProcessResult::kRemove;
         }
       }
@@ -485,12 +527,6 @@ class LiveRangeAndNextUseProcessor {
   void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
                LoopUsedNodes* loop_used_nodes) {
     DCHECK(!node->Is<Identity>());
-    if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-      if (!alloc->HasEscaped()) {
-        // No need to mark use. The allocation has survived as a deopt input.
-        return;
-      }
-    }
 
     node->record_next_use(use_id, input);
 
@@ -562,6 +598,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
       v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
       v8_flags.trace_maglev_graph_building ||
+      v8_flags.trace_maglev_escape_analysis ||
       v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
     compilation_info->set_graph_labeller(labeller_ = new MaglevGraphLabeller());
   }

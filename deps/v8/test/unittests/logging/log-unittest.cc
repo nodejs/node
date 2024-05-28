@@ -384,8 +384,8 @@ TEST_F(LogTest, LogAccessorCallbacks) {
         isolate(), v8::FunctionTemplate::New(isolate()));
     obj->SetClassName(NewString("Obj"));
     v8::Local<v8::ObjectTemplate> inst = obj->InstanceTemplate();
-    inst->SetAccessor(NewString("prop1"), Prop1Getter, Prop1Setter);
-    inst->SetAccessor(NewString("prop2"), Prop2Getter);
+    inst->SetNativeDataProperty(NewString("prop1"), Prop1Getter, Prop1Setter);
+    inst->SetNativeDataProperty(NewString("prop2"), Prop2Getter);
 
     logger.v8_file_logger()->LogAccessorCallbacks();
 

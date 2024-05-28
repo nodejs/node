@@ -46,30 +46,40 @@
 namespace v8 {
 namespace internal {
 // Get the CPU features enabled by the build. For cross compilation the
-// preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
+// preprocessor symbols __riscv_f and __riscv_d
 // can be defined to enable FPU instructions when building the
 // snapshot.
 static unsigned CpuFeaturesImpliedByCompiler() {
   unsigned answer = 0;
-#ifdef CAN_USE_FPU_INSTRUCTIONS
+#if defined(__riscv_f) && defined(__riscv_d)
   answer |= 1u << FPU;
-#endif  // def CAN_USE_FPU_INSTRUCTIONS
+#endif  // def __riscv_f
 
-#if (defined CAN_USE_RVV_INSTRUCTIONS)
+#if (defined __riscv_vector) && (__riscv_v >= 1000000)
   answer |= 1u << RISCV_SIMD;
 #endif  // def CAN_USE_RVV_INSTRUCTIONS
 
-#if (defined CAN_USE_ZBA_INSTRUCTIONS)
+#if (defined __riscv_zba)
   answer |= 1u << ZBA;
-#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+#endif  // def __riscv_zba
 
-#if (defined CAN_USE_ZBB_INSTRUCTIONS)
+#if (defined __riscv_zbb)
   answer |= 1u << ZBB;
-#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+#endif  // def __riscv_zbb
 
-#if (defined CAN_USE_ZBS_INSTRUCTIONS)
+#if (defined __riscv_zbs)
   answer |= 1u << ZBS;
-#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+#endif  // def __riscv_zbs
+  return answer;
+}
+
+static unsigned SimulatorFeatures() {
+  unsigned answer = 0;
+  answer |= 1u << RISCV_SIMD;
+  answer |= 1u << ZBA;
+  answer |= 1u << ZBB;
+  answer |= 1u << ZBS;
+  answer |= 1u << FPU;
   return answer;
 }
 
@@ -80,13 +90,20 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
   // Probe for additional features at runtime.
+
+#ifdef USE_SIMULATOR
+  supported_ |= SimulatorFeatures();
+#else
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
   if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
+#ifdef V8_COMPRESS_POINTERS
   if (cpu.riscv_mmu() == base::CPU::RV_MMU_MODE::kRiscvSV57) {
     FATAL("SV57 is not supported");
     UNIMPLEMENTED();
   }
+#endif  // V8_COMPRESS_POINTERS
+#endif  // USE_SIMULATOR
   // Set a static value on whether SIMD is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
@@ -97,6 +114,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
   printf("supports_wasm_simd_128=%d\n", CpuFeatures::SupportsWasmSimd128());
+  printf("zba=%d,zbb=%d,zbs=%d\n", CpuFeatures::IsSupported(ZBA),
+         CpuFeatures::IsSupported(ZBB), CpuFeatures::IsSupported(ZBS));
 }
 int ToNumber(Register reg) {
   DCHECK(reg.is_valid());
@@ -1086,29 +1105,26 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
 
 void Assembler::li_ptr(Register rd, int64_t imm) {
   base::CPU cpu;
-  if (cpu.riscv_mmu() != base::CPU::RV_MMU_MODE::kRiscvSV57) {
-    // Initialize rd with an address
-    // Pointers are 48 bits
-    // 6 fixed instructions are generated
-    DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
-    int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
-    int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
-    int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
-    int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
-    int64_t low_12 = high_31 & 0xfff;             // 12 bits
-    lui(rd, (int32_t)high_20);
-    addi(rd, rd, low_12);  // 31 bits in rd.
-    slli(rd, rd, 11);      // Space for next 11 bis
-    ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
-    slli(rd, rd, 6);       // Space for next 6 bits
-    ori(rd, rd, a6);       // 6 bits are put in. 48 bis in rd
-  } else {
-    FATAL("SV57 is not supported");
-  }
+  // Initialize rd with an address
+  // Pointers are 48 bits
+  // 6 fixed instructions are generated
+  DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
+  int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
+  int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
+  int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
+  int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
+  int64_t low_12 = high_31 & 0xfff;             // 12 bits
+  lui(rd, (int32_t)high_20);
+  addi(rd, rd, low_12);  // 31 bits in rd.
+  slli(rd, rd, 11);      // Space for next 11 bis
+  ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
+  slli(rd, rd, 6);       // Space for next 6 bits
+  ori(rd, rd, a6);       // 6 bits are put in. 48 bis in rd
 }
 
 void Assembler::li_constant(Register rd, int64_t imm) {
-  DEBUG_PRINTF("\tli_constant(%d, %lx <%ld>)\n", ToNumber(rd), imm, imm);
+  DEBUG_PRINTF("\tli_constant(%d, %" PRIx64 " <%" PRId64 ">)\n", ToNumber(rd),
+               imm, imm);
   lui(rd, (imm + (1LL << 47) + (1LL << 35) + (1LL << 23) + (1LL << 11)) >>
               48);  // Bits 63:48
   addiw(rd, rd,
@@ -1353,11 +1369,7 @@ void Assembler::dd(uint32_t data) {
 
 void Assembler::dq(uint64_t data) {
   if (!is_buffer_growth_blocked()) CheckBuffer();
-#if V8_TARGET_ARCH_RISCV64
-  DEBUG_PRINTF("%p(%d): constant 0x%lx\n", pc_, pc_offset(), data);
-#elif V8_TARGET_ARCH_RISCV32
-  DEBUG_PRINTF("%p(%d): constant 0x%llx\n", pc_, pc_offset(), data);
-#endif
+  DEBUG_PRINTF("%p(%d): constant 0x%" PRIx64 "\n", pc_, pc_offset(), data);
   EmitHelper(data);
 }
 
@@ -1536,7 +1548,7 @@ Address Assembler::target_address_at(Address pc) {
     addr <<= 6;
     addr |= (int64_t)instr5->Imm12Value();
 
-    DEBUG_PRINTF("addr: %lx\n", addr);
+    DEBUG_PRINTF("addr: %" PRIx64 "\n", addr);
     return static_cast<Address>(addr);
   }
   // We should never get here, force a bad address if we do.
@@ -1554,7 +1566,8 @@ Address Assembler::target_address_at(Address pc) {
 // Note that this assumes the use of SV48, the 48-bit virtual memory system.
 void Assembler::set_target_value_at(Address pc, uint64_t target,
                                     ICacheFlushMode icache_flush_mode) {
-  DEBUG_PRINTF("set_target_value_at: pc: %lx\ttarget: %lx\n", pc, target);
+  DEBUG_PRINTF("set_target_value_at: pc: %" PRIxPTR "\ttarget: %" PRIx64 "\n",
+               pc, target);
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
   DCHECK_EQ((target & 0xffff000000000000ll), 0);
 #ifdef DEBUG

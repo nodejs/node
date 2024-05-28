@@ -20,7 +20,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_EXTERNAL_CODE_SPACE
+#if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 bool CheckObjectComparisonAllowed(Address a, Address b) {
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
@@ -33,10 +33,12 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   // happen is comparing two AbstractCode objects. If that's the case one must
   // use AbstractCode's == operator instead of Object's one or SafeEquals().
   CHECK_EQ(IsCodeSpaceObject(obj_a), IsCodeSpaceObject(obj_b));
+#ifdef V8_ENABLE_SANDBOX
   CHECK_EQ(IsTrustedSpaceObject(obj_a), IsTrustedSpaceObject(obj_b));
+#endif
   return true;
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
+#endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 
 template <HeapObjectReferenceType kRefType, typename StorageType>
 void ShortPrint(TaggedImpl<kRefType, StorageType> ptr, FILE* out) {

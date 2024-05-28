@@ -69,6 +69,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-updater.h"
@@ -263,7 +264,7 @@ template Handle<Object> Object::WrapForRead<AllocationType::kOld>(
     Representation representation);
 
 MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
-                                             Handle<Object> object,
+                                             DirectHandle<Object> object,
                                              const char* method_name) {
   DCHECK(!IsJSReceiver(*object));  // Use ToObject() for fast path.
   Handle<Context> native_context = isolate->native_context();
@@ -271,8 +272,9 @@ MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
   if (IsSmi(*object)) {
     constructor = handle(native_context->number_function(), isolate);
   } else {
-    int constructor_function_index =
-        Handle<HeapObject>::cast(object)->map()->GetConstructorFunctionIndex();
+    int constructor_function_index = DirectHandle<HeapObject>::cast(object)
+                                         ->map()
+                                         ->GetConstructorFunctionIndex();
     if (constructor_function_index == Map::kNoConstructorFunctionIndex) {
       if (method_name != nullptr) {
         THROW_NEW_ERROR(
@@ -456,8 +458,8 @@ Handle<String> AsStringOrEmpty(Isolate* isolate, Handle<Object> object) {
                            : isolate->factory()->empty_string();
 }
 
-Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
-                                          Handle<JSReceiver> error) {
+DirectHandle<String> NoSideEffectsErrorToString(Isolate* isolate,
+                                                Handle<JSReceiver> error) {
   Handle<Name> name_key = isolate->factory()->name_string();
   Handle<Object> name = JSReceiver::GetDataProperty(isolate, error, name_key);
   Handle<String> name_str = AsStringOrEmpty(isolate, name);
@@ -469,14 +471,27 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
   if (name_str->length() == 0) return msg_str;
   if (msg_str->length() == 0) return name_str;
 
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendString(name_str);
-  builder.AppendCStringLiteral(": ");
+  constexpr const char error_suffix[] = "<a very large string>";
+  constexpr int error_suffix_size = sizeof(error_suffix);
+  int suffix_size = std::min(error_suffix_size, msg_str->length());
 
-  if (builder.Length() + msg_str->length() <= String::kMaxLength) {
-    builder.AppendString(msg_str);
+  IncrementalStringBuilder builder(isolate);
+  if (name_str->length() + suffix_size + 2 /* ": " */ > String::kMaxLength) {
+    constexpr const char connector[] = "... : ";
+    int connector_size = sizeof(connector);
+    Handle<String> truncated_name = isolate->factory()->NewProperSubString(
+        name_str, 0, name_str->length() - error_suffix_size - connector_size);
+    builder.AppendString(truncated_name);
+    builder.AppendCStringLiteral(connector);
+    builder.AppendCStringLiteral(error_suffix);
   } else {
-    builder.AppendCStringLiteral("<a very large string>");
+    builder.AppendString(name_str);
+    builder.AppendCStringLiteral(": ");
+    if (builder.Length() + msg_str->length() <= String::kMaxLength) {
+      builder.AppendString(msg_str);
+    } else {
+      builder.AppendCStringLiteral(error_suffix);
+    }
   }
 
   return builder.Finish().ToHandleChecked();
@@ -485,33 +500,35 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
 }  // namespace
 
 // static
-MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
-                                                       Handle<Object> input) {
+MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
+    Isolate* isolate, DirectHandle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
   if (IsString(*input) || IsNumber(*input) || IsOddball(*input)) {
     return Object::ToString(isolate, input).ToHandleChecked();
   } else if (IsJSProxy(*input)) {
-    Handle<Object> currInput = input;
+    DirectHandle<Object> currInput = input;
     do {
       Tagged<HeapObject> target =
-          Handle<JSProxy>::cast(currInput)->target(isolate);
-      currInput = Handle<Object>(target, isolate);
+          DirectHandle<JSProxy>::cast(currInput)->target(isolate);
+      currInput = direct_handle(target, isolate);
     } while (IsJSProxy(*currInput));
     return NoSideEffectsToString(isolate, currInput);
   } else if (IsBigInt(*input)) {
-    return BigInt::NoSideEffectsToString(isolate, Handle<BigInt>::cast(input));
+    return BigInt::NoSideEffectsToString(isolate,
+                                         DirectHandle<BigInt>::cast(input));
   } else if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*input)) {
     // -- F u n c t i o n
     Handle<String> fun_str;
     if (IsJSBoundFunction(*input)) {
-      fun_str = JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(input));
-    } else if (IsJSWrappedFunction(*input)) {
       fun_str =
-          JSWrappedFunction::ToString(Handle<JSWrappedFunction>::cast(input));
+          JSBoundFunction::ToString(DirectHandle<JSBoundFunction>::cast(input));
+    } else if (IsJSWrappedFunction(*input)) {
+      fun_str = JSWrappedFunction::ToString(
+          DirectHandle<JSWrappedFunction>::cast(input));
     } else {
       DCHECK(IsJSFunction(*input));
-      fun_str = JSFunction::ToString(Handle<JSFunction>::cast(input));
+      fun_str = JSFunction::ToString(DirectHandle<JSFunction>::cast(input));
     }
 
     if (fun_str->length() > 128) {
@@ -526,10 +543,10 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     return fun_str;
   } else if (IsSymbol(*input)) {
     // -- S y m b o l
-    Handle<Symbol> symbol = Handle<Symbol>::cast(input);
+    DirectHandle<Symbol> symbol = DirectHandle<Symbol>::cast(input);
 
     if (symbol->is_private_name()) {
-      return Handle<String>(String::cast(symbol->description()), isolate);
+      return DirectHandle<String>(String::cast(symbol->description()), isolate);
     }
 
     IncrementalStringBuilder builder(isolate);
@@ -552,22 +569,22 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     return builder.Finish().ToHandleChecked();
   } else if (IsJSReceiver(*input)) {
     // -- J S R e c e i v e r
-    Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(input);
+    Handle<Object> indirect_input = indirect_handle(input, isolate);
+    Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(indirect_input);
     Handle<Object> to_string = JSReceiver::GetDataProperty(
         isolate, receiver, isolate->factory()->toString_string());
 
-    if (IsErrorObject(isolate, input) ||
+    if (IsErrorObject(isolate, indirect_input) ||
         *to_string == *isolate->error_to_string()) {
       // When internally formatting error objects, use a side-effects-free
       // version of Error.prototype.toString independent of the actually
       // installed toString method.
-      return NoSideEffectsErrorToString(isolate,
-                                        Handle<JSReceiver>::cast(input));
+      return NoSideEffectsErrorToString(isolate, receiver);
     } else if (*to_string == *isolate->object_to_string()) {
       Handle<Object> ctor = JSReceiver::GetDataProperty(
           isolate, receiver, isolate->factory()->constructor_string());
       if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*ctor)) {
-        Handle<String> ctor_name;
+        DirectHandle<String> ctor_name;
         if (IsJSBoundFunction(*ctor)) {
           ctor_name = JSBoundFunction::GetName(
                           isolate, Handle<JSBoundFunction>::cast(ctor))
@@ -588,17 +605,18 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
       }
     }
   }
-  return MaybeHandle<String>(kNullMaybeHandle);
+  return {};
 }
 
 // static
-Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
-                                             Handle<Object> input) {
+DirectHandle<String> Object::NoSideEffectsToString(Isolate* isolate,
+                                                   DirectHandle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
   // Try to convert input to a meaningful string.
-  MaybeHandle<String> maybe_string = NoSideEffectsToMaybeString(isolate, input);
-  Handle<String> string_handle;
+  MaybeDirectHandle<String> maybe_string =
+      NoSideEffectsToMaybeString(isolate, input);
+  DirectHandle<String> string_handle;
   if (maybe_string.ToHandle(&string_handle)) {
     return string_handle;
   }
@@ -607,12 +625,13 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
 
   Handle<JSReceiver> receiver;
   if (IsJSReceiver(*input)) {
-    receiver = Handle<JSReceiver>::cast(input);
+    receiver = indirect_handle(DirectHandle<JSReceiver>::cast(input), isolate);
   } else {
     // This is the only case where Object::ToObject throws.
     DCHECK(!IsSmi(*input));
-    int constructor_function_index =
-        Handle<HeapObject>::cast(input)->map()->GetConstructorFunctionIndex();
+    int constructor_function_index = DirectHandle<HeapObject>::cast(input)
+                                         ->map()
+                                         ->GetConstructorFunctionIndex();
     if (constructor_function_index == Map::kNoConstructorFunctionIndex) {
       return isolate->factory()->NewStringFromAsciiChecked("[object Unknown]");
     }
@@ -620,11 +639,12 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
     receiver = Object::ToObjectImpl(isolate, input).ToHandleChecked();
   }
 
-  Handle<String> builtin_tag = handle(receiver->class_name(), isolate);
-  Handle<Object> tag_obj = JSReceiver::GetDataProperty(
+  DirectHandle<String> builtin_tag =
+      direct_handle(receiver->class_name(), isolate);
+  DirectHandle<Object> tag_obj = JSReceiver::GetDataProperty(
       isolate, receiver, isolate->factory()->to_string_tag_symbol());
-  Handle<String> tag =
-      IsString(*tag_obj) ? Handle<String>::cast(tag_obj) : builtin_tag;
+  DirectHandle<String> tag =
+      IsString(*tag_obj) ? DirectHandle<String>::cast(tag_obj) : builtin_tag;
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("[object ");
@@ -1781,7 +1801,7 @@ bool Object::IterationHasObservableEffects(Tagged<Object> obj) {
   if (!IsJSObject(array_proto)) return true;
   Tagged<NativeContext> native_context = array->GetCreationContext().value();
   auto initial_array_prototype = native_context->initial_array_prototype();
-  if (initial_array_prototype != JSObject::cast(array_proto)) return true;
+  if (initial_array_prototype != array_proto) return true;
 
   Isolate* isolate = array->GetIsolate();
   // Check that the ArrayPrototype hasn't been modified in a way that would
@@ -1951,6 +1971,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   }
   if (instance_type == PROTECTED_FIXED_ARRAY_TYPE) {
     return ProtectedFixedArray::unchecked_cast(*this)->AllocatedSize();
+  }
+  if (instance_type == TRUSTED_WEAK_FIXED_ARRAY_TYPE) {
+    return TrustedWeakFixedArray::unchecked_cast(*this)->AllocatedSize();
   }
   if (instance_type == TRUSTED_BYTE_ARRAY_TYPE) {
     return TrustedByteArray::unchecked_cast(*this)->AllocatedSize();
@@ -2190,7 +2213,7 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
 template void HeapObject::RehashBasedOnMap(Isolate* isolate);
 template void HeapObject::RehashBasedOnMap(LocalIsolate* isolate);
 
-void DescriptorArray::GeneralizeAllFields(TransitionKindFlag transition_kind) {
+void DescriptorArray::GeneralizeAllFields(bool clear_constness) {
   int length = number_of_descriptors();
   for (InternalIndex i : InternalIndex::Range(length)) {
     PropertyDetails details = GetDetails(i);
@@ -2198,9 +2221,7 @@ void DescriptorArray::GeneralizeAllFields(TransitionKindFlag transition_kind) {
     if (details.location() == PropertyLocation::kField) {
       // Since constness is not propagated across proto transitions we must
       // clear the flag here.
-      // TODO(olivf): Evaluate if we should apply field updates over proto
-      // transitions (either forward only, or forward and backwards).
-      if (transition_kind == PROTOTYPE_TRANSITION) {
+      if (clear_constness) {
         details = details.CopyWithConstness(PropertyConstness::kMutable);
       }
       DCHECK_EQ(PropertyKind::kData, details.kind());
@@ -2447,13 +2468,15 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
         MAYBE_RETURN(owned, Nothing<bool>());
         if (!owned.FromJust()) {
           // |own_lookup| might become outdated at this point anyway.
+          // TODO(leszeks): Remove this restart since we don't really use the
+          // lookup iterator after this.
           own_lookup.Restart();
           if (!CheckContextualStoreToJSGlobalObject(&own_lookup,
                                                     should_throw)) {
             return Nothing<bool>();
           }
-          return JSReceiver::CreateDataProperty(&own_lookup, value,
-                                                should_throw);
+          return JSReceiver::CreateDataProperty(isolate, receiver, it->GetKey(),
+                                                value, should_throw);
         }
         if (PropertyDescriptor::IsAccessorDescriptor(&desc) ||
             !desc.writable()) {
@@ -3665,8 +3688,8 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   return copy_handle;
 }
 
-bool DescriptorArray::IsEqualUpTo(Tagged<DescriptorArray> desc,
-                                  int nof_descriptors) {
+bool DescriptorArray::IsCompatibleForTransitionUpTo(
+    Tagged<DescriptorArray> desc, int nof_descriptors) {
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     if (GetKey(i) != desc->GetKey(i) || GetValue(i) != desc->GetValue(i)) {
       return false;
@@ -3675,7 +3698,8 @@ bool DescriptorArray::IsEqualUpTo(Tagged<DescriptorArray> desc,
     PropertyDetails other_details = desc->GetDetails(i);
     if (details.kind() != other_details.kind() ||
         details.location() != other_details.location() ||
-        !details.representation().Equals(other_details.representation())) {
+        !details.representation().IsCompatibleForLoad(
+            other_details.representation())) {
       return false;
     }
   }
@@ -3971,7 +3995,7 @@ MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name) {
   builder.AppendCharacter('[');
   builder.AppendString(Handle<String>::cast(description));
   builder.AppendCharacter(']');
-  return builder.Finish();
+  return indirect_handle(builder.Finish(), isolate);
 }
 
 // static
@@ -3984,7 +4008,7 @@ MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name,
   builder.AppendString(prefix);
   builder.AppendCharacter(' ');
   builder.AppendString(name_string);
-  return builder.Finish();
+  return indirect_handle(builder.Finish(), isolate);
 }
 
 void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {
@@ -4242,6 +4266,18 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
   return position;
 }
 
+String::LineEndsVector Script::GetLineEnds(Isolate* isolate,
+                                           Handle<Script> script) {
+  DCHECK(!script->has_line_ends());
+  Tagged<Object> src_obj = script->source();
+  if (IsString(src_obj)) {
+    Handle<String> src(String::cast(src_obj), isolate);
+    return String::CalculateLineEndsVector(isolate, src, true);
+  }
+
+  return String::LineEndsVector();
+}
+
 template <typename IsolateT>
 // static
 void Script::InitLineEndsInternal(IsolateT* isolate, Handle<Script> script) {
@@ -4326,6 +4362,7 @@ namespace {
 template <typename Char>
 bool GetPositionInfoSlowImpl(base::Vector<Char> source, int position,
                              Script::PositionInfo* info) {
+  DCHECK(DisallowPositionInfoSlow::IsAllowed());
   if (position < 0) {
     position = 0;
   }
@@ -4359,7 +4396,107 @@ bool GetPositionInfoSlow(const Tagged<Script> script, int position,
              : GetPositionInfoSlowImpl(flat.ToUC16Vector(), position, info);
 }
 
+int GetLineEnd(const String::LineEndsVector& vector, int line) {
+  return vector[line];
+}
+
+int GetLineEnd(const Tagged<FixedArray>& array, int line) {
+  return Smi::ToInt(array->get(line));
+}
+
+int GetLength(const String::LineEndsVector& vector) {
+  return static_cast<int>(vector.size());
+}
+
+int GetLength(const Tagged<FixedArray>& array) { return array->length(); }
+
+template <typename LineEndsContainer>
+bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
+                                      int position, Script::PositionInfo* info,
+                                      const DisallowGarbageCollection& no_gc) {
+  const int ends_len = GetLength(ends);
+  if (ends_len == 0) return false;
+
+  // Return early on invalid positions. Negative positions behave as if 0 was
+  // passed, and positions beyond the end of the script return as failure.
+  if (position < 0) {
+    position = 0;
+  } else if (position > GetLineEnd(ends, ends_len - 1)) {
+    return false;
+  }
+
+  // Determine line number by doing a binary search on the line ends array.
+  if (GetLineEnd(ends, 0) >= position) {
+    info->line = 0;
+    info->line_start = 0;
+    info->column = position;
+  } else {
+    int left = 0;
+    int right = ends_len - 1;
+
+    while (right > 0) {
+      DCHECK_LE(left, right);
+      const int mid = left + (right - left) / 2;
+      if (position > GetLineEnd(ends, mid)) {
+        left = mid + 1;
+      } else if (position <= GetLineEnd(ends, mid - 1)) {
+        right = mid - 1;
+      } else {
+        info->line = mid;
+        break;
+      }
+    }
+    DCHECK(GetLineEnd(ends, info->line) >= position &&
+           GetLineEnd(ends, info->line - 1) < position);
+    info->line_start = GetLineEnd(ends, info->line - 1) + 1;
+    info->column = position - info->line_start;
+  }
+
+  return true;
+}
+
 }  // namespace
+
+void Script::AddPositionInfoOffset(PositionInfo* info,
+                                   OffsetFlag offset_flag) const {
+  // Add offsets if requested.
+  if (offset_flag == OffsetFlag::kWithOffset) {
+    if (info->line == 0) {
+      info->column += column_offset();
+    }
+    info->line += line_offset();
+  } else {
+    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
+  }
+}
+
+template <typename LineEndsContainer>
+bool Script::GetPositionInfoInternal(
+    const LineEndsContainer& ends, int position, Script::PositionInfo* info,
+    const DisallowGarbageCollection& no_gc) const {
+  if (!GetLineEndsContainerPositionInfo(ends, position, info, no_gc))
+    return false;
+
+  // Line end is position of the linebreak character.
+  info->line_end = GetLineEnd(ends, info->line);
+  if (info->line_end > 0) {
+    DCHECK(IsString(source()));
+    Tagged<String> src = String::cast(source());
+    if (src->length() >= info->line_end &&
+        src->Get(info->line_end - 1) == '\r') {
+      info->line_end--;
+    }
+  }
+
+  return true;
+}
+
+template bool Script::GetPositionInfoInternal<String::LineEndsVector>(
+    const String::LineEndsVector& ends, int position,
+    Script::PositionInfo* info, const DisallowGarbageCollection& no_gc) const;
+template bool Script::GetPositionInfoInternal<Tagged<FixedArray>>(
+    const Tagged<FixedArray>& ends, int position, Script::PositionInfo* info,
+    const DisallowGarbageCollection& no_gc) const;
 
 bool Script::GetPositionInfo(int position, PositionInfo* info,
                              OffsetFlag offset_flag) const {
@@ -4389,65 +4526,38 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
     DCHECK(has_line_ends());
     Tagged<FixedArray> ends = FixedArray::cast(line_ends());
 
-    const int ends_len = ends->length();
-    if (ends_len == 0) return false;
-
-    // Return early on invalid positions. Negative positions behave as if 0 was
-    // passed, and positions beyond the end of the script return as failure.
-    if (position < 0) {
-      position = 0;
-    } else if (position > Smi::ToInt(ends->get(ends_len - 1))) {
-      return false;
-    }
-
-    // Determine line number by doing a binary search on the line ends array.
-    if (Smi::ToInt(ends->get(0)) >= position) {
-      info->line = 0;
-      info->line_start = 0;
-      info->column = position;
-    } else {
-      int left = 0;
-      int right = ends_len - 1;
-
-      while (right > 0) {
-        DCHECK_LE(left, right);
-        const int mid = left + (right - left) / 2;
-        if (position > Smi::ToInt(ends->get(mid))) {
-          left = mid + 1;
-        } else if (position <= Smi::ToInt(ends->get(mid - 1))) {
-          right = mid - 1;
-        } else {
-          info->line = mid;
-          break;
-        }
-      }
-      DCHECK(Smi::ToInt(ends->get(info->line)) >= position &&
-             Smi::ToInt(ends->get(info->line - 1)) < position);
-      info->line_start = Smi::ToInt(ends->get(info->line - 1)) + 1;
-      info->column = position - info->line_start;
-    }
-
-    // Line end is position of the linebreak character.
-    info->line_end = Smi::ToInt(ends->get(info->line));
-    if (info->line_end > 0) {
-      DCHECK(IsString(source()));
-      Tagged<String> src = String::cast(source());
-      if (src->length() >= info->line_end &&
-          src->Get(info->line_end - 1) == '\r') {
-        info->line_end--;
-      }
-    }
+    if (!GetPositionInfoInternal(ends, position, info, no_gc)) return false;
   }
 
-  // Add offsets if requested.
-  if (offset_flag == OffsetFlag::kWithOffset) {
-    if (info->line == 0) {
-      info->column += column_offset();
-    }
-    info->line += line_offset();
-  } else {
-    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
+  AddPositionInfoOffset(info, offset_flag);
+
+  return true;
+}
+
+bool Script::GetPositionInfoWithLineEnds(
+    int position, PositionInfo* info, const String::LineEndsVector& line_ends,
+    OffsetFlag offset_flag) const {
+  DisallowGarbageCollection no_gc;
+  if (!GetPositionInfoInternal(line_ends, position, info, no_gc)) return false;
+
+  AddPositionInfoOffset(info, offset_flag);
+
+  return true;
+}
+
+bool Script::GetLineColumnWithLineEnds(
+    int position, int& line, int& column,
+    const String::LineEndsVector& line_ends) {
+  DisallowGarbageCollection no_gc;
+  PositionInfo info;
+  if (!GetLineEndsContainerPositionInfo(line_ends, position, &info, no_gc)) {
+    line = -1;
+    column = -1;
+    return false;
   }
+
+  line = info.line;
+  column = info.column;
 
   return true;
 }
@@ -6108,6 +6218,14 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
     DCHECK_EQ(max_entries * values_per_entry, count);
   }
   return isolate->factory()->NewJSArrayWithElements(entries);
+}
+
+void JSDisposableStack::Initialize(Isolate* isolate,
+                                   Handle<JSDisposableStack> disposable_stack) {
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(0);
+  disposable_stack->set_stack(*array);
+  disposable_stack->set_length(0);
+  disposable_stack->set_state(DisposableStackState::kPending);
 }
 
 void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {

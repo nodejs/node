@@ -49,6 +49,7 @@ class ErrorThrower;
 struct ModuleWireBytes;
 class StreamingDecoder;
 class WasmFeatures;
+class WasmOrphanedGlobalHandle;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -233,6 +234,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   void FlushCode();
 
+  // Returns the code size of all Liftoff compiled functions in all modules.
+  size_t GetLiftoffCodeSize();
+
   AccountingAllocator* allocator() { return &allocator_; }
 
   // Compilation statistics for TurboFan compilations. Returns a shared_ptr
@@ -392,6 +396,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
+
+  static WasmOrphanedGlobalHandle* NewOrphanedGlobalHandle(
+      WasmOrphanedGlobalHandle** pointer);
+  static void FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start);
 
  private:
   struct CurrentGCInfo;

@@ -6,7 +6,6 @@
 #define V8_OBJECTS_MODULE_H_
 
 #include "include/v8-script.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"

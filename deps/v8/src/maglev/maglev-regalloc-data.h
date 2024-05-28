@@ -60,7 +60,7 @@ constexpr bool operator==(const RegisterStateFlags& left,
          left.is_merge == right.is_merge;
 }
 
-typedef base::PointerWithPayload<void, RegisterStateFlags, 2> RegisterState;
+typedef base::PointerWithPayload<void*, RegisterStateFlags, 2> RegisterState;
 
 struct RegisterMerge {
   compiler::InstructionOperand* operands() {

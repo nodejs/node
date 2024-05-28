@@ -52,8 +52,8 @@ enum ExceptionBreakType {
 // below inside BreakLocation, so be careful when adding / removing.
 enum DebugBreakType {
   NOT_DEBUG_BREAK,
-  DEBUGGER_STATEMENT,
   DEBUG_BREAK_AT_ENTRY,
+  DEBUGGER_STATEMENT,
   DEBUG_BREAK_SLOT,
   DEBUG_BREAK_SLOT_AT_CALL,
   DEBUG_BREAK_SLOT_AT_RETURN,
@@ -88,6 +88,7 @@ class BreakLocation {
 
   int generator_suspend_id() { return generator_suspend_id_; }
   int position() const { return position_; }
+  int code_offset() const { return code_offset_; }
 
   debug::BreakLocationType type() const;
 
@@ -486,6 +487,13 @@ class V8_EXPORT_PRIVATE Debug {
 
   static char* Iterate(RootVisitor* v, char* thread_storage);
 
+  // Clear information pertaining to break location muting.
+  void ClearMutedLocation();
+#if V8_ENABLE_WEBASSEMBLY
+  // Mute additional pauses from this Wasm location.
+  void SetMutedWasmLocation(Handle<Script> script, int position);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -530,11 +538,17 @@ class V8_EXPORT_PRIVATE Debug {
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 
+  // Mute additional pauses from this JavaScript location.
+  void SetMutedLocation(Handle<SharedFunctionInfo> function,
+                        const BreakLocation& location);
+
   bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void ActivateStepOut(StackFrame* frame);
   bool IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
                                 const BreakLocation& location);
+  bool IsBreakOnDebuggerStatement(Handle<SharedFunctionInfo> function,
+                                  const BreakLocation& location);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points);
@@ -542,10 +556,11 @@ class V8_EXPORT_PRIVATE Debug {
       Handle<DebugInfo> debug_info, std::vector<BreakLocation>& break_locations,
       bool* has_break_points);
 
-  MaybeHandle<FixedArray> GetHitBreakpointsAtCurrentStatement(
-      JavaScriptFrame* frame, bool* hasBreakpoints);
-
-  bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
+  bool IsMutedAtAnyBreakLocation(Handle<SharedFunctionInfo> function,
+                                 const std::vector<BreakLocation>& locations);
+#if V8_ENABLE_WEBASSEMBLY
+  bool IsMutedAtWasmLocation(Tagged<Script> script, int position);
+#endif  // V8_ENABLE_WEBASSEMBLY
   // Check whether a BreakPoint object is hit. Evaluate condition depending
   // on whether this is a regular break location or a break at function entry.
   bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
@@ -645,10 +660,6 @@ class V8_EXPORT_PRIVATE Debug {
     // to what "BreakOnNextFunctionCall" does.
     bool scheduled_break_on_next_function_call_;
 
-    // Throwing an exception may cause a Promise rejection.  For this purpose
-    // we keep track of a stack of nested promises.
-    Tagged<Object> promise_stack_;
-
     // Frame ID for the frame that needs to be restarted. StackFrameId::NO_ID
     // otherwise. The unwinder uses the id to restart execution in this frame
     // instead of any potential catch handler.
@@ -659,6 +670,17 @@ class V8_EXPORT_PRIVATE Debug {
     // deoptimizer uses the info to materialize and drop execution into the
     // right frame.
     int restart_inline_frame_index_;
+
+    // If the most recent breakpoint did not result in a break because its
+    // condition was false, we will mute other break reasons if we are still at
+    // the same location. In that case, this points to the SharedFunctionInfo
+    // (if JavaScript) or Script (if Wasm) of the location where stopping has
+    // been muted; otherwise it is Smi::zero().
+    Tagged<Object> muted_function_;
+
+    // The source position at which breaking is muted. Only relevant if
+    // muted_function_ is set.
+    int muted_position_;
   };
 
   static void Iterate(RootVisitor* v, ThreadLocal* thread_local_data);

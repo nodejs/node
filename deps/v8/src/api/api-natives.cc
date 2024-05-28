@@ -5,6 +5,7 @@
 #include "src/api/api-natives.h"
 
 #include "src/api/api-inl.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -139,7 +140,7 @@ void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "DisableAccessChecks");
   new_map->set_is_access_check_needed(false);
-  JSObject::MigrateToMap(isolate, Handle<JSObject>::cast(object), new_map);
+  JSObject::MigrateToMap(isolate, object, new_map);
 }
 
 void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
@@ -339,10 +340,16 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
     if (new_target.is_null()) new_target = constructor;
   }
 
+  const auto new_js_object_type =
+      constructor->has_initial_map() &&
+              IsJSApiWrapperObject(constructor->initial_map())
+          ? NewJSObjectType::kAPIWrapper
+          : NewJSObjectType::kNoAPIWrapper;
   Handle<JSObject> object;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,
-      JSObject::New(constructor, new_target, Handle<AllocationSite>::null()),
+      JSObject::New(constructor, new_target, Handle<AllocationSite>::null(),
+                    new_js_object_type),
       JSObject);
 
   if (is_prototype) JSObject::OptimizeAsPrototype(object);
@@ -530,14 +537,16 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
       FunctionTemplateInfo::cast(data->constructor()), isolate);
   Handle<Map> object_map = isolate->factory()->NewContextlessMap(
       JS_SPECIAL_API_OBJECT_TYPE,
-      JSObject::kHeaderSize +
+      JSSpecialObject::kHeaderSize +
           data->embedder_field_count() * kEmbedderDataSlotSize,
       TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
   object_map->set_may_have_interesting_properties(true);
 
-  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(object_map);
+  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(
+      object_map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
+      NewJSObjectType::kAPIWrapper);
   JSObject::ForceSetPrototype(isolate, object,
                               isolate->factory()->null_value());
 

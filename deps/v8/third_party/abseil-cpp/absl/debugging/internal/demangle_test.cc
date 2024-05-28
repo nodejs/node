@@ -300,6 +300,15 @@ TEST(Demangle, AbiTags) {
   EXPECT_STREQ("C[abi:bar][abi:foo]()", tmp);
 }
 
+// Test one Rust symbol to exercise Demangle's delegation path.  Rust demangling
+// itself is more thoroughly tested in demangle_rust_test.cc.
+TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {
+  char tmp[80];
+
+  EXPECT_TRUE(Demangle("_RNvC8my_crate7my_func", tmp, sizeof(tmp)));
+  EXPECT_STREQ("my_crate::my_func", tmp);
+}
+
 // Tests that verify that Demangle footprint is within some limit.
 // They are not to be run under sanitizers as the sanitizers increase
 // stack consumption by about 4x.

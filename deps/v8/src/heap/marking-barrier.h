@@ -68,8 +68,6 @@ class MarkingBarrier {
   inline void MarkValueShared(Tagged<HeapObject> value);
   inline void MarkValueLocal(Tagged<HeapObject> value);
 
-  inline bool WhiteToGreyAndPush(Tagged<HeapObject> value);
-
   void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
                        Tagged<HeapObject> target);
 
@@ -88,8 +86,8 @@ class MarkingBarrier {
   MarkCompactCollector* major_collector_;
   MinorMarkSweepCollector* minor_collector_;
   IncrementalMarking* incremental_marking_;
-  std::unique_ptr<MarkingWorklist::Local> current_worklist_;
-  base::Optional<MarkingWorklist::Local> shared_heap_worklist_;
+  std::unique_ptr<MarkingWorklists::Local> current_worklists_;
+  base::Optional<MarkingWorklists::Local> shared_heap_worklists_;
   MarkingState marking_state_;
   std::unordered_map<MutablePageMetadata*, std::unique_ptr<TypedSlots>,
                      base::hash<MutablePageMetadata*>>

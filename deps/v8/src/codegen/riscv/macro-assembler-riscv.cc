@@ -1704,26 +1704,27 @@ void MacroAssembler::Mv(Register rd, const Operand& rt) {
 void MacroAssembler::CalcScaledAddress(Register rd, Register rt, Register rs,
                                        uint8_t sa) {
   DCHECK(sa >= 1 && sa <= 31);
-  switch (sa) {
-#ifdef CAN_USE_ZBA_INSTRUCTIONS
-    case 1:
-      sh1add(rd, rs, rt);
-      break;
-    case 2:
-      sh2add(rd, rs, rt);
-      break;
-    case 3:
-      sh3add(rd, rs, rt);
-      break;
-#endif
-    default: {
-      UseScratchRegisterScope temps(this);
-      Register tmp = rd == rt ? temps.Acquire() : rd;
-      DCHECK(tmp != rt);
-      slli(tmp, rs, sa);
-      AddWord(rd, rt, tmp);
-    } break;
+  if (CpuFeatures::IsSupported(ZBA)) {
+    switch (sa) {
+      case 1:
+        sh1add(rd, rs, rt);
+        return;
+      case 2:
+        sh2add(rd, rs, rt);
+        return;
+      case 3:
+        sh3add(rd, rs, rt);
+        return;
+      default:
+        break;
+    }
   }
+  UseScratchRegisterScope temps(this);
+  Register tmp = rd == rt ? temps.Acquire() : rd;
+  DCHECK(tmp != rt);
+  slli(tmp, rs, sa);
+  AddWord(rd, rt, tmp);
+  return;
 }
 
 // ------------Pseudo-instructions-------------
@@ -2442,7 +2443,11 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     int reverse_count = RV_li_count(~j.immediate(), temps.hasAvailable());
     if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
       // Ld/Lw a Address from a constant pool.
-      RecordEntry((uintptr_t)j.immediate(), j.rmode());
+#if V8_TARGET_ARCH_RISCV32
+      RecordEntry((uint32_t)j.immediate(), j.rmode());
+#elif V8_TARGET_ARCH_RISCV64
+      RecordEntry((uint64_t)j.immediate(), j.rmode());
+#endif
       auipc(rd, 0);
       // Record a value into constant pool.
       LoadWord(rd, MemOperand(rd, 0));
@@ -3832,304 +3837,304 @@ void MacroAssembler::LoadZeroIfConditionZero(Register dest,
 }
 
 void MacroAssembler::Clz32(Register rd, Register xx) {
-#if CAN_USE_ZBB_INSTRUCTIONS
+  if (CpuFeatures::IsSupported(ZBB)) {
 #if V8_TARGET_ARCH_RISCV64
-  clzw(rd, xx);
+    clzw(rd, xx);
 #else
-  clz(rd, xx);
+    clz(rd, xx);
 #endif
-#else
-  // 32 bit unsigned in lower word: count number of leading zeros.
-  //  int n = 32;
-  //  unsigned y;
+  } else {
+    // 32 bit unsigned in lower word: count number of leading zeros.
+    //  int n = 32;
+    //  unsigned y;
 
-  //  y = x >>16; if (y != 0) { n = n -16; x = y; }
-  //  y = x >> 8; if (y != 0) { n = n - 8; x = y; }
-  //  y = x >> 4; if (y != 0) { n = n - 4; x = y; }
-  //  y = x >> 2; if (y != 0) { n = n - 2; x = y; }
-  //  y = x >> 1; if (y != 0) {rd = n - 2; return;}
-  //  rd = n - x;
+    //  y = x >>16; if (y != 0) { n = n -16; x = y; }
+    //  y = x >> 8; if (y != 0) { n = n - 8; x = y; }
+    //  y = x >> 4; if (y != 0) { n = n - 4; x = y; }
+    //  y = x >> 2; if (y != 0) { n = n - 2; x = y; }
+    //  y = x >> 1; if (y != 0) {rd = n - 2; return;}
+    //  rd = n - x;
 
-  Label L0, L1, L2, L3, L4;
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register x = rd;
-  Register y = temps.Acquire();
-  Register n = temps.Acquire();
-  DCHECK(xx != y && xx != n);
-  Move(x, xx);
-  li(n, Operand(32));
+    Label L0, L1, L2, L3, L4;
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register x = rd;
+    Register y = temps.Acquire();
+    Register n = temps.Acquire();
+    DCHECK(xx != y && xx != n);
+    Move(x, xx);
+    li(n, Operand(32));
 #if V8_TARGET_ARCH_RISCV64
-  srliw(y, x, 16);
-  BranchShort(&L0, eq, y, Operand(zero_reg));
-  Move(x, y);
-  addiw(n, n, -16);
-  bind(&L0);
-  srliw(y, x, 8);
-  BranchShort(&L1, eq, y, Operand(zero_reg));
-  addiw(n, n, -8);
-  Move(x, y);
-  bind(&L1);
-  srliw(y, x, 4);
-  BranchShort(&L2, eq, y, Operand(zero_reg));
-  addiw(n, n, -4);
-  Move(x, y);
-  bind(&L2);
-  srliw(y, x, 2);
-  BranchShort(&L3, eq, y, Operand(zero_reg));
-  addiw(n, n, -2);
-  Move(x, y);
-  bind(&L3);
-  srliw(y, x, 1);
-  subw(rd, n, x);
-  BranchShort(&L4, eq, y, Operand(zero_reg));
-  addiw(rd, n, -2);
-  bind(&L4);
+    srliw(y, x, 16);
+    BranchShort(&L0, eq, y, Operand(zero_reg));
+    Move(x, y);
+    addiw(n, n, -16);
+    bind(&L0);
+    srliw(y, x, 8);
+    BranchShort(&L1, eq, y, Operand(zero_reg));
+    addiw(n, n, -8);
+    Move(x, y);
+    bind(&L1);
+    srliw(y, x, 4);
+    BranchShort(&L2, eq, y, Operand(zero_reg));
+    addiw(n, n, -4);
+    Move(x, y);
+    bind(&L2);
+    srliw(y, x, 2);
+    BranchShort(&L3, eq, y, Operand(zero_reg));
+    addiw(n, n, -2);
+    Move(x, y);
+    bind(&L3);
+    srliw(y, x, 1);
+    subw(rd, n, x);
+    BranchShort(&L4, eq, y, Operand(zero_reg));
+    addiw(rd, n, -2);
+    bind(&L4);
 #elif V8_TARGET_ARCH_RISCV32
-  srli(y, x, 16);
-  BranchShort(&L0, eq, y, Operand(zero_reg));
-  Move(x, y);
-  addi(n, n, -16);
-  bind(&L0);
-  srli(y, x, 8);
-  BranchShort(&L1, eq, y, Operand(zero_reg));
-  addi(n, n, -8);
-  Move(x, y);
-  bind(&L1);
-  srli(y, x, 4);
-  BranchShort(&L2, eq, y, Operand(zero_reg));
-  addi(n, n, -4);
-  Move(x, y);
-  bind(&L2);
-  srli(y, x, 2);
-  BranchShort(&L3, eq, y, Operand(zero_reg));
-  addi(n, n, -2);
-  Move(x, y);
-  bind(&L3);
-  srli(y, x, 1);
-  sub(rd, n, x);
-  BranchShort(&L4, eq, y, Operand(zero_reg));
-  addi(rd, n, -2);
-  bind(&L4);
+    srli(y, x, 16);
+    BranchShort(&L0, eq, y, Operand(zero_reg));
+    Move(x, y);
+    addi(n, n, -16);
+    bind(&L0);
+    srli(y, x, 8);
+    BranchShort(&L1, eq, y, Operand(zero_reg));
+    addi(n, n, -8);
+    Move(x, y);
+    bind(&L1);
+    srli(y, x, 4);
+    BranchShort(&L2, eq, y, Operand(zero_reg));
+    addi(n, n, -4);
+    Move(x, y);
+    bind(&L2);
+    srli(y, x, 2);
+    BranchShort(&L3, eq, y, Operand(zero_reg));
+    addi(n, n, -2);
+    Move(x, y);
+    bind(&L3);
+    srli(y, x, 1);
+    sub(rd, n, x);
+    BranchShort(&L4, eq, y, Operand(zero_reg));
+    addi(rd, n, -2);
+    bind(&L4);
 #endif
-#endif
+  }
 }
 
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Clz64(Register rd, Register xx) {
-#if CAN_USE_ZBB_INSTRUCTIONS
-  clz(rd, xx);
-#else
-  // 64 bit: count number of leading zeros.
-  //  int n = 64;
-  //  unsigned y;
+  if (CpuFeatures::IsSupported(ZBB)) {
+    clz(rd, xx);
+  } else {
+    // 64 bit: count number of leading zeros.
+    //  int n = 64;
+    //  unsigned y;
 
-  //  y = x >>32; if (y != 0) { n = n - 32; x = y; }
-  //  y = x >>16; if (y != 0) { n = n - 16; x = y; }
-  //  y = x >> 8; if (y != 0) { n = n - 8; x = y; }
-  //  y = x >> 4; if (y != 0) { n = n - 4; x = y; }
-  //  y = x >> 2; if (y != 0) { n = n - 2; x = y; }
-  //  y = x >> 1; if (y != 0) {rd = n - 2; return;}
-  //  rd = n - x;
+    //  y = x >>32; if (y != 0) { n = n - 32; x = y; }
+    //  y = x >>16; if (y != 0) { n = n - 16; x = y; }
+    //  y = x >> 8; if (y != 0) { n = n - 8; x = y; }
+    //  y = x >> 4; if (y != 0) { n = n - 4; x = y; }
+    //  y = x >> 2; if (y != 0) { n = n - 2; x = y; }
+    //  y = x >> 1; if (y != 0) {rd = n - 2; return;}
+    //  rd = n - x;
 
-  Label L0, L1, L2, L3, L4, L5;
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register x = rd;
-  Register y = temps.Acquire();
-  Register n = temps.Acquire();
-  DCHECK(xx != y && xx != n);
-  Move(x, xx);
-  li(n, Operand(64));
-  srli(y, x, 32);
-  BranchShort(&L0, eq, y, Operand(zero_reg));
-  addiw(n, n, -32);
-  Move(x, y);
-  bind(&L0);
-  srli(y, x, 16);
-  BranchShort(&L1, eq, y, Operand(zero_reg));
-  addiw(n, n, -16);
-  Move(x, y);
-  bind(&L1);
-  srli(y, x, 8);
-  BranchShort(&L2, eq, y, Operand(zero_reg));
-  addiw(n, n, -8);
-  Move(x, y);
-  bind(&L2);
-  srli(y, x, 4);
-  BranchShort(&L3, eq, y, Operand(zero_reg));
-  addiw(n, n, -4);
-  Move(x, y);
-  bind(&L3);
-  srli(y, x, 2);
-  BranchShort(&L4, eq, y, Operand(zero_reg));
-  addiw(n, n, -2);
-  Move(x, y);
-  bind(&L4);
-  srli(y, x, 1);
-  subw(rd, n, x);
-  BranchShort(&L5, eq, y, Operand(zero_reg));
-  addiw(rd, n, -2);
-  bind(&L5);
-#endif
+    Label L0, L1, L2, L3, L4, L5;
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register x = rd;
+    Register y = temps.Acquire();
+    Register n = temps.Acquire();
+    DCHECK(xx != y && xx != n);
+    Move(x, xx);
+    li(n, Operand(64));
+    srli(y, x, 32);
+    BranchShort(&L0, eq, y, Operand(zero_reg));
+    addiw(n, n, -32);
+    Move(x, y);
+    bind(&L0);
+    srli(y, x, 16);
+    BranchShort(&L1, eq, y, Operand(zero_reg));
+    addiw(n, n, -16);
+    Move(x, y);
+    bind(&L1);
+    srli(y, x, 8);
+    BranchShort(&L2, eq, y, Operand(zero_reg));
+    addiw(n, n, -8);
+    Move(x, y);
+    bind(&L2);
+    srli(y, x, 4);
+    BranchShort(&L3, eq, y, Operand(zero_reg));
+    addiw(n, n, -4);
+    Move(x, y);
+    bind(&L3);
+    srli(y, x, 2);
+    BranchShort(&L4, eq, y, Operand(zero_reg));
+    addiw(n, n, -2);
+    Move(x, y);
+    bind(&L4);
+    srli(y, x, 1);
+    subw(rd, n, x);
+    BranchShort(&L5, eq, y, Operand(zero_reg));
+    addiw(rd, n, -2);
+    bind(&L5);
+  }
 }
 #endif
 void MacroAssembler::Ctz32(Register rd, Register rs) {
-#if CAN_USE_ZBB_INSTRUCTIONS
+  if (CpuFeatures::IsSupported(ZBB)) {
 #if V8_TARGET_ARCH_RISCV64
-  ctzw(rd, rs);
+    ctzw(rd, rs);
 #else
-  ctz(rd, rs);
+    ctz(rd, rs);
 #endif
-#else
-  // Convert trailing zeroes to trailing ones, and bits to their left
-  // to zeroes.
+  } else {
+    // Convert trailing zeroes to trailing ones, and bits to their left
+    // to zeroes.
 
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    AddWord(scratch, rs, -1);
-    Xor(rd, scratch, rs);
-    And(rd, rd, scratch);
-    // Count number of leading zeroes.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      AddWord(scratch, rs, -1);
+      Xor(rd, scratch, rs);
+      And(rd, rd, scratch);
+      // Count number of leading zeroes.
+    }
+    Clz32(rd, rd);
+    {
+      // Subtract number of leading zeroes from 32 to get number of trailing
+      // ones. Remember that the trailing ones were formerly trailing zeroes.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      li(scratch, 32);
+      Sub32(rd, scratch, rd);
+    }
   }
-  Clz32(rd, rd);
-  {
-    // Subtract number of leading zeroes from 32 to get number of trailing
-    // ones. Remember that the trailing ones were formerly trailing zeroes.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, 32);
-    Sub32(rd, scratch, rd);
-  }
-#endif
 }
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Ctz64(Register rd, Register rs) {
-#if CAN_USE_ZBB_INSTRUCTIONS
-  ctz(rd, rs);
-#else
-  // Convert trailing zeroes to trailing ones, and bits to their left
-  // to zeroes.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    AddWord(scratch, rs, -1);
-    Xor(rd, scratch, rs);
-    And(rd, rd, scratch);
-    // Count number of leading zeroes.
+  if (CpuFeatures::IsSupported(ZBB)) {
+    ctz(rd, rs);
+  } else {
+    // Convert trailing zeroes to trailing ones, and bits to their left
+    // to zeroes.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      AddWord(scratch, rs, -1);
+      Xor(rd, scratch, rs);
+      And(rd, rd, scratch);
+      // Count number of leading zeroes.
+    }
+    Clz64(rd, rd);
+    {
+      // Subtract number of leading zeroes from 64 to get number of trailing
+      // ones. Remember that the trailing ones were formerly trailing zeroes.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      li(scratch, 64);
+      SubWord(rd, scratch, rd);
+    }
   }
-  Clz64(rd, rd);
-  {
-    // Subtract number of leading zeroes from 64 to get number of trailing
-    // ones. Remember that the trailing ones were formerly trailing zeroes.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, 64);
-    SubWord(rd, scratch, rd);
-  }
-#endif
 }
 #endif
 void MacroAssembler::Popcnt32(Register rd, Register rs, Register scratch) {
-#if CAN_USE_ZBB_INSTRUCTIONS
+  if (CpuFeatures::IsSupported(ZBB)) {
 #if V8_TARGET_ARCH_RISCV64
-  cpopw(rd, rs);
+    cpopw(rd, rs);
 #else
-  cpop(rd, rs);
+    cpop(rd, rs);
 #endif
-#else
-  DCHECK_NE(scratch, rs);
-  DCHECK_NE(scratch, rd);
-  // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
-  //
-  // A generalization of the best bit counting method to integers of
-  // bit-widths up to 128 (parameterized by type T) is this:
-  //
-  // v = v - ((v >> 1) & (T)~(T)0/3);                           // temp
-  // v = (v & (T)~(T)0/15*3) + ((v >> 2) & (T)~(T)0/15*3);      // temp
-  // v = (v + (v >> 4)) & (T)~(T)0/255*15;                      // temp
-  // c = (T)(v * ((T)~(T)0/255)) >> (sizeof(T) - 1) * BITS_PER_BYTE; //count
-  //
-  // There are algorithms which are faster in the cases where very few
-  // bits are set but the algorithm here attempts to minimize the total
-  // number of instructions executed even when a large number of bits
-  // are set.
-  // The number of instruction is 20.
-  // uint32_t B0 = 0x55555555;     // (T)~(T)0/3
-  // uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
-  // uint32_t B2 = 0x0F0F0F0F;     // (T)~(T)0/255*15
-  // uint32_t value = 0x01010101;  // (T)~(T)0/255
+  } else {
+    DCHECK_NE(scratch, rs);
+    DCHECK_NE(scratch, rd);
+    // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
+    //
+    // A generalization of the best bit counting method to integers of
+    // bit-widths up to 128 (parameterized by type T) is this:
+    //
+    // v = v - ((v >> 1) & (T)~(T)0/3);                           // temp
+    // v = (v & (T)~(T)0/15*3) + ((v >> 2) & (T)~(T)0/15*3);      // temp
+    // v = (v + (v >> 4)) & (T)~(T)0/255*15;                      // temp
+    // c = (T)(v * ((T)~(T)0/255)) >> (sizeof(T) - 1) * BITS_PER_BYTE; //count
+    //
+    // There are algorithms which are faster in the cases where very few
+    // bits are set but the algorithm here attempts to minimize the total
+    // number of instructions executed even when a large number of bits
+    // are set.
+    // The number of instruction is 20.
+    // uint32_t B0 = 0x55555555;     // (T)~(T)0/3
+    // uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
+    // uint32_t B2 = 0x0F0F0F0F;     // (T)~(T)0/255*15
+    // uint32_t value = 0x01010101;  // (T)~(T)0/255
 
-  uint32_t shift = 24;
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch2 = temps.Acquire();
-  Register value = temps.Acquire();
-  DCHECK((rd != value) && (rs != value));
-  li(value, 0x01010101);     // value = 0x01010101;
-  li(scratch2, 0x55555555);  // B0 = 0x55555555;
-  Srl32(scratch, rs, 1);
-  And(scratch, scratch, scratch2);
-  Sub32(scratch, rs, scratch);
-  li(scratch2, 0x33333333);  // B1 = 0x33333333;
-  slli(rd, scratch2, 4);
-  or_(scratch2, scratch2, rd);
-  And(rd, scratch, scratch2);
-  Srl32(scratch, scratch, 2);
-  And(scratch, scratch, scratch2);
-  Add32(scratch, rd, scratch);
-  Srl32(rd, scratch, 4);
-  Add32(rd, rd, scratch);
-  li(scratch2, 0xF);
-  Mul32(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F;
-  And(rd, rd, scratch2);
-  Mul32(rd, rd, value);
-  Srl32(rd, rd, shift);
-#endif
+    uint32_t shift = 24;
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register scratch2 = temps.Acquire();
+    Register value = temps.Acquire();
+    DCHECK((rd != value) && (rs != value));
+    li(value, 0x01010101);     // value = 0x01010101;
+    li(scratch2, 0x55555555);  // B0 = 0x55555555;
+    Srl32(scratch, rs, 1);
+    And(scratch, scratch, scratch2);
+    Sub32(scratch, rs, scratch);
+    li(scratch2, 0x33333333);  // B1 = 0x33333333;
+    slli(rd, scratch2, 4);
+    or_(scratch2, scratch2, rd);
+    And(rd, scratch, scratch2);
+    Srl32(scratch, scratch, 2);
+    And(scratch, scratch, scratch2);
+    Add32(scratch, rd, scratch);
+    Srl32(rd, scratch, 4);
+    Add32(rd, rd, scratch);
+    li(scratch2, 0xF);
+    Mul32(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F;
+    And(rd, rd, scratch2);
+    Mul32(rd, rd, value);
+    Srl32(rd, rd, shift);
+  }
 }
 
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Popcnt64(Register rd, Register rs, Register scratch) {
-#if CAN_USE_ZBB_INSTRUCTIONS
-  cpop(rd, rs);
-#else
-  DCHECK_NE(scratch, rs);
-  DCHECK_NE(scratch, rd);
-  // uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
-  // uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
-  // uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
-  // uint64_t value = 0x0101010101010101l;  // (T)~(T)0/255
-  // uint64_t shift = 24;                   // (sizeof(T) - 1) * BITS_PER_BYTE
-  uint64_t shift = 24;
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch2 = temps.Acquire();
-  Register value = temps.Acquire();
-  DCHECK((rd != value) && (rs != value));
-  li(value, 0x1111111111111111l);  // value = 0x1111111111111111l;
-  li(scratch2, 5);
-  Mul64(scratch2, value, scratch2);  // B0 = 0x5555555555555555l;
-  Srl64(scratch, rs, 1);
-  And(scratch, scratch, scratch2);
-  SubWord(scratch, rs, scratch);
-  li(scratch2, 3);
-  Mul64(scratch2, value, scratch2);  // B1 = 0x3333333333333333l;
-  And(rd, scratch, scratch2);
-  Srl64(scratch, scratch, 2);
-  And(scratch, scratch, scratch2);
-  AddWord(scratch, rd, scratch);
-  Srl64(rd, scratch, 4);
-  AddWord(rd, rd, scratch);
-  li(scratch2, 0xF);
-  li(value, 0x0101010101010101l);    // value = 0x0101010101010101l;
-  Mul64(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F0F0F0F0Fl;
-  And(rd, rd, scratch2);
-  Mul64(rd, rd, value);
-  srli(rd, rd, 32 + shift);
-#endif
+  if (CpuFeatures::IsSupported(ZBB)) {
+    cpop(rd, rs);
+  } else {
+    DCHECK_NE(scratch, rs);
+    DCHECK_NE(scratch, rd);
+    // uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
+    // uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
+    // uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
+    // uint64_t value = 0x0101010101010101l;  // (T)~(T)0/255
+    // uint64_t shift = 24;                   // (sizeof(T) - 1) * BITS_PER_BYTE
+    uint64_t shift = 24;
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register scratch2 = temps.Acquire();
+    Register value = temps.Acquire();
+    DCHECK((rd != value) && (rs != value));
+    li(value, 0x1111111111111111l);  // value = 0x1111111111111111l;
+    li(scratch2, 5);
+    Mul64(scratch2, value, scratch2);  // B0 = 0x5555555555555555l;
+    Srl64(scratch, rs, 1);
+    And(scratch, scratch, scratch2);
+    SubWord(scratch, rs, scratch);
+    li(scratch2, 3);
+    Mul64(scratch2, value, scratch2);  // B1 = 0x3333333333333333l;
+    And(rd, scratch, scratch2);
+    Srl64(scratch, scratch, 2);
+    And(scratch, scratch, scratch2);
+    AddWord(scratch, rd, scratch);
+    Srl64(rd, scratch, 4);
+    AddWord(rd, rd, scratch);
+    li(scratch2, 0xF);
+    li(value, 0x0101010101010101l);    // value = 0x0101010101010101l;
+    Mul64(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F0F0F0F0Fl;
+    And(rd, rd, scratch2);
+    Mul64(rd, rd, value);
+    srli(rd, rd, 32 + shift);
+  }
 }
 #endif
 void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
@@ -6652,13 +6657,6 @@ int MacroAssembler::CallCFunctionHelper(
                              IsolateData::fast_c_call_caller_pc_offset()));
         StoreWord(fp, MemOperand(kRootRegister,
                                  IsolateData::fast_c_call_caller_fp_offset()));
-#if DEBUG
-        // Reset Isolate::context field right before the fast C call such that
-        // the GC can visit this field unconditionally. This is necessary
-        // because CEntry sets it to kInvalidContext in debug build only.
-        static_assert(Context::kNoContext == 0);
-        StoreRootRelative(IsolateData::context_offset(), zero_reg);
-#endif
       } else {
         DCHECK_NOT_NULL(isolate());
         li(scratch,
@@ -6667,15 +6665,6 @@ int MacroAssembler::CallCFunctionHelper(
         li(scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
         StoreWord(fp, MemOperand(scratch));
-#if DEBUG
-        // Reset Isolate::context field right before the fast C call such that
-        // the GC can visit this field unconditionally. This is necessary
-        // because CEntry sets it to kInvalidContext in debug build only.
-        static_assert(Context::kNoContext == 0);
-        StoreWord(zero_reg,
-                  ExternalReferenceAsOperand(
-                      ExternalReference::context_address(isolate()), scratch));
-#endif
       }
     }
   }
@@ -6702,7 +6691,6 @@ int MacroAssembler::CallCFunctionHelper(
 
   int stack_passed_arguments =
       CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
-
   if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
     LoadWord(sp, MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
   } else {
@@ -6781,13 +6769,7 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
                                                MemOperand field_operand) {
   DCHECK(root_array_available());
 #ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Lwu(destination, field_operand);
-  Ld(scratch,
-     MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
-  Or(destination, destination, scratch);
+  DecompressProtected(destination, field_operand);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -6923,6 +6905,22 @@ void MacroAssembler::DecompressTagged(const Register& destination,
 void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
   AddWord(dst, kPtrComprCageBaseRegister, static_cast<int32_t>(immediate));
+}
+
+void MacroAssembler::DecompressProtected(const Register& destination,
+                                         const MemOperand& field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  CHECK(V8_ENABLE_SANDBOX_BOOL);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Lw(destination, field_operand);
+  LoadWord(scratch,
+           MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
+  Or(destination, destination, scratch);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,

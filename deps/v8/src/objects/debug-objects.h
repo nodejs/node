@@ -254,19 +254,6 @@ class ErrorStackData
   TQ_OBJECT_CONSTRUCTORS(ErrorStackData)
 };
 
-class PromiseOnStack
-    : public TorqueGeneratedPromiseOnStack<PromiseOnStack, Struct> {
- public:
-  NEVER_READ_ONLY_SPACE
-
-  static MaybeHandle<JSObject> GetPromise(
-      Handle<PromiseOnStack> promise_on_stack);
-
-  class BodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(PromiseOnStack)
-};
-
 }  // namespace internal
 }  // namespace v8
 

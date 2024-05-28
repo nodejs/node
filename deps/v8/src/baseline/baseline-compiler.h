@@ -18,6 +18,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/map.h"
 #include "src/objects/tagged-index.h"
+#include "src/utils/bit-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -53,7 +54,7 @@ class BaselineCompiler {
                             Handle<BytecodeArray> bytecode);
 
   void GenerateCode();
-  MaybeHandle<Code> Build(LocalIsolate* local_isolate);
+  MaybeHandle<Code> Build();
   static int EstimateInstructionSize(Tagged<BytecodeArray> bytecode);
 
  private:
@@ -178,23 +179,28 @@ class BaselineCompiler {
   // for CFI.
   enum class MarkAsIndirectJumpTarget { kNo, kYes };
 
-  struct BaselineLabelPointer : base::PointerWithPayload<Label, bool, 1> {
-    void MarkAsIndirectJumpTarget() { SetPayload(true); }
-    bool IsIndirectJumpTarget() const { return GetPayload(); }
-  };
-
-  Label* EnsureLabel(
-      int i, MarkAsIndirectJumpTarget mark = MarkAsIndirectJumpTarget::kNo) {
-    if (labels_[i].GetPointer() == nullptr) {
-      labels_[i].SetPointer(zone_.New<Label>());
+  Label* EnsureLabel(int offset, MarkAsIndirectJumpTarget mark =
+                                     MarkAsIndirectJumpTarget::kNo) {
+    Label* label = &labels_[offset];
+    if (!label_tags_.Contains(offset * 2)) {
+      label_tags_.Add(offset * 2);
+      new (label) Label();
     }
     if (mark == MarkAsIndirectJumpTarget::kYes) {
-      labels_[i].MarkAsIndirectJumpTarget();
+      MarkIndirectJumpTarget(offset);
     }
-    return labels_[i].GetPointer();
+    return label;
   }
+  bool IsJumpTarget(int offset) const {
+    return label_tags_.Contains(offset * 2);
+  }
+  bool IsIndirectJumpTarget(int offset) const {
+    return label_tags_.Contains(offset * 2 + 1);
+  }
+  void MarkIndirectJumpTarget(int offset) { label_tags_.Add(offset * 2 + 1); }
 
-  BaselineLabelPointer* labels_;
+  Label* labels_;
+  BitVector label_tags_;
 
 #ifdef DEBUG
   friend class SaveAccumulatorScope;

@@ -62,6 +62,7 @@
 #include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/tracing/traced-value.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
@@ -80,7 +81,8 @@ constexpr bool IsOSR(BytecodeOffset osr_offset) { return !osr_offset.IsNone(); }
 void SetTieringState(IsolateForSandbox isolate, Tagged<JSFunction> function,
                      BytecodeOffset osr_offset, TieringState value) {
   if (IsOSR(osr_offset)) {
-    function->set_osr_tiering_state(value);
+    DCHECK(value == TieringState::kInProgress || value == TieringState::kNone);
+    function->set_osr_tiering_in_progress(IsInProgress(value));
   } else {
     function->set_tiering_state(isolate, value);
   }
@@ -1055,6 +1057,7 @@ class OptimizedCodeCache : public AllStatic {
       return;
     }
 
+    function->shared()->set_function_context_independent_compiled(true);
     feedback_vector->SetOptimizedCode(isolate, code);
   }
 };
@@ -1361,7 +1364,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
   if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
           .ToHandle(&cached_code)) {
     if (IsOSR(osr_offset)) {
-      if (!IsInProgress(function->osr_tiering_state())) {
+      if (!function->osr_tiering_in_progress()) {
         function->feedback_vector()->reset_osr_urgency();
       }
     } else {
@@ -1372,7 +1375,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
 
   if (IsOSR(osr_offset)) {
     // One OSR job per function at a time.
-    if (IsInProgress(function->osr_tiering_state())) {
+    if (function->osr_tiering_in_progress()) {
       return {};
     }
 
@@ -3034,14 +3037,12 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 }
 
 // Check whether embedder allows code generation in this context.
-// (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback
-//  or v8::Isolate::SetModifyCodeGenerationFromStringsCallback2)
+// (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback)
 bool ModifyCodeGenerationFromStrings(Isolate* isolate,
                                      Handle<NativeContext> context,
                                      Handle<i::Object>* source,
                                      bool is_code_like) {
-  DCHECK(isolate->modify_code_gen_callback() ||
-         isolate->modify_code_gen_callback2());
+  DCHECK(isolate->modify_code_gen_callback());
   DCHECK(source);
 
   // Callback set. Run it, and use the return value as source, or block
@@ -3049,12 +3050,9 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate,
   VMState<EXTERNAL> state(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   ModifyCodeGenerationFromStringsResult result =
-      isolate->modify_code_gen_callback()
-          ? isolate->modify_code_gen_callback()(v8::Utils::ToLocal(context),
-                                                v8::Utils::ToLocal(*source))
-          : isolate->modify_code_gen_callback2()(v8::Utils::ToLocal(context),
-                                                 v8::Utils::ToLocal(*source),
-                                                 is_code_like);
+      isolate->modify_code_gen_callback()(v8::Utils::ToLocal(context),
+                                          v8::Utils::ToLocal(*source),
+                                          is_code_like);
   if (result.codegen_allowed && !result.modified_source.IsEmpty()) {
     // Use the new source (which might be the same as the old source).
     *source =
@@ -3112,8 +3110,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   // Check if the context wants to block or modify this source object.
   // Double-check that we really have a string now.
   // (Let modify_code_gen_callback decide, if it's been set.)
-  if (isolate->modify_code_gen_callback() ||
-      isolate->modify_code_gen_callback2()) {
+  if (isolate->modify_code_gen_callback()) {
     Handle<i::Object> modified_source = original_source;
     if (!ModifyCodeGenerationFromStrings(isolate, context, &modified_source,
                                          is_code_like)) {
@@ -3218,7 +3215,6 @@ struct ScriptCompileTimerScope {
         all_scripts_histogram_scope_(isolate->counters()->compile_script()),
         no_cache_reason_(no_cache_reason),
         hit_isolate_cache_(false),
-        producing_code_cache_(false),
         consuming_code_cache_(false),
         consuming_code_cache_failed_(false) {}
 
@@ -3241,8 +3237,6 @@ struct ScriptCompileTimerScope {
 
   void set_hit_isolate_cache() { hit_isolate_cache_ = true; }
 
-  void set_producing_code_cache() { producing_code_cache_ = true; }
-
   void set_consuming_code_cache() { consuming_code_cache_ = true; }
 
   void set_consuming_code_cache_failed() {
@@ -3257,19 +3251,10 @@ struct ScriptCompileTimerScope {
   NestedTimedHistogramScope all_scripts_histogram_scope_;
   ScriptCompiler::NoCacheReason no_cache_reason_;
   bool hit_isolate_cache_;
-  bool producing_code_cache_;
   bool consuming_code_cache_;
   bool consuming_code_cache_failed_;
 
   CacheBehaviour GetCacheBehaviour() {
-    if (producing_code_cache_) {
-      if (hit_isolate_cache_) {
-        return CacheBehaviour::kHitIsolateCacheWhenProduceCodeCache;
-      } else {
-        return CacheBehaviour::kProduceCodeCache;
-      }
-    }
-
     if (consuming_code_cache_) {
       if (hit_isolate_cache_) {
         return CacheBehaviour::kHitIsolateCacheWhenConsumeCodeCache;
@@ -3280,7 +3265,15 @@ struct ScriptCompileTimerScope {
     }
 
     if (hit_isolate_cache_) {
-      if (no_cache_reason_ == ScriptCompiler::kNoCacheBecauseStreamingSource) {
+      // A roundabout way of knowing the embedder is going to produce a code
+      // cache (which is done by a separate API call later) is to check whether
+      // no_cache_reason_ is
+      // ScriptCompiler::kNoCacheBecauseDeferredProduceCodeCache.
+      if (no_cache_reason_ ==
+          ScriptCompiler::kNoCacheBecauseDeferredProduceCodeCache) {
+        return CacheBehaviour::kHitIsolateCacheWhenProduceCodeCache;
+      } else if (no_cache_reason_ ==
+                 ScriptCompiler::kNoCacheBecauseStreamingSource) {
         return CacheBehaviour::kHitIsolateCacheWhenStreamingSource;
       }
       return CacheBehaviour::kHitIsolateCacheWhenNoCache;
@@ -3315,14 +3308,9 @@ struct ScriptCompileTimerScope {
         return CacheBehaviour::kNoCacheBecauseInDocumentWrite;
       case ScriptCompiler::kNoCacheBecauseResourceWithNoCacheHandler:
         return CacheBehaviour::kNoCacheBecauseResourceWithNoCacheHandler;
-      case ScriptCompiler::kNoCacheBecauseDeferredProduceCodeCache: {
-        if (hit_isolate_cache_) {
-          return CacheBehaviour::kHitIsolateCacheWhenProduceCodeCache;
-        } else {
-          return CacheBehaviour::kProduceCodeCache;
-        }
+      case ScriptCompiler::kNoCacheBecauseDeferredProduceCodeCache:
+        return CacheBehaviour::kProduceCodeCache;
       }
-    }
     UNREACHABLE();
   }
 
@@ -4233,7 +4221,65 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     // If it's a top-level script, report compilation to the debugger.
     Handle<Script> script(Script::cast(shared->script()), isolate);
     isolate->debug()->OnAfterCompile(script);
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+                 "ScriptCompiled", "data",
+                 AddScriptCompiledTrace(isolate, shared));
+    TRACE_EVENT1(
+        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+        "ScriptCompiled", "data", AddScriptSourceTextTrace(isolate, shared));
   }
+}
+
+std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  i::Tagged<i::Object> context_value =
+      isolate->native_context()->debug_context_id();
+  int contextId = (IsSmi(context_value)) ? i::Smi::ToInt(context_value) : 0;
+  Script::InitLineEnds(isolate, script);
+  Script::PositionInfo endInfo;
+  Script::GetPositionInfo(script, i::String::cast(script->source())->length(),
+                          &endInfo);
+  Script::PositionInfo startInfo;
+  Script::GetPositionInfo(script, shared->StartPosition(), &startInfo);
+  auto value = v8::tracing::TracedValue::Create();
+  value->SetString("isolate",
+                   std::to_string(reinterpret_cast<size_t>(isolate)));
+  value->SetInteger("executionContextId", contextId);
+  value->SetInteger("scriptId", script->id());
+  value->SetInteger("startLine", startInfo.line);
+  value->SetInteger("startColumn", startInfo.column);
+  value->SetInteger("endLine", endInfo.line);
+  value->SetInteger("endColumn", endInfo.column);
+  value->SetBoolean("isModule", script->origin_options().IsModule());
+  value->SetBoolean("hasSourceUrl", script->HasValidSource());
+  if (script->HasValidSource() && IsString(script->GetNameOrSourceURL())) {
+    value->SetString(
+        "sourceMapUrl",
+        i::String::cast(script->GetNameOrSourceURL())->ToCString().get());
+  }
+  value->SetString("url", i::String::cast(script->name())->ToCString().get());
+  value->SetString("hash",
+                   i::Script::GetScriptHash(isolate, script,
+                                            /* forceForInspector: */ false)
+                       ->ToCString()
+                       .get());
+  return value;
+}
+
+std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptSourceTextTrace(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  auto value = v8::tracing::TracedValue::Create();
+  value->SetString("isolate",
+                   std::to_string(reinterpret_cast<size_t>(isolate)));
+  value->SetInteger("scriptId", script->id());
+  if (IsString(script->source())) {
+    Tagged<String> source = i::String::cast(script->source());
+    value->SetInteger("length", source->length());
+    value->SetString("sourceText", source->ToCString().get());
+  }
+  return value;
 }
 
 // ----------------------------------------------------------------------------

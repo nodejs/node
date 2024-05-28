@@ -29,7 +29,7 @@ if (this.Worker) {
   worker2.postMessage(msg);
 
   // Spin until both workers are waiting.
-  while (%AtomicsConditionNumWaitersForTesting(cv) != 2) {}
+  while (%AtomicsSynchronizationPrimitiveNumWaitersForTesting(cv) != 2) {}
 
   assertEquals(2, Atomics.Condition.notify(cv, 2));
 

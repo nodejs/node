@@ -203,6 +203,8 @@ void WasmFunctionBuilder::EmitI32V(int32_t val) { body_.write_i32v(val); }
 
 void WasmFunctionBuilder::EmitU32V(uint32_t val) { body_.write_u32v(val); }
 
+void WasmFunctionBuilder::EmitU64V(uint64_t val) { body_.write_u64v(val); }
+
 void WasmFunctionBuilder::SetSignature(const FunctionSig* sig) {
   DCHECK(!locals_.has_sig());
   locals_.set_sig(sig);
@@ -427,6 +429,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       exports_(zone),
       functions_(zone),
       tables_(zone),
+      memories_(zone),
       data_segments_(zone),
       element_segments_(zone),
       globals_(zone),
@@ -434,11 +437,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       signature_map_(zone),
       current_recursive_group_start_(-1),
       recursive_groups_(zone),
-      start_function_index_(-1),
-      min_memory_size_(16),
-      max_memory_size_(0),
-      has_max_memory_size_(false),
-      has_shared_memory_(false) {}
+      start_function_index_(-1) {}
 
 WasmFunctionBuilder* WasmModuleBuilder::AddFunction(const FunctionSig* sig) {
   functions_.push_back(zone_->New<WasmFunctionBuilder>(this));
@@ -539,6 +538,22 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
+uint32_t WasmModuleBuilder::AddMemory(uint32_t min_size) {
+  memories_.push_back({min_size, 0, false, false, false});
+  return static_cast<uint32_t>(memories_.size() - 1);
+}
+
+uint32_t WasmModuleBuilder::AddMemory(uint32_t min_size, uint32_t max_size) {
+  memories_.push_back({min_size, max_size, true, false, false});
+  return static_cast<uint32_t>(memories_.size() - 1);
+}
+
+uint32_t WasmModuleBuilder::AddMemory64(uintptr_t min_size,
+                                        uintptr_t max_size) {
+  memories_.push_back({min_size, max_size, true, false, true});
+  return static_cast<uint32_t>(memories_.size() - 1);
+}
+
 uint32_t WasmModuleBuilder::AddElementSegment(WasmElemSegment segment) {
   element_segments_.push_back(std::move(segment));
   return static_cast<uint32_t>(element_segments_.size() - 1);
@@ -605,17 +620,6 @@ uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool mutability,
   globals_.push_back({type, mutability, init});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
-
-void WasmModuleBuilder::SetMinMemorySize(uint32_t value) {
-  min_memory_size_ = value;
-}
-
-void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
-  has_max_memory_size_ = true;
-  max_memory_size_ = value;
-}
-
-void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 
 void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit magic =============================================================
@@ -741,23 +745,31 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == Emit memory declaration ================================================
-  {
+  if (!memories_.empty()) {
     size_t start = EmitSection(kMemorySectionCode, buffer);
-    buffer->write_u8(1);  // memory count
-    if (has_shared_memory_) {
-      buffer->write_u8(has_max_memory_size_ ? kSharedWithMaximum
-                                            : kSharedNoMaximum);
-    } else {
-      buffer->write_u8(has_max_memory_size_ ? kWithMaximum : kNoMaximum);
-    }
-    buffer->write_u32v(min_memory_size_);
-    if (has_max_memory_size_) {
-      buffer->write_u32v(max_memory_size_);
+    buffer->write_size(memories_.size());
+    for (const WasmMemory& memory : memories_) {
+      uint8_t limits_byte = (memory.is_memory64 ? 4 : 0) |
+                            (memory.is_shared ? 2 : 0) |
+                            (memory.has_max_size ? 1 : 0);
+      buffer->write_u8(limits_byte);
+      auto WriteValToBuffer = [&](uintptr_t val) {
+        if (memory.is_memory64) {
+          buffer->write_u64v(val);
+        } else {
+          DCHECK_EQ(val, static_cast<uint32_t>(val));
+          buffer->write_u32v(static_cast<uint32_t>(val));
+        }
+      };
+      WriteValToBuffer(memory.min_size);
+      if (memory.has_max_size) {
+        WriteValToBuffer(memory.max_size);
+      }
     }
     FixupSection(buffer, start);
   }
 
-  // Emit event section.
+  // == Emit event section =====================================================
   if (!tags_.empty()) {
     size_t start = EmitSection(kTagSectionCode, buffer);
     buffer->write_size(tags_.size());
@@ -781,7 +793,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
-  // == emit exports ===========================================================
+  // == Emit exports ===========================================================
   if (!exports_.empty()) {
     size_t start = EmitSection(kExportSectionCode, buffer);
     buffer->write_size(exports_.size());
@@ -808,14 +820,14 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
-  // == emit start function index ==============================================
+  // == Emit start function index ==============================================
   if (start_function_index_ >= 0) {
     size_t start = EmitSection(kStartSectionCode, buffer);
     buffer->write_size(start_function_index_ + function_imports_.size());
     FixupSection(buffer, start);
   }
 
-  // == emit element segments ==================================================
+  // == Emit element segments ==================================================
   if (!element_segments_.empty()) {
     size_t start = EmitSection(kElementSectionCode, buffer);
     buffer->write_size(element_segments_.size());
@@ -860,7 +872,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
-  // == emit data segment count section ========================================
+  // == Emit data segment count section ========================================
   if (std::any_of(
           data_segments_.begin(), data_segments_.end(),
           [](const WasmDataSegment& segment) { return !segment.is_active; })) {
@@ -869,7 +881,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_u32v(static_cast<uint32_t>(data_segments_.size()));
   }
 
-  // == emit compilation hints section =========================================
+  // == Emit compilation hints section =========================================
   bool emit_compilation_hints = false;
   for (auto* fn : functions_) {
     if (fn->hint_ != kNoCompilationHint) {
@@ -895,7 +907,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
-  // == emit code ==============================================================
+  // == Emit code ==============================================================
   if (!functions_.empty()) {
     size_t start = EmitSection(kCodeSectionCode, buffer);
     buffer->write_size(functions_.size());
@@ -905,7 +917,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
-  // == emit data segments =====================================================
+  // == Emit data segments =====================================================
   if (!data_segments_.empty()) {
     size_t start = EmitSection(kDataSectionCode, buffer);
     buffer->write_size(data_segments_.size());

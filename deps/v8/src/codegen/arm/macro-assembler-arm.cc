@@ -1485,14 +1485,14 @@ void MacroAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFrame(int stack_space,
+void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+
+  using ER = ExternalReference;
 
   // Set up the frame structure on the stack.
   DCHECK_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
@@ -1508,12 +1508,12 @@ void MacroAssembler::EnterExitFrame(int stack_space,
   }
 
   // Save the frame pointer and the context in top.
-  Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                          isolate()));
-  str(fp, MemOperand(scratch));
-  Move(scratch,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  str(cp, MemOperand(scratch));
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  str(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  str(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   // Reserve place for the return address and stack space and align the frame
   // preparing for calling the runtime function.
@@ -1542,40 +1542,29 @@ int MacroAssembler::ActivationFrameAlignment() {
 #endif  // V8_HOST_ARCH_ARM
 }
 
-void MacroAssembler::LeaveExitFrame(Register argument_count,
-                                    bool argument_count_is_length) {
+void MacroAssembler::LeaveExitFrame(Register scratch) {
   ASM_CODE_COMMENT(this);
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
 
-  // Clear top frame.
-  mov(r3, Operand::Zero());
-  Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                          isolate()));
-  str(r3, MemOperand(scratch));
+  using ER = ExternalReference;
 
   // Restore current context from top and clear it in debug mode.
-  Move(scratch,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  ldr(cp, MemOperand(scratch));
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  ldr(cp, ExternalReferenceAsOperand(context_address, no_reg));
 #ifdef DEBUG
-  mov(r3, Operand(Context::kInvalidContext));
-  Move(scratch,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  str(r3, MemOperand(scratch));
+  mov(scratch, Operand(Context::kInvalidContext));
+  str(scratch, ExternalReferenceAsOperand(context_address, no_reg));
 #endif
+
+  // Clear the top frame.
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  mov(scratch, Operand::Zero());
+  str(scratch, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
 
   // Tear down the exit frame, pop the arguments, and return.
   mov(sp, Operand(fp));
   ldm(ia_w, sp, {fp, lr});
-  if (argument_count.is_valid()) {
-    if (argument_count_is_length) {
-      add(sp, sp, argument_count);
-    } else {
-      add(sp, sp, Operand(argument_count, LSL, kPointerSizeLog2));
-    }
-  }
 }
 
 void MacroAssembler::MovFromFloatResult(const DwVfpRegister dst) {
@@ -2782,13 +2771,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                  IsolateData::fast_c_call_caller_pc_offset()));
       str(fp, MemOperand(kRootRegister,
                          IsolateData::fast_c_call_caller_fp_offset()));
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      mov(pc_scratch, Operand(Context::kNoContext));
-      StoreRootRelative(IsolateData::context_offset(), pc_scratch);
-#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       Register addr_scratch = r4;
@@ -2800,15 +2782,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       str(fp, MemOperand(addr_scratch));
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      mov(pc_scratch, Operand(Context::kNoContext));
-      str(pc_scratch,
-          ExternalReferenceAsOperand(
-              ExternalReference::context_address(isolate()), addr_scratch));
-#endif
       Pop(addr_scratch);
     }
 
@@ -3239,16 +3212,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   __ RecordComment("Leave the API exit frame.");
   __ bind(&leave_exit_frame);
-  // LeaveExitFrame expects unwind space to be in a register.
+
   Register stack_space_reg = prev_limit_reg;
-  if (stack_space_operand == nullptr) {
-    DCHECK_NE(stack_space, 0);
-    __ mov(stack_space_reg, Operand(stack_space));
-  } else {
+  if (stack_space_operand != nullptr) {
     DCHECK_EQ(stack_space, 0);
+    // Load the number of stack slots to drop before LeaveExitFrame modifies sp.
     __ ldr(stack_space_reg, *stack_space_operand);
   }
-  __ LeaveExitFrame(stack_space_reg, stack_space_operand != nullptr);
+  __ LeaveExitFrame(scratch);
 
   {
     ASM_CODE_COMMENT_STRING(masm,
@@ -3271,6 +3242,16 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   __ AssertJSAny(return_value, scratch, scratch2,
                  AbortReason::kAPICallReturnedInvalidObject);
+
+  if (stack_space_operand == nullptr) {
+    DCHECK_NE(stack_space, 0);
+    __ add(sp, sp, Operand(stack_space * kPointerSize));
+
+  } else {
+    DCHECK_EQ(stack_space, 0);
+    // {stack_space_operand} was loaded into {stack_space_reg} above.
+    __ add(sp, sp, stack_space_reg);
+  }
 
   __ mov(pc, lr);
 

@@ -61,16 +61,24 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
   void* ptr = reinterpret_cast<void*>(address);
   // It's assumed that free regions are in kNoAccess/kNoAccessWillJitLater
   // state.
-  if (access != PageAllocator::kNoAccess &&
-      access != PageAllocator::kNoAccessWillJitLater) {
-    if (!page_allocator_->SetPermissions(ptr, size, access)) {
-      // This most likely means that we ran out of memory.
-      CHECK_EQ(region_allocator_.FreeRegion(address), size);
-      return nullptr;
+  if (access == PageAllocator::kNoAccess ||
+      access == PageAllocator::kNoAccessWillJitLater) {
+    return ptr;
+  }
+
+  if (page_initialization_mode_ == PageInitializationMode::kRecommitOnly) {
+    if (page_allocator_->RecommitPages(ptr, size, access)) {
+      return ptr;
+    }
+  } else {
+    if (page_allocator_->SetPermissions(ptr, size, access)) {
+      return ptr;
     }
   }
 
-  return ptr;
+  // This most likely means that we ran out of memory.
+  CHECK_EQ(region_allocator_.FreeRegion(address), size);
+  return nullptr;
 }
 
 bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
@@ -132,9 +140,9 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
     // pages here, which will cause any wired pages to be removed by the OS.
     return page_allocator_->DecommitPages(raw_address, size);
   }
-  DCHECK_EQ(page_initialization_mode_,
-            PageInitializationMode::kAllocatedPagesCanBeUninitialized);
   if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
+    DCHECK_EQ(page_initialization_mode_,
+              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
     return page_allocator_->SetPermissions(raw_address, size,
                                            PageAllocator::kNoAccess);
   }
@@ -178,9 +186,9 @@ bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
     // See comment in FreePages().
     return (page_allocator_->DecommitPages(free_address, free_size));
   }
-  DCHECK_EQ(page_initialization_mode_,
-            PageInitializationMode::kAllocatedPagesCanBeUninitialized);
   if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
+    DCHECK_EQ(page_initialization_mode_,
+              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
     return page_allocator_->SetPermissions(free_address, free_size,
                                            PageAllocator::kNoAccess);
   }

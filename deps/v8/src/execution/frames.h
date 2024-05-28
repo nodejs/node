@@ -357,7 +357,6 @@ class StackFrame {
 
  protected:
   inline explicit StackFrame(StackFrameIteratorBase* iterator);
-  virtual ~StackFrame() = default;
 
   // Compute the stack pointer for the calling frame.
   virtual Address GetCallerStackPointer() const = 0;
@@ -447,7 +446,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
 #if V8_ENABLE_WEBASSEMBLY
   class WasmFrameSummary : public FrameSummaryBase {
    public:
-    WasmFrameSummary(Isolate* isolate, Handle<WasmInstanceObject> instance,
+    WasmFrameSummary(Isolate* isolate,
+                     Handle<WasmTrustedInstanceData> instance_data,
                      wasm::WasmCode* code, int byte_offset, int function_index,
                      bool at_to_number_conversion);
 
@@ -461,14 +461,16 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
-    Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
-    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
+    Handle<WasmInstanceObject> wasm_instance() const;
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
+      return instance_data_;
+    }
     Handle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
     Handle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
-    Handle<WasmInstanceObject> wasm_instance_;
+    Handle<WasmTrustedInstanceData> instance_data_;
     bool at_to_number_conversion_;
     wasm::WasmCode* code_;
     int byte_offset_;
@@ -480,11 +482,13 @@ class V8_EXPORT_PRIVATE FrameSummary {
   class WasmInlinedFrameSummary : public FrameSummaryBase {
    public:
     WasmInlinedFrameSummary(Isolate* isolate,
-                            Handle<WasmInstanceObject> instance,
+                            Handle<WasmTrustedInstanceData> instance_data,
                             int function_index, int op_wire_bytes_offset);
 
-    Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
-    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
+    Handle<WasmInstanceObject> wasm_instance() const;
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
+      return instance_data_;
+    }
     Handle<Object> receiver() const;
     uint32_t function_index() const;
     int code_offset() const { return op_wire_bytes_offset_; }
@@ -497,7 +501,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
-    Handle<WasmInstanceObject> wasm_instance_;
+    Handle<WasmTrustedInstanceData> instance_data_;
     int function_index_;
     int op_wire_bytes_offset_;  // relative to function offset.
   };
@@ -1472,9 +1476,12 @@ class StackFrameIteratorBase {
   explicit StackFrameIteratorBase(Isolate* isolate);
 
   Isolate* const isolate_;
+  union {
+    char uninitialized_;
 #define DECLARE_SINGLETON(ignore, type) type type##_;
   STACK_FRAME_TYPE_LIST(DECLARE_SINGLETON)
 #undef DECLARE_SINGLETON
+  };
   StackFrame* frame_;
   StackHandler* handler_;
 
@@ -1483,10 +1490,10 @@ class StackFrameIteratorBase {
     return handler_;
   }
 
-  // Get the type-specific frame singleton in a given state.
-  StackFrame* SingletonFor(StackFrame::Type type, StackFrame::State* state);
-  // A helper function, can return a nullptr pointer.
-  StackFrame* SingletonFor(StackFrame::Type type);
+  // Update the current frame to the given state.
+  void SetNewFrame(StackFrame::Type type, StackFrame::State* state);
+  // A helper function, can set the frame to nullptr.
+  void SetNewFrame(StackFrame::Type type);
 
  private:
   friend class StackFrame;
@@ -1626,11 +1633,14 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
 #endif
     return low_bound_ <= addr && addr <= high_bound_;
   }
-  bool IsValidFrame(StackFrame* frame) const;
-  bool IsValidCaller(StackFrame* frame);
+  bool IsValidState(const StackFrame::State& frame) const;
+  bool HasValidExitIfEntryFrame(const StackFrame* frame) const;
   bool IsValidExitFrame(Address fp) const;
   bool IsValidTop(ThreadLocalTop* top) const;
   static bool IsValidFrameType(StackFrame::Type type);
+
+  StackFrame::Type GetCallerIfValid(StackFrame* frame,
+                                    StackFrame::State* state);
 
   // Returns true if the pc points to a bytecode handler and the frame pointer
   // doesn't seem to be a bytecode handler's frame, which implies that the

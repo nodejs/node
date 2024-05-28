@@ -105,7 +105,7 @@ GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     Counters* counters = heap->isolate()->counters();
-    const bool in_background = heap->isolate()->IsIsolateInBackground();
+    const bool in_background = heap->isolate()->is_backgrounded();
     const bool is_incremental = !heap->incremental_marking()->IsStopped();
     mode_ = Mode::None;
     // The following block selects histogram counters to emit. The trace event
@@ -340,9 +340,7 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
   auto* long_task_stats = heap_->isolate()->GetCurrentLongTaskStats();
   const bool is_young = Heap::IsYoungGenerationCollector(collector);
   if (is_young) {
-    recorded_minor_gcs_total_.Push(
-        BytesAndDuration(current_.young_object_size, duration));
-    recorded_minor_gcs_survived_.Push(
+    recorded_minor_gc_atomic_pause_.Push(
         BytesAndDuration(current_.survived_young_object_size, duration));
     long_task_stats->gc_young_wall_clock_duration_us +=
         duration.InMicroseconds();
@@ -428,6 +426,23 @@ void GCTracer::StopAtomicPause() {
   current_.state = Event::State::SWEEPING;
 }
 
+namespace {
+
+// Estimate of young generation wall time across all threads up to and including
+// the atomic pause.
+constexpr v8::base::TimeDelta YoungGenerationWallTime(
+    const GCTracer::Event& event) {
+  return
+      // Scavenger events.
+      event.scopes[GCTracer::Scope::SCAVENGER] +
+      event.scopes[GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
+      // Minor MS events.
+      event.scopes[GCTracer::Scope::MINOR_MS] +
+      event.scopes[GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING];
+}
+
+}  // namespace
+
 void GCTracer::StopCycle(GarbageCollector collector) {
   DCHECK_EQ(Event::State::SWEEPING, current_.state);
   current_.state = Event::State::NOT_RUNNING;
@@ -438,6 +453,11 @@ void GCTracer::StopCycle(GarbageCollector collector) {
 
   if (Heap::IsYoungGenerationCollector(collector)) {
     ReportYoungCycleToRecorder();
+
+    const v8::base::TimeDelta per_thread_wall_time =
+        YoungGenerationWallTime(current_) / current_.concurrency_estimate;
+    recorded_minor_gc_per_thread_.Push(BytesAndDuration(
+        current_.survived_young_object_size, per_thread_wall_time));
 
     // If a young generation GC interrupted an unfinished full GC cycle, restore
     // the event corresponding to the full GC cycle.
@@ -620,6 +640,13 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
     heap_->mb_->UpdateAllocationRate(old_generation_allocated_bytes,
                                      allocation_duration);
   }
+}
+
+void GCTracer::SampleConcurrencyEsimate(size_t concurrency) {
+  // For now, we only expect a single sample.
+  DCHECK_EQ(current_.concurrency_estimate, 1);
+  DCHECK_GT(concurrency, 0);
+  current_.concurrency_estimate = concurrency;
 }
 
 void GCTracer::NotifyMarkingStart() {
@@ -805,7 +832,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
-          "pool_chunks=%d\n",
+          "pool_chunks=%zu\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
           young_gc_while_full_gc_,
@@ -829,17 +856,18 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL),
           incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps,
           current_scope(Scope::MC_INCREMENTAL),
-          ScavengeSpeedInBytesPerMillisecond(), current_.start_object_size,
-          current_.end_object_size, current_.start_holes_size,
-          current_.end_holes_size, allocated_since_last_gc,
-          heap_->promoted_objects_size(),
+          YoungGenerationSpeedInBytesPerMillisecond(
+              YoungGenerationSpeedMode::kOnlyAtomicPause),
+          current_.start_object_size, current_.end_object_size,
+          current_.start_holes_size, current_.end_holes_size,
+          allocated_since_last_gc, heap_->promoted_objects_size(),
           heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->pool()->NumberOfChunks());
+          heap_->memory_allocator()->pool()->NumberOfCommittedChunks());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
     case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
@@ -1024,7 +1052,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
-          "pool_chunks=%d "
+          "pool_chunks=%zu "
           "compaction_speed=%.f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
@@ -1107,7 +1135,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->pool()->NumberOfChunks(),
+          heap_->memory_allocator()->pool()->NumberOfCommittedChunks(),
           CompactionSpeedInBytesPerMillisecond());
       break;
     case Event::Type::START:
@@ -1208,13 +1236,15 @@ double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
   return recorded_embedder_speed_;
 }
 
-double GCTracer::ScavengeSpeedInBytesPerMillisecond(
-    ScavengeSpeedMode mode) const {
-  if (mode == kForAllObjects) {
-    return BoundedAverageSpeed(recorded_minor_gcs_total_);
-  } else {
-    return BoundedAverageSpeed(recorded_minor_gcs_survived_);
+double GCTracer::YoungGenerationSpeedInBytesPerMillisecond(
+    YoungGenerationSpeedMode mode) const {
+  switch (mode) {
+    case YoungGenerationSpeedMode::kUpToAndIncludingAtomicPause:
+      return BoundedAverageSpeed(recorded_minor_gc_per_thread_);
+    case YoungGenerationSpeedMode::kOnlyAtomicPause:
+      return BoundedAverageSpeed(recorded_minor_gc_atomic_pause_);
   }
+  UNREACHABLE();
 }
 
 double GCTracer::CompactionSpeedInBytesPerMillisecond() const {
@@ -1363,11 +1393,6 @@ void GCTracer::RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode) {
       heap_->isolate()->counters()->incremental_marking_sum()->AddSample(
           TruncateToMs(current_.incremental_marking_duration));
     }
-    const base::TimeDelta overall_marking_time =
-        current_.incremental_marking_duration + current_.scopes[Scope::MC_MARK];
-    heap_->isolate()->counters()->gc_marking_sum()->AddSample(
-        TruncateToMs(overall_marking_time));
-
     DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
   } else if (mode == RecordGCPhasesInfo::Mode::Scavenger) {
     counters->gc_scavenger_scavenge_main()->AddSample(
@@ -1722,10 +1747,8 @@ void GCTracer::ReportYoungCycleToRecorder() {
 
   // Total:
   const base::TimeDelta total_wall_clock_duration =
-      current_.scopes[Scope::SCAVENGER] +
-      current_.scopes[Scope::MINOR_MARK_SWEEPER] +
-      current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
-      current_.scopes[Scope::MINOR_MS_BACKGROUND_MARKING];
+      YoungGenerationWallTime(current_);
+
   // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
   // (both for the case of the scavenger and the minor mark-sweeper).
   event.total_wall_clock_duration_in_us =

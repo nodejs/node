@@ -70,4 +70,5 @@ class OutProc(base.ExpectedOutProc):
         # Testing on Android devices mixes stderr into stdout.
         string ==
         "V8 is running with experimental features enabled. Stability and security will suffer."
-    )
+        or  #
+        string == "Concurrent maglev has been disabled for tracing.")

@@ -81,8 +81,6 @@ bool YoungGenerationRememberedSetsMarkingWorklist::ProcessNextItem(
 template <typename Visitor>
 void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::Process(
     Visitor* visitor) {
-  CodePageHeaderModificationScope header_modification_scope(
-      "Marking modifies the remembered sets in the page header");
   if (slots_type_ == SlotsType::kRegularSlots) {
     MarkUntypedPointers(visitor);
   } else {

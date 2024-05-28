@@ -264,7 +264,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   } else {
     builder.AppendCStringLiteral("<anonymous>");
   }
-  return builder.Finish().ToHandleChecked();
+  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
 }  // namespace
@@ -327,9 +327,10 @@ Handle<String> CallSiteInfo::GetFunctionDebugName(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
-    return GetWasmFunctionDebugName(isolate,
-                                    handle(info->GetWasmInstance(), isolate),
-                                    info->GetWasmFunctionIndex());
+    return GetWasmFunctionDebugName(
+        isolate,
+        handle(info->GetWasmInstance()->trusted_data(isolate), isolate),
+        info->GetWasmFunctionIndex());
   }
   if (info->IsBuiltin()) {
     return Handle<String>::cast(GetFunctionName(info));
@@ -869,7 +870,7 @@ MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
                                           Handle<CallSiteInfo> frame) {
   IncrementalStringBuilder builder(isolate);
   SerializeCallSiteInfo(isolate, frame, &builder);
-  return builder.Finish();
+  return indirect_handle(builder.Finish(), isolate);
 }
 
 }  // namespace internal

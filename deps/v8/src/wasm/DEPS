@@ -50,4 +50,7 @@ specific_include_rules = {
     "+src/compiler/wasm-compiler.h",
     "+src/compiler/access-builder.h",
   ],
+  "simd-shuffle\.h": [
+    "+src/compiler/backend/instruction-codes.h",
+  ]
 }

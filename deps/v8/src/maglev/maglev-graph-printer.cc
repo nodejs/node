@@ -374,6 +374,17 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
 
 namespace {
 
+void PrintInputLocation(std::ostream& os, ValueNode* node,
+                        const compiler::InstructionOperand& location) {
+  if (InlinedAllocation* allocation = node->TryCast<InlinedAllocation>()) {
+    if (allocation->HasBeenAnalysed() && allocation->HasBeenElided()) {
+      os << "(elided)";
+      return;
+    }
+  }
+  os << location;
+}
+
 void PrintSingleDeoptFrame(
     std::ostream& os, MaglevGraphLabeller* graph_labeller,
     const DeoptFrame& frame, InputLocation*& current_input_location,
@@ -392,7 +403,9 @@ void PrintSingleDeoptFrame(
       os << " : {";
       os << "<closure>:"
          << PrintNodeLabel(graph_labeller, frame.as_interpreted().closure())
-         << ":" << current_input_location->operand();
+         << ":";
+      PrintInputLocation(os, frame.as_interpreted().closure(),
+                         current_input_location->operand());
       current_input_location++;
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
@@ -402,8 +415,8 @@ void PrintSingleDeoptFrame(
                 lazy_deopt_info_if_top_frame->IsResultRegister(reg)) {
               os << "<result>";
             } else {
-              os << PrintNodeLabel(graph_labeller, node) << ":"
-                 << current_input_location->operand();
+              os << PrintNodeLabel(graph_labeller, node) << ":";
+              PrintInputLocation(os, node, current_input_location->operand());
               current_input_location++;
             }
           });
@@ -416,11 +429,15 @@ void PrintSingleDeoptFrame(
       os << " : {";
       os << "<this>:"
          << PrintNodeLabel(graph_labeller, frame.as_construct_stub().receiver())
-         << ":" << current_input_location->operand();
+         << ":";
+      PrintInputLocation(os, frame.as_construct_stub().receiver(),
+                         current_input_location->operand());
       current_input_location++;
       os << ", <context>:"
          << PrintNodeLabel(graph_labeller, frame.as_construct_stub().context())
-         << ":" << current_input_location->operand();
+         << ":";
+      PrintInputLocation(os, frame.as_construct_stub().context(),
+                         current_input_location->operand());
       current_input_location++;
       os << "}";
       break;
@@ -431,16 +448,16 @@ void PrintSingleDeoptFrame(
       os << " : {";
       auto arguments = frame.as_inlined_arguments().arguments();
       DCHECK_GT(arguments.size(), 0);
-      os << "<this>:" << PrintNodeLabel(graph_labeller, arguments[0]) << ":"
-         << current_input_location->operand();
+      os << "<this>:" << PrintNodeLabel(graph_labeller, arguments[0]) << ":";
+      PrintInputLocation(os, arguments[0], current_input_location->operand());
       current_input_location++;
       if (arguments.size() > 1) {
         os << ", ";
       }
       for (size_t i = 1; i < arguments.size(); i++) {
         os << "a" << (i - 1) << ":"
-           << PrintNodeLabel(graph_labeller, arguments[i]) << ":"
-           << current_input_location->operand();
+           << PrintNodeLabel(graph_labeller, arguments[i]) << ":";
+        PrintInputLocation(os, arguments[i], current_input_location->operand());
         current_input_location++;
         os << ", ";
       }
@@ -454,7 +471,8 @@ void PrintSingleDeoptFrame(
       int arg_index = 0;
       for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
         os << "a" << arg_index << ":" << PrintNodeLabel(graph_labeller, node)
-           << ":" << current_input_location->operand();
+           << ":";
+        PrintInputLocation(os, node, current_input_location->operand());
         arg_index++;
         current_input_location++;
         os << ", ";
@@ -462,7 +480,9 @@ void PrintSingleDeoptFrame(
       os << "<context>:"
          << PrintNodeLabel(graph_labeller,
                            frame.as_builtin_continuation().context())
-         << ":" << current_input_location->operand();
+         << ":";
+      PrintInputLocation(os, frame.as_builtin_continuation().context(),
+                         current_input_location->operand());
       current_input_location++;
       os << "}";
       break;
@@ -554,7 +574,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
                                 int max_node_id) {
   // If no handler info, then we cannot throw.
   ExceptionHandlerInfo* info = node->exception_handler_info();
-  if (!info->HasExceptionHandler()) return;
+  if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) return;
 
   BasicBlock* block = info->catch_block.block_ptr();
   DCHECK(block->is_exception_handler_block());

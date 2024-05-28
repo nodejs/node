@@ -822,7 +822,7 @@ String::FlatContent String::GetFlatContent(
 
 Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
   DCHECK(v8_flags.shared_string_table);
-  MaybeHandle<Map> new_map;
+  MaybeDirectHandle<Map> new_map;
   switch (
       isolate->factory()->ComputeSharingStrategyForString(string, &new_map)) {
     case StringTransitionStrategy::kCopy:
@@ -1185,9 +1185,9 @@ bool ExternalString::is_uncached() const {
 }
 
 void ExternalString::InitExternalPointerFields(Isolate* isolate) {
-  resource_.Init(isolate, kNullAddress);
+  resource_.Init(address(), isolate, kNullAddress);
   if (is_uncached()) return;
-  resource_data_.Init(isolate, kNullAddress);
+  resource_data_.Init(address(), isolate, kNullAddress);
 }
 
 void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) {

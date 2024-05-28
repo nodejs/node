@@ -47,7 +47,7 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmThrow) {
 
   MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
 
-  Handle<String> string = Object::NoSideEffectsToString(isolate, value);
+  DirectHandle<String> string = Object::NoSideEffectsToString(isolate, value);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, string));
 }
 

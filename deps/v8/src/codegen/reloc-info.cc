@@ -28,12 +28,7 @@ uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   WriteMode(RelocInfo::PC_JUMP);
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
   DCHECK_GT(pc_jump, 0);
-  base::VLQEncodeUnsigned(
-      [this](uint8_t byte) {
-        *--pos_ = byte;
-        return pos_;
-      },
-      pc_jump);
+  base::VLQEncodeUnsigned([this](uint8_t byte) { *--pos_ = byte; }, pc_jump);
   // Return the remaining kSmallPCDeltaBits of the pc_delta.
   return pc_delta & kSmallPCDeltaMask;
 }

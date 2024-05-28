@@ -27,12 +27,6 @@ class ManualOptimizationTable {
       Isolate* isolate, Handle<JSFunction> function,
       IsCompiledScope* is_compiled_scope);
 
-  // This function should be called when the function is marked for optimization
-  // via the intrinsics. This will check whether
-  // MarkFunctionForManualOptimization was called with this function.
-  static void CheckMarkedForManualOptimization(Isolate* isolate,
-                                               Tagged<JSFunction> function);
-
   // Returns true if MarkFunctionForManualOptimization was called with this
   // function.
   static bool IsMarkedForManualOptimization(Isolate* isolate,

@@ -129,8 +129,8 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   if (retval.is_null()) {
     DCHECK(isolate->has_exception());
     if (exception) {
-      Handle<String> exception_string = Object::NoSideEffectsToString(
-          isolate, handle(isolate->exception(), isolate));
+      DirectHandle<String> exception_string = Object::NoSideEffectsToString(
+          isolate, direct_handle(isolate->exception(), isolate));
       *exception = exception_string->ToCString();
     }
     isolate->clear_internal_exception();

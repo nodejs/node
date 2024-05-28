@@ -5,17 +5,14 @@
 #ifndef V8_AST_PRETTYPRINTER_H_
 #define V8_AST_PRETTYPRINTER_H_
 
-#include <memory>
-
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/execution/isolate.h"
 #include "src/objects/function-kind.h"
+#include "src/strings/string-builder.h"
 
 namespace v8 {
 namespace internal {
-
-class IncrementalStringBuilder;  // to avoid including string-builder-inl.h
 
 class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
@@ -60,8 +57,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
   Isolate* isolate_;
   int num_prints_;
-  // Allocate the builder on the heap simply because it's forward declared.
-  std::unique_ptr<IncrementalStringBuilder> builder_;
+  IncrementalStringBuilder builder_;
   int position_;  // position of ast node to print
   bool found_;
   bool done_;

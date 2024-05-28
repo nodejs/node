@@ -4,6 +4,7 @@
 
 #include "src/objects/instruction-stream.h"
 
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/reloc-info-inl.h"
@@ -62,8 +63,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
       // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
       Builtin builtin = it.rinfo()->target_builtin_at(origin);
-      Address p =
-          heap->isolate()->builtin_entry_table()[Builtins::ToInt(builtin)];
+      Address p = Builtins::EntryOf(builtin, heap->isolate());
       // This won't trigger a write barrier, but setting mode to
       // UPDATE_WRITE_BARRIER to make it clear that we didn't forget about it
       // below.
@@ -78,8 +78,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
                 static_cast<uint32_t>(Builtin::kFirstBytecodeHandler));
       Builtin builtin = static_cast<Builtin>(stub_call_tag);
       // Store the builtin address in relocation info.
-      Address entry =
-          heap->isolate()->builtin_entry_table()[Builtins::ToInt(builtin)];
+      Address entry = Builtins::EntryOf(builtin, heap->isolate());
       it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
 #else
       UNREACHABLE();

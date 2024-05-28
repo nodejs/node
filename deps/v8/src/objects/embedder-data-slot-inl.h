@@ -123,7 +123,9 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
+bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
+                                             Tagged<HeapObject> host,
+                                             void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_ENABLE_SANDBOX
@@ -133,7 +135,7 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
   // external pointer handle (see EmbedderDataSlot::Initialize), and only once
   // an external pointer is stored in them are they properly initialized.
   WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
-      address() + kExternalPointerOffset, isolate, value);
+      host.address(), address() + kExternalPointerOffset, isolate, value);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else

@@ -136,6 +136,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchSaveCallerRegisters)                                               \
   V(ArchRestoreCallerRegisters)                                            \
   V(ArchCallCFunction)                                                     \
+  V(ArchCallCFunctionWithFrameState)                                       \
   V(ArchPrepareTailCall)                                                   \
   V(ArchJmp)                                                               \
   V(ArchBinarySearchSwitch)                                                \
@@ -222,13 +223,15 @@ enum FlagsMode {
   kFlags_set = 3,
   kFlags_trap = 4,
   kFlags_select = 5,
+  kFlags_conditional_set = 6,
+  kFlags_conditional_branch = 7,
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const FlagsMode& fm);
 
 // The condition of flags continuation (see below).
-enum FlagsCondition {
+enum FlagsCondition : uint8_t {
   kEqual,
   kNotEqual,
   kSignedLessThan,
@@ -313,8 +316,8 @@ using InstructionCode = uint32_t;
 //                              AddressingModeField
 //                              FlagsModeField
 //                              FlagsConditionField
-// DeoptImmedArgsCountField    | ParamField   | MiscField
-// DeoptFrameStateOffsetField  | FPParamField |
+// DeoptImmedArgsCountField    | ParamField      | MiscField
+// DeoptFrameStateOffsetField  | FPParamField    |
 //
 // Notably, AccessModeField can follow any of several sequences of fields.
 

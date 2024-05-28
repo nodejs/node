@@ -670,6 +670,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<Float32T> value);
   void Return(TNode<Float64T> value);
   void Return(TNode<WordT> value1, TNode<WordT> value2);
+  void Return(TNode<Word32T> value1, TNode<Word32T> value2);
   void Return(TNode<WordT> value1, TNode<Object> value2);
   void PopAndReturn(Node* pop, Node* value);
   void PopAndReturn(Node* pop, Node* value1, Node* value2, Node* value3,
@@ -786,7 +787,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #if V8_ENABLE_WEBASSEMBLY
   // Access to the stack pointer.
   TNode<RawPtrT> LoadStackPointer();
-  void SetStackPointer(TNode<RawPtrT> ptr, wasm::FPRelativeScope fp_scope);
+  void SetStackPointer(TNode<RawPtrT> ptr);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);

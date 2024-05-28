@@ -10,6 +10,7 @@
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/marking.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
@@ -33,10 +34,8 @@ struct EphemeronMarking {
 // - CanUpdateValuesInHeap
 // - AddStrongReferenceForReferenceSummarizer
 // - AddWeakReferenceForReferenceSummarizer
-// - TryMark
-// - IsMarked
+// - marking_state
 // - MarkPointerTableEntry
-// - retaining_path_mode
 // - RecordSlot
 // - RecordRelocSlot
 //
@@ -63,16 +62,19 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         code_flush_mode_(code_flush_mode),
         trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
         code_flushing_increase_(code_flushing_increase),
-        isolate_in_background_(heap->isolate()->IsIsolateInBackground())
-#ifdef V8_ENABLE_SANDBOX
+        isolate_in_background_(heap->isolate()->is_backgrounded())
+#ifdef V8_COMPRESS_POINTERS
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
         shared_external_pointer_table_(
             &heap->isolate()->shared_external_pointer_table()),
         shared_external_pointer_space_(
             heap->isolate()->shared_external_pointer_space()),
+        cpp_heap_pointer_table_(&heap->isolate()->cpp_heap_pointer_table())
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+        ,
         trusted_pointer_table_(&heap->isolate()->trusted_pointer_table())
 #endif  // V8_ENABLE_SANDBOX
   {
@@ -137,7 +139,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   }
 
   V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
-                                      ExternalPointerSlot slot) final;
+                                      ExternalPointerSlot slot) override;
+  V8_INLINE void VisitCppHeapPointer(Tagged<HeapObject> host,
+                                     CppHeapPointerSlot slot) override;
   V8_INLINE void VisitIndirectPointer(Tagged<HeapObject> host,
                                       IndirectPointerSlot slot,
                                       IndirectPointerMode mode) final;
@@ -158,22 +162,14 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 #endif
   }
 
-  bool ShouldMarkObject(Tagged<HeapObject> object) const {
-    if (InReadOnlySpace(object)) return false;
-    if (should_mark_shared_heap_) return true;
-    return !InAnySharedSpace(object);
-  }
-
-  // Marks the object grey and pushes it on the marking work list.
-  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj);
+  // Marks the object  and pushes it on the marking work list. The `host` is
+  // used for the reference summarizer to valide that the heap snapshot is in
+  // sync with the marker.
+  V8_INLINE bool MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj,
+                            MarkingHelper::WorklistTarget target_worklist);
 
   V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
     return false;
-  }
-
-  // Convenience method.
-  bool IsUnmarked(Tagged<HeapObject> obj) const {
-    return !concrete_visitor()->IsMarked(obj);
   }
 
  protected:
@@ -195,12 +191,12 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
 
-  template <typename T>
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitEmbedderTracingSubclass(Tagged<Map> map, Tagged<T> object);
-  template <typename T>
+  template <typename T, typename TBodyDescriptor>
   int VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
                                                       Tagged<T> object);
-  template <typename T>
+  template <typename T, typename TBodyDescriptor>
   int VisitEmbedderTracingSubClassNoEmbedderTracing(Tagged<Map> map,
                                                     Tagged<T> object);
 
@@ -225,13 +221,15 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool trace_embedder_fields_;
   const bool should_keep_ages_unchanged_;
-  const bool should_mark_shared_heap_;
   const uint16_t code_flushing_increase_;
   const bool isolate_in_background_;
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;
   ExternalPointerTable::Space* const shared_external_pointer_space_;
+  CppHeapPointerTable* const cpp_heap_pointer_table_;
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   TrustedPointerTable* const trusted_pointer_table_;
 #endif  // V8_ENABLE_SANDBOX
 };
@@ -252,7 +250,8 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
       : MarkingVisitorBase<ConcreteVisitor>(
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, trace_embedder_fields,
-            should_keep_ages_unchanged, code_flushing_increase) {}
+            should_keep_ages_unchanged, code_flushing_increase),
+        marking_state_(heap->marking_state()) {}
 
   V8_INLINE void AddStrongReferenceForReferenceSummarizer(
       Tagged<HeapObject> host, Tagged<HeapObject> obj) {}
@@ -262,14 +261,12 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
 
   constexpr bool CanUpdateValuesInHeap() { return true; }
 
-  bool TryMark(Tagged<HeapObject> obj) {
-    return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
-  }
-  bool IsMarked(Tagged<HeapObject> obj) const {
-    return MarkBit::From(obj).Get<AccessMode::ATOMIC>();
-  }
+  MarkingState* marking_state() const { return marking_state_; }
 
   void MarkPointerTableEntry(Tagged<HeapObject> obj, IndirectPointerSlot slot);
+
+ private:
+  MarkingState* marking_state_;
 };
 
 }  // namespace internal

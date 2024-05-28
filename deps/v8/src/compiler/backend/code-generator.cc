@@ -17,9 +17,14 @@
 #include "src/execution/frames.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
 #include "src/utils/utils.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-deopt-data.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -216,6 +221,18 @@ void CodeGenerator::AssembleCode() {
     masm()->RecordComment("-- Prologue: check code start register --");
     AssembleCodeStartRegisterCheck();
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (info->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
+      info->builtin() == Builtin::kWasmToJsWrapperCSA) {
+    // By default the code generator can convert slot IDs to SP-relative memory
+    // operands depending on the offset. However, the SP may switch to the
+    // central stack at the beginning of the wrapper if the caller is on a
+    // secondary stack, and switch back at the end. So for the whole duration
+    // of the wrapper, only FP-relative addressing is valid.
+    frame_access_state()->SetFPRelativeOnly(true);
+  }
+#endif
 
   offsets_info_.deopt_check = masm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones
@@ -508,6 +525,8 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
+    DCHECK(info()->has_bytecode_array());
+    builder.set_parameter_count(info()->bytecode_array()->parameter_count());
   }
 
   MaybeHandle<Code> maybe_code = builder.TryBuild();
@@ -703,16 +722,18 @@ CodeGenerator::MoveType::Type CodeGenerator::MoveType::InferSwap(
 }
 
 RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
+                                           FlagsCondition condition,
                                            Instruction* instr) {
   // Assemble a branch after this instruction.
   InstructionOperandConverter i(this, instr);
-  RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
-  RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
+  RpoNumber true_rpo =
+      i.InputRpo(instr->InputCount() - kBranchEndOffsetOfTrueBlock);
+  RpoNumber false_rpo =
+      i.InputRpo(instr->InputCount() - kBranchEndOffsetOfFalseBlock);
 
   if (true_rpo == false_rpo) {
     return true_rpo;
   }
-  FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   if (IsNextInAssemblyOrder(true_rpo) || instructions()
                                              ->InstructionBlockAt(false_rpo)
                                              ->IsLoopHeaderInAssemblyOrder()) {
@@ -772,9 +793,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
 
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   switch (mode) {
-    case kFlags_branch: {
+    case kFlags_branch:
+    case kFlags_conditional_branch: {
+      if (mode == kFlags_conditional_branch) {
+        InstructionOperandConverter i(this, instr);
+        condition = static_cast<FlagsCondition>(
+            i.ToConstant(instr->InputAt(instr->InputCount() -
+                                        kConditionalBranchEndOffsetOfCondition))
+                .ToInt64());
+      }
       BranchInfo branch;
-      RpoNumber target = ComputeBranchInfo(&branch, instr);
+      RpoNumber target = ComputeBranchInfo(&branch, condition, instr);
       if (target.IsValid()) {
         // redundant branch.
         if (!IsNextInAssemblyOrder(target)) {
@@ -782,8 +811,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
         }
         return kSuccess;
       }
-      // Assemble architecture-specific branch.
-      AssembleArchBranch(instr, &branch);
+      if (mode == kFlags_branch) {
+        // Assemble architecture-specific branch.
+        AssembleArchBranch(instr, &branch);
+      } else {
+        AssembleArchConditionalBranch(instr, &branch);
+      }
       break;
     }
     case kFlags_deoptimize: {
@@ -807,6 +840,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_set: {
       // Assemble a boolean materialization after this instruction.
       AssembleArchBoolean(instr, condition);
+      break;
+    }
+    case kFlags_conditional_set: {
+      // Assemble a conditional boolean materialization after this instruction.
+      AssembleArchConditionalBoolean(instr);
       break;
     }
     case kFlags_select: {
@@ -904,14 +942,13 @@ void CodeGenerator::AssembleGaps(Instruction* instr) {
 
 namespace {
 
-Handle<PodArray<InliningPosition>> CreateInliningPositions(
+Handle<TrustedPodArray<InliningPosition>> CreateInliningPositions(
     OptimizedCompilationInfo* info, Isolate* isolate) {
   const OptimizedCompilationInfo::InlinedFunctionList& inlined_functions =
       info->inlined_functions();
-  Handle<PodArray<InliningPosition>> inl_positions =
-      PodArray<InliningPosition>::New(
-          isolate, static_cast<int>(inlined_functions.size()),
-          AllocationType::kOld);
+  Handle<TrustedPodArray<InliningPosition>> inl_positions =
+      TrustedPodArray<InliningPosition>::New(
+          isolate, static_cast<int>(inlined_functions.size()));
   for (size_t i = 0; i < inlined_functions.size(); ++i) {
     inl_positions->set(static_cast<int>(i), inlined_functions[i].position);
   }
@@ -943,9 +980,11 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count_));
 
   if (info->has_shared_info()) {
-    data->SetSharedFunctionInfo(*info->shared_info());
+    Handle<SharedFunctionInfoWrapper> sfi_wrapper =
+        isolate()->factory()->NewSharedFunctionInfoWrapper(info->shared_info());
+    data->SetSharedFunctionInfoWrapper(*sfi_wrapper);
   } else {
-    data->SetSharedFunctionInfo(Smi::zero());
+    data->SetSharedFunctionInfoWrapper(Smi::zero());
   }
 
   Handle<DeoptimizationLiteralArray> literals =
@@ -958,7 +997,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   }
   data->SetLiteralArray(*literals);
 
-  Handle<PodArray<InliningPosition>> inl_pos =
+  Handle<TrustedPodArray<InliningPosition>> inl_pos =
       CreateInliningPositions(info, isolate());
   data->SetInliningPositions(*inl_pos);
 
@@ -992,6 +1031,60 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   return data;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
+  int deopt_count = static_cast<int>(deoptimization_exits_.size());
+  if (deopt_count == 0) {
+    return {};
+  }
+  // Lazy deopts are not supported in wasm.
+  DCHECK_EQ(lazy_deopt_count_, 0);
+  // Wasm doesn't use the JS inlining handling via deopt info.
+  // TODO(mliedtke): Re-evaluate if this would offer benefits.
+  DCHECK_EQ(inlined_function_count_, 0);
+
+  auto deopt_entries =
+      base::OwnedVector<wasm::WasmDeoptEntry>::New(deopt_count);
+  // Populate deoptimization entries.
+  for (int i = 0; i < deopt_count; i++) {
+    const DeoptimizationExit* deoptimization_exit = deoptimization_exits_[i];
+    CHECK_NOT_NULL(deoptimization_exit);
+    DCHECK_EQ(i, deoptimization_exit->deoptimization_id());
+    deopt_entries[i] = {deoptimization_exit->bailout_id(),
+                        deoptimization_exit->translation_id()};
+  }
+
+  base::Vector<const uint8_t> frame_translations =
+      translations_.ToFrameTranslationWasm();
+  base::OwnedVector<uint8_t> result = wasm::WasmDeoptDataProcessor::Serialize(
+      deopt_exit_start_offset_, eager_deopt_count_, frame_translations,
+      base::VectorOf(deopt_entries), deoptimization_literals_);
+#if DEBUG
+  // Verify that the serialized data can be deserialized.
+  wasm::WasmDeoptView view(base::VectorOf(result));
+  wasm::WasmDeoptData data = view.GetDeoptData();
+  DCHECK_EQ(data.deopt_exit_start_offset, deopt_exit_start_offset_);
+  DCHECK_EQ(data.deopt_literals_size, deoptimization_literals_.size());
+  DCHECK_EQ(data.eager_deopt_count, eager_deopt_count_);
+  DCHECK_EQ(data.entry_count, deoptimization_exits_.size());
+  DCHECK_EQ(data.translation_array_size, frame_translations.size());
+  for (int i = 0; i < deopt_count; i++) {
+    const DeoptimizationExit* exit = deoptimization_exits_[i];
+    wasm::WasmDeoptEntry entry = view.GetDeoptEntry(i);
+    DCHECK_EQ(exit->bailout_id(), entry.bytecode_offset);
+    DCHECK_EQ(exit->translation_id(), entry.translation_index);
+  }
+  std::vector<DeoptimizationLiteral> literals =
+      view.BuildDeoptimizationLiteralArray();
+  DCHECK_EQ(literals.size(), deoptimization_literals_.size());
+  for (size_t i = 0; i < deoptimization_literals_.size(); ++i) {
+    DCHECK_EQ(literals[i], deoptimization_literals_[i]);
+  }
+#endif
+  return result;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
   jump_tables_ = zone()->New<JumpTable>(jump_tables_, targets, target_count);
   return jump_tables_->label();
@@ -1011,15 +1104,18 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   }
 
   if (needs_frame_state) {
-    // If the frame state is present, it starts at argument 1 - after
-    // the code address.
-    size_t frame_state_offset = 1;
-    FrameStateDescriptor* descriptor =
-        GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
-    int pc_offset = masm()->pc_offset_for_safepoint();
-    BuildTranslation(instr, pc_offset, frame_state_offset, 0,
-                     descriptor->state_combine());
+    RecordDeoptInfo(instr, masm()->pc_offset_for_safepoint());
   }
+}
+
+void CodeGenerator::RecordDeoptInfo(Instruction* instr, int pc_offset) {
+  // If the frame state is present, it starts at argument 1 - after
+  // the code address.
+  size_t frame_state_offset = 1;
+  FrameStateDescriptor* descriptor =
+      GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
+  BuildTranslation(instr, pc_offset, frame_state_offset, 0,
+                   descriptor->state_combine());
 }
 
 int CodeGenerator::DefineDeoptimizationLiteral(DeoptimizationLiteral literal) {
@@ -1085,15 +1181,28 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 
   Handle<SharedFunctionInfo> shared_info;
   if (!descriptor->shared_info().ToHandle(&shared_info)) {
-    if (!info()->has_shared_info()) {
+    if (!info()->has_shared_info()
+#if V8_ENABLE_WEBASSEMBLY
+        && descriptor->type() != compiler::FrameStateType::kLiftoffFunction
+#endif
+    ) {
       return;  // Stub with no SharedFunctionInfo.
     }
     shared_info = info()->shared_info();
   }
 
   const BytecodeOffset bailout_id = descriptor->bailout_id();
+
   const int shared_info_id =
+#if V8_ENABLE_WEBASSEMBLY
+      shared_info.is_null()
+          ? DefineDeoptimizationLiteral(DeoptimizationLiteral(uint64_t{0}))
+          : DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
+  CHECK_IMPLIES(shared_info.is_null(), v8_flags.wasm_deopt);
+#else
       DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
+#endif
+
   const unsigned int height =
       static_cast<unsigned int>(descriptor->GetHeight());
 
@@ -1136,6 +1245,10 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           js_to_wasm_descriptor->return_kind());
       break;
     }
+    case FrameStateType::kLiftoffFunction:
+      translations_.BeginLiftoffFrame(bailout_id, height,
+                                      descriptor->GetWasmFunctionIndex());
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation: {
       translations_.BeginJavaScriptBuiltinContinuationFrame(
@@ -1225,11 +1338,18 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       translations_.StoreStackSlot(LocationOperand::cast(op)->index());
     }
   } else if (op->IsFPStackSlot()) {
-    if (type.representation() == MachineRepresentation::kFloat64) {
-      translations_.StoreDoubleStackSlot(LocationOperand::cast(op)->index());
-    } else {
-      CHECK_EQ(MachineRepresentation::kFloat32, type.representation());
-      translations_.StoreFloatStackSlot(LocationOperand::cast(op)->index());
+    switch (type.representation()) {
+      case MachineRepresentation::kFloat64:
+        translations_.StoreDoubleStackSlot(LocationOperand::cast(op)->index());
+        break;
+      case MachineRepresentation::kFloat32:
+        translations_.StoreFloatStackSlot(LocationOperand::cast(op)->index());
+        break;
+      case MachineRepresentation::kSimd128:
+        translations_.StoreSimd128StackSlot(LocationOperand::cast(op)->index());
+        break;
+      default:
+        UNREACHABLE();
     }
   } else if (op->IsRegister()) {
     InstructionOperandConverter converter(this, instr);
@@ -1258,17 +1378,55 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
     }
   } else if (op->IsFPRegister()) {
     InstructionOperandConverter converter(this, instr);
-    if (type.representation() == MachineRepresentation::kFloat64) {
-      translations_.StoreDoubleRegister(converter.ToDoubleRegister(op));
-    } else {
-      CHECK_EQ(MachineRepresentation::kFloat32, type.representation());
-      translations_.StoreFloatRegister(converter.ToFloatRegister(op));
+    switch (type.representation()) {
+      case MachineRepresentation::kFloat32:
+        translations_.StoreFloatRegister(converter.ToFloatRegister(op));
+        break;
+      case MachineRepresentation::kFloat64:
+        translations_.StoreDoubleRegister(converter.ToDoubleRegister(op));
+        break;
+      case MachineRepresentation::kSimd128:
+        translations_.StoreSimd128Register(converter.ToSimd128Register(op));
+        break;
+      default:
+        UNREACHABLE();
     }
   } else {
     CHECK(op->IsImmediate());
     InstructionOperandConverter converter(this, instr);
     Constant constant = converter.ToConstant(op);
     DeoptimizationLiteral literal;
+
+#if V8_ENABLE_WEBASSEMBLY
+    if (info_->IsWasm() && v8_flags.wasm_deopt) {
+      switch (type.representation()) {
+        case MachineRepresentation::kWord32:
+          literal = DeoptimizationLiteral(constant.ToInt32());
+          break;
+        case MachineRepresentation::kWord64:
+          literal = DeoptimizationLiteral(constant.ToInt64());
+          break;
+        case MachineRepresentation::kFloat32:
+          literal = DeoptimizationLiteral(constant.ToFloat32());
+          break;
+        case MachineRepresentation::kFloat64:
+          literal = DeoptimizationLiteral(constant.ToFloat64().value());
+          break;
+        case MachineRepresentation::kTagged: {
+          Tagged<Smi> smi(static_cast<Address>(constant.ToInt32()));
+          DCHECK(IsSmi(smi));
+          literal = DeoptimizationLiteral(smi);
+          break;
+        }
+        default:
+          UNIMPLEMENTED();
+      }
+      int literal_id = DefineDeoptimizationLiteral(literal);
+      translations_.StoreLiteral(literal_id);
+      return;
+    }
+#endif
+
     switch (constant.type()) {
       case Constant::kInt32:
         if (type.representation() == MachineRepresentation::kTagged) {
@@ -1331,7 +1489,8 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       case Constant::kFloat32:
         DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
                type.representation() == MachineRepresentation::kTagged);
-        literal = DeoptimizationLiteral(constant.ToFloat32());
+        literal =
+            DeoptimizationLiteral(static_cast<double>(constant.ToFloat32()));
         break;
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
@@ -1372,28 +1531,6 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
 }
 
 OutOfLineCode::~OutOfLineCode() = default;
-
-Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
-  Validate();
-  switch (kind_) {
-    case DeoptimizationLiteralKind::kObject: {
-      return object_;
-    }
-    case DeoptimizationLiteralKind::kNumber: {
-      return isolate->factory()->NewNumber(number_);
-    }
-    case DeoptimizationLiteralKind::kSignedBigInt64: {
-      return BigInt::FromInt64(isolate, signed_bigint64_);
-    }
-    case DeoptimizationLiteralKind::kUnsignedBigInt64: {
-      return BigInt::FromUint64(isolate, unsigned_bigint64_);
-    }
-    case DeoptimizationLiteralKind::kInvalid: {
-      UNREACHABLE();
-    }
-  }
-  UNREACHABLE();
-}
 
 }  // namespace compiler
 }  // namespace internal

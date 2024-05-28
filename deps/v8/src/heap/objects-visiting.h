@@ -39,6 +39,7 @@ namespace internal {
   V(ExternalString)                    \
   V(FeedbackCell)                      \
   V(FeedbackMetadata)                  \
+  V(Foreign)                           \
   V(FunctionTemplateInfo)              \
   V(Hole)                              \
   V(JSArrayBuffer)                     \
@@ -55,7 +56,6 @@ namespace internal {
   V(NativeContext)                     \
   V(Oddball)                           \
   V(PreparseData)                      \
-  V(PromiseOnStack)                    \
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \
@@ -75,18 +75,14 @@ namespace internal {
   V(TransitionArray)                   \
   V(WeakCell)                          \
   IF_WASM(V, WasmArray)                \
-  IF_WASM(V, WasmCapiFunctionData)     \
   IF_WASM(V, WasmContinuationObject)   \
-  IF_WASM(V, WasmExportedFunctionData) \
-  IF_WASM(V, WasmFunctionData)         \
   IF_WASM(V, WasmFuncRef)              \
   IF_WASM(V, WasmInstanceObject)       \
-  IF_WASM(V, WasmInternalFunction)     \
-  IF_WASM(V, WasmJSFunctionData)       \
   IF_WASM(V, WasmNull)                 \
   IF_WASM(V, WasmResumeData)           \
   IF_WASM(V, WasmStruct)               \
   IF_WASM(V, WasmSuspenderObject)      \
+  IF_WASM(V, WasmSuspendingObject)     \
   IF_WASM(V, WasmTypeInfo)             \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
@@ -164,6 +160,12 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 
   template <typename T>
   static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
+
+  // Inspects the slot and filters some well-known RO objects and Smis in a fast
+  // way. May still return Smis or RO objects.
+  template <typename TSlot>
+  std::optional<Tagged<Object>> GetObjectFilterReadOnlyAndSmiFast(
+      TSlot slot) const;
 };
 
 // These strings can be sources of safe string transitions. Transitions are safe

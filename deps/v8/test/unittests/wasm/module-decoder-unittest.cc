@@ -1488,6 +1488,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
   EXPECT_FAILURE(data);
 }
 
+// TODO(evih): Use enum values instead of numbers.
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   static const uint8_t data[] = {
       // sig#0 ---------------------------------------------------------------
@@ -1827,11 +1828,30 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
       ONE_EMPTY_BODY,
   };
 
-  EXPECT_FAILURE_WITH_MSG(
-      data,
-      "An active element segment with function indices as "
-      "elements must reference a table of a subtype of type funcref. "
-      "Instead, table 0 of type externref is referenced.");
+  EXPECT_FAILURE_WITH_MSG(data,
+                          "Element segment of type (ref func) is not a subtype "
+                          "of referenced table 0 (of type externref)");
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionIndexElementsTableWithNarrowType) {
+  static const uint8_t data[] = {
+      // sig#0 ---------------------------------------------------------------
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, ENTRY_COUNT(1),   // section header
+              kRefNullCode, 0, 0, 9),  // table 1
+      // elements ------------------------------------------------------------
+      SECTION(Element,
+              ENTRY_COUNT(1),            // entry count
+              TABLE_INDEX0,              // element for table 0
+              WASM_INIT_EXPR_I32V_1(0),  // index
+              1,                         // elements count
+              FUNC_INDEX(0))             // function
+  };
+
+  EXPECT_FAILURE_WITH_MSG(data,
+                          "Element segment of type (ref func) is not a subtype "
+                          "of referenced table 0 (of type (ref null 0))");
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithFuncRefNull) {

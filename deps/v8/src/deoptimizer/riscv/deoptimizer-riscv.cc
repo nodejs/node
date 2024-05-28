@@ -14,6 +14,10 @@ Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(
       static_cast<uint32_t>(double_registers_[n].get_bits()));
 }
+Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
+  return Float64::FromBits(
+      static_cast<uint64_t>(double_registers_[n].get_bits()));
+}
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

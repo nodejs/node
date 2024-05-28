@@ -254,6 +254,25 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
                    std::forward<Args>(args)...));
 }
 
+template <typename T>
+inline void AllocateSlow(MaglevAssembler* masm,
+                         RegisterSnapshot register_snapshot, Register object,
+                         Builtin builtin, T size_in_bytes, ZoneLabelRef done) {
+  // Remove {object} from snapshot, since it is the returned allocated
+  // HeapObject.
+  register_snapshot.live_registers.clear(object);
+  register_snapshot.live_tagged_registers.clear(object);
+  {
+    SaveRegisterStateForCall save_register_state(masm, register_snapshot);
+    using D = AllocateDescriptor;
+    masm->Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
+    masm->CallBuiltin(builtin);
+    save_register_state.DefineSafepoint();
+    masm->Move(object, kReturnRegister0);
+  }
+  masm->Jump(*done);
+}
+
 inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
   AssertSmi(smi);
   SmiUntag(smi);

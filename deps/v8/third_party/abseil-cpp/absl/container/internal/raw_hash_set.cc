@@ -23,7 +23,9 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/optimization.h"
 #include "absl/container/internal/container_memory.h"
+#include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/hash/hash.h"
 
 namespace absl {
@@ -33,11 +35,11 @@ namespace container_internal {
 // Represents a control byte corresponding to a full slot with arbitrary hash.
 constexpr ctrl_t ZeroCtrlT() { return static_cast<ctrl_t>(0); }
 
-// We have space for `growth_left` before a single block of control bytes. A
+// We have space for `growth_info` before a single block of control bytes. A
 // single block of empty control bytes for tables without any slots allocated.
 // This enables removing a branch in the hot path of find(). In order to ensure
 // that the control bytes are aligned to 16, we have 16 bytes before the control
-// bytes even though growth_left only needs 8.
+// bytes even though growth_info only needs 8.
 alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[32] = {
     ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
     ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
@@ -133,7 +135,7 @@ size_t PrepareInsertAfterSoo(size_t hash, size_t slot_size,
   assert(HashSetResizeHelper::SooSlotIndex() == 1);
   PrepareInsertCommon(common);
   const size_t offset = H1(hash, common.control()) & 2;
-  common.set_growth_left(common.growth_left() - 1);
+  common.growth_info().OverwriteEmptyAsFull();
   SetCtrlInSingleGroupTable(common, offset, H2(hash), slot_size);
   common.infoz().RecordInsert(hash, /*distance_from_desired=*/0);
   return offset;
@@ -157,6 +159,8 @@ FindInfo find_first_non_full_outofline(const CommonFields& common,
   return find_first_non_full(common, hash);
 }
 
+namespace {
+
 // Returns the address of the slot just after slot assuming each slot has the
 // specified size.
 static inline void* NextSlot(void* slot, size_t slot_size) {
@@ -169,8 +173,22 @@ static inline void* PrevSlot(void* slot, size_t slot_size) {
   return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(slot) - slot_size);
 }
 
-void DropDeletesWithoutResize(CommonFields& common, const void* hash_fn,
-                              const PolicyFunctions& policy, void* tmp_space) {
+// Finds guaranteed to exists empty slot from the given position.
+// NOTE: this function is almost never triggered inside of the
+// DropDeletesWithoutResize, so we keep it simple.
+// The table is rather sparse, so empty slot will be found very quickly.
+size_t FindEmptySlot(size_t start, size_t end, const ctrl_t* ctrl) {
+  for (size_t i = start; i < end; ++i) {
+    if (IsEmpty(ctrl[i])) {
+      return i;
+    }
+  }
+  assert(false && "no empty slot");
+  return ~size_t{};
+}
+
+void DropDeletesWithoutResize(CommonFields& common,
+                              const PolicyFunctions& policy) {
   void* set = &common;
   void* slot_array = common.slot_array();
   const size_t capacity = common.capacity();
@@ -194,15 +212,26 @@ void DropDeletesWithoutResize(CommonFields& common, const void* hash_fn,
   //       repeat procedure for current slot with moved from element (target)
   ctrl_t* ctrl = common.control();
   ConvertDeletedToEmptyAndFullToDeleted(ctrl, capacity);
+  const void* hash_fn = policy.hash_fn(common);
   auto hasher = policy.hash_slot;
   auto transfer = policy.transfer;
   const size_t slot_size = policy.slot_size;
 
   size_t total_probe_length = 0;
   void* slot_ptr = SlotAddress(slot_array, 0, slot_size);
+
+  // The index of an empty slot that can be used as temporary memory for
+  // the swap operation.
+  constexpr size_t kUnknownId = ~size_t{};
+  size_t tmp_space_id = kUnknownId;
+
   for (size_t i = 0; i != capacity;
        ++i, slot_ptr = NextSlot(slot_ptr, slot_size)) {
     assert(slot_ptr == SlotAddress(slot_array, i, slot_size));
+    if (IsEmpty(ctrl[i])) {
+      tmp_space_id = i;
+      continue;
+    }
     if (!IsDeleted(ctrl[i])) continue;
     const size_t hash = (*hasher)(hash_fn, slot_ptr);
     const FindInfo target = find_first_non_full(common, hash);
@@ -231,15 +260,25 @@ void DropDeletesWithoutResize(CommonFields& common, const void* hash_fn,
       SetCtrl(common, new_i, H2(hash), slot_size);
       (*transfer)(set, new_slot_ptr, slot_ptr);
       SetCtrl(common, i, ctrl_t::kEmpty, slot_size);
+      // Initialize or change empty space id.
+      tmp_space_id = i;
     } else {
       assert(IsDeleted(ctrl[new_i]));
       SetCtrl(common, new_i, H2(hash), slot_size);
       // Until we are done rehashing, DELETED marks previously FULL slots.
 
+      if (tmp_space_id == kUnknownId) {
+        tmp_space_id = FindEmptySlot(i + 1, capacity, ctrl);
+      }
+      void* tmp_space = SlotAddress(slot_array, tmp_space_id, slot_size);
+      SanitizerUnpoisonMemoryRegion(tmp_space, slot_size);
+
       // Swap i and new_i elements.
       (*transfer)(set, tmp_space, new_slot_ptr);
       (*transfer)(set, new_slot_ptr, slot_ptr);
       (*transfer)(set, slot_ptr, tmp_space);
+
+      SanitizerPoisonMemoryRegion(tmp_space, slot_size);
 
       // repeat the processing of the ith slot
       --i;
@@ -267,6 +306,8 @@ static bool WasNeverFull(CommonFields& c, size_t index) {
              Group::kWidth;
 }
 
+}  // namespace
+
 void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size) {
   assert(IsFull(c.control()[index]) && "erasing a dangling iterator");
   c.decrement_size();
@@ -274,10 +315,11 @@ void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size) {
 
   if (WasNeverFull(c, index)) {
     SetCtrl(c, index, ctrl_t::kEmpty, slot_size);
-    c.set_growth_left(c.growth_left() + 1);
+    c.growth_info().OverwriteFullAsEmpty();
     return;
   }
 
+  c.growth_info().OverwriteFullAsDeleted();
   SetCtrl(c, index, ctrl_t::kDeleted, slot_size);
 }
 
@@ -421,6 +463,129 @@ void HashSetResizeHelper::TransferSlotAfterSoo(CommonFields& c,
   std::memcpy(SlotAddress(c.slot_array(), SooSlotIndex(), slot_size),
               old_soo_data(), slot_size);
   PoisonSingleGroupEmptySlots(c, slot_size);
+}
+
+namespace {
+
+// Called whenever the table needs to vacate empty slots either by removing
+// tombstones via rehash or growth.
+ABSL_ATTRIBUTE_NOINLINE
+FindInfo FindInsertPositionWithGrowthOrRehash(CommonFields& common, size_t hash,
+                                              const PolicyFunctions& policy) {
+  const size_t cap = common.capacity();
+  if (cap > Group::kWidth &&
+      // Do these calculations in 64-bit to avoid overflow.
+      common.size() * uint64_t{32} <= cap * uint64_t{25}) {
+    // Squash DELETED without growing if there is enough capacity.
+    //
+    // Rehash in place if the current size is <= 25/32 of capacity.
+    // Rationale for such a high factor: 1) DropDeletesWithoutResize() is
+    // faster than resize, and 2) it takes quite a bit of work to add
+    // tombstones.  In the worst case, seems to take approximately 4
+    // insert/erase pairs to create a single tombstone and so if we are
+    // rehashing because of tombstones, we can afford to rehash-in-place as
+    // long as we are reclaiming at least 1/8 the capacity without doing more
+    // than 2X the work.  (Where "work" is defined to be size() for rehashing
+    // or rehashing in place, and 1 for an insert or erase.)  But rehashing in
+    // place is faster per operation than inserting or even doubling the size
+    // of the table, so we actually afford to reclaim even less space from a
+    // resize-in-place.  The decision is to rehash in place if we can reclaim
+    // at about 1/8th of the usable capacity (specifically 3/28 of the
+    // capacity) which means that the total cost of rehashing will be a small
+    // fraction of the total work.
+    //
+    // Here is output of an experiment using the BM_CacheInSteadyState
+    // benchmark running the old case (where we rehash-in-place only if we can
+    // reclaim at least 7/16*capacity) vs. this code (which rehashes in place
+    // if we can recover 3/32*capacity).
+    //
+    // Note that although in the worst-case number of rehashes jumped up from
+    // 15 to 190, but the number of operations per second is almost the same.
+    //
+    // Abridged output of running BM_CacheInSteadyState benchmark from
+    // raw_hash_set_benchmark.   N is the number of insert/erase operations.
+    //
+    //      | OLD (recover >= 7/16        | NEW (recover >= 3/32)
+    // size |    N/s LoadFactor NRehashes |    N/s LoadFactor NRehashes
+    //  448 | 145284       0.44        18 | 140118       0.44        19
+    //  493 | 152546       0.24        11 | 151417       0.48        28
+    //  538 | 151439       0.26        11 | 151152       0.53        38
+    //  583 | 151765       0.28        11 | 150572       0.57        50
+    //  628 | 150241       0.31        11 | 150853       0.61        66
+    //  672 | 149602       0.33        12 | 150110       0.66        90
+    //  717 | 149998       0.35        12 | 149531       0.70       129
+    //  762 | 149836       0.37        13 | 148559       0.74       190
+    //  807 | 149736       0.39        14 | 151107       0.39        14
+    //  852 | 150204       0.42        15 | 151019       0.42        15
+    DropDeletesWithoutResize(common, policy);
+  } else {
+    // Otherwise grow the container.
+    policy.resize(common, NextCapacity(cap), HashtablezInfoHandle{});
+  }
+  // This function is typically called with tables containing deleted slots.
+  // The table will be big and `FindFirstNonFullAfterResize` will always
+  // fallback to `find_first_non_full`. So using `find_first_non_full` directly.
+  return find_first_non_full(common, hash);
+}
+
+}  // namespace
+
+const void* GetHashRefForEmptyHasher(const CommonFields& common) {
+  // Empty base optimization typically make the empty base class address to be
+  // the same as the first address of the derived class object.
+  // But we generally assume that for empty hasher we can return any valid
+  // pointer.
+  return &common;
+}
+
+size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
+                           const PolicyFunctions& policy) {
+  // When there are no deleted slots in the table
+  // and growth_left is positive, we can insert at the first
+  // empty slot in the probe sequence (target).
+  const bool use_target_hint =
+      // Optimization is disabled when generations are enabled.
+      // We have to rehash even sparse tables randomly in such mode.
+      !SwisstableGenerationsEnabled() &&
+      common.growth_info().HasNoDeletedAndGrowthLeft();
+  if (ABSL_PREDICT_FALSE(!use_target_hint)) {
+    // Notes about optimized mode when generations are disabled:
+    // We do not enter this branch if table has no deleted slots
+    // and growth_left is positive.
+    // We enter this branch in the following cases listed in decreasing
+    // frequency:
+    // 1. Table without deleted slots (>95% cases) that needs to be resized.
+    // 2. Table with deleted slots that has space for the inserting element.
+    // 3. Table with deleted slots that needs to be rehashed or resized.
+    if (ABSL_PREDICT_TRUE(common.growth_info().HasNoGrowthLeftAndNoDeleted())) {
+      const size_t old_capacity = common.capacity();
+      policy.resize(common, NextCapacity(old_capacity), HashtablezInfoHandle{});
+      target = HashSetResizeHelper::FindFirstNonFullAfterResize(
+          common, old_capacity, hash);
+    } else {
+      // Note: the table may have no deleted slots here when generations
+      // are enabled.
+      const bool rehash_for_bug_detection =
+          common.should_rehash_for_bug_detection_on_insert();
+      if (rehash_for_bug_detection) {
+        // Move to a different heap allocation in order to detect bugs.
+        const size_t cap = common.capacity();
+        policy.resize(common,
+                      common.growth_left() > 0 ? cap : NextCapacity(cap),
+                      HashtablezInfoHandle{});
+      }
+      if (ABSL_PREDICT_TRUE(common.growth_left() > 0)) {
+        target = find_first_non_full(common, hash);
+      } else {
+        target = FindInsertPositionWithGrowthOrRehash(common, hash, policy);
+      }
+    }
+  }
+  PrepareInsertCommon(common);
+  common.growth_info().OverwriteControlAsFull(common.control()[target.offset]);
+  SetCtrl(common, target.offset, H2(hash), policy.slot_size);
+  common.infoz().RecordInsert(hash, target.probe_length);
+  return target.offset;
 }
 
 }  // namespace container_internal

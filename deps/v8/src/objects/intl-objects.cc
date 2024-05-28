@@ -9,12 +9,15 @@
 #include "src/objects/intl-objects.h"
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "src/api/api-inl.h"
+#include "src/base/logging.h"
 #include "src/base/strings.h"
+#include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
@@ -65,6 +68,11 @@ namespace internal {
 
 namespace {
 
+inline constexpr uint8_t AsOneByte(uint16_t ch) {
+  DCHECK_LE(ch, kMaxUInt8);
+  return static_cast<uint8_t>(ch);
+}
+
 constexpr uint8_t kToLower[256] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -90,25 +98,30 @@ constexpr uint8_t kToLower[256] = {
     0xFC, 0xFD, 0xFE, 0xFF,
 };
 
-inline constexpr uint16_t ToLatin1Lower(uint16_t ch) {
-  return static_cast<uint16_t>(kToLower[ch]);
+inline constexpr uint8_t ToLatin1Lower(uint8_t ch) {
+  static_assert(std::numeric_limits<decltype(ch)>::max() < arraysize(kToLower));
+  return kToLower[ch];
 }
+// Ensure callers explicitly truncate uint16_t.
+inline constexpr uint8_t ToLatin1Lower(uint16_t ch) = delete;
 
-// Does not work for U+00DF (sharp-s), U+00B5 (micron), U+00FF.
-inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
+// Does not work for U+00DF (sharp-s), U+00B5 (micron), U+00FF, or two-byte
+// values.
+inline constexpr uint8_t ToLatin1Upper(uint8_t ch) {
   DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
   return ch &
          ~((IsAsciiLower(ch) || (((ch & 0xE0) == 0xE0) && ch != 0xF7)) << 5);
 }
+// Ensure callers explicitly truncate uint16_t.
+inline constexpr uint8_t ToLatin1Upper(uint16_t ch) = delete;
 
-template <typename Char>
-bool ToUpperFastASCII(base::Vector<const Char> src,
+bool ToUpperFastASCII(base::Vector<const uint16_t> src,
                       Handle<SeqOneByteString> result) {
   // Do a faster loop for the case where all the characters are ASCII.
   uint16_t ored = 0;
   int32_t index = 0;
-  for (auto it = src.begin(); it != src.end(); ++it) {
-    uint16_t ch = static_cast<uint16_t>(*it);
+  for (const uint16_t* it = src.begin(); it != src.end(); ++it) {
+    uint16_t ch = *it;
     ored |= ch;
     result->SeqOneByteStringSet(index++, ToAsciiUpper(ch));
   }
@@ -127,7 +140,7 @@ bool ToUpperOneByte(base::Vector<const Char> src, uint8_t* dest,
   //  2. Lower case sharp-S converts to "SS" (two characters)
   *sharp_s_count = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
-    uint16_t ch = static_cast<uint16_t>(*it);
+    uint8_t ch = AsOneByte(*it);
     if (V8_UNLIKELY(ch == sharp_s)) {
       ++(*sharp_s_count);
       continue;
@@ -148,7 +161,7 @@ void ToUpperWithSharpS(base::Vector<const Char> src,
                        Handle<SeqOneByteString> result) {
   int32_t dest_index = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
-    uint16_t ch = static_cast<uint16_t>(*it);
+    uint8_t ch = AsOneByte(*it);
     if (ch == sharp_s) {
       result->SeqOneByteStringSet(dest_index++, 'S');
       result->SeqOneByteStringSet(dest_index++, 'S');
@@ -321,7 +334,7 @@ Tagged<String> Intl::ConvertOneByteToLower(Tagged<String> src,
     // If not ASCII, we keep the result up to index_to_first_unprocessed and
     // process the rest.
     for (int index = index_to_first_unprocessed; index < length; ++index) {
-      dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
+      dst_data[index] = ToLatin1Lower(src_data[index]);
     }
   } else {
     DCHECK(src_flat.IsTwoByte());
@@ -331,7 +344,11 @@ Tagged<String> Intl::ConvertOneByteToLower(Tagged<String> src,
     const uint16_t* src_data = src_flat.ToUC16Vector().begin();
     CopyChars(dst_data, src_data, index_to_first_unprocessed);
     for (int index = index_to_first_unprocessed; index < length; ++index) {
-      dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
+      // Truncating cast of two-byte src character to one-byte value. For valid
+      // cases (where a one-byte sliced string points to a two-byte parent) this
+      // will not lose any information, but we need to truncate anyway to
+      // avoid undefined behavior if the parent string is corrupted.
+      dst_data[index] = ToLatin1Lower(AsOneByte(src_data[index]));
     }
   }
 

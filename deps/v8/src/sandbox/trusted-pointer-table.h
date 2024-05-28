@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/sandbox/external-entity-table.h"
 #include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/tagged-payload.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -68,7 +69,15 @@ struct TrustedPointerTableEntry {
 
   // TrustedPointerTable entries consist of a single pointer-sized word
   // containing a tag and marking bit together with the actual pointer.
-  struct Payload {
+  struct TrustedPointerTaggingScheme {
+    using TagType = IndirectPointerTag;
+    static constexpr uint64_t kMarkBit = kTrustedPointerTableMarkBit;
+    static constexpr uint64_t kTagMask = kIndirectPointerTagMask;
+    static constexpr TagType kFreeEntryTag = kFreeTrustedPointerTableEntryTag;
+    static constexpr bool kSupportsEvacuation = false;
+  };
+
+  struct Payload : TaggedPayload<TrustedPointerTaggingScheme> {
     static Payload ForTrustedPointerEntry(Address pointer,
                                           IndirectPointerTag tag) {
       // We expect to only store references to (trusted) HeapObjects in the
@@ -83,33 +92,9 @@ struct TrustedPointerTableEntry {
       return Payload(next_entry, kFreeTrustedPointerTableEntryTag);
     }
 
-    Address Untag(IndirectPointerTag tag) const {
-      return encoded_word_ & ~(tag | kTrustedPointerTableMarkBit);
-    }
-
-    void SetMarkBit() { encoded_word_ |= kTrustedPointerTableMarkBit; }
-
-    void ClearMarkBit() { encoded_word_ &= ~kTrustedPointerTableMarkBit; }
-
-    bool HasMarkBitSet() const {
-      return (encoded_word_ & kTrustedPointerTableMarkBit) != 0;
-    }
-
-    bool ContainsFreelistLink() const {
-      return (encoded_word_ & kFreeTrustedPointerTableEntryTag) ==
-             kFreeTrustedPointerTableEntryTag;
-    }
-
-    uint32_t ExtractFreelistLink() const {
-      return static_cast<uint32_t>(encoded_word_);
-    }
-
-    bool ContainsTrustedPointer() const { return !ContainsFreelistLink(); }
-
    private:
-    Payload(Address pointer, Address tag) : encoded_word_(pointer | tag) {}
-
-    Address encoded_word_;
+    Payload(Address pointer, IndirectPointerTag tag)
+        : TaggedPayload(pointer, tag) {}
   };
 
   std::atomic<Payload> payload_;

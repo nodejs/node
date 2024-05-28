@@ -237,20 +237,31 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
 Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
   DCHECK_EQ(kInitialized, state_);
 
-  base::SharedMutexGuard<base::kExclusive> mutex_guard(
-      isolate_->map_updater_access());
-
   new_elements_kind_ = elements_kind;
   is_transitionable_fast_elements_kind_ =
       IsTransitionableFastElementsKind(new_elements_kind_);
 
-  if (FindRootMap() == kEnd) return result_map_;
-  if (FindTargetMap() == kEnd) return result_map_;
-  if (ConstructNewMap() == kAtIntegrityLevelSource) {
-    ConstructNewMapWithIntegrityLevelTransition();
+  return Update();
+}
+
+Handle<Map> MapUpdater::ApplyPrototypeTransition(Handle<HeapObject> prototype) {
+  DCHECK(V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL);
+  DCHECK_EQ(kInitialized, state_);
+  DCHECK_NE(old_map_->prototype(), *prototype);
+
+  // Prototype maps are replaced by deprecation when their prototype changes. No
+  // need to add a transition.
+  if (old_map_->is_prototype_map()) {
+    return Map::CopyForPrototypeTransition(isolate_, old_map_, prototype);
   }
-  DCHECK_EQ(kEnd, state_);
-  return result_map_;
+
+  new_prototype_ = prototype;
+
+  // TODO(olivf): The updated map can have more generic field types than the
+  // source map. This is ok, since UpdatePrototype also does an instance
+  // migration. If we wanted to avoid the migration for most cases, we could
+  // potentially back-propagate generalizations here.
+  return Update();
 }
 
 // static
@@ -271,17 +282,19 @@ Handle<Map> MapUpdater::Update() {
 
 Handle<Map> MapUpdater::UpdateImpl() {
   DCHECK_EQ(kInitialized, state_);
-  DCHECK(old_map_->is_deprecated());
-
+  DCHECK_IMPLIES(new_prototype_.is_null() &&
+                     new_elements_kind_ == old_map_->elements_kind(),
+                 old_map_->is_deprecated());
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
   if (ConstructNewMap() == kAtIntegrityLevelSource) {
     ConstructNewMapWithIntegrityLevelTransition();
   }
   DCHECK_EQ(kEnd, state_);
-  if (v8_flags.fast_map_update) {
+  if (V8_UNLIKELY(v8_flags.fast_map_update && old_map_->is_deprecated())) {
     TransitionsAccessor::SetMigrationTarget(isolate_, old_map_, *result_map_);
   }
+  DCHECK_EQ(kEnd, state_);
   return result_map_;
 }
 
@@ -360,6 +373,18 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
     }
     return constructor->initial_map();
   }
+
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+  if (root_map->prototype() != old_map->prototype()) {
+    auto maybe_transition = TransitionsAccessor::GetPrototypeTransition(
+        isolate, root_map, old_map->prototype());
+    if (!maybe_transition) {
+      return {};
+    }
+    root_map = *maybe_transition;
+  }
+#endif  // V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+
   if (!old_map->EquivalentToForTransition(root_map, cmode)) return {};
 
   ElementsKind from_kind = root_map->elements_kind();
@@ -389,19 +414,21 @@ base::Optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   }
 
   // Replay the transitions as they were before the integrity level transition.
-  Tagged<Map> result = root_map->TryReplayPropertyTransitions(
+  Tagged<Map> replay = root_map->TryReplayPropertyTransitions(
       isolate, info.integrity_level_source_map, cmode);
-  if (result.is_null()) return {};
+  if (replay.is_null()) return {};
 
+  std::optional<Tagged<Map>> result = replay;
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, result, IsConcurrent(cmode))
+    result = TransitionsAccessor(isolate, *result, IsConcurrent(cmode))
                  .SearchSpecial(info.integrity_level_symbol);
   }
-  if (result.is_null()) return {};
 
-  DCHECK_EQ(old_map->elements_kind(), result->elements_kind());
-  DCHECK_EQ(old_map->instance_type(), result->instance_type());
+  if (result) {
+    DCHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
+    DCHECK_EQ(old_map->instance_type(), (*result)->instance_type());
+  }
   return result;
 }
 
@@ -418,8 +445,9 @@ void MapUpdater::GeneralizeField(Handle<Map> map, InternalIndex modify_index,
 }
 
 MapUpdater::State MapUpdater::Normalize(const char* reason) {
-  result_map_ = Map::Normalize(isolate_, old_map_, new_elements_kind_,
-                               CLEAR_INOBJECT_PROPERTIES, reason);
+  result_map_ =
+      Map::Normalize(isolate_, old_map_, new_elements_kind_, new_prototype_,
+                     CLEAR_INOBJECT_PROPERTIES, reason);
   state_ = kEnd;
   return state_;  // Done.
 }
@@ -560,6 +588,11 @@ bool MapUpdater::TrySaveIntegrityLevelTransitions() {
 
 MapUpdater::State MapUpdater::FindRootMap() {
   DCHECK_EQ(kInitialized, state_);
+
+  if (new_prototype_.is_null()) {
+    new_prototype_ = handle(old_map_->prototype(), isolate_);
+  }
+
   // Check the state of the root map.
   root_map_ = handle(old_map_->FindRootMap(isolate_), isolate_);
   ElementsKind from_kind = root_map_->elements_kind();
@@ -574,8 +607,13 @@ MapUpdater::State MapUpdater::FindRootMap() {
     return state_;
   }
 
-  if (!old_map_->EquivalentToForTransition(*root_map_,
-                                           ConcurrencyMode::kSynchronous)) {
+  // In this first check allow the root map to have the wrong prototype, as we
+  // will deal with prototype transitions later.
+  if (!old_map_->EquivalentToForTransition(
+          *root_map_, ConcurrencyMode::kSynchronous,
+          V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL
+              ? handle(root_map_->prototype(), isolate_)
+              : Handle<HeapObject>())) {
     return Normalize("Normalize_NotEquivalent");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());
@@ -631,8 +669,30 @@ MapUpdater::State MapUpdater::FindRootMap() {
                     old_details.representation(), new_field_type_);
   }
 
-  // From here on, use the map with correct elements kind as root map.
+  // From here on, use the map with correct elements kind and prototype as root
+  // map.
+  if (root_map_->prototype() != *new_prototype_) {
+    DCHECK(V8_MOVE_PROTOYPE_TRANSITIONS_FIRST_BOOL);
+    bool is_cached;
+    Handle<Map> new_root_map_ = Map::TransitionToUpdatePrototype(
+        isolate_, root_map_, new_prototype_, &is_cached);
+    root_map_ = new_root_map_;
+
+    if (!old_map_->EquivalentToForTransition(
+            *root_map_, ConcurrencyMode::kSynchronous, new_prototype_)) {
+      return Normalize("Normalize_NotEquivalent");
+    }
+    // If the proto transitions overflow we can't keep track of the relations
+    // anymore. This means field updates do not propagate and we must ensure
+    // that prototype transitions always connect to a more generic map.
+    if (!root_map_->is_dictionary_map() && !is_cached) {
+      root_map_->instance_descriptors()->GeneralizeAllFields(true);
+    }
+  }
   root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);
+  DCHECK(old_map_->EquivalentToForTransition(
+      *root_map_, ConcurrencyMode::kSynchronous, new_prototype_));
+
   state_ = kAtRootMap;
   return state_;  // Not done yet.
 }
@@ -730,9 +790,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     }
 
     // We try to replay the integrity level transition here.
-    MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
-        isolate_, target_map_, *integrity_level_symbol_);
-    if (maybe_transition.ToHandle(&result_map_)) {
+    if (auto maybe_transition = TransitionsAccessor::SearchSpecial(
+            isolate_, target_map_, *integrity_level_symbol_)) {
+      result_map_ = *maybe_transition;
       state_ = kEnd;
       return state_;  // Done.
     }
@@ -800,10 +860,8 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     if (old_details.location() == PropertyLocation::kField) {
       current_offset += old_details.field_width_in_words();
     }
-    Descriptor d(handle(GetKey(i), isolate_),
-                 MaybeObjectHandle(old_descriptors_->GetValue(i), isolate_),
-                 old_details);
-    new_descriptors->Set(i, &d);
+    new_descriptors->Set(i, GetKey(i), old_descriptors_->GetValue(i),
+                         old_details);
   }
 
   // Merge "updated" old_descriptor entries with target_descriptor entries.
@@ -1148,6 +1206,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
                                  const MaybeObjectHandle& new_wrapped_type) {
   DCHECK(IsSmi(*new_wrapped_type) || IsWeak(*new_wrapped_type));
   // We store raw pointers in the queue, so no allocations are allowed.
+  DisallowGarbageCollection no_gc;
   PropertyDetails details =
       map->instance_descriptors(isolate)->GetDetails(descriptor);
   if (details.location() != PropertyLocation::kField) return;
@@ -1159,17 +1218,30 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
 
   std::queue<Tagged<Map>> backlog;
   backlog.push(*map);
+  std::unordered_set<Tagged<Map>, Object::Hasher> sidestep_transition;
 
+  ReadOnlyRoots roots(isolate);
   while (!backlog.empty()) {
     Tagged<Map> current = backlog.front();
     backlog.pop();
 
     TransitionsAccessor transitions(isolate, current);
-    int num_transitions = transitions.NumberOfTransitions();
-    for (int i = 0; i < num_transitions; ++i) {
-      Tagged<Map> target = transitions.GetTarget(i);
-      backlog.push(target);
-    }
+    transitions.ForEachTransitionWithKey(
+        &no_gc,
+        [&](Tagged<Name> key, Tagged<Map> target) {
+          if (TransitionsAccessor::IsSpecialSidestepTransition(roots, key)) {
+            if (target.is_null() || sidestep_transition.count(target)) {
+              return;
+            }
+            sidestep_transition.insert(target);
+          }
+          backlog.push(target);
+        },
+        [&](Tagged<Map> target) {
+#ifdef V8_MOVE_PROTOYPE_TRANSITIONS_FIRST
+          backlog.push(target);
+#endif
+        });
     Tagged<DescriptorArray> descriptors =
         current->instance_descriptors(isolate);
     details = descriptors->GetDetails(descriptor);
@@ -1208,6 +1280,7 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   Representation old_representation = old_details.representation();
   Handle<FieldType> old_field_type(old_descriptors->GetFieldType(modify_index),
                                    isolate);
+  DCHECK_IMPLIES(IsClass(*old_field_type), old_representation.IsHeapObject());
 
   // Return if the current map is general enough to hold requested constness and
   // representation/field type.
@@ -1242,6 +1315,8 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_field_type));
   UpdateFieldType(isolate, field_owner, modify_index, name, new_constness,
                   new_representation, wrapped_type);
+
+  DCHECK_IMPLIES(IsClass(*new_field_type), new_representation.IsHeapObject());
 
   DependentCode::DependencyGroups dep_groups;
   if (new_constness != old_constness) {

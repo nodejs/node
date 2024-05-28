@@ -69,6 +69,11 @@ class MaglevCodeGenState {
   }
   int stack_slots() const { return untagged_slots_ + tagged_slots_; }
   int tagged_slots() const { return tagged_slots_; }
+
+  uint16_t parameter_count() const {
+    return compilation_info_->toplevel_compilation_unit()->parameter_count();
+  }
+
   MaglevSafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }

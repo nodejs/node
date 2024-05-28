@@ -95,7 +95,7 @@ class DescriptorArray
 
   // Generalizes constness, representation and field type of all field
   // descriptors.
-  void GeneralizeAllFields(TransitionKindFlag transition_kind);
+  void GeneralizeAllFields(bool clear_constness);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
@@ -140,7 +140,8 @@ class DescriptorArray
   V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Tagged<Name> name,
                                           Tagged<Map> map);
 
-  bool IsEqualUpTo(Tagged<DescriptorArray> desc, int nof_descriptors);
+  bool IsCompatibleForTransitionUpTo(Tagged<DescriptorArray> desc,
+                                     int nof_descriptors);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.

@@ -96,7 +96,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 #endif
     if (code_ptr == nullptr) continue;
     const intptr_t slide = _dyld_get_image_vmaddr_slide(i);
-    const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
+    const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr);
     result.push_back(SharedLibraryAddress(_dyld_get_image_name(i), start,
                                           start + size, slide));
   }

@@ -1951,6 +1951,18 @@ TEST(DebugStepLinear) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountLinear) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){a=1;b=1;c=1;}", "foo");
+
+  // Run foo to allow it to get optimized.
+  CompileRun("a=0; b=0; c=0; foo();");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -1958,6 +1970,7 @@ TEST(DebugStepLinear) {
 
   SetBreakPoint(foo, 3);
   break_point_hit_count = 0;
+  v8::Local<v8::Context> context = env.local();
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // Without stepping only active break points are hit.
@@ -1966,7 +1979,6 @@ TEST(DebugStepLinear) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Test of the stepping mechanism for keyed load in a loop.
 TEST(DebugStepKeyedLoadLoop) {
@@ -2190,6 +2202,26 @@ TEST(DebugStepLinearMixedICs) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountLinearMixedICs) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Local<v8::Context> context = env.local();
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar() {};"
+                      "function foo() {"
+                      "  var x;"
+                      "  var index='name';"
+                      "  var y = {};"
+                      "  a=1;b=2;x=a;y[index]=3;x=y[index];bar();}",
+                      "foo");
+
+  // Run functions to allow them to get optimized.
+  CompileRun("a=0; b=0; bar(); foo();");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2205,7 +2237,6 @@ TEST(DebugStepLinearMixedICs) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 TEST(DebugStepDeclarations) {
   LocalContext env;
@@ -2787,6 +2818,17 @@ TEST(DebugStepNatives) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountNatives) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){debugger;Math.sin(1);}", "foo");
+
+  v8::Local<v8::Context> context = env.local();
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2828,12 +2870,26 @@ TEST(DebugStepFunctionApply) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+// Test that step in works with function.apply.
+TEST(DebugCountFunctionApply) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
+                      "function foo(){ debugger; bar.apply(this, [1,2,3]); }",
+                      "foo");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   break_point_hit_count = 0;
+  v8::Local<v8::Context> context = env.local();
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // Without stepping only the debugger statement is hit.
@@ -2842,7 +2898,6 @@ TEST(DebugStepFunctionApply) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Test that step in works with function.call.
 TEST(DebugStepFunctionCall) {
@@ -2883,6 +2938,26 @@ TEST(DebugStepFunctionCall) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountFunctionCall) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Context> context = env.local();
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
+                      "function foo(a){ debugger;"
+                      "                 if (a) {"
+                      "                   bar.call(this, 1, 2, 3);"
+                      "                 } else {"
+                      "                   bar.call(this, 0);"
+                      "                 }"
+                      "}",
+                      "foo");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2897,7 +2972,6 @@ TEST(DebugStepFunctionCall) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Test that step in works with Function.call.apply.
 TEST(DebugStepFunctionCallApply) {
@@ -2928,6 +3002,24 @@ TEST(DebugStepFunctionCallApply) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountFunctionCallApply) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Context> context = env.local();
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar() { }"
+                      "function foo(){ debugger;"
+                      "                Function.call.apply(bar);"
+                      "                Function.call.apply(Function.call, "
+                      "[Function.call, bar]);"
+                      "}",
+                      "foo");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2942,7 +3034,6 @@ TEST(DebugStepFunctionCallApply) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Tests that breakpoint will be hit if it's set in script.
 TEST(PauseInScript) {
@@ -4221,8 +4312,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // This test on purpose unlocks the isolate without exiting and
       // re-entering. It must however update the stack start, which would have
       // been done automatically if the isolate was properly re-entered.
-      reinterpret_cast<i::Isolate*>(isolate_)->heap()->SetStackStart(
-          v8::base::Stack::GetStackStart());
+      reinterpret_cast<i::Isolate*>(isolate_)->heap()->SetStackStart();
     }
     isolate_->Enter();
   }
@@ -6014,29 +6104,6 @@ class NoopDelegate : public v8::debug::DebugDelegate {};
 
 }  // namespace
 
-// Tests that the Isolate::Pop/Push leaves an empty stack for `await` when
-// the Debugger is active but the AsyncEventDelegate is not set.
-// Regression test for https://crbug.com/1225905
-TEST(AwaitCleansUpGlobalPromiseStack) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  NoopDelegate delegate;
-  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
-  v8::debug::SetAsyncEventDelegate(env->GetIsolate(), nullptr);
-
-  v8::Local<v8::String> source = v8_str(
-      "(async () => {\n"
-      "  await Promise.resolve();\n"
-      "})();\n");
-  CompileRun(source);
-
-  CHECK(CcTest::i_isolate()->IsPromiseStackEmpty());
-
-  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
-
 TEST(CreateMessageFromOldException) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -6261,4 +6328,359 @@ TEST(FailedBreakpointConditoinEvaluationEvent) {
   CHECK_EQ(bp->id(), delegate.breakpoint_id);
   CHECK(delegate.exception_thrown);
   CHECK(!delegate.exception.IsEmpty());
+}
+
+class ExceptionCatchPredictionChecker : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
+    exception_event_count++;
+    was_uncaught = is_uncaught;
+    // Check that exception is the string 'f' so we know that we are
+    // only throwing the intended exception.
+    CHECK(v8_str(paused_context->GetIsolate(), "f")
+              ->Equals(paused_context, exception)
+              .ToChecked());
+  }
+
+  int exception_event_count = 0;
+  bool was_uncaught = false;
+  int functions_checked = 0;
+};
+
+void RunExceptionCatchPredictionTest(bool predict_uncaught, const char* code) {
+  i::v8_flags.allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  ExceptionCatchPredictionChecker delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  ChangeBreakOnException(isolate, true, true);
+
+  CompileRun(code);
+  CHECK_EQ(0, delegate.exception_event_count);
+
+  CompileRun("%PrepareFunctionForOptimization(test);\n");
+  CompileRun("test();\n");
+  CHECK_EQ(1, delegate.exception_event_count);
+  CHECK_EQ(predict_uncaught, delegate.was_uncaught);
+
+  // Second time should be same result as first
+  delegate.exception_event_count = 0;
+  CompileRun("test();\n");
+  CHECK_EQ(1, delegate.exception_event_count);
+  CHECK_EQ(predict_uncaught, delegate.was_uncaught);
+
+  // Now ensure optimization doesn't change the reported exception
+  delegate.exception_event_count = 0;
+  CompileRun("%OptimizeFunctionOnNextCall(test);\n");
+  CompileRun("test();\n");
+  CHECK_EQ(1, delegate.exception_event_count);
+  CHECK_EQ(predict_uncaught, delegate.was_uncaught);
+}
+
+class FunctionBlackboxedCheckCounter : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
+    // Should never happen due to consistent blackboxing
+    UNREACHABLE();
+  }
+  bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                            const v8::debug::Location& start,
+                            const v8::debug::Location& end) override {
+    functions_checked++;
+    // Return true to ensure it keeps walking the callstack
+    return true;
+  }
+  int functions_checked = 0;
+};
+
+void RunAndIgnore(v8::Local<v8::Script> script,
+                  v8::Local<v8::Context> context) {
+  auto result = script->Run(context);
+  if (!result.IsEmpty()) result.ToLocalChecked();
+}
+
+void RunExceptionBlackboxCheckTest(int functions_checked, const char* code) {
+  i::v8_flags.allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  FunctionBlackboxedCheckCounter delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  ChangeBreakOnException(isolate, true, true);
+
+  CompileRun(code);
+  CHECK_EQ(0, delegate.functions_checked);
+
+  CompileRun("%PrepareFunctionForOptimization(test);\n");
+
+  // Need to compile this script once and run it multiple times so the call
+  // stack doesn't change.
+  v8::Local<v8::Context> context = env.local();
+  v8::Local<v8::Script> test_script =
+      v8::Script::Compile(context, v8_str(isolate, "test();\n"))
+          .ToLocalChecked();
+  RunAndIgnore(test_script, context);
+  CHECK_EQ(functions_checked, delegate.functions_checked);
+
+  // Second time should not do any checks due to cached function debug info
+  delegate.functions_checked = 0;
+  RunAndIgnore(test_script, context);
+  CHECK_EQ(0, delegate.functions_checked);
+
+  // Now ensure optimization doesn't lead to additional frames being checked
+  delegate.functions_checked = 0;
+  CompileRun("%OptimizeFunctionOnNextCall(test);\n");
+  RunAndIgnore(test_script, context);
+  // Will fail if we iterate over more stack frames than expected. Would be
+  // nice to figure out how to use something like
+  // v8::debug::ResetBlackboxedStateCache so we can ensure the same functions
+  // are being checked.
+  CHECK_EQ(0, delegate.functions_checked);
+}
+
+void RunExceptionOptimizedCallstackWalkTest(bool predict_uncaught,
+                                            int functions_checked,
+                                            const char* code) {
+  RunExceptionCatchPredictionTest(predict_uncaught, code);
+  RunExceptionBlackboxCheckTest(functions_checked, code);
+}
+
+TEST(CatchPredictionWithLongStar) {
+  // Simple scan for catch method, but we first exhaust the short registers
+  // in the bytecode so that it doesn't use the short star instructions
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let r1 = 1;
+      let r2 = 2;
+      let r3 = r1 + r2;
+      let r4 = r2 * 2;
+      let r5 = r2 + r3;
+      let r6 = r4 + r2;
+      let r7 = 7;
+      let r8 = r5 + r3;
+      let r9 = r7 + r2;
+      let r10 = r4 + r6;
+      let r11 = r8 + r3;
+      let r12 = r7 + r5;
+      let r13 = r11 + r2;
+      let r14 = r10 + r4;
+      let r15 = r9 + r6;
+      let r16 = r15 + r1;
+      let p = Promise.reject('f').catch(()=>17);
+      return {p, r16, r14, r13, r12};
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionInlineExceptionCaught) {
+  // Simple throw and catch, but make sure inlined functions don't affect
+  // prediction.
+  RunExceptionOptimizedCallstackWalkTest(false, 3, R"javascript(
+    function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      thrower();
+    }
+
+    function catcher() {
+      try {
+        throwerWrapper();
+      } catch(e) {}
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionInlineExceptionUncaught) {
+  // Simple uncaught throw, but make sure inlined functions don't affect
+  // prediction.
+  RunExceptionOptimizedCallstackWalkTest(true, 4, R"javascript(
+    function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      thrower();
+    }
+
+    function test() {
+      throwerWrapper();
+    }
+
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionExceptionCaughtAsPromise) {
+  // Throw turns into promise rejection in async function, then caught
+  // by catch method. Multiple intermediate stack frames with decoy catches
+  // that won't actually catch and shouldn't be predicted to catch. Make sure
+  // we walk the correct number of frames and that inlining does not affect
+  // our behavior.
+  RunExceptionOptimizedCallstackWalkTest(false, 6, R"javascript(
+    function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      return thrower().catch(()=>{});
+    }
+
+    async function promiseWrapper() {
+      throwerWrapper();
+    }
+
+    function fakeCatcher() {
+      try {
+        return promiseWrapper();
+      } catch(e) {}
+    }
+
+    async function awaiter() {
+      await fakeCatcher();
+    }
+
+    function catcher() {
+      return awaiter().then(()=>{}).catch(()=>{});
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(awaiter);
+    %PrepareFunctionForOptimization(fakeCatcher);
+    %PrepareFunctionForOptimization(promiseWrapper);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionExceptionCaughtAsPromiseInAsyncFunction) {
+  // Throw as promise rejection in async function, then caught
+  // by catch method. Ensure we scan for catch method in an async
+  // function.
+  RunExceptionOptimizedCallstackWalkTest(false, 3, R"javascript(
+    async function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      return thrower();
+    }
+
+    async function catcher() {
+      await throwerWrapper().catch(()=>{});
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionExceptionCaughtAsPromiseInCatchingFunction) {
+  // Throw as promise rejection in async function, then caught
+  // by catch method. Ensure we scan for catch method in function
+  // with a (decoy) catch block.
+  RunExceptionOptimizedCallstackWalkTest(false, 3, R"javascript(
+    async function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      return thrower();
+    }
+
+    function catcher() {
+      try {
+        return throwerWrapper().catch(()=>{});
+      } catch (e) {}
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionTopLevelEval) {
+  // Statement returning rejected promise is immediately followed by statement
+  // catching it in top level eval context.
+  RunExceptionCatchPredictionTest(false, R"javascript(
+    function test() {
+      eval(`let result = Promise.reject('f');
+      result.catch(()=>{});`);
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionClosureCapture) {
+  // Statement returning rejected promise is immediately followed by statement
+  // catching it, but original promise is captured in a closure.
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let result = Promise.reject('f');
+      result.catch(()=>{});
+      return (() => result);
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionNestedContext) {
+  // Statement returning rejected promise stores in a variable in an outer
+  // context.
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let result = null;
+      {
+        let otherObj = {};
+        result = Promise.reject('f');
+        result.catch(()=>otherObj);
+      }
+      return (() => result);
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionWithContext) {
+  // Statement returning rejected promise stores in a variable outside a with
+  // context.
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let result = null;
+      let otherObj = {};
+      with (otherObj) {
+        result = Promise.reject('f');
+        result.catch(()=>{});
+      }
+      return (() => result);
+    }
+  )javascript");
 }

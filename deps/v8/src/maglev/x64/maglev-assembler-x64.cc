@@ -6,7 +6,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-graph.h"
@@ -19,61 +19,61 @@ namespace maglev {
 
 #define __ masm->
 
+namespace {
+void LoadNewAllocationTop(MaglevAssembler* masm, Register new_top,
+                          Register object, int size_in_bytes) {
+  __ leaq(new_top, Operand(object, size_in_bytes));
+}
+
+void LoadNewAllocationTop(MaglevAssembler* masm, Register new_top,
+                          Register object, Register size_in_bytes) {
+  __ Move(new_top, object);
+  __ addq(new_top, size_in_bytes);
+}
+
+template <typename T>
+void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
+                 RegisterSnapshot register_snapshot, Register object,
+                 T size_in_bytes, AllocationType alloc_type,
+                 AllocationAlignment alignment) {
+  // TODO(victorgomes): Call the runtime for large object allocation.
+  // TODO(victorgomes): Support double alignment.
+  DCHECK_EQ(alignment, kTaggedAligned);
+  if (v8_flags.single_generation) {
+    alloc_type = AllocationType::kOld;
+  }
+  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
+  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  ZoneLabelRef done(masm);
+  Register new_top = kScratchRegister;
+  // Check if there is enough space.
+  __ Move(object, __ ExternalReferenceAsOperand(top));
+  LoadNewAllocationTop(masm, new_top, object, size_in_bytes);
+  __ cmpq(new_top, __ ExternalReferenceAsOperand(limit));
+  // Otherwise call runtime.
+  __ JumpToDeferredIf(greater_equal, AllocateSlow<T>, register_snapshot, object,
+                      AllocateBuiltin(alloc_type), size_in_bytes, done);
+  // Store new top and tag object.
+  __ movq(__ ExternalReferenceAsOperand(top), new_top);
+  __ addq(object, Immediate(kHeapObjectTag));
+  __ bind(*done);
+}
+}  // namespace
+
 void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
                                Register object, int size_in_bytes,
                                AllocationType alloc_type,
                                AllocationAlignment alignment) {
-  // TODO(victorgomes): Call the runtime for large object allocation.
-  // TODO(victorgomes): Support double alignment.
-  DCHECK_EQ(alignment, kTaggedAligned);
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  if (v8_flags.single_generation) {
-    alloc_type = AllocationType::kOld;
-  }
-  bool in_new_space = alloc_type == AllocationType::kYoung;
-  ExternalReference top =
-      in_new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate_)
-          : ExternalReference::old_space_allocation_top_address(isolate_);
-  ExternalReference limit =
-      in_new_space
-          ? ExternalReference::new_space_allocation_limit_address(isolate_)
-          : ExternalReference::old_space_allocation_limit_address(isolate_);
+  AllocateRaw(this, isolate_, register_snapshot, object, size_in_bytes,
+              alloc_type, alignment);
+}
 
-  ZoneLabelRef done(this);
-  Register new_top = kScratchRegister;
-  // Check if there is enough space.
-  Move(object, ExternalReferenceAsOperand(top));
-  leaq(new_top, Operand(object, size_in_bytes));
-  cmpq(new_top, ExternalReferenceAsOperand(limit));
-  // Otherwise call runtime.
-  JumpToDeferredIf(
-      greater_equal,
-      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-         Register object, Builtin builtin, int size_in_bytes,
-         ZoneLabelRef done) {
-        // Remove {object} from snapshot, since it is the returned allocated
-        // HeapObject.
-        register_snapshot.live_registers.clear(object);
-        register_snapshot.live_tagged_registers.clear(object);
-        {
-          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
-          using D = AllocateDescriptor;
-          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
-          __ CallBuiltin(builtin);
-          save_register_state.DefineSafepoint();
-          __ Move(object, kReturnRegister0);
-        }
-        __ jmp(*done);
-      },
-      register_snapshot, object,
-      in_new_space ? Builtin::kAllocateInYoungGeneration
-                   : Builtin::kAllocateInOldGeneration,
-      size_in_bytes, done);
-  // Store new top and tag object.
-  movq(ExternalReferenceAsOperand(top), new_top);
-  addq(object, Immediate(kHeapObjectTag));
-  bind(*done);
+void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
+                               Register object, Register size_in_bytes,
+                               AllocationType alloc_type,
+                               AllocationAlignment alignment) {
+  AllocateRaw(this, isolate_, register_snapshot, object, size_in_bytes,
+              alloc_type, alignment);
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
@@ -94,9 +94,13 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,
-                                         Register scratch) {
+                                         Register scratch,
+                                         CharCodeMaskMode mask_mode) {
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
+  if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
+    andl(char_code, Immediate(0xFFFF));
+  }
   cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       above,
@@ -105,6 +109,9 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
          Register scratch) {
         // Be sure to save {char_code}. If it aliases with {result}, use
         // the scratch register.
+        // TODO(victorgomes): This is probably not needed any more, because
+        // we now ensure that results registers don't alias with inputs/temps.
+        // Confirm, and drop this check.
         if (char_code == result) {
           // This is guaranteed to be true since we've already checked
           // char_code != scratch.
@@ -115,7 +122,6 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
         register_snapshot.live_registers.set(char_code);
         __ AllocateTwoByteString(register_snapshot, result, 1);
-        __ andl(char_code, Immediate(0xFFFF));
         __ movw(FieldOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)),
                 char_code);
         __ jmp(*done);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-array-grouping
+// Flags: --js-explicit-resource-management
 
 Debug = debug.Debug
 
@@ -17,6 +17,7 @@ var data_view = new DataView(new ArrayBuffer(8), 0, 8);
 var array = [1,2,3];
 var pure_function = function(x) { return x * x; };
 var unpure_function = function(x) { array.push(x); };
+var stack = new DisposableStack();
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -244,6 +245,10 @@ function listener(event, exec_state, event_data, data) {
 
     // Test some Map functions
     success('[1]', `JSON.stringify(Map.groupBy([1,2], x => x).get(1))`);
+
+    // Test DisposableStack functions.
+    success({}, `new DisposableStack()`);
+    success(false, `stack.disposed`);
   } catch (e) {
     exception = e;
     print(e, e.stack);

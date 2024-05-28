@@ -211,8 +211,8 @@ class Scavenger {
   EphemeronRememberedSet::TableList::Local ephemeron_table_list_local_;
   PretenuringHandler* const pretenuring_handler_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
-  size_t copied_size_;
-  size_t promoted_size_;
+  size_t copied_size_{0};
+  size_t promoted_size_{0};
   EvacuationAllocator allocator_;
   std::unique_ptr<MainAllocator> shared_old_allocator_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
@@ -308,9 +308,16 @@ class ScavengerCollector {
       RootScavengeVisitor* root_scavenge_visitor,
       std::vector<std::unique_ptr<Scavenger>>* scavengers, int main_thread_id);
 
+  size_t FetchAndResetConcurrencyEstimate() {
+    const size_t estimate =
+        estimate_concurrency_.exchange(0, std::memory_order_relaxed);
+    return estimate == 0 ? 1 : estimate;
+  }
+
   Isolate* const isolate_;
   Heap* const heap_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
+  std::atomic<size_t> estimate_concurrency_{0};
 
   friend class Scavenger;
 };

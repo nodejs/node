@@ -3941,7 +3941,8 @@ class TypedElementsAccessor
     // them.
     if (IsNull(source_proto, isolate)) return false;
     if (IsJSProxy(source_proto)) return true;
-    if (!context->native_context()->is_initial_array_prototype(
+    if (IsJSObject(source_proto) &&
+        !context->native_context()->is_initial_array_prototype(
             JSObject::cast(source_proto))) {
       return true;
     }

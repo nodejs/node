@@ -88,6 +88,16 @@ void JSArrayBuffer::SetBackingStoreRefForSerialization(uint32_t ref) {
   WriteField<Address>(kBackingStoreOffset, static_cast<Address>(ref));
 }
 
+void JSArrayBuffer::init_extension() {
+#if V8_COMPRESS_POINTERS
+  // The extension field is lazily-initialized, so set it to null initially.
+  base::AsAtomic32::Release_Store(extension_handle_location(),
+                                  kNullExternalPointerHandle);
+#else
+  base::AsAtomicPointer::Release_Store(extension_location(), nullptr);
+#endif  // V8_COMPRESS_POINTERS
+}
+
 ArrayBufferExtension* JSArrayBuffer::extension() const {
 #if V8_COMPRESS_POINTERS
   // We need Acquire semantics here when loading the entry, see below.
@@ -105,27 +115,23 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
 
 void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 #if V8_COMPRESS_POINTERS
-  if (extension != nullptr) {
-    Isolate* isolate = GetIsolateFromWritableObject(*this);
-    ExternalPointerTable& table = isolate->external_pointer_table();
+  // TODO(saelo): if we ever use the external pointer table for all external
+  // pointer fields in the no-sandbox-ptr-compression config, replace this code
+  // here and above with the respective external pointer accessors.
+  IsolateForPointerCompression isolate = GetIsolateFromWritableObject(*this);
+  const ExternalPointerTag tag = kArrayBufferExtensionTag;
+  Address value = reinterpret_cast<Address>(extension);
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
 
-    // The external pointer handle for the extension is initialized lazily and
-    // so has to be zero here since, once set, the extension field can only be
-    // cleared, but not changed.
-    DCHECK_EQ(0, base::AsAtomic32::Relaxed_Load(extension_handle_location()));
-
+  ExternalPointerHandle current_handle =
+      base::AsAtomic32::Relaxed_Load(extension_handle_location());
+  if (current_handle == kNullExternalPointerHandle) {
     // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-        isolate->heap()->external_pointer_space(),
-        reinterpret_cast<Address>(extension), kArrayBufferExtensionTag);
+        isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
   } else {
-    // This special handling of nullptr is required as it is used to initialize
-    // the slot, but is also beneficial when an ArrayBuffer is detached as it
-    // allows the external pointer table entry to be reclaimed while the
-    // ArrayBuffer is still alive.
-    base::AsAtomic32::Release_Store(extension_handle_location(),
-                                    kNullExternalPointerHandle);
+    table.Set(current_handle, value, tag);
   }
 #else
   base::AsAtomicPointer::Release_Store(extension_location(), extension);

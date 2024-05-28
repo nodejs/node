@@ -29,7 +29,8 @@ class Zone;
 
 namespace wasm {
 class ErrorThrower;
-enum Suspend : bool;
+enum Suspend : int { kSuspend, kSuspendWithSuspender, kNoSuspend };
+enum Promise : int { kPromise, kPromiseWithSuspender, kNoPromise };
 struct WasmModule;
 
 // Calls to Wasm imports are handled in several different ways, depending on the
@@ -103,7 +104,7 @@ class WasmImportData {
 
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};
-  Suspend suspend_{false};
+  Suspend suspend_{kNoSuspend};
   Handle<JSReceiver> callable_;
 };
 
@@ -119,23 +120,26 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 base::Optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index);
 
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, int type_index,
-    Handle<WasmInstanceObject> instance_object, Handle<FixedArray> maps);
+    Handle<WasmInstanceObject> instance_object,
+    Handle<FixedArray> maybe_shared_maps);
 
 // A union tagged on the code-kind for wrapper graph building data. The rest of
 // the wrapper compilation pipeline is independent of the code kind.
 struct WrapperCompilationInfo {
   CodeKind code_kind;
+  StubCallMode stub_mode;
   union {
     bool is_import;
     struct {
       wasm::ImportCallKind import_kind;
       int expected_arity;
       wasm::Suspend suspend;
-    } import_info;
+    } wasm_js_info;
   };
 };
 

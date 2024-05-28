@@ -262,6 +262,8 @@ enum class ToDateStringMode {
 DateBuffer ToDateString(double time_val, DateCache* date_cache,
                         ToDateStringMode mode);
 
+double ParseDateTimeString(Isolate* isolate, Handle<String> str);
+
 }  // namespace internal
 }  // namespace v8
 

@@ -22,6 +22,10 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class WasmCode;
+}
+
 enum class BuiltinContinuationMode;
 
 class DeoptimizedFrameInfo;
@@ -75,6 +79,8 @@ class Deoptimizer : public Malloced {
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
+
+  static void DeleteForWasm(Isolate* isolate);
 
   // The returned object with information on the optimized frame needs to be
   // freed before another one can be generated.
@@ -159,6 +165,10 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
+  void DoComputeOutputFramesWasmImpl();
+  FrameDescription* DoComputeWasmLiftoffFrame(TranslatedFrame& frame,
+                                              wasm::NativeModule* native_module,
+                                              int frame_index);
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
   void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,
@@ -208,6 +218,9 @@ class Deoptimizer : public Malloced {
   Isolate* isolate_;
   Tagged<JSFunction> function_;
   Tagged<Code> compiled_code_;
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCode* compiled_optimized_wasm_code_ = nullptr;
+#endif
   unsigned deopt_exit_index_;
   BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;

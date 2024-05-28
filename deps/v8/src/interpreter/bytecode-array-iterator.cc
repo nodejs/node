@@ -175,6 +175,19 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
                                                 current_operand_scale());
 }
 
+Register BytecodeArrayIterator::GetStarTargetRegister() const {
+  Bytecode bytecode = current_bytecode();
+  DCHECK(Bytecodes::IsAnyStar(bytecode));
+  if (Bytecodes::IsShortStar(bytecode)) {
+    return Register::FromShortStar(bytecode);
+  } else {
+    DCHECK_EQ(bytecode, Bytecode::kStar);
+    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
+    DCHECK_EQ(Bytecodes::GetOperandTypes(bytecode)[0], OperandType::kRegOut);
+    return GetRegisterOperand(0);
+  }
+}
+
 std::pair<Register, Register> BytecodeArrayIterator::GetRegisterPairOperand(
     int operand_index) const {
   Register first = GetRegisterOperand(operand_index);

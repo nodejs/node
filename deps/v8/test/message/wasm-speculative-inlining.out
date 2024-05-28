@@ -1,0 +1,63 @@
+Test call_ref speculative inlining with 0 different callees during feedback collection.
+[function 0: expanding topmost caller... feedback not found]
+Test call_ref speculative inlining with 1 different callees during feedback collection.
+[function 0: call #0 inlineable (monomorphic)]
+[function 0: expanding topmost caller... queueing callees]
+[function 0: in function 0, considering call #0, case #0, to function 1 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: Speculatively inlining call_ref #0, case #0, to function 1]
+Test call_ref speculative inlining with 4 different callees during feedback collection.
+[function 0: call #0 inlineable (polymorphic 4)]
+[function 0: expanding topmost caller... queueing callees]
+[function 0: in function 0, considering call #0, case #0, to function 1 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #1, to function 2 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #2, to function 3 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #3, to function 4 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: Speculatively inlining call_ref #0, case #0, to function 1]
+[function 0: Speculatively inlining call_ref #0, case #1, to function 2]
+[function 0: Speculatively inlining call_ref #0, case #2, to function 3]
+[function 0: Speculatively inlining call_ref #0, case #3, to function 4]
+Test call_ref speculative inlining with 5 different callees during feedback collection.
+[function 0: call #0: megamorphic]
+[function 0: expanding topmost caller... queueing callees]
+Test call_indirect speculative inlining with 0 different callees during feedback collection.
+[function 0: expanding topmost caller... feedback not found]
+Test call_indirect speculative inlining with 1 different callees during feedback collection.
+[function 0: call #0 inlineable (monomorphic)]
+[function 0: expanding topmost caller... queueing callees]
+[function 0: in function 0, considering call #0, case #0, to function 1 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: Speculatively inlining call_indirect #0, case #0, to function 1]
+Test call_indirect speculative inlining with 4 different callees during feedback collection.
+[function 0: call #0 inlineable (polymorphic 4)]
+[function 0: expanding topmost caller... queueing callees]
+[function 0: in function 0, considering call #0, case #0, to function 1 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #1, to function 2 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #2, to function 3 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #3, to function 4 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: Speculatively inlining call_indirect #0, case #0, to function 1]
+[function 0: Speculatively inlining call_indirect #0, case #1, to function 2]
+[function 0: Speculatively inlining call_indirect #0, case #2, to function 3]
+[function 0: Speculatively inlining call_indirect #0, case #3, to function 4]
+Test call_indirect speculative inlining with 5 different callees during feedback collection.
+[function 0: call #0: megamorphic]
+[function 0: expanding topmost caller... queueing callees]
+Test return_call_indirect speculative inlining with 0 different callees during feedback collection.
+[function 0: expanding topmost caller... feedback not found]
+Test return_call_indirect speculative inlining with 1 different callees during feedback collection.
+[function 0: call #0 inlineable (monomorphic)]
+[function 0: expanding topmost caller... queueing callees]
+[function 0: in function 0, considering call #0, case #0, to function 1 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: Speculatively inlining return_call_indirect #0, case #0, to function 1]
+Test return_call_indirect speculative inlining with 4 different callees during feedback collection.
+[function 0: call #0 inlineable (polymorphic 4)]
+[function 0: expanding topmost caller... queueing callees]
+[function 0: in function 0, considering call #0, case #0, to function 1 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #1, to function 2 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #2, to function 3 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: in function 0, considering call #0, case #3, to function 4 (count=10, size=7, score=-1)... decided to inline! queueing callees]
+[function 0: Speculatively inlining return_call_indirect #0, case #0, to function 1]
+[function 0: Speculatively inlining return_call_indirect #0, case #1, to function 2]
+[function 0: Speculatively inlining return_call_indirect #0, case #2, to function 3]
+[function 0: Speculatively inlining return_call_indirect #0, case #3, to function 4]
+Test return_call_indirect speculative inlining with 5 different callees during feedback collection.
+[function 0: call #0: megamorphic]
+[function 0: expanding topmost caller... queueing callees]

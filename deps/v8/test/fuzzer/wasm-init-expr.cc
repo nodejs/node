@@ -214,6 +214,9 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
   EnableExperimentalWasmFeatures(isolate);
+  //  We switch it to synchronous mode to avoid the nondeterminism of background
+  //  jobs finishing at random times.
+  FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
 
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
@@ -337,8 +340,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             CHECK(
                 WasmExportedFunction::IsWasmExportedFunction(*function_result));
             CHECK(*WasmInternalFunction::GetOrCreateExternal(handle(
-                      WasmFuncRef::cast(*global_val)->internal(), i_isolate)) ==
-                  *function_result);
+                      WasmFuncRef::cast(*global_val)->internal(i_isolate),
+                      i_isolate)) == *function_result);
           } else {
             // On arrays and structs, perform a deep comparison.
             DisallowGarbageCollection no_gc;

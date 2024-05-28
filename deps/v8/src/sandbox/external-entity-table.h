@@ -38,6 +38,11 @@ class Isolate;
  * logic for reclaiming entries such as garbage collection. This must be done
  * by the child classes.
  *
+ * For the purpose of memory management, the table is partitioned into Segments
+ * (for example 64kb memory chunks) that are grouped together in "Spaces". All
+ * segments in a space share a freelist, and so entry allocation and garbage
+ * collection happen on the level of spaces.
+ *
  * The Entry type defines how the freelist is represented. For that, it must
  * implement the following methods:
  * - void MakeFreelistEntry(uint32_t next_entry_index)
@@ -174,7 +179,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
 
 #ifdef DEBUG
     // Check whether this space belongs to the given external entity table.
-    bool BelongsTo(void* table) { return owning_table_ == table; }
+    bool BelongsTo(const void* table) const { return owning_table_ == table; }
 #endif  // DEBUG
 
    protected:

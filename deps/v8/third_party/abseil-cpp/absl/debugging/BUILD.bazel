@@ -219,8 +219,14 @@ cc_library(
 
 cc_library(
     name = "demangle_internal",
-    srcs = ["internal/demangle.cc"],
-    hdrs = ["internal/demangle.h"],
+    srcs = [
+        "internal/demangle.cc",
+        "internal/demangle_rust.cc",
+    ],
+    hdrs = [
+        "internal/demangle.h",
+        "internal/demangle_rust.h",
+    ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
@@ -231,6 +237,20 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "demangle_rust_test",
+    srcs = ["internal/demangle_rust_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":demangle_internal",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

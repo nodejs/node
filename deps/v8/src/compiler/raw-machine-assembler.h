@@ -983,8 +983,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* I16x8Splat(Node* a) { return AddNode(machine()->I16x8Splat(), a); }
 
   Node* LoadStackPointer() { return AddNode(machine()->LoadStackPointer()); }
-  void SetStackPointer(Node* ptr, wasm::FPRelativeScope fp_scope) {
-    AddNode(machine()->SetStackPointer(fp_scope), ptr);
+  void SetStackPointer(Node* ptr) {
+    AddNode(machine()->SetStackPointer(), ptr);
   }
 #endif
 

@@ -140,8 +140,6 @@ namespace internal {
   TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)              \
   TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)      \
   TFC(ConstructWithArrayLike, ConstructWithArrayLike)                          \
-  TFC(ConstructWithArrayLike_WithFeedback,                                     \
-      ConstructWithArrayLike_WithFeedback)                                     \
   ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
   ASM(ConstructForwardAllArgs, ConstructForwardAllArgs)                        \
   TFC(ConstructForwardAllArgs_Baseline, ConstructForwardAllArgs_Baseline)      \
@@ -283,6 +281,7 @@ namespace internal {
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
   TFC(ToBigIntConvertNumber, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
+  TFC(Typeof_Baseline, UnaryOp_Baseline)                                       \
   TFC(BigIntToI64, BigIntToI64)                                                \
   TFC(BigIntToI32Pair, BigIntToI32Pair)                                        \
   TFC(I64ToBigInt, I64ToBigInt)                                                \
@@ -429,6 +428,12 @@ namespace internal {
   TFS(CloneFastJSArray, NeedsContext::kYes, kSource)                           \
   TFS(CloneFastJSArrayFillingHoles, NeedsContext::kYes, kSource)               \
   TFS(ExtractFastJSArray, NeedsContext::kYes, kSource, kBegin, kCount)         \
+  TFS(CreateArrayFromSlowBoilerplate, NeedsContext::kYes, kFeedbackVector,     \
+      kSlot, kBoilerplateDescriptor, kFlags)                                   \
+  TFS(CreateObjectFromSlowBoilerplate, NeedsContext::kYes, kFeedbackVector,    \
+      kSlot, kBoilerplateDescriptor, kFlags)                                   \
+  TFC(CreateArrayFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)   \
+  TFC(CreateObjectFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)  \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, kJSArgcReceiverSlots, kReceiver)                  \
   /* ES6 #sec-array.prototype.keys */                                          \
@@ -454,10 +459,7 @@ namespace internal {
   TFS(AsyncFunctionReject, NeedsContext::kYes, kAsyncFunctionObject, kReason)  \
   TFS(AsyncFunctionResolve, NeedsContext::kYes, kAsyncFunctionObject, kValue)  \
   TFC(AsyncFunctionLazyDeoptContinuation, AsyncFunctionStackParameter)         \
-  TFS(AsyncFunctionAwaitCaught, NeedsContext::kYes, kAsyncFunctionObject,      \
-      kValue)                                                                  \
-  TFS(AsyncFunctionAwaitUncaught, NeedsContext::kYes, kAsyncFunctionObject,    \
-      kValue)                                                                  \
+  TFS(AsyncFunctionAwait, NeedsContext::kYes, kAsyncFunctionObject, kValue)    \
   TFJ(AsyncFunctionAwaitRejectClosure, kJSArgcReceiverSlots + 1, kReceiver,    \
       kSentError)                                                              \
   TFJ(AsyncFunctionAwaitResolveClosure, kJSArgcReceiverSlots + 1, kReceiver,   \
@@ -593,6 +595,15 @@ namespace internal {
   CPP(DatePrototypeToTimeString)                                               \
   CPP(DatePrototypeToJson)                                                     \
   CPP(DateUTC)                                                                 \
+                                                                               \
+  /* DisposabeStack*/                                                          \
+  CPP(DisposableStackConstructor)                                              \
+  CPP(DisposableStackPrototypeUse)                                             \
+  CPP(DisposableStackPrototypeDispose)                                         \
+  CPP(DisposableStackPrototypeGetDisposed)                                     \
+  CPP(DisposableStackPrototypeAdopt)                                           \
+  CPP(DisposableStackPrototypeDefer)                                           \
+  CPP(DisposableStackPrototypeMove)                                            \
                                                                                \
   /* Error */                                                                  \
   CPP(ErrorConstructor)                                                        \
@@ -1027,6 +1038,7 @@ namespace internal {
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToTagged)                       \
   IF_WASM(TFC, WasmFloat64ToString, WasmFloat64ToTagged)                       \
   IF_WASM(TFC, JSToWasmLazyDeoptContinuation, SingleParameterOnStack)          \
+  IF_WASM(ASM, WasmToOnHeapWasmToJsTrampoline, WasmDummy)                      \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \
@@ -1056,20 +1068,24 @@ namespace internal {
   CPP(AtomicsMutexConstructor)                                                 \
   CPP(AtomicsMutexIsMutex)                                                     \
   CPP(AtomicsMutexLock)                                                        \
+  CPP(AtomicsMutexLockAsync)                                                   \
   CPP(AtomicsMutexLockWithTimeout)                                             \
   CPP(AtomicsMutexTryLock)                                                     \
+  CPP(AtomicsMutexAsyncUnlockResolveHandler)                                   \
+  CPP(AtomicsMutexAsyncUnlockRejectHandler)                                    \
   CPP(AtomicsConditionConstructor)                                             \
+  CPP(AtomicsConditionAcquireLock)                                             \
   CPP(AtomicsConditionIsCondition)                                             \
   CPP(AtomicsConditionWait)                                                    \
   CPP(AtomicsConditionNotify)                                                  \
+  CPP(AtomicsConditionWaitAsync)                                               \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
   TFS(AsyncGeneratorResolve, NeedsContext::kYes, kGenerator, kValue, kDone)    \
   TFS(AsyncGeneratorReject, NeedsContext::kYes, kGenerator, kValue)            \
-  TFS(AsyncGeneratorYieldWithAwait, NeedsContext::kYes, kGenerator, kValue,    \
-      kIsCaught)                                                               \
-  TFS(AsyncGeneratorReturn, NeedsContext::kYes, kGenerator, kValue, kIsCaught) \
+  TFS(AsyncGeneratorYieldWithAwait, NeedsContext::kYes, kGenerator, kValue)    \
+  TFS(AsyncGeneratorReturn, NeedsContext::kYes, kGenerator, kValue)            \
   TFS(AsyncGeneratorResumeNext, NeedsContext::kYes, kGenerator)                \
                                                                                \
   /* AsyncGeneratorFunction( p1, p2, ... pn, body ) */                         \
@@ -1087,10 +1103,7 @@ namespace internal {
                                                                                \
   /* Await (proposal-async-iteration/#await), with resume behaviour */         \
   /* specific to Async Generators. Internal / Not exposed to JS code. */       \
-  TFS(AsyncGeneratorAwaitCaught, NeedsContext::kYes, kAsyncGeneratorObject,    \
-      kValue)                                                                  \
-  TFS(AsyncGeneratorAwaitUncaught, NeedsContext::kYes, kAsyncGeneratorObject,  \
-      kValue)                                                                  \
+  TFS(AsyncGeneratorAwait, NeedsContext::kYes, kAsyncGeneratorObject, kValue)  \
   TFJ(AsyncGeneratorAwaitResolveClosure, kJSArgcReceiverSlots + 1, kReceiver,  \
       kValue)                                                                  \
   TFJ(AsyncGeneratorAwaitRejectClosure, kJSArgcReceiverSlots + 1, kReceiver,   \
@@ -1114,6 +1127,9 @@ namespace internal {
   TFJ(AsyncFromSyncIteratorPrototypeThrow, kDontAdaptArgumentsSentinel)        \
   /* #sec-%asyncfromsynciteratorprototype%.return */                           \
   TFJ(AsyncFromSyncIteratorPrototypeReturn, kDontAdaptArgumentsSentinel)       \
+  /* #sec-asyncfromsynciteratorcontinuation */                                 \
+  TFJ(AsyncFromSyncIteratorCloseSyncAndRethrow, kJSArgcReceiverSlots + 1,      \
+      kReceiver, kError)                                                       \
   /* #sec-async-iterator-value-unwrap-functions */                             \
   TFJ(AsyncIteratorValueUnwrap, kJSArgcReceiverSlots + 1, kReceiver, kValue)   \
                                                                                \
@@ -2013,11 +2029,9 @@ namespace internal {
   V(AsyncFromSyncIteratorPrototypeNext)              \
   V(AsyncFromSyncIteratorPrototypeReturn)            \
   V(AsyncFromSyncIteratorPrototypeThrow)             \
-  V(AsyncFunctionAwaitCaught)                        \
-  V(AsyncFunctionAwaitUncaught)                      \
+  V(AsyncFunctionAwait)                              \
   V(AsyncGeneratorResolve)                           \
-  V(AsyncGeneratorAwaitCaught)                       \
-  V(AsyncGeneratorAwaitUncaught)                     \
+  V(AsyncGeneratorAwait)                             \
   V(PromiseAll)                                      \
   V(PromiseAny)                                      \
   V(PromiseConstructor)                              \

@@ -142,4 +142,12 @@
 #define V8_DONT_STRIP_SYMBOL
 #endif
 
+#ifdef __cpp_concepts
+#define HAS_CPP_CONCEPTS 1
+#endif
+
+#if __cplusplus >= 202002L
+#define HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS 1
+#endif
+
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

@@ -40,11 +40,13 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
       Isolate* isolate, Handle<JSSegments> segments_holder, double n);
 
   // ecma402 #sec-createsegmentdataobject
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CreateSegmentDataObject(
-      Isolate* isolate, JSSegmenter::Granularity granularity,
-      icu::BreakIterator* break_iterator, Handle<String> input_string,
-      const icu::UnicodeString& unicode_string, int32_t start_index,
-      int32_t end_index);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmentDataObject>
+  CreateSegmentDataObject(Isolate* isolate,
+                          JSSegmenter::Granularity granularity,
+                          icu::BreakIterator* break_iterator,
+                          Handle<String> input_string,
+                          const icu::UnicodeString& unicode_string,
+                          int32_t start_index, int32_t end_index);
 
   Handle<String> GranularityAsString(Isolate* isolate) const;
 

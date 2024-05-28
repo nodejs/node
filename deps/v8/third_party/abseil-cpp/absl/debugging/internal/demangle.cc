@@ -19,6 +19,7 @@
 
 #include "absl/debugging/internal/demangle.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -26,6 +27,7 @@
 #include <string>
 
 #include "absl/base/config.h"
+#include "absl/debugging/internal/demangle_rust.h"
 
 #if ABSL_INTERNAL_HAS_CXA_DEMANGLE
 #include <cxxabi.h>
@@ -2110,6 +2112,10 @@ static bool Overflowed(const State *state) {
 
 // The demangler entry point.
 bool Demangle(const char* mangled, char* out, size_t out_size) {
+  if (mangled[0] == '_' && mangled[1] == 'R') {
+    return DemangleRustSymbolEncoding(mangled, out, out_size);
+  }
+
   State state;
   InitState(&state, mangled, out, out_size);
   return ParseTopLevelMangledName(&state) && !Overflowed(&state) &&

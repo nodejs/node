@@ -22,6 +22,7 @@ namespace internal {
 
 enum class MessageTemplate;
 class WasmTrustedInstanceData;
+class Zone;
 
 namespace wasm {
 
@@ -128,7 +129,8 @@ V8_INLINE WasmValue to_value(ValueOrError result) {
 // Resets {zone} so make sure it contains no useful data.
 ValueOrError EvaluateConstantExpression(
     Zone* zone, ConstantExpression expr, ValueType expected, Isolate* isolate,
-    Handle<WasmTrustedInstanceData> trusted_instance_data);
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
 }  // namespace wasm
 }  // namespace internal

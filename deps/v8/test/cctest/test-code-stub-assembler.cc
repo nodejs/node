@@ -4303,6 +4303,31 @@ TEST(SmiUntagLeftShiftOptimization) {
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
 }
 
+TEST(UnsignedSmiShiftLeft) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  int shift_bits = PropertyDetails::DictionaryStorageField::kShift;
+  int base = 1 << (kSmiValueSize - shift_bits - 1);
+  int target = SmiValuesAre32Bits() ? base << shift_bits
+                                    : (base << shift_bits) | 0x80000000;
+  {
+    TNode<Smi> a = m.SmiConstant(Smi::FromInt(base));
+    TNode<Smi> enum_index = m.UnsignedSmiShl(a, shift_bits);
+
+    TNode<Int32T> raw = m.TruncateIntPtrToInt32(m.SmiUntag(enum_index));
+    TNode<Int32T> expected = m.Int32Constant(target);
+
+    CSA_CHECK(&m, m.Word32Equal(raw, expected));
+    m.Return(m.UndefinedConstant());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  ft.Call();
+}
+
 TEST(SmiUntagComparisonOptimization) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;

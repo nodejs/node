@@ -252,7 +252,7 @@ class StoreHandler final : public DataHandler {
   enum class Kind {
     kField,
     kConstField,
-    kAccessor,
+    kAccessorFromPrototype,
     kNativeDataProperty,
     kSharedStructField,
     kApiSetter,
@@ -324,7 +324,7 @@ class StoreHandler final : public DataHandler {
                                                     int descriptor);
 
   // Creates a Smi-handler for calling a setter on a fast object.
-  static inline Handle<Smi> StoreAccessor(Isolate* isolate, int descriptor);
+  static inline Handle<Smi> StoreAccessorFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a native setter on a fast object.
   static inline Handle<Smi> StoreApiSetter(Isolate* isolate,

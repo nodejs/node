@@ -231,6 +231,13 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
+void SetV8SandboxBaseAndSize(uintptr_t base, size_t size) {
+  TH_DCHECK(gV8SandboxBase == 0 && base != 0);
+  TH_DCHECK(gV8SandboxSize == 0 && size != 0);
+  gV8SandboxBase = base;
+  gV8SandboxSize = size;
+}
+
 int* GetThreadInWasmThreadLocalAddress() { return &g_thread_in_wasm_code; }
 
 size_t GetRecoveredTrapCount() {

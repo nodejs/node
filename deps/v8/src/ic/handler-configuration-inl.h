@@ -265,9 +265,8 @@ Handle<Smi> StoreHandler::StoreNativeDataProperty(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> StoreHandler::StoreAccessor(Isolate* isolate, int descriptor) {
-  int config =
-      KindBits::encode(Kind::kAccessor) | DescriptorBits::encode(descriptor);
+Handle<Smi> StoreHandler::StoreAccessorFromPrototype(Isolate* isolate) {
+  int config = KindBits::encode(Kind::kAccessorFromPrototype);
   return handle(Smi::FromInt(config), isolate);
 }
 

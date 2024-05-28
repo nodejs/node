@@ -27,8 +27,7 @@ LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
                                      VirtualMemory reservation,
                                      Executability executable)
     : MutablePageMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation), executable,
-                          PageSize::kLarge) {
+                          std::move(reservation), PageSize::kLarge) {
   static_assert(LargePageMetadata::kMaxCodePageSize <=
                 TypedSlotSet::kMaxOffset);
 
@@ -36,25 +35,13 @@ LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
     FATAL("Code page is too large.");
   }
 
-  Chunk()->SetFlag(MemoryChunk::LARGE_PAGE);
   list_node().Initialize();
 }
 
-LargePageMetadata* LargePageMetadata::Initialize(Heap* heap,
-                                                 MutablePageMetadata* metadata,
-                                                 Executability executable) {
-  if (executable && metadata->size() > LargePageMetadata::kMaxCodePageSize) {
-    static_assert(LargePageMetadata::kMaxCodePageSize <=
-                  TypedSlotSet::kMaxOffset);
-    FATAL("Code page is too large.");
-  }
-
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(metadata->area_start(),
-                                      metadata->area_size());
-
-  metadata->Chunk()->SetFlag(MemoryChunk::LARGE_PAGE);
-  metadata->list_node().Initialize();
-  return LargePageMetadata::cast(metadata);
+MemoryChunk::MainThreadFlags LargePageMetadata::InitialFlags(
+    Executability executable) const {
+  return MutablePageMetadata::InitialFlags(executable) |
+         MemoryChunk::LARGE_PAGE;
 }
 
 void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {

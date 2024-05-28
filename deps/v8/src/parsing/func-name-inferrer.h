@@ -111,7 +111,7 @@ class FuncNameInferrer {
     Name(const AstRawString* name, NameType type)
         : name_and_type_(name, type) {}
 
-    base::PointerWithPayload<const AstRawString, NameType, 2> name_and_type_;
+    base::PointerWithPayload<const AstRawString*, NameType, 2> name_and_type_;
     inline const AstRawString* name() const {
       return name_and_type_.GetPointer();
     }

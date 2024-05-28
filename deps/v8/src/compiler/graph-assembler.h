@@ -340,7 +340,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* LoadFramePointer();
 #if V8_ENABLE_WEBASSEMBLY
   Node* LoadStackPointer();
-  Node* SetStackPointer(Node* sp, wasm::FPRelativeScope fp_scope);
+  Node* SetStackPointer(Node* sp);
 #endif
 
   Node* LoadHeapNumberValue(Node* heap_number);

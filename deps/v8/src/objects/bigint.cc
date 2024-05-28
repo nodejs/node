@@ -553,26 +553,6 @@ MaybeHandle<BigInt> BigInt::Subtract(Isolate* isolate, Handle<BigInt> x,
   return MutableBigInt::MakeImmutable(result);
 }
 
-MaybeHandle<BigInt> BigInt::LeftShift(Isolate* isolate, Handle<BigInt> x,
-                                      Handle<BigInt> y) {
-  if (y->is_zero() || x->is_zero()) return x;
-  if (y->sign()) return MutableBigInt::RightShiftByAbsolute(isolate, x, y);
-  return MutableBigInt::LeftShiftByAbsolute(isolate, x, y);
-}
-
-MaybeHandle<BigInt> BigInt::SignedRightShift(Isolate* isolate, Handle<BigInt> x,
-                                             Handle<BigInt> y) {
-  if (y->is_zero() || x->is_zero()) return x;
-  if (y->sign()) return MutableBigInt::LeftShiftByAbsolute(isolate, x, y);
-  return MutableBigInt::RightShiftByAbsolute(isolate, x, y);
-}
-
-MaybeHandle<BigInt> BigInt::UnsignedRightShift(Isolate* isolate,
-                                               Handle<BigInt> x,
-                                               Handle<BigInt> y) {
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kBigIntShr), BigInt);
-}
-
 namespace {
 
 // Produces comparison result for {left_negative} == sign(x) != sign(y).
@@ -613,86 +593,6 @@ bool BigInt::EqualToBigInt(Tagged<BigInt> x, Tagged<BigInt> y) {
     if (x->digit(i) != y->digit(i)) return false;
   }
   return true;
-}
-
-MaybeHandle<BigInt> BigInt::BitwiseAnd(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y) {
-  bool x_sign = x->sign();
-  bool y_sign = y->sign();
-  Handle<MutableBigInt> result;
-  if (!x_sign && !y_sign) {
-    int result_length =
-        bigint::BitwiseAnd_PosPos_ResultLength(x->length(), y->length());
-    result = MutableBigInt::New(isolate, result_length).ToHandleChecked();
-    bigint::BitwiseAnd_PosPos(result->rw_digits(), x->digits(), y->digits());
-    DCHECK(!result->sign());
-  } else if (x_sign && y_sign) {
-    int result_length =
-        bigint::BitwiseAnd_NegNeg_ResultLength(x->length(), y->length());
-    if (!MutableBigInt::New(isolate, result_length).ToHandle(&result)) {
-      return {};
-    }
-    bigint::BitwiseAnd_NegNeg(result->rw_digits(), x->digits(), y->digits());
-    result->set_sign(true);
-  } else {
-    if (x_sign) std::swap(x, y);
-    int result_length = bigint::BitwiseAnd_PosNeg_ResultLength(x->length());
-    result = MutableBigInt::New(isolate, result_length).ToHandleChecked();
-    bigint::BitwiseAnd_PosNeg(result->rw_digits(), x->digits(), y->digits());
-    DCHECK(!result->sign());
-  }
-  return MutableBigInt::MakeImmutable(result);
-}
-
-MaybeHandle<BigInt> BigInt::BitwiseXor(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y) {
-  bool x_sign = x->sign();
-  bool y_sign = y->sign();
-  Handle<MutableBigInt> result;
-  if (!x_sign && !y_sign) {
-    int result_length =
-        bigint::BitwiseXor_PosPos_ResultLength(x->length(), y->length());
-    result = MutableBigInt::New(isolate, result_length).ToHandleChecked();
-    bigint::BitwiseXor_PosPos(result->rw_digits(), x->digits(), y->digits());
-    DCHECK(!result->sign());
-  } else if (x_sign && y_sign) {
-    int result_length =
-        bigint::BitwiseXor_NegNeg_ResultLength(x->length(), y->length());
-    result = MutableBigInt::New(isolate, result_length).ToHandleChecked();
-    bigint::BitwiseXor_NegNeg(result->rw_digits(), x->digits(), y->digits());
-    DCHECK(!result->sign());
-  } else {
-    if (x_sign) std::swap(x, y);
-    int result_length =
-        bigint::BitwiseXor_PosNeg_ResultLength(x->length(), y->length());
-    if (!MutableBigInt::New(isolate, result_length).ToHandle(&result)) {
-      return {};
-    }
-    bigint::BitwiseXor_PosNeg(result->rw_digits(), x->digits(), y->digits());
-    result->set_sign(true);
-  }
-  return MutableBigInt::MakeImmutable(result);
-}
-
-MaybeHandle<BigInt> BigInt::BitwiseOr(Isolate* isolate, Handle<BigInt> x,
-                                      Handle<BigInt> y) {
-  bool x_sign = x->sign();
-  bool y_sign = y->sign();
-  int result_length = bigint::BitwiseOrResultLength(x->length(), y->length());
-  Handle<MutableBigInt> result =
-      MutableBigInt::New(isolate, result_length).ToHandleChecked();
-  if (!x_sign && !y_sign) {
-    bigint::BitwiseOr_PosPos(result->rw_digits(), x->digits(), y->digits());
-    DCHECK(!result->sign());
-  } else if (x_sign && y_sign) {
-    bigint::BitwiseOr_NegNeg(result->rw_digits(), x->digits(), y->digits());
-    result->set_sign(true);
-  } else {
-    if (x_sign) std::swap(x, y);
-    bigint::BitwiseOr_PosNeg(result->rw_digits(), x->digits(), y->digits());
-    result->set_sign(true);
-  }
-  return MutableBigInt::MakeImmutable(result);
 }
 
 MaybeHandle<BigInt> BigInt::Increment(Isolate* isolate, Handle<BigInt> x) {
@@ -1013,7 +913,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
 }
 
 Handle<String> BigInt::NoSideEffectsToString(Isolate* isolate,
-                                             Handle<BigInt> bigint) {
+                                             DirectHandle<BigInt> bigint) {
   if (bigint->is_zero()) {
     return isolate->factory()->zero_string();
   }
@@ -1266,70 +1166,6 @@ Handle<MutableBigInt> MutableBigInt::AbsoluteSubOne(Isolate* isolate,
     bigint::SubtractOne(result->rw_digits(), x->digits());
   }
   return result;
-}
-
-MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
-                                                       Handle<BigIntBase> x,
-                                                       Handle<BigIntBase> y) {
-  Maybe<digit_t> maybe_shift = ToShiftAmount(y);
-  if (maybe_shift.IsNothing()) {
-    return ThrowBigIntTooBig<BigInt>(isolate);
-  }
-  digit_t shift = maybe_shift.FromJust();
-  const int result_length = bigint::LeftShift_ResultLength(
-      x->length(), x->digit(x->length() - 1), shift);
-  if (result_length > kMaxLength) {
-    return ThrowBigIntTooBig<BigInt>(isolate);
-  }
-  Handle<MutableBigInt> result;
-  if (!New(isolate, result_length).ToHandle(&result)) {
-    return MaybeHandle<BigInt>();
-  }
-  bigint::LeftShift(result->rw_digits(), x->digits(), shift);
-  result->set_sign(x->sign());
-  return MakeImmutable(result);
-}
-
-Handle<BigInt> MutableBigInt::RightShiftByAbsolute(Isolate* isolate,
-                                                   Handle<BigIntBase> x,
-                                                   Handle<BigIntBase> y) {
-  const bool sign = x->sign();
-  Maybe<digit_t> maybe_shift = ToShiftAmount(y);
-  if (maybe_shift.IsNothing()) {
-    return RightShiftByMaximum(isolate, sign);
-  }
-  const digit_t shift = maybe_shift.FromJust();
-  bigint::RightShiftState state;
-  const int result_length =
-      bigint::RightShift_ResultLength(x->digits(), sign, shift, &state);
-  DCHECK_LE(result_length, x->length());
-  if (result_length <= 0) {
-    return RightShiftByMaximum(isolate, sign);
-  }
-  Handle<MutableBigInt> result = New(isolate, result_length).ToHandleChecked();
-  bigint::RightShift(result->rw_digits(), x->digits(), shift, state);
-  if (sign) result->set_sign(true);
-  return MakeImmutable(result);
-}
-
-Handle<BigInt> MutableBigInt::RightShiftByMaximum(Isolate* isolate, bool sign) {
-  if (sign) {
-    // TODO(jkummerow): Consider caching a canonical -1n BigInt.
-    return NewFromInt(isolate, -1);
-  } else {
-    return Zero(isolate);
-  }
-}
-
-// Returns the value of {x} if it is less than the maximum bit length of
-// a BigInt, or Nothing otherwise.
-Maybe<BigInt::digit_t> MutableBigInt::ToShiftAmount(Handle<BigIntBase> x) {
-  if (x->length() > 1) return Nothing<digit_t>();
-  digit_t value = x->digit(0);
-  // The Torque builtin also depends on the assertion.
-  static_assert(kMaxLengthBits < std::numeric_limits<digit_t>::max());
-  if (value > kMaxLengthBits) return Nothing<digit_t>();
-  return Just(value);
 }
 
 void Terminate(Isolate* isolate) { isolate->TerminateExecution(); }

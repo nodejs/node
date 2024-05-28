@@ -767,8 +767,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       FeedbackVector::cast(feedback_cell.object()->value())
               ->invocation_count_before_stable() >
           v8_flags.invocation_count_for_early_optimization) {
-    shared_info->object()->set_cached_tiering_decision(
-        CachedTieringDecision::kNormal);
+    info_->set_could_not_inline_all_candidates();
   }
 
   // Create the subgraph for the inlinee.

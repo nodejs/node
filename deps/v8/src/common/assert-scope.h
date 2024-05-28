@@ -30,6 +30,7 @@ enum PerThreadAssertType {
   CODE_ALLOCATION_ASSERT,
   // Dummy type for disabling GC mole.
   GC_MOLE,
+  POSITION_INFO_SLOW_ASSERT,
 };
 
 template <PerThreadAssertType kType, bool kAllow>
@@ -257,6 +258,14 @@ using DisallowGarbageCollection =
 // work.
 using DisableGCMole = PerThreadAssertScopeDebugOnly<GC_MOLE, false>;
 
+// Scope to ensure slow path for obtaining position info is not called
+using DisallowPositionInfoSlow =
+    PerThreadAssertScopeDebugOnly<POSITION_INFO_SLOW_ASSERT, false>;
+
+// Scope to add an exception to disallowing position info slow path
+using AllowPositionInfoSlow =
+    PerThreadAssertScopeDebugOnly<POSITION_INFO_SLOW_ASSERT, true>;
+
 // The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
 // DisallowGarbageCollection field in classes that isn't present in release
 // builds.
@@ -328,6 +337,8 @@ extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
 extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
 extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
 extern template class PerThreadAssertScope<GC_MOLE, false>;
+extern template class PerThreadAssertScope<POSITION_INFO_SLOW_ASSERT, false>;
+extern template class PerThreadAssertScope<POSITION_INFO_SLOW_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

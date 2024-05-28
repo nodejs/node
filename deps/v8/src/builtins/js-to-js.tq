@@ -72,7 +72,7 @@ transitioning javascript builtin JSToJSWrapper(
     js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
     ...arguments): JSAny {
   const functionData =
-      UnsafeCast<WasmFunctionData>(target.shared_function_info.function_data);
+      UnsafeCast<WasmFunctionData>(target.shared_function_info.data);
   const ref = UnsafeCast<WasmApiFunctionRef>(functionData.internal.ref);
 
   const signaturePod = &ref.sig.bytes;

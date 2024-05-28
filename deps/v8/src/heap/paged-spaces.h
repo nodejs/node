@@ -167,7 +167,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.
-  virtual size_t Waste() const { return free_list_->wasted_bytes(); }
+  size_t Waste() const;
 
   // Allocate the requested number of bytes in the space from a background
   // thread.
@@ -292,6 +292,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   bool TryExpand(LocalHeap* local_heap, AllocationOrigin origin);
 
   void RefineAllocatedBytesAfterSweeping(PageMetadata* page);
+  virtual void AdjustDifferenceInAllocatedBytes(size_t diff) {}
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -428,7 +429,7 @@ class CompactionSpaceCollection : public Malloced {
 // -----------------------------------------------------------------------------
 // Old generation regular object space.
 
-class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
+class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
@@ -445,6 +446,50 @@ class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
       return heap()->OldArrayBufferBytes();
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
+};
+
+// -----------------------------------------------------------------------------
+// StickySpace is a paged space that contain mixed young and old objects. Note
+// that its identity type is OLD_SPACE.
+
+class V8_EXPORT_PRIVATE StickySpace final : public OldSpace {
+ public:
+  using OldSpace::OldSpace;
+
+  static StickySpace* From(OldSpace* space) {
+    DCHECK(v8_flags.sticky_mark_bits);
+    return static_cast<StickySpace*>(space);
+  }
+
+  size_t young_objects_size() const {
+    DCHECK_GE(Size(), allocated_old_size_);
+    return Size() - allocated_old_size_;
+  }
+
+  size_t old_objects_size() const {
+    DCHECK_GE(Size(), allocated_old_size_);
+    return allocated_old_size_;
+  }
+
+  void set_old_objects_size(size_t allocated_old_size) {
+    allocated_old_size_ = allocated_old_size;
+  }
+
+  void NotifyBlackAreaCreated(size_t size) override {
+    DCHECK_LE(size, Capacity());
+    allocated_old_size_ += size;
+  }
+
+  void NotifyBlackAreaDestroyed(size_t size) override {
+    DCHECK_LE(size, Capacity());
+    allocated_old_size_ -= size;
+  }
+
+ private:
+  void AdjustDifferenceInAllocatedBytes(size_t) override;
+
+  // TODO(333906585): Consider tracking the young bytes instead.
+  size_t allocated_old_size_ = 0;
 };
 
 // -----------------------------------------------------------------------------
@@ -470,6 +515,8 @@ class SharedSpace final : public PagedSpace {
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
+  void ReleasePage(PageMetadata* page) override;
+
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
     DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
@@ -489,6 +536,21 @@ class TrustedSpace final : public PagedSpace {
   // from OS.
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
+                   FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
+
+  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
+    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
+    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
+    return external_backing_store_bytes_[static_cast<int>(type)];
+  }
+};
+
+class SharedTrustedSpace final : public PagedSpace {
+ public:
+  // Creates a trusted space object. The constructor does not allocate pages
+  // from OS.
+  explicit SharedTrustedSpace(Heap* heap)
+      : PagedSpace(heap, SHARED_TRUSTED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {

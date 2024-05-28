@@ -190,7 +190,7 @@ void PendingCompilationErrorHandler::ThrowPendingError(
 
   MessageLocation location = error_details_.GetLocation(script);
   int num_args = 0;
-  Handle<Object> args[MessageDetails::kMaxArgumentCount];
+  DirectHandle<Object> args[MessageDetails::kMaxArgumentCount];
   for (; num_args < MessageDetails::kMaxArgumentCount; ++num_args) {
     args[num_args] = error_details_.ArgString(isolate, num_args);
     if (args[num_args].is_null()) break;
@@ -207,7 +207,7 @@ Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
     Isolate* isolate) {
   error_details_.Prepare(isolate);
   int num_args = 0;
-  Handle<Object> args[MessageDetails::kMaxArgumentCount];
+  DirectHandle<Object> args[MessageDetails::kMaxArgumentCount];
   for (; num_args < MessageDetails::kMaxArgumentCount; ++num_args) {
     args[num_args] = error_details_.ArgString(isolate, num_args);
     if (args[num_args].is_null()) break;

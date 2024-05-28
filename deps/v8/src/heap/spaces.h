@@ -117,6 +117,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     UNREACHABLE();
   }
 
+  virtual void NotifyBlackAreaCreated(size_t size) {}
+  virtual void NotifyBlackAreaDestroyed(size_t size) {}
+
   FreeList* free_list() { return free_list_.get(); }
 
   Address FirstPageAddress() const {

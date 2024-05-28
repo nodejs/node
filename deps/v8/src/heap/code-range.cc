@@ -124,8 +124,17 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
   params.page_size = kPageSize;
-  params.jit =
-      v8_flags.jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable;
+  if (v8_flags.jitless) {
+    params.permissions = PageAllocator::Permission::kNoAccess;
+    params.page_initialization_mode =
+        base::PageInitializationMode::kAllocatedPagesCanBeUninitialized;
+    params.page_freeing_mode = base::PageFreeingMode::kMakeInaccessible;
+  } else {
+    params.permissions = PageAllocator::Permission::kNoAccessWillJitLater;
+    params.page_initialization_mode =
+        base::PageInitializationMode::kRecommitOnly;
+    params.page_freeing_mode = base::PageFreeingMode::kDiscard;
+  }
 
   const size_t allocate_page_size = page_allocator->AllocatePageSize();
   // TODO(v8:11880): Use base_alignment here once ChromeOS issue is fixed.
@@ -226,19 +235,27 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 #endif  // V8_OS_WIN64
   }
 
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT &&
-      params.jit == JitPermission::kMapAsJittable) {
-    // Should the reserved area ever become non-empty we shouldn't mark it as
-    // RWX below.
-    CHECK_EQ(reserved_area, 0);
-    void* base = reinterpret_cast<void*>(page_allocator_->begin());
-    size_t size = page_allocator_->size();
-    if (!params.page_allocator->SetPermissions(
-            base, size, PageAllocator::kReadWriteExecute)) {
+// Don't pre-commit the code cage on Windows since it uses memory and it's not
+// required for recommit.
+#if !defined(V8_OS_WIN)
+  if (params.page_initialization_mode ==
+      base::PageInitializationMode::kRecommitOnly) {
+    void* base =
+        reinterpret_cast<void*>(page_allocator_->begin() + reserved_area);
+    size_t size = page_allocator_->size() - reserved_area;
+    if (ThreadIsolation::Enabled()) {
+      if (!ThreadIsolation::MakeExecutable(reinterpret_cast<Address>(base),
+                                           size)) {
+        return false;
+      }
+    } else if (!params.page_allocator->SetPermissions(
+                   base, size, PageAllocator::kReadWriteExecute)) {
       return false;
     }
     if (!params.page_allocator->DiscardSystemPages(base, size)) return false;
   }
+#endif  // !defined(V8_OS_WIN)
+
   return true;
 }
 
@@ -416,7 +433,8 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
     }
   }
 
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
+  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
+      V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT || ThreadIsolation::Enabled()) {
     if (!page_allocator()->RecommitPages(embedded_blob_code_copy, code_size,
                                          PageAllocator::kReadWriteExecute)) {
       V8::FatalProcessOutOfMemory(isolate,

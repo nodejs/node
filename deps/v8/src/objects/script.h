@@ -14,6 +14,7 @@
 #include "src/heap/local-factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
+#include "src/objects/string.h"
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
 
@@ -169,6 +170,10 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   static inline void InitLineEnds(Isolate* isolate, Handle<Script> script);
   static inline void InitLineEnds(LocalIsolate* isolate, Handle<Script> script);
 
+  // Obtain line ends as a vector, without modifying the script object
+  V8_EXPORT_PRIVATE static String::LineEndsVector GetLineEnds(
+      Isolate* isolate, Handle<Script> script);
+
   inline bool has_line_ends() const;
 
   // Will initialize the line ends if required.
@@ -200,8 +205,17 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   static bool GetPositionInfo(Handle<Script> script, int position,
                               PositionInfo* info,
                               OffsetFlag offset_flag = OffsetFlag::kWithOffset);
+  static bool GetLineColumnWithLineEnds(
+      int position, int& line, int& column,
+      const String::LineEndsVector& line_ends);
   V8_EXPORT_PRIVATE bool GetPositionInfo(
       int position, PositionInfo* info,
+      OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
+  V8_EXPORT_PRIVATE bool GetPositionInfoWithLineEnds(
+      int position, PositionInfo* info, const String::LineEndsVector& line_ends,
+      OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
+  V8_EXPORT_PRIVATE void AddPositionInfoOffset(
+      PositionInfo* info,
       OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
 
   // Tells whether this script should be subject to debugging, e.g. for
@@ -246,6 +260,11 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
+  template <typename LineEndsContainer>
+  bool GetPositionInfoInternal(const LineEndsContainer& ends, int position,
+                               Script::PositionInfo* info,
+                               const DisallowGarbageCollection& no_gc) const;
+
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;

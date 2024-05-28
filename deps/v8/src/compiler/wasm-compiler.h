@@ -61,7 +61,7 @@ struct DecodeStruct;
 class WasmCode;
 class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
-enum Suspend : bool;
+enum Suspend : int;
 enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 }  // namespace wasm
 
@@ -492,12 +492,14 @@ class WasmGraphBuilder {
   ResultNodesOfBr BrOnString(Node* object, Node* rtt,
                              WasmTypeCheckConfig config);
 
-  Node* StringNewWtf8(uint32_t memory, unibrow::Utf8Variant variant,
-                      Node* offset, Node* size);
+  Node* StringNewWtf8(const wasm::WasmMemory* memory,
+                      unibrow::Utf8Variant variant, Node* offset, Node* size,
+                      wasm::WasmCodePosition position);
   Node* StringNewWtf8Array(unibrow::Utf8Variant variant, Node* array,
                            CheckForNull null_check, Node* start, Node* end,
                            wasm::WasmCodePosition position);
-  Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
+  Node* StringNewWtf16(const wasm::WasmMemory* memory, Node* offset, Node* size,
+                       wasm::WasmCodePosition position);
   Node* StringNewWtf16Array(Node* array, CheckForNull null_check, Node* start,
                             Node* end, wasm::WasmCodePosition position);
   Node* StringAsWtf16(Node* string, CheckForNull null_check,
@@ -509,8 +511,9 @@ class WasmGraphBuilder {
                           wasm::WasmCodePosition position);
   Node* StringMeasureWtf16(Node* string, CheckForNull null_check,
                            wasm::WasmCodePosition position);
-  Node* StringEncodeWtf8(uint32_t memory, unibrow::Utf8Variant variant,
-                         Node* string, CheckForNull null_check, Node* offset,
+  Node* StringEncodeWtf8(const wasm::WasmMemory* memory,
+                         unibrow::Utf8Variant variant, Node* string,
+                         CheckForNull null_check, Node* offset,
                          wasm::WasmCodePosition position);
   Node* StringEncodeWtf8Array(unibrow::Utf8Variant variant, Node* string,
                               CheckForNull string_null_check, Node* array,
@@ -518,7 +521,7 @@ class WasmGraphBuilder {
                               wasm::WasmCodePosition position);
   Node* StringToUtf8Array(Node* string, CheckForNull null_check,
                           wasm::WasmCodePosition position);
-  Node* StringEncodeWtf16(uint32_t memory, Node* string,
+  Node* StringEncodeWtf16(const wasm::WasmMemory* memory, Node* string,
                           CheckForNull null_check, Node* offset,
                           wasm::WasmCodePosition position);
   Node* StringEncodeWtf16Array(Node* string, CheckForNull string_null_check,
@@ -535,10 +538,10 @@ class WasmGraphBuilder {
                      wasm::WasmCodePosition position);
   Node* StringViewWtf8Advance(Node* view, CheckForNull null_check, Node* pos,
                               Node* bytes, wasm::WasmCodePosition position);
-  void StringViewWtf8Encode(uint32_t memory, unibrow::Utf8Variant variant,
-                            Node* view, CheckForNull null_check, Node* addr,
-                            Node* pos, Node* bytes, Node** next_pos,
-                            Node** bytes_written,
+  void StringViewWtf8Encode(const wasm::WasmMemory* memory,
+                            unibrow::Utf8Variant variant, Node* view,
+                            CheckForNull null_check, Node* addr, Node* pos,
+                            Node* bytes, Node** next_pos, Node** bytes_written,
                             wasm::WasmCodePosition position);
   Node* StringViewWtf8Slice(Node* view, CheckForNull null_check, Node* pos,
                             Node* bytes, wasm::WasmCodePosition position);
@@ -547,7 +550,7 @@ class WasmGraphBuilder {
                                    wasm::WasmCodePosition position);
   Node* StringCodePointAt(Node* string, CheckForNull null_check, Node* offset,
                           wasm::WasmCodePosition position);
-  Node* StringViewWtf16Encode(uint32_t memory, Node* string,
+  Node* StringViewWtf16Encode(const wasm::WasmMemory* memory, Node* string,
                               CheckForNull null_check, Node* offset,
                               Node* start, Node* length,
                               wasm::WasmCodePosition position);
@@ -829,8 +832,6 @@ class WasmGraphBuilder {
 
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
-
-  Node* BuildLoadCodeEntrypointViaCodePointer(Node* object, int offset);
 
   Node* BuildLoadCallTargetFromExportedFunctionData(Node* function_data);
 

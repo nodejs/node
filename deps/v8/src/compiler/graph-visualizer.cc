@@ -28,9 +28,7 @@
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/function-body-decoder.h"
-#include "src/wasm/names-provider.h"
-#include "src/wasm/string-builder.h"
+#include "src/wasm/wasm-disassembler.h"
 #endif
 
 namespace v8 {
@@ -117,34 +115,13 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       } else if (shared->HasWasmExportedFunctionData()) {
         Tagged<WasmExportedFunctionData> function_data =
             shared->wasm_exported_function_data();
-        Handle<WasmInstanceObject> instance(function_data->instance(), isolate);
-        const wasm::WasmModule* module = instance->module();
         wasm::NativeModule* native_module =
-            instance->module_object()->native_module();
-
-        // Add a comment with the wasm debug name as the sourceName above will
-        // be something like "wasm://wasm/5b5cdc9e:js-to-wasm:n:i".
+            function_data->instance_data()->native_module();
+        const wasm::WasmModule* module = native_module->module();
         std::ostringstream str;
-        wasm::StringBuilder sb;
-        sb << "// debug name: ";
-        native_module->GetNamesProvider()->PrintFunctionName(
-            sb, function_data->function_index(),
-            wasm::NamesProvider::kDevTools);
-        sb << '\n';
-        str.write(sb.start(), sb.length());
-
-        const wasm::WasmFunction& function =
-            module->functions[function_data->function_index()];
-        wasm::WireBytesRef wire_bytes_ref = function.code;
-        base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
-            wire_bytes_ref.offset(), wire_bytes_ref.end_offset()));
-        bool is_shared = module->types[function.sig_index].is_shared;
-        wasm::FunctionBody func_body{function_data->sig(),
-                                     wire_bytes_ref.offset(), bytes.begin(),
-                                     bytes.end(), is_shared};
-        AccountingAllocator allocator;
-        wasm::PrintRawWasmCode(&allocator, func_body, module,
-                               wasm::kPrintLocals, str);
+        wasm::DisassembleFunction(module, function_data->function_index(),
+                                  native_module->wire_bytes(),
+                                  native_module->GetNamesProvider(), str);
         os << JSONEscaped(str);
 #endif  // V8_ENABLE_WEBASSEMBLY
       }
@@ -279,15 +256,14 @@ void JsonPrintAllSourceWithPositionsWasm(
     const wasm::WasmFunction& fct = module->functions[function_id];
     os << '"' << i << "\": {\"sourceId\": " << i << ", \"functionName\": \""
        << fct.func_index << "\", \"sourceName\": \"\", \"sourceText\": \"";
-    wasm::WireBytesRef wire_bytes_ref = fct.code;
-    base::Vector<const uint8_t> bytes = wire_bytes->GetCode(wire_bytes_ref);
-    bool is_shared = module->types[fct.sig_index].is_shared;
-    wasm::FunctionBody func_body{fct.sig, wire_bytes_ref.offset(),
-                                 bytes.begin(), bytes.end(), is_shared};
-    AccountingAllocator allocator;
+    base::Vector<const uint8_t> module_bytes{nullptr, 0};
+    base::Optional<wasm::ModuleWireBytes> maybe_wire_bytes =
+        wire_bytes->GetModuleBytes();
+    if (maybe_wire_bytes) module_bytes = maybe_wire_bytes->module_bytes();
     std::ostringstream wasm_str;
-    wasm::PrintRawWasmCode(&allocator, func_body, module, wasm::kPrintLocals,
-                           wasm_str);
+    wasm::DisassembleFunction(module, function_id,
+                              wire_bytes->GetCode(fct.code), module_bytes,
+                              fct.code.offset(), wasm_str);
     os << JSONEscaped(wasm_str) << "\"}";
   }
   os << "},\n";
@@ -297,6 +273,7 @@ void JsonPrintAllSourceWithPositionsWasm(
   os << "\"inlinings\": {";
   for (size_t i = 0; i < positions.size(); ++i) {
     if (i != 0) os << ", ";
+    DCHECK(source_map.contains(positions[i].inlinee_func_index));
     size_t source_id = source_map.find(positions[i].inlinee_func_index)->second;
     SourcePosition inlining_pos = positions[i].caller_pos;
     os << '"' << i << "\": {\"inliningId\": " << i

@@ -43,13 +43,15 @@ template <class CppType>
 Handle<Managed<CppType>> Managed<CppType>::FromSharedPtr(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
+  static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
+  static_assert(IsManagedExternalPointerType(kTag));
   reinterpret_cast<v8::Isolate*>(isolate)
       ->AdjustAmountOfExternalAllocatedMemory(estimated_size);
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       Destructor);
   Handle<Managed<CppType>> handle =
-      Handle<Managed<CppType>>::cast(isolate->factory()->NewForeign(
+      Handle<Managed<CppType>>::cast(isolate->factory()->NewForeign<kTag>(
           reinterpret_cast<Address>(destructor), allocation_type));
   Handle<Object> global_handle = isolate->global_handles()->Create(*handle);
   destructor->global_handle_location_ = global_handle.location();

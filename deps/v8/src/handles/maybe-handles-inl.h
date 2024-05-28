@@ -250,6 +250,30 @@ DirectHandle<Object> MaybeObjectDirectHandle::object() const {
 
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
+template <typename T>
+V8_INLINE MaybeHandle<T> indirect_handle(MaybeDirectHandle<T> maybe_handle,
+                                         Isolate* isolate) {
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  if (DirectHandle<T> handle; maybe_handle.ToHandle(&handle))
+    return indirect_handle(handle, isolate);
+  return {};
+#else
+  return maybe_handle;
+#endif
+}
+
+template <typename T>
+V8_INLINE MaybeHandle<T> indirect_handle(MaybeDirectHandle<T> maybe_handle,
+                                         LocalIsolate* isolate) {
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  if (DirectHandle<T> handle; maybe_handle.ToHandle(&handle))
+    return indirect_handle(handle, isolate);
+  return {};
+#else
+  return maybe_handle;
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8
 

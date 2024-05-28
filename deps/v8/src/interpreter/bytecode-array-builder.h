@@ -9,7 +9,7 @@
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecode-source-info.h"
@@ -56,10 +56,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 #endif
 
   // Get the number of parameters expected by function.
-  int parameter_count() const {
-    DCHECK_GE(parameter_count_, 0);
-    return parameter_count_;
-  }
+  uint16_t parameter_count() const { return parameter_count_; }
 
   // Get the number of locals required for bytecode array.
   int locals_count() const {
@@ -387,7 +384,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot(ToBooleanMode mode);
-  BytecodeArrayBuilder& TypeOf();
+  BytecodeArrayBuilder& TypeOf(int feedback_slot);
 
   // Expects a heap object in the accumulator. Returns its super constructor in
   // the register |out| if it passes the IsConstructor test. Otherwise, it
@@ -453,6 +450,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                   NilValue nil);
   BytecodeArrayBuilder& JumpIfNotNil(BytecodeLabel* label, Token::Value op,
                                      NilValue nil);
+  BytecodeArrayBuilder& JumpIfForInDone(BytecodeLabel* label, Register index,
+                                        Register cache_length);
 
   BytecodeArrayBuilder& SwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table);
 
@@ -479,7 +478,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ForInEnumerate(Register receiver);
   BytecodeArrayBuilder& ForInPrepare(RegisterList cache_info_triple,
                                      int feedback_slot);
-  BytecodeArrayBuilder& ForInContinue(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
                                   RegisterList cache_type_array_pair,
                                   int feedback_slot);
@@ -570,6 +568,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Returns the raw operand value for the given register or register list.
   uint32_t GetInputRegisterOperand(Register reg);
   uint32_t GetOutputRegisterOperand(Register reg);
+  uint32_t GetInputOutputRegisterOperand(Register reg);
   uint32_t GetInputRegisterListOperand(RegisterList reg_list);
   uint32_t GetOutputRegisterListOperand(RegisterList reg_list);
 
@@ -659,7 +658,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
-  int parameter_count_;
+  uint16_t parameter_count_;
   int local_register_count_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;

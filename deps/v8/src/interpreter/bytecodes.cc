@@ -72,6 +72,25 @@ const OperandSize* const Bytecodes::kOperandSizes[3][kBytecodeCount] = {
   }
 };
 
+const int* const Bytecodes::kOperandOffsets[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandOffsets.data(),
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandOffsets.data(),
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandOffsets.data(),
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }
+};
+
 const OperandSize
 Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
   {
@@ -142,20 +161,6 @@ Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
   DEBUG_BREAK_PLAIN_BYTECODE_LIST(RETURN_IF_DEBUG_BREAK_SIZE_MATCHES)
 #undef RETURN_IF_DEBUG_BREAK_SIZE_MATCHES
   UNREACHABLE();
-}
-
-// static
-int Bytecodes::GetOperandOffset(Bytecode bytecode, int i,
-                                OperandScale operand_scale) {
-  DCHECK_LT(i, Bytecodes::NumberOfOperands(bytecode));
-  // TODO(oth): restore this to a statically determined constant.
-  int offset = 1;
-  for (int operand_index = 0; operand_index < i; ++operand_index) {
-    OperandSize operand_size =
-        GetOperandSize(bytecode, operand_index, operand_scale);
-    offset += static_cast<int>(operand_size);
-  }
-  return offset;
 }
 
 // static
@@ -237,6 +242,7 @@ bool Bytecodes::IsRegisterInputOperandType(OperandType operand_type) {
   case OperandType::k##Name: \
     return true;
     REGISTER_INPUT_OPERAND_TYPE_LIST(CASE)
+    CASE(RegInOut, _)
 #undef CASE
 #define CASE(Name, _)        \
   case OperandType::k##Name: \
@@ -255,6 +261,7 @@ bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
   case OperandType::k##Name: \
     return true;
     REGISTER_OUTPUT_OPERAND_TYPE_LIST(CASE)
+    CASE(RegInOut, _)
 #undef CASE
 #define CASE(Name, _)        \
   case OperandType::k##Name: \

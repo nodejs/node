@@ -181,7 +181,7 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
 }
 
 void WasmGCTypeAnalyzer::ProcessTypeCast(const WasmTypeCastOp& type_cast) {
-  OpIndex object = type_cast.object();
+  V<Object> object = type_cast.object();
   wasm::ValueType target_type = type_cast.config.to;
   wasm::ValueType known_input_type = RefineTypeKnowledge(object, target_type);
   input_type_map_[graph_.Index(type_cast)] = known_input_type;
@@ -194,7 +194,7 @@ void WasmGCTypeAnalyzer::ProcessTypeCheck(const WasmTypeCheckOp& type_check) {
 
 void WasmGCTypeAnalyzer::ProcessAssertNotNull(
     const AssertNotNullOp& assert_not_null) {
-  OpIndex object = assert_not_null.object();
+  V<Object> object = assert_not_null.object();
   wasm::ValueType new_type = assert_not_null.type.AsNonNull();
   wasm::ValueType known_input_type = RefineTypeKnowledge(object, new_type);
   input_type_map_[graph_.Index(assert_not_null)] = known_input_type;

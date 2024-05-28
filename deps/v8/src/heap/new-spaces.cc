@@ -32,10 +32,9 @@ namespace internal {
 PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* mutable_page) {
   bool in_to_space = (id() != kFromSpace);
   MemoryChunk* chunk = mutable_page->Chunk();
-  chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
+  chunk->SetFlagNonExecutable(in_to_space ? MemoryChunk::TO_PAGE
+                                          : MemoryChunk::FROM_PAGE);
   PageMetadata* page = PageMetadata::cast(mutable_page);
-  page->SetYoungGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
   page->list_node().Initialize();
   if (v8_flags.minor_ms) {
     page->ClearLiveness();
@@ -76,7 +75,8 @@ bool SemiSpace::EnsureCurrentCapacity() {
       memory_chunk_list_.Remove(current_page);
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
-      current_page->Chunk()->ClearFlags(MemoryChunk::kIsInYoungGenerationMask);
+      current_page->Chunk()->ClearFlagsNonExecutable(
+          MemoryChunk::kIsInYoungGenerationMask);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool,
                                        current_page);
       current_page = next_current;
@@ -93,7 +93,8 @@ bool SemiSpace::EnsureCurrentCapacity() {
       IncrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
       memory_chunk_list_.PushBack(current_page);
       current_page->ClearLiveness();
-      current_page->Chunk()->SetFlags(first_page()->Chunk()->GetFlags());
+      current_page->Chunk()->SetFlagsNonExecutable(
+          first_page()->Chunk()->GetFlags());
       heap()->CreateFillerObjectAt(current_page->area_start(),
                                    static_cast<int>(current_page->area_size()));
     }
@@ -199,8 +200,8 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
     new_page->ClearLiveness();
     IncrementCommittedPhysicalMemory(new_page->CommittedPhysicalMemory());
     // Duplicate the flags that was set on the old page.
-    new_page->Chunk()->SetFlags(last_page()->Chunk()->GetFlags(),
-                                MemoryChunk::kCopyOnFlipFlagsMask);
+    new_page->Chunk()->SetFlagsNonExecutable(last_page()->Chunk()->GetFlags(),
+                                             MemoryChunk::kCopyOnFlipFlagsMask);
     heap()->CreateFillerObjectAt(new_page->area_start(),
                                  static_cast<int>(new_page->area_size()));
   }
@@ -240,14 +241,14 @@ void SemiSpace::FixPagesFlags(MemoryChunk::MainThreadFlags flags,
   for (PageMetadata* page : *this) {
     MemoryChunk* chunk = page->Chunk();
     page->set_owner(this);
-    chunk->SetFlags(flags, mask);
+    chunk->SetFlagsNonExecutable(flags, mask);
     if (id_ == kToSpace) {
-      chunk->ClearFlag(MemoryChunk::FROM_PAGE);
-      chunk->SetFlag(MemoryChunk::TO_PAGE);
-      chunk->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+      chunk->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
+      chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+      chunk->ClearFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     } else {
-      chunk->SetFlag(MemoryChunk::FROM_PAGE);
-      chunk->ClearFlag(MemoryChunk::TO_PAGE);
+      chunk->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
+      chunk->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
     }
     DCHECK(chunk->InYoungGeneration());
   }
@@ -277,7 +278,7 @@ void SemiSpace::RemovePage(PageMetadata* page) {
 }
 
 void SemiSpace::PrependPage(PageMetadata* page) {
-  page->Chunk()->SetFlags(current_page()->Chunk()->GetFlags());
+  page->Chunk()->SetFlagsNonExecutable(current_page()->Chunk()->GetFlags());
   page->set_owner(this);
   memory_chunk_list_.PushFront(page);
   current_capacity_ += PageMetadata::kPageSize;
@@ -362,7 +363,7 @@ void SemiSpace::set_age_mark(Address mark) {
   DCHECK_EQ(age_mark_page->owner(), this);
   // Mark all pages up to the one containing mark.
   for (PageMetadata* p : *this) {
-    p->Chunk()->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+    p->Chunk()->SetFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     if (p == age_mark_page) break;
   }
 }
@@ -873,9 +874,7 @@ PageMetadata* PagedSpaceForNewSpace::InitializePage(
       page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
-  page->Chunk()->SetFlags(MemoryChunk::TO_PAGE);
-  page->SetYoungGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
+  chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
   page->ClearLiveness();
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();

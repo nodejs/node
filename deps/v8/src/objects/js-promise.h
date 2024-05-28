@@ -40,10 +40,6 @@ class JSPromise
   // [has_handler]: Whether this promise has a reject handler or not.
   DECL_BOOLEAN_ACCESSORS(has_handler)
 
-  // [handled_hint]: Whether this promise will be handled by a catch
-  // block in an async function.
-  DECL_BOOLEAN_ACCESSORS(handled_hint)
-
   // [is_silent]: Whether this promise should cause the debugger to pause when
   // rejected.
   DECL_BOOLEAN_ACCESSORS(is_silent)

@@ -88,7 +88,7 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
 // Description of LiftoffRegister code encoding.
 // This example uses the ARM architecture, which as of writing has:
 // - 9 GP registers, requiring 4 bits
-// - 13 FP regitsters, requiring 5 bits
+// - 13 FP registers, requiring 5 bits
 // - kNeedI64RegPair is true
 // - kNeedS128RegPair is true
 // - thus, kBitsPerRegPair is 2 + 2 * 4 = 10
@@ -423,8 +423,18 @@ class LiftoffRegList {
     return LiftoffRegList(regs_ & other.regs_);
   }
 
+  constexpr LiftoffRegList& operator&=(const LiftoffRegList other) {
+    regs_ &= other.regs_;
+    return *this;
+  }
+
   constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
     return LiftoffRegList(regs_ | other.regs_);
+  }
+
+  constexpr LiftoffRegList& operator|=(const LiftoffRegList other) {
+    regs_ |= other.regs_;
+    return *this;
   }
 
   constexpr LiftoffRegList GetAdjacentFpRegsSet() const {

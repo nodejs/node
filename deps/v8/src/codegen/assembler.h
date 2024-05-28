@@ -40,6 +40,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <type_traits>
 #include <unordered_map>
 
 #include "src/base/macros.h"
@@ -438,11 +439,19 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 #ifdef V8_CODE_COMMENTS
   class CodeComment {
    public:
-    V8_NODISCARD CodeComment(Assembler* assembler, std::string comment,
+    // `comment` can either be a value convertible to std::string, or a function
+    // that returns a value convertible to std::string which is invoked lazily
+    // when code comments are enabled.
+    template <typename CommentGen>
+    V8_NODISCARD CodeComment(Assembler* assembler, CommentGen&& comment,
                              SourceLocation loc = SourceLocation::Current())
         : assembler_(assembler) {
       if (!v8_flags.code_comments) return;
-      Open(comment, loc);
+      if constexpr (std::is_invocable_v<CommentGen>) {
+        Open(comment(), loc);
+      } else {
+        Open(comment, loc);
+      }
     }
     ~CodeComment() {
       if (!v8_flags.code_comments) return;

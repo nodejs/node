@@ -9,13 +9,7 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitCaught) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitUncaught) {
+RUNTIME_FUNCTION(Runtime_AsyncFunctionAwait) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
@@ -86,13 +80,7 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
   return generator->function();
 }
 
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitCaught) {
-  // Runtime call is implemented in InterpreterIntrinsics and lowered in
-  // JSIntrinsicLowering
-  UNREACHABLE();
-}
-
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitUncaught) {
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwait) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
@@ -120,31 +108,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
-}
-
-// Return true if {generator}'s PC has a catch handler. This allows
-// catch prediction to happen from the AsyncGeneratorResumeNext stub.
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
-  DisallowGarbageCollection no_gc_scope;
-  DCHECK_EQ(1, args.length());
-  auto generator = JSAsyncGeneratorObject::cast(args[0]);
-
-  int state = generator->continuation();
-  DCHECK_NE(state, JSAsyncGeneratorObject::kGeneratorExecuting);
-
-  // If state is 0 ("suspendedStart"), there is guaranteed to be no catch
-  // handler. Otherwise, if state is below 0, the generator is closed and will
-  // not reach a catch handler.
-  if (state < 1) return ReadOnlyRoots(isolate).false_value();
-
-  Tagged<SharedFunctionInfo> shared = generator->function()->shared();
-  DCHECK(shared->HasBytecodeArray());
-  HandlerTable handler_table(shared->GetBytecodeArray(isolate));
-
-  int pc = Smi::cast(generator->input_or_debug_pos()).value();
-  HandlerTable::CatchPrediction catch_prediction = HandlerTable::ASYNC_AWAIT;
-  handler_table.LookupRange(pc, nullptr, &catch_prediction);
-  return isolate->heap()->ToBoolean(catch_prediction == HandlerTable::CAUGHT);
 }
 
 }  // namespace internal

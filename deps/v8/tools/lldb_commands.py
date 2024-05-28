@@ -52,7 +52,12 @@ def ptr_arg_cmd(debugger, name, param, cmd, print_error=True):
 
 def print_handle(debugger, command_name, param, print_func):
   value = current_frame(debugger).EvaluateExpression(param)
-  result = print_func(value)
+  error = value.GetError()
+  if error.fail:
+    print("Error evaluating {}\n{}".format(param, error))
+    return (False, error, "")
+  # Attempt to print, ignoring visualizers if they are enabled
+  result = print_func(value.GetNonSyntheticValue())
   if not result[0]:
     print("{} cannot print a value of type {}".format(command_name,
                                                       value.type.name))

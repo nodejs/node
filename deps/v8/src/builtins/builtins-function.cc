@@ -68,7 +68,8 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
       builder.AppendString(body);
     }
     builder.AppendCStringLiteral("\n})");
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, source, builder.Finish(), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, source, indirect_handle(builder.Finish(), isolate), Object);
   }
 
   bool is_code_like = true;

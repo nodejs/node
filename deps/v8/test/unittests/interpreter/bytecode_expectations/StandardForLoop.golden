@@ -423,7 +423,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(44),
   /*   52 S> */ B(Mov), R(0), R(3),
                 B(Mov), R(1), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwaitUncaught), R(3), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwait), R(3), U8(2),
   /*   52 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(3),
                 B(Star3),

@@ -82,9 +82,9 @@ class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationRegistry,
  public:
   template <typename F>
   Handle<Microtask> NewMicrotask(F&& f) {
-    Handle<Foreign> runner =
-        factory()->NewForeign(reinterpret_cast<Address>(&RunStdFunction));
-    Handle<Foreign> data = factory()->NewForeign(
+    Handle<Foreign> runner = factory()->NewForeign<kGenericForeignTag>(
+        reinterpret_cast<Address>(&RunStdFunction));
+    Handle<Foreign> data = factory()->NewForeign<kGenericForeignTag>(
         reinterpret_cast<Address>(new Closure(std::forward<F>(f))));
     return factory()->NewCallbackTask(runner, data);
   }

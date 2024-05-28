@@ -163,14 +163,14 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
 
   // Allocate two in-place internalizable strings in isolate1 then intern
   // them.
-  Handle<String> old_one_byte_seq1 =
+  DirectHandle<String> old_one_byte_seq1 =
       factory1->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
-  Handle<String> old_two_byte_seq1 =
+  DirectHandle<String> old_two_byte_seq1 =
       factory1->NewStringFromTwoByte(two_byte, AllocationType::kOld)
           .ToHandleChecked();
-  Handle<String> one_byte_intern1 =
+  DirectHandle<String> one_byte_intern1 =
       factory1->InternalizeString(old_one_byte_seq1);
-  Handle<String> two_byte_intern1 =
+  DirectHandle<String> two_byte_intern1 =
       factory1->InternalizeString(old_two_byte_seq1);
   CHECK(InAnySharedSpace(*old_one_byte_seq1));
   CHECK(InAnySharedSpace(*old_two_byte_seq1));
@@ -184,14 +184,14 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
   // Allocate two in-place internalizable strings with the same contents in
   // isolate2 then intern them. They should be the same as the interned strings
   // from isolate1.
-  Handle<String> old_one_byte_seq2 =
+  DirectHandle<String> old_one_byte_seq2 =
       factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
-  Handle<String> old_two_byte_seq2 =
+  DirectHandle<String> old_two_byte_seq2 =
       factory2->NewStringFromTwoByte(two_byte, AllocationType::kOld)
           .ToHandleChecked();
-  Handle<String> one_byte_intern2 =
+  DirectHandle<String> one_byte_intern2 =
       factory2->InternalizeString(old_one_byte_seq2);
-  Handle<String> two_byte_intern2 =
+  DirectHandle<String> two_byte_intern2 =
       factory2->InternalizeString(old_two_byte_seq2);
   CHECK(InAnySharedSpace(*old_one_byte_seq2));
   CHECK(InAnySharedSpace(*old_two_byte_seq2));

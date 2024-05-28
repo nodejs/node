@@ -54,6 +54,7 @@ V8_EXPORT_PRIVATE std::unique_ptr<WasmStreaming> StartStreamingForTesting(
   V(WebAssemblyTableGrow)                  \
   V(WebAssemblyTableSet)                   \
   V(WebAssemblyTag)                        \
+  V(WebAssemblySuspending)                 \
   V(WebAssemblyValidate)
 
 #define DECL_WASM_JS_EXTERNAL_REFERENCE(Name) \
@@ -77,11 +78,11 @@ class WasmJs {
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
       Isolate* isolate, Handle<NativeContext> context);
 
-  V8_EXPORT_PRIVATE static void InstallTypeReflection(
+  V8_EXPORT_PRIVATE static bool InstallTypeReflection(
       Isolate* isolate, Handle<NativeContext> context,
       Handle<JSObject> webassembly);
 
-  V8_EXPORT_PRIVATE static void InstallSuspenderConstructor(
+  V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
       Isolate* isolate, Handle<NativeContext> context,
       Handle<JSObject> webassembly);
 };

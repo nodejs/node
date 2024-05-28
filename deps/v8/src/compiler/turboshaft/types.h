@@ -388,6 +388,11 @@ class WordType : public Type {
       return WordType{SubKind::kSet, static_cast<uint8_t>(elements.size()), p};
     } else {
       // Allocate storage in the zone.
+#if defined(__GNUC__) && !defined(__clang__)
+      // Work around a spurious GCC-12 warning. The DCHECK above already
+      // checks the right precondition.
+      if (zone == nullptr) return WordType::Any();
+#endif
       Payload_OutlineSet p;
       p.array = zone->AllocateArray<word_t>(elements.size());
       DCHECK_NOT_NULL(p.array);

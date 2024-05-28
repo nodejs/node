@@ -71,6 +71,29 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
 // ecma402 #sec-%segmentiteratorprototype%.next
 MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     Isolate* isolate, Handle<JSSegmentIterator> segment_iterator) {
+  // Sketches of ideas for future performance improvements, roughly in order
+  // of difficulty:
+  // - Add a fast path for grapheme segmentation of one-byte strings that
+  //   entirely skips calling into ICU.
+  // - When we enter this function, perform a batch of calls into ICU and
+  //   stash away the results, so the next couple of invocations can access
+  //   them from a (Torque?) builtin without calling into C++.
+  // - Implement compiler support for escape-analyzing the JSSegmentDataObject
+  //   and avoid allocating it when possible.
+
+  // TODO(v8:14681): We StackCheck here to break execution in the event of an
+  // interrupt. Ordinarily in JS loops, this stack check should already be
+  // occuring, however some loops implemented within CodeStubAssembler and
+  // Torque builtins do not currently implement these checks. A preferable
+  // solution which would benefit other iterators implemented in C++ include:
+  //   1) Performing the stack check in CEntry, which would provide a solution
+  //   for all methods implemented in C++.
+  //
+  //   2) Rewriting the loop to include an outer loop, which performs periodic
+  //   stack checks every N loop bodies (where N is some arbitrary heuristic
+  //   selected to allow short loop counts to run with few interruptions).
+  STACK_CHECK(isolate, MaybeHandle<JSReceiver>());
+
   Factory* factory = isolate->factory();
   icu::BreakIterator* icu_break_iterator =
       segment_iterator->icu_break_iterator()->raw();
@@ -91,14 +114,43 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   // 9. Let segmentData be ! CreateSegmentDataObject(segmenter, string,
   // startIndex, endIndex).
 
-  Handle<Object> segment_data;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, segment_data,
-      JSSegments::CreateSegmentDataObject(
-          isolate, segment_iterator->granularity(), icu_break_iterator,
-          handle(segment_iterator->raw_string(), isolate),
-          *segment_iterator->unicode_string()->raw(), start_index, end_index),
-      JSReceiver);
+  Handle<JSSegmentDataObject> segment_data;
+  if (segment_iterator->granularity() == JSSegmenter::Granularity::GRAPHEME &&
+      start_index == end_index - 1) {
+    // Fast path: use cached segment string and skip avoidable handle creations.
+    Handle<String> segment;
+    uint16_t code = segment_iterator->raw_string()->Get(start_index);
+    if (code > unibrow::Latin1::kMaxChar) {
+      segment = factory->LookupSingleCharacterStringFromCode(code);
+    }
+    Handle<Object> index;
+    if (!Smi::IsValid(start_index)) index = factory->NewHeapNumber(start_index);
+    Handle<Map> map(isolate->native_context()->intl_segment_data_object_map(),
+                    isolate);
+    segment_data =
+        Handle<JSSegmentDataObject>::cast(factory->NewJSObjectFromMap(map));
+    Tagged<JSSegmentDataObject> raw = *segment_data;
+    DisallowHeapAllocation no_gc;
+    // We can skip write barriers because {segment_data} is the last object
+    // that was allocated.
+    raw->set_segment(
+        code <= unibrow::Latin1::kMaxChar
+            ? String::cast(factory->single_character_string_table()->get(code))
+            : *segment,
+        SKIP_WRITE_BARRIER);
+    raw->set_index(
+        Smi::IsValid(start_index) ? Smi::FromInt(start_index) : *index,
+        SKIP_WRITE_BARRIER);
+    raw->set_input(segment_iterator->raw_string(), SKIP_WRITE_BARRIER);
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, segment_data,
+        JSSegments::CreateSegmentDataObject(
+            isolate, segment_iterator->granularity(), icu_break_iterator,
+            handle(segment_iterator->raw_string(), isolate),
+            *segment_iterator->unicode_string()->raw(), start_index, end_index),
+        JSReceiver);
+  }
 
   // 10. Return ! CreateIterResultObject(segmentData, false).
   return factory->NewJSIteratorResult(segment_data, false);

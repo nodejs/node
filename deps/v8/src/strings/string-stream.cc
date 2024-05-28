@@ -422,7 +422,7 @@ void StringStream::PrintPrototype(Tagged<JSFunction> fun,
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
   if (IsNullOrUndefined(receiver, isolate) || IsTheHole(receiver, isolate) ||
-      IsJSProxy(receiver)) {
+      IsJSProxy(receiver) || IsWasmObject(receiver)) {
     print_name = true;
   } else if (!isolate->context().is_null()) {
     if (!IsJSObject(receiver)) {
@@ -433,7 +433,7 @@ void StringStream::PrintPrototype(Tagged<JSFunction> fun,
     for (PrototypeIterator iter(isolate, JSObject::cast(receiver),
                                 kStartAtReceiver);
          !iter.IsAtEnd(); iter.Advance()) {
-      if (IsJSProxy(iter.GetCurrent())) break;
+      if (!IsJSObject(iter.GetCurrent())) break;
       Tagged<Object> key = iter.GetCurrent<JSObject>()->SlowReverseLookup(fun);
       if (!IsUndefined(key, isolate)) {
         if (!IsString(name) || !IsString(key) ||

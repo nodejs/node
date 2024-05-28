@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "src/common/assert-scope.h"
+#include "src/common/simd128.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug.h"
@@ -411,7 +412,7 @@ class DebugInfoImpl {
   }
 
   bool IsStepping(WasmFrame* frame) {
-    Isolate* isolate = frame->wasm_instance()->GetIsolate();
+    Isolate* isolate = frame->isolate();
     if (isolate->debug()->last_step_action() == StepInto) return true;
     base::MutexGuard guard(&mutex_);
     auto it = per_isolate_data_.find(isolate);
@@ -641,7 +642,7 @@ class DebugInfoImpl {
       } else if (value->type == kWasmF64) {
         return WasmValue(ReadUnalignedValue<double>(spilled_addr));
       } else if (value->type == kWasmS128) {
-        return WasmValue(Simd128(ReadUnalignedValue<int16>(spilled_addr)));
+        return WasmValue(Simd128(ReadUnalignedValue<int8x16>(spilled_addr)));
       } else {
         // All other cases should have been handled above.
         UNREACHABLE();
@@ -660,7 +661,7 @@ class DebugInfoImpl {
       case kF64:
         return WasmValue(ReadUnalignedValue<double>(stack_address));
       case kS128:
-        return WasmValue(Simd128(ReadUnalignedValue<int16>(stack_address)));
+        return WasmValue(Simd128(ReadUnalignedValue<int8x16>(stack_address)));
       case kRef:
       case kRefNull:
       case kRtt: {
@@ -724,8 +725,7 @@ class DebugInfoImpl {
   bool IsAtReturn(WasmFrame* frame) {
     DisallowGarbageCollection no_gc;
     int position = frame->position();
-    NativeModule* native_module =
-        frame->wasm_instance()->module_object()->native_module();
+    NativeModule* native_module = frame->native_module();
     uint8_t opcode = native_module->wire_bytes()[position];
     if (opcode == kExprReturn) return true;
     // Another implicit return is at the last kExprEnd in the function body.
@@ -1243,8 +1243,13 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
   if (!IsFixedArray(*break_points)) {
     if (!CheckBreakPoint(isolate, Handle<BreakPoint>::cast(break_points),
                          frame_id)) {
+      // A breakpoint that doesn't break mutes traps. (Rule enables the
+      // "Never Pause Here" feature.)
+      isolate->debug()->SetMutedWasmLocation(script, position);
       return {};
     }
+    // If breakpoint does fire, clear any prior muting behavior.
+    isolate->debug()->ClearMutedLocation();
     Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
     break_points_hit->set(0, *break_points);
     return break_points_hit;

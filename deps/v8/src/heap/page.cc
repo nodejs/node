@@ -20,10 +20,9 @@ static_assert(kClearedWeakHeapObjectLower32 < PageMetadata::kHeaderSize);
 
 PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            Address area_start, Address area_end,
-                           VirtualMemory reservation, Executability executable)
+                           VirtualMemory reservation)
     : MutablePageMetadata(heap, space, size, area_start, area_end,
-                          std::move(reservation), executable,
-                          PageSize::kRegular) {}
+                          std::move(reservation), PageSize::kRegular) {}
 
 void PageMetadata::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
@@ -64,7 +63,10 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
   old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  chunk->ClearFlags(MemoryChunk::kAllFlagsMask);
+  chunk->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
+  DCHECK_NE(old_space->identity(), SHARED_SPACE);
+  chunk->SetOldGenerationPageFlags(
+      old_page->heap()->incremental_marking()->marking_mode(), OLD_SPACE);
   PageMetadata* new_page = old_space->InitializePage(old_page);
   old_space->AddPromotedPage(new_page);
   return new_page;
@@ -81,8 +83,8 @@ void PageMetadata::MarkNeverAllocateForTesting() {
   MemoryChunk* chunk = Chunk();
   DCHECK(this->owner_identity() != NEW_SPACE);
   DCHECK(!chunk->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
-  chunk->SetFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-  chunk->SetFlag(MemoryChunk::NEVER_EVACUATE);
+  chunk->SetFlagSlow(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  chunk->SetFlagSlow(MemoryChunk::NEVER_EVACUATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
@@ -151,7 +153,8 @@ size_t PageMetadata::ShrinkToHighWaterMark() {
 
 void PageMetadata::CreateBlackArea(Address start, Address end) {
   DCHECK_NE(NEW_SPACE, owner_identity());
-  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK(v8_flags.sticky_mark_bits ||
+         heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(PageMetadata::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(PageMetadata::FromAddress(end - 1), this);
@@ -159,11 +162,13 @@ void PageMetadata::CreateBlackArea(Address start, Address end) {
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
   IncrementLiveBytesAtomically(static_cast<intptr_t>(end - start));
+  owner()->NotifyBlackAreaCreated(end - start);
 }
 
 void PageMetadata::DestroyBlackArea(Address start, Address end) {
   DCHECK_NE(NEW_SPACE, owner_identity());
-  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK(v8_flags.sticky_mark_bits ||
+         heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(PageMetadata::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(PageMetadata::FromAddress(end - 1), this);
@@ -171,6 +176,7 @@ void PageMetadata::DestroyBlackArea(Address start, Address end) {
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
   IncrementLiveBytesAtomically(-static_cast<intptr_t>(end - start));
+  owner()->NotifyBlackAreaDestroyed(end - start);
 }
 
 }  // namespace internal

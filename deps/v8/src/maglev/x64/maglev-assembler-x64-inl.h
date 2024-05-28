@@ -516,6 +516,16 @@ inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot stack_slot) {
 
 inline void MaglevAssembler::IncrementInt32(Register reg) { incl(reg); }
 
+inline void MaglevAssembler::DecrementInt32(Register reg) { decl(reg); }
+
+inline void MaglevAssembler::AddInt32(Register reg, int amount) {
+  addl(reg, Immediate(amount));
+}
+
+inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
+  shll(reg, Immediate(amount));
+}
+
 inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
   leaq(reg, MemOperand(reg, delta));
 }

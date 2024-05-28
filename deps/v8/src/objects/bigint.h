@@ -210,23 +210,9 @@ V8_OBJECT class BigInt : public BigIntBase {
                                  Handle<BigInt> y);
   static MaybeHandle<BigInt> Subtract(Isolate* isolate, Handle<BigInt> x,
                                       Handle<BigInt> y);
-  static MaybeHandle<BigInt> LeftShift(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y);
-  static MaybeHandle<BigInt> SignedRightShift(Isolate* isolate,
-                                              Handle<BigInt> x,
-                                              Handle<BigInt> y);
-  static MaybeHandle<BigInt> UnsignedRightShift(Isolate* isolate,
-                                                Handle<BigInt> x,
-                                                Handle<BigInt> y);
   // More convenient version of "bool LessThan(x, y)".
   static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
   static bool EqualToBigInt(Tagged<BigInt> x, Tagged<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseAnd(Isolate* isolate, Handle<BigInt> x,
-                                        Handle<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseXor(Isolate* isolate, Handle<BigInt> x,
-                                        Handle<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseOr(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y);
 
   // Other parts of the public interface.
   static MaybeHandle<BigInt> Increment(Isolate* isolate, Handle<BigInt> x);
@@ -281,7 +267,7 @@ V8_OBJECT class BigInt : public BigIntBase {
   // doesn't care about termination requests, and returns a default string
   // for inputs beyond a relatively low upper bound.
   static Handle<String> NoSideEffectsToString(Isolate* isolate,
-                                              Handle<BigInt> bigint);
+                                              DirectHandle<BigInt> bigint);
 
   // "The Number value for x", see:
   // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type

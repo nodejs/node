@@ -19,6 +19,8 @@ using ManagedTest = TestWithIsolate;
 
 class DeleteCounter {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
+
   explicit DeleteCounter(int* deleted) : deleted_(deleted) { *deleted_ = 0; }
   ~DeleteCounter() { (*deleted_)++; }
   static void Deleter(void* arg) {

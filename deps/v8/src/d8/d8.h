@@ -184,6 +184,8 @@ class SerializationDataQueue {
 
 class Worker : public std::enable_shared_from_this<Worker> {
  public:
+  static constexpr i::ExternalPointerTag kManagedTag = i::kGenericManagedTag;
+
   explicit Worker(const char* script);
   ~Worker();
 
@@ -453,6 +455,14 @@ class ShellOptions {
   DisallowReassignment<const char*> trace_path = {"trace-path", nullptr};
   DisallowReassignment<const char*> trace_config = {"trace-config", nullptr};
   DisallowReassignment<const char*> lcov_file = {"lcov", nullptr};
+#ifdef V8_OS_LINUX
+  // Allow linux perf to be started and stopped by performance.mark and
+  // performance.measure, respectively.
+  DisallowReassignment<bool> scope_linux_perf_to_mark_measure = {
+      "scope-linux-perf-to-mark-measure", false};
+  DisallowReassignment<int> perf_ctl_fd = {"perf-ctl-fd", -1};
+  DisallowReassignment<int> perf_ack_fd = {"perf-ack-fd", -1};
+#endif
   DisallowReassignment<bool> disable_in_process_stack_traces = {
       "disable-in-process-stack-traces", false};
   DisallowReassignment<int> read_from_tcp_port = {"read-from-tcp-port", -1};
@@ -565,6 +575,7 @@ class Shell : public i::AllStatic {
 
   static void InstallConditionalFeatures(
       const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static void AsyncHooksCreateHook(
       const v8::FunctionCallbackInfo<v8::Value>& info);

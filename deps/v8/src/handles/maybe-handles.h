@@ -169,7 +169,7 @@ class MaybeDirectHandle final {
   // Ex. MaybeHandle<JSArray> can be passed when
   // MaybeDirectHandle<Object> is expected.
   template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
-  V8_INLINE MaybeDirectHandle(MaybeHandle<S> maybe_handle)
+  V8_INLINE MaybeDirectHandle(MaybeIndirectHandle<S> maybe_handle)
       : location_(maybe_handle.location_ == nullptr ? kTaggedNullAddress
                                                     : *maybe_handle.location_) {
   }

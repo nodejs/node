@@ -15,7 +15,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
-#include "src/objects/js-segment-iterator.h"
+#include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #include "src/objects/managed-inl.h"
@@ -106,7 +106,7 @@ bool CurrentSegmentIsWordLike(icu::BreakIterator* break_iterator) {
 }  // namespace
 
 // ecma402 #sec-createsegmentdataobject
-MaybeHandle<Object> JSSegments::CreateSegmentDataObject(
+MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
     Isolate* isolate, JSSegmenter::Granularity granularity,
     icu::BreakIterator* break_iterator, Handle<String> input_string,
     const icu::UnicodeString& unicode_string, int32_t start_index,
@@ -122,7 +122,13 @@ MaybeHandle<Object> JSSegments::CreateSegmentDataObject(
   DCHECK_LT(start_index, end_index);
 
   // 5. Let result be ! ObjectCreate(%ObjectPrototype%).
-  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+  Handle<Map> map(
+      granularity == JSSegmenter::Granularity::WORD
+          ? isolate->native_context()->intl_segment_data_object_wordlike_map()
+          : isolate->native_context()->intl_segment_data_object_map(),
+      isolate);
+  Handle<JSSegmentDataObject> result =
+      Handle<JSSegmentDataObject>::cast(factory->NewJSObjectFromMap(map));
 
   // 6. Let segment be the String value equal to the substring of string
   // consisting of the code units at indices startIndex (inclusive) through
@@ -131,41 +137,28 @@ MaybeHandle<Object> JSSegments::CreateSegmentDataObject(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment,
       Intl::ToString(isolate, unicode_string, start_index, end_index),
-      JSObject);
+      JSSegmentDataObject);
+  Handle<Object> index = factory->NewNumberFromInt(start_index);
 
   // 7. Perform ! CreateDataPropertyOrThrow(result, "segment", segment).
-  Maybe<bool> maybe_create_segment = JSReceiver::CreateDataProperty(
-      isolate, result, factory->segment_string(), segment, Just(kDontThrow));
-  DCHECK(maybe_create_segment.FromJust());
-  USE(maybe_create_segment);
-
+  DisallowGarbageCollection no_gc;
+  Tagged<JSSegmentDataObject> raw = JSSegmentDataObject::cast(*result);
+  raw->set_segment(*segment);
   // 8. Perform ! CreateDataPropertyOrThrow(result, "index", startIndex).
-  Maybe<bool> maybe_create_index = JSReceiver::CreateDataProperty(
-      isolate, result, factory->index_string(),
-      factory->NewNumberFromInt(start_index), Just(kDontThrow));
-  DCHECK(maybe_create_index.FromJust());
-  USE(maybe_create_index);
-
+  raw->set_index(*index);
   // 9. Perform ! CreateDataPropertyOrThrow(result, "input", string).
-  Maybe<bool> maybe_create_input = JSReceiver::CreateDataProperty(
-      isolate, result, factory->input_string(), input_string, Just(kDontThrow));
-  DCHECK(maybe_create_input.FromJust());
-  USE(maybe_create_input);
+  raw->set_input(*input_string);
 
-  Handle<Object> is_word_like;
   // 10. Let granularity be segmenter.[[SegmenterGranularity]].
   // 11. If granularity is "word", then
   if (granularity == JSSegmenter::Granularity::WORD) {
-    // a. Let isWordLike be a Boolean value indicating whether the word segment
-    //    segment in string is "word-like" according to locale
-    //    segmenter.[[Locale]].
-    is_word_like = factory->ToBoolean(CurrentSegmentIsWordLike(break_iterator));
+    // a. Let isWordLike be a Boolean value indicating whether the segment in
+    //    string is "word-like" according to locale segmenter.[[Locale]].
+    Handle<Boolean> is_word_like =
+        factory->ToBoolean(CurrentSegmentIsWordLike(break_iterator));
     // b. Perform ! CreateDataPropertyOrThrow(result, "isWordLike", isWordLike).
-    Maybe<bool> maybe_create_is_word_like = JSReceiver::CreateDataProperty(
-        isolate, result, factory->isWordLike_string(), is_word_like,
-        Just(kDontThrow));
-    DCHECK(maybe_create_is_word_like.FromJust());
-    USE(maybe_create_is_word_like);
+    JSSegmentDataObjectWithIsWordLike::cast(raw)->set_is_word_like(
+        *is_word_like);
   }
   return result;
 }

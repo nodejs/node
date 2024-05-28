@@ -16,6 +16,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/use-map.h"
 
 
@@ -291,9 +292,11 @@ struct TurbofanAdapter {
     // TODO(saelo): once we have turboshaft everywhere, we should convert this
     // to an operation parameter instead of an addition input (which is
     // currently required for turbofan, since all store opcodes are cached).
-    node_t indirect_pointer_tag() const {
+    IndirectPointerTag indirect_pointer_tag() const {
       DCHECK_EQ(node_->opcode(), IrOpcode::kStoreIndirectPointer);
-      return node_->InputAt(3);
+      Node* tag = node_->InputAt(3);
+      DCHECK_EQ(tag->opcode(), IrOpcode::kInt64Constant);
+      return static_cast<IndirectPointerTag>(OpParameter<int64_t>(tag->op()));
     }
     int32_t displacement() const { return 0; }
     uint8_t element_size_log2() const { return 0; }
@@ -856,11 +859,13 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 #if V8_ENABLE_WEBASSEMBLY
         } else {
 #if V8_ENABLE_WASM_SIMD256_REVEC
-          DCHECK((load_transform_ && !load_transform_->load_kind.trap_on_null)
-                 || (load_transform256_ &&
-                     !load_transform256_->load_kind.trap_on_null));
+          DCHECK(
+              (load_transform_ && !load_transform_->load_kind.trap_on_null) ||
+              (load_transform256_ &&
+               !load_transform256_->load_kind.trap_on_null));
 #else
-          DCHECK((load_transform_ && !load_transform_->load_kind.trap_on_null));
+          DCHECK(load_transform_);
+          DCHECK(!load_transform_->load_kind.trap_on_null);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
           *traps_on_null = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -979,7 +984,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     node_t base() const { return op_->base(); }
     optional_node_t index() const { return op_->index(); }
     node_t value() const { return op_->value(); }
-    node_t indirect_pointer_tag() const { UNREACHABLE(); }
+    IndirectPointerTag indirect_pointer_tag() const {
+      return static_cast<IndirectPointerTag>(op_->indirect_pointer_tag());
+    }
     int32_t displacement() const {
       static_assert(
           std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
@@ -1330,15 +1337,15 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
 
   bool is_truncate_word64_to_word32(node_t node) const {
-    if (auto change_op = graph_->Get(node).TryCast<turboshaft::ChangeOp>()) {
-      if (change_op->kind == turboshaft::ChangeOp::Kind::kTruncate) {
-        DCHECK_EQ(change_op->from,
-                  turboshaft::RegisterRepresentation::Word64());
-        DCHECK_EQ(change_op->to, turboshaft::RegisterRepresentation::Word32());
-        return true;
-      }
+    return graph_->Get(node).Is<turboshaft::Opmask::kTruncateWord64ToWord32>();
+  }
+  node_t remove_truncate_word64_to_word32(node_t node) const {
+    if (const turboshaft::ChangeOp* change =
+            graph_->Get(node)
+                .TryCast<turboshaft::Opmask::kTruncateWord64ToWord32>()) {
+      return change->input();
     }
-    return false;
+    return node;
   }
 
   bool is_stack_slot(node_t node) const {

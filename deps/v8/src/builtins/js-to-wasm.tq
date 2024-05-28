@@ -70,6 +70,12 @@ extern enum ValueKind extends int32 constexpr 'wasm::ValueKind' {
   ...
 }
 
+extern enum Promise extends int32 constexpr 'wasm::Promise' {
+  kPromise,
+  kPromiseWithSuspender,
+  kNoPromise
+}
+
 extern enum HeapType extends int32
     constexpr 'wasm::HeapType::Representation' {
   kExtern,
@@ -444,21 +450,24 @@ macro JSToWasmObject(
 
 macro JSToWasmWrapperHelper(
     context: NativeContext, _receiver: JSAny, target: JSFunction,
-    arguments: Arguments, switchStack: constexpr bool): never {
-  const functionData = UnsafeCast<WasmExportedFunctionData>(
-      target.shared_function_info.function_data);
+    arguments: Arguments, promise: constexpr Promise): never {
+  const functionData =
+      UnsafeCast<WasmExportedFunctionData>(target.shared_function_info.data);
 
   // Trigger a wrapper tier-up when this function got called often enough.
+  const switchStack = promise != Promise::kNoPromise;
   if constexpr (!switchStack) {
-    functionData.wrapper_budget = functionData.wrapper_budget - 1;
-    if (functionData.wrapper_budget == 0) {
+    const budget: Smi =
+        UnsafeCast<Smi>(functionData.wrapper_budget.value) - SmiConstant(1);
+    functionData.wrapper_budget.value = budget;
+    if (budget == SmiConstant(0)) {
       runtime::WasmCompileWrapper(kNoContext, functionData);
     }
   }
 
-  const sig = functionData.sig_ptr;
+  const sig = functionData.sig;
   const trustedInstanceData: WasmTrustedInstanceData =
-      LoadTrustedDataFromInstance(functionData.instance);
+      functionData.instance_data;
 
   const paramCount = *GetRefAt<int32>(sig, kWasmParameterCountOffset);
 
@@ -563,7 +572,7 @@ macro JSToWasmWrapperHelper(
   let paramTypeIndex: int32 = 0;
   // For stack switching paramTypeIndex and paramIndex diverges,
   // because a suspender is not passed to wrapper as param.
-  if constexpr (switchStack) {
+  if constexpr (promise == Promise::kPromiseWithSuspender) {
     paramTypeIndex++;
     hasRefParam = true;
   }
@@ -616,6 +625,10 @@ macro JSToWasmWrapperHelper(
           JSToWasmObject(context, trustedInstanceData, paramType, param);
     }
   }
+  let suspender: JSAny = Undefined;
+  if constexpr (switchStack) {
+    suspender = runtime::WasmAllocateSuspender(context);
+  }
   if (hasRefParam) {
     // Iterate over all parameters again and handle all those with ref types.
     let k: int32 = 0;
@@ -624,8 +637,7 @@ macro JSToWasmWrapperHelper(
     let paramIndex: int32 = 0;
     locationAllocator.StartRefs();
 
-    if constexpr (switchStack) {
-      const suspender = runtime::WasmAllocateSuspender(context);
+    if (promise == Promise::kPromiseWithSuspender) {
       const toRef = locationAllocator.GetGPSlot();
       *toRef = BitcastTaggedToWord(suspender);
       // First param is suspender, so skip it in the signature loop.
@@ -651,8 +663,7 @@ macro JSToWasmWrapperHelper(
   const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
 
-  const internal: WasmInternalFunction = functionData.internal;
-  const callTarget = internal.call_target_ptr;
+  const callTarget = functionData.internal.call_target;
 
   // We construct a state that will be passed to `JSToWasmWrapperAsm`
   // and `JSToWasmHandleReturns`. There are too many parameters to pass
@@ -706,13 +717,22 @@ macro JSToWasmWrapperHelper(
 transitioning javascript builtin JSToWasmWrapper(
     js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
     ...arguments): JSAny {
-  JSToWasmWrapperHelper(context, receiver, target, arguments, false);
+  JSToWasmWrapperHelper(
+      context, receiver, target, arguments, Promise::kNoPromise);
 }
 
-transitioning javascript builtin WasmReturnPromiseOnSuspend(
+transitioning javascript builtin WasmPromisingWithSuspender(
     js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
     ...arguments): JSAny {
-  JSToWasmWrapperHelper(context, receiver, target, arguments, true);
+  JSToWasmWrapperHelper(
+      context, receiver, target, arguments, Promise::kPromiseWithSuspender);
+}
+
+transitioning javascript builtin WasmPromising(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
+  JSToWasmWrapperHelper(
+      context, receiver, target, arguments, Promise::kPromise);
 }
 
 macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):

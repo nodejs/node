@@ -108,6 +108,8 @@ template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
 template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
 template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
 template class PerThreadAssertScope<GC_MOLE, false>;
+template class PerThreadAssertScope<POSITION_INFO_SLOW_ASSERT, false>;
+template class PerThreadAssertScope<POSITION_INFO_SLOW_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

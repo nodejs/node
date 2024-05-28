@@ -4,13 +4,6 @@
 
 import("../../gni/v8.gni")
 
-config("cctest_config") {
-  # Work around a bug in the gold linker.
-  if (use_gold && target_cpu == "x86") {
-    ldflags = [ "-Wl,--icf=none" ]
-  }
-}
-
 v8_executable("cctest") {
   testonly = true
 
@@ -35,7 +28,6 @@ v8_executable("cctest") {
     "../..:external_config",
     "../..:internal_config_base",
     "../..:v8_tracing_config",
-    ":cctest_config",
   ]
 
   ldflags = []
@@ -204,6 +196,7 @@ v8_source_set("cctest_sources") {
       "compiler/turboshaft-codegen-tester.cc",
       "compiler/turboshaft-codegen-tester.h",
       "compiler/turboshaft-test-branch-combine.cc",
+      "compiler/turboshaft-test-compare-combine.cc",
       "compiler/turboshaft-test-select-combine.cc",
       "setup-isolate-for-tests.cc",
       "setup-isolate-for-tests.h",

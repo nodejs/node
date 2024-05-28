@@ -178,4 +178,126 @@ test({0:0,1:0}, idView);
   o.x = "1";
   var o2 = {...o};
   assertTrue(%HaveSameMap(o, o2));
-})()
+})();
+
+// Cloning sealed and frozen objects
+(function(){
+  function testFrozen1(x) {
+    "use strict"
+    if (x.x) {
+      assertThrows(function() { x.x = 42 }, TypeError);
+    }
+    if (x[2]) {
+      assertThrows(function() { x[2] = 42 }, TypeError);
+    }
+  }
+
+  function testFrozen2(x) {
+    if (x.x) {
+      x.x = 42;
+      assertFalse(x.x == 42);
+    }
+    if (x[2]) {
+      x[10] = 42;
+      assertFalse(x[10] == 42);
+    }
+  }
+
+  function testUnfrozen(x) {
+    x.x = 42;
+    assertTrue(x.x == 42);
+    x[2] = 42;
+    assertTrue(x[2] == 42);
+  }
+
+  function testSealed(x) {
+    x.asdf = 42;
+    assertFalse(x.asdf == 42);
+    x[10] = 42;
+    assertFalse(x[10] == 42);
+  }
+
+  function testUnsealed(x) {
+    x.asdf = 42;
+    assertTrue(x.asdf == 42);
+    x[10] = 42;
+    assertTrue(x[10] == 42);
+  }
+
+  function testFreeze(x) {
+    Object.freeze(x);
+    testFrozen1(x);
+    testFrozen2(x);
+    var y = {...x};
+    assertFalse(%HaveSameMap(x,y));
+    if (x.__proto__ == Object.prototype) {
+      assertEquals(x, y);
+    }
+    testUnfrozen(y);
+    y = Object.assign({}, x);
+    if (x.__proto__ == Object.prototype) {
+      assertEquals(x, y);
+    }
+    testUnfrozen(y);
+  }
+
+  function testSeal(x) {
+    Object.seal(x);
+    testSealed(x);
+    var y = {...x};
+    assertFalse(%HaveSameMap(x,y));
+    if (x.__proto__ == Object.prototype) {
+      assertEquals(x, y);
+    }
+    testUnsealed(y);
+    y = Object.assign({}, x);
+    if (x.__proto__ == Object.prototype) {
+      assertEquals(x, y);
+    }
+    testUnsealed(y);
+  }
+
+  function testNonExtend(x) {
+    Object.preventExtensions(x);
+    testSealed(x);
+    var y = {...x};
+    assertFalse(%HaveSameMap(x,y));
+    if (x.__proto__ == Object.prototype) {
+      assertEquals(x, y);
+    }
+    testUnsealed(y);
+    y = Object.assign({}, x);
+    if (x.__proto__ == Object.prototype) {
+      assertEquals(x, y);
+    }
+    testUnsealed(y);
+  }
+
+
+  var tests = [testFreeze, testSeal, testNonExtend];
+
+  for (var i = 0; i < 20; ++i) {
+    tests.forEach(test => {
+      if (i < 10) { %ClearFunctionFeedback(test); }
+      var x = {};
+      x.x = 3;
+      test(x);
+
+      if (i < 10) { %ClearFunctionFeedback(test); }
+      x = [];
+      x[2]= 3;
+      test(x);
+
+      if (i < 10) { %ClearFunctionFeedback(test); }
+      x = {};
+      x[2]= 3;
+      test(x);
+
+      if (i < 10) { %ClearFunctionFeedback(test); }
+      var x = {};
+      x.x = 3;
+      x[10000] = 3
+      test(x);
+    });
+  }
+})();

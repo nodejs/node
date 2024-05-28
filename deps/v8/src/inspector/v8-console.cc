@@ -9,6 +9,7 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
@@ -965,6 +966,24 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
   }
 }
 
+namespace {
+
+// "get"-ting these functions from the global proxy is considered a side-effect.
+// Otherwise, malicious sites could stash references to these functions through
+// previews / ValueMirror and use them across origin isolation.
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::set<std::string_view>,
+                                UnsafeCommandLineAPIFns,
+                                std::initializer_list<std::string_view>{
+                                    "debug", "undebug", "monitor", "unmonitor",
+                                    "inspect", "copy", "queryObjects"})
+
+bool IsUnsafeCommandLineAPIFn(v8::Local<v8::Value> name, v8::Isolate* isolate) {
+  std::string nameStr = toProtocolStringWithTypeCheck(isolate, name).utf8();
+  return UnsafeCommandLineAPIFns()->count(nameStr) > 0;
+}
+
+}  // namespace
+
 V8Console::CommandLineAPIScope::CommandLineAPIScope(
     v8::Local<v8::Context> context, v8::Local<v8::Object> commandLineAPI,
     v8::Local<v8::Object> global)
@@ -991,10 +1010,9 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     if (global->Has(context, name).FromMaybe(true)) continue;
 
     const v8::SideEffectType get_accessor_side_effect_type =
-        isCommandLineAPIGetter(
-            toProtocolStringWithTypeCheck(context->GetIsolate(), name))
-            ? v8::SideEffectType::kHasNoSideEffect
-            : v8::SideEffectType::kHasSideEffect;
+        IsUnsafeCommandLineAPIFn(name, context->GetIsolate())
+            ? v8::SideEffectType::kHasSideEffect
+            : v8::SideEffectType::kHasNoSideEffect;
     if (!global
              ->SetNativeDataProperty(
                  context, name.As<v8::Name>(),

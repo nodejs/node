@@ -269,7 +269,7 @@ class ZoneCompactSet final {
   enum Tag { kSingletonTag = 0, kEmptyTag = 1, kListTag = 2 };
 
   using List = base::Vector<data_type*>;
-  using PointerWithPayload = base::PointerWithPayload<void, Tag, 2>;
+  using PointerWithPayload = base::PointerWithPayload<void*, Tag, 2>;
 
   bool is_singleton() const { return data_.GetPayload() == kSingletonTag; }
   bool is_list() const { return data_.GetPayload() == kListTag; }

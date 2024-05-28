@@ -164,7 +164,7 @@ class ValueSerializer {
   V8_NOINLINE Maybe<bool> ThrowDataCloneError(MessageTemplate template_index)
       V8_WARN_UNUSED_RESULT;
   V8_NOINLINE Maybe<bool> ThrowDataCloneError(MessageTemplate template_index,
-                                              Handle<Object> arg0)
+                                              DirectHandle<Object> arg0)
       V8_WARN_UNUSED_RESULT;
 
   Maybe<bool> ThrowIfOutOfMemory();

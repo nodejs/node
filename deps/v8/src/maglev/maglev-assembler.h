@@ -9,7 +9,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-ir.h"
 
@@ -19,6 +19,32 @@ namespace maglev {
 
 class Graph;
 class MaglevAssembler;
+
+inline ExternalReference SpaceAllocationTopAddress(Isolate* isolate,
+                                                   AllocationType alloc_type) {
+  if (alloc_type == AllocationType::kYoung) {
+    return ExternalReference::new_space_allocation_top_address(isolate);
+  }
+  DCHECK_EQ(alloc_type, AllocationType::kOld);
+  return ExternalReference::old_space_allocation_top_address(isolate);
+}
+
+inline ExternalReference SpaceAllocationLimitAddress(
+    Isolate* isolate, AllocationType alloc_type) {
+  if (alloc_type == AllocationType::kYoung) {
+    return ExternalReference::new_space_allocation_limit_address(isolate);
+  }
+  DCHECK_EQ(alloc_type, AllocationType::kOld);
+  return ExternalReference::old_space_allocation_limit_address(isolate);
+}
+
+inline Builtin AllocateBuiltin(AllocationType alloc_type) {
+  if (alloc_type == AllocationType::kYoung) {
+    return Builtin::kAllocateInYoungGeneration;
+  }
+  DCHECK_EQ(alloc_type, AllocationType::kOld);
+  return Builtin::kAllocateInOldGeneration;
+}
 
 // Label allowed to be passed to deferred code.
 class ZoneLabelRef {
@@ -107,6 +133,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void Allocate(RegisterSnapshot register_snapshot, Register result,
                 int size_in_bytes,
+                AllocationType alloc_type = AllocationType::kYoung,
+                AllocationAlignment alignment = kTaggedAligned);
+
+  void Allocate(RegisterSnapshot register_snapshot, Register result,
+                Register size_in_bytes,
                 AllocationType alloc_type = AllocationType::kYoung,
                 AllocationAlignment alignment = kTaggedAligned);
 
@@ -232,6 +263,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline MemOperand DataViewElementOperand(Register data_pointer,
                                            Register index);
 
+  enum class CharCodeMaskMode { kValueIsInRange, kMustApplyMask };
+
   // Warning: Input registers {string} and {index} will be scratched.
   // {result} is allowed to alias with one the other 3 input registers.
   // {result} is an int32.
@@ -242,7 +275,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   // Warning: Input {char_code} will be scratched.
   void StringFromCharCode(RegisterSnapshot register_snapshot,
                           Label* char_code_fits_one_byte, Register result,
-                          Register char_code, Register scratch);
+                          Register char_code, Register scratch,
+                          CharCodeMaskMode mask_mode);
 
   void ToBoolean(Register value, CheckType check_type, ZoneLabelRef is_true,
                  ZoneLabelRef is_false, bool fallthrough_when_true);
@@ -310,6 +344,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   template <typename Function, typename... Args>
   inline void JumpToDeferredIf(Condition cond, Function&& deferred_code_gen,
                                Args&&... args);
+  void JumpIfNotCallable(Register object, Register scratch,
+                         CheckType check_type, Label* target,
+                         Label::Distance distance = Label::kFar);
   void JumpIfUndetectable(Register object, Register scratch,
                           CheckType check_type, Label* target,
                           Label::Distance distance = Label::kFar);
@@ -337,6 +374,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   void MaterialiseValueNode(Register dst, ValueNode* value);
 
   inline void IncrementInt32(Register reg);
+  inline void DecrementInt32(Register reg);
+  inline void AddInt32(Register reg, int amount);
+  inline void ShiftLeft(Register reg, int amount);
   inline void IncrementAddress(Register reg, int32_t delta);
   inline void LoadAddress(Register dst, MemOperand location);
 

@@ -56,6 +56,8 @@ namespace debugging_internal {
 //
 // See the unit test for more examples.
 //
+// Support for Rust mangled names is in development; see demangle_rust.h.
+//
 // Note: we might want to write demanglers for ABIs other than Itanium
 // C++ ABI in the future.
 bool Demangle(const char* mangled, char* out, size_t out_size);

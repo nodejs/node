@@ -398,7 +398,8 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
 }
 
 // static
-Handle<String> JSBoundFunction::ToString(Handle<JSBoundFunction> function) {
+Handle<String> JSBoundFunction::ToString(
+    DirectHandle<JSBoundFunction> function) {
   Isolate* const isolate = function->GetIsolate();
   return isolate->factory()->function_native_code_string();
 }
@@ -443,7 +444,8 @@ Maybe<int> JSWrappedFunction::GetLength(Isolate* isolate,
 }
 
 // static
-Handle<String> JSWrappedFunction::ToString(Handle<JSWrappedFunction> function) {
+Handle<String> JSWrappedFunction::ToString(
+    DirectHandle<JSWrappedFunction> function) {
   Isolate* const isolate = function->GetIsolate();
   return isolate->factory()->function_native_code_string();
 }
@@ -490,7 +492,8 @@ MaybeHandle<Object> JSWrappedFunction::Create(
     // constructor instead of the executing Realm's.
     Handle<JSFunction> type_error_function =
         Handle<JSFunction>(creation_context->type_error_function(), isolate);
-    Handle<String> string = Object::NoSideEffectsToString(isolate, exception);
+    DirectHandle<String> string =
+        Object::NoSideEffectsToString(isolate, exception);
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewError(type_error_function, MessageTemplate::kCannotWrap, string),
@@ -1057,7 +1060,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // Fast case, new.target is a subclass of constructor. The map is cacheable
   // (and may already have been cached). new.target.prototype is guaranteed to
   // be a JSReceiver.
-  if (IsJSFunction(*new_target)) {
+  InstanceType new_target_instance_type = new_target->map()->instance_type();
+  if (InstanceTypeChecker::IsJSFunction(new_target_instance_type)) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
     if (FastInitializeDerivedMap(isolate, function, constructor,
                                  constructor_initial_map)) {
@@ -1065,21 +1069,19 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     }
   }
 
-  // Slow path, new.target is either a proxy or can't cache the map.
+  // Slow path, new.target is either a proxy object or can't cache the map.
   // new.target.prototype is not guaranteed to be a JSReceiver, and may need to
   // fall back to the intrinsicDefaultProto.
   Handle<Object> prototype;
-  if (IsJSFunction(*new_target)) {
+  if (InstanceTypeChecker::IsJSFunction(new_target_instance_type) &&
+      Handle<JSFunction>::cast(new_target)->has_prototype_slot()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
-    if (function->has_prototype_slot()) {
-      // Make sure the new.target.prototype is cached.
-      EnsureHasInitialMap(function);
-      prototype = handle(function->prototype(), isolate);
-    } else {
-      // No prototype property, use the intrinsict default proto further down.
-      prototype = isolate->factory()->undefined_value();
-    }
+    // Make sure the new.target.prototype is cached.
+    EnsureHasInitialMap(function);
+    prototype = handle(function->prototype(), isolate);
   } else {
+    // The new.target is a constructor but it's not a JSFunction with
+    // a prototype slot, so get the prototype property.
     Handle<String> prototype_string = isolate->factory()->prototype_string();
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, prototype,
@@ -1268,7 +1270,8 @@ bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
     builder.AppendString(prefix);
     builder.AppendCharacter(' ');
     builder.AppendString(function_name);
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name, builder.Finish(),
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name,
+                                     indirect_handle(builder.Finish(), isolate),
                                      false);
   }
   RETURN_ON_EXCEPTION_VALUE(
@@ -1288,13 +1291,13 @@ Handle<String> NativeCodeFunctionSourceString(
   builder.AppendCStringLiteral("function ");
   builder.AppendString(handle(shared_info->Name(), isolate));
   builder.AppendCStringLiteral("() { [native code] }");
-  return builder.Finish().ToHandleChecked();
+  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
 }  // namespace
 
 // static
-Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
   Isolate* const isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
 
@@ -1306,7 +1309,8 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   if (IsClassConstructor(shared_info->kind())) {
     // Check if we should print {function} as a class.
     Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
-        isolate, function, isolate->factory()->class_positions_symbol());
+        isolate, indirect_handle(function, isolate),
+        isolate->factory()->class_positions_symbol());
     if (IsClassPositions(*maybe_class_positions)) {
       Tagged<ClassPositions> class_positions =
           ClassPositions::cast(*maybe_class_positions);
@@ -1330,7 +1334,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   if (shared_info->HasWasmExportedFunctionData()) {
     Handle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
-    const wasm::WasmModule* module = function_data->instance()->module();
+    const wasm::WasmModule* module = function_data->instance_data()->module();
     if (is_asmjs_module(module)) {
       std::pair<int, int> offsets =
           module->asm_js_offset_information->GetFunctionOffsets(

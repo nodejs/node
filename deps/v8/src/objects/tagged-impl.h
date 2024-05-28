@@ -18,7 +18,7 @@ namespace internal {
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 // When V8_EXTERNAL_CODE_SPACE or V8_ENABLE_SANDBOX is enabled, comparing
 // objects in the code- or trusted space with "regular" objects by looking only
-// at compressed values it not correct. Full pointers must be compared instead.
+// at compressed values is not correct. Full pointers must be compared instead.
 bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
 #endif
 

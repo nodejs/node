@@ -74,7 +74,8 @@ TEST_F(BackgroundCompileTaskTest, Construct) {
 }
 
 TEST_F(BackgroundCompileTaskTest, SyntaxError) {
-  test::ScriptResource* script = new test::ScriptResource("^^^", strlen("^^^"));
+  test::ScriptResource* script =
+      new test::ScriptResource("^^^", strlen("^^^"), JSParameterCount(0));
   Handle<SharedFunctionInfo> shared =
       test::CreateSharedFunctionInfo(isolate(), script);
   std::unique_ptr<BackgroundCompileTask> task(
@@ -98,8 +99,8 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
       "  return f;\n"
       "}\n"
       "g();";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script, strlen(raw_script));
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script, strlen(raw_script), JSParameterCount(0));
   Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared = handle(f->shared(), isolate());
   ASSERT_FALSE(shared->is_compiled());
@@ -125,8 +126,8 @@ TEST_F(BackgroundCompileTaskTest, CompileFailure) {
     raw_script += "'x' + 'x' - ";
   }
   raw_script += " 'x'; }";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script.c_str(), strlen(raw_script.c_str()));
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script.c_str(), strlen(raw_script.c_str()), JSParameterCount(0));
   Handle<SharedFunctionInfo> shared =
       test::CreateSharedFunctionInfo(isolate(), script);
   std::unique_ptr<BackgroundCompileTask> task(
@@ -166,8 +167,8 @@ TEST_F(BackgroundCompileTaskTest, CompileOnBackgroundThread) {
       "  var d = { foo: 100, bar : bar() }\n"
       "  return bar;"
       "}";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script, strlen(raw_script));
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script, strlen(raw_script), JSParameterCount(2));
   Handle<SharedFunctionInfo> shared =
       test::CreateSharedFunctionInfo(isolate(), script);
   std::unique_ptr<BackgroundCompileTask> task(
@@ -194,8 +195,8 @@ TEST_F(BackgroundCompileTaskTest, EagerInnerFunctions) {
       "  return f;\n"
       "}\n"
       "g();";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script, strlen(raw_script));
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script, strlen(raw_script), JSParameterCount(0));
   Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared = handle(f->shared(), isolate());
   ASSERT_FALSE(shared->is_compiled());
@@ -222,8 +223,8 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
       "  return f;\n"
       "}\n"
       "g();";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script, strlen(raw_script));
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script, strlen(raw_script), JSParameterCount(0));
   Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared = handle(f->shared(), isolate());
   ASSERT_FALSE(shared->is_compiled());

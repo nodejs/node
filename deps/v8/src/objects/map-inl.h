@@ -186,13 +186,14 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
 Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            PropertyNormalizationMode mode, const char* reason) {
   const bool kUseCache = true;
-  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode,
-                   kUseCache, reason);
+  return Normalize(isolate, fast_map, fast_map->elements_kind(),
+                   Handle<HeapObject>(), mode, kUseCache, reason);
 }
 
 bool Map::EquivalentToForNormalization(const Tagged<Map> other,
                                        PropertyNormalizationMode mode) const {
-  return EquivalentToForNormalization(other, elements_kind(), mode);
+  return EquivalentToForNormalization(other, elements_kind(), prototype(),
+                                      mode);
 }
 
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
@@ -383,6 +384,9 @@ void Map::set_instance_type(InstanceType value) {
 }
 
 int Map::UnusedPropertyFields() const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObjectMap(*this));
+#endif  // V8_ENABLE_WEBASSEMBLY
   int value = used_or_unused_instance_size_in_words();
   DCHECK_IMPLIES(!IsJSObjectMap(*this), value == 0);
   int unused;
@@ -399,6 +403,9 @@ int Map::UnusedPropertyFields() const {
 int Map::UnusedInObjectProperties() const {
   // Like Map::UnusedPropertyFields(), but returns 0 for out of object
   // properties.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObjectMap(*this));
+#endif  // V8_ENABLE_WEBASSEMBLY
   int value = used_or_unused_instance_size_in_words();
   DCHECK_IMPLIES(!IsJSObjectMap(*this), value == 0);
   if (value >= JSObject::kFieldsAdded) {
@@ -418,6 +425,9 @@ void Map::set_used_or_unused_instance_size_in_words(int value) {
 }
 
 int Map::UsedInstanceSize() const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!IsWasmObjectMap(*this));
+#endif  // V8_ENABLE_WEBASSEMBLY
   int words = used_or_unused_instance_size_in_words();
   if (words < JSObject::kFieldsAdded) {
     // All in-object properties are used and the words is tracking the slack
@@ -432,7 +442,6 @@ void Map::SetInObjectUnusedPropertyFields(int value) {
   if (!IsJSObjectMap(*this)) {
     CHECK_EQ(0, value);
     set_used_or_unused_instance_size_in_words(0);
-    DCHECK_EQ(0, UnusedPropertyFields());
     return;
   }
   CHECK_LE(0, value);
@@ -847,8 +856,12 @@ Tagged<Map> Map::GetMapFor(ReadOnlyRoots roots, InstanceType type) {
 // static
 Tagged<Map> Map::ElementsTransitionMap(Isolate* isolate,
                                        ConcurrencyMode cmode) {
-  return TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
-      .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
+  if (auto res = TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
+                     .SearchSpecial(
+                         ReadOnlyRoots(isolate).elements_transition_symbol())) {
+    return *res;
+  }
+  return Map();
 }
 
 ACCESSORS(Map, dependent_code, Tagged<DependentCode>, kDependentCodeOffset)
@@ -1016,8 +1029,10 @@ OBJECT_CONSTRUCTORS_IMPL(NormalizedMapCache, WeakFixedArray)
 CAST_ACCESSOR(NormalizedMapCache)
 NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
 
-int NormalizedMapCache::GetIndex(Handle<Map> map) {
-  return map->Hash() % NormalizedMapCache::kEntries;
+int NormalizedMapCache::GetIndex(Tagged<Map> map,
+                                 Tagged<HeapObject> prototype) {
+  DisallowGarbageCollection no_gc;
+  return map->Hash(prototype) % NormalizedMapCache::kEntries;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNormalizedMapCache) {

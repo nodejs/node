@@ -8,7 +8,6 @@ namespace v8 {
 namespace internal {
 
 // RV32B Standard Extension
-#ifdef CAN_USE_ZBA_INSTRUCTIONS
 void AssemblerRISCVB::sh1add(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0010000, 0b010, rd, rs1, rs2);
 }
@@ -36,9 +35,7 @@ void AssemblerRISCVB::slliuw(Register rd, Register rs1, uint8_t shamt) {
 }
 #endif  // V8_TARGET_ARCH_RISCV64
 
-#endif  // CAN_USE_ZBA_INSTRUCTIONS
 
-#ifdef CAN_USE_ZBB_INSTRUCTIONS
 void AssemblerRISCVB::andn(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0100000, 0b111, rd, rs1, rs2);
 }
@@ -105,9 +102,7 @@ void AssemblerRISCVB::rev8(Register rd, Register rs) {
 #endif
 }
 
-#endif  // CAN_USE_ZBB_INSTRUCTIONS
 
-#ifdef CAN_USE_ZBS_INSTRUCTIONS
 void AssemblerRISCVB::bclr(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0100100, 0b001, rd, rs1, rs2);
 }
@@ -149,6 +144,5 @@ void AssemblerRISCVB::bseti(Register rd, Register rs1, uint8_t shamt) {
   GenInstrIShiftW(0b0010100, 0b001, OP_IMM, rd, rs1, shamt);
 #endif
 }
-#endif  // CAN_USE_ZBS_INSTRUCTIONS
 }  // namespace internal
 }  // namespace v8

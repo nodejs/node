@@ -21,6 +21,9 @@ enum class PageInitializationMode {
   // data. This is slightly faster as comitted pages are not decommitted
   // during FreePages and ReleasePages, but only made inaccessible.
   kAllocatedPagesCanBeUninitialized,
+  // Assume pages are in discarded state and already have the right page
+  // permissions. Using this mode requires PageFreeingMode::kDiscard.
+  kRecommitOnly,
 };
 
 // Defines how BoundedPageAllocator frees pages when FreePages or ReleasePages

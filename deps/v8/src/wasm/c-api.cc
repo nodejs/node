@@ -448,6 +448,8 @@ StoreImpl::~StoreImpl() {
 }
 
 struct ManagedData {
+  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmManagedDataTag;
+
   ManagedData(void* info, void (*finalizer)(void*))
       : info(info), finalizer(finalizer) {}
 
@@ -1402,6 +1404,8 @@ Func::~Func() = default;
 auto Func::copy() const -> own<Func> { return impl(this)->copy(); }
 
 struct FuncData {
+  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmFuncDataTag;
+
   Store* store;
   own<FuncType> type;
   enum Kind { kCallback, kCallbackWithEnv } kind;
@@ -1484,7 +1488,7 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
   i::WasmApiFunctionRef::cast(
-      function->shared()->wasm_capi_function_data()->internal()->ref(isolate))
+      function->shared()->wasm_capi_function_data()->internal()->ref())
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;
@@ -1517,7 +1521,7 @@ auto Func::type() const -> own<FuncType> {
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
-  return FunctionSigToFuncType(function->instance()
+  return FunctionSigToFuncType(function->instance_data()
                                    ->module()
                                    ->functions[function->function_index()]
                                    .sig);
@@ -1533,8 +1537,10 @@ auto Func::param_arity() const -> size_t {
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
-  const i::wasm::FunctionSig* sig =
-      function->instance()->module()->functions[function->function_index()].sig;
+  const i::wasm::FunctionSig* sig = function->instance_data()
+                                        ->module()
+                                        ->functions[function->function_index()]
+                                        .sig;
   return sig->parameter_count();
 }
 
@@ -1548,8 +1554,10 @@ auto Func::result_arity() const -> size_t {
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
-  const i::wasm::FunctionSig* sig =
-      function->instance()->module()->functions[function->function_index()].sig;
+  const i::wasm::FunctionSig* sig = function->instance_data()
+                                        ->module()
+                                        ->functions[function->function_index()]
+                                        .sig;
   return sig->return_count();
 }
 
@@ -1709,26 +1717,26 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   }
 
   DCHECK(IsWasmExportedFunctionData(raw_function_data));
-  i::Handle<i::WasmExportedFunctionData> function_data(
-      i::WasmExportedFunctionData::cast(raw_function_data), isolate);
-  i::Handle<i::WasmInstanceObject> instance(function_data->instance(), isolate);
+  i::Handle<i::WasmExportedFunctionData> function_data{
+      i::WasmExportedFunctionData::cast(raw_function_data), isolate};
+  i::Handle<i::WasmTrustedInstanceData> instance_data{
+      function_data->instance_data(), isolate};
   int function_index = function_data->function_index();
-  const i::wasm::WasmModule* module = instance->module();
+  const i::wasm::WasmModule* module = instance_data->module();
   // Caching {sig} would give a ~10% reduction in overhead.
   const i::wasm::FunctionSig* sig = module->functions[function_index].sig;
   PrepareFunctionData(isolate, function_data, sig, module);
   i::Handle<i::Code> wrapper_code(function_data->c_wrapper_code(isolate),
                                   isolate);
-  i::Address call_target = function_data->internal()->call_target(isolate);
+  i::Address call_target = function_data->internal()->call_target();
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer, store);
 
-  i::Handle<i::Object> object_ref = instance;
+  i::Handle<i::Object> object_ref;
   if (function_index < static_cast<int>(module->num_imported_functions)) {
     object_ref = i::handle(
-        instance->trusted_data(isolate)->imported_function_refs()->get(
-            function_index),
+        instance_data->dispatch_table_for_imports()->ref(function_index),
         isolate);
     if (IsWasmApiFunctionRef(*object_ref)) {
       i::Tagged<i::JSFunction> jsfunc = i::JSFunction::cast(
@@ -1746,6 +1754,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       // A WasmFunction from another module.
       DCHECK(IsWasmInstanceObject(*object_ref));
     }
+  } else {
+    object_ref = handle(instance_data->instance_object(), isolate);
   }
 
   i::Execution::CallWasm(isolate, wrapper_code, call_target, object_ref,
@@ -1922,7 +1932,8 @@ auto Global::get() const -> Val {
       i::Handle<i::Object> result = v8_global->GetRef();
       if (IsWasmFuncRef(*result)) {
         result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
-            i::WasmFuncRef::cast(*result)->internal(), store->i_isolate()));
+            i::WasmFuncRef::cast(*result)->internal(store->i_isolate()),
+            store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
         result = v8_global->GetIsolate()->factory()->null_value();
@@ -2065,7 +2076,7 @@ auto Table::get(size_t index) const -> own<Ref> {
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
   if (IsWasmFuncRef(*result)) {
     result = i::WasmInternalFunction::GetOrCreateExternal(
-        i::handle(i::WasmFuncRef::cast(*result)->internal(), isolate));
+        i::handle(i::WasmFuncRef::cast(*result)->internal(isolate), isolate));
   }
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();

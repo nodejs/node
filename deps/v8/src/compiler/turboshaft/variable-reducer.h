@@ -150,8 +150,8 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
     is_temporary_ = false;
   }
 
-  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
-    OpIndex result = Next::ReduceGoto(destination, is_backedge);
+  V<None> REDUCE(Goto)(Block* destination, bool is_backedge) {
+    V<None> result = Next::ReduceGoto(destination, is_backedge);
     if (!destination->IsBound()) {
       return result;
     }

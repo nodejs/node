@@ -470,6 +470,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
                          protected_fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          weak_fixed_array);
+    ALLOCATE_PARTIAL_MAP(TRUSTED_WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
+                         trusted_weak_fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_ARRAY_LIST_TYPE, kVariableSizeSentinel,
                          weak_array_list);
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel,
@@ -561,6 +563,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.protected_fixed_array_map());
   FinalizePartialMap(roots.weak_fixed_array_map());
   FinalizePartialMap(roots.weak_array_list_map());
+  FinalizePartialMap(roots.trusted_weak_fixed_array_map());
   FinalizePartialMap(roots.fixed_cow_array_map());
   FinalizePartialMap(roots.descriptor_array_map());
   FinalizePartialMap(roots.undefined_map());
@@ -760,6 +763,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_VARSIZE_MAP(EXTERNAL_POINTER_ARRAY_TYPE, external_pointer_array)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, InterpreterData::kSize,
                  interpreter_data)
+    ALLOCATE_MAP(SHARED_FUNCTION_INFO_WRAPPER_TYPE,
+                 SharedFunctionInfoWrapper::kSize, shared_function_info_wrapper)
 
     ALLOCATE_MAP(DICTIONARY_TEMPLATE_INFO_TYPE, DictionaryTemplateInfo::kSize,
                  dictionary_template_info)
@@ -1318,7 +1323,6 @@ void Heap::CreateInitialMutableObjects() {
   set_many_closures_cell(*many_closures_cell);
 
   set_detached_contexts(roots.empty_weak_array_list());
-  set_retaining_path_targets(roots.empty_weak_array_list());
 
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());
   set_functions_marked_for_manual_optimization(roots.undefined_value());
@@ -1447,6 +1451,13 @@ void Heap::CreateInitialMutableObjects() {
     set_async_iterator_value_unwrap_shared_fun(*info);
   }
 
+  // AsyncFromSyncIterator:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAsyncFromSyncIteratorCloseSyncAndRethrow, 1);
+    set_async_from_sync_iterator_close_sync_and_rethrow_shared_fun(*info);
+  }
+
   // Promises:
   {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
@@ -1554,12 +1565,31 @@ void Heap::CreateInitialMutableObjects() {
     set_array_from_async_array_like_on_rejected_shared_fun(*info);
   }
 
+  // Atomics.Mutex
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAtomicsMutexAsyncUnlockResolveHandler, 1);
+    set_atomics_mutex_async_unlock_resolve_handler_sfi(*info);
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAtomicsMutexAsyncUnlockRejectHandler, 1);
+    set_atomics_mutex_async_unlock_reject_handler_sfi(*info);
+  }
+
+  // Atomics.Condition
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAtomicsConditionAcquireLock, 0);
+    set_atomics_condition_acquire_lock_sfi(*info);
+  }
+
   // Trusted roots:
   // TODO(saelo): these would ideally be read-only and shared, but we currently
   // don't have a trusted RO space.
   {
     set_empty_trusted_byte_array(*TrustedByteArray::New(isolate_, 0));
     set_empty_trusted_fixed_array(*TrustedFixedArray::New(isolate_, 0));
+    set_empty_trusted_weak_fixed_array(
+        *TrustedWeakFixedArray::New(isolate_, 0));
     set_empty_protected_fixed_array(*ProtectedFixedArray::New(isolate_, 0));
   }
 }

@@ -69,6 +69,20 @@ bool FlagHelpers::EqualNames(const char* a, const char* b) {
   return FlagNamesCmp(a, b) == 0;
 }
 
+// Checks if two flag names are equal, allowing for the second name to have a
+// suffix starting with a white space character, e.g. "max_opt < 3". This is
+// used in flag implications.
+bool FlagHelpers::EqualNameWithSuffix(const char* a, const char* b) {
+  char ac, bc;
+  for (int i = 0; true; ++i) {
+    ac = NormalizeChar(a[i]);
+    bc = NormalizeChar(b[i]);
+    if (ac == '\0') break;
+    if (ac != bc) return false;
+  }
+  return bc == '\0' || std::isspace(bc);
+}
+
 std::ostream& operator<<(std::ostream& os, FlagName flag_name) {
   os << (flag_name.negated ? "--no-" : "--");
   for (const char* p = flag_name.name; *p; ++p) {
@@ -293,9 +307,9 @@ struct FlagLess {
   }
 };
 
-struct FlagNameLess {
+struct FlagNameGreater {
   bool operator()(const Flag* a, const char* b) const {
-    return FlagHelpers::FlagNamesCmp(a->name(), b) < 0;
+    return FlagHelpers::FlagNamesCmp(a->name(), b) > 0;
   }
 };
 
@@ -311,10 +325,13 @@ class FlagMapByName {
     std::sort(flags_.begin(), flags_.end(), FlagLess());
   }
 
+  // Returns the greatest flag whose name is less than or equal to the given
+  // name (lexicographically). This allows for finding the right flag even if
+  // there is a suffix, as in the case of implications, e.g. "max_opt < 3".
   Flag* GetFlag(const char* name) {
-    auto it =
-        std::lower_bound(flags_.begin(), flags_.end(), name, FlagNameLess());
-    if (it == flags_.end()) return nullptr;
+    auto it = std::lower_bound(flags_.rbegin(), flags_.rend(), name,
+                               FlagNameGreater());
+    if (it == flags_.rend()) return nullptr;
     return *it;
   }
 
@@ -325,10 +342,11 @@ class FlagMapByName {
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(FlagMapByName, GetFlagMap)
 
 // This should be used to look up flags that we know were defined.
+// It allows for suffixes used in implications, e.g. "max_opt < 3",
 Flag* FindImplicationFlagByName(const char* name) {
   Flag* flag = GetFlagMap()->GetFlag(name);
   CHECK(flag != nullptr);
-  DCHECK(FlagHelpers::EqualNames(flag->name(), name));
+  DCHECK(FlagHelpers::EqualNameWithSuffix(flag->name(), name));
   return flag;
 }
 

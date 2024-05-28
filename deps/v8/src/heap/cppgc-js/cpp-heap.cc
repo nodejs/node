@@ -37,6 +37,7 @@
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/raw-heap.h"
@@ -467,8 +468,6 @@ CppHeap::CppHeap(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
       cross_heap_remembered_set_(*this),
       wrapper_descriptor_(wrapper_descriptor) {
-  CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
-           wrapper_descriptor_.embedder_id_for_garbage_collected);
   // Enter no GC scope. `AttachIsolate()` removes this and allows triggering
   // garbage collections.
   no_gc_scope_++;
@@ -696,6 +695,9 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
   sweeping_support_ = v8_flags.single_threaded_gc
                           ? CppHeap::SweepingType::kIncremental
                           : CppHeap::SweepingType::kIncrementalAndConcurrent;
+
+  page_backend_->page_pool().SetDecommitPooledPages(
+      v8_flags.decommit_pooled_pages);
 }
 
 void CppHeap::InitializeMarking(CollectionType collection_type,
@@ -848,11 +850,20 @@ bool CppHeap::FinishConcurrentMarkingIfNeeded() {
   return marker_->JoinConcurrentMarkingIfNeeded();
 }
 
+void CppHeap::ReEnableConcurrentMarking() {
+  CHECK(!in_atomic_pause_);
+  marker_->ReEnableConcurrentMarking();
+}
+
 void CppHeap::WriteBarrier(Tagged<JSObject> js_object) {
   DCHECK(js_object->MayHaveEmbedderFields());
   DCHECK_NOT_NULL(isolate()->heap()->mark_compact_collector());
 
   const auto descriptor = wrapper_descriptor();
+  if (descriptor.embedder_id_for_garbage_collected ==
+      WrapperDescriptor::kUnknownEmbedderId) {
+    return;
+  }
   const auto min_field_count =
       1 + std::max(descriptor.wrappable_type_index,
                    descriptor.wrappable_instance_index);
@@ -867,6 +878,15 @@ void CppHeap::WriteBarrier(Tagged<JSObject> js_object) {
       ->local_marking_worklists()
       ->cpp_marking_state()
       ->MarkAndPush(type_slot, instance_slot);
+}
+
+void CppHeap::WriteBarrier(void* object) {
+  isolate()
+      ->heap()
+      ->mark_compact_collector()
+      ->local_marking_worklists()
+      ->cpp_marking_state()
+      ->MarkAndPush(object);
 }
 
 namespace {
@@ -950,10 +970,19 @@ void CppHeap::FinishMarkingAndStartSweeping() {
             ? cppgc::internal::SweepingConfig::FreeMemoryHandling::
                   kDiscardWherePossible
             : cppgc::internal::SweepingConfig::FreeMemoryHandling::
-                  kDoNotDiscard};
+                  kDoNotDiscard,
+        // CppHeap is initialized before V8 flags are necessarily set which
+        // prohibits us from reading the flag at creation.
+        v8_flags.cppheap_optimize_sweep_for_mutator
+            ? cppgc::internal::SweepingStrategy::kMinimizeMutatorInterference
+            : cppgc::internal::SweepingStrategy::kMinimizeMemory};
     DCHECK_IMPLIES(!isolate_,
                    SweepingType::kAtomic == sweeping_config.sweeping_type);
-    sweeper().Start(sweeping_config);
+    // For detached GCs we set the initial heap limit to 100%, which avoids
+    // relying on idle tasks.
+    const double initial_heap_limit_percent =
+        heap_ ? heap_->PercentToGlobalMemoryLimit() : 100;
+    sweeper().Start(sweeping_config, initial_heap_limit_percent);
   }
 
   in_atomic_pause_ = false;
@@ -993,6 +1022,11 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
     used_size_.fetch_add(static_cast<size_t>(bytes_to_report),
                          std::memory_order_relaxed);
     allocated_size_ += bytes_to_report;
+
+    // Potentially update the sweeper with the latest limit to adjust its
+    // sweeping strategy.
+    sweeper_.UpdateHeapLimitPercentageIfRunning(
+        [this]() { return heap_->PercentToGlobalMemoryLimit(); });
 
     if (v8_flags.incremental_marking) {
       if (allocated_size_ > allocated_size_limit_for_check_) {

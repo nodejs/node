@@ -899,8 +899,27 @@ class V8_EXPORT EmbedderGraph {
   /**
    * Returns a node corresponding to the given V8 value. Ownership is not
    * transferred. The result pointer is valid while the graph is alive.
+   *
+   * For now the variant that takes v8::Data is not marked as abstract for
+   * compatibility, but embedders who subclass EmbedderGraph are expected to
+   * implement it. Then in the implementation of the variant that takes
+   * v8::Value, they can simply forward the call to the one that takes
+   * v8::Local<v8::Data>.
    */
   virtual Node* V8Node(const v8::Local<v8::Value>& value) = 0;
+
+  /**
+   * Returns a node corresponding to the given V8 value. Ownership is not
+   * transferred. The result pointer is valid while the graph is alive.
+   *
+   * For API compatibility, this default implementation just checks that the
+   * data is a v8::Value and forward it to the variant that takes v8::Value,
+   * which is currently required to be implemented. In the future we'll remove
+   * the v8::Value variant, and make this variant that takes v8::Data abstract
+   * instead. If the embedder subclasses v8::EmbedderGraph and also use
+   * v8::TracedReference<v8::Data>, they must override this variant.
+   */
+  virtual Node* V8Node(const v8::Local<v8::Data>& value);
 
   /**
    * Adds the given node to the graph and takes ownership of the node.
@@ -956,7 +975,7 @@ class V8_EXPORT HeapProfiler {
 
   /**
    * Callback function invoked during heap snapshot generation to retrieve
-   * the detachedness state of an object referenced by a TracedReference.
+   * the detachedness state of a JS object referenced by a TracedReference.
    *
    * The callback takes Local<Value> as parameter to allow the embedder to
    * unpack the TracedReference into a Local and reuse that Local for different
