@@ -46,6 +46,7 @@ namespace node {
 namespace worker {
 
 constexpr double kMB = 1024 * 1024;
+std::atomic_bool Worker::internalExists{false};
 
 Worker::Worker(Environment* env,
                Local<Object> wrap,
@@ -489,6 +490,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   if (is_internal->IsFalse()) {
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kWorkerThreads, "");
+  } else {
+    internalExists = true;
   }
   Isolate* isolate = args.GetIsolate();
 
@@ -903,6 +906,10 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
+void Worker::HasHooksThreadAlready(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(Worker::internalExists);
+}
+
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates
@@ -940,6 +947,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
 
     SetConstructorFunction(isolate, target, "Worker", w);
+    SetMethodNoSideEffect(isolate, target, "hasHooksThread", Worker::HasHooksThread);
   }
 
   {
@@ -1011,6 +1019,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
+  registry->Register(Worker::HasHooksThreadAlready);
 }
 
 }  // anonymous namespace

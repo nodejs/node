@@ -9,7 +9,7 @@ export function initialize() {
 }
 
 export function resolve(specifier, context, next) {
-  writeFileSync(1, `hooked resolve ${++resolveCount} ${specifier}\n`);
+  writeFileSync(1, `hooked resolve ${++resolveCount} ${specifier} \n`);
   return next(specifier, context);
 }
 

@@ -612,7 +612,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
       ]);
 
       assert.strictEqual(stderr, '');
-      assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', 'resolve passthru', '']);
+      assert.deepStrictEqual(stdout.split('\n'), ['resolve passthru', '']);
       assert.strictEqual(code, 0);
       assert.strictEqual(signal, null);
     });
