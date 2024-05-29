@@ -1,22 +1,21 @@
-import { spawnPromisified } from '../common/index.mjs';
-import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
 import { readFile } from 'node:fs/promises';
 import { execPath } from 'node:process';
 import { it } from 'node:test';
+import tmpdir from '../common/tmpdir.js';
+import { spawnSyncAndAssert } from '../common/child_process.js';
 
 tmpdir.refresh();
 
-it('should print the timing information for cjs', async () => {
-  const result = await spawnPromisified(execPath, ['--eval', 'require("url");'], {
+it('should print the timing information for cjs', () => {
+  const result = spawnSyncAndAssert(execPath, ['--eval', 'require("url");'], {
     env: {
       NODE_DEBUG: 'module_timer',
     },
+  }, {
+    stdout: '',
+    stderr: result => result.includes('MODULE_TIMER'),
   });
-
-  assert.strictEqual(result.code, 0);
-  assert.strictEqual(result.signal, null);
-  assert.strictEqual(result.stdout, '');
 
   const firstLine = result.stderr.split('\n').find((line) => line.includes('[url]'));
 
@@ -28,19 +27,18 @@ it('should print the timing information for cjs', async () => {
 
 it('should write tracing information for cjs', async () => {
   const outputFile = tmpdir.resolve('output-trace.log');
-  const result = await spawnPromisified(execPath, [
+
+  spawnSyncAndAssert(execPath, [
     '--trace-event-categories',
     'node.module_timer',
     '--trace-event-file-pattern',
     outputFile,
     '--eval',
     'require("url");',
-  ]);
-
-  assert.strictEqual(result.code, 0);
-  assert.strictEqual(result.signal, null);
-  assert.strictEqual(result.stdout, '');
-  assert.strictEqual(result.stderr, '');
+  ], {
+    stdout: '',
+    stderr: '',
+  });
 
   const expectedMimeTypes = ['b', 'e'];
   const outputFileContent = await readFile(outputFile, 'utf-8');
@@ -56,7 +54,8 @@ it('should write tracing information for cjs', async () => {
 
 it('should write tracing & print logs for cjs', async () => {
   const outputFile = tmpdir.resolve('output-trace-and-log.log');
-  const result = await spawnPromisified(execPath, [
+
+  const result = spawnSyncAndAssert(execPath, [
     '--trace-event-categories',
     'node.module_timer',
     '--trace-event-file-pattern',
@@ -67,11 +66,10 @@ it('should write tracing & print logs for cjs', async () => {
     env: {
       NODE_DEBUG: 'module_timer',
     },
+  }, {
+    stdout: '',
+    stderr: result => result.includes('MODULE_TIMER'),
   });
-
-  assert.strictEqual(result.code, 0);
-  assert.strictEqual(result.signal, null);
-  assert.strictEqual(result.stdout, '');
 
   const firstLine = result.stderr.split('\n').find((line) => line.includes('[url]'));
 
