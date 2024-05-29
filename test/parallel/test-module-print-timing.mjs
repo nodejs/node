@@ -11,6 +11,7 @@ it('should print the timing information for cjs', () => {
   const result = spawnSyncAndAssert(process.execPath, ['--eval', 'require("url");'], {
     cwd: tmpdir.path,
     env: {
+      ...process.env,
       NODE_DEBUG: 'module_timer',
     },
   }, {
@@ -68,6 +69,7 @@ it('should write tracing & print logs for cjs', async () => {
   ], {
     cwd: tmpdir.path,
     env: {
+      ...process.env,
       NODE_DEBUG: 'module_timer',
     },
   }, {
