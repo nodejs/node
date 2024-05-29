@@ -447,7 +447,7 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   // This function may only be called once per `Isolate`, and discard any
   // pending delayed tasks scheduled for that isolate.
-  // This needs to be called right before calling `Isolate::Dispose()`.
+  // This needs to be called right after calling `Isolate::Dispose()`.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
 
   // The platform should call the passed function once all state associated
@@ -489,6 +489,21 @@ struct IsolateSettings {
       allow_wasm_code_generation_callback = nullptr;
   v8::ModifyCodeGenerationFromStringsCallback2
       modify_code_generation_from_strings_callback = nullptr;
+
+  // When the settings is passed to NewIsolate():
+  // - If cpp_heap is not nullptr, this CppHeap will be used to create
+  //   the isolate and its ownership will be passed to V8.
+  // - If this is nullptr, Node.js will create a CppHeap that will be
+  //   owned by V8.
+  //
+  // When the settings is passed to SetIsolateUpForNode():
+  // cpp_heap will be ignored. Embedders must ensure that the
+  // v8::Isolate has a CppHeap attached while it's still used by
+  // Node.js, for example using v8::CreateParams.
+  //
+  // See https://issues.chromium.org/issues/42203693. In future version
+  // of V8, this CppHeap will be created by V8 if not provided.
+  v8::CppHeap* cpp_heap = nullptr;
 };
 
 // Represents a startup snapshot blob, e.g. created by passing
@@ -1566,10 +1581,9 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif  // _WIN32
 
-// This is kept as a compatibility layer for addons to wrap cppgc-managed
-// objects on Node.js versions without v8::Object::Wrap(). Addons created to
-// work with only Node.js versions with v8::Object::Wrap() should use that
-// instead.
+// This is kept as a compatibility layer for addons to wrap cppgc-managed objects
+// on Node.js versions without v8::Object::Wrap(). Addons created to work with
+// only Node.js versions with v8::Object::Wrap() should use that instead.
 NODE_DEPRECATED("Use v8::Object::Wrap()",
                 NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
                                                    v8::Local<v8::Object> object,

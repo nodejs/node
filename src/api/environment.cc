@@ -20,12 +20,15 @@
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
+#include "v8-cppgc.h"
 
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -325,6 +328,14 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate, event_loop);
+
+  // Ensure that there is always a CppHeap.
+  if (settings.cpp_heap == nullptr) {
+    params->cpp_heap =
+        CppHeap::Create(platform, CppHeapCreateParams{{}}).release();
+  } else {
+    params->cpp_heap = settings.cpp_heap;
+  }
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
