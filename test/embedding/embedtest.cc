@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include <assert.h>
+#include "cppgc/platform.h"
 #include "executable_wrapper.h"
 #include "node.h"
 
@@ -43,6 +44,7 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
               // support in the future, split this configuration out as a
               // command line option.
               node::ProcessInitializationFlags::kDisableNodeOptionsEnv,
+              node::ProcessInitializationFlags::kNoInitializeCppgc,
           });
 
   for (const std::string& error : result->errors())
@@ -54,6 +56,7 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
   std::unique_ptr<MultiIsolatePlatform> platform =
       MultiIsolatePlatform::Create(4);
   V8::InitializePlatform(platform.get());
+  cppgc::InitializeProcess(platform->GetPageAllocator());
   V8::Initialize();
 
   int ret =
