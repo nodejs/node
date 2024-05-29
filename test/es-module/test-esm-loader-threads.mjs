@@ -16,9 +16,6 @@ describe('off-thread hooks', { concurrency: true }, () => {
       fixtures.path('es-module-loaders/workers-spawned.mjs'),
     ]);
 
-    console.log(stderr);
-    console.log(stdout);
-
     strictEqual(stderr, '');
     strictEqual(stdout.split('\n').filter((line) => line.startsWith('initialize')).length, 1);
     strictEqual(stdout.split('\n').filter((line) => line === 'foo').length, 2);
@@ -33,7 +30,7 @@ describe('off-thread hooks', { concurrency: true }, () => {
     // 6x module-named-exports.mjs => 2x worker-log.mjs + 4x worker-log-again.mjs
     // ===========================
     // 16 calls to resolve + 16 calls to load hook for the registered custom loader
-    // 6 additional calls to resolve because of the modeul.register being allowed from worker threads (happens
+    // 6 additional calls to resolve because of the module.register being allowed from worker threads (happens
     // implicitly because of the --import on the main thread)
     strictEqual(stdout.split('\n').filter((line) => line.startsWith('hooked resolve')).length, 22);
     strictEqual(stdout.split('\n').filter((line) => line.startsWith('hooked load')).length, 16);
