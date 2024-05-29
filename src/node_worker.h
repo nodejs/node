@@ -3,9 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <atomic>
 #include <optional>
 #include <unordered_map>
-#include <atomic>
 #include "node_exit_code.h"
 #include "node_messaging.h"
 #include "uv.h"
