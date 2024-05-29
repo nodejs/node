@@ -1,4 +1,3 @@
-import { isMainThread } from '../../common/index.mjs';
 import * as fixtures from '../../common/fixtures.mjs';
 import { createRequire, register } from 'node:module';
 
@@ -11,10 +10,8 @@ Object.defineProperty(globalThis, GET_BUILTIN, {
   configurable: false,
 });
 
-if (isMainThread) {
-  register(fixtures.fileURL('es-module-loaders/builtin-named-exports-loader.mjs'), {
-    data: {
-      GET_BUILTIN,
-    },
-  });
-}
+register(fixtures.fileURL('es-module-loaders/builtin-named-exports-loader.mjs'), {
+  data: {
+    GET_BUILTIN,
+  },
+});
