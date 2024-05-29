@@ -14,11 +14,6 @@ const http2 = require('http2');
     const url = `http://localhost:${server.address().port}`;
     const client = http2.connect(url);
     const req = client.request({ ':method': 'POST' });
-    req.once('error', common.expectsError({
-      name: 'Error',
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      message: 'Stream closed with error code NGHTTP2_CANCEL'
-    }));
 
     for (let i = 0; i < 4000; i++) {
       req.write(Buffer.alloc(6));

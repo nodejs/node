@@ -19,10 +19,6 @@ server.listen(0, common.localhostIPv4, common.mustCall(() => {
     session.request({ ':method': 'POST' }).end(common.mustCall(() => {
       session.destroy();
       server.close();
-    })).once('error', common.expectsError({
-      name: 'Error',
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      message: 'Stream closed with error code NGHTTP2_CANCEL'
     }));
   });
 

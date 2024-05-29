@@ -41,11 +41,6 @@ server.listen(0, common.mustCall(() => {
     const stream = client.request({
       ':path': `/${entry}`
     });
-    stream.once('error', common.expectsError({
-      name: 'Error',
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      message: 'Stream closed with error code NGHTTP2_CANCEL'
-    }));
     stream.once('data', common.mustCall(() => {
       stream.destroy();
 

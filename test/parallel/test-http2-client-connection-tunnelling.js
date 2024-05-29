@@ -63,12 +63,6 @@ netServer.listen(0, common.mustCall(() => {
       netServer.close();
     }));
 
-    tlsSocket.once('error', common.expectsError({
-      name: 'Error',
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      message: 'Stream closed with error code NGHTTP2_CONNECT_ERROR'
-    }));
-
     // Forcibly kill the TLS socket
     tlsSocket.destroy();
 

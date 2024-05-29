@@ -16,12 +16,6 @@ const server = http2.createSecureServer({
   cert: fixtures.readKey('agent1-cert.pem')
 });
 server.on('stream', common.mustCall((stream) => {
-  stream.once('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    name: 'Error',
-    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
-  }));
-
   stream.respond({
     'Content-Type': 'application/octet-stream',
     'Content-Length': (content.length.toString() * 2),

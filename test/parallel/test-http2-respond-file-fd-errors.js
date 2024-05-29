@@ -31,12 +31,6 @@ const fd = fs.openSync(fname, 'r');
 const server = http2.createServer();
 
 server.on('stream', common.mustCall((stream) => {
-  stream.once('error', common.expectsError({
-    name: 'Error',
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
-  }));
-
   // Should throw if fd isn't a number
   Object.keys(types).forEach((type) => {
     if (type === 'number') {

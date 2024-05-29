@@ -106,11 +106,6 @@ const { getEventListeners } = require('events');
 {
   const server = h2.createServer();
   server.on('stream', common.mustCall((stream) => {
-    stream.once('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      name: 'Error',
-      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
-    }));
     stream.session.destroy();
   }));
 
@@ -151,12 +146,7 @@ const { getEventListeners } = require('events');
       server.close();
     });
 
-    const req = client.request();
-    req.once('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      name: 'Error',
-      message: 'Stream closed with error code NGHTTP2_CANCEL'
-    }));
+    client.request();
   }));
 }
 
@@ -174,11 +164,6 @@ const { getEventListeners } = require('events');
     }));
 
     const req = client.request();
-    req.once('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      name: 'Error',
-      message: 'Stream closed with error code NGHTTP2_CANCEL'
-    }));
     req.destroy();
   }));
 }
@@ -197,11 +182,6 @@ const { getEventListeners } = require('events');
     }));
 
     const req = client.request({}, { endStream: false });
-    req.once('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      name: 'Error',
-      message: 'Stream closed with error code NGHTTP2_CANCEL'
-    }));
     req.destroy();
   }));
 }

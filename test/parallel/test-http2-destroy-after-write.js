@@ -11,11 +11,6 @@ const server = http2.createServer();
 
 server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
-    stream.once('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      name: 'Error',
-      message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
-    }));
     stream.on('end', common.mustCall(function() {
       this.respond({
         ':status': 200
