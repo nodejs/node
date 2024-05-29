@@ -7,7 +7,8 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 const server = http2.createServer();
-const errRegEx = /Session closed with error code 7/;
+const sessionErrorMessage = 'Session closed with error code NGHTTP2_REFUSED_STREAM';
+const streamErrorMessage = 'Stream closed with error code NGHTTP2_REFUSED_STREAM';
 const destroyCode = http2.constants.NGHTTP2_REFUSED_STREAM;
 
 server.on('error', common.mustNotCall());
@@ -15,14 +16,14 @@ server.on('error', common.mustNotCall());
 server.on('session', (session) => {
   session.on('close', common.mustCall());
   session.on('error', common.mustCall((err) => {
-    assert.match(err.message, errRegEx);
+    assert.strictEqual(err.message, sessionErrorMessage);
     assert.strictEqual(session.closed, false);
     assert.strictEqual(session.destroyed, true);
   }));
 
   session.on('stream', common.mustCall((stream) => {
     stream.on('error', common.mustCall((err) => {
-      assert.match(err.message, errRegEx);
+      assert.strict(err.message, streamErrorMessage);
       assert.strictEqual(session.closed, false);
       assert.strictEqual(session.destroyed, true);
       assert.strictEqual(stream.rstCode, destroyCode);
@@ -36,7 +37,7 @@ server.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server.address().port}`);
 
   session.on('error', common.mustCall((err) => {
-    assert.match(err.message, errRegEx);
+    assert.strictEqual(err.message, sessionErrorMessage);
     assert.strictEqual(session.closed, false);
     assert.strictEqual(session.destroyed, true);
   }));
@@ -44,7 +45,7 @@ server.listen(0, common.mustCall(() => {
   const stream = session.request({ [http2.constants.HTTP2_HEADER_PATH]: '/' });
 
   stream.on('error', common.mustCall((err) => {
-    assert.match(err.message, errRegEx);
+    assert.strictEqual(err.message, streamErrorMessage);
     assert.strictEqual(stream.rstCode, destroyCode);
   }));
 

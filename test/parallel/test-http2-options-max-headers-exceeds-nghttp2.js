@@ -25,7 +25,7 @@ server.listen(0, common.mustCall(() => {
   client.on('error', common.expectsError({
     code: 'ERR_HTTP2_SESSION_ERROR',
     name: 'Error',
-    message: 'Session closed with error code 9'
+    message: 'Session closed with error code NGHTTP2_COMPRESSION_ERROR'
   }));
 
   const req = client.request({
@@ -42,7 +42,7 @@ server.listen(0, common.mustCall(() => {
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_SESSION_ERROR',
     name: 'Error',
-    message: 'Session closed with error code 9'
+    message: 'Session closed with error code NGHTTP2_COMPRESSION_ERROR'
   }));
   req.end();
 }));
@@ -78,7 +78,7 @@ server.listen(0, common.mustCall(() => {
     common.mustCall((err, session) => {
       assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
       assert.strictEqual(err.name, 'Error');
-      assert.strictEqual(err.message, 'Session closed with error code 9');
+      assert.strictEqual(err.message, 'Session closed with error code NGHTTP2_COMPRESSION_ERROR');
       assert.strictEqual(session instanceof ServerHttp2Session, true);
       server.close();
     }),
