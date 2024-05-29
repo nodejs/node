@@ -906,7 +906,7 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
-void Worker::HasHooksThreadAlready(const FunctionCallbackInfo<Value>& args) {
+void Worker::HasHooksThread(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Worker::internalExists);
 }
 
@@ -1019,7 +1019,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
-  registry->Register(Worker::HasHooksThreadAlready);
+  registry->Register(Worker::HasHooksThread);
 }
 
 }  // anonymous namespace
