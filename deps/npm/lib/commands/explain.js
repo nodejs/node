@@ -1,7 +1,7 @@
 const { explainNode } = require('../utils/explain-dep.js')
 const npa = require('npm-package-arg')
 const semver = require('semver')
-const { relative, resolve } = require('path')
+const { relative, resolve } = require('node:path')
 const validName = require('validate-npm-package-name')
 const { output } = require('proc-log')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
@@ -76,7 +76,7 @@ class Explain extends ArboristWorkspaceCmd {
     }
 
     if (this.npm.flatOptions.json) {
-      output.standard(JSON.stringify(expls, null, 2))
+      output.buffer(expls)
     } else {
       output.standard(expls.map(expl => {
         return explainNode(expl, Infinity, this.npm.chalk)

@@ -208,7 +208,7 @@ class Access extends BaseCommand {
       outputs[item] = lookup[val] || val
     }
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify(outputs, null, 2))
+      output.buffer(outputs)
     } else {
       for (const item of Object.keys(outputs).sort(localeCompare)) {
         if (!limiter || limiter === item) {

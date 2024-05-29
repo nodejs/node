@@ -1,6 +1,6 @@
 // mix-in implementing the loadActual method
 
-const { relative, dirname, resolve, join, normalize } = require('path')
+const { relative, dirname, resolve, join, normalize } = require('node:path')
 
 const rpj = require('read-package-json-fast')
 const { readdirScoped } = require('@npmcli/fs')

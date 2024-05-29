@@ -1,5 +1,5 @@
-const { inspect } = require('util')
-const { URL } = require('url')
+const { inspect } = require('node:util')
+const { URL } = require('node:url')
 const { log, output } = require('proc-log')
 const { get, set, createToken } = require('npm-profile')
 const qrcodeTerminal = require('qrcode-terminal')
@@ -108,7 +108,7 @@ class Profile extends BaseCommand {
     }
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify(info, null, 2))
+      output.buffer(info)
       return
     }
 
@@ -211,7 +211,7 @@ class Profile extends BaseCommand {
     const result = await otplease(this.npm, conf, c => set(newUser, c))
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify({ [prop]: result[prop] }, null, 2))
+      output.buffer({ [prop]: result[prop] })
     } else if (this.npm.config.get('parseable')) {
       output.standard(prop + '\t' + result[prop])
     } else if (result[prop] != null) {
@@ -378,7 +378,7 @@ class Profile extends BaseCommand {
     await set({ tfa: { password: password, mode: 'disable' } }, conf)
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify({ tfa: false }, null, 2))
+      output.buffer({ tfa: false })
     } else if (this.npm.config.get('parseable')) {
       output.standard('tfa\tfalse')
     } else {

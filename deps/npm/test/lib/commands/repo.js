@@ -1,6 +1,6 @@
 const t = require('tap')
 const mockNpm = require('../../fixtures/mock-npm.js')
-const { sep } = require('path')
+const { sep } = require('node:path')
 
 const fixture = {
   'package.json': JSON.stringify({

@@ -85,14 +85,10 @@ class Fund extends ArboristWorkspaceCmd {
     })
 
     if (this.npm.config.get('json')) {
-      output.standard(this.printJSON(fundingInfo))
+      output.buffer(fundingInfo)
     } else {
       output.standard(this.printHuman(fundingInfo))
     }
-  }
-
-  printJSON (fundingInfo) {
-    return JSON.stringify(fundingInfo, null, 2)
   }
 
   printHuman (fundingInfo) {

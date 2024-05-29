@@ -2,7 +2,7 @@ const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const MockRegistry = require('@npmcli/mock-registry')
 
-const path = require('path')
+const path = require('node:path')
 const npa = require('npm-package-arg')
 const packageName = '@npmcli/test-package'
 const spec = npa(packageName)

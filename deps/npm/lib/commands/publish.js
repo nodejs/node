@@ -127,6 +127,15 @@ class Publish extends BaseCommand {
     const noCreds = !(creds.token || creds.username || creds.certfile && creds.keyfile)
     const outputRegistry = replaceInfo(registry)
 
+    // if a workspace package is marked private then we skip it
+    if (workspace && manifest.private) {
+      throw Object.assign(
+        new Error(`This package has been marked as private
+  Remove the 'private' field from the package.json to publish it.`),
+        { code: 'EPRIVATE' }
+      )
+    }
+
     if (noCreds) {
       const msg = `This command requires you to be logged in to ${outputRegistry}`
       if (dryRun) {

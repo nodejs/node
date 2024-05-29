@@ -12,7 +12,7 @@ module.exports = async (process, validateEngines) => {
   }
 
   // Patch the global fs module here at the app level
-  require('graceful-fs').gracefulify(require('fs'))
+  require('graceful-fs').gracefulify(require('node:fs'))
 
   const satisfies = require('semver/functions/satisfies')
   const ExitHandler = require('./exit-handler.js')

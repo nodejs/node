@@ -1,6 +1,6 @@
 {
   "name": "libnpmfund",
-  "version": "5.0.10",
+  "version": "5.0.11",
   "main": "lib/index.js",
   "files": [
     "bin/",
@@ -45,7 +45,7 @@
     "tap": "^16.3.8"
   },
   "dependencies": {
-    "@npmcli/arborist": "^7.5.2"
+    "@npmcli/arborist": "^7.5.3"
   },
   "engines": {
     "node": "^16.14.0 || >=18.0.0"

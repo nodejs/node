@@ -19,6 +19,8 @@ const auditError = async (t, { command, error, ...config } = {}) => {
     res.error = err
   }
 
+  mock.npm.finish()
+
   return {
     ...res,
     logs: mock.logs.warn.byTitle('audit'),
