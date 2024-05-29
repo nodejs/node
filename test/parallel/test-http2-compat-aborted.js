@@ -21,7 +21,7 @@ const server = h2.createServer(common.mustCall(function(req, res) {
 server.listen(0, common.mustCall(function() {
   const url = `http://localhost:${server.address().port}`;
   const client = h2.connect(url, common.mustCall(() => {
-    const request = client.request({}, { endStream: false });
+    const request = client.request({});
     request.on('data', common.mustCall((chunk) => {
       client.destroy();
     }));

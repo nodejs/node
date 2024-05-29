@@ -22,7 +22,7 @@ server.listen(0);
 server.on('listening', () => {
   const url = `http://localhost:${server.address().port}`;
   const client = h2.connect(url, common.mustCall(() => {
-    const request = client.request({}, { endStream: false });
+    const request = client.request({});
     request.on('data', common.mustCall(function(chunk) {
       client.destroy();
       server.close();
