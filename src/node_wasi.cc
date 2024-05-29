@@ -78,8 +78,6 @@ static MaybeLocal<Value> WASIException(Local<Context> context,
 WASI::WASI(Environment* env,
            Local<Object> object,
            uvwasi_options_t* options) : BaseObject(env, object) {
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kWASI, "");
   MakeWeak();
   alloc_info_ = MakeAllocator();
   options->allocator = &alloc_info_;
@@ -123,8 +121,9 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsArray());
   CHECK(args[2]->IsArray());
   CHECK(args[3]->IsArray());
-
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kWASI, "");
   Local<Context> context = env->context();
   Local<Array> argv = args[0].As<Array>();
   const uint32_t argc = argv->Length();

@@ -277,8 +277,8 @@ added: REPLACEME
 
 > Stability: 1.1 - Active development
 
-When using the [Permission Model][], the process will not be able to create any
-WASI instances by default.
+When using the [Permission Model][], the process will not be capable of creating
+any WASI instances by default.
 For security reasons, the call will throw an `ERR_ACCESS_DENIED` unless the
 user explicitly passes the flag `--allow-wasi` in the main Node.js process.
 
