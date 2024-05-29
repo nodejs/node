@@ -544,8 +544,8 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
       node::FreeIsolateData(isolate_data);
     }
 
-    data->platform->UnregisterIsolate(isolate);
     isolate->Dispose();
+    data->platform->UnregisterIsolate(isolate);
     uv_run(&loop, UV_RUN_DEFAULT);
     CHECK_EQ(uv_loop_close(&loop), 0);
 
@@ -625,6 +625,8 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   // Allocate and initialize Isolate.
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(platform.get(), v8::CppHeapCreateParams{{}}).release();
   v8::Isolate* isolate = v8::Isolate::Allocate();
   CHECK_NOT_NULL(isolate);
   platform->RegisterIsolate(isolate, &current_loop);
@@ -675,8 +677,8 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   }
 
   // Cleanup.
-  platform->UnregisterIsolate(isolate);
   isolate->Dispose();
+  platform->UnregisterIsolate(isolate);
 }
 #endif  // _WIN32
 
