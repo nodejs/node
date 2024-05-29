@@ -3,8 +3,9 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 const h2 = require('http2');
-
 const { kSocket } = require('internal/http2/util');
 
 const h2Server = h2.createServer(() => {});
