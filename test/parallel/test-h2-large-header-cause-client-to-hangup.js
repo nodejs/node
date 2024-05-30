@@ -30,6 +30,7 @@ server.listen(0, common.mustCall(() => {
     stream.on('close', common.mustCall(() => {
       assert.strictEqual(stream.rstCode, NGHTTP2_FRAME_SIZE_ERROR);
       clearTimeout(timer);
+      clientSession.close();
       server.close();
     }));
 
