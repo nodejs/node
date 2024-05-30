@@ -30,27 +30,29 @@ enum class CppHeapPointerTag : uint16_t {
   kFirstTag = 0,
   kNullTag = 0,
 
-  // The lower type ids are reserved for the embedder to assign. For that, the
-  // main requirement is that all (transitive) child classes of a given parent
-  // class have type ids in the same range, and that there are no unrelated
-  // types in that range. For example, given the following type hierarchy:
-  //
-  //          A     F
-  //         / \
-  //        B   E
-  //       / \
-  //      C   D
-  //
-  // a potential type id assignment that satistifes these requirements is
-  // {C: 0, D: 1, B: 2, A: 3, E: 4, F: 5}. With that, the type check for type A
-  // would check for the range [0, 4], while the check for B would check range
-  // [0, 2], and for F it would simply check [5, 5].
-  //
-  // In addition, there is an option for performance tweaks: if the size of the
-  // type range corresponding to a supertype is a power of two and starts at a
-  // power of two (e.g. [0x100, 0x13f]), then the compiler can often optimize
-  // the type check to use even fewer instructions (essentially replace a AND +
-  // SUB with a single AND).
+  /**
+   *  The lower type ids are reserved for the embedder to assign. For that, the
+   * main requirement is that all (transitive) child classes of a given parent
+   * class have type ids in the same range, and that there are no unrelated
+   * types in that range. For example, given the following type hierarchy:
+   *
+   *          A     F
+   *         / \
+   *        B   E
+   *       / \
+   *      C   D
+   *
+   * a potential type id assignment that satistifes these requirements is
+   * {C: 0, D: 1, B: 2, A: 3, E: 4, F: 5}. With that, the type check for type A
+   * would check for the range [0, 4], while the check for B would check range
+   * [0, 2], and for F it would simply check [5, 5].
+   *
+   * In addition, there is an option for performance tweaks: if the size of the
+   * type range corresponding to a supertype is a power of two and starts at a
+   * power of two (e.g. [0x100, 0x13f]), then the compiler can often optimize
+   * the type check to use even fewer instructions (essentially replace a AND +
+   * SUB with a single AND).
+   */
 
   kDefaultTag = 0x7000,
 
