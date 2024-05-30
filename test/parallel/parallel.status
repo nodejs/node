@@ -21,10 +21,6 @@ test-error-serdes: PASS, FLAKY
 
 [$system==win32]
 
-# Windows on x86
-[$system==win32 && $arch==ia32]
-test-worker-nearheaplimit-deadlock: PASS, FLAKY
-
 # Windows on ARM
 [$system==win32 && $arch==arm64]
 
