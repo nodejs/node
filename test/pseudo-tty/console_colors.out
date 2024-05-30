@@ -12,6 +12,7 @@ foobar
 [90m    at *[39m
 [90m    at *[39m
 [90m    at *[39m
+[90m    at *[39m
 
 Error: Should not ever get here.
     at Object.<anonymous> [90m(*node_modules*[4m*node_modules*[24m*bar.js:*:*[90m)[39m
@@ -21,8 +22,8 @@ Error: Should not ever get here.
 [90m    at *[39m
 [90m    at *[39m
 [90m    at *[39m
-    at Object.<anonymous> [90m(*console_colors.js:*:*[90m)[39m
 [90m    at *[39m
+    at Object.<anonymous> [90m(*console_colors.js:*:*[90m)[39m
 [90m    at *[39m
 
 Error
