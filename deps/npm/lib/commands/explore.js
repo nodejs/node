@@ -1,6 +1,6 @@
 const pkgJson = require('@npmcli/package-json')
 const runScript = require('@npmcli/run-script')
-const { join, relative } = require('path')
+const { join, relative } = require('node:path')
 const { log, output } = require('proc-log')
 const completion = require('../utils/installed-shallow.js')
 const BaseCommand = require('../base-cmd.js')

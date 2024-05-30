@@ -1,8 +1,8 @@
 const t = require('tap')
-const _fs = require('fs')
+const _fs = require('node:fs')
 const fs = _fs.promises
-const path = require('path')
-const os = require('os')
+const path = require('node:path')
+const os = require('node:os')
 const fsMiniPass = require('fs-minipass')
 const tmock = require('../../fixtures/tmock')
 const LogFile = require('../../../lib/utils/log-file.js')
@@ -280,7 +280,7 @@ t.test('rimraf error', async t => {
     logsMax,
     testdir: makeOldLogs(oldLogs),
     mocks: {
-      'fs/promises': {
+      'node:fs/promises': {
         readdir: fs.readdir,
         rm: async (...args) => {
           if (count >= 3) {

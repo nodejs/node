@@ -1,7 +1,7 @@
 const t = require('tap')
 const tmock = require('../../fixtures/tmock')
 const mockNpm = require('../../fixtures/mock-npm')
-const EventEmitter = require('events')
+const EventEmitter = require('node:events')
 
 const mockOpenUrl = async (t, args, { openerResult, ...config } = {}) => {
   let openerUrl = null
@@ -26,6 +26,8 @@ const mockOpenUrl = async (t, args, { openerResult, ...config } = {}) => {
   if (args) {
     await openWithNpm(...args)
   }
+
+  mock.npm.finish()
 
   return {
     ...mock,
@@ -100,6 +102,8 @@ const mockOpenUrlPrompt = async (t, {
   } else {
     await openUrlPrompt(...args).catch((er) => error = er)
   }
+
+  mock.npm.finish()
 
   return {
     ...mock,
@@ -178,7 +182,6 @@ t.test('open url prompt', async t => {
 
   t.test('does not error when opener can not find command', async t => {
     const { OUTPUT, error, openerUrl } = await mockOpenUrlPrompt(t, {
-    // openerResult: new Error('Opener failed'),
       openerResult: Object.assign(new Error('Opener failed'), { code: 127 }),
     })
 

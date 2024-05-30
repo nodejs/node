@@ -82,29 +82,33 @@ const ERROR_KEY = 'error'
 // is a json error that should be merged into the finished output
 const JSON_ERROR_KEY = 'jsonError'
 
+const isPlainObject = (v) => v && typeof v === 'object' && !Array.isArray(v)
+
 const getArrayOrObject = (items) => {
-  // Arrays cant be merged, if the first item is an array return that
-  if (Array.isArray(items[0])) {
-    return items[0]
+  if (items.length) {
+    const foundNonObject = items.find(o => !isPlainObject(o))
+    // Non-objects and arrays cant be merged, so just return the first item
+    if (foundNonObject) {
+      return foundNonObject
+    }
+    // We use objects with 0,1,2,etc keys to merge array
+    if (items.every((o, i) => Object.hasOwn(o, i))) {
+      return Object.assign([], ...items)
+    }
   }
-  // We use objects with 0,1,2,etc keys to merge array
-  if (items.length && items.every((o, i) => Object.hasOwn(o, i))) {
-    return Object.assign([], ...items)
-  }
-  // Otherwise its an object with all items merged together
-  return Object.assign({}, ...items)
+  // Otherwise its an object with all object items merged together
+  return Object.assign({}, ...items.filter(o => isPlainObject(o)))
 }
 
-const mergeJson = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
+const getJsonBuffer = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
   const items = []
   // meta also contains the meta object passed to flush
   const errors = metaError ? [metaError] : []
   // index 1 is the meta, 2 is the logged argument
   for (const [, { [JSON_ERROR_KEY]: error }, obj] of buffer) {
-    if (obj && typeof obj === 'object') {
+    if (obj) {
       items.push(obj)
     }
-    /* istanbul ignore next - this is not used yet but will be */
     if (error) {
       errors.push(error)
     }
@@ -114,22 +118,20 @@ const mergeJson = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
     return null
   }
 
-  // If all items are keyed with array indexes, then we return the
-  // array. This skips any error checking since we cant really set
-  // an error property on an array in a way that can be stringified
-  // XXX(BREAKING_CHANGE): remove this in favor of always returning an object
   const res = getArrayOrObject(items)
 
-  if (!Array.isArray(res) && errors.length) {
+  // This skips any error checking since we can only set an error property
+  // on an object that can be stringified
+  // XXX(BREAKING_CHANGE): remove this in favor of always returning an object with result and error keys
+  if (isPlainObject(res) && errors.length) {
     // This is not ideal. JSON output has always been keyed at the root with an `error`
     // key, so we cant change that without it being a breaking change. At the same time
     // some commands output arbitrary keys at the top level of the output, such as package
     // names. So the output could already have the same key. The choice here is to overwrite
     // it with our error since that is (probably?) more important.
     // XXX(BREAKING_CHANGE): all json output should be keyed under well known keys, eg `result` and `error`
-    /* istanbul ignore next */
     if (res[ERROR_KEY]) {
-      log.warn('display', `overwriting existing ${ERROR_KEY} on json output`)
+      log.warn('', `overwriting existing ${ERROR_KEY} on json output`)
     }
     res[ERROR_KEY] = getArrayOrObject(errors)
   }
@@ -294,9 +296,11 @@ class Display {
     switch (level) {
       case output.KEYS.flush: {
         this.#outputState.buffering = false
-        const json = this.#json ? mergeJson(meta, this.#outputState.buffer) : null
-        if (json) {
-          this.#writeOutput(output.KEYS.standard, meta, JSON.stringify(json, null, 2))
+        if (this.#json) {
+          const json = getJsonBuffer(meta, this.#outputState.buffer)
+          if (json) {
+            this.#writeOutput(output.KEYS.standard, meta, JSON.stringify(json, null, 2))
+          }
         } else {
           this.#outputState.buffer.forEach((item) => this.#writeOutput(...item))
         }

@@ -1,5 +1,5 @@
 const { log: { LEVELS } } = require('proc-log')
-const { stripVTControlCharacters: stripAnsi } = require('util')
+const { stripVTControlCharacters: stripAnsi } = require('node:util')
 
 const logPrefix = new RegExp(`^npm (${LEVELS.join('|')})\\s`)
 const isLog = (str) => logPrefix.test(stripAnsi(str))
@@ -24,6 +24,7 @@ const logsByTitle = (logs) => ({
 module.exports = () => {
   const outputs = []
   const outputErrors = []
+  const fullOutput = []
 
   const levelLogs = []
   const logs = Object.defineProperties([], {
@@ -53,6 +54,7 @@ module.exports = () => {
         // in the future if/when we refactor what logs look like.
         if (!isLog(str)) {
           outputErrors.push(str)
+          fullOutput.push(str)
           return
         }
 
@@ -70,12 +72,14 @@ module.exports = () => {
         const level = stripAnsi(rawLevel)
 
         logs.push(str.replaceAll(prefix, `${level} `))
+        fullOutput.push(str.replaceAll(prefix, `${level} `))
         levelLogs.push({ level, message: str.replaceAll(prefix, '') })
       },
     },
     stdout: {
       write: (str) => {
         outputs.push(trimTrailingNewline(str))
+        fullOutput.push(trimTrailingNewline(str))
       },
     },
   }
@@ -88,9 +92,12 @@ module.exports = () => {
       clearOutput: () => {
         outputs.length = 0
         outputErrors.length = 0
+        fullOutput.length = 0
       },
       outputErrors,
       joinedOutputError: () => joinAndTrimTrailingNewlines(outputs),
+      fullOutput,
+      joinedFullOutput: () => joinAndTrimTrailingNewlines(fullOutput),
       logs,
       clearLogs: () => {
         levelLogs.length = 0

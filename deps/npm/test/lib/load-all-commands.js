@@ -3,7 +3,7 @@
 // name, a description, and if it has completion it is a function.  That it
 // renders also ensures that any params we've defined in our commands work.
 const t = require('tap')
-const util = require('util')
+const util = require('node:util')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const { commands } = require('../../lib/utils/cmd-list.js')
 const BaseCommand = require('../../lib/base-cmd.js')

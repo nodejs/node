@@ -1,6 +1,6 @@
 const t = require('tap')
-const { resolve } = require('path')
-const fs = require('fs/promises')
+const { resolve } = require('node:path')
+const fs = require('node:fs/promises')
 const { load: _loadMockNpm } = require('../../fixtures/mock-npm.js')
 const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('../../fixtures/tmock')
