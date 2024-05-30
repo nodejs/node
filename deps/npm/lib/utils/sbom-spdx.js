@@ -1,5 +1,5 @@
 
-const crypto = require('crypto')
+const crypto = require('node:crypto')
 const normalizeData = require('normalize-package-data')
 const npa = require('npm-package-arg')
 const ssri = require('ssri')

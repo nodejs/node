@@ -1,5 +1,5 @@
 const t = require('tap')
-const { resolve, join } = require('path')
+const { resolve, join } = require('node:path')
 const fs = require('graceful-fs')
 const { log, time } = require('proc-log')
 const tmock = require('../../fixtures/tmock')

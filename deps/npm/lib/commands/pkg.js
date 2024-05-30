@@ -59,28 +59,24 @@ class Pkg extends BaseCommand {
     this.npm.config.set('json', true)
     const pkgJson = await PackageJson.load(path)
 
-    let unwrap = false
     let result = pkgJson.content
 
     if (args.length) {
       result = new Queryable(result).query(args)
       // in case there's only a single result from the query
       // just prints that one element to stdout
+      // TODO(BREAKING_CHANGE): much like other places where we unwrap single
+      // item arrays this should go away. it makes the behavior unknown for users
+      // who don't already know the shape of the data.
       if (Object.keys(result).length === 1) {
-        unwrap = true
         result = result[args]
       }
     }
 
-    if (workspace) {
-      // workspaces are always json
-      output.buffer({ [workspace]: result })
-    } else {
-      // if the result was unwrapped, stringify as json which will add quotes around strings
-      // TODO: https://github.com/npm/cli/issues/5508 a raw mode has been requested similar
-      // to jq -r. If that was added then it would conditionally not call JSON.stringify here
-      output.buffer(unwrap ? JSON.stringify(result) : result)
-    }
+    // The display layer is responsible for calling JSON.stringify on the result
+    // TODO: https://github.com/npm/cli/issues/5508 a raw mode has been requested similar
+    // to jq -r. If that was added then this method should no longer set `json:true` all the time
+    output.buffer(workspace ? { [workspace]: result } : result)
   }
 
   async set (args, { path }) {

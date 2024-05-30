@@ -16,11 +16,11 @@ class Ping extends BaseCommand {
     const time = Date.now() - start
     log.notice('PONG', `${time}ms`)
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify({
+      output.buffer({
         registry: cleanRegistry,
         time,
         details,
-      }, null, 2))
+      })
     } else if (Object.keys(details).length) {
       log.notice('PONG', JSON.stringify(details, null, 2))
     }

@@ -1,4 +1,4 @@
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const installedDeep = async (npm) => {
