@@ -2,6 +2,7 @@ const t = require('tap')
 const setupMockNpm = require('../../fixtures/mock-npm')
 const tmock = require('../../fixtures/tmock')
 
+// TODO make this real and not a mock
 const setupOtplease = async (t, { otp = {}, ...rest }, fn) => {
   const { otplease } = tmock(t, '{LIB}/utils/auth.js', {
     '{LIB}/utils/read-user-info.js': {
@@ -13,7 +14,7 @@ const setupOtplease = async (t, { otp = {}, ...rest }, fn) => {
     'npm-profile': {
       webAuthOpener: async (opener) => {
         opener()
-        return '1234'
+        return { token: '1234' }
       },
     },
   })
@@ -67,16 +68,16 @@ t.test('prompts for otp for EOTP', async (t) => {
 
 t.test('returns function results on webauth success', async (t) => {
   const fn = ({ otp }) => {
-    if (otp) {
-      return 'success'
+    if (!otp) {
+      throw Object.assign(new Error('nope'), {
+        code: 'EOTP',
+        body: {
+          authUrl: 'https://www.example.com/auth',
+          doneUrl: 'https://www.example.com/done',
+        },
+      })
     }
-    throw Object.assign(new Error('nope'), {
-      code: 'EOTP',
-      body: {
-        authUrl: 'https://www.example.com/auth',
-        doneUrl: 'https://www.example.com/done',
-      },
-    })
+    return 'success'
   }
 
   const result = await setupOtplease(t, {

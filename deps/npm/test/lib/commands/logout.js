@@ -1,8 +1,8 @@
 const t = require('tap')
-const fs = require('fs/promises')
+const fs = require('node:fs/promises')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const MockRegistry = require('@npmcli/mock-registry')
-const { join } = require('path')
+const { join } = require('node:path')
 
 t.test('token logout - user config', async t => {
   const { npm, home, logs } = await loadMockNpm(t, {

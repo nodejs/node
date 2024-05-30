@@ -1,7 +1,7 @@
-const os = require('os')
-const { join, dirname, basename } = require('path')
+const os = require('node:os')
+const { join, dirname, basename } = require('node:path')
 const fsMiniPass = require('fs-minipass')
-const fs = require('fs/promises')
+const fs = require('node:fs/promises')
 const { log } = require('proc-log')
 const { formatWithOptions } = require('./format')
 

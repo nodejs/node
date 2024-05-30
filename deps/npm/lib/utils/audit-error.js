@@ -22,14 +22,14 @@ const auditError = (npm, report) => {
   const { body: errBody } = error
   const body = Buffer.isBuffer(errBody) ? errBody.toString() : errBody
   if (npm.flatOptions.json) {
-    output.standard(JSON.stringify({
+    output.buffer({
       message: error.message,
       method: error.method,
       uri: replaceInfo(error.uri),
       headers: error.headers,
       statusCode: error.statusCode,
       body,
-    }, null, 2))
+    })
   } else {
     output.standard(body)
   }

@@ -13,7 +13,7 @@ const otplease = async (npm, opts, fn) => {
 
     // web otp
     if (err.code === 'EOTP' && err.body?.authUrl && err.body?.doneUrl) {
-      const otp = await webAuthOpener(
+      const { token: otp } = await webAuthOpener(
         createOpener(npm, 'Authenticate your account at'),
         err.body.authUrl,
         err.body.doneUrl,

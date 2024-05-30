@@ -11,7 +11,10 @@ https://www.npmjs.com
 `
 
 exports[`test/lib/utils/open-url.js TAP open url prints where to go when browser is disabled and json is enabled > printed expected message 1`] = `
-{"title":"npm home","url":"https://www.npmjs.com"}
+{
+  "title": "npm home",
+  "url": "https://www.npmjs.com"
+}
 `
 
 exports[`test/lib/utils/open-url.js TAP open url prints where to go when given browser does not exist > printed expected message 1`] = `
@@ -33,5 +36,8 @@ https://www.npmjs.com
 `
 
 exports[`test/lib/utils/open-url.js TAP open url prompt prints json output > must match snapshot 1`] = `
-{"title":"npm home","url":"https://www.npmjs.com"}
+{
+  "title": "npm home",
+  "url": "https://www.npmjs.com"
+}
 `

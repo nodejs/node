@@ -3,9 +3,9 @@
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const runScript = require('@npmcli/run-script')
-const path = require('path')
+const path = require('node:path')
 const Arborist = require('@npmcli/arborist')
-const { writeFile } = require('fs/promises')
+const { writeFile } = require('node:fs/promises')
 
 module.exports = pack
 async function pack (spec = 'file:.', opts = {}) {

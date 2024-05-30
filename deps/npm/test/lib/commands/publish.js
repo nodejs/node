@@ -4,8 +4,8 @@ const { cleanZlib } = require('../../fixtures/clean-snapshot')
 const MockRegistry = require('@npmcli/mock-registry')
 const pacote = require('pacote')
 const Arborist = require('@npmcli/arborist')
-const path = require('path')
-const fs = require('fs')
+const path = require('node:path')
+const fs = require('node:fs')
 const npa = require('npm-package-arg')
 
 const pkg = 'test-package'
@@ -615,6 +615,48 @@ t.test('workspaces', t => {
         return t.match(body, { name: 'workspace-a' })
       }).reply(404, {})
     await t.rejects(npm.exec('publish', []), { code: 'E404' })
+  })
+
+  t.test('all workspaces - some marked private', async t => {
+    const testDir = {
+      'package.json': JSON.stringify(
+        {
+          ...pkgJson,
+          workspaces: ['workspace-a', 'workspace-p'],
+        }, null, 2),
+      'workspace-a': {
+        'package.json': JSON.stringify({
+          name: 'workspace-a',
+          version: '1.2.3-a',
+        }),
+      },
+      'workspace-p': {
+        'package.json': JSON.stringify({
+          name: '@scoped/workspace-p',
+          private: true,
+          version: '1.2.3-p-scoped',
+        }),
+      },
+    }
+
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        ...auth,
+        workspaces: true,
+      },
+      prefixDir: testDir,
+    })
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: token,
+    })
+    registry.nock
+      .put('/workspace-a', body => {
+        return t.match(body, { name: 'workspace-a' })
+      }).reply(200, {})
+    await npm.exec('publish', [])
+    t.matchSnapshot(joinedOutput(), 'one marked private')
   })
 
   t.test('invalid workspace', async t => {

@@ -90,7 +90,7 @@ const reifyOutput = (npm, arb) => {
       summary.audit = npm.command === 'audit' ? auditReport
         : auditReport.toJSON().metadata
     }
-    output.standard(JSON.stringify(summary, null, 2))
+    output.buffer(summary)
   } else {
     packagesChangedMessage(npm, summary)
     packagesFundingMessage(npm, summary)

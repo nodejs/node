@@ -1,6 +1,6 @@
 const { open } = require('@npmcli/promise-spawn')
 const { output, input } = require('proc-log')
-const { URL } = require('url')
+const { URL } = require('node:url')
 const readline = require('node:readline/promises')
 const { once } = require('node:events')
 
@@ -15,8 +15,11 @@ const assertValidUrl = (url) => {
 }
 
 const outputMsg = (json, title, url) => {
-  const msg = json ? JSON.stringify({ title, url }) : `${title}:\n${url}`
-  output.standard(msg)
+  if (json) {
+    output.buffer({ title, url })
+  } else {
+    output.standard(`${title}:\n${url}`)
+  }
 }
 
 // attempt to open URL in web-browser, print address otherwise:

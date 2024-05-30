@@ -1,11 +1,11 @@
 const _makeIdealGraph = Symbol('makeIdealGraph')
 const _createIsolatedTree = Symbol.for('createIsolatedTree')
 const _createBundledTree = Symbol('createBundledTree')
-const { mkdirSync } = require('fs')
+const { mkdirSync } = require('node:fs')
 const pacote = require('pacote')
-const { join } = require('path')
+const { join } = require('node:path')
 const { depth } = require('treeverse')
-const crypto = require('crypto')
+const crypto = require('node:crypto')
 
 // cache complicated function results
 const memoize = (fn) => {

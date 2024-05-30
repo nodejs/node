@@ -1,5 +1,5 @@
 const t = require('tap')
-const { basename } = require('path')
+const { basename } = require('node:path')
 const tmock = require('../../fixtures/tmock')
 const mockNpm = require('../../fixtures/mock-npm')
 
@@ -27,7 +27,7 @@ const runUpdateNotifier = async (t, {
   ...config
 } = {}) => {
   const mockFs = {
-    ...require('fs/promises'),
+    ...require('node:fs/promises'),
     stat: async (path) => {
       if (basename(path) !== '_update-notifier-last-checked') {
         t.fail('no stat allowed for non upate notifier files')
@@ -69,7 +69,7 @@ const runUpdateNotifier = async (t, {
 
   const mocks = {
     pacote: mockPacote,
-    'fs/promises': mockFs,
+    'node:fs/promises': mockFs,
     '{ROOT}/package.json': { version },
     'ci-info': { isCI: false, name: null },
     ..._mocks,

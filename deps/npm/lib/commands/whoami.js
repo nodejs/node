@@ -9,9 +9,11 @@ class Whoami extends BaseCommand {
 
   async exec () {
     const username = await getIdentity(this.npm, { ...this.npm.flatOptions })
-    output.standard(
-      this.npm.config.get('json') ? JSON.stringify(username) : username
-    )
+    if (this.npm.config.get('json')) {
+      output.buffer(username)
+    } else {
+      output.standard(username)
+    }
   }
 }
 

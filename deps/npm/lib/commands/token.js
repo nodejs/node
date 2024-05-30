@@ -50,7 +50,7 @@ class Token extends BaseCommand {
     log.info('token', 'getting list')
     const tokens = await listTokens(this.npm.flatOptions)
     if (json) {
-      output.standard(JSON.stringify(tokens, null, 2))
+      output.buffer(tokens)
       return
     }
     if (parseable) {
@@ -117,7 +117,7 @@ class Token extends BaseCommand {
       })
     )
     if (json) {
-      output.standard(JSON.stringify(toRemove))
+      output.buffer(toRemove)
     } else if (parseable) {
       output.standard(toRemove.join('\t'))
     } else {
@@ -142,7 +142,7 @@ class Token extends BaseCommand {
     delete result.key
     delete result.updated
     if (json) {
-      output.standard(JSON.stringify(result))
+      output.buffer(result)
     } else if (parseable) {
       Object.keys(result).forEach(k => output.standard(k + '\t' + result[k]))
     } else {

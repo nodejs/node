@@ -28,9 +28,9 @@
 // one per line for the shell completion method to consume in IFS=$'\n' mode
 // as an array.
 
-const fs = require('fs/promises')
+const fs = require('node:fs/promises')
 const nopt = require('nopt')
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const { output } = require('proc-log')
 const Npm = require('../npm.js')
 const { definitions, shorthands } = require('@npmcli/config/lib/definitions')

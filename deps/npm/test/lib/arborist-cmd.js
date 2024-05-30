@@ -1,4 +1,4 @@
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const t = require('tap')
 const { load: loadMockNpm } = require('../fixtures/mock-npm')
 const tmock = require('../fixtures/tmock')

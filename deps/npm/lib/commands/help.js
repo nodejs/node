@@ -1,5 +1,5 @@
 const spawn = require('@npmcli/promise-spawn')
-const path = require('path')
+const path = require('node:path')
 const { openUrl } = require('../utils/open-url.js')
 const { glob } = require('glob')
 const { output, input } = require('proc-log')

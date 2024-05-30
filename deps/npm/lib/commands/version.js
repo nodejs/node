@@ -126,7 +126,7 @@ class Version extends BaseCommand {
     }
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify(results, null, 2))
+      output.buffer(results)
     } else {
       output.standard(results)
     }

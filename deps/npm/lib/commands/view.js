@@ -1,16 +1,18 @@
 const columns = require('cli-columns')
-const { readFile } = require('fs/promises')
+const { readFile } = require('node:fs/promises')
 const jsonParse = require('json-parse-even-better-errors')
-const { log, output } = require('proc-log')
+const { log, output, META } = require('proc-log')
 const npa = require('npm-package-arg')
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const formatBytes = require('../utils/format-bytes.js')
 const relativeDate = require('tiny-relative-date')
 const semver = require('semver')
-const { inspect } = require('util')
+const { inspect } = require('node:util')
 const { packument } = require('pacote')
 const Queryable = require('../utils/queryable.js')
 const BaseCommand = require('../base-cmd.js')
+const { getError } = require('../utils/error-message.js')
+const { jsonError, outputError } = require('../utils/output-error.js')
 
 const readJson = file => readFile(file, 'utf8').then(jsonParse)
 
@@ -76,10 +78,24 @@ class View extends BaseCommand {
       return this.exec([pkg, ...rest])
     }
 
+    const json = this.npm.config.get('json')
     await this.setWorkspaces()
 
     for (const name of this.workspaceNames) {
-      await this.#viewPackage(`${name}${pkg.slice(1)}`, rest, { workspace: true })
+      try {
+        await this.#viewPackage(`${name}${pkg.slice(1)}`, rest, { workspace: true })
+      } catch (e) {
+        const err = getError(e, { npm: this.npm, command: this })
+        if (err.code !== 'E404') {
+          throw e
+        }
+        if (json) {
+          output.buffer({ [META]: true, jsonError: { [name]: jsonError(err, this.npm) } })
+        } else {
+          outputError(err)
+        }
+        process.exitCode = err.exitCode
+      }
     }
   }
 

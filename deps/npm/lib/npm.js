@@ -260,13 +260,21 @@ class Npm {
     this.#logFile.off()
   }
 
-  finish () {
+  finish (err) {
     // Finish all our timer work, this will write the file if requested, end timers, etc
     this.#timers.finish({
       id: this.#runId,
       command: this.#argvClean,
       logfiles: this.logFiles,
       version: this.version,
+    })
+
+    output.flush({
+      [META]: true,
+      // json can be set during a command so we send the
+      // final value of it to the display layer here
+      json: this.loaded && this.config.get('json'),
+      jsonError: jsonError(err, this),
     })
   }
 
@@ -296,16 +304,7 @@ class Npm {
       Object.assign(err, this.#getError(err, { pkg: localPkg }))
     }
 
-    // TODO: make this not need to be public
-    this.finish()
-
-    output.flush({
-      [META]: true,
-      // json can be set during a command so we send the
-      // final value of it to the display layer here
-      json: this.loaded && this.config.get('json'),
-      jsonError: jsonError(err, this),
-    })
+    this.finish(err)
 
     if (err) {
       throw err

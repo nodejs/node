@@ -1,5 +1,5 @@
-const { readFileSync, statSync } = require('fs')
-const { resolve } = require('path')
+const { readFileSync, statSync } = require('node:fs')
+const { resolve } = require('node:path')
 const t = require('tap')
 const _mockNpm = require('../../fixtures/mock-npm')
 const mockGlobals = require('@npmcli/mock-globals')

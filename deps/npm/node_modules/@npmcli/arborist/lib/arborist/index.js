@@ -26,8 +26,8 @@
 // the base class, so that the overall voltron class is easier to test and
 // cover, and separation of concerns can be maintained.
 
-const { resolve } = require('path')
-const { homedir } = require('os')
+const { resolve } = require('node:path')
+const { homedir } = require('node:os')
 const { depth } = require('treeverse')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const { log, time } = require('proc-log')
@@ -47,7 +47,7 @@ const mixins = [
 ]
 
 const _setWorkspaces = Symbol.for('setWorkspaces')
-const Base = mixins.reduce((a, b) => b(a), require('events'))
+const Base = mixins.reduce((a, b) => b(a), require('node:events'))
 
 // if it's 1, 2, or 3, set it explicitly that.
 // if undefined or null, set it null

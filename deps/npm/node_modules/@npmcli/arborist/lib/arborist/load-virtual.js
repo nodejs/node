@@ -1,7 +1,7 @@
 // mixin providing the loadVirtual method
 const mapWorkspaces = require('@npmcli/map-workspaces')
 
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 
 const nameFromFolder = require('@npmcli/name-from-folder')
 const consistentResolve = require('../consistent-resolve.js')

@@ -1,4 +1,4 @@
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const t = require('tap')
 const getWorkspaces = require('../../../lib/utils/get-workspaces.js')
 

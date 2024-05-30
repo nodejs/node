@@ -1,5 +1,5 @@
-const { readdir } = require('fs/promises')
-const { resolve } = require('path')
+const { readdir } = require('node:fs/promises')
+const { resolve } = require('node:path')
 const npa = require('npm-package-arg')
 const pkgJson = require('@npmcli/package-json')
 const semver = require('semver')
