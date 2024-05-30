@@ -41,6 +41,7 @@
     "url": "https://github.com/acornjs/acorn.git"
   },
   "scripts": {
+    "start": "node server.js"
     "prepare": "cd ..; npm run build:walk"
   },
   "license": "MIT"
