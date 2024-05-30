@@ -1,6 +1,6 @@
 const t = require('tap')
-const { resolve, dirname, join } = require('path')
-const fs = require('fs')
+const { resolve, dirname, join } = require('node:path')
+const fs = require('node:fs')
 const { time } = require('proc-log')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const mockGlobals = require('@npmcli/mock-globals')

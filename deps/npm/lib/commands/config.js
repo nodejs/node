@@ -403,7 +403,7 @@ ${defData}
 
       publicConf[key] = value
     }
-    output.standard(JSON.stringify(publicConf, null, 2))
+    output.buffer(publicConf)
   }
 }
 

@@ -8,7 +8,7 @@ const rpj = require('read-package-json-fast')
 const binLinks = require('bin-links')
 const runScript = require('@npmcli/run-script')
 const { callLimit: promiseCallLimit } = require('promise-call-limit')
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const { isNodeGypPackage, defaultGypInstallScript } = require('@npmcli/node-gyp')
 const { log, time } = require('proc-log')
 

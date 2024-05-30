@@ -1,4 +1,4 @@
-const { URL } = require('url')
+const { URL } = require('node:url')
 const PackageUrlCmd = require('../package-url-cmd.js')
 
 class Repo extends PackageUrlCmd {

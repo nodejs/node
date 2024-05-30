@@ -1,5 +1,5 @@
-const { resolve } = require('path')
-const { readFileSync } = require('fs')
+const { resolve } = require('node:path')
+const { readFileSync } = require('node:fs')
 const t = require('tap')
 const _mockNpm = require('../../fixtures/mock-npm')
 const { cleanCwd } = require('../../fixtures/clean-snapshot')
