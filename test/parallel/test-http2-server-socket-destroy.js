@@ -39,7 +39,11 @@ function onStream(stream) {
     message: 'Stream closed with error code NGHTTP2_CANCEL'
   }));
 
-  socket.destroy();
+  // Do not use destroy() as it sends FIN on Linux.
+  // On macOS, it sends RST.
+
+  // Always send RST.
+  socket.resetAndDestroy();
 }
 
 server.listen(0);
