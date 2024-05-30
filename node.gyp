@@ -475,15 +475,6 @@
       ],
     },
 
-    # Relevant only for x86.
-    # Refs: https://github.com/nodejs/node/pull/25852
-    # Refs: https://docs.microsoft.com/en-us/cpp/build/reference/safeseh-image-has-safe-exception-handlers
-    'msvs_settings': {
-      'VCLinkerTool': {
-        'ImageHasSafeExceptionHandlers': 'false',
-      },
-    },
-
     'conditions': [
       # Pointer authentication for ARM64.
       ['target_arch=="arm64"', {
