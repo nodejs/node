@@ -105,6 +105,8 @@ class Worker : public AsyncWrap {
   // Optional name used for debugging in inspector and trace events.
   std::string name_;
   static std::atomic_bool internalExists;
+  // this mutex is to synchronize ::New calls
+  static Mutex instantiationMutex;
 
   // Custom resource constraints:
   double resource_limits_[kTotalResourceLimitCount];
