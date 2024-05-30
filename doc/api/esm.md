@@ -1000,19 +1000,15 @@ _isImports_, _conditions_)
 
 **PATTERN\_KEY\_COMPARE**(_keyA_, _keyB_)
 
-> 1. Assert: _keyA_ ends with _"/"_ or contains only a single _"\*"_.
-> 2. Assert: _keyB_ ends with _"/"_ or contains only a single _"\*"_.
-> 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_ plus one, if _keyA_
->    contains _"\*"_, or the length of _keyA_ otherwise.
-> 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_ plus one, if _keyB_
->    contains _"\*"_, or the length of _keyB_ otherwise.
+> 1. Assert: _keyA_ contains only a single _"\*"_.
+> 2. Assert: _keyB_ contains only a single _"\*"_.
+> 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_.
+> 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_.
 > 5. If _baseLengthA_ is greater than _baseLengthB_, return -1.
 > 6. If _baseLengthB_ is greater than _baseLengthA_, return 1.
-> 7. If _keyA_ does not contain _"\*"_, return 1.
-> 8. If _keyB_ does not contain _"\*"_, return -1.
-> 9. If the length of _keyA_ is greater than the length of _keyB_, return -1.
-> 10. If the length of _keyB_ is greater than the length of _keyA_, return 1.
-> 11. Return 0.
+> 7. If the length of _keyA_ is greater than the length of _keyB_, return -1.
+> 8. If the length of _keyB_ is greater than the length of _keyA_, return 1.
+> 9. Return 0.
 
 **PACKAGE\_TARGET\_RESOLVE**(_packageURL_, _target_, _patternMatch_,
 _isImports_, _conditions_)
