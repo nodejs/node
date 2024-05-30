@@ -24,12 +24,3 @@ export const noRestrictedSyntaxCommonLib = [
     message: '`setTimeout()` must be invoked with at least two arguments.',
   },
 ];
-
-export const noRestrictedSyntaxCommonTest = [
-  {
-    // TODO(@panva): move this to no-restricted-properties
-    // when https://github.com/eslint/eslint/issues/16412 is fixed.
-    selector: "Identifier[name='webcrypto']",
-    message: 'Use `globalThis.crypto`.',
-  },
-];

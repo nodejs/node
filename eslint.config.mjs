@@ -9,7 +9,6 @@ import toolsConfig from './tools/eslint.config_partial.mjs';
 import {
   noRestrictedSyntaxCommonAll,
   noRestrictedSyntaxCommonLib,
-  noRestrictedSyntaxCommonTest,
   requireEslintTool,
   resolveEslintTool,
 } from './tools/eslint.config_utils.mjs';
@@ -191,12 +190,15 @@ export default [
           property: '__defineSetter__',
           message: '__defineSetter__ is deprecated.',
         },
+        {
+          property: 'webcrypto',
+          message: 'Use `globalThis.crypto`.',
+        },
       ],
       'no-restricted-syntax': [
         'error',
         ...noRestrictedSyntaxCommonAll,
         ...noRestrictedSyntaxCommonLib,
-        ...noRestrictedSyntaxCommonTest,
       ],
       'no-self-compare': 'error',
       'no-template-curly-in-string': 'error',
