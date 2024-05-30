@@ -4,6 +4,7 @@
 
 const common = require('../common');
 const {
+  Duplex,
   Readable,
   Transform,
   Writable,
@@ -493,4 +494,52 @@ const assert = require('assert');
 
     assert.deepStrictEqual(await newStream.toArray(), [Buffer.from('Steve RogersOn your left')]);
   })().then(common.mustCall());
+}
+
+{
+  class SlowProcessor extends Duplex {
+    constructor(options) {
+      super({ ...options, objectMode: true });
+      this.stuff = [];
+    }
+
+    _write(message, _, callback) {
+      this.stuff.push(message);
+      callback();
+    }
+
+    _destroy(err, cb) {
+      cb(err);
+    }
+
+    _read() {
+      // Emulate some slow processing
+      setTimeout(() => {
+        if (this.stuff.length) {
+          this.push(this.stuff.shift());
+        } else if (this.writableEnded) {
+          this.push(null);
+        } else {
+          setTimeout(() => this._read(), 100);
+        }
+      }, 100);
+    }
+  }
+
+  const pass = new PassThrough({ objectMode: true });
+  const slow = new SlowProcessor();
+
+  const composed = compose(
+    pass,
+    slow
+  ).on('error', () => {});
+
+  composed.write('hello');
+  composed.write('world');
+  composed.end();
+
+  setTimeout(() => {
+    composed.destroy(new Error('an unexpected error'));
+    assert.strictEqual(slow.destroyed, true);
+  }, 100);
 }
