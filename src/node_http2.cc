@@ -1735,6 +1735,7 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   if (!is_write_scheduled()) {
     // Schedule a new write if nghttp2 wants to send data.
     MaybeScheduleWrite();
+    return;
   }
 
   if (is_destroyed()) {
