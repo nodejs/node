@@ -153,6 +153,8 @@ const fixtures = {
       a: t.fixture('symlink', '../packages/a'),
       b: t.fixture('symlink', '../packages/b'),
       c: t.fixture('symlink', '../packages/c'),
+      d: t.fixture('symlink', '../packages/d'),
+      e: t.fixture('symlink', '../packages/e'),
       cat: {
         'package.json': JSON.stringify({
           name: 'cat',
@@ -222,6 +224,24 @@ const fixtures = {
       c: {
         'package.json': JSON.stringify({
           name: 'c',
+          version: '1.0.0',
+          dependencies: {
+            theta: '^1.0.0',
+          },
+        }),
+      },
+      d: {
+        'package.json': JSON.stringify({
+          name: 'd',
+          version: '1.0.0',
+          dependencies: {
+            theta: '^1.0.0',
+          },
+        }),
+      },
+      e: {
+        'package.json': JSON.stringify({
+          name: 'e',
           version: '1.0.0',
           dependencies: {
             theta: '^1.0.0',

@@ -3,7 +3,7 @@ const npmFetch = require('npm-registry-fetch')
 const npa = require('npm-package-arg')
 const { log } = require('proc-log')
 const semver = require('semver')
-const { URL } = require('url')
+const { URL } = require('node:url')
 const ssri = require('ssri')
 const ciInfo = require('ci-info')
 

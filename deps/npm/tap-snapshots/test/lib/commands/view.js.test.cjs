@@ -363,6 +363,153 @@ yellow@1.0.1 'claudia'
 yellow@1.0.2 'claudia'
 `
 
+exports[`test/lib/commands/view.js TAP workspaces 404 workspaces basic > must match snapshot 1`] = `
+
+[4m[36mgreen@1.0.0[39m[24m | [32mACME[39m | deps: [36m2[39m | versions: [36m2[39m
+green is a very important color
+
+[91mDEPRECATED[39m!! - true
+
+keywords: [36mcolors[39m, [36mgreen[39m, [36mcrayola[39m
+
+bin: [36mgreen[39m
+
+dist
+.tarball: [34mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum: [32m123[39m
+.integrity: [32m---[39m
+.unpackedSize: [34m1.0 GB[39m
+
+dependencies:
+[34mred[39m: 1.0.0
+[34myellow[39m: 1.0.0
+
+maintainers:
+- [34mclaudia[39m <[2mc@yellow.com[22m>
+- [34misaacs[39m <[2mi@yellow.com[22m>
+
+dist-tags:
+[34mlatest[39m: 1.0.0
+error [94mcode[39m E404
+error [94m404[39m 404
+`
+
+exports[`test/lib/commands/view.js TAP workspaces 404 workspaces json > must match snapshot 1`] = `
+{
+  "green": {
+    "_id": "green",
+    "name": "green",
+    "dist-tags": {
+      "latest": "1.0.0"
+    },
+    "maintainers": [
+      {
+        "name": "claudia",
+        "email": "c@yellow.com",
+        "twitter": "cyellow"
+      },
+      {
+        "name": "isaacs",
+        "email": "i@yellow.com",
+        "twitter": "iyellow"
+      }
+    ],
+    "keywords": [
+      "colors",
+      "green",
+      "crayola"
+    ],
+    "versions": [
+      "1.0.0",
+      "1.0.1"
+    ],
+    "version": "1.0.0",
+    "description": "green is a very important color",
+    "bugs": {
+      "url": "http://bugs.green.com"
+    },
+    "deprecated": true,
+    "repository": {
+      "url": "http://repository.green.com"
+    },
+    "license": {
+      "type": "ACME"
+    },
+    "bin": {
+      "green": "bin/green.js"
+    },
+    "dependencies": {
+      "red": "1.0.0",
+      "yellow": "1.0.0"
+    },
+    "dist": {
+      "shasum": "123",
+      "tarball": "http://hm.green.com/1.0.0.tgz",
+      "integrity": "---",
+      "fileCount": 1,
+      "unpackedSize": 1000000000
+    }
+  },
+  "error": {
+    "missing-package": {
+      "code": "E404",
+      "summary": "404",
+      "detail": ""
+    }
+  }
+}
+`
+
+exports[`test/lib/commands/view.js TAP workspaces 404 workspaces json with package named error > must match snapshot 1`] = `
+warn overwriting existing error on json output
+{
+  "error": {
+    "missing-package": {
+      "code": "E404",
+      "summary": "404",
+      "detail": ""
+    }
+  }
+}
+`
+
+exports[`test/lib/commands/view.js TAP workspaces 404 workspaces non-404 error rejects > must match snapshot 1`] = `
+
+[4m[36mgreen@1.0.0[39m[24m | [32mACME[39m | deps: [36m2[39m | versions: [36m2[39m
+green is a very important color
+
+[91mDEPRECATED[39m!! - true
+
+keywords: [36mcolors[39m, [36mgreen[39m, [36mcrayola[39m
+
+bin: [36mgreen[39m
+
+dist
+.tarball: [34mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum: [32m123[39m
+.integrity: [32m---[39m
+.unpackedSize: [34m1.0 GB[39m
+
+dependencies:
+[34mred[39m: 1.0.0
+[34myellow[39m: 1.0.0
+
+maintainers:
+- [34mclaudia[39m <[2mc@yellow.com[22m>
+- [34misaacs[39m <[2mi@yellow.com[22m>
+
+dist-tags:
+[34mlatest[39m: 1.0.0
+error Unknown error
+`
+
+exports[`test/lib/commands/view.js TAP workspaces 404 workspaces non-404 error rejects with single arg > must match snapshot 1`] = `
+green:
+1.0.0
+unknown-error:
+error Unknown error
+`
+
 exports[`test/lib/commands/view.js TAP workspaces all workspaces --json > must match snapshot 1`] = `
 {
   "green": {

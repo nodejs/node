@@ -1,4 +1,4 @@
-const { relative } = require('path')
+const { relative } = require('node:path')
 
 const Arborist = require('@npmcli/arborist')
 const npa = require('npm-package-arg')

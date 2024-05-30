@@ -1,6 +1,6 @@
-const fs = require('fs')
-const zlib = require('zlib')
-const path = require('path')
+const fs = require('node:fs')
+const zlib = require('node:zlib')
+const path = require('node:path')
 const t = require('tap')
 
 const { default: tufmock } = require('@tufjs/repo-mock')

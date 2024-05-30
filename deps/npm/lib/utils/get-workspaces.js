@@ -1,4 +1,4 @@
-const { resolve, relative } = require('path')
+const { resolve, relative } = require('node:path')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const { minimatch } = require('minimatch')
 const pkgJson = require('@npmcli/package-json')

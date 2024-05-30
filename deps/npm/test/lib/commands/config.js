@@ -1,5 +1,5 @@
-const { join } = require('path')
-const fs = require('fs/promises')
+const { join } = require('node:path')
+const fs = require('node:fs/promises')
 const ini = require('ini')
 const tspawk = require('../../fixtures/tspawk')
 const t = require('tap')

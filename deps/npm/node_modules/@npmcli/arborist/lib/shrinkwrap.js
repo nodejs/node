@@ -42,9 +42,9 @@ const {
   rm,
   stat,
   writeFile,
-} = require('fs/promises')
+} = require('node:fs/promises')
 
-const { resolve, basename, relative } = require('path')
+const { resolve, basename, relative } = require('node:path')
 const specFromLock = require('./spec-from-lock.js')
 const versionFromTgz = require('./version-from-tgz.js')
 const npa = require('npm-package-arg')

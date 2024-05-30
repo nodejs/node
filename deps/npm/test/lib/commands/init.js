@@ -1,6 +1,6 @@
 const t = require('tap')
-const fs = require('fs/promises')
-const { resolve, basename } = require('path')
+const fs = require('node:fs/promises')
+const { resolve, basename } = require('node:path')
 const _mockNpm = require('../../fixtures/mock-npm')
 const { cleanTime } = require('../../fixtures/clean-snapshot')
 

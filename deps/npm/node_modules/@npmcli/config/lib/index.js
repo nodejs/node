@@ -13,7 +13,7 @@ const {
   unlink,
   stat,
   mkdir,
-} = require('fs/promises')
+} = require('node:fs/promises')
 
 const fileExists = (...p) => stat(resolve(...p))
   .then((st) => st.isFile())

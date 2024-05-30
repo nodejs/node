@@ -6,8 +6,8 @@ const ciInfo = require('ci-info')
 const gt = require('semver/functions/gt')
 const gte = require('semver/functions/gte')
 const parse = require('semver/functions/parse')
-const { stat, writeFile } = require('fs/promises')
-const { resolve } = require('path')
+const { stat, writeFile } = require('node:fs/promises')
+const { resolve } = require('node:path')
 
 // update check frequency
 const DAILY = 1000 * 60 * 60 * 24

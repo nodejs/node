@@ -1,4 +1,4 @@
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const { output } = require('proc-log')
 const npa = require('npm-package-arg')
 const semver = require('semver')

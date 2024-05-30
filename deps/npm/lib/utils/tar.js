@@ -59,7 +59,7 @@ const getContents = async (manifest, tarball) => {
       totalEntries++
       totalEntrySize += entry.size
       const p = entry.path
-      if (p.startsWith('package/node_modules/')) {
+      if (p.startsWith('package/node_modules/') && p !== 'package/node_modules/') {
         const name = p.match(/^package\/node_modules\/((?:@[^/]+\/)?[^/]+)/)[1]
         bundled.add(name)
       }
@@ -72,7 +72,7 @@ const getContents = async (manifest, tarball) => {
   })
   stream.end(tarball)
 
-  const integrity = await ssri.fromData(tarball, {
+  const integrity = ssri.fromData(tarball, {
     algorithms: ['sha1', 'sha512'],
   })
 

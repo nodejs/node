@@ -1,4 +1,4 @@
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 const pkgJson = require('@npmcli/package-json')
 const reifyFinish = require('../utils/reify-finish.js')
 const completion = require('../utils/installed-shallow.js')

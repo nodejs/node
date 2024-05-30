@@ -1,6 +1,6 @@
-const { resolve } = require('path')
-const { lstat } = require('fs/promises')
-const cp = require('child_process')
+const { resolve } = require('node:path')
+const { lstat } = require('node:fs/promises')
+const cp = require('node:child_process')
 const completion = require('../utils/installed-shallow.js')
 const BaseCommand = require('../base-cmd.js')
 

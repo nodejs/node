@@ -1,4 +1,4 @@
-const util = require('util')
+const util = require('node:util')
 const _delete = Symbol('delete')
 const _append = Symbol('append')
 

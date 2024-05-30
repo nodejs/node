@@ -1,5 +1,5 @@
-const { resolve, basename } = require('path')
-const { unlink } = require('fs/promises')
+const { resolve, basename } = require('node:path')
+const { unlink } = require('node:fs/promises')
 const { log } = require('proc-log')
 const BaseCommand = require('../base-cmd.js')
 

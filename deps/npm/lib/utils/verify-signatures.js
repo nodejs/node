@@ -60,10 +60,7 @@ class VerifySignatures {
     }
 
     if (this.npm.config.get('json')) {
-      output.standard(JSON.stringify({
-        invalid,
-        missing,
-      }, null, 2))
+      output.buffer({ invalid, missing })
       return
     }
     const end = process.hrtime.bigint()

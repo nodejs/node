@@ -1,6 +1,6 @@
 const t = require('tap')
-const { readdirSync } = require('fs')
-const { dirname } = require('path')
+const { readdirSync } = require('node:fs')
+const { dirname } = require('node:path')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const tmock = require('../../fixtures/tmock.js')
 const validateEngines = require('../../../lib/cli/validate-engines.js')
