@@ -237,11 +237,11 @@ different package managers and methods. Select the method that matches how you i
 
 ***
 
-## Manual Installation
+## Manual installation
 
-### Removing Node.js Manually
+### Removing Node.js manually
 
-#### On MacOS or Linux:
+#### On macOS or Linux:
 
 1. **Open Terminal.**
 2. **Delete Node.js and npm:**
