@@ -1673,6 +1673,7 @@ const tsp = require('timers/promises');
     async function * ({ signal }) {
       try {
         await tsp.setTimeout(1e9, undefined, { signal });
+        yield null;
       } catch (err) {
         assert.strictEqual(err.name, 'AbortError');
         aborted = true;
