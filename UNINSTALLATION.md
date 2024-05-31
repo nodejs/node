@@ -197,9 +197,9 @@ different package managers and methods. Select the method that matches how you i
 
 ***
 
-## MacOS Prebuilt Installer
+## macOS prebuilt installer
 
-### Removing Node.js Installed via Prebuilt Installer on MacOS
+### Removing Node.js installed via prebuilt installer on macOS
 
 1. **Open Terminal.**
 2. **Delete Node.js and npm:**
