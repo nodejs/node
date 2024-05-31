@@ -104,7 +104,7 @@ class Worker : public AsyncWrap {
   uintptr_t stack_base_ = 0;
   // Optional name used for debugging in inspector and trace events.
   std::string name_;
-  static std::atomic_bool internalExists;
+  static std::atomic_bool hooksWorkerExists;
   // this mutex is to synchronize ::New calls
   static Mutex instantiationMutex;
 
