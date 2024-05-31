@@ -1666,3 +1666,22 @@ const tsp = require('timers/promises');
   }));
 
 }
+
+{
+  let aborted = false;
+  const r = pipeline(
+    async function * ({ signal }) {
+      try {
+        await tsp.setTimeout(1e6, undefined, { signal });
+      } catch (err) {
+        assert.strictEqual(err.name, 'AbortError');
+        aborted = true;
+      }
+    },
+    new PassThrough(),
+    common.mustCall(() => {
+      assert.strictEqual(aborted, true);
+    })
+  );
+  r.destroy();
+}
