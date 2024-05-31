@@ -115,6 +115,16 @@ changes:
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
 
+All hooks, despite of where they were registered (main thread or worker thread),
+are loaded and executed in a single shared thread that only serves hooks. Therefore any
+side effect present will affect all threads that use the same hook.
+
+If global data must be stored in hooks, make sure to scope it using the `thread`
+property that is present in the context of all customization hooks.
+
+All worker thread inherits the parent thread hooks chain when created. All subsequent modifications
+in the parent or worker thread do not affect other chains.
+
 ### `module.syncBuiltinESMExports()`
 
 <!-- YAML
@@ -363,7 +373,7 @@ module resolution and loading process. The exported functions must have specific
 names and signatures, and they must be exported as named exports.
 
 ```mjs
-export async function initialize({ number, port }) {
+export async function initialize({ number, port }, context) {
   // Receives data from `register`.
 }
 
@@ -404,6 +414,8 @@ added:
 > Stability: 1.2 - Release candidate
 
 * `data` {any} The data from `register(loader, import.meta.url, { data })`.
+* `context` {Object}
+  * `threadId` {string} The calling thread ID
 
 The `initialize` hook provides a way to define a custom function that runs in
 the hooks thread when the hooks module is initialized. Initialization happens
@@ -504,6 +516,8 @@ changes:
     attributes for the module to import
   * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
+  * `threadId` {string} The calling thread ID
+  * `data` {any} The data passed to `initialize`
 * `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
   Node.js default `resolve` hook after the last user-supplied `resolve` hook
   * `specifier` {string}
@@ -599,6 +613,8 @@ changes:
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain
   * `importAttributes` {Object}
+  * `threadId` {string} The calling thread ID
+  * `data` {any} The data passed to `initialize`
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
   * `specifier` {string}

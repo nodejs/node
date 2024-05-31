@@ -1,14 +1,23 @@
 import module from 'node:module';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 /** @type {string} */
 let GET_BUILTIN;
-export function initialize(data) {
+let argv;
+export function initialize(data, context) {
   GET_BUILTIN = data.GET_BUILTIN;
 }
 
 export async function resolve(specifier, context, next) {
   const def = await next(specifier, context);
+
+  const file = fileURLToPath(context.parentURL ?? 'file://');
+
+  // Only apply the hook to the entrypoint includes to avoid cycles
+  if(fileURLToPath(context.parentURL ?? 'file://') !== context.data.entrypoint) {
+    return def;
+  }
 
   if (def.url.startsWith('node:')) {
     return {

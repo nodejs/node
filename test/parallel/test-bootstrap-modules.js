@@ -216,6 +216,7 @@ if (!common.isMainThread) {
   // When we start adding modules to the worker snapshot, this branch
   // can be removed and  we can just remove the common.isMainThread
   // conditions.
+
   expected.beforePreExec.forEach(expected.atRunTime.add.bind(expected.atRunTime));
   actual.beforePreExec.forEach(actual.atRunTime.add.bind(actual.atRunTime));
 }

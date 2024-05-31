@@ -13,5 +13,6 @@ Object.defineProperty(globalThis, GET_BUILTIN, {
 register(fixtures.fileURL('es-module-loaders/builtin-named-exports-loader.mjs'), {
   data: {
     GET_BUILTIN,
+    entrypoint: process.argv.at(-1),
   },
 });

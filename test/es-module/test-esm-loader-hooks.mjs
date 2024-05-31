@@ -498,7 +498,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
       ]);
 
       assert.strictEqual(stderr, '');
-      assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', '']);
+      assert.deepStrictEqual(stdout.split('\n'), ['hooks initialize 1', 'hooks initialize 2', '']);
       assert.strictEqual(code, 0);
       assert.strictEqual(signal, null);
     });
@@ -654,7 +654,6 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout.split('\n'), [ 'hooks initialize 1',
                                                    'result 1 undefined',
-                                                   'hooks initialize 2',
                                                    'result 2 undefined',
                                                    '' ]);
       assert.strictEqual(code, 0);

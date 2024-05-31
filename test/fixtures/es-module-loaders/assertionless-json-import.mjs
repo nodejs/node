@@ -5,7 +5,9 @@ export async function resolve(specifier, context, next) {
   const noAttributesSpecified = context.importAttributes.type == null;
 
   // Mutation from resolve hook should be discarded.
-  context.importAttributes.type = 'whatever';
+  if(!Object.isSealed(context.importAttributes)) {
+    context.importAttributes.type = 'whatever';
+  }
 
   // This fixture assumes that no other resolve hooks in the chain will error on invalid import attributes
   // (as defaultResolve doesn't).

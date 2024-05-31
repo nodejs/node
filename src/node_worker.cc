@@ -496,16 +496,15 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
   CHECK(args.IsConstructCall());
-  auto creatingHooksThread = is_internal->IsTrue();
 
-  if (creatingHooksThread && hooksWorkerExists) {
-    isolate->ThrowException(ERR_HOOKS_THREAD_EXISTS(
-        isolate, "Customization hooks thread already exists"));
-    return;
-  }
-
-  if (creatingHooksThread) {
-    hooksWorkerExists = true;
+  if (is_internal->IsTrue()) {
+    if (hooksWorkerExists) {
+      isolate->ThrowException(ERR_HOOKS_THREAD_EXISTS(
+          isolate, "Customization hooks thread already exists"));
+      return;
+    } else {
+      hooksWorkerExists = true;
+    }
   }
 
   if (env->isolate_data()->platform() == nullptr) {

@@ -188,11 +188,10 @@ describe('ESM: programmatically register loaders', { concurrency: !process.env.T
     // Resolve occurs twice because it is first used to resolve the `load` loader
     // _AND THEN_ the `register` module.
     assert.match(lines[0], /resolve passthru/);
-    assert.match(lines[1], /resolve passthru/);
-    assert.match(lines[2], /load passthru/);
-    assert.match(lines[3], /Hello from dynamic import/);
+    assert.match(lines[1], /load passthru/);
+    assert.match(lines[2], /Hello from dynamic import/);
 
-    assert.strictEqual(lines[4], '');
+    assert.strictEqual(lines[3], '');
   });
 
   it('works without a CLI flag', async () => {

@@ -38,6 +38,7 @@ export async function resolve(specifier, context, next) {
     'importAttributes',
     'parentURL',
     'threadId',
+    'data'
   ]);
   assert.ok(Array.isArray(context.conditions));
   assert.strictEqual(typeof next, 'function');
@@ -75,6 +76,8 @@ export async function load(url, context, next) {
   assert.deepStrictEqual(Object.keys(context), [
     'format',
     'importAttributes',
+    'threadId',
+    'data'
   ]);
   assert.strictEqual(context.format, 'test');
   assert.strictEqual(typeof next, 'function');

@@ -16,24 +16,35 @@ describe('off-thread hooks', { concurrency: true }, () => {
       fixtures.path('es-module-loaders/workers-spawned.mjs'),
     ]);
 
+
     strictEqual(stderr, '');
     strictEqual(stdout.split('\n').filter((line) => line.startsWith('initialize')).length, 1);
     strictEqual(stdout.split('\n').filter((line) => line === 'foo').length, 2);
     strictEqual(stdout.split('\n').filter((line) => line === 'bar').length, 4);
+
+    //
     // Calls to resolve/load:
-    // 1x  main script: test/fixtures/es-module-loaders/workers-spawned.mjs
-    // 3x worker_threads
-    //    => 1x test/fixtures/es-module-loaders/worker-log.mjs
-    //       2x test/fixtures/es-module-loaders/worker-log-again.mjs => once per worker-log.mjs Worker instance
-    // 2x test/fixtures/es-module-loaders/worker-log.mjs => once per worker-log.mjs Worker instance
-    // 4x test/fixtures/es-module-loaders/worker-log-again.mjs => 2x for each worker-log
-    // 6x module-named-exports.mjs => 2x worker-log.mjs + 4x worker-log-again.mjs
-    // ===========================
-    // 16 calls to resolve + 16 calls to load hook for the registered custom loader
-    // 6 additional calls to resolve because of the module.register being allowed from worker threads (happens
-    // implicitly because of the --import on the main thread)
-    strictEqual(stdout.split('\n').filter((line) => line.startsWith('hooked resolve')).length, 22);
-    strictEqual(stdout.split('\n').filter((line) => line.startsWith('hooked load')).length, 16);
+    //
+    // 1x  test/fixtures/es-module-loaders/workers-spawned.mjs
+    //   1x worker_threads
+    //     2x (1 per each worker spawned in workers-spawned.mjs)
+    //       1x  data:text/javascript
+    //         1x node:module
+    //         1x ./worker-log.mjs
+    //           1x worker_threads
+    //           1x ./module-named-exports.mjs
+    //       Total: 4
+    //     4x (2x per each worker spawned in ./worker-log.mjs)
+    //       1x  data:text/javascript
+    //       1x node:module
+    //         1x ./module-named-exports.mjs
+    //         1x ./worker-log-again.mjs
+    //       Total: 4
+    // --------------------------------------------------------
+    // Sum: 1 + 1 + 2 * 5 + 4 * 4 = 28
+    //
+    strictEqual(stdout.split('\n').filter((line) => line.startsWith('hooked resolve')).length, 28);
+    strictEqual(stdout.split('\n').filter((line) => line.startsWith('hooked load')).length, 28);
     strictEqual(code, 0);
     strictEqual(signal, null);
   });
