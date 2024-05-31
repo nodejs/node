@@ -61,6 +61,11 @@ for (const moduleName of builtinModules) {
     'navigator',
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
+  expected.forEach((value) => {
+    if (typeof global[value] === 'function') {
+      assert.strictEqual(global[value].name, value);
+    }
+  });
 }
 
 common.allowGlobals('bar', 'foo');
