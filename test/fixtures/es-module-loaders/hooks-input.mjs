@@ -37,6 +37,7 @@ export async function resolve(specifier, context, next) {
     'conditions',
     'importAttributes',
     'parentURL',
+    'threadId',
   ]);
   assert.ok(Array.isArray(context.conditions));
   assert.strictEqual(typeof next, 'function');
