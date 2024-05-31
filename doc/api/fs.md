@@ -2477,6 +2477,7 @@ changes:
   * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.
