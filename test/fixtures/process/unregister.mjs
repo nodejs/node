@@ -2,10 +2,10 @@ import { strictEqual } from 'assert'
 
 function setup() {
   const obj = { foo: 'bar' }
-  process.registerFreeOnExit(obj, shutdown)
+  process.finalization.register(obj, shutdown)
   setImmediate(function () {
-    process.unregisterFree(obj)
-    process.unregisterFree(obj) // twice, this should not throw
+    process.finalization.unregister(obj)
+    process.finalization.unregister(obj) // twice, this should not throw
   })
 }
 

@@ -2,7 +2,7 @@ import { strictEqual } from 'assert'
 
 function setup() {
   const obj = { foo: 'bar' }
-  process.registerFreeOnBeforeExit(obj, shutdown)
+  process.finalization.registerBeforeExit(obj, shutdown)
 }
 
 let shutdownCalled = false
@@ -14,7 +14,7 @@ function shutdown(obj, event) {
     setTimeout(function () {
       timeoutFinished = true
       strictEqual(obj.foo, 'bar')
-      process.unregisterFree(obj)
+      process.finalization.unregister(obj)
     }, 100)
     process.on('beforeExit', function () {
       strictEqual(timeoutFinished, true)

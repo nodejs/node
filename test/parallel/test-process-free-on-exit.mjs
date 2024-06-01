@@ -25,7 +25,7 @@ for (const file of files) {
 }
 
 it('register is different per thread', () => {
-  spawnSyncAndAssert(process.execPath, ['--expose-gc', `different-registry-per-thread.mjs`], {
+  spawnSyncAndAssert(process.execPath, ['--expose-gc', 'different-registry-per-thread.mjs'], {
     cwd: fixtures.path('process'),
   }, {
     code: 0,
@@ -35,7 +35,7 @@ it('register is different per thread', () => {
 
 it('should throw when register undefined value', () => {
   try {
-    process.registerFreeOnExit(undefined);
+    process.finalization.register(undefined);
 
     assert.fail('Expected an error to be thrown for registerFreeOnExit');
   } catch (e) {
@@ -43,7 +43,7 @@ it('should throw when register undefined value', () => {
   }
 
   try {
-    process.registerFreeOnBeforeExit(undefined);
+    process.finalization.registerBeforeExit(undefined);
 
     assert.fail('Expected an error to be thrown for registerFreeOnBeforeExit');
   } catch (e) {

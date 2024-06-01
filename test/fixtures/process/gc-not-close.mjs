@@ -2,7 +2,7 @@ import { strictEqual } from 'assert'
 
 function setup() {
   let obj = { foo: 'bar' }
-  process.registerFreeOnExit(obj, shutdown)
+  process.finalization.register(obj, shutdown)
   setImmediate(function () {
     obj = undefined
     gc()

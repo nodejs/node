@@ -1,7 +1,7 @@
 import { isMainThread, Worker } from 'node:worker_threads';
 
 if (isMainThread) {
-  process.registerFreeOnExit({ foo: 'foo' }, () => {
+  process.finalization.register({ foo: 'foo' }, () => {
     process.stdout.write('shutdown on main thread\n');
   });
 
@@ -9,7 +9,7 @@ if (isMainThread) {
 
   worker.postMessage('ping');
 } else {
-  process.registerFreeOnExit({ foo: 'bar' }, () => {
+  process.finalization.register({ foo: 'bar' }, () => {
     process.stdout.write('shutdown on worker\n');
   });
 }
