@@ -345,8 +345,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line @stylistic/js/max-len
-          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 0'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6. Received 0'
         });
       });
 
@@ -360,8 +359,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          // eslint-disable-next-line @stylistic/js/max-len
-          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 7'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6. Received 7'
         });
       });
 

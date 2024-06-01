@@ -238,7 +238,7 @@ const testFixtures = fixtures.path('test-runner');
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
-  assert.match(child.stderr.toString(), /The value of "options\.shard\.index" is out of range\. It must be >= 1 && <= 3 \("options\.shard\.total"\)\. Received 0/);
+  assert.match(child.stderr.toString(), /The value of "options\.shard\.index" is out of range\. It must be >= 1 && <= 3\. Received 0/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
 }
