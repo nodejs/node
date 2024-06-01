@@ -456,6 +456,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
             kAllowedInEnvvar);
+  AddOption("--allow-wasi",
+            "allow wasi when any permissions are set",
+            &EnvironmentOptions::allow_wasi,
+            kAllowedInEnvvar);
   AddOption("--allow-worker",
             "allow worker threads when any permissions are set",
             &EnvironmentOptions::allow_worker_threads,

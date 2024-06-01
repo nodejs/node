@@ -269,6 +269,53 @@ Examples can be found in the [File System Permissions][] documentation.
 
 Relative paths are NOT supported through the CLI flag.
 
+### `--allow-wasi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be capable of creating
+any WASI instances by default.
+For security reasons, the call will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the flag `--allow-wasi` in the main Node.js process.
+
+Example:
+
+```js
+const { WASI } = require('node:wasi');
+// Attempt to bypass the permission
+new WASI({
+  version: 'preview1',
+  // Attempt to mount the whole filesystem
+  preopens: {
+    '/': '/',
+  },
+});
+```
+
+```console
+$ node --experimental-permission --allow-fs-read=* index.js
+node:wasi:99
+    const wrap = new _WASI(args, env, preopens, stdio);
+                 ^
+
+Error: Access to this API has been restricted
+    at new WASI (node:wasi:99:18)
+    at Object.<anonymous> (/home/index.js:3:1)
+    at Module._compile (node:internal/modules/cjs/loader:1476:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1555:10)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:191:14)
+    at node:internal/main/run_main_module:30:49 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'WASI',
+}
+```
+
 ### `--allow-worker`
 
 <!-- YAML
@@ -927,6 +974,7 @@ following permissions are restricted:
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
+* WASI - manageable through [`--allow-wasi`][] flag
 
 ### `--experimental-require-module`
 
@@ -2693,6 +2741,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
+* `--allow-wasi`
 * `--allow-worker`
 * `--conditions`, `-C`
 * `--diagnostic-dir`
@@ -3241,6 +3290,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
+[`--allow-wasi`]: #--allow-wasi
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
