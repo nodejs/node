@@ -11,10 +11,11 @@ const files = [
   'before-exit.mjs',
   'gc-not-close.mjs',
   'unregister.mjs',
+  'different-registry-per-thread.mjs',
 ];
 
 for (const file of files) {
-  it(`should exit file ${file} with code=0`, async () => {
+  it(`should exit file ${file} with code=0`, () => {
     spawnSyncAndAssert(process.execPath, ['--expose-gc', `${file}`], {
       cwd: fixtures.path('process'),
     }, {
@@ -22,6 +23,15 @@ for (const file of files) {
     });
   });
 }
+
+it('register is different per thread', () => {
+  spawnSyncAndAssert(process.execPath, ['--expose-gc', `different-registry-per-thread.mjs`], {
+    cwd: fixtures.path('process'),
+  }, {
+    code: 0,
+    stdout: 'shutdown on worker\nshutdown on main thread\n',
+  });
+});
 
 it('should throw when register undefined value', () => {
   try {
