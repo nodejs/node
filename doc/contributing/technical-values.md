@@ -1,84 +1,52 @@
-# Technical values and their priorities
+# Technical values and priorities
 
-The project uses these technical values to establish priorities and guide
-collaboration.
+These shared values are current as of this writing and are subject to evolution. They are intended to assist
+newcomers in understanding which contributions align with our current direction and serve as reference points
+when balancing conflicting objectives. Factors influencing each discussion or decision vary, and priority 1
+doesn't always override priority 2 and so forth.
 
-These are the shared values as of this writing and will
-evolve. We hope they are useful to people new
-to the project in order to better understand which contributions
-will be aligned with the current direction and as thinking
-points when trading off between conflicting goals.
+## Priority 1 - Developer experience
 
-The factors influencing every discussion/decision are
-different and priority 1 does not always trump priority 2
-and so on.
+We're devoted to making life easier and more enjoyable for developers working with Node.js. Here's how we do it:
 
-## Values and priority level
+* **Approachability:** Making our technical resources and community easily accessible.
+* **Comprehensive Documentation:** Providing crystal-clear, thorough guides.
+* **Minimized Friction:** Offering APIs and components to smooth out the development process.
+* **Compatibility and Interoperability:** Ensuring your code runs seamlessly across different setups.
+* **Support for External Packages:** Improving the overall developer experience by welcoming external contributions.
 
-* Priority 1 - Developer experience
-* Priority 2 - Stability
-* Priority 3 - Operational qualities
-* Priority 4 - Node.js maintainer experience
-* Priority 5 - Up to date technology and APIs
+## Priority 2 - Stability
 
-## Value descriptions
+We're committed to keeping things steady and stable whenever possible. Here's how:
 
-### 1 - Developer experience
+* **Backward Compatibility:** New versions play nice with the old ones.
+* **Predictable Release Schedule:** You can rely on us to keep things consistent.
+* **Robust Testing:** We thoroughly check how changes affect popular packages.
+* **Careful LTS Release Management:** Choosing LTS features thoughtfully for Long Term Support.
 
-We value ensuring that developers are productive and enjoy developing
-with Node.js. Some key elements of this include:
+## Priority 3 - Operational qualities
 
-* Approachability (both technical and community)
-* Great documentation
-* Bundling friction-reducing APIs and components, even though
-  they could be provided externally
-* Compatibility and interoperability with browsers and other JavaScript
-  environments so that as much code as possible runs as is both in Node.js and
-  in the other environments
-* Enabling/supporting external packages to ensure overall developer experience
+We take pride in keeping Node.js safe, fast, and efficient. Here's what we focus on:
 
-### 2 - Stability
+* **High Throughput:** Prioritizing speed.
+* **Fast Startup:** Minimizing wait times.
+* **Resource Efficiency:** Keeping things light on memory and disk space.
+* **Diagnostic and Debugging Tools:** Making troubleshooting a quick and easy process.
+* **Security Practices:** Ensuring your code stays safe.
 
-Whenever possible, we seek to ensure that working code continues to work. To
-keep the trust of developers and users, we value stability.
-Some key elements of this include:
+## Priority 4 - Maintainer experience
 
-* Backward compatibility
-* Stable releases on a predictable schedule
-* A strong safety net, including testing how changes
-  in Node.js affect popular packages
-* Careful consideration of what goes into Long Term Support (LTS) releases
+We care about the people who keep Node.js running smoothly. Here's how we support them:
 
-### 3 - Operational qualities
+* **Codebase Approachability:** Making our code easy to navigate and understand.
+* **Internal Documentation:** Providing detailed guides for maintainers.
+* **Streamlined Processes:** Keeping policies and workflows hassle-free.
+* **Effective CI and Tooling:** Tools to boost maintainer productivity.
 
-We value keeping Node.js safe, performant, and lightweight.
-We value enabling the ability to investigate and debug problems in
-development and production. Some key elements of this include:
+## Priority 5 - Up-to-date technology and APIs
 
-* High throughput (speed)
-* Fast startup
-* Small binary size
-* Small memory footprint
-* High-quality debugging tools
-* Robust diagnostic tools (profilers, etc.)
-* Responsible security practices
+We're all about keeping things in line with the latest standards. Here's what we focus on:
 
-### 4 - Node.js maintainer experience
-
-We value the productivity and happiness of the Node.js maintainers.
-Some key elements of this include:
-
-* Approachability of the codebase
-* Good internal documentation and guides
-* Low-friction policies and processes
-* Good CI and tooling to make maintainers productive
-
-### 5 - Up to date technology and APIs
-
-We value providing developers with modern APIs and technologies
-following existing standards whenever possible.
-Some key elements of this include:
-
-* Participating in standards work and organizations
-* Web API compatibility
-* Supporting and exposing new technologies and standards through early adoption
+* **Standards Participation:** Being actively involved in standardization efforts.
+* **Web API Compatibility:** Making sure we're on the same page as web standards.
+* **Early Adoption of New Technologies:** Leading the pack with emerging standards through early implementation.
