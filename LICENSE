@@ -2379,7 +2379,7 @@ The externally maintained libraries used by Node.js are:
      ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   """
 
-- on-exit-leak-free, located at lib/internal/process/finalizer, is licensed as follows:
+- on-exit-leak-free, located at lib/internal/process/finalization, is licensed as follows:
   """
     MIT License
 
