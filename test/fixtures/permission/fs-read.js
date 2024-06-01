@@ -387,6 +387,17 @@ const regularFile = __filename;
   }));
 }
 
+// process.chdir
+{
+  assert.throws(() => {
+    process.chdir(blockedFolder);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: blockedFolder,
+  }));
+}
+
 // fs.lstat
 {
   assert.throws(() => {
