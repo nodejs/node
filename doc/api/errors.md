@@ -2621,9 +2621,9 @@ or a pipeline ends non gracefully with no explicit error.
 An attempt was made to call [`stream.push()`][] after a `null`(EOF) had been
 pushed to the stream.
 
-<a id="ERR_STREAM_UNABLE_TO_PIIPE"></a>
+<a id="ERR_STREAM_UNABLE_TO_PIPE"></a>
 
-### `ERR_STREAM_UNABLE_TO_PIIPE`
+### `ERR_STREAM_UNABLE_TO_PIPE`
 
 An attempt was made to pipe to a closed or destroyed stream in a pipeline.
 

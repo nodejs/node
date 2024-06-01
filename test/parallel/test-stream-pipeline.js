@@ -79,7 +79,7 @@ tmpdir.refresh();
     const close = promisify(write.close);
     await close.call(write);
     await pipelinep(read, write);
-  }, /ERR_STREAM_UNABLE_TO_PIIPE/).then(common.mustCall());
+  }, /ERR_STREAM_UNABLE_TO_PIPE/).then(common.mustCall());
 }
 
 {
