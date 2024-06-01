@@ -1897,6 +1897,211 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
+## `process.finalization.register(ref, callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `ref` {Object | string | number | Symbol | Function | BigInt} The reference
+  to the resource that is being tracked.
+* `callback` {Function} The callback function to be called when the resource
+  is finalized.
+  * `ref` {Object | string | number | Symbol | Function | BigInt} The reference to the resource that is being tracked.
+  * `event` {'exit'} The event that triggered the finalization.
+
+This function registers a callback to be called when the resource is
+finalized, via garbage collection or when the process emits the `exit` event.
+
+Inside the callback, you can do whatever you want with the object,
+including freeing resources allocated by that resource.
+
+Caveats: This function relies on the `FinalizationRegistry` API, which the
+authors of this API said to "avoid where possible" because the nature of
+how the garbage collector works differently between engines, there's no
+specific behavior guarantee by the specification. In their words:
+"Developers shouldn't rely on cleanup callbacks for essential program
+logic. Cleanup callbacks may be useful for reducing memory usage across
+the course of a program, but are unlikely to be useful otherwise". You
+can read more about the caveats at [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry#avoid_where_possible)
+or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=readme-ov-file#a-note-of-caution).
+
+Although you don't know exactly when the callback will be called because of
+the GC, you can be sure the callback will be called at least once when the
+process exits.
+
+If the object is garbage collected before the `exit` event is emitted, the
+callback will be called and will unregister the object from the finalization
+registry to not be called again.
+
+```cjs
+const { finalization } = require('node:process');
+
+const myDisposableObject = {
+  dispose() {
+    // Free your resources synchronously
+  },
+};
+
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+finalization.register(myDisposableObject, onFinalize);
+```
+
+```mjs
+import { finalization } from 'node:process';
+
+const myDisposableObject = {
+  dispose() {
+    // Free your resources synchronously
+  },
+};
+
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+finalization.register(myDisposableObject, onFinalize);
+```
+
+## `process.finalization.registerBeforeExit(ref, callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `ref` {Object | string | number | Symbol | Function | BigInt} The reference
+  to the resource that is being tracked.
+* `callback` {Function} The callback function to be called when the resource
+  is finalized.
+  * `ref` {Object | string | number | Symbol | Function | BigInt} The reference to the resource that is being tracked.
+  * `event` {'beforeExit'} The event that triggered the finalization.
+
+This function registers a callback to be called when the resource is
+finalized, via garbage collection or when the process emits the
+`beforeExit` event.
+
+Inside the callback, you can do whatever you want with the object,
+including freeing resources allocated by that resource.
+
+Caveats: This function relies on the `FinalizationRegistry` API, which the
+authors of this API said to "avoid where possible" because the nature of how
+the garbage collector works differently between engines, there's no specific
+behavior guarantee by the specification. In their words: "Developers
+shouldn't rely on cleanup callbacks for essential program logic. Cleanup
+callbacks may be useful for reducing memory usage across the course of a
+program, but are unlikely to be useful otherwise". You can read more about
+the caveats at [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry#avoid_where_possible)
+or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=readme-ov-file#a-note-of-caution).
+
+Although you don't know exactly when the callback will be called because of
+the GC, you can be sure the callback will be called at least once when the
+process exits.
+
+If the object is garbage collected before the event `beforeExit` is emitted,
+the callback will be called and will unregister the object from the
+finalization registry to not be called again.
+
+```cjs
+const { finalization } = require('node:process');
+
+const myDisposableObject = {
+  dispose() {
+    // Free your resources synchronously
+  },
+};
+
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+finalization.registerBeforeExit(myDisposableObject, onFinalize);
+```
+
+```mjs
+import { finalization } from 'node:process';
+
+const myDisposableObject = {
+  dispose() {
+    // Free your resources synchronously
+  },
+};
+
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+finalization.registerBeforeExit(myDisposableObject, onFinalize);
+```
+
+## `process.finalization.unregister(ref)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `ref` {Object | string | number | Symbol | Function | BigInt} The reference
+  to the resource that was registered previously.
+
+This function remove the register of the object from the finalization
+registry, so the callback will not be called anymore.
+
+```cjs
+const { finalization } = require('node:process');
+
+const myDisposableObject = {
+  dispose() {
+    // Free your resources synchronously
+  },
+};
+
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+finalization.registerBeforeExit(myDisposableObject, onFinalize);
+
+// Do something
+
+myDisposableObject.dispose();
+finalization.unregister(myDisposableObject);
+```
+
+```mjs
+import { finalization } from 'node:process';
+
+const myDisposableObject = {
+  dispose() {
+    // Free your resources synchronously
+  },
+};
+
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+finalization.registerBeforeExit(myDisposableObject, onFinalize);
+
+// Do something
+
+myDisposableObject.dispose();
+finalization.unregister(myDisposableObject);
+```
+
 ## `process.getActiveResourcesInfo()`
 
 <!-- YAML
