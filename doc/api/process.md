@@ -1909,7 +1909,7 @@ added: REPLACEME
 * `callback` {Function} The callback function to be called when the resource
   is finalized.
   * `ref` {Object | Function} The reference to the resource that is being tracked.
-  * `event` {'exit'} The event that triggered the finalization.
+  * `event` {string} The event that triggered the finalization. Defaults to 'exit'.
 
 This function registers a callback to be called when the resource is
 finalized, via garbage collection or when the process emits the `exit` event.
@@ -1982,7 +1982,7 @@ added: REPLACEME
 * `callback` {Function} The callback function to be called when the resource
   is finalized.
   * `ref` {Object | Function} The reference to the resource that is being tracked.
-  * `event` {'beforeExit'} The event that triggered the finalization.
+  * `event` {string} The event that triggered the finalization. Defaults to 'beforeExit'.
 
 This function registers a callback to be called when the resource is
 finalized, via garbage collection or when the process emits the
