@@ -39,7 +39,7 @@ it('should throw when register undefined value', () => {
 
     assert.fail('Expected an error to be thrown for registerFreeOnExit');
   } catch (e) {
-    assert.ok(e.message.includes('must be not undefined'), `Expected error message to include 'Invalid' but got: ${e.message}`);
+    assert.ok(e.message.includes('must be of type object'), `Expected error message to include 'Invalid' but got: ${e.message}`);
   }
 
   try {
@@ -47,6 +47,6 @@ it('should throw when register undefined value', () => {
 
     assert.fail('Expected an error to be thrown for registerFreeOnBeforeExit');
   } catch (e) {
-    assert.ok(e.message.includes('must be not undefined'), `Expected error message to include 'Invalid' but got: ${e.message}`);
+    assert.ok(e.message.includes('must be of type object'), `Expected error message to include 'Invalid' but got: ${e.message}`);
   }
 });

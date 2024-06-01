@@ -1905,11 +1905,10 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-* `ref` {Object | string | number | Symbol | Function | BigInt} The reference
-  to the resource that is being tracked.
+* `ref` {Object | Function} The reference to the resource that is being tracked.
 * `callback` {Function} The callback function to be called when the resource
   is finalized.
-  * `ref` {Object | string | number | Symbol | Function | BigInt} The reference to the resource that is being tracked.
+  * `ref` {Object | Function} The reference to the resource that is being tracked.
   * `event` {'exit'} The event that triggered the finalization.
 
 This function registers a callback to be called when the resource is
@@ -1978,11 +1977,11 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-* `ref` {Object | string | number | Symbol | Function | BigInt} The reference
+* `ref` {Object | Function} The reference
   to the resource that is being tracked.
 * `callback` {Function} The callback function to be called when the resource
   is finalized.
-  * `ref` {Object | string | number | Symbol | Function | BigInt} The reference to the resource that is being tracked.
+  * `ref` {Object | Function} The reference to the resource that is being tracked.
   * `event` {'beforeExit'} The event that triggered the finalization.
 
 This function registers a callback to be called when the resource is
@@ -2052,7 +2051,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-* `ref` {Object | string | number | Symbol | Function | BigInt} The reference
+* `ref` {Object | Function} The reference
   to the resource that was registered previously.
 
 This function remove the register of the object from the finalization
