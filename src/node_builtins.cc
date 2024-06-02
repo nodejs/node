@@ -132,6 +132,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
+#if !NODE_OPENSSL_HAS_QUIC
+        "internal/quic/quic",
+#endif             // !NODE_OPENSSL_HAS_QUIC
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
         "wasi",    // Experimental.
