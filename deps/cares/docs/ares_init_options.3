@@ -11,6 +11,11 @@ ares_init_options, ares_init \- Initialize a resolver channel
 .nf
 #include <ares.h>
 
+struct ares_server_failover_options {
+  unsigned short retry_chance;
+  size_t retry_delay;
+};
+
 struct ares_options {
   int flags;
   int timeout; /* in seconds or milliseconds, depending on options */
@@ -36,6 +41,7 @@ struct ares_options {
   int maxtimeout; /* in milliseconds */
   unsigned int qcache_max_ttl; /* in seconds */
   ares_evsys_t evsys;
+  struct ares_server_failover_options server_failover_opts;
 };
 
 int ares_init_options(ares_channel_t **\fIchannelptr\fP,
@@ -309,12 +315,33 @@ When enabled, the integrator is no longer responsible for notifying c-ares of
 any events on the file descriptors, so \fIares_process(3)\fP nor
 \fIares_process_fd(3)\fP should ever be called when this option is enabled.
 
+As of c-ares 1.29.0, when enabled, it will also automatically re-load the
+system configuration when changes are detected.
+
 Use \fIares_threadsafety(3)\fP to determine if this option is available to be
 used.
 
 Returns \fBARES_ENOTIMP\fP if this option is passed but not available, and
 \fBARES_ESERVFAIL\fP if there is a critical failure during initialization of
 the event thread.
+.br
+.TP 18
+.B ARES_OPT_SERVER_FAILOVER
+.B struct ares_server_failover_options \fIserver_failover_opts\fP;
+.br
+Configure server failover retry behavior.  When a DNS server fails to
+respond to a query, c-ares will deprioritize the server.  On subsequent
+queries, servers with fewer consecutive failures will be selected in
+preference.  However, in order to detect when such a server has recovered,
+c-ares will occasionally retry failed servers.  The
+\fIares_server_failover_options\fP structure contains options to control this
+behavior.
+The \fIretry_chance\fP field gives the probability (1/N) of retrying a
+failed server on any given query.  Setting to a value of 0 disables retries.
+The \fIretry_delay\fP field gives the minimum delay in milliseconds that c-ares
+will wait before retrying a specific failed server.
+If this option is not specificed then c-ares will use a probability of 10%
+and a minimum delay of 5 seconds.
 .br
 .PP
 The \fIoptmask\fP parameter also includes options without a corresponding
@@ -371,9 +398,3 @@ manual page.
 .BR ares_set_servers (3),
 .BR ares_set_sortlist (3),
 .BR ares_threadsafety (3)
-.SH AUTHOR
-Greg Hudson, MIT Information Systems
-.br
-Copyright 1998 by the Massachusetts Institute of Technology.
-.br
-Copyright (C) 2004-2010 by Daniel Stenberg.

@@ -55,8 +55,8 @@ void ares__timeval_remaining(struct timeval       *remaining,
   }
 }
 
-struct timeval *ares_timeout(ares_channel_t *channel, struct timeval *maxtv,
-                             struct timeval *tvbuf)
+struct timeval *ares_timeout(const ares_channel_t *channel,
+                             struct timeval *maxtv, struct timeval *tvbuf)
 {
   const struct query *query;
   ares__slist_node_t *node;

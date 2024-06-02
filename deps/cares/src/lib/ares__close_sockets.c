@@ -97,6 +97,14 @@ void ares__check_cleanup_conn(const ares_channel_t     *channel,
     do_cleanup = ARES_TRUE;
   }
 
+  /* If the associated server has failures, close it out. Resetting the
+   * connection (and specifically the source port number) can help resolve
+   * situations where packets are being dropped.
+   */
+  if (conn->server->consec_failures > 0) {
+    do_cleanup = ARES_TRUE;
+  }
+
   /* If the udp connection hit its max queries, always close it */
   if (!conn->is_tcp && channel->udp_max_queries > 0 &&
       conn->total_queries >= channel->udp_max_queries) {

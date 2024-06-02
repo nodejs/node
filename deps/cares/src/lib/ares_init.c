@@ -65,6 +65,7 @@
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
 #include "ares_private.h"
+#include "ares_event.h"
 
 #ifdef WATT32
 #  undef WIN32 /* Redefined in MingW/MSVC headers */
@@ -256,6 +257,12 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
     }
   }
 
+  /* Set default fields for server failover behavior */
+  if (!(channel->optmask & ARES_OPT_SERVER_FAILOVER)) {
+    channel->server_retry_chance = DEFAULT_SERVER_RETRY_CHANCE;
+    channel->server_retry_delay  = DEFAULT_SERVER_RETRY_DELAY;
+  }
+
 error:
   if (hostname) {
     ares_free(hostname);
@@ -373,10 +380,21 @@ int ares_init_options(ares_channel_t           **channelptr,
 
   /* Initialize the event thread */
   if (channel->optmask & ARES_OPT_EVENT_THREAD) {
+    ares_event_thread_t *e = NULL;
+
     status = ares_event_thread_init(channel);
     if (status != ARES_SUCCESS) {
       goto done;
     }
+
+    /* Initialize monitor for configuration changes.  In some rare cases,
+     * ARES_ENOTIMP may occur (OpenWatcom), ignore this. */
+    e      = channel->sock_state_cb_data;
+    status = ares_event_configchg_init(&e->configchg, e);
+    if (status != ARES_SUCCESS && status != ARES_ENOTIMP) {
+      goto done;
+    }
+    status = ARES_SUCCESS;
   }
 
 done:
@@ -389,9 +407,35 @@ done:
   return ARES_SUCCESS;
 }
 
+static void *ares_reinit_thread(void *arg)
+{
+  ares_channel_t *channel = arg;
+  ares_status_t   status;
+
+  /* ares__init_by_sysconfig() will lock when applying the config, but not
+   * when retrieving. */
+  status = ares__init_by_sysconfig(channel);
+  if (status != ARES_SUCCESS) {
+    DEBUGF(fprintf(stderr, "Error: init_by_sysconfig failed: %s\n",
+                   ares_strerror(status)));
+  }
+
+  ares__channel_lock(channel);
+
+  /* Flush cached queries on reinit */
+  if (status == ARES_SUCCESS && channel->qcache) {
+    ares__qcache_flush(channel->qcache);
+  }
+
+  channel->reinit_pending = ARES_FALSE;
+  ares__channel_unlock(channel);
+
+  return NULL;
+}
+
 ares_status_t ares_reinit(ares_channel_t *channel)
 {
-  ares_status_t status;
+  ares_status_t status = ARES_SUCCESS;
 
   if (channel == NULL) {
     return ARES_EFORMERR;
@@ -399,25 +443,42 @@ ares_status_t ares_reinit(ares_channel_t *channel)
 
   ares__channel_lock(channel);
 
-  status = ares__init_by_sysconfig(channel);
-  if (status != ARES_SUCCESS) {
-    DEBUGF(fprintf(stderr, "Error: init_by_sysconfig failed: %s\n",
-                   ares_strerror(status)));
+  /* If a reinit is already in process, lets not do it again */
+  if (channel->reinit_pending) {
+    ares__channel_unlock(channel);
+    return ARES_SUCCESS;
   }
-
-  /* Flush cached queries on reinit */
-  if (channel->qcache) {
-    ares__qcache_flush(channel->qcache);
-  }
-
+  channel->reinit_pending = ARES_TRUE;
   ares__channel_unlock(channel);
+
+  if (ares_threadsafety()) {
+    /* clean up the prior reinit process's thread.  We know the thread isn't
+     * running since reinit_pending was false */
+    if (channel->reinit_thread != NULL) {
+      void *rv;
+      ares__thread_join(channel->reinit_thread, &rv);
+      channel->reinit_thread = NULL;
+    }
+
+    /* Spawn a new thread */
+    status =
+      ares__thread_create(&channel->reinit_thread, ares_reinit_thread, channel);
+    if (status != ARES_SUCCESS) {
+      ares__channel_lock(channel);
+      channel->reinit_pending = ARES_FALSE;
+      ares__channel_unlock(channel);
+    }
+  } else {
+    /* Threading support not available, call directly */
+    ares_reinit_thread(channel);
+  }
 
   return status;
 }
 
 /* ares_dup() duplicates a channel handle with all its options and returns a
    new channel handle */
-int ares_dup(ares_channel_t **dest, ares_channel_t *src)
+int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
 {
   struct ares_options opts;
   ares_status_t       rc;
@@ -450,12 +511,14 @@ int ares_dup(ares_channel_t **dest, ares_channel_t *src)
 
   /* Now clone the options that ares_save_options() doesn't support, but are
    * user-provided */
-  (*dest)->sock_create_cb      = src->sock_create_cb;
-  (*dest)->sock_create_cb_data = src->sock_create_cb_data;
-  (*dest)->sock_config_cb      = src->sock_config_cb;
-  (*dest)->sock_config_cb_data = src->sock_config_cb_data;
-  (*dest)->sock_funcs          = src->sock_funcs;
-  (*dest)->sock_func_cb_data   = src->sock_func_cb_data;
+  (*dest)->sock_create_cb       = src->sock_create_cb;
+  (*dest)->sock_create_cb_data  = src->sock_create_cb_data;
+  (*dest)->sock_config_cb       = src->sock_config_cb;
+  (*dest)->sock_config_cb_data  = src->sock_config_cb_data;
+  (*dest)->sock_funcs           = src->sock_funcs;
+  (*dest)->sock_func_cb_data    = src->sock_func_cb_data;
+  (*dest)->server_state_cb      = src->server_state_cb;
+  (*dest)->server_state_cb_data = src->server_state_cb_data;
 
   ares_strcpy((*dest)->local_dev_name, src->local_dev_name,
               sizeof((*dest)->local_dev_name));
