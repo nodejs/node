@@ -641,14 +641,6 @@ Object.defineProperties(Headers.prototype, {
   },
   [util.inspect.custom]: {
     enumerable: false
-  },
-  // Compatibility for global headers
-  [Symbol('headers list')]: {
-    configurable: false,
-    enumerable: false,
-    get: function () {
-      return getHeadersList(this)
-    }
   }
 })
 
