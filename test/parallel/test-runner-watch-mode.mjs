@@ -3,7 +3,7 @@ import * as common from '../common/index.mjs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
@@ -30,7 +30,7 @@ const fixturePaths = Object.keys(fixtureContent)
 Object.entries(fixtureContent)
   .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 
-async function testWatch({ fileToUpdate, file }) {
+async function testWatch({ fileToUpdate, file, action = 'update' }) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath,
@@ -48,22 +48,64 @@ async function testWatch({ fileToUpdate, file }) {
     if (testRuns?.length >= 2) ran2.resolve();
   });
 
-  await ran1.promise;
-  runs.push(currentRun);
-  currentRun = '';
-  const content = fixtureContent[fileToUpdate];
-  const path = fixturePaths[fileToUpdate];
-  const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
-  await ran2.promise;
-  runs.push(currentRun);
-  clearInterval(interval);
-  child.kill();
-  for (const run of runs) {
-    assert.match(run, /# tests 1/);
-    assert.match(run, /# pass 1/);
-    assert.match(run, /# fail 0/);
-    assert.match(run, /# cancelled 0/);
-  }
+  const testUpdate = async () => {
+    await ran1.promise;
+    const content = fixtureContent[fileToUpdate];
+    const path = fixturePaths[fileToUpdate];
+    const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
+    await ran2.promise;
+    runs.push(currentRun);
+    clearInterval(interval);
+    child.kill();
+    for (const run of runs) {
+      assert.match(run, /# tests 1/);
+      assert.match(run, /# pass 1/);
+      assert.match(run, /# fail 0/);
+      assert.match(run, /# cancelled 0/);
+    }
+  };
+
+  const testRename = async () => {
+    await ran1.promise;
+    const fileToRenamePath = tmpdir.resolve(fileToUpdate);
+    const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
+    const interval = setInterval(() => renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000));
+    await ran2.promise;
+    runs.push(currentRun);
+    clearInterval(interval);
+    child.kill();
+
+    for (const run of runs) {
+      assert.match(run, /# tests 1/);
+      assert.match(run, /# pass 1/);
+      assert.match(run, /# fail 0/);
+      assert.match(run, /# cancelled 0/);
+    }
+  };
+
+  const testDelete = async () => {
+    await ran1.promise;
+    const fileToDeletePath = tmpdir.resolve(fileToUpdate);
+    const interval = setInterval(() => {
+      if (existsSync(fileToDeletePath)) {
+        unlinkSync(fileToDeletePath);
+      } else {
+        ran2.resolve();
+      }
+    }, common.platformTimeout(1000));
+    await ran2.promise;
+    runs.push(currentRun);
+    clearInterval(interval);
+    child.kill();
+
+    for (const run of runs) {
+      assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
+    }
+  };
+
+  action === 'update' && await testUpdate();
+  action === 'rename' && await testRename();
+  action === 'delete' && await testDelete();
 }
 
 describe('test runner watch mode', () => {
@@ -81,5 +123,13 @@ describe('test runner watch mode', () => {
 
   it('should support running tests without a file', async () => {
     await testWatch({ fileToUpdate: 'test.js' });
+  });
+
+  it('should support a watched test file rename', async () => {
+    await testWatch({ fileToUpdate: 'test.js', action: 'rename' });
+  });
+
+  it('should not throw when delete a watched test file', async () => {
+    await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
   });
 });
