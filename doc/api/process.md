@@ -1937,7 +1937,7 @@ can read more about the caveats at [MDN](https://developer.mozilla.org/en-US/doc
 or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=readme-ov-file#a-note-of-caution).
 
 ```cjs
-const { finalization } = require('node:process');
+const { finalization, stdout } = require('node:process');
 
 function setup() {
   // This object can be safely garbage collected,
@@ -1946,7 +1946,7 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      process.stdout.write('disposed.\n');
+      stdout.write('disposed.\n');
     },
   };
 
@@ -1964,7 +1964,7 @@ setup();
 ```
 
 ```mjs
-import { finalization } from 'node:process';
+import { finalization, stdout } from 'node:process';
 
 function setup() {
   // This object can be safely garbage collected,
@@ -1973,7 +1973,7 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      process.stdout.write('disposed.\n');
+      stdout.write('disposed.\n');
     },
   };
 
@@ -2031,7 +2031,7 @@ the caveats at [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Ref
 or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=readme-ov-file#a-note-of-caution).
 
 ```cjs
-const { finalization } = require('node:process');
+const { finalization, stdout } = require('node:process');
 
 function setup() {
   // This object can be safely garbage collected,
@@ -2040,7 +2040,7 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      process.stdout.write('disposed.\n');
+      stdout.write('disposed.\n');
     },
   };
 
@@ -2058,7 +2058,7 @@ setup();
 ```
 
 ```mjs
-import { finalization } from 'node:process';
+import { finalization, stdout } from 'node:process';
 
 function setup() {
   // This object can be safely garbage collected,
@@ -2067,7 +2067,7 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      process.stdout.write('disposed.\n');
+      stdout.write('disposed.\n');
     },
   };
 
@@ -2099,7 +2099,7 @@ This function remove the register of the object from the finalization
 registry, so the callback will not be called anymore.
 
 ```cjs
-const { finalization } = require('node:process');
+const { finalization, stdout } = require('node:process');
 
 function setup() {
   // This object can be safely garbage collected,
@@ -2108,7 +2108,7 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      process.stdout.write('disposed.\n');
+      stdout.write('disposed.\n');
     },
   };
 
@@ -2131,7 +2131,7 @@ setup();
 ```
 
 ```mjs
-import { finalization } from 'node:process';
+import { finalization, stdout } from 'node:process';
 
 function setup() {
   // This object can be safely garbage collected,
@@ -2140,7 +2140,7 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      process.stdout.write('disposed.\n');
+      stdout.write('disposed.\n');
     },
   };
 
