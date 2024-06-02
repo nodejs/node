@@ -274,7 +274,7 @@ crypto::SSLCtxPointer TLSContext::Initialize() {
       break;
     }
     case Side::CLIENT: {
-      ctx_.reset(SSL_CTX_new(TLS_client_method()));
+      ctx.reset(SSL_CTX_new(TLS_client_method()));
       CHECK_EQ(ngtcp2_crypto_quictls_configure_client_context(ctx.get()), 0);
 
       SSL_CTX_set_session_cache_mode(

@@ -235,6 +235,7 @@ bool SetOption(Environment* env,
 Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
                                                  Local<Value> value) {
   if (value.IsEmpty() || !value->IsObject()) {
+    if (value->IsUndefined()) return Just(Endpoint::Options());
     THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
     return Nothing<Options>();
   }
@@ -658,6 +659,25 @@ void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_REGULARTOKEN_EXPIRATION);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_PACKET_LENGTH);
 
+  static constexpr auto CLOSECONTEXT_CLOSE =
+      static_cast<int>(CloseContext::CLOSE);
+  static constexpr auto CLOSECONTEXT_BIND_FAILURE =
+      static_cast<int>(CloseContext::BIND_FAILURE);
+  static constexpr auto CLOSECONTEXT_LISTEN_FAILURE =
+      static_cast<int>(CloseContext::LISTEN_FAILURE);
+  static constexpr auto CLOSECONTEXT_RECEIVE_FAILURE =
+      static_cast<int>(CloseContext::RECEIVE_FAILURE);
+  static constexpr auto CLOSECONTEXT_SEND_FAILURE =
+      static_cast<int>(CloseContext::SEND_FAILURE);
+  static constexpr auto CLOSECONTEXT_START_FAILURE =
+      static_cast<int>(CloseContext::START_FAILURE);
+  NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_CLOSE);
+  NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_BIND_FAILURE);
+  NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_LISTEN_FAILURE);
+  NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_RECEIVE_FAILURE);
+  NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_SEND_FAILURE);
+  NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_START_FAILURE);
+
   SetConstructorFunction(realm->context(),
                          target,
                          "Endpoint",
@@ -684,6 +704,7 @@ Endpoint::Endpoint(Environment* env,
       udp_(this),
       addrLRU_(options_.address_lru_size) {
   MakeWeak();
+  STAT_RECORD_TIMESTAMP(Stats, created_at);
   IF_QUIC_DEBUG(env) {
     Debug(this, "Endpoint created. Options %s", options.ToString());
   }
@@ -706,6 +727,7 @@ SocketAddress Endpoint::local_address() const {
 
 void Endpoint::MarkAsBusy(bool on) {
   Debug(this, "Marking endpoint as %s", on ? "busy" : "not busy");
+  if (on) STAT_INCREMENT(Stats, server_busy_count);
   state_->busy = on ? 1 : 0;
 }
 
@@ -1091,6 +1113,7 @@ void Endpoint::Destroy(CloseContext context, int status) {
   state_->bound = 0;
   state_->receiving = 0;
   BindingData::Get(env()).listening_endpoints.erase(this);
+  STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
 
   EmitClose(close_context_, close_status_);
 }

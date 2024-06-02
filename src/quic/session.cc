@@ -1684,10 +1684,16 @@ void Session::EmitStream(BaseObjectPtr<Stream> stream) {
   if (is_destroyed()) return;
   if (!env()->can_call_into_js()) return;
   CallbackScope<Session> cb_scope(this);
-  Local<Value> arg = stream->object();
+  auto isolate = env()->isolate();
+  Local<Value> argv[] = {
+      stream->object(),
+      Integer::NewFromUnsigned(isolate,
+                               static_cast<uint32_t>(stream->direction())),
+  };
 
   Debug(this, "Notifying JavaScript of stream created");
-  MakeCallback(BindingData::Get(env()).stream_created_callback(), 1, &arg);
+  MakeCallback(
+      BindingData::Get(env()).stream_created_callback(), arraysize(argv), argv);
 }
 
 void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
@@ -2365,6 +2371,11 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MIN);
+
+  NODE_DEFINE_STRING_CONSTANT(
+      target, "DEFAULT_CIPHERS", TLSContext::DEFAULT_CIPHERS);
+  NODE_DEFINE_STRING_CONSTANT(
+      target, "DEFAULT_GROUPS", TLSContext::DEFAULT_GROUPS);
 
 #define V(name, _) IDX_STATS_SESSION_##name,
   enum SessionStatsIdx { SESSION_STATS(V) IDX_STATS_SESSION_COUNT };

@@ -4,7 +4,7 @@
     "test/**",
     "tools/**",
     "benchmark/**",
-    "deps/**"
+    "deps/**",
   ],
   "reporter": [
     "html",
