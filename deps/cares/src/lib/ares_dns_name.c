@@ -362,6 +362,7 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
 {
   const ares_nameoffset_t *off = NULL;
   size_t                   name_len;
+  size_t                   orig_name_len;
   size_t                   pos = ares__buf_len(buf);
   ares_dns_labels_t        labels;
   char                     name_copy[512];
@@ -375,7 +376,8 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
 
   /* NOTE: due to possible escaping, name_copy buffer is > 256 to allow for
    *       this */
-  name_len = ares_strcpy(name_copy, name, sizeof(name_copy));
+  name_len      = ares_strcpy(name_copy, name, sizeof(name_copy));
+  orig_name_len = name_len;
 
   /* Find longest match */
   if (list != NULL) {
@@ -388,7 +390,7 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
   }
 
   /* Output labels */
-  if (off == NULL || off->name_len != name_len) {
+  if (off == NULL || off->name_len != orig_name_len) {
     size_t i;
 
     status = ares_split_dns_name(&labels, validate_hostname, name_copy);
@@ -432,7 +434,7 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
 
   /* Store pointer for future jumps as long as its not an exact match for
    * a prior entry */
-  if (list != NULL && (off == NULL || off->name_len != name_len) &&
+  if (list != NULL && (off == NULL || off->name_len != orig_name_len) &&
       name_len > 0) {
     status = ares__nameoffset_create(list, name /* not truncated copy! */, pos);
     if (status != ARES_SUCCESS) {

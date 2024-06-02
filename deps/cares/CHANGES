@@ -1,5 +1,298 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.29.0 (22 May 2024)
+
+GitHub (22 May 2024)
+- [Brad House brought this change]
+
+  1.29.0 release prep (#762)
+
+Brad House (22 May 2024)
+- coverity: try to silence warning
+
+- branch main
+
+- clang-format
+
+GitHub (22 May 2024)
+- [Brad House brought this change]
+
+  Auto reload config on changes (requires EventThread) (#759)
+  
+  Automatically detect configuration changes and reload. On systems which
+  provide notification mechanisms, use those, otherwise fallback to
+  polling. When a system configuration change is detected, it
+  asynchronously applies the configuration in order to ensure it is a
+  non-blocking operation for any queries which may still be being
+  processed.
+  
+  On Windows, however, changes aren't detected if a user manually
+  sets/changes the DNS servers on an interface, it doesn't appear there is
+  any mechanism capable of this. We are relying on
+  `NotifyIpInterfaceChange()` for notifications.
+  
+  Fixes Issue: #613
+  Fix By: Brad House (@bradh352)
+
+- [David Hotham brought this change]
+
+  const is fine on ares__channel_[un]lock (#758)
+  
+  at https://github.com/c-ares/c-ares/pull/601#issuecomment-1801935063 you
+  chose not to scatter `const` on the public interface because of the plan
+  - now realised - to add threading to c-ares, and in the expectation that
+  even read operations would need to lock the mutex.
+  
+  But the threading implementation has a _pointer_ to a mutex inside the
+  ares channel and as I understand it, that means that it is just fine to
+  mark `ares__channel_lock` (and `ares__channel_unlock`) as taking a
+  `const` channel. It is the pointed-to mutex that is not constant, but C
+  does not propagate `const`-ness through pointers.
+  
+  This PR sprinkles const where appropriate on public interfaces.
+  
+  Fix By: David Hotham (@dimbleby)
+
+Brad House (15 May 2024)
+- remove accidentally committed in-development file
+
+- dns name compression write failure
+  
+  Due to a logic flaw dns name compression writing was not properly implemented
+  which would result in the name prefix not being written for a partial match.
+  
+  Fixes Bug: #757
+  Fix By: Brad House (@bradh352)
+
+GitHub (8 May 2024)
+- [Brad House brought this change]
+
+  CI: Add Netbsd workflow (#756)
+  
+  Add NetBSD as a test target for CI.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  CI: OpenBSD (#755)
+  
+  Github actions appears to support building on a few "unsupported"
+  platforms these days:
+  https://github.com/cross-platform-actions/action
+  
+  Lets go ahead and add OpenBSD to try to prevent issues like #754
+  
+  Fix By: Brad House (@bradh352)
+
+- [Volker Schlecht brought this change]
+
+  Revert PR #659 (#754)
+  
+  As described in https://github.com/c-ares/c-ares/issues/753 the change
+  merged with https://github.com/c-ares/c-ares/pull/659 is ill-advised and
+  leads to breakage in applications using c-ares on OpenBSD.
+  
+  See also https://github.com/nodejs/node/issues/52439
+
+Brad House (7 May 2024)
+- static analyzer warning from 48e8cd2
+  
+  Fixes new issue from last commit.
+
+- ares_getnameinfo(): loosen validation on salen
+  
+  salen validation should be greater than or equal to the required
+  storage size.  Its not uncommon to use `struct sockaddr_storage` in
+  modern code which is definitely larger than `struct sockaddr_in` and
+  on some systems even larger than `struct sockaddr_in6`.
+  
+  Fixes Issue: #752
+  Fix By: Brad House (@bradh352)
+
+- ares_reinit(): reduce locked duration
+
+- add missing copyrights
+
+- manpage: remove AUTHOR section
+  
+  The current best practices consider the AUTHOR section to be deprecated
+  and recommend removing such a section.
+
+- fix endianness from PR #750
+
+GitHub (29 Apr 2024)
+- [Brad House brought this change]
+
+  Apple: reimplement DNS configuration reading (#750)
+  
+  The DNS configuration for apple is stored in the system configuration
+  database. Apple does provide an emulated `/etc/resolv.conf` on MacOS
+  (but not iOS), it cannot, however, represent the entirety of the DNS
+  configuration. Alternatively, libresolv could be used to also retrieve
+  some system configuration, but it too is not capable of retrieving the
+  entirety of the DNS configuration.
+  
+  Attempts to use the preferred public API of `SCDynamicStoreCreate()` and
+  friends yielded incomplete DNS information. Instead, that leaves some
+  apple "internal" symbols from `configd` that we need to access in order
+  to get the entire configuration. We can see that we're not the only ones
+  to do this as Google Chrome also does:
+  https://chromium.googlesource.com/chromium/src/+/HEAD/net/dns/dns_config_watcher_mac.cc
+  
+  These internal functions are what what`libresolv` and `scutil` use to
+  retrieve the dns configuration. Since these symbols are not publicly
+  available, we will dynamically load the symbols from `libSystem` and
+  import the `dnsinfo.h` private header extracted from:
+  https://opensource.apple.com/source/configd/configd-1109.140.1/dnsinfo/dnsinfo.h
+  
+  Fix By: Brad House (@bradh352)
+
+- [Oliver Welsh brought this change]
+
+  Add observability into DNS server health via a server state callback, invoked whenever a query finishes (#744)
+  
+  **Summary**
+  
+  This PR adds a server state callback that is invoked whenever a query to
+  a DNS server finishes.
+  
+  The callback is invoked with the server details (as a string), a boolean
+  indicating whether the query succeeded or failed, flags describing the
+  query (currently just indicating whether TCP or UDP was used), and
+  custom userdata.
+  
+  This can be used by user applications to gain observability into DNS
+  server health and usage. For example, alerts when a DNS server
+  fails/recovers or metrics to track how often a DNS server is used and
+  responds successfully.
+  
+  **Testing**
+  
+  Three new regression tests `MockChannelTest.ServStateCallback*` have
+  been added to test the new callback in different success/failure
+  scenarios.
+  
+  Fix By: Oliver Welsh (@oliverwelsh)
+
+Brad House (25 Apr 2024)
+- ares_init_options() fix crash on misuse of event thread options
+  
+  If an invalid event thread system was provided, it would crash during cleanup due to a NULL pointer dereference.
+  
+  Fixes Issue: #749
+  Fix By: Brad House (@bradh352)
+
+GitHub (22 Apr 2024)
+- [Oliver Welsh brought this change]
+
+  Improve reliability in the server retry delay regression tests (#747)
+  
+  Improve reliability in the server retry delay regression tests by
+  increasing the retry delay and sleeping for a little more than the retry
+  delay when attempting to force retries.
+  
+  This helps to account for unreliable timing (e.g. NTP slew)
+  intermittently breaking pipelines.
+  
+  Fix By: Oliver Welsh (@oliverwelsh)
+
+- [Jiwoo Park brought this change]
+
+  cmake: Android requires C99 (#748)
+  
+  I tried to build c-ares using CMake with the latest Android NDK
+  (r26/27), but failed as follows.
+  
+  ```
+  Building C object _deps/c-ares-source-build/src/lib/CMakeFiles/c-ares.dir/Debug/ares__buf.c.o
+  FAILED: _deps/c-ares-source-build/src/lib/CMakeFiles/c-ares.dir/Debug/ares__buf.c.o
+  
+  In file included from c-ares/src/lib/ares__buf.c:27:
+  In file included from c-ares/include/ares.h:85:
+  In file included from Android/sdk/ndk/27.0.11718014/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/netinet/in.h:36:
+  In file included from Android/sdk/ndk/27.0.11718014/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/linux/in.h:231:
+  In file included from Android/sdk/ndk/27.0.11718014/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/aarch64-linux-android/asm/byteorder.h:12:
+  In file included from Android/sdk/ndk/27.0.11718014/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/linux/byteorder/little_endian.h:17:
+  Android/sdk/ndk/27.0.11718014/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/linux/swab.h:28:8: error: unknown type name 'inline'
+     28 | static inline __attribute__((__const__)) __u32 __fswahw32(__u32 val) {
+        |        ^
+  Android/sdk/ndk/27.0.11718014/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/linux/swab.h:28:47: error: expected ';' after top level declarator
+     28 | static inline __attribute__((__const__)) __u32 __fswahw32(__u32 val) {
+        |                                               ^
+  ```
+  
+  It looks like the NDK recently added C99 code containing `inline`
+  functions, but c-ares is setting the `C_STANDARD` CMake property to C90.
+  
+  Fix By: Jiwoo Park (@jimmy-park)
+
+- [Aviv Keller brought this change]
+
+  Use gender-neutral language in SECURITY.md (#746)
+  
+  This PR updates the SECURITY.md file to use more gender-inclusive
+  language.
+  
+  Fix By: Aviv Keller (@RedYetiDev)
+
+Brad House (15 Apr 2024)
+- check for spurious wakeup
+
+- ares_queue_wait_empty() does not honor timeout_ms >= 0
+  
+  There is a missing break statement in the case that timeout_ms >= 0
+  leading to a possible infinite loop.
+  
+  Fixes Issue: #742
+  Fix By: Brad House (@bradh352)
+
+GitHub (14 Apr 2024)
+- [Oliver Welsh brought this change]
+
+  Add server failover retry behavior, where failed servers are retried with small probability after a minimum delay (#731)
+  
+  **Summary**
+  
+  By default c-ares will select the server with the least number of
+  consecutive failures when sending a query. However, this means that if a
+  server temporarily goes down and hits failures (e.g. a transient network
+  issue), then that server will never be retried until all other servers
+  hit the same number of failures.
+  
+  This is an issue if the failed server is preferred to other servers in
+  the list. For example if a primary server and a backup server are
+  configured.
+  
+  This PR adds new server failover retry behavior, where failed servers
+  are retried with small probability after a minimum delay has passed. The
+  probability and minimum delay are configurable via the
+  `ARES_OPT_SERVER_FAILOVER` option. By default c-ares will use a
+  probability of 10% and a minimum delay of 5 seconds.
+  
+  In addition, this PR includes a small change to always close out
+  connections to servers which have hit failures, even with
+  `ARES_FLAG_STAYOPEN`. It's possible that resetting the connection can
+  resolve some server issues (e.g. by resetting the source port).
+  
+  **Testing**
+  
+  A new set of regression tests have been added to test the new server
+  failover retry behavior.
+  
+  Fixes Issue: #717
+  Fix By: Oliver Welsh (@oliverwelsh)
+
+Brad House (4 Apr 2024)
+- MacOS/iOS: Apple does not allow users to configure DNS resolution timeouts or number of retries as Apple themselves uses dynamic/algorithmic values for their own resolver, so we should disable reading these static dummy values.
+
+GitHub (30 Mar 2024)
+- [Chenyu Yang brought this change]
+
+  CMake: remove duplicate checks for sys/random.h (#740)
+  
+  Fix By: Chenyu Yang (@Ch3nYuY)
+
 Version 1.28.1 (30 Mar 2024)
 
 GitHub (30 Mar 2024)
@@ -6189,159 +6482,3 @@ Daniel Stenberg (30 Aug 2013)
 - timeadd: make static
   
   ares__timeadd() was only ever used from within the same source
-
-Yang Tse (18 Jul 2013)
-- xc-am-iface.m4: comments refinement
-
-- configure: fix 'subdir-objects' distclean related issue
-  
-  See XC_AMEND_DISTCLEAN comments for details.
-
-- configure: automake 1.14 compatibility tweak (use XC_AUTOMAKE)
-
-- xc-am-iface.m4: provide XC_AUTOMAKE macro
-
-Daniel Stenberg (12 May 2013)
-- gitignore: ignore all ares_*pdf but also CHANGES.dist
-
-- bump: start working towards 1.10.1
-
-Version 1.10.0 (12 May 2013)
-
-Daniel Stenberg (12 May 2013)
-- RELEASE-NOTES: two more bug fixes
-
-- [Keith Shaw brought this change]
-
-  ares_set_servers_csv: fixed IPv6 address parsing
-  
-  Fixed bug that caused the last part of an IPv6 address to be parsed as
-  the port number when the last part is all numeric.
-
-- nroff: fix two syntax mistakes
-  
-  ares_parse_a_reply and ares_parse_aaaa_reply both had two \fB instead of
-  \fP
-  
-  Reported-by: Alexander Klauer
-  Bug: http://c-ares.haxx.se/mail/c-ares-archive-2013-03/0010.shtml
-
-- [Alex Loukissas brought this change]
-
-  build: fix build on msvc11
-
-- Makefile.am: increment -version-info for 1.10.0 release
-
-- README: remove unnecessary comment
-
-- ares_version.h: copyright end range year is now 2013
-
-- RELEASE-NOTES: synced with fb0737f3a0a1c37
-
-- [Paul Saab brought this change]
-
-  ares_parse_aaaa_reply: Plug memory leak
-  
-  This change is similar to ares_parse_a_reply.c in commit
-  bffd67f16a8f42fe6dbf79ab2e39d92eea05c8a6
-
-- [Patrick Valsecchi brought this change]
-
-  ares_parse_txt_reply: return a ares_txt_reply node for each sub-string
-  
-  Previously, the function would wrongly return all substrings merged into
-  one.
-
-- [Alexander Klauer brought this change]
-
-  library init: documentation update
-  
-  This commit updates the documentation of ares_library_init() and
-  ares_library_cleanup() with regard to the newly introduced reference
-  counting of initializations and deinitializations.
-
-- [Alexander Klauer brought this change]
-
-  library init: be recursive
-  
-  Previously, a single call to ares_library_cleanup() would deinitialise
-  the c-ares library, regardless of how many times ares_library_init() was
-  called. This behaviour may cause problems in programs linking two or
-  more libraries which, in turn, use c-ares. The present commit fixes this
-  problem, deinitializing the library only after a number of calls to
-  ares_library_cleanup() matching the number of calls to
-  ares_library_init().
-
-- [Patrick Valsecchi brought this change]
-
-  protocol parsing: check input data stricter
-  
-  ... so that bad length fields aren't blindly accepted
-  
-  Bug: http://c-ares.haxx.se/mail/c-ares-archive-2013-04/0016.shtml
-
-Guenter Knauf (11 Apr 2013)
-- Create ares_build.h when buidling from Git.
-
-- Added -DCARES_STATICLIB to CFLAGS.
-  
-  Currently this static makefile does only support building the
-  static library libcares.a.
-
-Daniel Stenberg (8 Apr 2013)
-- [Alexander Klauer brought this change]
-
-  .gitignore: ignore patch files
-  
-  This commit adds a line to .gitignore to the effect that patch files
-  generated by 'git format-patch' are excluded from the repository.
-
-- [Alexander Klauer brought this change]
-
-  ares_destroy() documentation: no new requests
-  
-  Clarify that no new requests may be added to a resolver channel that is
-  currently being destroyed.
-
-- [Alexander Klauer brought this change]
-
-  Documentation: properly document ARES_ECANCELLED
-  
-  This commit clarifies the behaviour of ares_cancel() with respect to
-  callbacks and adds missing documentation of ARES_ECANCELLED to the man
-  pages of the affected functions.
-
-- [Alexander Klauer brought this change]
-
-  ares_cancel(): cancel requests safely
-  
-  An invocation of ares_cancel() walks through the request list, calling
-  the callbacks of all pending requests on a channel. Previously, if such
-  a callback added a new request to the channel, the request list might
-  not end up empty, causing an abort by assertion failure. The present
-  commit ensures that precisely all requests present upon entry of
-  ares_cancel() are cancelled, and that adding new requests through
-  callbacks is safe.
-
-Yang Tse (10 Mar 2013)
-- ares.h: stricter CARES_EXTERN linkage decorations logic
-  
-  No API change involved.
-
-- ares_build.h.dist: enhance non-configure GCC ABI detection logic
-  
-  GCC specific adjustments:
-  
-  - check __ILP32__ before 32 and 64bit processor architectures in
-    order to detect ILP32 programming model on 64 bit processors
-    which, of course, also support LP64 programming model, when using
-    gcc 4.7 or newer.
-  
-  - keep 32bit processor architecture checks in order to support gcc
-    versions older than 4.7 which don't define __ILP32__
-  
-  - check __LP64__ for gcc 3.3 and newer, while keeping 64bit processor
-    architecture checks for older versions which don't define __LP64__
-
-Daniel Stenberg (9 Mar 2013)
-- ares.h: there is no ares_free_soa function
