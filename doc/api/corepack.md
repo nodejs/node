@@ -96,30 +96,34 @@ it can conflict with such environments. To avoid that happening, call the
 the same time you're preparing your deploy image). This will ensure that the
 required package managers are available even without network access.
 
-The `pack` command has [various flags][]. Consult the detailed
+The `corepack` command has [various flags][]. Consult the detailed
 [Corepack documentation][] for more information.
 
 ## Supported package managers
 
 The following binaries are provided through Corepack:
 
-| Package manager | Binary names      |
-| --------------- | ----------------- |
-| [Yarn][]        | `yarn`, `yarnpkg` |
-| [pnpm][]        | `pnpm`, `pnpx`    |
+| Package manager                   | Binary names      |
+| --------------------------------- | ----------------- |
+| [Yarn][]                          | `yarn`, `yarnpkg` |
+| [pnpm][]                          | `pnpm`, `pnpx`    |
+| [npm](https://npmjs.org)*         | `npm`, `npx`      |
+
+\* Not enabled by default. Use `corepack enable npm` to do so.
 
 ## Common questions
 
 ### How does Corepack interact with npm?
 
-While Corepack could support npm like any other package manager, its
-shims aren't enabled by default. This has a few consequences:
+The npm shims aren't enabled by default. This has a few consequences:
 
 * It's always possible to run a `npm` command within a project configured to
   be used with another package manager, since Corepack cannot intercept it.
 
 * While `npm` is a valid option in the [`"packageManager"`][] property, the
   lack of shim will cause the global npm to be used.
+
+You can enable shimming npm by running `corepack enable npm`.
 
 ### Running `npm install -g yarn` doesn't work
 
