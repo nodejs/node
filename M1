@@ -912,7 +912,7 @@ Environment::Environment(IsolateData* isolate_data,
       options_->allow_native_addons = false;
     }
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-    permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
+    permission()->Apply(this, {0.0.0}, permission::PermissionScope::kInspector);
     if (!options_->allow_child_process) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kChildProcess);
