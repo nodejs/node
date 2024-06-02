@@ -60,6 +60,14 @@ for (const moduleName of builtinModules) {
     'crypto',
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
+  expected.forEach((value) => {
+    const desc = Object.getOwnPropertyDescriptor(global, value);
+    if (typeof desc.value === 'function') {
+      assert.strictEqual(desc.value.name, value);
+    } else if (typeof desc.get === 'function') {
+      assert.strictEqual(desc.get.name, `get ${value}`);
+    }
+  });
 }
 
 common.allowGlobals('bar', 'foo');
