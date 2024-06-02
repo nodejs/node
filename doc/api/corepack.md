@@ -96,7 +96,7 @@ it can conflict with such environments. To avoid that happening, call the
 the same time you're preparing your deploy image). This will ensure that the
 required package managers are available even without network access.
 
-The `corepack` command has [various flags][]. Consult the detailed
+The `pack` command has [various flags][]. Consult the detailed
 [Corepack documentation][] for more information.
 
 ## Supported package managers
