@@ -10,6 +10,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares__htable_asvp.c			\
   ares__htable_strvp.c			\
   ares__htable_szvp.c			\
+  ares__htable_vpvp.c			\
   ares__iface_ips.c			\
   ares__llist.c				\
   ares__parse_into_addrinfo.c		\
@@ -27,6 +28,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_dns_parse.c			\
   ares_dns_record.c			\
   ares_dns_write.c			\
+  ares_event_configchg.c	\
   ares_event_epoll.c			\
   ares_event_kqueue.c			\
   ares_event_poll.c			\
@@ -75,6 +77,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_strsplit.c			\
   ares_sysconfig.c		\
   ares_sysconfig_files.c	\
+  ares_sysconfig_mac.c	\
   ares_timeout.c			\
   ares_update_servers.c	\
   ares_version.c			\
@@ -87,6 +90,7 @@ HHEADERS = ares__buf.h			\
   ares__htable_asvp.h			\
   ares__htable_strvp.h			\
   ares__htable_szvp.h			\
+  ares__htable_vpvp.h			\
   ares__iface_ips.h			\
   ares__llist.h				\
   ares__slist.h				\

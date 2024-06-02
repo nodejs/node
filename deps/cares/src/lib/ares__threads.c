@@ -537,12 +537,12 @@ void ares__channel_threading_destroy(ares_channel_t *channel)
   channel->cond_empty = NULL;
 }
 
-void ares__channel_lock(ares_channel_t *channel)
+void ares__channel_lock(const ares_channel_t *channel)
 {
   ares__thread_mutex_lock(channel->lock);
 }
 
-void ares__channel_unlock(ares_channel_t *channel)
+void ares__channel_unlock(const ares_channel_t *channel)
 {
   ares__thread_mutex_unlock(channel->lock);
 }
@@ -584,6 +584,12 @@ ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
       } else {
         status =
           ares__thread_cond_timedwait(channel->cond_empty, channel->lock, tms);
+      }
+
+      /* If there was a timeout, don't loop.  Otherwise, make sure this wasn't
+       * a spurious wakeup by looping and checking the condition. */
+      if (status == ARES_ETIMEOUT) {
+        break;
       }
     }
   }

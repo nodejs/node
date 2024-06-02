@@ -114,6 +114,7 @@ typedef struct ares_rand_state ares_rand_state;
 #include "ares__htable_strvp.h"
 #include "ares__htable_szvp.h"
 #include "ares__htable_asvp.h"
+#include "ares__htable_vpvp.h"
 #include "ares__buf.h"
 #include "ares_dns_private.h"
 #include "ares__iface_ips.h"
@@ -146,6 +147,11 @@ typedef struct ares_rand_state ares_rand_state;
 
 /********* EDNS defines section ******/
 
+/* Default values for server failover behavior. We retry failed servers with
+ * a 10% probability and a minimum delay of 5 seconds between retries.
+ */
+#define DEFAULT_SERVER_RETRY_CHANCE 10
+#define DEFAULT_SERVER_RETRY_DELAY  5000
 
 struct query;
 
@@ -175,6 +181,9 @@ struct server_state {
                                               */
   ares__llist_t            *connections;
   struct server_connection *tcp_conn;
+
+  /* The next time when we will retry this server if it has hit failures */
+  struct timeval            next_retry_time;
 
   /* TCP buffer since multiple responses can come back in one read, or partial
    * in a read */
@@ -315,6 +324,27 @@ struct ares_channeldata {
 
   /* Query Cache */
   ares__qcache_t                     *qcache;
+
+  /* Fields controlling server failover behavior.
+   * The retry chance is the probability (1/N) by which we will retry a failed
+   * server instead of the best server when selecting a server to send queries
+   * to.
+   * The retry delay is the minimum time in milliseconds to wait between doing
+   * such retries (applied per-server).
+   */
+  unsigned short                      server_retry_chance;
+  size_t                              server_retry_delay;
+
+  /* Callback triggered when a server has a successful or failed response */
+  ares_server_state_callback          server_state_cb;
+  void                               *server_state_cb_data;
+
+  /* TRUE if a reinit is pending.  Reinit spawns a thread to read the system
+   * configuration and then apply the configuration since configuration
+   * reading may block.  The thread handle is provided for waiting on thread
+   * exit. */
+  ares_bool_t                         reinit_pending;
+  ares__thread_t                     *reinit_thread;
 };
 
 /* Does the domain end in ".onion" or ".onion."? Case-insensitive. */
@@ -408,10 +438,17 @@ typedef struct {
   ares_bool_t      usevc;
 } ares_sysconfig_t;
 
+ares_status_t ares__sysconfig_set_options(ares_sysconfig_t *sysconfig,
+                                          const char       *str);
+
 ares_status_t ares__init_by_environment(ares_sysconfig_t *sysconfig);
 
 ares_status_t ares__init_sysconfig_files(const ares_channel_t *channel,
                                          ares_sysconfig_t     *sysconfig);
+#ifdef __APPLE__
+ares_status_t ares__init_sysconfig_macos(ares_sysconfig_t *sysconfig);
+#endif
+
 ares_status_t ares__parse_sortlist(struct apattern **sortlist, size_t *nsort,
                                    const char *str);
 
@@ -497,6 +534,8 @@ ares_status_t ares__sconfig_append_fromstr(ares__llist_t **sconfig,
 ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
                                                   size_t          nservers,
                                                   ares__llist_t **llist);
+ares_status_t ares_get_server_addr(const struct server_state *server,
+                                   ares__buf_t               *buf);
 
 struct ares_hosts_entry;
 typedef struct ares_hosts_entry ares_hosts_entry_t;
@@ -580,9 +619,9 @@ void          ares_queue_notify_empty(ares_channel_t *channel);
     }                                                             \
   } while (0)
 
-#define ARES_CONFIG_CHECK(x)                                             \
-  (x && x->lookups && ares__slist_len(x->servers) > 0 && \
-   x->timeout > 0 && x->tries > 0)
+#define ARES_CONFIG_CHECK(x)                                               \
+  (x && x->lookups && ares__slist_len(x->servers) > 0 && x->timeout > 0 && \
+   x->tries > 0)
 
 ares_bool_t   ares__subnet_match(const struct ares_addr *addr,
                                  const struct ares_addr *subnet,
@@ -611,8 +650,8 @@ ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
 
 ares_status_t ares__channel_threading_init(ares_channel_t *channel);
 void          ares__channel_threading_destroy(ares_channel_t *channel);
-void          ares__channel_lock(ares_channel_t *channel);
-void          ares__channel_unlock(ares_channel_t *channel);
+void          ares__channel_lock(const ares_channel_t *channel);
+void          ares__channel_unlock(const ares_channel_t *channel);
 
 struct ares_event_thread;
 typedef struct ares_event_thread ares_event_thread_t;

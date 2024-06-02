@@ -31,6 +31,7 @@
 
 #include "ares.h"
 #include "ares_private.h"
+#include "ares_event.h"
 
 void ares_destroy(ares_channel_t *channel)
 {
@@ -39,6 +40,22 @@ void ares_destroy(ares_channel_t *channel)
 
   if (channel == NULL) {
     return;
+  }
+
+  /* Disable configuration change monitoring */
+  if (channel->optmask & ARES_OPT_EVENT_THREAD) {
+    ares_event_thread_t *e = channel->sock_state_cb_data;
+    if (e && e->configchg) {
+      ares_event_configchg_destroy(e->configchg);
+      e->configchg = NULL;
+    }
+  }
+
+  /* Wait for reinit thread to exit if there was one pending */
+  if (channel->reinit_thread != NULL) {
+    void *rv;
+    ares__thread_join(channel->reinit_thread, &rv);
+    channel->reinit_thread = NULL;
   }
 
   /* Lock because callbacks will be triggered */
