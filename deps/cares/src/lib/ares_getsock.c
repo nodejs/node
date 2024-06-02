@@ -29,7 +29,7 @@
 #include "ares.h"
 #include "ares_private.h"
 
-int ares_getsock(ares_channel_t *channel, ares_socket_t *socks,
+int ares_getsock(const ares_channel_t *channel, ares_socket_t *socks,
                  int numsocks) /* size of the 'socks' array */
 {
   ares__slist_node_t *snode;

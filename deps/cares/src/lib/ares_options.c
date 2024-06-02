@@ -53,8 +53,8 @@ void ares_destroy_options(struct ares_options *options)
   ares_free(options->hosts_path);
 }
 
-static struct in_addr *ares_save_opt_servers(ares_channel_t *channel,
-                                             int            *nservers)
+static struct in_addr *ares_save_opt_servers(const ares_channel_t *channel,
+                                             int                  *nservers)
 {
   ares__slist_node_t *snode;
   struct in_addr     *out =
@@ -82,8 +82,8 @@ static struct in_addr *ares_save_opt_servers(ares_channel_t *channel,
 }
 
 /* Save options from initialized channel */
-int ares_save_options(ares_channel_t *channel, struct ares_options *options,
-                      int *optmask)
+int ares_save_options(const ares_channel_t *channel,
+                      struct ares_options *options, int *optmask)
 {
   size_t i;
 
@@ -227,6 +227,12 @@ int ares_save_options(ares_channel_t *channel, struct ares_options *options,
 
   if (channel->optmask & ARES_OPT_EVENT_THREAD) {
     options->evsys = channel->evsys;
+  }
+
+  /* Set options for server failover behavior */
+  if (channel->optmask & ARES_OPT_SERVER_FAILOVER) {
+    options->server_failover_opts.retry_chance = channel->server_retry_chance;
+    options->server_failover_opts.retry_delay  = channel->server_retry_delay;
   }
 
   *optmask = (int)channel->optmask;
@@ -472,6 +478,12 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
         return status;
       }
     }
+  }
+
+  /* Set fields for server failover behavior */
+  if (optmask & ARES_OPT_SERVER_FAILOVER) {
+    channel->server_retry_chance = options->server_failover_opts.retry_chance;
+    channel->server_retry_delay  = options->server_failover_opts.retry_delay;
   }
 
   channel->optmask = (unsigned int)optmask;

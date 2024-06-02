@@ -79,6 +79,14 @@ typedef struct {
   size_t (*wait)(ares_event_thread_t *e, unsigned long timeout_ms);
 } ares_event_sys_t;
 
+struct ares_event_configchg;
+typedef struct ares_event_configchg ares_event_configchg_t;
+
+ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
+                                        ares_event_thread_t     *e);
+
+void          ares_event_configchg_destroy(ares_event_configchg_t *configchg);
+
 struct ares_event_thread {
   /*! Whether the event thread should be online or not.  Checked on every wake
    *  event before sleeping. */
@@ -94,13 +102,18 @@ struct ares_event_thread {
    *  thread other than the event thread itself. The event thread will then
    *  be woken then process these updates itself */
   ares__llist_t          *ev_updates;
-  /*! Registered event handles. */
-  ares__htable_asvp_t    *ev_handles;
+  /*! Registered socket event handles */
+  ares__htable_asvp_t    *ev_sock_handles;
+  /*! Registered custom event handles. Typically used for external triggering.
+   */
+  ares__htable_vpvp_t    *ev_cust_handles;
   /*! Pointer to the event handle which is used to signal and wake the event
    *  thread itself.  This is needed to be able to do things like update the
    *  file descriptors being waited on and to wake the event subsystem during
    *  shutdown */
   ares_event_t           *ev_signal;
+  /*! Handle for configuration change monitoring */
+  ares_event_configchg_t *configchg;
   /* Event subsystem callbacks */
   const ares_event_sys_t *ev_sys;
   /* Event subsystem private data */
@@ -124,7 +137,8 @@ struct ares_event_thread {
  *                           Non-socket events cannot be removed, and must have
  *                           ARES_EVENT_FLAG_OTHER set.
  *  \param[in]  cb           Callback to call when
- *                           event is triggered. Required. Not allowed to be
+ *                           event is triggered. Required if flags is not
+ *                           ARES_EVENT_FLAG_NONE. Not allowed to be
  *                           changed, ignored on modification.
  *  \param[in]  fd           File descriptor/socket to monitor. May
  *                           be ARES_SOCKET_BAD if not monitoring file

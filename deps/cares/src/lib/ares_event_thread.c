@@ -89,7 +89,12 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
 {
   ares_event_t *ev = NULL;
 
-  if (e == NULL || cb == NULL) {
+  if (e == NULL) {
+    return ARES_EFORMERR;
+  }
+
+  /* Callback must be specified if not a removal event. */
+  if (flags != ARES_EVENT_FLAG_NONE && cb == NULL) {
     return ARES_EFORMERR;
   }
 
@@ -211,8 +216,13 @@ static void ares_event_process_updates(ares_event_thread_t *e)
    * list */
   while ((node = ares__llist_node_first(e->ev_updates)) != NULL) {
     ares_event_t *newev = ares__llist_node_claim(node);
-    ares_event_t *oldev =
-      ares__htable_asvp_get_direct(e->ev_handles, newev->fd);
+    ares_event_t *oldev;
+
+    if (newev->fd == ARES_SOCKET_BAD) {
+      oldev = ares__htable_vpvp_get_direct(e->ev_cust_handles, newev->data);
+    } else {
+      oldev = ares__htable_asvp_get_direct(e->ev_sock_handles, newev->fd);
+    }
 
     /* Adding new */
     if (oldev == NULL) {
@@ -225,7 +235,11 @@ static void ares_event_process_updates(ares_event_thread_t *e)
         newev->e = NULL;
         ares_event_destroy_cb(newev);
       } else {
-        ares__htable_asvp_insert(e->ev_handles, newev->fd, newev);
+        if (newev->fd == ARES_SOCKET_BAD) {
+          ares__htable_vpvp_insert(e->ev_cust_handles, newev->data, newev);
+        } else {
+          ares__htable_asvp_insert(e->ev_sock_handles, newev->fd, newev);
+        }
       }
       continue;
     }
@@ -234,7 +248,11 @@ static void ares_event_process_updates(ares_event_thread_t *e)
     if (newev->flags == ARES_EVENT_FLAG_NONE) {
       /* the callback for the removal will call e->ev_sys->event_del(e, event)
        */
-      ares__htable_asvp_remove(e->ev_handles, newev->fd);
+      if (newev->fd == ARES_SOCKET_BAD) {
+        ares__htable_vpvp_remove(e->ev_cust_handles, newev->data);
+      } else {
+        ares__htable_asvp_remove(e->ev_sock_handles, newev->fd);
+      }
       ares_free(newev);
       continue;
     }
@@ -306,10 +324,13 @@ static void ares_event_thread_destroy_int(ares_event_thread_t *e)
   ares__llist_destroy(e->ev_updates);
   e->ev_updates = NULL;
 
-  ares__htable_asvp_destroy(e->ev_handles);
-  e->ev_handles = NULL;
+  ares__htable_asvp_destroy(e->ev_sock_handles);
+  e->ev_sock_handles = NULL;
 
-  if (e->ev_sys->destroy) {
+  ares__htable_vpvp_destroy(e->ev_cust_handles);
+  e->ev_cust_handles = NULL;
+
+  if (e->ev_sys && e->ev_sys->destroy) {
     e->ev_sys->destroy(e);
   }
 
@@ -409,8 +430,14 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel)
     return ARES_ENOMEM;
   }
 
-  e->ev_handles = ares__htable_asvp_create(ares_event_destroy_cb);
-  if (e->ev_handles == NULL) {
+  e->ev_sock_handles = ares__htable_asvp_create(ares_event_destroy_cb);
+  if (e->ev_sock_handles == NULL) {
+    ares_event_thread_destroy_int(e);
+    return ARES_ENOMEM;
+  }
+
+  e->ev_cust_handles = ares__htable_vpvp_create(NULL, ares_event_destroy_cb);
+  if (e->ev_cust_handles == NULL) {
     ares_event_thread_destroy_int(e);
     return ARES_ENOMEM;
   }

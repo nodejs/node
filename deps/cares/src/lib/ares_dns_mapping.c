@@ -606,12 +606,12 @@ ares_bool_t ares_dns_class_fromstr(ares_dns_class_t *qclass, const char *str)
     const char      *name;
     ares_dns_class_t qclass;
   } list[] = {
-    {"IN",    ARES_CLASS_IN    },
-    { "CH",   ARES_CLASS_CHAOS },
-    { "HS",   ARES_CLASS_HESOID},
-    { "NONE", ARES_CLASS_NONE  },
-    { "ANY",  ARES_CLASS_ANY   },
-    { NULL,   0                }
+    { "IN",   ARES_CLASS_IN     },
+    { "CH",   ARES_CLASS_CHAOS  },
+    { "HS",   ARES_CLASS_HESOID },
+    { "NONE", ARES_CLASS_NONE   },
+    { "ANY",  ARES_CLASS_ANY    },
+    { NULL,   0                 }
   };
 
   if (qclass == NULL || str == NULL) {
@@ -636,26 +636,26 @@ ares_bool_t ares_dns_rec_type_fromstr(ares_dns_rec_type_t *qtype,
     const char         *name;
     ares_dns_rec_type_t type;
   } list[] = {
-    {"A",       ARES_REC_TYPE_A     },
-    { "NS",     ARES_REC_TYPE_NS    },
-    { "CNAME",  ARES_REC_TYPE_CNAME },
-    { "SOA",    ARES_REC_TYPE_SOA   },
-    { "PTR",    ARES_REC_TYPE_PTR   },
-    { "HINFO",  ARES_REC_TYPE_HINFO },
-    { "MX",     ARES_REC_TYPE_MX    },
-    { "TXT",    ARES_REC_TYPE_TXT   },
-    { "AAAA",   ARES_REC_TYPE_AAAA  },
-    { "SRV",    ARES_REC_TYPE_SRV   },
-    { "NAPTR",  ARES_REC_TYPE_NAPTR },
-    { "OPT",    ARES_REC_TYPE_OPT   },
-    { "TLSA",   ARES_REC_TYPE_TLSA  },
-    { "SVCB",   ARES_REC_TYPE_SVCB  },
-    { "HTTPS",  ARES_REC_TYPE_HTTPS },
-    { "ANY",    ARES_REC_TYPE_ANY   },
-    { "URI",    ARES_REC_TYPE_URI   },
-    { "CAA",    ARES_REC_TYPE_CAA   },
-    { "RAW_RR", ARES_REC_TYPE_RAW_RR},
-    { NULL,     0                   }
+    { "A",      ARES_REC_TYPE_A      },
+    { "NS",     ARES_REC_TYPE_NS     },
+    { "CNAME",  ARES_REC_TYPE_CNAME  },
+    { "SOA",    ARES_REC_TYPE_SOA    },
+    { "PTR",    ARES_REC_TYPE_PTR    },
+    { "HINFO",  ARES_REC_TYPE_HINFO  },
+    { "MX",     ARES_REC_TYPE_MX     },
+    { "TXT",    ARES_REC_TYPE_TXT    },
+    { "AAAA",   ARES_REC_TYPE_AAAA   },
+    { "SRV",    ARES_REC_TYPE_SRV    },
+    { "NAPTR",  ARES_REC_TYPE_NAPTR  },
+    { "OPT",    ARES_REC_TYPE_OPT    },
+    { "TLSA",   ARES_REC_TYPE_TLSA   },
+    { "SVCB",   ARES_REC_TYPE_SVCB   },
+    { "HTTPS",  ARES_REC_TYPE_HTTPS  },
+    { "ANY",    ARES_REC_TYPE_ANY    },
+    { "URI",    ARES_REC_TYPE_URI    },
+    { "CAA",    ARES_REC_TYPE_CAA    },
+    { "RAW_RR", ARES_REC_TYPE_RAW_RR },
+    { NULL,     0                    }
   };
 
   if (qtype == NULL || str == NULL) {

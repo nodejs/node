@@ -436,7 +436,8 @@ done:
   return status;
 }
 
-static ares_status_t set_options(ares_sysconfig_t *sysconfig, const char *str)
+ares_status_t ares__sysconfig_set_options(ares_sysconfig_t *sysconfig,
+                                          const char       *str)
 {
   ares__buf_t        *buf     = NULL;
   ares__llist_t      *options = NULL;
@@ -494,7 +495,7 @@ ares_status_t ares__init_by_environment(ares_sysconfig_t *sysconfig)
 
   res_options = getenv("RES_OPTIONS");
   if (res_options) {
-    status = set_options(sysconfig, res_options);
+    status = ares__sysconfig_set_options(sysconfig, res_options);
     if (status != ARES_SUCCESS) {
       return status;
     }
@@ -617,7 +618,7 @@ static ares_status_t parse_resolvconf_line(ares_sysconfig_t *sysconfig,
       status = ARES_SUCCESS;
     }
   } else if (strcmp(option, "options") == 0) {
-    status = set_options(sysconfig, value);
+    status = ares__sysconfig_set_options(sysconfig, value);
   }
 
   return status;
