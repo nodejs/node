@@ -1,8 +1,7 @@
-import { skipIfWorker } from '../common/index.mjs';
+import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { register } from 'node:module';
 import assert from 'node:assert';
-skipIfWorker();
 
 async function resolve(referrer, context, next) {
   const result = await next(referrer, context);

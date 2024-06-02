@@ -51,7 +51,6 @@ const {
   skipIfDumbTerminal,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
-  skipIfWorker,
   spawnPromisified,
 } = common;
 
@@ -107,6 +106,5 @@ export {
   skipIfDumbTerminal,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
-  skipIfWorker,
   spawnPromisified,
 };

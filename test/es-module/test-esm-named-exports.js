@@ -1,9 +1,7 @@
 // Flags: --import ./test/fixtures/es-module-loaders/builtin-named-exports.mjs
 'use strict';
 
-const common = require('../common');
-common.skipIfWorker();
-
+require('../common');
 const { readFile, __fromLoader } = require('fs');
 const assert = require('assert');
 
