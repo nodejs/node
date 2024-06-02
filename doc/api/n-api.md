@@ -794,7 +794,10 @@ handle and/or callback scope inside a `napi_callback` is not necessary.
 #### `node_api_nogc_finalize`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.6.0
+  - v20.12.0
+  - v18.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -2215,9 +2218,9 @@ typedef enum {
 } napi_key_conversion;
 ```
 
-`napi_key_numbers_to_strings` will convert integer indices to
+`napi_key_numbers_to_strings` will convert integer indexes to
 strings. `napi_key_keep_numbers` will return numbers for integer
-indices.
+indexes.
 
 #### `napi_valuetype`
 
@@ -3081,6 +3084,52 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `string` value from a UTF8-encoded C string.
 The native string is copied.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
+#### `node_api_create_property_key_utf16`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
+                                                          const char16_t* str,
+                                                          size_t length,
+                                                          napi_value* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing a UTF16-LE-encoded string.
+* `[in] length`: The length of the string in two-byte code units, or
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[out] result`: A `napi_value` representing an optimized JavaScript `string`
+  to be used as a property key for objects.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates an optimized JavaScript `string` value from
+a UTF16-LE-encoded C string to be used as a property key for objects.
+The native string is copied.
+
+Many JavaScript engines including V8 use internalized strings as keys
+to set and get property values. They typically use a hash table to create
+and lookup such strings. While it adds some cost per key creation, it improves
+the performance after that by enabling comparison of string pointers instead
+of the whole strings.
+
+If a new JavaScript string is intended to be used as a property key, then for
+some JavaScript engines it will be more efficient to use
+the `node_api_create_property_key_utf16` function.
+Otherwise, use the `napi_create_string_utf16` or
+`node_api_create_external_string_utf16` functions as there may be additional
+overhead in creating/storing strings with this method.
 
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
@@ -6615,7 +6664,7 @@ the add-on's file name during loading.
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
 [`Worker`]: worker_threads.md#class-worker
 [`async_hooks.executionAsyncResource()`]: async_hooks.md#async_hooksexecutionasyncresource
-[`build_with_cmake`]: https://github.com/nodejs/node-addon-examples/tree/main/build_with_cmake
+[`build_with_cmake`]: https://github.com/nodejs/node-addon-examples/tree/main/src/8-tooling/build_with_cmake
 [`global`]: globals.md#global
 [`init` hooks]: async_hooks.md#initasyncid-type-triggerasyncid-resource
 [`napi_add_async_cleanup_hook`]: #napi_add_async_cleanup_hook

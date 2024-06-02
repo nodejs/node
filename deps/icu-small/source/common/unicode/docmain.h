@@ -143,6 +143,11 @@
  *     <td>icu::MessageFormat</td>
  *   </tr>
  *   <tr>
+ *     <td>Message Formatting 2<br/>(technology preview)</td>
+ *     <td>(no C API)</td>
+ *     <td>icu::message2::MessageFormatter</td>
+ *   </tr>
+ *   <tr>
  *     <td>List Formatting</td>
  *     <td>ulistformatter.h</td>
  *     <td>icu::ListFormatter</td>

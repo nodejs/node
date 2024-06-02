@@ -37,12 +37,16 @@
 #include <errno.h>
 
 #include <fcntl.h>
+#include <ifaddrs.h>
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <netpacket/packet.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/prctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysinfo.h>
@@ -119,25 +123,6 @@
 #  define __NR_getrandom 278
 # endif
 #endif /* __NR_getrandom */
-
-#define HAVE_IFADDRS_H 1
-
-# if defined(__ANDROID_API__) && __ANDROID_API__ < 24
-# undef HAVE_IFADDRS_H
-#endif
-
-#ifdef __UCLIBC__
-# if __UCLIBC_MAJOR__ < 0 && __UCLIBC_MINOR__ < 9 && __UCLIBC_SUBLEVEL__ < 32
-#  undef HAVE_IFADDRS_H
-# endif
-#endif
-
-#ifdef HAVE_IFADDRS_H
-# include <ifaddrs.h>
-# include <sys/socket.h>
-# include <net/ethernet.h>
-# include <netpacket/packet.h>
-#endif /* HAVE_IFADDRS_H */
 
 enum {
   UV__IORING_SETUP_SQPOLL = 2u,
@@ -478,6 +463,9 @@ static int uv__use_io_uring(void) {
 #elif defined(__arm__) && __SIZEOF_POINTER__ == 4
   /* See https://github.com/libuv/libuv/issues/4158. */
   return 0;  /* All 32 bits kernels appear buggy. */
+#elif defined(__powerpc64__) || defined(__ppc64__)
+  /* See https://github.com/libuv/libuv/issues/4283. */
+  return 0; /* Random SIGSEGV in signal handler. */
 #else
   /* Ternary: unknown=0, yes=1, no=-1 */
   static _Atomic int use_io_uring;
@@ -487,8 +475,8 @@ static int uv__use_io_uring(void) {
   use = atomic_load_explicit(&use_io_uring, memory_order_relaxed);
 
   if (use == 0) {
-    /* Older kernels have a bug where the sqpoll thread uses 100% CPU. */
-    use = uv__kernel_version() >= /* 5.10.186 */ 0x050ABA ? 1 : -1;
+    /* Disable io_uring by default due to CVE-2024-22017. */
+    use = -1;
 
     /* But users can still enable it if they so desire. */
     val = getenv("UV_USE_IO_URING");
@@ -500,6 +488,14 @@ static int uv__use_io_uring(void) {
 
   return use > 0;
 #endif
+}
+
+
+UV_EXTERN int uv__node_patch_is_using_io_uring(void) {
+  // This function exists only in the modified copy of libuv in the Node.js
+  // repository. Node.js checks if this function exists and, if it does, uses it
+  // to determine whether libuv is using io_uring or not.
+  return uv__use_io_uring();
 }
 
 
@@ -1161,6 +1157,12 @@ static void uv__poll_io_uring(uv_loop_t* loop, struct uv__iou* iou) {
 
     uv__req_unregister(loop, req);
     iou->in_flight--;
+
+    /* If the op is not supported by the kernel retry using the thread pool */
+    if (e->res == -EOPNOTSUPP) {
+      uv__fs_post(loop, req);
+      continue;
+    }
 
     /* io_uring stores error codes as negative numbers, same as libuv. */
     req->result = e->res;
@@ -1908,7 +1910,6 @@ nocpuinfo:
 }
 
 
-#ifdef HAVE_IFADDRS_H
 static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
   if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
     return 1;
@@ -1922,14 +1923,8 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
     return exclude_type;
   return !exclude_type;
 }
-#endif
 
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-#ifndef HAVE_IFADDRS_H
-  *count = 0;
-  *addresses = NULL;
-  return UV_ENOSYS;
-#else
   struct ifaddrs *addrs, *ent;
   uv_interface_address_t* address;
   int i;
@@ -2008,7 +2003,6 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   freeifaddrs(addrs);
 
   return 0;
-#endif
 }
 
 

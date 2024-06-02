@@ -697,6 +697,18 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
       env, "Invalid authentication tag length: %u", tag_len);
   }
 
+  if (mode == EVP_CIPH_GCM_MODE && cipher->auth_tag_len_ == kNoAuthTagLength &&
+      tag_len != 16 && env->EmitProcessEnvWarning()) {
+    if (ProcessEmitDeprecationWarning(
+            env,
+            "Using AES-GCM authentication tags of less than 128 bits without "
+            "specifying the authTagLength option when initializing decryption "
+            "is deprecated.",
+            "DEP0182")
+            .IsNothing())
+      return;
+  }
+
   cipher->auth_tag_len_ = tag_len;
   cipher->auth_tag_state_ = kAuthTagKnown;
   CHECK_LE(cipher->auth_tag_len_, sizeof(cipher->auth_tag_));
@@ -820,10 +832,15 @@ CipherBase::UpdateResult CipherBase::Update(
                            len);
 
   CHECK_LE(static_cast<size_t>(buf_len), (*out)->ByteLength());
-  if (buf_len == 0)
+  if (buf_len == 0) {
     *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
-  else
-    *out = BackingStore::Reallocate(env()->isolate(), std::move(*out), buf_len);
+  } else if (static_cast<size_t>(buf_len) != (*out)->ByteLength()) {
+    std::unique_ptr<BackingStore> old_out = std::move(*out);
+    *out = ArrayBuffer::NewBackingStore(env()->isolate(), buf_len);
+    memcpy(static_cast<char*>((*out)->Data()),
+           static_cast<char*>(old_out->Data()),
+           buf_len);
+  }
 
   // When in CCM mode, EVP_CipherUpdate will fail if the authentication tag is
   // invalid. In that case, remember the error and throw in final().
@@ -911,11 +928,14 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
                             &out_len) == 1;
 
     CHECK_LE(static_cast<size_t>(out_len), (*out)->ByteLength());
-    if (out_len > 0) {
-      *out =
-        BackingStore::Reallocate(env()->isolate(), std::move(*out), out_len);
-    } else {
+    if (out_len == 0) {
       *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
+    } else if (static_cast<size_t>(out_len) != (*out)->ByteLength()) {
+      std::unique_ptr<BackingStore> old_out = std::move(*out);
+      *out = ArrayBuffer::NewBackingStore(env()->isolate(), out_len);
+      memcpy(static_cast<char*>((*out)->Data()),
+             static_cast<char*>(old_out->Data()),
+             out_len);
     }
 
     if (ok && kind_ == kCipher && IsAuthenticatedMode()) {
@@ -1015,10 +1035,15 @@ bool PublicKeyCipher::Cipher(
   }
 
   CHECK_LE(out_len, (*out)->ByteLength());
-  if (out_len > 0)
-    *out = BackingStore::Reallocate(env->isolate(), std::move(*out), out_len);
-  else
+  if (out_len == 0) {
     *out = ArrayBuffer::NewBackingStore(env->isolate(), 0);
+  } else if (out_len != (*out)->ByteLength()) {
+    std::unique_ptr<BackingStore> old_out = std::move(*out);
+    *out = ArrayBuffer::NewBackingStore(env->isolate(), out_len);
+    memcpy(static_cast<char*>((*out)->Data()),
+           static_cast<char*>(old_out->Data()),
+           out_len);
+  }
 
   return true;
 }
@@ -1042,6 +1067,32 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   uint32_t padding;
   if (!args[offset + 1]->Uint32Value(env->context()).To(&padding)) return;
+
+  if (EVP_PKEY_cipher == EVP_PKEY_decrypt &&
+      operation == PublicKeyCipher::kPrivate && padding == RSA_PKCS1_PADDING) {
+    EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
+    CHECK(ctx);
+
+    if (EVP_PKEY_decrypt_init(ctx.get()) <= 0) {
+      return ThrowCryptoError(env, ERR_get_error());
+    }
+
+    int rsa_pkcs1_implicit_rejection =
+        EVP_PKEY_CTX_ctrl_str(ctx.get(), "rsa_pkcs1_implicit_rejection", "1");
+    // From the doc -2 means that the option is not supported.
+    // The default for the option is enabled and if it has been
+    // specifically disabled we want to respect that so we will
+    // not throw an error if the option is supported regardless
+    // of how it is set. The call to set the value
+    // will not affect what is used since a different context is
+    // used in the call if the option is supported
+    if (rsa_pkcs1_implicit_rejection <= 0) {
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "RSA_PKCS1_PADDING is no longer supported for private decryption,"
+          " this can be reverted with --security-revert=CVE-2024-PEND");
+    }
+  }
 
   const EVP_MD* digest = nullptr;
   if (args[offset + 2]->IsString()) {

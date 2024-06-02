@@ -22,7 +22,7 @@ function findCoverageFileForPid(pid) {
 }
 
 function getTapCoverageFixtureReport() {
-  /* eslint-disable max-len */
+  /* eslint-disable @stylistic/js/max-len */
   const report = [
     '# start of coverage report',
     '# -------------------------------------------------------------------------------------------------------------------',
@@ -36,7 +36,7 @@ function getTapCoverageFixtureReport() {
     '# -------------------------------------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
-  /* eslint-enable max-len */
+  /* eslint-enable @stylistic/js/max-len */
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
@@ -46,7 +46,7 @@ function getTapCoverageFixtureReport() {
 }
 
 function getSpecCoverageFixtureReport() {
-  /* eslint-disable max-len */
+  /* eslint-disable @stylistic/js/max-len */
   const report = [
     '\u2139 start of coverage report',
     '\u2139 -------------------------------------------------------------------------------------------------------------------',
@@ -60,7 +60,7 @@ function getSpecCoverageFixtureReport() {
     '\u2139 -------------------------------------------------------------------------------------------------------------------',
     '\u2139 end of coverage report',
   ].join('\n');
-  /* eslint-enable max-len */
+  /* eslint-enable @stylistic/js/max-len */
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
@@ -241,4 +241,65 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
       assert.strictEqual(testLine.count, line.count);
     });
   });
+});
+
+test('coverage with source maps', skipIfNoInspector, () => {
+  let report = [
+    '# start of coverage report',
+    '# --------------------------------------------------------------',
+    '# file          | line % | branch % | funcs % | uncovered lines',
+    '# --------------------------------------------------------------',
+    '# a.test.ts     |  53.85 |   100.00 |  100.00 | 8-13',  // part of a bundle
+    '# b.test.ts     |  55.56 |   100.00 |  100.00 | 1 7-9', // part of a bundle
+    '# index.test.js |  71.43 |    66.67 |  100.00 | 6-7',  // no source map
+    '# stdin.test.ts |  57.14 |   100.00 |  100.00 | 4-6',  // Source map without original file
+    '# --------------------------------------------------------------',
+    '# all files     |  58.33 |    87.50 |  100.00 |',
+    '# --------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('test-runner', 'coverage');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixture });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 1);
+});
+
+test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
+  let report = [
+    '# start of coverage report',
+    '# ------------------------------------------------------------------',
+    '# file              | line % | branch % | funcs % | uncovered lines',
+    '# ------------------------------------------------------------------',
+    '# hooks.mjs         | 100.00 |   100.00 |  100.00 | ',
+    '# register-hooks.js | 100.00 |   100.00 |  100.00 | ',
+    '# virtual.js        | 100.00 |   100.00 |  100.00 | ',
+    '# ------------------------------------------------------------------',
+    '# all files         | 100.00 |   100.00 |  100.00 |',
+    '# ------------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('test-runner', 'coverage-loader');
+  const args = [
+    '--import', './register-hooks.js', '--test', '--experimental-test-coverage', '--test-reporter', 'tap', 'virtual.js',
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixture });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
 });

@@ -20,7 +20,7 @@ function replaceForceColorsStackTrace(str) {
   return str.replaceAll(/(\[90m\W+)at .*node:.*/g, '$1at *[39m');
 }
 
-describe('errors output', { concurrency: true }, () => {
+describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
       .replaceAll(pathToFileURL(process.cwd()).pathname, '')

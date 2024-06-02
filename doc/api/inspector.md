@@ -74,6 +74,9 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 // Debugger.resumed
 ```
 
+> **Caveat** Breakpoints with same-thread session is not recommended, see
+> [support of breakpoints][].
+
 It is also possible to subscribe only to notifications with specific method:
 
 #### Event: `<inspector-protocol-method>`;
@@ -97,6 +100,9 @@ session.on('Debugger.paused', ({ params }) => {
 });
 // [ '/the/file/that/has/the/breakpoint.js:11:0' ]
 ```
+
+> **Caveat** Breakpoints with same-thread session is not recommended, see
+> [support of breakpoints][].
 
 #### `session.connect()`
 
@@ -247,6 +253,9 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 // Debugger.resumed
 ```
 
+> **Caveat** Breakpoints with same-thread session is not recommended, see
+> [support of breakpoints][].
+
 It is also possible to subscribe only to notifications with specific method:
 
 #### Event: `<inspector-protocol-method>`;
@@ -270,6 +279,9 @@ session.on('Debugger.paused', ({ params }) => {
 });
 // [ '/the/file/that/has/the/breakpoint.js:11:0' ]
 ```
+
+> **Caveat** Breakpoints with same-thread session is not recommended, see
+> [support of breakpoints][].
 
 #### `session.connect()`
 
@@ -432,7 +444,7 @@ changes:
   **Default:** what was specified on the CLI.
 * `wait` {boolean} Block until a client has connected. Optional.
   **Default:** `false`.
-* Returns: {Disposable} that calls [`inspector.close()`][].
+* Returns: {Disposable} A Disposable that calls [`inspector.close()`][].
 
 Activate inspector on host and port. Equivalent to
 `node --inspect=[[host:]port]`, but can be done programmatically after node has
@@ -476,10 +488,27 @@ Blocks until a client (existing or connected later) has sent
 
 An exception will be thrown if there is no active inspector.
 
+## Support of breakpoints
+
+The Chrome DevTools Protocol [`Debugger` domain][] allows an
+`inspector.Session` to attach to a program and set breakpoints to step through
+the codes.
+
+However, setting breakpoints with a same-thread `inspector.Session`, which is
+connected by [`session.connect()`][], should be avoided as the program being
+attached and paused is exactly the debugger itself. Instead, try connect to the
+main thread by [`session.connectToMainThread()`][] and set breakpoints in a
+worker thread, or connect with a [Debugger][] program over WebSocket
+connection.
+
 [CPU Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/Profiler
 [Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
+[Debugger]: debugger.md
 [Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
+[`Debugger` domain]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger
 [`inspector.close()`]: #inspectorclose
 [`session.connect()`]: #sessionconnect
+[`session.connectToMainThread()`]: #sessionconnecttomainthread
 [security warning]: cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure
+[support of breakpoints]: #support-of-breakpoints

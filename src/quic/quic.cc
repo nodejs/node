@@ -20,9 +20,12 @@ using v8::Value;
 
 namespace quic {
 
+int DebugIndentScope::indent_ = 0;
+
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Endpoint::InitPerIsolate(isolate_data, target);
+  Session::InitPerIsolate(isolate_data, target);
 }
 
 void CreatePerContextProperties(Local<Object> target,
@@ -32,11 +35,13 @@ void CreatePerContextProperties(Local<Object> target,
   Realm* realm = Realm::GetCurrent(context);
   BindingData::InitPerContext(realm, target);
   Endpoint::InitPerContext(realm, target);
+  Session::InitPerContext(realm, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   BindingData::RegisterExternalReferences(registry);
   Endpoint::RegisterExternalReferences(registry);
+  Session::RegisterExternalReferences(registry);
 }
 
 }  // namespace quic

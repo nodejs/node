@@ -12,70 +12,15 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
-#include <limits>
 #include <unordered_map>
 #include <vector>
+#include "defs.h"
 
 namespace node {
 namespace quic {
 
 class Endpoint;
 class Packet;
-
-enum class Side {
-  CLIENT = NGTCP2_CRYPTO_SIDE_CLIENT,
-  SERVER = NGTCP2_CRYPTO_SIDE_SERVER,
-};
-
-enum class EndpointLabel {
-  LOCAL,
-  REMOTE,
-};
-
-enum class Direction {
-  BIDIRECTIONAL,
-  UNIDIRECTIONAL,
-};
-
-enum class HeadersKind {
-  HINTS,
-  INITIAL,
-  TRAILING,
-};
-
-enum class HeadersFlags {
-  NONE,
-  TERMINAL,
-};
-
-enum class StreamPriority {
-  DEFAULT = NGHTTP3_DEFAULT_URGENCY,
-  LOW = NGHTTP3_URGENCY_LOW,
-  HIGH = NGHTTP3_URGENCY_HIGH,
-};
-
-enum class StreamPriorityFlags {
-  NONE,
-  NON_INCREMENTAL,
-};
-
-enum class PathValidationResult : uint8_t {
-  SUCCESS = NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
-  FAILURE = NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
-  ABORTED = NGTCP2_PATH_VALIDATION_RESULT_ABORTED,
-};
-
-enum class DatagramStatus {
-  ACKNOWLEDGED,
-  LOST,
-};
-
-constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
-constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
-constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
-constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
-constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
-constexpr size_t kMaxVectorCount = 16;
 
 // ============================================================================
 
@@ -119,7 +64,6 @@ constexpr size_t kMaxVectorCount = 16;
   V(alpn, "alpn")                                                              \
   V(application_options, "application")                                        \
   V(bbr, "bbr")                                                                \
-  V(bbr2, "bbr2")                                                              \
   V(ca, "ca")                                                                  \
   V(certs, "certs")                                                            \
   V(cc_algorithm, "cc")                                                        \
@@ -128,12 +72,14 @@ constexpr size_t kMaxVectorCount = 16;
   V(cubic, "cubic")                                                            \
   V(disable_active_migration, "disableActiveMigration")                        \
   V(disable_stateless_reset, "disableStatelessReset")                          \
+  V(enable_connect_protocol, "enableConnectProtocol")                          \
+  V(enable_datagrams, "enableDatagrams")                                       \
   V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
   V(endpoint_udp, "Endpoint::UDP")                                             \
   V(failure, "failure")                                                        \
   V(groups, "groups")                                                          \
-  V(hostname, "hostname")                                                      \
+  V(handshake_timeout, "handshakeTimeout")                                     \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
   V(initial_max_data, "initialMaxData")                                        \
   V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
@@ -157,7 +103,10 @@ constexpr size_t kMaxVectorCount = 16;
   V(max_payload_size, "maxPayloadSize")                                        \
   V(max_retries, "maxRetries")                                                 \
   V(max_stateless_resets, "maxStatelessResetsPerHost")                         \
+  V(max_stream_window, "maxStreamWindow")                                      \
+  V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
+  V(no_udp_payload_size_shaping, "noUdpPayloadSizeShaping")                    \
   V(packetwrap, "PacketWrap")                                                  \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
   V(qlog, "qlog")                                                              \
@@ -167,11 +116,10 @@ constexpr size_t kMaxVectorCount = 16;
   V(reject_unauthorized, "rejectUnauthorized")                                 \
   V(reno, "reno")                                                              \
   V(retry_token_expiration, "retryTokenExpiration")                            \
-  V(request_peer_certificate, "requestPeerCertificate")                        \
   V(reset_token_secret, "resetTokenSecret")                                    \
   V(rx_loss, "rxDiagnosticLoss")                                               \
   V(session, "Session")                                                        \
-  V(session_id_ctx, "sessionIDContext")                                        \
+  V(sni, "sni")                                                                \
   V(stream, "Stream")                                                          \
   V(success, "success")                                                        \
   V(tls_options, "tls")                                                        \
@@ -184,7 +132,8 @@ constexpr size_t kMaxVectorCount = 16;
   V(udp_ttl, "udpTTL")                                                         \
   V(unacknowledged_packet_threshold, "unacknowledgedPacketThreshold")          \
   V(validate_address, "validateAddress")                                       \
-  V(verify_hostname_identity, "verifyHostnameIdentity")                        \
+  V(verify_client, "verifyClient")                                             \
+  V(verify_private_key, "verifyPrivateKey")                                    \
   V(version, "version")
 
 // =============================================================================
@@ -204,6 +153,7 @@ class BindingData final
   static BindingData& Get(Environment* env);
 
   BindingData(Realm* realm, v8::Local<v8::Object> object);
+  DISALLOW_COPY_AND_MOVE(BindingData)
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(BindingData)
@@ -220,7 +170,7 @@ class BindingData final
   // bridge out to the JS API.
   static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
+  std::vector<Packet*> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
@@ -283,6 +233,7 @@ void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
 struct NgTcp2CallbackScope {
   Environment* env;
   explicit NgTcp2CallbackScope(Environment* env);
+  DISALLOW_COPY_AND_MOVE(NgTcp2CallbackScope)
   ~NgTcp2CallbackScope();
   static bool in_ngtcp2_callback(Environment* env);
 };
@@ -290,6 +241,7 @@ struct NgTcp2CallbackScope {
 struct NgHttp3CallbackScope {
   Environment* env;
   explicit NgHttp3CallbackScope(Environment* env);
+  DISALLOW_COPY_AND_MOVE(NgHttp3CallbackScope)
   ~NgHttp3CallbackScope();
   static bool in_nghttp3_callback(Environment* env);
 };
@@ -300,10 +252,7 @@ struct CallbackScopeBase {
   v8::TryCatch try_catch;
 
   explicit CallbackScopeBase(Environment* env);
-  CallbackScopeBase(const CallbackScopeBase&) = delete;
-  CallbackScopeBase(CallbackScopeBase&&) = delete;
-  CallbackScopeBase& operator=(const CallbackScopeBase&) = delete;
-  CallbackScopeBase& operator=(CallbackScopeBase&&) = delete;
+  DISALLOW_COPY_AND_MOVE(CallbackScopeBase)
   ~CallbackScopeBase();
 };
 
@@ -314,6 +263,7 @@ struct CallbackScope final : public CallbackScopeBase {
   BaseObjectPtr<T> ref;
   explicit CallbackScope(const T* ptr)
       : CallbackScopeBase(ptr->env()), ref(ptr) {}
+  DISALLOW_COPY_AND_MOVE(CallbackScope)
   explicit CallbackScope(T* ptr) : CallbackScopeBase(ptr->env()), ref(ptr) {}
 };
 

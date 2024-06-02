@@ -5,6 +5,7 @@
 
 #include "debug_utils-inl.h"
 #include "env.h"
+#include "node_buffer.h"
 #include "v8.h"
 
 // Use ostringstream to print exact-width integer types
@@ -91,6 +92,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_MODULE_NOT_FOUND, Error)                                               \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
   V(ERR_OUT_OF_RANGE, RangeError)                                              \
+  V(ERR_REQUIRE_ASYNC_MODULE, Error)                                           \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
   V(ERR_STRING_TOO_LONG, Error)                                                \
@@ -187,6 +189,10 @@ ERRORS_WITH_CODE(V)
     "creating Workers")                                                        \
   V(ERR_NON_CONTEXT_AWARE_DISABLED,                                            \
     "Loading non context-aware native addons has been disabled")               \
+  V(ERR_REQUIRE_ASYNC_MODULE,                                                  \
+    "require() cannot be used on an ESM graph with top-level await. Use "      \
+    "import() instead. To see where the top-level await comes from, use "      \
+    "--experimental-print-required-tla.")                                      \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
@@ -220,9 +226,10 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
 
 inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   char message[128];
-  snprintf(message, sizeof(message),
-      "Cannot create a Buffer larger than 0x%zx bytes",
-      v8::TypedArray::kMaxLength);
+  snprintf(message,
+           sizeof(message),
+           "Cannot create a Buffer larger than 0x%zx bytes",
+           Buffer::kMaxLength);
   return ERR_BUFFER_TOO_LARGE(isolate, message);
 }
 
@@ -288,6 +295,9 @@ void PerIsolateMessageListener(v8::Local<v8::Message> message,
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch);
+void DecorateErrorStack(Environment* env,
+                        v8::Local<v8::Value> error,
+                        v8::Local<v8::Message> message);
 
 class PrinterTryCatch : public v8::TryCatch {
  public:

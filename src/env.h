@@ -31,6 +31,7 @@
 #endif
 #include "callback_queue.h"
 #include "cleanup_queue-inl.h"
+#include "compile_cache.h"
 #include "debug_utils.h"
 #include "env_properties.h"
 #include "handle_wrap.h"
@@ -48,6 +49,10 @@
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
+
+#if HAVE_OPENSSL
+#include <openssl/evp.h>
+#endif
 
 #include <array>
 #include <atomic>
@@ -731,6 +736,7 @@ class Environment : public MemoryRetainer {
   // a pseudo-boolean to indicate whether the exit code is undefined.
   inline AliasedInt32Array& exit_info();
   inline void set_exiting(bool value);
+  bool exiting() const;
   inline ExitCode exit_code(const ExitCode default_code) const;
 
   // This stores whether the --abort-on-uncaught-exception flag was passed
@@ -797,6 +803,7 @@ class Environment : public MemoryRetainer {
   inline bool tracks_unmanaged_fds() const;
   inline bool hide_console_windows() const;
   inline bool no_global_search_paths() const;
+  inline bool should_start_debug_signal_handler() const;
   inline bool no_browser_globals() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
@@ -836,6 +843,7 @@ class Environment : public MemoryRetainer {
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
+  v8::Maybe<bool> CheckUnsettledTopLevelAwait();
   void RunWeakRefCleanup();
 
   v8::MaybeLocal<v8::Value> RunSnapshotSerializeCallback() const;
@@ -876,6 +884,9 @@ class Environment : public MemoryRetainer {
 #if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() const {
     return inspector_agent_.get();
+  }
+  inline void StopInspector() {
+    inspector_agent_.reset();
   }
 
   inline bool is_in_inspector_console_call() const;
@@ -995,11 +1006,15 @@ class Environment : public MemoryRetainer {
 
 #endif  // HAVE_INSPECTOR
 
-  inline const StartExecutionCallback& embedder_entry_point() const;
-  inline void set_embedder_entry_point(StartExecutionCallback&& fn);
+  inline const EmbedderPreloadCallback& embedder_preload() const;
+  inline void set_embedder_preload(EmbedderPreloadCallback fn);
 
   inline void set_process_exit_handler(
       std::function<void(Environment*, ExitCode)>&& handler);
+
+  inline CompileCacheHandler* compile_cache_handler();
+  inline bool use_compile_cache() const;
+  void InitializeCompileCache();
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
@@ -1028,15 +1043,20 @@ class Environment : public MemoryRetainer {
     kExitInfoFieldCount
   };
 
+#if HAVE_OPENSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+  // We declare another alias here to avoid having to include crypto_util.h
+  using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
+  std::vector<EVPMDPointer> evp_md_cache;
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+  std::unordered_map<std::string, size_t> alias_to_md_id_map;
+  std::vector<std::string> supported_hash_algorithms;
+#endif  // HAVE_OPENSSL
+
  private:
-  // V8 has changed the constructor of exceptions, support both APIs before Node
-  // updates to V8 12.1.
-  using V8ExceptionConstructorOld =
-      v8::Local<v8::Value> (*)(v8::Local<v8::String>);
-  using V8ExceptionConstructorNew =
-      v8::Local<v8::Value> (*)(v8::Local<v8::String>, v8::Local<v8::Value>);
-  inline void ThrowError(V8ExceptionConstructorOld fun, const char* errmsg);
-  inline void ThrowError(V8ExceptionConstructorNew fun, const char* errmsg);
+  inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>,
+                                                     v8::Local<v8::Value>),
+                         const char* errmsg);
   void TrackContext(v8::Local<v8::Context> context);
   void UntrackContext(v8::Local<v8::Context> context);
 
@@ -1086,6 +1106,7 @@ class Environment : public MemoryRetainer {
   uint64_t heap_prof_interval_;
 #endif  // HAVE_INSPECTOR
 
+  std::unique_ptr<CompileCacheHandler> compile_cache_handler_;
   std::shared_ptr<EnvironmentOptions> options_;
   // options_ contains debug options parsed from CLI arguments,
   // while inspector_host_port_ stores the actual inspector host
@@ -1198,7 +1219,7 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<PrincipalRealm> principal_realm_ = nullptr;
 
   builtins::BuiltinLoader builtin_loader_;
-  StartExecutionCallback embedder_entry_point_;
+  EmbedderPreloadCallback embedder_preload_;
 
   // Used by allocate_managed_buffer() and release_managed_buffer() to keep
   // track of the BackingStore for a given pointer.

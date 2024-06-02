@@ -90,7 +90,7 @@ module.exports = {
         const options = Array.isArray(context.options) ? context.options : [];
         const isPathAndPatternsObject =
             typeof options[0] === "object" &&
-            (Object.prototype.hasOwnProperty.call(options[0], "paths") || Object.prototype.hasOwnProperty.call(options[0], "patterns"));
+            (Object.hasOwn(options[0], "paths") || Object.hasOwn(options[0], "patterns"));
 
         const restrictedPaths = (isPathAndPatternsObject ? options[0].paths : context.options) || [];
         const restrictedPatterns = (isPathAndPatternsObject ? options[0].patterns : []) || [];
@@ -178,7 +178,7 @@ module.exports = {
          * @private
          */
         function isRestrictedPath(name) {
-            return Object.prototype.hasOwnProperty.call(restrictedPathMessages, name);
+            return Object.hasOwn(restrictedPathMessages, name);
         }
 
         return {

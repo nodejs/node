@@ -31,7 +31,7 @@
  */
 
 #if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#define WIN32
+#  define WIN32
 #endif
 
 /*
@@ -40,12 +40,12 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "ares_config.h"
+#  include "ares_config.h"
 #else
 
-#ifdef WIN32
-#include "config-win32.h"
-#endif
+#  ifdef WIN32
+#    include "config-win32.h"
+#  endif
 
 #endif /* HAVE_CONFIG_H */
 
@@ -123,7 +123,7 @@
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
 #    ifdef HAVE_WS2TCPIP_H
-#       include <ws2tcpip.h>
+#      include <ws2tcpip.h>
 #    endif
 #  else
 #    ifdef HAVE_WINSOCK_H
@@ -138,8 +138,9 @@
  * undefine USE_WINSOCK.
  */
 
-#undef USE_WINSOCK
-
+#ifdef USE_WINSOCK
+#  undef USE_WINSOCK
+#endif
 #ifdef HAVE_WINSOCK2_H
 #  define USE_WINSOCK 2
 #else
@@ -154,17 +155,17 @@
 
 #ifndef HAVE_CONFIG_H
 
-#if !defined(HAVE_SYS_TIME_H) && !defined(_MSC_VER) && !defined(__WATCOMC__)
-#define HAVE_SYS_TIME_H
-#endif
+#  if !defined(HAVE_SYS_TIME_H) && !defined(_MSC_VER) && !defined(__WATCOMC__)
+#    define HAVE_SYS_TIME_H
+#  endif
 
-#if !defined(HAVE_UNISTD_H) && !defined(_MSC_VER)
-#define HAVE_UNISTD_H 1
-#endif
+#  if !defined(HAVE_UNISTD_H) && !defined(_MSC_VER)
+#    define HAVE_UNISTD_H 1
+#  endif
 
-#if !defined(HAVE_SYS_UIO_H) && !defined(WIN32) && !defined(MSDOS)
-#define HAVE_SYS_UIO_H
-#endif
+#  if !defined(HAVE_SYS_UIO_H) && !defined(WIN32) && !defined(MSDOS)
+#    define HAVE_SYS_UIO_H
+#  endif
 
 #endif /* HAVE_CONFIG_H */
 
@@ -193,7 +194,7 @@
  * but it is not fully implemented and missing identifiers, so udefine here.
  */
 #if (defined(ANDROID) || defined(__ANDROID__) || defined(__MVS__)) && \
-    defined(HAVE_ARPA_NAMESER_H)
+  defined(HAVE_ARPA_NAMESER_H)
 #  undef HAVE_ARPA_NAMESER_H
 #endif
 
@@ -203,21 +204,35 @@
  *  --enable-debug) so we undef them again here.
  */
 
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-#undef PACKAGE_VERSION
-#undef PACKAGE_BUGREPORT
-#undef PACKAGE_NAME
-#undef VERSION
-#undef PACKAGE
+#ifdef PACKAGE_STRING
+#  undef PACKAGE_STRING
+#endif
+#ifdef PACKAGE_TARNAME
+#  undef PACKAGE_TARNAME
+#endif
+#ifdef PACKAGE_VERSION
+#  undef PACKAGE_VERSION
+#endif
+#ifdef PACKAGE_BUGREPORT
+#  undef PACKAGE_BUGREPORT
+#endif
+#ifdef PACKAGE_NAME
+#  undef PACKAGE_NAME
+#endif
+#ifdef VERSION
+#  undef VERSION
+#endif
+#ifdef PACKAGE
+#  undef PACKAGE
+#endif
 
 /* IPv6 compatibility */
 #if !defined(HAVE_AF_INET6)
-#if defined(HAVE_PF_INET6)
-#define AF_INET6 PF_INET6
-#else
-#define AF_INET6 AF_MAX+1
-#endif
+#  if defined(HAVE_PF_INET6)
+#    define AF_INET6 PF_INET6
+#  else
+#    define AF_INET6 AF_MAX + 1
+#  endif
 #endif
 
 /*
@@ -225,7 +240,7 @@
  */
 
 #ifndef __SETUP_ONCE_H
-#include "setup_once.h"
+#  include "setup_once.h"
 #endif
 
 #endif /* HEADER_CARES_SETUP_H */

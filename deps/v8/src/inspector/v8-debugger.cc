@@ -915,13 +915,13 @@ v8::MaybeLocal<v8::Array> V8Debugger::privateMethods(
     return v8::MaybeLocal<v8::Array>();
   }
   v8::Isolate* isolate = context->GetIsolate();
-  std::vector<v8::Local<v8::Value>> names;
-  std::vector<v8::Local<v8::Value>> values;
+  v8::LocalVector<v8::Value> names(isolate);
+  v8::LocalVector<v8::Value> values(isolate);
   int filter =
       static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateMethods);
   if (!v8::debug::GetPrivateMembers(context, receiver.As<v8::Object>(), filter,
                                     &names, &values) ||
-      names.size() == 0) {
+      names.empty()) {
     return v8::MaybeLocal<v8::Array>();
   }
 
@@ -1207,7 +1207,7 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
 void V8Debugger::asyncTaskFinishedForStack(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   // We could start instrumenting half way and the stack is empty.
-  if (!m_currentTasks.size()) return;
+  if (m_currentTasks.empty()) return;
   DCHECK(m_currentTasks.back() == task);
   m_currentTasks.pop_back();
 

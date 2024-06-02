@@ -68,8 +68,8 @@ mv "$WORKSPACE/"*.gyp "$WORKSPACE/"*.gn "$WORKSPACE/"*.gni "$DEPS_DIR/uvwasi/"
 cd "$DEPS_DIR/uvwasi/"
 
 echo "Copying new files to deps folder"
-cp -r "$UVWASI_ZIP/include" "$DEPS_DIR/uvwasi/"
-cp -r "$UVWASI_ZIP/src" "$DEPS_DIR/uvwasi/"
+replace_dir "$DEPS_DIR/uvwasi/include" "$UVWASI_ZIP/include"
+replace_dir "$DEPS_DIR/uvwasi/src" "$UVWASI_ZIP/src"
 cp "$UVWASI_ZIP/LICENSE" "$DEPS_DIR/uvwasi/"
 rm -rf "$UVWASI_ZIP"
 

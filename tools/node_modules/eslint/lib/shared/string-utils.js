@@ -6,20 +6,14 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Requirements
-//------------------------------------------------------------------------------
-
-const Graphemer = require("graphemer").default;
-
-//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 // eslint-disable-next-line no-control-regex -- intentionally including control characters
 const ASCII_REGEX = /^[\u0000-\u007f]*$/u;
 
-/** @type {Graphemer | undefined} */
-let splitter;
+/** @type {Intl.Segmenter | undefined} */
+let segmenter;
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -47,11 +41,15 @@ function getGraphemeCount(value) {
         return value.length;
     }
 
-    if (!splitter) {
-        splitter = new Graphemer();
+    segmenter ??= new Intl.Segmenter("en-US"); // en-US locale should be supported everywhere
+    let graphemeCount = 0;
+
+    // eslint-disable-next-line no-unused-vars -- for-of needs a variable
+    for (const unused of segmenter.segment(value)) {
+        graphemeCount++;
     }
 
-    return splitter.countGraphemes(value);
+    return graphemeCount;
 }
 
 module.exports = {

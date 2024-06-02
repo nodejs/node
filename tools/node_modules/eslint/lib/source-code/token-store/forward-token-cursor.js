@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const Cursor = require("./cursor");
-const utils = require("./utils");
+const { getFirstIndex, getLastIndex } = require("./utils");
 
 //------------------------------------------------------------------------------
 // Exports
@@ -31,8 +31,8 @@ module.exports = class ForwardTokenCursor extends Cursor {
     constructor(tokens, comments, indexMap, startLoc, endLoc) {
         super();
         this.tokens = tokens;
-        this.index = utils.getFirstIndex(tokens, indexMap, startLoc);
-        this.indexEnd = utils.getLastIndex(tokens, indexMap, endLoc);
+        this.index = getFirstIndex(tokens, indexMap, startLoc);
+        this.indexEnd = getLastIndex(tokens, indexMap, endLoc);
     }
 
     /** @inheritdoc */

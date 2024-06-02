@@ -292,7 +292,7 @@ dns.lookup('', {
   await dnsPromises.lookup('', {
     hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
   });
-  await dnsPromises.lookup('', { verbatim: true });
+  await dnsPromises.lookup('', { order: 'verbatim' });
 })().then(common.mustCall());
 
 {

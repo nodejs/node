@@ -56,6 +56,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
+maglev_enabled_architectures = ('x64', 'arm', 'arm64')
 
 shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
                      'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
@@ -121,6 +122,12 @@ parser.add_argument('--no-cross-compiling',
     dest='cross_compiling',
     default=None,
     help='force build to be considered as NOT cross compiled')
+
+parser.add_argument('--use-prefix-to-find-headers',
+    action='store_true',
+    dest='use_prefix_to_find_headers',
+    default=None,
+    help='use the prefix to look for pre-installed headers')
 
 parser.add_argument('--dest-os',
     action='store',
@@ -375,6 +382,28 @@ shared_optgroup.add_argument('--shared-openssl-libpath',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
+shared_optgroup.add_argument('--shared-uvwasi',
+    action='store_true',
+    dest='shared_uvwasi',
+    default=None,
+    help='link to a shared uvwasi DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-uvwasi-includes',
+    action='store',
+    dest='shared_uvwasi_includes',
+    help='directory containing uvwasi header files')
+
+shared_optgroup.add_argument('--shared-uvwasi-libname',
+    action='store',
+    dest='shared_uvwasi_libname',
+    default='uvwasi',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-uvwasi-libpath',
+    action='store',
+    dest='shared_uvwasi_libpath',
+    help='a directory to search for the shared uvwasi DLL')
+
 shared_optgroup.add_argument('--shared-zlib',
     action='store_true',
     dest='shared_zlib',
@@ -396,6 +425,74 @@ shared_optgroup.add_argument('--shared-zlib-libpath',
     action='store',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
+
+shared_optgroup.add_argument('--shared-simdjson',
+    action='store_true',
+    dest='shared_simdjson',
+    default=None,
+    help='link to a shared simdjson DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-simdjson-includes',
+    action='store',
+    dest='shared_simdjson_includes',
+    help='directory containing simdjson header files')
+
+shared_optgroup.add_argument('--shared-simdjson-libname',
+    action='store',
+    dest='shared_simdjson_libname',
+    default='simdjson',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-simdjson-libpath',
+    action='store',
+    dest='shared_simdjson_libpath',
+    help='a directory to search for the shared simdjson DLL')
+
+
+shared_optgroup.add_argument('--shared-simdutf',
+    action='store_true',
+    dest='shared_simdutf',
+    default=None,
+    help='link to a shared simdutf DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-simdutf-includes',
+    action='store',
+    dest='shared_simdutf_includes',
+    help='directory containing simdutf header files')
+
+shared_optgroup.add_argument('--shared-simdutf-libname',
+    action='store',
+    dest='shared_simdutf_libname',
+    default='simdutf',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-simdutf-libpath',
+    action='store',
+    dest='shared_simdutf_libpath',
+    help='a directory to search for the shared simdutf DLL')
+
+
+shared_optgroup.add_argument('--shared-ada',
+    action='store_true',
+    dest='shared_ada',
+    default=None,
+    help='link to a shared ada DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-ada-includes',
+    action='store',
+    dest='shared_ada_includes',
+    help='directory containing ada header files')
+
+shared_optgroup.add_argument('--shared-ada-libname',
+    action='store',
+    dest='shared_ada_libname',
+    default='ada',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-ada-libpath',
+    action='store',
+    dest='shared_ada_libpath',
+    help='a directory to search for the shared ada DLL')
 
 shared_optgroup.add_argument('--shared-brotli',
     action='store_true',
@@ -441,8 +538,6 @@ shared_optgroup.add_argument('--shared-cares-libpath',
     dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
-parser.add_argument_group(shared_optgroup)
-
 for builtin in shareable_builtins:
   builtin_id = 'shared_builtin_' + builtin + '_path'
   shared_builtin_optgroup.add_argument('--shared-builtin-' + builtin + '-path',
@@ -451,14 +546,10 @@ for builtin in shareable_builtins:
     help='Path to shared file for ' + builtin + ' builtin. '
          'Will be used instead of bundled version at runtime')
 
-parser.add_argument_group(shared_builtin_optgroup)
-
 static_optgroup.add_argument('--static-zoslib-gyp',
     action='store',
     dest='static_zoslib_gyp',
     help='path to zoslib.gyp file for includes and to link to static zoslib library')
-
-parser.add_argument_group(static_optgroup)
 
 parser.add_argument('--tag',
     action='store',
@@ -639,8 +730,6 @@ intl_optgroup.add_argument('--download-path',
     default='deps',
     help='Download directory [default: %(default)s]')
 
-parser.add_argument_group(intl_optgroup)
-
 parser.add_argument('--debug-lib',
     action='store_true',
     dest='node_debug_lib',
@@ -652,8 +741,6 @@ http2_optgroup.add_argument('--debug-nghttp2',
     dest='debug_nghttp2',
     default=None,
     help='build nghttp2 with DEBUGBUILD (default is false)')
-
-parser.add_argument_group(http2_optgroup)
 
 parser.add_argument('--without-npm',
     action='store_true',
@@ -717,6 +804,12 @@ parser.add_argument('--enable-asan',
     dest='enable_asan',
     default=None,
     help='compile for Address Sanitizer to find memory bugs')
+
+parser.add_argument('--enable-ubsan',
+    action='store_true',
+    dest='enable_ubsan',
+    default=None,
+    help='compile for Undefined Behavior Sanitizer')
 
 parser.add_argument('--enable-static',
     action='store_true',
@@ -812,11 +905,13 @@ parser.add_argument('--v8-enable-hugepage',
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
 
-parser.add_argument('--v8-enable-maglev',
+maglev_enabled_by_default_help = f"(Maglev is enabled by default on {','.join(maglev_enabled_architectures)})"
+
+parser.add_argument('--v8-disable-maglev',
     action='store_true',
-    dest='v8_enable_maglev',
+    dest='v8_disable_maglev',
     default=None,
-    help='Enable V8 Maglev compiler. Not available on all platforms.')
+    help=f"Disable V8's Maglev compiler. {maglev_enabled_by_default_help}")
 
 parser.add_argument('--v8-enable-short-builtin-calls',
     action='store_true',
@@ -850,6 +945,13 @@ parser.add_argument('-C',
     dest='compile_commands_json',
     default=None,
     help=argparse.SUPPRESS)
+
+parser.add_argument('--clang-cl',
+    action='store',
+    dest='clang_cl',
+    default=None,
+    help='Configure for clang-cl on Windows. This flag sets the GYP "clang" ' +
+         'variable to 1 and "llvm_version" to the specified value.')
 
 (options, args) = parser.parse_known_args()
 
@@ -1027,7 +1129,13 @@ def get_gas_version(cc):
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
-    o['variables']['llvm_version'] = '0.0'
+    if options.clang_cl:
+      o['variables']['clang'] = 1
+      o['variables']['llvm_version'] = options.clang_cl
+    else:
+      o['variables']['clang'] = 0
+      o['variables']['llvm_version'] = '0.0'
+
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
       o['variables']['nasm_version'] = nasm_version
@@ -1036,6 +1144,7 @@ def check_compiler(o):
     return
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
+  o['variables']['clang'] = B(is_clang)
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
   print_verbose(f"Detected {'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
   if not ok:
@@ -1161,18 +1270,17 @@ def host_arch_cc():
 def host_arch_win():
   """Host architecture check using environ vars (better way to do this?)"""
 
-  observed_arch = os.environ.get('PROCESSOR_ARCHITECTURE', 'x86')
+  observed_arch = os.environ.get('PROCESSOR_ARCHITECTURE', 'AMD64')
   arch = os.environ.get('PROCESSOR_ARCHITEW6432', observed_arch)
 
   matchup = {
     'AMD64'  : 'x64',
-    'x86'    : 'ia32',
     'arm'    : 'arm',
     'mips'   : 'mips',
     'ARM64'  : 'arm64'
   }
 
-  return matchup.get(arch, 'ia32')
+  return matchup.get(arch, 'x64')
 
 
 def configure_arm(o):
@@ -1249,6 +1357,7 @@ def configure_node(o):
   o['variables']['debug_node'] = b(options.debug_node)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
   o['variables']['error_on_warn'] = b(options.error_on_warn)
+  o['variables']['use_prefix_to_find_headers'] = b(options.use_prefix_to_find_headers)
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
@@ -1430,6 +1539,7 @@ def configure_node(o):
     o['variables']['linked_module_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
+  o['variables']['ubsan'] = int(options.enable_ubsan or 0)
 
   if options.coverage:
     o['variables']['coverage'] = 'true'
@@ -1498,7 +1608,8 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
-  o['variables']['v8_enable_maglev'] = 1 if options.v8_enable_maglev else 0
+  o['variables']['v8_enable_maglev'] = B(not options.v8_disable_maglev and
+                                         o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression or options.disable_shared_ro_heap else 1
@@ -2036,11 +2147,15 @@ configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
+configure_library('ada', output)
+configure_library('simdjson', output)
+configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
+configure_library('uvwasi', output, pkgname='libuvwasi')
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)

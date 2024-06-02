@@ -139,6 +139,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
+  Reduction ReduceJSConstructForwardAllArgs(Node* node);
   Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSCall(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
@@ -266,6 +267,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   // Check whether the given new target value is a constructor function.
   void CheckIfConstructor(Node* call);
+
+  Node* ConvertHoleToUndefined(Node* value, ElementsKind elements_kind);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

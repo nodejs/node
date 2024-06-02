@@ -1,7 +1,32 @@
 #!/usr/bin/env python3
 # Copyright 2014 The Chromium Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#    * Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#    * Redistributions in binary form must reproduce the above
+# copyright notice, this list of conditions and the following disclaimer
+# in the documentation and/or other materials provided with the
+# distribution.
+#    * Neither the name of Google LLC nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 # Deleted from Chromium in https://crrev.com/097f64c631.
 
 """Converts a given gypi file to a python scope and writes the result to stdout.
@@ -77,29 +102,119 @@ the input will be replaced with "bar":
 from __future__ import absolute_import
 from __future__ import print_function
 from optparse import OptionParser
-import os
 import sys
 
 
-# Look for standalone GN distribution.
-def FindGNPath():
-  for i in os.environ['PATH'].split(os.pathsep):
-    if i.rstrip(os.sep).endswith('gn'):
-      return i
-  return None
+# This function is copied from build/gn_helpers.py in Chromium.
+def ToGNString(value, pretty=False):
+  """Returns a stringified GN equivalent of a Python value.
+
+  Args:
+    value: The Python value to convert.
+    pretty: Whether to pretty print. If true, then non-empty lists are rendered
+        recursively with one item per line, with indents. Otherwise lists are
+        rendered without new line.
+  Returns:
+    The stringified GN equivalent to |value|.
+
+  Raises:
+    ValueError: |value| cannot be printed to GN.
+  """
+
+  # Emits all output tokens without intervening whitespaces.
+  def GenerateTokens(v, level):
+    if isinstance(v, str):
+      yield '"' + ''.join(TranslateToGnChars(v)) + '"'
+
+    elif isinstance(v, bool):
+      yield 'true' if v else 'false'
+
+    elif isinstance(v, int):
+      yield str(v)
+
+    elif isinstance(v, list):
+      yield '['
+      for i, item in enumerate(v):
+        if i > 0:
+          yield ','
+        for tok in GenerateTokens(item, level + 1):
+          yield tok
+      yield ']'
+
+    elif isinstance(v, dict):
+      if level > 0:
+        yield '{'
+      for key in sorted(v):
+        if not isinstance(key, str):
+          raise ValueError('Dictionary key is not a string.')
+        if not key or key[0].isdigit() or not key.replace('_', '').isalnum():
+          raise ValueError('Dictionary key is not a valid GN identifier.')
+        yield key  # No quotations.
+        yield '='
+        for tok in GenerateTokens(v[key], level + 1):
+          yield tok
+      if level > 0:
+        yield '}'
+
+    else:  # Not supporting float: Add only when needed.
+      raise ValueError('Unsupported type when printing to GN.')
+
+  can_start = lambda tok: tok and tok not in ',}]='
+  can_end = lambda tok: tok and tok not in ',{[='
+
+  # Adds whitespaces, trying to keep everything (except dicts) in 1 line.
+  def PlainGlue(gen):
+    prev_tok = None
+    for i, tok in enumerate(gen):
+      if i > 0:
+        if can_end(prev_tok) and can_start(tok):
+          yield '\n'  # New dict item.
+        elif prev_tok == '[' and tok == ']':
+          yield '  '  # Special case for [].
+        elif tok != ',':
+          yield ' '
+      yield tok
+      prev_tok = tok
+
+  # Adds whitespaces so non-empty lists can span multiple lines, with indent.
+  def PrettyGlue(gen):
+    prev_tok = None
+    level = 0
+    for i, tok in enumerate(gen):
+      if i > 0:
+        if can_end(prev_tok) and can_start(tok):
+          yield '\n' + '  ' * level  # New dict item.
+        elif tok == '=' or prev_tok in '=':
+          yield ' '  # Separator before and after '=', on same line.
+      if tok in ']}':
+        level -= 1
+      # Exclude '[]' and '{}' cases.
+      if int(prev_tok == '[') + int(tok == ']') == 1 or \
+         int(prev_tok == '{') + int(tok == '}') == 1:
+        yield '\n' + '  ' * level
+      yield tok
+      if tok in '[{':
+        level += 1
+      if tok == ',':
+        yield '\n' + '  ' * level
+      prev_tok = tok
+
+  token_gen = GenerateTokens(value, 0)
+  ret = ''.join((PrettyGlue if pretty else PlainGlue)(token_gen))
+  # Add terminating '\n' for dict |value| or multi-line output.
+  if isinstance(value, dict) or '\n' in ret:
+    return ret + '\n'
+  return ret
 
 
-try:
-  # May already be in the import path.
-  import gn_helpers
-except ImportError:
-  # Add src/build to import path.
-  src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                            os.pardir, os.pardir))
-  sys.path.append(os.path.join(src_dir, 'build'))
-  if FindGNPath():
-    sys.path.append(os.path.join(FindGNPath(), 'build'))
-  import gn_helpers
+def TranslateToGnChars(s):
+  for code in s.encode('utf-8'):
+    if code in (34, 36, 92):  # For '"', '$', or '\\'.
+      yield '\\' + chr(code)
+    elif 32 <= code < 127:
+      yield chr(code)
+    else:
+      yield '$0x%02X' % code
 
 
 def LoadPythonDictionary(path):
@@ -209,7 +324,7 @@ def main():
     else:
       gn_dict[gn_key] = data[key]
 
-  print(gn_helpers.ToGNString(DeduplicateLists(gn_dict)))
+  print(ToGNString(DeduplicateLists(gn_dict)))
 
 if __name__ == '__main__':
   try:

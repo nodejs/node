@@ -149,8 +149,9 @@ TEST_IMPL(tcp_writealot) {
   uv_tcp_t client;
   int r;
 
-#ifdef __TSAN__
-  RETURN_SKIP("Test is too slow to run under ThreadSanitizer");
+#if defined(__MSAN__) || defined(__TSAN__)
+  RETURN_SKIP("Test is too slow to run under "
+              "MemorySanitizer or ThreadSanitizer");
 #endif
 
   ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));

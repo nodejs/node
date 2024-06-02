@@ -8,6 +8,7 @@
 #include <node_internals.h>
 #include <node_sockaddr.h>
 #include "cid.h"
+#include "defs.h"
 
 namespace node {
 namespace quic {
@@ -35,17 +36,19 @@ class TokenSecret final : public MemoryRetainer {
 
   TokenSecret(const TokenSecret&) = default;
   TokenSecret& operator=(const TokenSecret&) = default;
-  TokenSecret(TokenSecret&&) = delete;
-  TokenSecret& operator=(TokenSecret&&) = delete;
+  DISALLOW_MOVE(TokenSecret)
 
   operator const uint8_t*() const;
   uint8_t operator[](int pos) const;
+
+  std::string ToString() const;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(TokenSecret)
   SET_SELF_SIZE(TokenSecret)
 
  private:
+  operator const char*() const;
   uint8_t buf_[QUIC_TOKENSECRET_LEN];
 };
 
@@ -96,7 +99,7 @@ class StatelessResetToken final : public MemoryRetainer {
   explicit StatelessResetToken(const uint8_t* token);
 
   StatelessResetToken(const StatelessResetToken& other);
-  StatelessResetToken(StatelessResetToken&&) = delete;
+  DISALLOW_MOVE(StatelessResetToken)
 
   std::string ToString() const;
 
@@ -183,12 +186,16 @@ class RetryToken final : public MemoryRetainer {
 
   operator const ngtcp2_vec&() const;
   operator const ngtcp2_vec*() const;
+  operator bool() const;
+
+  std::string ToString() const;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RetryToken)
   SET_SELF_SIZE(RetryToken)
 
  private:
+  operator const char*() const;
   uint8_t buf_[kRetryTokenLen];
   const ngtcp2_vec ptr_;
 };
@@ -232,11 +239,14 @@ class RegularToken final : public MemoryRetainer {
 
   operator bool() const;
 
+  std::string ToString() const;
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RetryToken)
   SET_SELF_SIZE(RetryToken)
 
  private:
+  operator const char*() const;
   uint8_t buf_[kRegularTokenLen];
   const ngtcp2_vec ptr_;
 };

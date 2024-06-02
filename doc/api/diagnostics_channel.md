@@ -789,6 +789,11 @@ if the given function throws an error. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
+
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 
@@ -837,6 +842,11 @@ produce an [`error` event][] if the given function throws an error or the
 returned promise rejects. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -890,6 +900,11 @@ function execution, and will produce a [`asyncStart` event][] and
 the callback is set. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -978,6 +993,11 @@ With callback-based async functions the `result` will be the second argument
 of the callback while the `error` will either be a thrown error visible in the
 `end` event or the first callback argument in either of the `asyncStart` or
 `asyncEnd` events.
+
+To ensure only correct trace graphs are formed, events should only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins should not receive future events from that trace,
+only future traces will be seen.
 
 Tracing channels should follow a naming pattern of:
 
@@ -1111,6 +1131,26 @@ Emitted when a new TCP or pipe client socket is created.
 
 Emitted when a new TCP or pipe connection is received.
 
+`tracing:net.server.listen:asyncStart`
+
+* `server` {net.Server}
+* `options` {Object}
+
+Emitted when [`net.Server.listen()`][] is invoked, before the port or pipe is actually setup.
+
+`tracing:net.server.listen:asyncEnd`
+
+* `server` {net.Server}
+
+Emitted when [`net.Server.listen()`][] has completed and thus the server is ready to accept connection.
+
+`tracing:net.server.listen:error`
+
+* `server` {net.Server}
+* `error` {Error}
+
+Emitted when [`net.Server.listen()`][] is returning an error.
+
 #### UDP
 
 `udp.socket`
@@ -1159,5 +1199,6 @@ Emitted when a new thread is created.
 [`diagnostics_channel.unsubscribe(name, onMessage)`]: #diagnostics_channelunsubscribename-onmessage
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`net.Server.listen()`]: net.md#serverlisten
 [`start` event]: #startevent
 [context loss]: async_context.md#troubleshooting-context-loss

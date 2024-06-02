@@ -1,9 +1,3 @@
-# Copyright (c) 2013-2019 GitHub Inc.
-# Copyright 2019 the V8 project authors. All rights reserved.
-# Copyright 2023 Microsoft Inc.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
 # This file is used by GN for building, which is NOT the build system used for
 # building official binaries.
 # Please edit the gyp files if you are making changes to build system.
@@ -69,6 +63,11 @@ template("uv_gn_build") {
 
     configs += [ ":uv_internal_config" ]
     public_configs = [ ":uv_external_config" ]
+
+    if (is_posix) {
+      configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
+      configs += [ "//build/config/gcc:symbol_visibility_default" ]
+    }
 
     if (is_win) {
       libs = [

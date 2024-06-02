@@ -1,6 +1,6 @@
 const t = require('tap')
-const fs = require('fs/promises')
-const path = require('path')
+const fs = require('node:fs/promises')
+const path = require('node:path')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const MockRegistry = require('@npmcli/mock-registry')
 
@@ -41,6 +41,7 @@ t.test('registry package', async t => {
   })
 
   await registry.package({
+    times: 2,
     manifest,
     tarballs: {
       '1.0.0': path.join(npm.prefix, 'npm-exec-test'),
@@ -75,7 +76,7 @@ t.test('--prefix', async t => {
   })
 
   // This is what `--prefix` does
-  npm.globalPrefix = npm.localPrefix
+  npm.config.globalPrefix = npm.config.localPrefix
 
   await registry.package({
     manifest,

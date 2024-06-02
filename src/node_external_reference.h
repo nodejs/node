@@ -27,8 +27,23 @@ using CFunctionCallbackWithStrings =
     bool (*)(v8::Local<v8::Value>,
              const v8::FastOneByteString& input,
              const v8::FastOneByteString& base);
+using CFunctionCallbackWithTwoUint8Arrays =
+    int32_t (*)(v8::Local<v8::Value>,
+                const v8::FastApiTypedArray<uint8_t>&,
+                const v8::FastApiTypedArray<uint8_t>&);
+using CFunctionCallbackWithTwoUint8ArraysFallback =
+    bool (*)(v8::Local<v8::Value>,
+             const v8::FastApiTypedArray<uint8_t>&,
+             const v8::FastApiTypedArray<uint8_t>&,
+             v8::FastApiCallbackOptions&);
 using CFunctionWithUint32 = uint32_t (*)(v8::Local<v8::Value>,
                                          const uint32_t input);
+using CFunctionWithDoubleReturnDouble = double (*)(v8::Local<v8::Value>,
+                                                   const double);
+using CFunctionWithInt64Fallback = void (*)(v8::Local<v8::Value>,
+                                            const int64_t,
+                                            v8::FastApiCallbackOptions&);
+using CFunctionWithBool = void (*)(v8::Local<v8::Value>, bool);
 
 // This class manages the external references from the V8 heap
 // to the C++ addresses in Node.js.
@@ -45,23 +60,27 @@ class ExternalReferenceRegistry {
   V(CFunctionCallbackWithBool)                                                 \
   V(CFunctionCallbackWithString)                                               \
   V(CFunctionCallbackWithStrings)                                              \
+  V(CFunctionCallbackWithTwoUint8Arrays)                                       \
+  V(CFunctionCallbackWithTwoUint8ArraysFallback)                               \
   V(CFunctionWithUint32)                                                       \
+  V(CFunctionWithDoubleReturnDouble)                                           \
+  V(CFunctionWithInt64Fallback)                                                \
+  V(CFunctionWithBool)                                                         \
   V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
-  V(v8::AccessorGetterCallback)                                                \
-  V(v8::AccessorSetterCallback)                                                \
   V(v8::AccessorNameGetterCallback)                                            \
   V(v8::AccessorNameSetterCallback)                                            \
-  V(v8::GenericNamedPropertyDefinerCallback)                                   \
-  V(v8::GenericNamedPropertyDeleterCallback)                                   \
-  V(v8::GenericNamedPropertyEnumeratorCallback)                                \
-  V(v8::GenericNamedPropertyQueryCallback)                                     \
-  V(v8::GenericNamedPropertySetterCallback)                                    \
-  V(v8::IndexedPropertySetterCallback)                                         \
-  V(v8::IndexedPropertyDefinerCallback)                                        \
-  V(v8::IndexedPropertyDeleterCallback)                                        \
-  V(v8::IndexedPropertyQueryCallback)                                          \
-  V(v8::IndexedPropertyDescriptorCallback)                                     \
+  V(v8::NamedPropertyGetterCallback)                                           \
+  V(v8::NamedPropertyDefinerCallback)                                          \
+  V(v8::NamedPropertyDeleterCallback)                                          \
+  V(v8::NamedPropertyEnumeratorCallback)                                       \
+  V(v8::NamedPropertyQueryCallback)                                            \
+  V(v8::NamedPropertySetterCallback)                                           \
+  V(v8::IndexedPropertyGetterCallbackV2)                                       \
+  V(v8::IndexedPropertySetterCallbackV2)                                       \
+  V(v8::IndexedPropertyDefinerCallbackV2)                                      \
+  V(v8::IndexedPropertyDeleterCallbackV2)                                      \
+  V(v8::IndexedPropertyQueryCallbackV2)                                        \
   V(const v8::String::ExternalStringResourceBase*)
 
 #define V(ExternalReferenceType)                                               \
@@ -100,6 +119,7 @@ class ExternalReferenceRegistry {
   V(fs_event_wrap)                                                             \
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
+  V(internal_only_v8)                                                          \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
   V(module_wrap)                                                               \

@@ -34,7 +34,7 @@ function isStringLiteral(node) {
  * @returns {boolean} True if the node is a regex literal.
  */
 function isRegexLiteral(node) {
-    return node.type === "Literal" && Object.prototype.hasOwnProperty.call(node, "regex");
+    return node.type === "Literal" && Object.hasOwn(node, "regex");
 }
 
 const validPrecedingTokens = new Set([

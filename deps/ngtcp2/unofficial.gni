@@ -1,13 +1,8 @@
-# Copyright (c) 2013-2021 GitHub Inc.
-# Copyright 2021 the V8 project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
 # This file is used by GN for building, which is NOT the build system used for
 # building official binaries.
 # Please edit the gyp files if you are making changes to build system.
 
-import("//node/node.gni")
+import("../../node.gni")
 
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
@@ -43,6 +38,10 @@ template("ngtcp2_gn_build") {
         "_WINDOWS",
         "HAVE_CONFIG_H",
       ]
+    } else {
+      defines += [
+        "HAVE_UNISTD_H",
+      ]
     }
     if (is_linux) {
       defines += [
@@ -58,9 +57,10 @@ template("ngtcp2_gn_build") {
       "nghttp3/lib/"
     ]
 
-    sources = gypi_values.nghttp3_sources + gypi_values.ngtcp2_sources
+    sources = gypi_values.nghttp3_sources +
+              gypi_values.ngtcp2_sources +
+              gypi_values.ngtcp2_sources_quictls
     if (node_use_openssl) {
-      sources += gypi_values.ngtcp2_sources_openssl
       deps = [ "../openssl" ]
     }
 
@@ -68,6 +68,8 @@ template("ngtcp2_gn_build") {
       cflags_c = [
         "-Wno-extra-semi",
         "-Wno-implicit-fallthrough",
+        # Remove after https://github.com/ngtcp2/ngtcp2/issues/1050 is fixed.
+        "-Wno-sometimes-uninitialized",
       ]
     }
   }

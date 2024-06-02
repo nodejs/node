@@ -63,7 +63,7 @@ module.exports = {
                 if (allowSameLine) {
                     if (node.properties.length > 1) {
                         const firstTokenOfFirstProperty = sourceCode.getFirstToken(node.properties[0]);
-                        const lastTokenOfLastProperty = sourceCode.getLastToken(node.properties[node.properties.length - 1]);
+                        const lastTokenOfLastProperty = sourceCode.getLastToken(node.properties.at(-1));
 
                         if (firstTokenOfFirstProperty.loc.end.line === lastTokenOfLastProperty.loc.start.line) {
 

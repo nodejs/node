@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "uv.h"
 #include "v8.h"
 
 #include "node.h"
@@ -36,6 +37,7 @@
 #include <cstring>
 
 #include <array>
+#include <bit>
 #include <limits>
 #include <memory>
 #include <set>
@@ -161,7 +163,11 @@ void DumpJavaScriptBacktrace(FILE* fp);
 #else
 #define LIKELY(expr) expr
 #define UNLIKELY(expr) expr
+#if defined(_MSC_VER)
+#define PRETTY_FUNCTION_NAME __FUNCSIG__
+#else
 #define PRETTY_FUNCTION_NAME ""
+#endif
 #endif
 
 #define STRINGIFY_(x) #x
@@ -697,6 +703,16 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
+// Convert a v8::Array into an std::vector using the callback-based API.
+// This can be faster than calling Array::Get() repeatedly when the array
+// has more than 2 entries.
+// Note that iterating over an array in C++ and performing operations on each
+// element in a C++ loop is still slower than iterating over the array in JS
+// and calling into native in the JS loop repeatedly on each element,
+// as of V8 11.9.
+inline v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Array> js_array,
+                                   std::vector<v8::Global<v8::Value>>* out);
 std::vector<std::string_view> SplitString(const std::string_view in,
                                           const std::string_view delim);
 
@@ -767,24 +783,16 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
         .Check();                                                              \
   } while (0)
 
-enum class Endianness { LITTLE, BIG };
-
-inline Endianness GetEndianness() {
-  // Constant-folded by the compiler.
-  const union {
-    uint8_t u8[2];
-    uint16_t u16;
-  } u = {{1, 0}};
-  return u.u16 == 1 ? Endianness::LITTLE : Endianness::BIG;
+constexpr inline bool IsLittleEndian() {
+  return std::endian::native == std::endian::little;
 }
 
-inline bool IsLittleEndian() {
-  return GetEndianness() == Endianness::LITTLE;
+constexpr inline bool IsBigEndian() {
+  return std::endian::native == std::endian::big;
 }
 
-inline bool IsBigEndian() {
-  return GetEndianness() == Endianness::BIG;
-}
+static_assert(IsLittleEndian() || IsBigEndian(),
+              "Node.js does not support mixed-endian systems");
 
 // Round up a to the next highest multiple of b.
 template <typename T>
@@ -1017,6 +1025,13 @@ std::string DetermineSpecificErrorType(Environment* env,
                                        v8::Local<v8::Value> input);
 
 v8::Maybe<int32_t> GetValidatedFd(Environment* env, v8::Local<v8::Value> input);
+v8::Maybe<int> GetValidFileMode(Environment* env,
+                                v8::Local<v8::Value> input,
+                                uv_fs_type type);
+
+// Returns true if OS==Windows and filename ends in .bat or .cmd,
+// case insensitive.
+inline bool IsWindowsBatchFile(const char* filename);
 
 }  // namespace node
 

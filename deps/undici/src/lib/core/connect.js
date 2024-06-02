@@ -1,7 +1,7 @@
 'use strict'
 
-const net = require('net')
-const assert = require('assert')
+const net = require('node:net')
+const assert = require('node:assert')
 const util = require('./util')
 const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 
@@ -15,7 +15,7 @@ let tls // include tls conditionally since it is not always available
 let SessionCache
 // FIXME: remove workaround when the Node bug is fixed
 // https://github.com/nodejs/node/issues/49344#issuecomment-1741776308
-if (global.FinalizationRegistry && !process.env.NODE_V8_COVERAGE) {
+if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
   SessionCache = class WeakSessionCache {
     constructor (maxCachedSessions) {
       this._maxCachedSessions = maxCachedSessions
@@ -86,7 +86,7 @@ function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, ...o
     let socket
     if (protocol === 'https:') {
       if (!tls) {
-        tls = require('tls')
+        tls = require('node:tls')
       }
       servername = servername || options.servername || util.getServerName(host) || null
 
@@ -165,7 +165,7 @@ function setupTimeout (onConnectTimeout, timeout) {
   let s1 = null
   let s2 = null
   const timeoutId = setTimeout(() => {
-    // setImmediate is added to make sure that we priotorise socket error events over timeouts
+    // setImmediate is added to make sure that we prioritize socket error events over timeouts
     s1 = setImmediate(() => {
       if (process.platform === 'win32') {
         // Windows needs an extra setImmediate probably due to implementation differences in the socket logic
@@ -183,7 +183,11 @@ function setupTimeout (onConnectTimeout, timeout) {
 }
 
 function onConnectTimeout (socket) {
-  util.destroy(socket, new ConnectTimeoutError())
+  let message = 'Connect Timeout Error'
+  if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+    message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')})`
+  }
+  util.destroy(socket, new ConnectTimeoutError(message))
 }
 
 module.exports = buildConnector

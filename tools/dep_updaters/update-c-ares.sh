@@ -63,8 +63,7 @@ cp "$DEPS_DIR/cares/cares.gyp" "$WORKSPACE/cares"
 cp "$DEPS_DIR/cares/"*.gn "$DEPS_DIR/cares/"*.gni "$WORKSPACE/cares"
 
 echo "Replacing existing c-ares"
-rm -rf "$DEPS_DIR/cares"
-mv "$WORKSPACE/cares" "$DEPS_DIR/"
+replace_dir "$DEPS_DIR/cares" "$WORKSPACE/cares"
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

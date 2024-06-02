@@ -4,6 +4,7 @@
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
+#include "module_wrap.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
@@ -50,6 +51,7 @@ using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
@@ -827,6 +829,15 @@ Environment::Environment(IsolateData* isolate_data,
     }
   }
 
+  // We are supposed to call builtin_loader_.SetEagerCompile() in
+  // snapshot mode here because it's beneficial to compile built-ins
+  // loaded in the snapshot eagerly and include the code of inner functions
+  // that are likely to be used by user since they are part of the core
+  // startup. But this requires us to start the coverage collections
+  // before Environment/Context creation which is not currently possible.
+  // TODO(joyeecheung): refactor V8ProfilerConnection classes to parse
+  // JSON without v8 and lift this restriction.
+
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate);
 
@@ -839,7 +850,7 @@ Environment::Environment(IsolateData* isolate_data,
   }
 
   set_env_vars(per_process::system_environment);
-  enabled_debug_list_.Parse(env_vars(), isolate);
+  enabled_debug_list_.Parse(env_vars());
 
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
@@ -871,7 +882,10 @@ Environment::Environment(IsolateData* isolate_data,
   destroy_async_id_list_.reserve(512);
 
   performance_state_ = std::make_unique<performance::PerformanceState>(
-      isolate, time_origin_, MAYBE_FIELD_PTR(env_info, performance_state));
+      isolate,
+      time_origin_,
+      time_origin_timestamp_,
+      MAYBE_FIELD_PTR(env_info, performance_state));
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
@@ -904,8 +918,7 @@ Environment::Environment(IsolateData* isolate_data,
           this, {"*"}, permission::PermissionScope::kChildProcess);
     }
     if (!options_->allow_worker_threads) {
-      permission()->Apply(
-          this, {"*"}, permission::PermissionScope::kWorkerThreads);
+      permission()->Apply({"*"}, permission::PermissionScope::kWorkerThreads);
     }
 
     if (!options_->allow_fs_read.empty()) {
@@ -1075,9 +1088,34 @@ void Environment::InitializeLibuv() {
   StartProfilerIdleNotifier();
 }
 
+void Environment::InitializeCompileCache() {
+  std::string dir_from_env;
+  if (!credentials::SafeGetenv(
+          "NODE_COMPILE_CACHE", &dir_from_env, env_vars()) ||
+      dir_from_env.empty()) {
+    return;
+  }
+  auto handler = std::make_unique<CompileCacheHandler>(this);
+  if (handler->InitializeDirectory(this, dir_from_env)) {
+    compile_cache_handler_ = std::move(handler);
+    AtExit(
+        [](void* env) {
+          static_cast<Environment*>(env)->compile_cache_handler()->Persist();
+        },
+        this);
+  }
+}
+
 void Environment::ExitEnv(StopFlags::Flags flags) {
   // Should not access non-thread-safe methods here.
   set_stopping(true);
+
+#if HAVE_INSPECTOR
+  if (inspector_agent_) {
+    inspector_agent_->StopIfWaitingForConnect();
+  }
+#endif
+
   if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
     isolate_->TerminateExecution();
   SetImmediateThreadsafe([](Environment* env) {
@@ -1214,6 +1252,41 @@ void Environment::RunAtExitCallbacks() {
 
 void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_front(ExitCallback{cb, arg});
+}
+
+Maybe<bool> Environment::CheckUnsettledTopLevelAwait() {
+  HandleScope scope(isolate_);
+  Local<Context> ctx = context();
+  Local<Value> value;
+
+  Local<Value> entry_point_promise;
+  if (!ctx->Global()
+           ->GetPrivate(ctx, entry_point_promise_private_symbol())
+           .ToLocal(&entry_point_promise)) {
+    return v8::Nothing<bool>();
+  }
+  if (!entry_point_promise->IsPromise()) {
+    return v8::Just(true);
+  }
+  if (entry_point_promise.As<Promise>()->State() !=
+      Promise::PromiseState::kPending) {
+    return v8::Just(true);
+  }
+
+  if (!ctx->Global()
+           ->GetPrivate(ctx, entry_point_module_private_symbol())
+           .ToLocal(&value)) {
+    return v8::Nothing<bool>();
+  }
+  if (!value->IsObject()) {
+    return v8::Just(true);
+  }
+  Local<Object> object = value.As<Object>();
+  CHECK(BaseObject::IsBaseObject(isolate_data_, object));
+  CHECK_EQ(object->InternalFieldCount(),
+           loader::ModuleWrap::kInternalFieldCount);
+  auto* wrap = BaseObject::FromJSObject<loader::ModuleWrap>(object);
+  return wrap->CheckUnsettledTopLevelAwait();
 }
 
 void Environment::RunAndClearInterrupts() {
@@ -1828,29 +1901,10 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   immediate_info_.Deserialize(ctx);
   timeout_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
-  performance_state_->Deserialize(ctx, time_origin_);
+  performance_state_->Deserialize(ctx, time_origin_, time_origin_timestamp_);
   exit_info_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
-}
-
-uint64_t GuessMemoryAvailableToTheProcess() {
-  uint64_t free_in_system = uv_get_free_memory();
-  size_t allowed = uv_get_constrained_memory();
-  if (allowed == 0) {
-    return free_in_system;
-  }
-  size_t rss;
-  int err = uv_resident_set_memory(&rss);
-  if (err) {
-    return free_in_system;
-  }
-  if (allowed < rss) {
-    // Something is probably wrong. Fallback to the free memory.
-    return free_in_system;
-  }
-  // There may still be room for swap, but we will just leave it here.
-  return allowed - rss;
 }
 
 void Environment::BuildEmbedderGraph(Isolate* isolate,
@@ -1957,7 +2011,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
         static_cast<uint64_t>(old_gen_size),
         static_cast<uint64_t>(young_gen_size + old_gen_size));
 
-  uint64_t available = GuessMemoryAvailableToTheProcess();
+  uint64_t available = uv_get_available_memory();
   // TODO(joyeecheung): get a better estimate about the native memory
   // usage into the overhead, e.g. based on the count of objects.
   uint64_t estimated_overhead = max_young_gen_size;

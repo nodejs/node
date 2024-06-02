@@ -21,6 +21,7 @@
 
 #include "util.h"  // NOLINT(build/include_inline)
 #include <cmath>
+#include <cstdint>
 #include "util-inl.h"
 
 #include "debug_utils-inl.h"
@@ -31,7 +32,6 @@
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "string_bytes.h"
-#include "uv.h"
 #include "v8-value.h"
 
 #ifdef _WIN32
@@ -55,6 +55,31 @@
 #include <sstream>
 
 static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
+
+// F_OK etc. constants
+#ifdef _WIN32
+#include "uv.h"
+#else
+#include <unistd.h>
+#endif
+
+// The access modes can be any of F_OK, R_OK, W_OK or X_OK. Some might not be
+// available on specific systems. They can be used in combination as well
+// (F_OK | R_OK | W_OK | X_OK).
+constexpr int kMaximumAccessMode = F_OK | W_OK | R_OK | X_OK;
+constexpr int kMinimumAccessMode = std::min({F_OK, W_OK, R_OK, X_OK});
+
+constexpr int kDefaultCopyMode = 0;
+// The copy modes can be any of UV_FS_COPYFILE_EXCL, UV_FS_COPYFILE_FICLONE or
+// UV_FS_COPYFILE_FICLONE_FORCE. They can be used in combination as well
+// (US_FS_COPYFILE_EXCL | US_FS_COPYFILE_FICLONE |
+// US_FS_COPYFILE_FICLONE_FORCE).
+constexpr int kMinimumCopyMode = std::min({kDefaultCopyMode,
+                                           UV_FS_COPYFILE_EXCL,
+                                           UV_FS_COPYFILE_FICLONE,
+                                           UV_FS_COPYFILE_FICLONE_FORCE});
+constexpr int kMaximumCopyMode =
+    UV_FS_COPYFILE_EXCL | UV_FS_COPYFILE_FICLONE | UV_FS_COPYFILE_FICLONE_FORCE;
 
 namespace node {
 
@@ -203,6 +228,10 @@ double GetCurrentTimeInMicroseconds() {
 }
 
 int WriteFileSync(const char* path, uv_buf_t buf) {
+  return WriteFileSync(path, &buf, 1);
+}
+
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count) {
   uv_fs_t req;
   int fd = uv_fs_open(nullptr,
                       &req,
@@ -215,7 +244,7 @@ int WriteFileSync(const char* path, uv_buf_t buf) {
     return fd;
   }
 
-  int err = uv_fs_write(nullptr, &req, fd, &buf, 1, 0, nullptr);
+  int err = uv_fs_write(nullptr, &req, fd, bufs, buf_count, 0, nullptr);
   uv_fs_req_cleanup(&req);
   if (err < 0) {
     return err;
@@ -785,6 +814,51 @@ v8::Maybe<int32_t> GetValidatedFd(Environment* env,
   }
 
   return v8::Just(static_cast<int32_t>(fd));
+}
+
+v8::Maybe<int> GetValidFileMode(Environment* env,
+                                v8::Local<v8::Value> input,
+                                uv_fs_type type) {
+  // Allow only int32 or null/undefined values.
+  if (input->IsNumber()) {
+    // We cast the input to v8::Number to avoid overflows.
+    auto num = input.As<v8::Number>()->Value();
+
+    // Handle infinity and NaN values
+    if (std::isinf(num) || std::isnan(num)) {
+      THROW_ERR_OUT_OF_RANGE(env, "mode is out of range");
+      return v8::Nothing<int>();
+    }
+  } else if (!input->IsNullOrUndefined()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "mode must be int32 or null/undefined");
+    return v8::Nothing<int>();
+  }
+
+  int min = kMinimumAccessMode;
+  int max = kMaximumAccessMode;
+  int def = F_OK;
+
+  CHECK(type == UV_FS_ACCESS || type == UV_FS_COPYFILE);
+
+  if (type == UV_FS_COPYFILE) {
+    min = kMinimumCopyMode;
+    max = kMaximumCopyMode;
+    def = input->IsNullOrUndefined() ? kDefaultCopyMode
+                                     : input.As<v8::Int32>()->Value();
+  }
+
+  if (input->IsNullOrUndefined()) {
+    return v8::Just(def);
+  }
+
+  const int mode = input.As<v8::Int32>()->Value();
+  if (mode < min || mode > max) {
+    THROW_ERR_OUT_OF_RANGE(
+        env, "mode is out of range: >= %d && <= %d", min, max);
+    return v8::Nothing<int>();
+  }
+
+  return v8::Just(mode);
 }
 
 }  // namespace node

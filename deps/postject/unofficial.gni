@@ -1,7 +1,3 @@
-# Copyright 2023 Microsoft Inc.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
 # This file is used by GN for building, which is NOT the build system used for
 # building official binaries.
 # Please edit the gyp files if you are making changes to build system.

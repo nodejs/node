@@ -77,3 +77,11 @@ log_and_verify_sha256sum() {
     fi
   fi
 }
+
+# This function replaces the directory of a dependency with the new one.
+replace_dir() {
+  old_dir="$1"
+  new_dir="$2"
+  rm -rf "$old_dir"
+  mv "$new_dir" "$old_dir"
+}

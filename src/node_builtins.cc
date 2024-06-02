@@ -11,7 +11,6 @@ namespace node {
 namespace builtins {
 
 using v8::Context;
-using v8::DEFAULT;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -124,7 +123,6 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "_tls_wrap", "internal/tls/secure-pair",
         "internal/tls/parse-cert-string", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
-        "internal/policy/manifest", "internal/process/policy",
         "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
         "sys",   // Deprecated.
@@ -266,7 +264,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   std::string filename_s = std::string("node:") + id;
   Local<String> filename =
       OneByteString(isolate, filename_s.c_str(), filename_s.size());
-  ScriptOrigin origin(isolate, filename, 0, 0, true);
+  ScriptOrigin origin(filename, 0, 0, true);
 
   BuiltinCodeCacheData cached_data{};
   {
@@ -286,15 +284,24 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   ScriptCompiler::CompileOptions options =
       has_cache ? ScriptCompiler::kConsumeCodeCache
                 : ScriptCompiler::kNoCompileOptions;
+  if (should_eager_compile_) {
+    options = ScriptCompiler::kEagerCompile;
+  } else if (!to_eager_compile_.empty()) {
+    if (to_eager_compile_.find(id) != to_eager_compile_.end()) {
+      options = ScriptCompiler::kEagerCompile;
+    }
+  }
   ScriptCompiler::Source script_source(
       source,
       origin,
       has_cache ? cached_data.AsCachedData().release() : nullptr);
 
-  per_process::Debug(DebugCategory::CODE_CACHE,
-                     "Compiling %s %s code cache\n",
-                     id,
-                     has_cache ? "with" : "without");
+  per_process::Debug(
+      DebugCategory::CODE_CACHE,
+      "Compiling %s %s code cache %s\n",
+      id,
+      has_cache ? "with" : "without",
+      options == ScriptCompiler::kEagerCompile ? "eagerly" : "lazily");
 
   MaybeLocal<Function> maybe_fun =
       ScriptCompiler::CompileFunction(context,
@@ -481,14 +488,33 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
   return fn->Call(context, undefined, argc, argv);
 }
 
-bool BuiltinLoader::CompileAllBuiltins(Local<Context> context) {
+bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
+    Local<Context> context,
+    const std::vector<std::string>& eager_builtins,
+    std::vector<CodeCacheInfo>* out) {
   std::vector<std::string_view> ids = GetBuiltinIds();
   bool all_succeeded = true;
   std::string v8_tools_prefix = "internal/deps/v8/tools/";
+  std::string primordial_prefix = "internal/per_context/";
+  std::string bootstrap_prefix = "internal/bootstrap/";
+  std::string main_prefix = "internal/main/";
+  to_eager_compile_ = std::unordered_set<std::string>(eager_builtins.begin(),
+                                                      eager_builtins.end());
+
   for (const auto& id : ids) {
     if (id.compare(0, v8_tools_prefix.size(), v8_tools_prefix) == 0) {
+      // No need to generate code cache for v8 scripts.
       continue;
     }
+
+    // Eagerly compile primordials/boostrap/main scripts during code cache
+    // generation.
+    if (id.compare(0, primordial_prefix.size(), primordial_prefix) == 0 ||
+        id.compare(0, bootstrap_prefix.size(), bootstrap_prefix) == 0 ||
+        id.compare(0, main_prefix.size(), main_prefix) == 0) {
+      to_eager_compile_.emplace(id);
+    }
+
     v8::TryCatch bootstrapCatch(context->GetIsolate());
     auto fn = LookupAndCompile(context, id.data(), nullptr);
     if (bootstrapCatch.HasCaught()) {
@@ -503,14 +529,12 @@ bool BuiltinLoader::CompileAllBuiltins(Local<Context> context) {
       SaveCodeCache(id.data(), fn.ToLocalChecked());
     }
   }
-  return all_succeeded;
-}
 
-void BuiltinLoader::CopyCodeCache(std::vector<CodeCacheInfo>* out) const {
   RwLock::ScopedReadLock lock(code_cache_->mutex);
   for (auto const& item : code_cache_->map) {
     out->push_back({item.first, item.second});
   }
+  return all_succeeded;
 }
 
 void BuiltinLoader::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
@@ -685,7 +709,6 @@ void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
                                 nullptr,
                                 Local<Value>(),
                                 None,
-                                DEFAULT,
                                 SideEffectType::kHasNoSideEffect);
 
   target->SetNativeDataProperty(FIXED_ONE_BYTE_STRING(isolate, "builtinIds"),
@@ -693,7 +716,6 @@ void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
                                 nullptr,
                                 Local<Value>(),
                                 None,
-                                DEFAULT,
                                 SideEffectType::kHasNoSideEffect);
 
   target->SetNativeDataProperty(
@@ -702,7 +724,6 @@ void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
       nullptr,
       Local<Value>(),
       None,
-      DEFAULT,
       SideEffectType::kHasNoSideEffect);
 
   target->SetNativeDataProperty(FIXED_ONE_BYTE_STRING(isolate, "natives"),
@@ -710,7 +731,6 @@ void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
                                 nullptr,
                                 Local<Value>(),
                                 None,
-                                DEFAULT,
                                 SideEffectType::kHasNoSideEffect);
 
   SetMethod(isolate, target, "getCacheUsage", BuiltinLoader::GetCacheUsage);

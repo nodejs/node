@@ -218,7 +218,7 @@ module.exports = {
                 case "FunctionExpression": {
                     const leftParen = sourceCode.getFirstToken(node, astUtils.isOpeningParenToken);
                     const rightParen = node.params.length
-                        ? sourceCode.getTokenAfter(node.params[node.params.length - 1], astUtils.isClosingParenToken)
+                        ? sourceCode.getTokenAfter(node.params.at(-1), astUtils.isClosingParenToken)
                         : sourceCode.getTokenAfter(leftParen);
 
                     return { leftParen, rightParen };
@@ -234,7 +234,7 @@ module.exports = {
                     }
 
                     const rightParen = node.params.length
-                        ? sourceCode.getTokenAfter(node.params[node.params.length - 1], astUtils.isClosingParenToken)
+                        ? sourceCode.getTokenAfter(node.params.at(-1), astUtils.isClosingParenToken)
                         : sourceCode.getTokenAfter(firstToken);
 
                     return {

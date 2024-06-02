@@ -2169,9 +2169,7 @@ MeasureUnit &MeasureUnit::operator=(const MeasureUnit &other) {
     if (this == &other) {
         return *this;
     }
-    if (fImpl != nullptr) {
-        delete fImpl;
-    }
+    delete fImpl;
     if (other.fImpl) {
         ErrorCode localStatus;
         fImpl = new MeasureUnitImpl(other.fImpl->copy(localStatus));
@@ -2192,9 +2190,7 @@ MeasureUnit &MeasureUnit::operator=(MeasureUnit &&other) noexcept {
     if (this == &other) {
         return *this;
     }
-    if (fImpl != nullptr) {
-        delete fImpl;
-    }
+    delete fImpl;
     fImpl = other.fImpl;
     other.fImpl = nullptr;
     fTypeId = other.fTypeId;

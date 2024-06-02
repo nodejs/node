@@ -161,6 +161,11 @@ list(APPEND uv_cflags ${lint-utf8-msvc} )
 check_c_compiler_flag(-fno-strict-aliasing UV_F_STRICT_ALIASING)
 list(APPEND uv_cflags $<$<BOOL:${UV_F_STRICT_ALIASING}>:-fno-strict-aliasing>)
 
+if (MSVC)
+  # Error on calling undeclared functions.
+  list(APPEND uv_cflags "/we4013")
+endif()
+
 set(uv_sources
     src/fs-poll.c
     src/idna.c
@@ -176,7 +181,7 @@ set(uv_sources
     src/version.c)
 
 if(WIN32)
-  list(APPEND uv_defines WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0602)
+  list(APPEND uv_defines WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0602 _CRT_DECLARE_NONSTDC_NAMES=0)
   list(APPEND uv_libraries
        psapi
        user32
@@ -186,7 +191,6 @@ if(WIN32)
        ws2_32
        dbghelp
        ole32
-       uuid
        shell32)
   list(APPEND uv_sources
        src/win/async.c
@@ -655,6 +659,7 @@ if(LIBUV_BUILD_TESTS)
        test/test-thread-affinity.c
        test/test-thread-equal.c
        test/test-thread.c
+       test/test-thread-priority.c
        test/test-threadpool-cancel.c
        test/test-threadpool.c
        test/test-timer-again.c
@@ -702,6 +707,12 @@ if(LIBUV_BUILD_TESTS)
     set_tests_properties(uv_test PROPERTIES ENVIRONMENT
                          "LIBPATH=${CMAKE_BINARY_DIR}:$ENV{LIBPATH}")
   endif()
+  if(WIN32)
+    add_custom_command(TARGET uv_run_tests POST_BUILD
+                       COMMAND "${CMAKE_COMMAND}" -E copy
+                       "$<TARGET_FILE:uv_run_tests>"
+                       "$<TARGET_FILE_DIR:uv_run_tests>/uv_run_tests_no_ext")
+  endif()
   add_executable(uv_run_tests_a ${uv_test_sources} uv_win_longpath.manifest)
   target_compile_definitions(uv_run_tests_a PRIVATE ${uv_defines})
   target_compile_options(uv_run_tests_a PRIVATE ${uv_cflags})
@@ -717,6 +728,12 @@ if(LIBUV_BUILD_TESTS)
     set_target_properties(uv_run_benchmarks_a PROPERTIES LINKER_LANGUAGE CXX)
     set_target_properties(uv_run_tests PROPERTIES LINKER_LANGUAGE CXX)
     set_target_properties(uv_run_tests_a PROPERTIES LINKER_LANGUAGE CXX)
+  endif()
+  if(WIN32)
+    add_custom_command(TARGET uv_run_tests_a POST_BUILD
+                       COMMAND "${CMAKE_COMMAND}" -E copy
+                       "$<TARGET_FILE:uv_run_tests_a>"
+                       "$<TARGET_FILE_DIR:uv_run_tests_a>/uv_run_tests_a_no_ext")
   endif()
 endif()
 
@@ -762,6 +779,12 @@ endif()
 
 if(MSVC)
   set(CMAKE_DEBUG_POSTFIX d)
+  get_filename_component(CMAKE_C_COMPILER_DIR ${CMAKE_C_COMPILER} DIRECTORY)
+  if(ASAN)
+    file(INSTALL "${CMAKE_C_COMPILER_DIR}/llvm-symbolizer.exe" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+    file(INSTALL "${CMAKE_C_COMPILER_DIR}/clang_rt.asan_dynamic-x86_64.dll" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+    file(INSTALL "${CMAKE_C_COMPILER_DIR}/clang_rt.asan_dbg_dynamic-x86_64.dll" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+  endif()
 endif()
 
 message(STATUS "summary of build options:

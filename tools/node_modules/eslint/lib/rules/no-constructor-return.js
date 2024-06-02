@@ -20,7 +20,7 @@ module.exports = {
             url: "https://eslint.org/docs/latest/rules/no-constructor-return"
         },
 
-        schema: {},
+        schema: [],
 
         fixable: null,
 
@@ -40,7 +40,7 @@ module.exports = {
                 stack.pop();
             },
             ReturnStatement(node) {
-                const last = stack[stack.length - 1];
+                const last = stack.at(-1);
 
                 if (!last.parent) {
                     return;

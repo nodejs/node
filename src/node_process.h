@@ -36,6 +36,8 @@ template <typename... Args>
 inline v8::Maybe<bool> ProcessEmitWarning(Environment* env,
                                           const char* fmt,
                                           Args&&... args);
+
+v8::Maybe<bool> ProcessEmitWarningSync(Environment* env, const char* message);
 v8::Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
                                               const char* warning);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
@@ -83,6 +85,8 @@ class BindingData : public SnapshotableObject {
   }
 
   static void SlowBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   // Buffer length in uint32.

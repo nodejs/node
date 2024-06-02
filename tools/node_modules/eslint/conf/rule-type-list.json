@@ -23,6 +23,8 @@
         { "removed": "space-in-brackets", "replacedBy": ["object-curly-spacing", "array-bracket-spacing"] },
         { "removed": "space-return-throw-case", "replacedBy": ["keyword-spacing"] },
         { "removed": "space-unary-word-ops", "replacedBy": ["space-unary-ops"] },
-        { "removed": "spaced-line-comment", "replacedBy": ["spaced-comment"] }
+        { "removed": "spaced-line-comment", "replacedBy": ["spaced-comment"] },
+        { "removed": "valid-jsdoc", "replacedBy": [] },
+        { "removed": "require-jsdoc", "replacedBy": [] }
     ]
 }

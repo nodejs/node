@@ -54,7 +54,7 @@ module.exports = {
          * @returns {any} Last element
          */
         function last(collection) {
-            return collection[collection.length - 1];
+            return collection.at(-1);
         }
 
         //--------------------------------------------------------------------------

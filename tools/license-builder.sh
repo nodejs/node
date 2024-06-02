@@ -105,6 +105,8 @@ addlicense "markupsafe" "tools/inspector_protocol/markupsafe" "$licenseText"
 # Testing tools
 licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/cpplint.py" | tail -n +3)"
 addlicense "cpplint.py" "tools/cpplint.py" "$licenseText"
+licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/gypi_to_gn.py" | tail -n +3)"
+addlicense "gypi_to_gn.py" "tools/gypi_to_gn.py" "$licenseText"
 licenseText="$(cat "${rootdir}/tools/node_modules/eslint/LICENSE")"
 addlicense "ESLint" "tools/node_modules/eslint" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/googletest/LICENSE")"
@@ -147,7 +149,5 @@ addlicense "nghttp3" "deps/ngtcp2/nghttp3/" "$licenseText"
 
 licenseText="$(curl -sL https://raw.githubusercontent.com/jprichardson/node-fs-extra/b34da2762a4865b025cac06d02d6a2f1f1027b65/LICENSE)"
 addlicense "node-fs-extra" "lib/internal/fs/cp" "$licenseText"
-
-addlicense "base64" "deps/base64/base64/" "$(cat "${rootdir}/deps/base64/base64/LICENSE" || true)"
 
 mv "$tmplicense" "$licensefile"

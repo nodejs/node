@@ -34,8 +34,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const getGlobParent = require("glob-parent");
 const isGlob = require("is-glob");
 const escapeRegExp = require("escape-string-regexp");

@@ -105,9 +105,13 @@ wat2wasm demo.wat
 ## Security
 
 <!-- YAML
-added: v21.2.0
+added:
+  - v21.2.0
+  - v20.11.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v21.2.0
+    - v20.11.0
     pr-url: https://github.com/nodejs/node/pull/50396
     description: Clarify WASI security properties.
 -->

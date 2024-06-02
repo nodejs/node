@@ -2,7 +2,7 @@
   'variables': {
     'configuring_node%': 0,
     'asan%': 0,
-    'werror': '',                     # Turn off -Werror in V8 build.
+    'ubsan%': 0,
     'visibility%': 'hidden',          # V8's visibility setting
     'target_arch%': 'ia32',           # set v8's target architecture
     'host_arch%': 'ia32',             # set v8's host architecture
@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.19',
+    'v8_embedder_string': '-node.13',
 
     ##### V8 defaults for Node.js #####
 
@@ -106,7 +106,6 @@
         'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
       }],
       ['OS=="mac"', {
-        'clang%': 1,
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
         'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
       }],
@@ -153,6 +152,9 @@
             'cflags': [ '-fPIC' ],
             'ldflags': [ '-fPIC' ]
           }],
+          ['clang==1', {
+            'msbuild_toolset': 'ClangCL',
+          }],
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -181,10 +183,10 @@
             }, {
               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
             }],
-            ['llvm_version=="0.0"', {
-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
-            }, {
+            ['clang==1', {
               'lto': ' -flto ', # Clang
+            }, {
+              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
             }],
           ],
         },
@@ -241,6 +243,9 @@
             'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
             'ldflags': [ '-fPIC' ]
           }],
+          ['clang==1', {
+            'msbuild_toolset': 'ClangCL',
+          }],
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -283,9 +288,26 @@
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
-        'AdditionalOptions': [
-          '/Zc:__cplusplus',
-          '-std:c++17'
+        # TODO(targos): Remove condition and always use LanguageStandard options
+        # once node-gyp supports them.
+        'conditions': [
+          ['clang==1', {
+            'LanguageStandard': 'stdcpp20',
+            'LanguageStandard_C': 'stdc11',
+            'AdditionalOptions': [
+              '/Zc:__cplusplus',
+              # The following option reduces the "error C1060: compiler is out of heap space"
+              '/Zm2000',
+            ],
+          }, {
+            'AdditionalOptions': [
+              '/Zc:__cplusplus',
+              # The following option enables c++20 on Windows. This is needed for V8 v12.4+
+              '-std:c++20',
+              # The following option reduces the "error C1060: compiler is out of heap space"
+              '/Zm2000',
+            ],
+          }],
         ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
@@ -374,6 +396,29 @@
           }],
         ],
       }],
+      ['ubsan == 1 and OS != "mac" and OS != "zos"', {
+        'cflags+': [
+          '-fno-omit-frame-pointer',
+          '-fsanitize=undefined',
+        ],
+        'defines': [ 'UNDEFINED_SANITIZER'],
+        'cflags!': [ '-fno-omit-frame-pointer' ],
+        'ldflags': [ '-fsanitize=undefined' ],
+      }],
+      ['ubsan == 1 and OS == "mac"', {
+        'xcode_settings': {
+          'OTHER_CFLAGS+': [
+            '-fno-omit-frame-pointer',
+            '-fsanitize=undefined',
+            '-DUNDEFINED_SANITIZER'
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=undefined']},
+          }],
+        ],
+      }],
       # The defines bellow must include all things from the external_v8_defines
       # list in v8/BUILD.gn.
       ['v8_enable_v8_checks == 1', {
@@ -431,6 +476,10 @@
           '_HAS_EXCEPTIONS=0',
           'BUILDING_V8_SHARED=1',
           'BUILDING_UV_SHARED=1',
+          # Stop <windows.h> from defining macros that conflict with
+          # std::min() and std::max().  We don't use <windows.h> (much)
+          # but we still inherit it from uv.h.
+          'NOMINMAX',
         ],
       }],
       [ 'OS in "linux freebsd openbsd solaris aix os400"', {
@@ -439,7 +488,7 @@
       }],
       [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++17' ],
+        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++20' ],
         'defines': [ '__STDC_FORMAT_MACROS' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
@@ -607,7 +656,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++17',  # -std=gnu++17
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++20',  # -std=gnu++20
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],

@@ -19,6 +19,7 @@
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_uvwasi%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
@@ -69,16 +70,19 @@
       'src/base_object.cc',
       'src/cares_wrap.cc',
       'src/cleanup_queue.cc',
+      'src/compile_cache.cc',
       'src/connect_wrap.cc',
       'src/connection_wrap.cc',
       'src/dataqueue/queue.cc',
       'src/debug_utils.cc',
+      'src/embedded_data.cc',
       'src/encoding_binding.cc',
       'src/env.cc',
       'src/fs_event_wrap.cc',
       'src/handle_wrap.cc',
       'src/heap_utils.cc',
       'src/histogram.cc',
+      'src/internal_only_v8.cc',
       'src/js_native_api.h',
       'src/js_native_api_types.h',
       'src/js_native_api_v8.cc',
@@ -133,6 +137,7 @@
       'src/node_stat_watcher.cc',
       'src/node_symbols.cc',
       'src/node_task_queue.cc',
+      'src/node_task_runner.cc',
       'src/node_trace_events.cc',
       'src/node_types.cc',
       'src/node_url.cc',
@@ -148,6 +153,7 @@
       'src/permission/fs_permission.cc',
       'src/permission/inspector_permission.cc',
       'src/permission/permission.cc',
+      'src/permission/wasi_permission.cc',
       'src/permission/worker_permission.cc',
       'src/pipe_wrap.cc',
       'src/process_wrap.cc',
@@ -188,11 +194,13 @@
       'src/callback_queue-inl.h',
       'src/cleanup_queue.h',
       'src/cleanup_queue-inl.h',
+      'src/compile_cache.h',
       'src/connect_wrap.h',
       'src/connection_wrap.h',
       'src/dataqueue/queue.h',
       'src/debug_utils.h',
       'src/debug_utils-inl.h',
+      'src/embedded_data.h',
       'src/encoding_binding.h',
       'src/env_properties.h',
       'src/env.h',
@@ -270,6 +278,7 @@
       'src/permission/fs_permission.h',
       'src/permission/inspector_permission.h',
       'src/permission/permission.h',
+      'src/permission/wasi_permission.h',
       'src/permission/worker_permission.h',
       'src/pipe_wrap.h',
       'src/req_wrap.h',
@@ -356,6 +365,7 @@
       'src/quic/cid.cc',
       'src/quic/data.cc',
       'src/quic/endpoint.cc',
+      'src/quic/http3.cc',
       'src/quic/logstream.cc',
       'src/quic/packet.cc',
       'src/quic/preferredaddress.cc',
@@ -370,6 +380,7 @@
       'src/quic/cid.h',
       'src/quic/data.h',
       'src/quic/endpoint.h',
+      'src/quic/http3.h',
       'src/quic/logstream.h',
       'src/quic/packet.h',
       'src/quic/preferredaddress.h',
@@ -390,9 +401,11 @@
       'test/cctest/test_base_object_ptr.cc',
       'test/cctest/test_cppgc.cc',
       'test/cctest/test_node_postmortem_metadata.cc',
+      'test/cctest/test_node_task_runner.cc',
       'test/cctest/test_environment.cc',
       'test/cctest/test_linked_binding.cc',
       'test/cctest/test_node_api.cc',
+      'test/cctest/test_path.cc',
       'test/cctest/test_per_process.cc',
       'test/cctest/test_platform.cc',
       'test/cctest/test_report.cc',
@@ -407,6 +420,7 @@
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
       'test/cctest/test_quic_cid.cc',
+      'test/cctest/test_quic_error.cc',
       'test/cctest/test_quic_tokens.cc',
     ],
     'node_cctest_inspector_sources': [
@@ -463,25 +477,28 @@
       ],
     },
 
-    # Relevant only for x86.
-    # Refs: https://github.com/nodejs/node/pull/25852
-    # Refs: https://docs.microsoft.com/en-us/cpp/build/reference/safeseh-image-has-safe-exception-handlers
-    'msvs_settings': {
-      'VCLinkerTool': {
-        'ImageHasSafeExceptionHandlers': 'false',
-      },
-    },
-
     'conditions': [
+      # Pointer authentication for ARM64.
       ['target_arch=="arm64"', {
-        'cflags': ['-mbranch-protection=standard'],  # Pointer authentication.
+          'target_conditions': [
+              ['_toolset=="host"', {
+                  'conditions': [
+                      ['host_arch=="arm64"', {
+                          'cflags': ['-mbranch-protection=standard'],
+                      }],
+                  ],
+              }],
+              ['_toolset=="target"', {
+                  'cflags': ['-mbranch-protection=standard'],
+              }],
+          ],
       }],
       ['OS in "aix os400"', {
         'ldflags': [
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS == "linux" and llvm_version != "0.0"', {
+      ['OS=="linux" and clang==1', {
         'libraries': ['-latomic'],
       }],
     ],
@@ -527,7 +544,6 @@
 
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
       'msvs_settings': {
@@ -587,8 +603,8 @@
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
-                '/WHOLEARCHIVE:<(node_lib_target_name)<(STATIC_LIB_SUFFIX)',
-                '/WHOLEARCHIVE:<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/<(node_lib_target_name)<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
@@ -820,10 +836,8 @@
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
-        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
@@ -1008,8 +1022,8 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
+
       'includes': [
         'node.gypi'
       ],
@@ -1019,9 +1033,9 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
+
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
@@ -1045,17 +1059,103 @@
         }],
       ],
     }, # fuzz_env
+    { # fuzz_ClientHelloParser.cc
+      'target_name': 'fuzz_ClientHelloParser',
+      'type': 'executable',
+      'dependencies': [
+        '<(node_lib_target_name)',
+        'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
+      'includes': [
+        'node.gypi'
+      ],
+      'include_dirs': [
+        'src',
+        'tools/msvs/genfiles',
+        'deps/v8/include',
+        'deps/cares/include',
+        'deps/uv/include',
+        'deps/uvwasi/include',
+        'test/cctest',
+      ],
+      'defines': [
+        'NODE_ARCH="<(target_arch)"',
+        'NODE_PLATFORM="<(OS)"',
+        'NODE_WANT_INTERNALS=1',
+      ],
+      'sources': [
+        'src/node_snapshot_stub.cc',
+        'test/fuzzers/fuzz_ClientHelloParser.cc',
+      ],
+      'conditions': [
+        ['OS=="linux"', {
+          'ldflags': [ '-fsanitize=fuzzer' ]
+        }],
+        # Ensure that ossfuzz flag has been set and that we are on Linux
+        [ 'OS!="linux" or ossfuzz!="true"', {
+          'type': 'none',
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
+      ],
+    }, # fuzz_ClientHelloParser.cc
+    { # fuzz_strings
+      'target_name': 'fuzz_strings',
+      'type': 'executable',
+      'dependencies': [
+        '<(node_lib_target_name)',
+        'deps/googletest/googletest.gyp:gtest_prod',
+        'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/ada/ada.gyp:ada',
+      ],
+      'includes': [
+        'node.gypi'
+      ],
+      'include_dirs': [
+        'src',
+        'tools/msvs/genfiles',
+        'deps/v8/include',
+        'deps/cares/include',
+        'deps/uv/include',
+        'deps/uvwasi/include',
+        'test/cctest',
+      ],
+      'defines': [
+        'NODE_ARCH="<(target_arch)"',
+        'NODE_PLATFORM="<(OS)"',
+        'NODE_WANT_INTERNALS=1',
+      ],
+      'sources': [
+        'src/node_snapshot_stub.cc',
+        'test/fuzzers/fuzz_strings.cc',
+      ],
+      'conditions': [
+        ['OS=="linux"', {
+          'ldflags': [ '-fsanitize=fuzzer' ]
+        }],
+        # Ensure that ossfuzz flag has been set and that we are on Linux
+        [ 'OS!="linux" or ossfuzz!="true"', {
+          'type': 'none',
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
+      ],
+    }, # fuzz_strings
     {
       'target_name': 'cctest',
       'type': 'executable',
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest',
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
@@ -1071,7 +1171,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/cctest',
       ],
 
@@ -1133,7 +1232,6 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/ada/ada.gyp:ada',
       ],
 
@@ -1143,11 +1241,11 @@
 
       'include_dirs': [
         'src',
+        'tools',
         'tools/msvs/genfiles',
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
         'test/embedding',
       ],
 
@@ -1212,11 +1310,14 @@
         'deps/simdutf/simdutf.gyp:simdutf#host',
       ],
       'include_dirs': [
-        'tools'
+        'tools',
+        'src',
       ],
       'sources': [
         'tools/js2c.cc',
-        'tools/executable_wrapper.h'
+        'tools/executable_wrapper.h',
+        'src/embedded_data.h',
+        'src/embedded_data.cc',
       ],
       'conditions': [
         [ 'node_shared_libuv=="false"', {
@@ -1244,8 +1345,9 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/ada/ada.gyp:ada',
+        'deps/simdjson/simdjson.gyp:simdjson',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'includes': [
@@ -1258,7 +1360,6 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
-        'deps/uvwasi/include',
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],

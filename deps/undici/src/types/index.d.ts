@@ -14,10 +14,14 @@ import MockPool from'./mock-pool'
 import MockAgent from'./mock-agent'
 import mockErrors from'./mock-errors'
 import ProxyAgent from'./proxy-agent'
+import EnvHttpProxyAgent from './env-http-proxy-agent'
 import RetryHandler from'./retry-handler'
+import RetryAgent from'./retry-agent'
 import { request, pipeline, stream, connect, upgrade } from './api'
 
+export * from './util'
 export * from './cookies'
+export * from './eventsource'
 export * from './fetch'
 export * from './file'
 export * from './filereader'
@@ -28,7 +32,7 @@ export * from './content-type'
 export * from './cache'
 export { Interceptable } from './mock-interceptor'
 
-export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler }
+export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent }
 export default Undici
 
 declare namespace Undici {
@@ -62,4 +66,9 @@ declare namespace Undici {
   var File: typeof import('./file').File;
   var FileReader: typeof import('./filereader').FileReader;
   var caches: typeof import('./cache').caches;
+  var interceptors: {
+    dump: typeof import('./interceptors').dump;
+    retry: typeof import('./interceptors').retry;
+    redirect: typeof import('./interceptors').redirect;
+  }
 }

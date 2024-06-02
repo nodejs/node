@@ -24,6 +24,10 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#ifdef _WIN32
+# define S_IFDIR _S_IFDIR
+#endif
+
 int cookie1;
 int cookie2;
 int cookie3;

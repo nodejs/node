@@ -18,6 +18,7 @@ const {
   getCallSite,
   getTTYfd,
   hasCrypto,
+  hasIntl,
   hasIPv6,
   hasMultiLocalhost,
   isAIX,
@@ -50,6 +51,7 @@ const {
   skipIfDumbTerminal,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfWorker,
   spawnPromisified,
 } = common;
 
@@ -72,6 +74,7 @@ export {
   getPort,
   getTTYfd,
   hasCrypto,
+  hasIntl,
   hasIPv6,
   hasMultiLocalhost,
   isAIX,
@@ -104,5 +107,6 @@ export {
   skipIfDumbTerminal,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfWorker,
   spawnPromisified,
 };

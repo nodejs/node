@@ -32,7 +32,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
-using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -63,6 +62,7 @@ Worker::Worker(Environment* env,
       thread_id_(AllocateEnvironmentThreadId()),
       name_(name),
       env_vars_(env_vars),
+      embedder_preload_(env->embedder_preload()),
       snapshot_data_(snapshot_data) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
@@ -89,7 +89,7 @@ Worker::Worker(Environment* env,
   // Without this check, to use the permission model with
   // workers (--allow-worker) one would need to pass --allow-inspector as well
   if (env->permission()->is_granted(
-          node::permission::PermissionScope::kInspector)) {
+          env, node::permission::PermissionScope::kInspector)) {
     inspector_parent_handle_ =
         GetInspectorParentHandle(env, thread_id_, url.c_str(), name.c_str());
   }
@@ -387,8 +387,12 @@ void Worker::Run() {
         }
 
         Debug(this, "Created message port for worker %llu", thread_id_.id);
-        if (LoadEnvironment(env_.get(), StartExecutionCallback{}).IsEmpty())
+        if (LoadEnvironment(env_.get(),
+                            StartExecutionCallback{},
+                            std::move(embedder_preload_))
+                .IsEmpty()) {
           return;
+        }
 
         Debug(this, "Loaded environment for worker %llu", thread_id_.id);
       }
@@ -537,11 +541,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     });
 
 #ifndef NODE_WITHOUT_NODE_OPTIONS
-    MaybeLocal<String> maybe_node_opts =
-        env_vars->Get(isolate, OneByteString(isolate, "NODE_OPTIONS"));
-    Local<String> node_opts;
-    if (maybe_node_opts.ToLocal(&node_opts)) {
-      std::string node_options(*String::Utf8Value(isolate, node_opts));
+    std::string node_options;
+    if (env_vars->Get("NODE_OPTIONS").To(&node_options)) {
       std::vector<std::string> errors{};
       std::vector<std::string> env_argv =
           ParseNodeOptionsEnvVar(node_options, &errors);
@@ -568,26 +569,29 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
 #endif  // NODE_WITHOUT_NODE_OPTIONS
-  }
 
-  if (args[2]->IsArray()) {
-    Local<Array> array = args[2].As<Array>();
     // The first argument is reserved for program name, but we don't need it
     // in workers.
     std::vector<std::string> exec_argv = {""};
-    uint32_t length = array->Length();
-    for (uint32_t i = 0; i < length; i++) {
-      Local<Value> arg;
-      if (!array->Get(env->context(), i).ToLocal(&arg)) {
-        return;
+    if (args[2]->IsArray()) {
+      Local<Array> array = args[2].As<Array>();
+      uint32_t length = array->Length();
+      for (uint32_t i = 0; i < length; i++) {
+        Local<Value> arg;
+        if (!array->Get(env->context(), i).ToLocal(&arg)) {
+          return;
+        }
+        Local<String> arg_v8;
+        if (!arg->ToString(env->context()).ToLocal(&arg_v8)) {
+          return;
+        }
+        Utf8Value arg_utf8_value(args.GetIsolate(), arg_v8);
+        std::string arg_string(arg_utf8_value.out(), arg_utf8_value.length());
+        exec_argv.push_back(arg_string);
       }
-      Local<String> arg_v8;
-      if (!arg->ToString(env->context()).ToLocal(&arg_v8)) {
-        return;
-      }
-      Utf8Value arg_utf8_value(args.GetIsolate(), arg_v8);
-      std::string arg_string(arg_utf8_value.out(), arg_utf8_value.length());
-      exec_argv.push_back(arg_string);
+    } else {
+      exec_argv.insert(
+          exec_argv.end(), env->exec_argv().begin(), env->exec_argv().end());
     }
 
     std::vector<std::string> invalid_args{};
@@ -603,11 +607,12 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
-    if (errors.size() > 0 || invalid_args.size() > 0) {
+    // Only fail for explicitly provided execArgv, this protects from failures
+    // when execArgv from parent's execArgv is used (which is the default).
+    if (errors.size() > 0 || (invalid_args.size() > 0 && args[2]->IsArray())) {
       Local<Value> error;
-      if (!ToV8Value(env->context(),
-                     errors.size() > 0 ? errors : invalid_args)
-                         .ToLocal(&error)) {
+      if (!ToV8Value(env->context(), errors.size() > 0 ? errors : invalid_args)
+               .ToLocal(&error)) {
         return;
       }
       Local<String> key =
@@ -907,7 +912,7 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
   Local<Object> port = env->message_port();
   CHECK_IMPLIES(!env->is_main_thread(), !port.IsEmpty());
   if (!port.IsEmpty()) {
-    CHECK_EQ(port->GetCreationContext().ToLocalChecked()->GetIsolate(),
+    CHECK_EQ(port->GetCreationContextChecked()->GetIsolate(),
              args.GetIsolate());
     args.GetReturnValue().Set(port);
   }

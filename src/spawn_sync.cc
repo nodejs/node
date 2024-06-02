@@ -68,7 +68,7 @@ void SyncProcessOutputBuffer::OnRead(const uv_buf_t* buf, size_t nread) {
 
 
 size_t SyncProcessOutputBuffer::Copy(char* dest) const {
-  memcpy(dest, data_, used());
+  if (dest != nullptr) memcpy(dest, data_, used());
   return used();
 }
 
@@ -764,6 +764,13 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   if (!CopyJsString(js_file, &file_buffer_).To(&r)) return Nothing<int>();
   if (r < 0) return Just(r);
   uv_process_options_.file = file_buffer_;
+
+  // Undocumented feature of Win32 CreateProcess API allows spawning
+  // batch files directly but is potentially insecure because arguments
+  // are not escaped (and sometimes cannot be unambiguously escaped),
+  // hence why they are rejected here.
+  if (IsWindowsBatchFile(uv_process_options_.file))
+    return Just<int>(UV_EINVAL);
 
   Local<Value> js_args =
       js_options->Get(context, env()->args_string()).ToLocalChecked();

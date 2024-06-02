@@ -367,19 +367,24 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 2);
   if (req_wrap_async != nullptr) {  // openDir(path, encoding, req)
+    ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        req_wrap_async,
+        permission::PermissionScope::kFileSystemRead,
+        path.ToStringView());
     FS_DIR_ASYNC_TRACE_BEGIN1(
         UV_FS_OPENDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "opendir", encoding, AfterOpenDir,
               uv_fs_opendir, *path);
   } else {  // openDir(path, encoding, undefined, ctx)
     CHECK_EQ(argc, 4);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
     FSReqWrapSync req_wrap_sync;
     FS_DIR_SYNC_TRACE_BEGIN(opendir);
     int result = SyncCall(env, args[3], &req_wrap_sync, "opendir",

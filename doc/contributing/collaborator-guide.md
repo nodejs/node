@@ -232,7 +232,6 @@ There are some other files that touch the build chain. Changes in the following
 files also qualify as affecting the `node` binary:
 
 * `tools/*.py`
-* `tools/build-addons.mjs`
 * `*.gyp`
 * `*.gypi`
 * `configure`
@@ -848,6 +847,7 @@ might impact an LTS release.
 | `lib/net`                                                                  | @bnoordhuis, @indutny, @nodejs/streams                                        |
 | `lib/repl`                                                                 | @nodejs/repl                                                                  |
 | `lib/{_}stream{*}`                                                         | @nodejs/streams                                                               |
+| `lib/internal/test_runner`                                                 | @nodejs/test\_runner                                                          |
 | `lib/timers`                                                               | @nodejs/timers                                                                |
 | `lib/util`                                                                 | @nodejs/util                                                                  |
 | `lib/zlib`                                                                 | @nodejs/zlib                                                                  |
@@ -855,7 +855,7 @@ might impact an LTS release.
 | `src/node_api.*`                                                           | @nodejs/node-api                                                              |
 | `src/node_crypto.*`, `src/crypto`                                          | @nodejs/crypto                                                                |
 | `test/*`                                                                   | @nodejs/testing                                                               |
-| `tools/node_modules/eslint`, `.eslintrc`                                   | @nodejs/linting                                                               |
+| `tools/node_modules/eslint`, `eslint.config.mjs`                           | @nodejs/linting                                                               |
 | build                                                                      | @nodejs/build                                                                 |
 | `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                                                               |
 | GYP                                                                        | @nodejs/gyp                                                                   |
@@ -880,9 +880,13 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
 * `confirmed-bug`: Bugs you have verified
 * `discuss`: Things that need larger discussion
+* `fast-track`: PRs that need to land faster - see
+  [Waiting for approvals](#waiting-for-approvals)
 * `feature request`: Any issue that requests a new feature
 * `good first issue`: Issues suitable for newcomers to fix
 * `meta`: Governance, policies, procedures, etc.
+* `request-ci`: When this label is added to a PR, CI will be started
+  automatically. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
 * `tsc-agenda`: Open issues and pull requests with this label will be added to
   the Technical Steering Committee meeting agenda
 

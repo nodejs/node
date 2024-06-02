@@ -98,7 +98,11 @@ void PrintCaughtException(v8::Isolate* isolate,
 std::string FormatCaughtException(v8::Isolate* isolate,
                                   v8::Local<v8::Context> context,
                                   const v8::TryCatch& try_catch);
-
+std::string FormatErrorMessage(v8::Isolate* isolate,
+                               v8::Local<v8::Context> context,
+                               const std::string& reason,
+                               v8::Local<v8::Message> message,
+                               bool add_source_line = true);
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
@@ -308,8 +312,7 @@ class ThreadPoolWork {
 namespace credentials {
 bool SafeGetenv(const char* key,
                 std::string* text,
-                std::shared_ptr<KVStore> env_vars = nullptr,
-                v8::Isolate* isolate = nullptr);
+                std::shared_ptr<KVStore> env_vars = nullptr);
 }  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
@@ -367,6 +370,7 @@ typedef struct tm TIME_TYPE;
 #endif
 
 double GetCurrentTimeInMicroseconds();
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count);
 int WriteFileSync(const char* path, uv_buf_t buf);
 int WriteFileSync(v8::Isolate* isolate,
                   const char* path,
@@ -411,10 +415,6 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Environment* env, HeapSnapshotPointer&& snapshot);
 }  // namespace heap
 
-namespace fs {
-std::string Basename(const std::string& str, const std::string& extension);
-}  // namespace fs
-
 node_module napi_module_to_node_module(const napi_module* mod);
 
 std::ostream& operator<<(std::ostream& output, const SnapshotFlags& flags);
@@ -446,6 +446,10 @@ v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
     v8::Local<v8::Value> options);
 }  // namespace heap
 
+enum encoding ParseEncoding(v8::Isolate* isolate,
+                            v8::Local<v8::Value> encoding_v,
+                            v8::Local<v8::Value> encoding_id,
+                            enum encoding default_encoding);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

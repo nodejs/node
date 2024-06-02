@@ -10,6 +10,7 @@ changes:
   - version:
     - v21.0.0
     - v20.10.0
+    - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Add experimental support for import attributes.
   - version:
@@ -264,7 +265,7 @@ changes:
   - version:
     - v21.0.0
     - v20.10.0
-    - v18.19.0
+    - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Switch from Import Assertions to Import Attributes.
 -->
@@ -292,12 +293,12 @@ mandatory:
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
 
-## Builtin modules
+## Built-in modules
 
-[Core modules][] provide named exports of their public API. A
+[Built-in modules][] provide named exports of their public API. A
 default export is also provided which is the value of the CommonJS exports.
 The default export can be used for, among other things, modifying the named
-exports. Named exports of builtin modules are updated only by calling
+exports. Named exports of built-in modules are updated only by calling
 [`module.syncBuiltinESMExports()`][].
 
 ```js
@@ -342,7 +343,9 @@ properties.
 ### `import.meta.dirname`
 
 <!-- YAML
-added: v21.2.0
+added:
+  - v21.2.0
+  - v20.11.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -355,15 +358,17 @@ added: v21.2.0
 ### `import.meta.filename`
 
 <!-- YAML
-added: v21.2.0
+added:
+  - v21.2.0
+  - v20.11.0
 -->
 
 > Stability: 1.2 - Release candidate
 
 * {string} The full absolute path and filename of the current module, with
-* symlinks resolved.
+  symlinks resolved.
 * This is the same as the [`url.fileURLToPath()`][] of the
-* [`import.meta.url`][].
+  [`import.meta.url`][].
 
 > **Caveat** only local modules support this property. Modules not using the
 > `file:` protocol will not provide it.
@@ -393,7 +398,7 @@ changes:
     - v20.6.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
-    description: Unflag `import.meta.resolve``, with `parentURL` parameter still
+    description: Unflag `import.meta.resolve`, with `parentURL` parameter still
                  flagged.
   - version:
     - v20.6.0
@@ -462,11 +467,10 @@ compatibility.
 
 ### `require`
 
-The CommonJS module `require` always treats the files it references as CommonJS.
+The CommonJS module `require` currently only supports loading synchronous ES
+modules when `--experimental-require-module` is enabled.
 
-Using `require` to load an ES module is not supported because ES modules have
-asynchronous execution. Instead, use [`import()`][] to load an ES module
-from a CommonJS module.
+See [Loading ECMAScript modules using `require()`][] for details.
 
 ### CommonJS Namespaces
 
@@ -1082,8 +1086,8 @@ _isImports_, _conditions_)
 > 10. If _url_ ends in _".js"_, then
 >     1. If _packageType_ is not **null**, then
 >        1. Return _packageType_.
->     2. If `--experimental-detect-module` is enabled and the source of
->        module contains static import or export syntax, then
+>     2. If `--experimental-detect-module` is enabled and the result of
+>        **DETECT\_MODULE\_SYNTAX**(_source_) is true, then
 >        1. Return _"module"_.
 >     3. Return _"commonjs"_.
 > 11. If _url_ does not have any extension, then
@@ -1120,6 +1124,17 @@ _isImports_, _conditions_)
 >    1. Throw an _Invalid Package Configuration_ error.
 > 4. Return the parsed JSON source of the file at _pjsonURL_.
 
+**DETECT\_MODULE\_SYNTAX**(_source_)
+
+> 1. Parse _source_ as an ECMAScript module.
+> 2. If the parse is successful, then
+>    1. If _source_ contains top-level `await`, static `import` or `export`
+>       statements, or `import.meta`, return **true**.
+>    2. If _source_ contains a top-level lexical declaration (`const`, `let`,
+>       or `class`) of any of the CommonJS wrapper variables (`require`,
+>       `exports`, `module`, `__filename`, or `__dirname`) then return **true**.
+> 3. Else return **false**.
+
 ### Customizing ESM specifier resolution algorithm
 
 [Module customization hooks][] provide a mechanism for customizing the ESM
@@ -1130,14 +1145,15 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Addons]: addons.md
+[Built-in modules]: modules.md#built-in-modules
 [CommonJS]: modules.md
-[Core modules]: modules.md#core-modules
 [Determining module system]: packages.md#determining-module-system
 [Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [Import Attributes]: #import-attributes
 [Import Attributes proposal]: https://github.com/tc39/proposal-import-attributes
 [JSON modules]: #json-modules
+[Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
 [Terminology]: #terminology
@@ -1159,7 +1175,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
-[`url.fileURLToPath()`]: url.md#urlfileurltopathurl
+[`url.fileURLToPath()`]: url.md#urlfileurltopathurl-options
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
 [custom https loader]: module.md#import-from-https
@@ -1168,4 +1184,4 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
-[url.pathToFileURL]: url.md#urlpathtofileurlpath
+[url.pathToFileURL]: url.md#urlpathtofileurlpath-options

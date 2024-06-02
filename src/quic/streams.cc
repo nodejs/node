@@ -180,7 +180,7 @@ struct Stream::Impl {
     if (stream->is_destroyed()) return;
     stream->EndReadable();
     Session::SendPendingDataScope send_scope(&stream->session());
-    ngtcp2_conn_shutdown_stream_read(stream->session(), stream->id(), code);
+    ngtcp2_conn_shutdown_stream_read(stream->session(), 0, stream->id(), code);
   }
 
   // Sends a reset stream to the peer to tell it we will not be sending any
@@ -205,7 +205,7 @@ struct Stream::Impl {
     stream->outbound_.reset();
     stream->state_->reset = 1;
     Session::SendPendingDataScope send_scope(&stream->session());
-    ngtcp2_conn_shutdown_stream_write(stream->session(), stream->id(), code);
+    ngtcp2_conn_shutdown_stream_write(stream->session(), 0, stream->id(), code);
   }
 
   static void SetPriority(const FunctionCallbackInfo<Value>& args) {
@@ -851,6 +851,10 @@ void Stream::BeginHeaders(HeadersKind kind) {
   if (is_destroyed()) return;
   headers_length_ = 0;
   headers_.clear();
+  set_headers_kind(kind);
+}
+
+void Stream::set_headers_kind(HeadersKind kind) {
   headers_kind_ = kind;
 }
 
@@ -910,6 +914,8 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
 
 void Stream::Destroy(QuicError error) {
   if (is_destroyed()) return;
+  DCHECK_NOT_NULL(session_.get());
+  Debug(this, "Stream %" PRIi64 " being destroyed with error %s", id(), error);
 
   // End the writable before marking as destroyed.
   EndWritable();
@@ -928,7 +934,10 @@ void Stream::Destroy(QuicError error) {
   // the JavaScript side could still have a reader on the inbound DataQueue,
   // which may keep that data alive a bit longer.
   inbound_->removeBackpressureListener(this);
+
   inbound_.reset();
+
+  CHECK_NOT_NULL(session_.get());
 
   // Finally, remove the stream from the session and clear our reference
   // to the session.
@@ -959,7 +968,7 @@ void Stream::ReceiveStopSending(QuicError error) {
   // Note that this comes from *this* endpoint, not the other side. We handle it
   // if we haven't already shutdown our *receiving* side of the stream.
   if (is_destroyed() || state_->read_ended) return;
-  ngtcp2_conn_shutdown_stream_read(session(), id(), error.code());
+  ngtcp2_conn_shutdown_stream_read(session(), 0, id(), error.code());
   EndReadable();
 }
 

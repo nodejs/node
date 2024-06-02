@@ -19,7 +19,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/local-handles-inl.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/marking-state-inl.h"
@@ -41,8 +40,8 @@ void CreateFixedArray(Heap* heap, Address start, int size) {
   Tagged<FixedArray> array = FixedArray::cast(object);
   int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
   array->set_length(length);
-  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
-               length);
+  MemsetTagged(array->RawFieldOfFirstElement(),
+               ReadOnlyRoots(heap).undefined_value(), length);
 }
 
 const int kNumIterations = 2000;
@@ -436,8 +435,8 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
   }
 
   Heap* heap_;
-  FixedArray fixed_array_;
-  HeapObject value_;
+  Tagged<FixedArray> fixed_array_;
+  Tagged<HeapObject> value_;
 };
 
 UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
@@ -497,21 +496,23 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
   void Run() override {
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
-    // Modification of InstructionStream object requires write access.
-    RwxMemoryWriteScopeForTesting rwx_write_scope;
     DisallowGarbageCollection no_gc;
     Tagged<InstructionStream> istream = code_->instruction_stream();
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-    CodePageMemoryModificationScope memory_modification_scope(istream);
-    for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
+    WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+        istream->address(), istream->Size(),
+        ThreadIsolation::JitAllocationType::kInstructionStream);
+    for (WritableRelocIterator it(jit_allocation, istream,
+                                  code_->constant_pool(), mode_mask);
+         !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       it.rinfo()->set_target_object(istream, value_);
     }
   }
 
   Heap* heap_;
-  Code code_;
-  HeapObject value_;
+  Tagged<Code> code_;
+  Tagged<HeapObject> value_;
 };
 
 UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
@@ -556,7 +557,8 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
       Handle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
-      heap::ForceEvacuationCandidate(Page::FromHeapObject(*value_handle));
+      heap::ForceEvacuationCandidate(
+          PageMetadata::FromHeapObject(*value_handle));
       code = *code_handle;
       value = *value_handle;
     }

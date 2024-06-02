@@ -13,6 +13,18 @@ promise_test(async t => {
   await promise_rejects_js(t, TypeError, reader.read(view));
 }, 'ReadableStream with byte source: read() with a non-transferable buffer');
 
+promise_test(async t => {
+  const rs = new ReadableStream({
+    pull: t.unreached_func('pull() should not be called'),
+    type: 'bytes'
+  });
+
+  const reader = rs.getReader({ mode: 'byob' });
+  const memory = new WebAssembly.Memory({ initial: 1 });
+  const view = new Uint8Array(memory.buffer, 0, 1);
+  await promise_rejects_js(t, TypeError, reader.read(view, { min: 1 }));
+}, 'ReadableStream with byte source: fill() with a non-transferable buffer');
+
 test(t => {
   let controller;
   const rs = new ReadableStream({

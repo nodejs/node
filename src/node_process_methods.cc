@@ -4,6 +4,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -40,6 +41,7 @@ using v8::ArrayBuffer;
 using v8::CFunction;
 using v8::Context;
 using v8::Float64Array;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -81,6 +83,8 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value path(env->isolate(), args[0]);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   int err = uv_chdir(*path);
   if (err) {
     // Also include the original working directory, since that will usually
@@ -210,9 +214,12 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
 static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
   uint64_t value = uv_get_constrained_memory();
-  if (value != 0) {
-    args.GetReturnValue().Set(static_cast<double>(value));
-  }
+  args.GetReturnValue().Set(static_cast<double>(value));
+}
+
+static void GetAvailableMemory(const FunctionCallbackInfo<Value>& args) {
+  uint64_t value = uv_get_available_memory();
+  args.GetReturnValue().Set(static_cast<double>(value));
 }
 
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
@@ -463,6 +470,38 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
+static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  std::string path = ".env";
+  if (args.Length() == 1) {
+    Utf8Value path_value(args.GetIsolate(), args[0]);
+    path = path_value.ToString();
+  }
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path);
+
+  Dotenv dotenv{};
+
+  switch (dotenv.ParsePath(path)) {
+    case dotenv.ParseResult::Valid: {
+      dotenv.SetEnvironment(env);
+      break;
+    }
+    case dotenv.ParseResult::InvalidContent: {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "Contents of '%s' should be a valid string.", path.c_str());
+      break;
+    }
+    case dotenv.ParseResult::FileError: {
+      env->ThrowUVException(UV_ENOENT, "open", nullptr, path.c_str());
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 namespace process {
 
 BindingData::BindingData(Realm* realm,
@@ -586,6 +625,12 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+static void SetEmitWarningSync(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+  Environment* env = Environment::GetCurrent(args);
+  env->set_process_emit_warning_sync(args[0].As<Function>());
+}
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -600,6 +645,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "umask", Umask);
   SetMethod(isolate, target, "memoryUsage", MemoryUsage);
   SetMethod(isolate, target, "constrainedMemory", GetConstrainedMemory);
+  SetMethod(isolate, target, "availableMemory", GetAvailableMemory);
   SetMethod(isolate, target, "rss", Rss);
   SetMethod(isolate, target, "cpuUsage", CPUUsage);
   SetMethod(isolate, target, "resourceUsage", ResourceUsage);
@@ -616,6 +662,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "reallyExit", ReallyExit);
   SetMethodNoSideEffect(isolate, target, "uptime", Uptime);
   SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
+
+  SetMethod(isolate, target, "loadEnvFile", LoadEnvFile);
+
+  SetMethod(isolate, target, "setEmitWarningSync", SetEmitWarningSync);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -639,6 +689,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RawDebug);
   registry->Register(MemoryUsage);
   registry->Register(GetConstrainedMemory);
+  registry->Register(GetAvailableMemory);
   registry->Register(Rss);
   registry->Register(CPUUsage);
   registry->Register(ResourceUsage);
@@ -653,6 +704,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ReallyExit);
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
+
+  registry->Register(LoadEnvFile);
+
+  registry->Register(SetEmitWarningSync);
 }
 
 }  // namespace process

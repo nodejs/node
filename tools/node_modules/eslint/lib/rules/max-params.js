@@ -63,7 +63,7 @@ module.exports = {
 
         if (
             typeof option === "object" &&
-            (Object.prototype.hasOwnProperty.call(option, "maximum") || Object.prototype.hasOwnProperty.call(option, "max"))
+            (Object.hasOwn(option, "maximum") || Object.hasOwn(option, "max"))
         ) {
             numParams = option.maximum || option.max;
         }

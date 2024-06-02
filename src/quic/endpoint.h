@@ -20,6 +20,11 @@
 namespace node {
 namespace quic {
 
+#define ENDPOINT_CC(V)                                                         \
+  V(RENO, reno)                                                                \
+  V(CUBIC, cubic)                                                              \
+  V(BBR, bbr)
+
 // An Endpoint encapsulates the UDP local port binding and is responsible for
 // sending and receiving QUIC packets. A single endpoint can act as both a QUIC
 // client and server simultaneously.
@@ -33,10 +38,9 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   static constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS = 10;
   static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
 
-  static constexpr auto QUIC_CC_ALGO_RENO = NGTCP2_CC_ALGO_RENO;
-  static constexpr auto QUIC_CC_ALGO_CUBIC = NGTCP2_CC_ALGO_CUBIC;
-  static constexpr auto QUIC_CC_ALGO_BBR = NGTCP2_CC_ALGO_BBR;
-  static constexpr auto QUIC_CC_ALGO_BBR2 = NGTCP2_CC_ALGO_BBR2;
+#define V(name, _) static constexpr auto CC_ALGO_##name = NGTCP2_CC_ALGO_##name;
+  ENDPOINT_CC(V)
+#undef V
 
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
@@ -107,6 +111,15 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // changed if you have a really good reason for doing so.
     uint64_t unacknowledged_packet_threshold = 0;
 
+    // The amount of time (in milliseconds) that the endpoint will wait for the
+    // completion of the tls handshake.
+    uint64_t handshake_timeout = UINT64_MAX;
+
+    uint64_t max_stream_window = 0;
+    uint64_t max_window = 0;
+
+    bool no_udp_payload_size_shaping = true;
+
     // The validate_address parameter instructs the Endpoint to perform explicit
     // address validation using retry tokens. This is strongly recommended and
     // should only be disabled in trusted, closed environments as a performance
@@ -131,12 +144,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 #endif  // DEBUG
 
     // There are several common congestion control algorithms that ngtcp2 uses
-    // to determine how it manages the flow control window: RENO, CUBIC, BBR,
-    // and BBR2. The details of how each works is not relevant here. The choice
-    // of which to use by default is arbitrary and we can choose whichever we'd
+    // to determine how it manages the flow control window: RENO, CUBIC, and
+    // BBR. The details of how each works is not relevant here. The choice of
+    // which to use by default is arbitrary and we can choose whichever we'd
     // like. Additional performance profiling will be needed to determine which
     // is the better of the two for our needs.
-    ngtcp2_cc_algo cc_algorithm = NGTCP2_CC_ALGO_CUBIC;
+    ngtcp2_cc_algo cc_algorithm = CC_ALGO_CUBIC;
 
     // By default, when the endpoint is created, it will generate a
     // reset_token_secret at random. This is a secret used in generating
@@ -169,6 +182,8 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
     static v8::Maybe<Options> From(Environment* env,
                                    v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
   bool HasInstance(Environment* env, v8::Local<v8::Value> value);
@@ -218,7 +233,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
                                     Session* session);
   void DisassociateStatelessResetToken(const StatelessResetToken& token);
 
-  void Send(BaseObjectPtr<Packet> packet);
+  void Send(Packet* packet);
 
   // Generates and sends a retry packet. This is terminal for the connection.
   // Retry packets are used to force explicit path validation by issuing a token
@@ -284,7 +299,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     int Start();
     void Stop();
     void Close();
-    int Send(BaseObjectPtr<Packet> packet);
+    int Send(Packet* packet);
 
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.
@@ -399,8 +414,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   const Options options_;
   UDP udp_;
 
+  struct ServerState {
+    Session::Options options;
+    std::shared_ptr<TLSContext> tls_context;
+  };
   // Set if/when the endpoint is configured to listen.
-  std::optional<Session::Options> server_options_{};
+  std::optional<ServerState> server_state_ = std::nullopt;
 
   // A Session is generally identified by one or more CIDs. We use two
   // maps for this rather than one to avoid creating a whole bunch of

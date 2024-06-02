@@ -55,7 +55,7 @@ module.exports = {
             const temp = options.allowConstructorFlags.join("").replace(validFlags, "");
 
             if (temp) {
-                allowedFlags = new RegExp(`[${temp}]`, "giu");
+                allowedFlags = new RegExp(`[${temp}]`, "gu");
             }
         }
 
