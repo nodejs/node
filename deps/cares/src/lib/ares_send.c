@@ -200,7 +200,7 @@ void ares_send(ares_channel_t *channel, const unsigned char *qbuf, int qlen,
   ares_dns_record_destroy(dnsrec);
 }
 
-size_t ares_queue_active_queries(ares_channel_t *channel)
+size_t ares_queue_active_queries(const ares_channel_t *channel)
 {
   size_t len;
 
