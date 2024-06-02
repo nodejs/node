@@ -103,11 +103,11 @@ The `corepack` command has [various flags][]. Consult the detailed
 
 The following binaries are provided through Corepack:
 
-| Package manager                   | Binary names      |
-| --------------------------------- | ----------------- |
-| [Yarn][]                          | `yarn`, `yarnpkg` |
-| [pnpm][]                          | `pnpm`, `pnpx`    |
-| [npm](https://npmjs.org)*         | `npm`, `npx`      |
+| Package manager  | Binary names      |
+| ---------------- | ----------------- |
+| [Yarn][]         | `yarn`, `yarnpkg` |
+| [pnpm][]         | `pnpm`, `pnpx`    |
+| [npm][]*         | `npm`, `npx`      |
 
 \* Not enabled by default. Use `corepack enable npm` to do so.
 
@@ -149,6 +149,7 @@ install. To avoid this problem, consider one of the following options:
 [`corepack use`]: https://github.com/nodejs/corepack#corepack-use-nameversion
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [pnpm]: https://pnpm.io
+[npm]: https://npmjs.org
 [supported binaries]: #supported-package-managers
 [supported package manager]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands
