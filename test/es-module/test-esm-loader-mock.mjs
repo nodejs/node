@@ -1,11 +1,6 @@
-import { skipIfWorker } from '../common/index.mjs';
+import '../common/index.mjs';
 import assert from 'node:assert/strict';
 import { mock } from '../fixtures/es-module-loaders/mock.mjs';
-// Importing mock.mjs above will call `register` to modify the loaders chain.
-// Modifying the loader chain is not supported currently when running from a worker thread.
-// Relevant PR: https://github.com/nodejs/node/pull/52706
-// See comment: https://github.com/nodejs/node/pull/52706/files#r1585144580
-skipIfWorker();
 
 mock('node:events', {
   EventEmitter: 'This is mocked!'
