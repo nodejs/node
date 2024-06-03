@@ -20,6 +20,24 @@ Some of the benefits we hope to achieve through these programs include:
   done by individuals or teams like those mentioned. This should
   encourage other people to get involved and make similar contributions
 
+## Sponsorship link on nodejs/node README.md
+
+Collaborators may add a single link beside their name on the nodejs/node
+README.md page named `Support me`. This link may be:
+
+1. a direct link to one of the sponsorship platforms listed below
+2. a page which has text explaining how to support the collaborator
+   including zero or more links to the sponsorship platforms listed below.
+   The page shoud not have any outgoing links other than to the
+   sponsorship platforms. We expect and trust collaborators to ensure that
+   the text is professional and repectful.
+
+The sponsorship platforms to which links can be made currently
+includes (in alphabetical order):
+
+* [GitHub Sponsors](https://github.com/sponsors)
+* [Open Collective](https://opencollective.com/)
+
 ## Bi-monthly contributor spotlight
 
 The contributor spotlight program showcases individual(s) or teams who have
