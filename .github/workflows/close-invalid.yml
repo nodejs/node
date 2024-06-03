@@ -1,0 +1,47 @@
+name: Close Issues Based on Conditions
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  close_invalid_issues:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Close issues with no body or title longer than 100 characters
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const issue = context.payload.issue;
+          const issueBody = issue.body;
+          const issueNumber = issue.number;
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+
+          if (issueBody.length < 10) {
+            // Set the 'invalid' label (this removes all other labels and sets 'invalid')
+            await github.issues.setLabels({
+              owner: owner,
+              repo: repo,
+              issue_number: issueNumber,
+              labels: ['invalid']
+            });
+
+            // Close the issue with the state reason 'not planned'
+            await github.issues.update({
+              owner: owner,
+              repo: repo,
+              issue_number: issueNumber,
+              state: 'closed',
+              state_reason: 'not_planned'
+            });
+
+            // Add a comment explaining why the issue was closed
+            await github.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: issueNumber,
+              body: `This issue has been closed as it's body is too short`
+            });
+          }
