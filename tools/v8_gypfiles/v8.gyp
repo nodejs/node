@@ -289,7 +289,6 @@
       'toolsets': ['host', 'target'],
       'dependencies': [
         'torque_generated_initializers',
-        'v8_initializers_slow',
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
@@ -299,18 +298,21 @@
         '<(SHARED_INTERMEDIATE_DIR)',
         '<(generate_bytecode_output_root)',
       ],
-      # Compiled by v8_initializers_slow target.
-      'sources!': [
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
-      ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
       ],
       'conditions': [
         ['v8_enable_webassembly==1', {
+          'dependencies': [
+            'v8_initializers_slow',
+          ],
+          # Compiled by v8_initializers_slow target.
+          'sources!': [
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
+          ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
           ],
