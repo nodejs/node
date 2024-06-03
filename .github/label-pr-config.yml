@@ -91,7 +91,7 @@ subSystemLabels:
   /^lib\/internal\/bootstrap/: lib / src
   /^lib\/internal\/v8_prof_/: tools
   /^lib\/internal\/socket(?:_list|address)\.js$/: net
-  /^lib\/\w+\/streams$/: stream
+  /^lib\/(_stream.*|internal\/streams\/.*|stream\.js|stream\/.*)$/: stream
   /^lib\/.*http2/: http2
   /^lib\/worker_threads.js$/: worker
   /^lib\/test.js$/: test_runner
