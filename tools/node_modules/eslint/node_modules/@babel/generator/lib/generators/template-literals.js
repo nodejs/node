@@ -11,20 +11,21 @@ function TaggedTemplateExpression(node) {
   this.print(node.typeParameters, node);
   this.print(node.quasi, node);
 }
-function TemplateElement(node, parent) {
-  const isFirst = parent.quasis[0] === node;
-  const isLast = parent.quasis[parent.quasis.length - 1] === node;
-  const value = (isFirst ? "`" : "}") + node.value.raw + (isLast ? "`" : "${");
-  this.token(value, true);
+function TemplateElement() {
+  throw new Error("TemplateElement printing is handled in TemplateLiteral");
 }
 function TemplateLiteral(node) {
   const quasis = node.quasis;
+  let partRaw = "`";
   for (let i = 0; i < quasis.length; i++) {
-    this.print(quasis[i], node);
+    partRaw += quasis[i].value.raw;
     if (i + 1 < quasis.length) {
+      this.token(partRaw + "${", true);
       this.print(node.expressions[i], node);
+      partRaw = "}";
     }
   }
+  this.token(partRaw + "`", true);
 }
 
 //# sourceMappingURL=template-literals.js.map
