@@ -582,7 +582,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 # Prepare the build for running the tests.
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 build-ci:
-	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
+	$(PYTHON) ./configure.py --verbose $(CONFIG_FLAGS)
 	$(MAKE)
 
 .PHONY: run-ci
@@ -1101,7 +1101,7 @@ endif
 	done
 	CC_host="cc -arch x86_64" CXX_host="c++ -arch x86_64"  \
 	CC_target="cc -arch x86_64" CXX_target="c++ -arch x86_64" \
-	CC="cc -arch x86_64" CXX="c++ -arch x86_64" $(PYTHON) ./configure \
+	CC="cc -arch x86_64" CXX="c++ -arch x86_64" $(PYTHON) ./configure.py \
 		--dest-cpu=x86_64 \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
@@ -1109,7 +1109,7 @@ endif
 	arch -x86_64 $(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/x64/node
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/x64/node/usr/local" sh \
 		tools/osx-codesign.sh
-	$(PYTHON) ./configure \
+	$(PYTHON) ./configure.py \
 		--dest-cpu=arm64 \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
@@ -1235,7 +1235,7 @@ doc-upload: doc
 
 .PHONY: $(TARBALL)-headers
 $(TARBALL)-headers: release-only
-	$(PYTHON) ./configure \
+	$(PYTHON) ./configure.py \
 		--prefix=/ \
 		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
@@ -1271,7 +1271,7 @@ endif
 $(BINARYTAR): release-only
 	$(RM) -r $(BINARYNAME)
 	$(RM) -r out/deps out/Release
-	$(PYTHON) ./configure \
+	$(PYTHON) ./configure.py \
 		--prefix=/ \
 		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
