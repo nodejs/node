@@ -96,6 +96,9 @@ class ContextifyContext : public BaseObject {
       const errors::TryCatchScope& try_catch);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
+  static v8::Intercepted PropertyQueryCallback(
+      v8::Local<v8::Name> property,
+      const v8::PropertyCallbackInfo<v8::Integer>& args);
   static v8::Intercepted PropertyGetterCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
@@ -115,6 +118,8 @@ class ContextifyContext : public BaseObject {
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
   static void PropertyEnumeratorCallback(
       const v8::PropertyCallbackInfo<v8::Array>& args);
+  static v8::Intercepted IndexedPropertyQueryCallback(
+      uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& args);
   static v8::Intercepted IndexedPropertyGetterCallback(
       uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& args);
   static v8::Intercepted IndexedPropertySetterCallback(
