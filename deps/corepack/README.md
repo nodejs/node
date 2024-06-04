@@ -247,7 +247,7 @@ same major line. Should you need to upgrade to a new major, use an explicit
   prevent Corepack showing the URL when it needs to download software, or can be
   set to `1` to have the URL shown. By default, when Corepack is called
   explicitly (e.g. `corepack pnpm …`), it is set to `0`; when Corepack is called
-  implicitely (e.g. `pnpm …`), it is set to `1`.
+  implicitly (e.g. `pnpm …`), it is set to `1`.
   When standard input is a TTY and no CI environment is detected, Corepack will
   ask for user input before starting the download.
 
@@ -304,7 +304,8 @@ same major line. Should you need to upgrade to a new major, use an explicit
 
 ### Networking
 
-There are a wide variety of networking issues that can occur while running `corepack` commands. Things to check:
+There are a wide variety of networking issues that can occur while running
+`corepack` commands. Things to check:
 
 - Make sure your network connection is active.
 - Make sure the host for your request can be resolved by your DNS; try using
