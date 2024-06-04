@@ -497,7 +497,7 @@ const assert = require('assert');
 }
 
 {
-  class SlowProcessor extends Duplex {
+  class DuplexProcess extends Duplex {
     constructor(options) {
       super({ ...options, objectMode: true });
       this.stuff = [];
@@ -513,33 +513,29 @@ const assert = require('assert');
     }
 
     _read() {
-      // Emulate some slow processing
-      setTimeout(() => {
-        if (this.stuff.length) {
-          this.push(this.stuff.shift());
-        } else if (this.writableEnded) {
-          this.push(null);
-        } else {
-          setTimeout(() => this._read(), common.platformTimeout(100));
-        }
-      }, 100);
+      if (this.stuff.length) {
+        this.push(this.stuff.shift());
+      } else if (this.writableEnded) {
+        this.push(null);
+      } else {
+        this._read();
+      }
     }
   }
 
   const pass = new PassThrough({ objectMode: true });
-  const slow = new SlowProcessor();
+  const duplex = new DuplexProcess();
 
   const composed = compose(
     pass,
-    slow
+    duplex
   ).on('error', () => {});
 
   composed.write('hello');
   composed.write('world');
   composed.end();
 
-  setTimeout(() => {
-    composed.destroy(new Error('an unexpected error'));
-    assert.strictEqual(slow.destroyed, true);
-  }, common.platformTimeout(100));
+  composed.destroy(new Error('an unexpected error'));
+  assert.strictEqual(duplex.destroyed, true);
+
 }
