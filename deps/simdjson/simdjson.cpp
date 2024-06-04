@@ -1,4 +1,4 @@
-/* auto-generated on 2024-05-07 18:04:59 -0400. Do not edit! */
+/* auto-generated on 2024-05-30 10:52:38 -0400. Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -2359,7 +2359,7 @@ enum error_code {
   INDEX_OUT_OF_BOUNDS,        ///< JSON array index too large
   NO_SUCH_FIELD,              ///< JSON field not found in object
   IO_ERROR,                   ///< Error reading a file
-  INVALID_JSON_POINTER,       ///< Invalid JSON pointer reference
+  INVALID_JSON_POINTER,       ///< Invalid JSON pointer syntax
   INVALID_URI_FRAGMENT,       ///< Invalid URI fragment
   UNEXPECTED_ERROR,           ///< indicative of a bug in simdjson
   PARSER_IN_USE,              ///< parser is already in use.
@@ -6896,6 +6896,7 @@ static inline uint32_t detect_supported_architectures() {
 /* end file internal/isadetection.h */
 
 #include <initializer_list>
+#include <type_traits>
 
 namespace simdjson {
 
