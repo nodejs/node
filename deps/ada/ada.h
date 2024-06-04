@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-11 16:39:11 -0400. Do not edit! */
+/* auto-generated on 2024-05-30 22:24:57 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -1214,25 +1214,104 @@ namespace ada {
  * @see https://url.spec.whatwg.org/#url-parsing
  */
 enum class state {
+  /**
+   * @see https://url.spec.whatwg.org/#authority-state
+   */
   AUTHORITY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#scheme-start-state
+   */
   SCHEME_START,
+
+  /**
+   * @see https://url.spec.whatwg.org/#scheme-state
+   */
   SCHEME,
+
+  /**
+   * @see https://url.spec.whatwg.org/#host-state
+   */
   HOST,
+
+  /**
+   * @see https://url.spec.whatwg.org/#no-scheme-state
+   */
   NO_SCHEME,
+
+  /**
+   * @see https://url.spec.whatwg.org/#fragment-state
+   */
   FRAGMENT,
+
+  /**
+   * @see https://url.spec.whatwg.org/#relative-state
+   */
   RELATIVE_SCHEME,
+
+  /**
+   * @see https://url.spec.whatwg.org/#relative-slash-state
+   */
   RELATIVE_SLASH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#file-state
+   */
   FILE,
+
+  /**
+   * @see https://url.spec.whatwg.org/#file-host-state
+   */
   FILE_HOST,
+
+  /**
+   * @see https://url.spec.whatwg.org/#file-slash-state
+   */
   FILE_SLASH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#path-or-authority-state
+   */
   PATH_OR_AUTHORITY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#special-authority-ignore-slashes-state
+   */
   SPECIAL_AUTHORITY_IGNORE_SLASHES,
+
+  /**
+   * @see https://url.spec.whatwg.org/#special-authority-slashes-state
+   */
   SPECIAL_AUTHORITY_SLASHES,
+
+  /**
+   * @see https://url.spec.whatwg.org/#special-relative-or-authority-state
+   */
   SPECIAL_RELATIVE_OR_AUTHORITY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#query-state
+   */
   QUERY,
+
+  /**
+   * @see https://url.spec.whatwg.org/#path-state
+   */
   PATH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#path-start-state
+   */
   PATH_START,
+
+  /**
+   * @see https://url.spec.whatwg.org/#cannot-be-a-base-url-path-state
+   */
   OPAQUE_PATH,
+
+  /**
+   * @see https://url.spec.whatwg.org/#port-state
+   */
   PORT,
 };
 
@@ -2753,8 +2832,9 @@ struct expected_operations_base<void, E> : expected_storage_base<void, E> {
 // This class manages conditionally having a trivial copy constructor
 // This specialization is for when T and E are trivially copy constructible
 template <class T, class E,
-          bool = is_void_or<T, TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T)>::
-              value &&TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value>
+          bool = is_void_or<T, TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(
+                                   T)>::value &&
+                 TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value>
 struct expected_copy_base : expected_operations_base<T, E> {
   using expected_operations_base<T, E>::expected_operations_base;
 };
@@ -2786,8 +2866,9 @@ struct expected_copy_base<T, E, false> : expected_operations_base<T, E> {
 // move constructible
 #ifndef TL_EXPECTED_GCC49
 template <class T, class E,
-          bool = is_void_or<T, std::is_trivially_move_constructible<T>>::value
-              &&std::is_trivially_move_constructible<E>::value>
+          bool =
+              is_void_or<T, std::is_trivially_move_constructible<T>>::value &&
+              std::is_trivially_move_constructible<E>::value>
 struct expected_move_base : expected_copy_base<T, E> {
   using expected_copy_base<T, E>::expected_copy_base;
 };
@@ -2816,14 +2897,16 @@ struct expected_move_base<T, E, false> : expected_copy_base<T, E> {
 };
 
 // This class manages conditionally having a trivial copy assignment operator
-template <class T, class E,
-          bool = is_void_or<
-              T, conjunction<TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T),
-                             TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T),
-                             TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)>>::value
-              &&TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(E)::value
-                  &&TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value
-                      &&TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(E)::value>
+template <
+    class T, class E,
+    bool =
+        is_void_or<
+            T, conjunction<TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T),
+                           TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T),
+                           TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)>>::value &&
+        TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(E)::value &&
+        TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(E)::value &&
+        TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(E)::value>
 struct expected_copy_assign_base : expected_move_base<T, E> {
   using expected_move_base<T, E>::expected_move_base;
 };
@@ -2850,14 +2933,15 @@ struct expected_copy_assign_base<T, E, false> : expected_move_base<T, E> {
 // to make do with a non-trivial move assignment operator even if T is trivially
 // move assignable
 #ifndef TL_EXPECTED_GCC49
-template <class T, class E,
-          bool =
-              is_void_or<T, conjunction<std::is_trivially_destructible<T>,
-                                        std::is_trivially_move_constructible<T>,
-                                        std::is_trivially_move_assignable<T>>>::
-                  value &&std::is_trivially_destructible<E>::value
-                      &&std::is_trivially_move_constructible<E>::value
-                          &&std::is_trivially_move_assignable<E>::value>
+template <
+    class T, class E,
+    bool = is_void_or<
+               T, conjunction<std::is_trivially_destructible<T>,
+                              std::is_trivially_move_constructible<T>,
+                              std::is_trivially_move_assignable<T>>>::value &&
+           std::is_trivially_destructible<E>::value &&
+           std::is_trivially_move_constructible<E>::value &&
+           std::is_trivially_move_assignable<E>::value>
 struct expected_move_assign_base : expected_copy_assign_base<T, E> {
   using expected_copy_assign_base<T, E>::expected_copy_assign_base;
 };
@@ -2879,10 +2963,10 @@ struct expected_move_assign_base<T, E, false>
   expected_move_assign_base &operator=(const expected_move_assign_base &rhs) =
       default;
 
-  expected_move_assign_base &
-  operator=(expected_move_assign_base &&rhs) noexcept(
-      std::is_nothrow_move_constructible<T>::value
-          &&std::is_nothrow_move_assignable<T>::value) {
+  expected_move_assign_base &operator=(
+      expected_move_assign_base
+          &&rhs) noexcept(std::is_nothrow_move_constructible<T>::value &&
+                          std::is_nothrow_move_assignable<T>::value) {
     this->assign(std::move(rhs));
     return *this;
   }
@@ -3771,11 +3855,10 @@ class expected : private detail::expected_move_assign_base<T, E>,
                       detail::is_swappable<OE>::value &&
                       (std::is_nothrow_move_constructible<OT>::value ||
                        std::is_nothrow_move_constructible<OE>::value)>
-  swap(expected &rhs) noexcept(
-      std::is_nothrow_move_constructible<T>::value
-          &&detail::is_nothrow_swappable<T>::value
-              &&std::is_nothrow_move_constructible<E>::value
-                  &&detail::is_nothrow_swappable<E>::value) {
+  swap(expected &rhs) noexcept(std::is_nothrow_move_constructible<T>::value &&
+                               detail::is_nothrow_swappable<T>::value &&
+                               std::is_nothrow_move_constructible<E>::value &&
+                               detail::is_nothrow_swappable<E>::value) {
     if (has_value() && rhs.has_value()) {
       swap_where_both_have_value(rhs, typename std::is_void<T>::type{});
     } else if (!has_value() && rhs.has_value()) {
@@ -4312,7 +4395,10 @@ struct url;
 namespace ada::parser {
 
 /**
- * Parses a url.
+ * Parses a url. The parameter user_input is the input to be parsed:
+ * it should be a valid UTF-8 string. The parameter base_url is an optional
+ * parameter that can be used to resolve relative URLs. If the base_url is
+ * provided, the user_input is resolved against the base_url.
  */
 template <typename result_type = ada::url_aggregator>
 result_type parse_url(std::string_view user_input,
@@ -7169,14 +7255,14 @@ url_search_params_entries_iter::next() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.7.8"
+#define ADA_VERSION "2.8.0"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 7,
-  ADA_VERSION_REVISION = 8,
+  ADA_VERSION_MINOR = 8,
+  ADA_VERSION_REVISION = 0,
 };
 
 }  // namespace ada
