@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.2](https://github.com/nodejs/corepack/compare/v0.28.1...v0.28.2) (2024-05-31)
+
+
+### Features
+
+* update package manager versions ([#481](https://github.com/nodejs/corepack/issues/481)) ([e1abb83](https://github.com/nodejs/corepack/commit/e1abb832416a793b490b2b51b4082fe822fc932c))
+
 ## [0.28.1](https://github.com/nodejs/corepack/compare/v0.28.0...v0.28.1) (2024-05-10)
 
 
