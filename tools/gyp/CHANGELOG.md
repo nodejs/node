@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.18.1](https://github.com/nodejs/gyp-next/compare/v0.18.0...v0.18.1) (2024-05-26)
+
+
+### Bug Fixes
+
+* **ci:** add Python 3.13 pre-release to test matrix ([#257](https://github.com/nodejs/gyp-next/issues/257)) ([8597203](https://github.com/nodejs/gyp-next/commit/8597203b687325c7516367135e026586279d0583))
+
+
+### Documentation
+
+* vendor docs from gyp.gsrc.io ([#254](https://github.com/nodejs/gyp-next/issues/254)) ([8d7ba6e](https://github.com/nodejs/gyp-next/commit/8d7ba6e784dedf1122a0456150c739d2a09ecf57))
+
 ## [0.18.0](https://github.com/nodejs/gyp-next/compare/v0.17.0...v0.18.0) (2024-05-08)
 
 
