@@ -1,8 +1,5 @@
 'use strict'
 
-const assert = require('node:assert')
-const { getHeadersList: internalGetHeadersList } = require('../fetch/headers')
-
 /**
  * @param {string} value
  * @returns {boolean}
@@ -275,35 +272,11 @@ function stringify (cookie) {
   return out.join('; ')
 }
 
-let kHeadersListNode
-
-function getHeadersList (headers) {
-  try {
-    return internalGetHeadersList(headers)
-  } catch {
-    // fall-through
-  }
-
-  if (!kHeadersListNode) {
-    kHeadersListNode = Object.getOwnPropertySymbols(headers).find(
-      (symbol) => symbol.description === 'headers list'
-    )
-
-    assert(kHeadersListNode, 'Headers cannot be parsed')
-  }
-
-  const headersList = headers[kHeadersListNode]
-  assert(headersList)
-
-  return headersList
-}
-
 module.exports = {
   isCTLExcludingHtab,
   validateCookieName,
   validateCookiePath,
   validateCookieValue,
   toIMFDate,
-  stringify,
-  getHeadersList
+  stringify
 }
