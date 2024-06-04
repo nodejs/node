@@ -28,7 +28,7 @@
     "path": "fetch/data-urls/resources"
   },
   "FileAPI": {
-    "commit": "e36dbb6f00fb59f9fc792f509194432e9e6d0b6d",
+    "commit": "cceaf3628da950621004d9b5d8c1d1f367073347",
     "path": "FileAPI"
   },
   "hr-time": {
