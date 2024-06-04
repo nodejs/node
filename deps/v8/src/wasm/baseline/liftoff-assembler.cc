@@ -430,12 +430,13 @@ void LiftoffAssembler::DropExceptionValueAtOffset(int offset) {
        slot != end; ++slot) {
     *slot = *(slot + 1);
     stack_offset = NextSpillOffset(slot->kind(), stack_offset);
-    // Padding could allow us to exit early.
-    if (slot->offset() == stack_offset) break;
-    if (slot->is_stack()) {
-      MoveStackValue(stack_offset, slot->offset(), slot->kind());
+    // Padding could cause some spill offsets to remain the same.
+    if (slot->offset() != stack_offset) {
+      if (slot->is_stack()) {
+        MoveStackValue(stack_offset, slot->offset(), slot->kind());
+      }
+      slot->set_offset(stack_offset);
     }
-    slot->set_offset(stack_offset);
   }
   cache_state_.stack_state.pop_back();
 }
