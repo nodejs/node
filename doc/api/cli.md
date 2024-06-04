@@ -673,6 +673,23 @@ Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
 `node:vm` module.
 
+### `--expose-gc`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
+> change upstream.
+
+This flag will expose the gc extension from V8.
+
+```js
+if (globalThis.gc) {
+  globalThis.gc();
+}
+```
+
 ### `--dns-result-order=order`
 
 <!-- YAML
@@ -2864,6 +2881,7 @@ V8 options that are allowed are:
 * `--abort-on-uncaught-exception`
 * `--disallow-code-generation-from-strings`
 * `--enable-etw-stack-walking`
+* `--expose-gc`
 * `--huge-max-old-generation-size`
 * `--interpreted-frames-native-stack`
 * `--jitless`
@@ -3192,6 +3210,8 @@ documented here:
 ### `--disallow-code-generation-from-strings`
 
 ### `--enable-etw-stack-walking`
+
+### `--expose-gc`
 
 ### `--harmony-shadow-realm`
 
