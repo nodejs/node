@@ -520,7 +520,7 @@ const assert = require('assert');
         } else if (this.writableEnded) {
           this.push(null);
         } else {
-          setTimeout(() => this._read(), 100);
+          setTimeout(() => this._read(), common.platformTimeout(100));
         }
       }, 100);
     }
@@ -541,5 +541,5 @@ const assert = require('assert');
   setTimeout(() => {
     composed.destroy(new Error('an unexpected error'));
     assert.strictEqual(slow.destroyed, true);
-  }, 100);
+  }, common.platformTimeout(100));
 }
