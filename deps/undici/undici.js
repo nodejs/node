@@ -311,6 +311,7 @@ var require_symbols = __commonJS({
       kHost: Symbol("host"),
       kNoRef: Symbol("no ref"),
       kBodyUsed: Symbol("used"),
+      kBody: Symbol("abstracted request body"),
       kRunning: Symbol("running"),
       kBlocking: Symbol("blocking"),
       kPending: Symbol("pending"),
@@ -1105,17 +1106,55 @@ var require_util = __commonJS({
   "lib/core/util.js"(exports2, module2) {
     "use strict";
     var assert = require("node:assert");
-    var { kDestroyed, kBodyUsed, kListeners } = require_symbols();
+    var { kDestroyed, kBodyUsed, kListeners, kBody } = require_symbols();
     var { IncomingMessage } = require("node:http");
     var stream = require("node:stream");
     var net = require("node:net");
-    var { InvalidArgumentError } = require_errors();
     var { Blob: Blob2 } = require("node:buffer");
     var nodeUtil = require("node:util");
     var { stringify } = require("node:querystring");
+    var { EventEmitter: EE } = require("node:events");
+    var { InvalidArgumentError } = require_errors();
     var { headerNameLowerCasedRecord } = require_constants();
     var { tree } = require_tree();
     var [nodeMajor, nodeMinor] = process.versions.node.split(".").map((v) => Number(v));
+    var BodyAsyncIterable = class {
+      static {
+        __name(this, "BodyAsyncIterable");
+      }
+      constructor(body) {
+        this[kBody] = body;
+        this[kBodyUsed] = false;
+      }
+      async *[Symbol.asyncIterator]() {
+        assert(!this[kBodyUsed], "disturbed");
+        this[kBodyUsed] = true;
+        yield* this[kBody];
+      }
+    };
+    function wrapRequestBody(body) {
+      if (isStream(body)) {
+        if (bodyLength(body) === 0) {
+          body.on("data", function() {
+            assert(false);
+          });
+        }
+        if (typeof body.readableDidRead !== "boolean") {
+          body[kBodyUsed] = false;
+          EE.prototype.on.call(body, "data", function() {
+            this[kBodyUsed] = true;
+          });
+        }
+        return body;
+      } else if (body && typeof body.pipeTo === "function") {
+        return new BodyAsyncIterable(body);
+      } else if (body && typeof body !== "string" && !ArrayBuffer.isView(body) && isIterable(body)) {
+        return new BodyAsyncIterable(body);
+      } else {
+        return body;
+      }
+    }
+    __name(wrapRequestBody, "wrapRequestBody");
     function nop() {
     }
     __name(nop, "nop");
@@ -1585,7 +1624,8 @@ var require_util = __commonJS({
       isHttpOrHttpsPrefixed,
       nodeMajor,
       nodeMinor,
-      safeHTTPMethods: ["GET", "HEAD", "OPTIONS", "TRACE"]
+      safeHTTPMethods: ["GET", "HEAD", "OPTIONS", "TRACE"],
+      wrapRequestBody
     };
   }
 });
@@ -8645,14 +8685,6 @@ var require_headers = __commonJS({
       },
       [util.inspect.custom]: {
         enumerable: false
-      },
-      // Compatibility for global headers
-      [Symbol("headers list")]: {
-        configurable: false,
-        enumerable: false,
-        get: function() {
-          return getHeadersList(this);
-        }
       }
     });
     webidl.converters.HeadersInit = function(V, prefix, argument) {
