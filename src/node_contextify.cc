@@ -51,6 +51,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
 using v8::Int32;
+using v8::Integer;
 using v8::Intercepted;
 using v8::Isolate;
 using v8::Just;
@@ -176,20 +177,22 @@ void ContextifyContext::InitializeGlobalTemplates(IsolateData* isolate_data) {
   NamedPropertyHandlerConfiguration config(
       PropertyGetterCallback,
       PropertySetterCallback,
-      PropertyDescriptorCallback,
+      PropertyQueryCallback,
       PropertyDeleterCallback,
       PropertyEnumeratorCallback,
       PropertyDefinerCallback,
+      PropertyDescriptorCallback,
       {},
       PropertyHandlerFlags::kHasNoSideEffect);
 
   IndexedPropertyHandlerConfiguration indexed_config(
       IndexedPropertyGetterCallback,
       IndexedPropertySetterCallback,
-      IndexedPropertyDescriptorCallback,
+      IndexedPropertyQueryCallback,
       IndexedPropertyDeleterCallback,
       PropertyEnumeratorCallback,
       IndexedPropertyDefinerCallback,
+      IndexedPropertyDescriptorCallback,
       {},
       PropertyHandlerFlags::kHasNoSideEffect);
 
@@ -354,12 +357,14 @@ void ContextifyContext::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(MakeContext);
   registry->Register(CompileFunction);
+  registry->Register(PropertyQueryCallback);
   registry->Register(PropertyGetterCallback);
   registry->Register(PropertySetterCallback);
   registry->Register(PropertyDescriptorCallback);
   registry->Register(PropertyDeleterCallback);
   registry->Register(PropertyEnumeratorCallback);
   registry->Register(PropertyDefinerCallback);
+  registry->Register(IndexedPropertyQueryCallback);
   registry->Register(IndexedPropertyGetterCallback);
   registry->Register(IndexedPropertySetterCallback);
   registry->Register(IndexedPropertyDescriptorCallback);
@@ -456,6 +461,51 @@ ContextifyContext* ContextifyContext::Get(Local<Object> object) {
 
 bool ContextifyContext::IsStillInitializing(const ContextifyContext* ctx) {
   return ctx == nullptr || ctx->context_.IsEmpty();
+}
+
+// static
+Intercepted ContextifyContext::PropertyQueryCallback(
+    Local<Name> property, const PropertyCallbackInfo<Integer>& args) {
+  ContextifyContext* ctx = ContextifyContext::Get(args);
+
+  // Still initializing
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
+
+  Local<Context> context = ctx->context();
+  Local<Object> sandbox = ctx->sandbox();
+
+  PropertyAttribute attr;
+
+  Maybe<bool> maybe_has = sandbox->HasRealNamedProperty(context, property);
+  if (maybe_has.IsNothing()) {
+    return Intercepted::kNo;
+  } else if (maybe_has.FromJust()) {
+    Maybe<PropertyAttribute> maybe_attr =
+        sandbox->GetRealNamedPropertyAttributes(context, property);
+    if (!maybe_attr.To(&attr)) {
+      return Intercepted::kNo;
+    }
+    args.GetReturnValue().Set(attr);
+    return Intercepted::kYes;
+  } else {
+    maybe_has = ctx->global_proxy()->HasRealNamedProperty(context, property);
+    if (maybe_has.IsNothing()) {
+      return Intercepted::kNo;
+    } else if (maybe_has.FromJust()) {
+      Maybe<PropertyAttribute> maybe_attr =
+          ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
+                                                              property);
+      if (!maybe_attr.To(&attr)) {
+        return Intercepted::kNo;
+      }
+      args.GetReturnValue().Set(attr);
+      return Intercepted::kYes;
+    }
+  }
+
+  return Intercepted::kNo;
 }
 
 // static
@@ -707,6 +757,20 @@ void ContextifyContext::PropertyEnumeratorCallback(
     return;
 
   args.GetReturnValue().Set(properties);
+}
+
+// static
+Intercepted ContextifyContext::IndexedPropertyQueryCallback(
+    uint32_t index, const PropertyCallbackInfo<Integer>& args) {
+  ContextifyContext* ctx = ContextifyContext::Get(args);
+
+  // Still initializing
+  if (IsStillInitializing(ctx)) {
+    return Intercepted::kNo;
+  }
+
+  return ContextifyContext::PropertyQueryCallback(
+      Uint32ToName(ctx->context(), index), args);
 }
 
 // static
