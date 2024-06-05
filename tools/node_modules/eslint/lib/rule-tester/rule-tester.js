@@ -28,7 +28,7 @@ const ajv = require("../shared/ajv")({ strictDefaults: true });
 
 const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 const { SourceCode } = require("../source-code");
-const { ConfigArraySymbol } = require("@humanwhocodes/config-array");
+const { ConfigArraySymbol } = require("@eslint/config-array");
 const { isSerializable } = require("../shared/serialization");
 
 //------------------------------------------------------------------------------

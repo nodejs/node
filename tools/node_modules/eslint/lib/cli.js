@@ -448,14 +448,14 @@ const cli = {
 
         if (options.inspectConfig) {
 
-            log.info("You can also run this command directly using 'npx @eslint/config-inspector' in the same directory as your configuration file.");
+            log.info("You can also run this command directly using 'npx @eslint/config-inspector@latest' in the same directory as your configuration file.");
 
             try {
                 const flatOptions = await translateOptions(options, "flat");
                 const spawn = require("cross-spawn");
                 const flags = await cli.calculateInspectConfigFlags(flatOptions.overrideConfigFile);
 
-                spawn.sync("npx", ["@eslint/config-inspector", ...flags], { encoding: "utf8", stdio: "inherit" });
+                spawn.sync("npx", ["@eslint/config-inspector@latest", ...flags], { encoding: "utf8", stdio: "inherit" });
             } catch (error) {
                 log.error(error);
                 return 2;
