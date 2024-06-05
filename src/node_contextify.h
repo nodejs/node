@@ -94,8 +94,7 @@ class ContextifyContext : public BaseObject {
       bool produce_cached_data,
       v8::Local<v8::Symbol> id_symbol,
       const errors::TryCatchScope& try_catch);
-  static void WeakCallback(
-      const v8::WeakCallbackInfo<ContextifyContext>& data);
+  static void WeakCallback(const v8::WeakCallbackInfo<ContextifyContext>& data);
   static v8::Intercepted PropertyGetterCallback(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& args);
