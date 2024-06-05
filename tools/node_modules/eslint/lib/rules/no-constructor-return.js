@@ -49,7 +49,7 @@ module.exports = {
                 if (
                     last.parent.type === "MethodDefinition" &&
                     last.parent.kind === "constructor" &&
-                    (node.parent.parent === last || node.argument)
+                    node.argument
                 ) {
                     context.report({
                         node,

@@ -335,15 +335,15 @@ async function globSearch({
 
                             /*
                              * We updated the unmatched patterns set only if the path
-                             * matches and the file isn't ignored. If the file is
-                             * ignored, that means there wasn't a match for the
+                             * matches and the file has a config. If the file has no
+                             * config, that means there wasn't a match for the
                              * pattern so it should not be removed.
                              *
-                             * Performance note: isFileIgnored() aggressively caches
+                             * Performance note: `getConfig()` aggressively caches
                              * results so there is no performance penalty for calling
-                             * it twice with the same argument.
+                             * it multiple times with the same argument.
                              */
-                            if (pathMatches && !configs.isFileIgnored(entry.path)) {
+                            if (pathMatches && configs.getConfig(entry.path)) {
                                 unmatchedPatterns.delete(matcher.pattern);
                             }
 
@@ -351,7 +351,7 @@ async function globSearch({
                         }, false)
                         : matchers.some(matcher => matcher.match(relativePath));
 
-                    return matchesPattern && !configs.isFileIgnored(entry.path);
+                    return matchesPattern && configs.getConfig(entry.path) !== void 0;
                 })
             },
             (error, entries) => {
@@ -545,7 +545,7 @@ async function findFiles({
             if (stat.isFile()) {
                 results.push({
                     filePath,
-                    ignored: configs.isFileIgnored(filePath)
+                    ignored: !configs.getConfig(filePath)
                 });
             }
 

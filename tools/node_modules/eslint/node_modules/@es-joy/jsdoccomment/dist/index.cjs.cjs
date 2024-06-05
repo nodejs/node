@@ -1127,7 +1127,17 @@ const getTokenizers = ({
     if (spec.tag === 'template') {
       // const preWS = spec.postTag;
       const remainder = spec.source[0].tokens.description;
-      const pos = remainder.search(/(?<![\s,])\s/u);
+      let pos;
+      if (remainder.startsWith('[') && remainder.includes(']')) {
+        const endingBracketPos = remainder.indexOf(']');
+        pos = remainder.slice(endingBracketPos).search(/(?<![\s,])\s/u);
+        if (pos > -1) {
+          // Add offset to starting point if space found
+          pos += endingBracketPos;
+        }
+      } else {
+        pos = remainder.search(/(?<![\s,])\s/u);
+      }
       let name = pos === -1 ? remainder : remainder.slice(0, pos);
       const extra = remainder.slice(pos);
       let postName = '',

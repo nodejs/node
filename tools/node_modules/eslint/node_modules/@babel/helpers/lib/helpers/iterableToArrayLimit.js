@@ -5,34 +5,34 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = _iterableToArrayLimit;
 function _iterableToArrayLimit(arr, i) {
-  var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
-  if (_i == null) return;
+  var iterator = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
+  if (iterator == null) return;
   var _arr = [];
-  var _n = true;
-  var _d = false;
-  var _s, _e, _x, _r;
+  var iteratorNormalCompletion = true;
+  var didIteratorError = false;
+  var step, iteratorError, next, _return;
   try {
-    _x = (_i = _i.call(arr)).next;
+    next = (iterator = iterator.call(arr)).next;
     if (i === 0) {
-      if (Object(_i) !== _i) return;
-      _n = false;
+      if (Object(iterator) !== iterator) return;
+      iteratorNormalCompletion = false;
     } else {
-      for (; !(_n = (_s = _x.call(_i)).done); _n = true) {
-        _arr.push(_s.value);
+      for (; !(iteratorNormalCompletion = (step = next.call(iterator)).done); iteratorNormalCompletion = true) {
+        _arr.push(step.value);
         if (_arr.length === i) break;
       }
     }
   } catch (err) {
-    _d = true;
-    _e = err;
+    didIteratorError = true;
+    iteratorError = err;
   } finally {
     try {
-      if (!_n && _i["return"] != null) {
-        _r = _i["return"]();
-        if (Object(_r) !== _r) return;
+      if (!iteratorNormalCompletion && iterator["return"] != null) {
+        _return = iterator["return"]();
+        if (Object(_return) !== _return) return;
       }
     } finally {
-      if (_d) throw _e;
+      if (didIteratorError) throw iteratorError;
     }
   }
   return _arr;

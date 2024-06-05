@@ -9,7 +9,7 @@
 // Requirements
 //-----------------------------------------------------------------------------
 
-const { ConfigArray, ConfigArraySymbol } = require("@humanwhocodes/config-array");
+const { ConfigArray, ConfigArraySymbol } = require("@eslint/config-array");
 const { flatConfigSchema } = require("./flat-config-schema");
 const { RuleValidator } = require("./rule-validator");
 const { defaultConfig } = require("./default-config");
