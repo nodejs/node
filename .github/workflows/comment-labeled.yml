@@ -31,11 +31,11 @@ jobs:
       - if: github.event.label.name == 'stalled'
         name: Post stalled comment
         run: gh issue comment "$NUMBER" --repo ${{ github.repository }} --body "$STALE_MESSAGE"
-      
+
       - if: github.event.label.name == 'fast-track' && github.event_name == 'pull_request_target'
         name: Request Fast-Track
         run: gh pr comment "$NUMBER" --repo ${{ github.repository }} --body "$FAST_TRACK_MESSAGE"
-      
+
       - if: github.event.label.name == 'notable-change' && github.event_name == 'pull_request_target'
         name: Add notable change description
         run: gh pr comment "$NUMBER" --repo ${{ github.repository }} --body "$NOTABLE_CHANGE_MESSAGE"
