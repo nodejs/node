@@ -39,6 +39,10 @@ jobs:
   test-macOS:
     if: github.event.pull_request.draft == false
     runs-on: macos-14
+    env:
+      CC: sccache gcc
+      CXX: sccache g++
+      SCCACHE_GHA_ENABLED: 'true'
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
         with:
@@ -47,6 +51,10 @@ jobs:
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd  # v0.0.4
+        with:
+          version: v0.8.0
       - name: Environment Information
         run: npx envinfo
       # The `npm ci` for this step fails a lot as part of the Test step. Run it
