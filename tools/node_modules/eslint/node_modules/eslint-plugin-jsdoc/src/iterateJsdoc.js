@@ -1353,7 +1353,7 @@ const getUtils = (
          * @type {import('estree').ExportNamedDeclaration|
          *   import('estree').ExportDefaultDeclaration}
          */ (node).declaration
-      ).generator,
+      )?.generator,
     );
   };
 
