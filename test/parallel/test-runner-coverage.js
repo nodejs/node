@@ -303,3 +303,35 @@ test('coverage with ESM hook - source irrelevant', skipIfNoInspector, () => {
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);
 });
+
+test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
+  let report = [
+    '# start of coverage report',
+    '# ------------------------------------------------------------------',
+    '# file              | line % | branch % | funcs % | uncovered lines',
+    '# ------------------------------------------------------------------',
+    '# hooks.mjs         | 100.00 |   100.00 |  100.00 | ',
+    '# register-hooks.js | 100.00 |   100.00 |  100.00 | ',
+    '# sum.test.ts       | 100.00 |   100.00 |  100.00 | ',
+    '# sum.ts            | 100.00 |   100.00 |  100.00 | ',
+    '# ------------------------------------------------------------------',
+    '# all files         | 100.00 |   100.00 |  100.00 |',
+    '# ------------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('test-runner', 'coverage-loader');
+  const args = [
+    '--import', './register-hooks.js', '--test', '--experimental-test-coverage',
+    '--test-reporter', 'tap', 'sum.test.ts',
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixture });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+});
