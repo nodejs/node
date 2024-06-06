@@ -25,7 +25,7 @@ Some of the benefits we hope to achieve through these programs include:
 Collaborators may add a single link beside their name on the nodejs/node
 README.md page named `Support me`. This link may be:
 
-1. a direct link to one of the sponsorship platforms listed below
+1. a direct link to one of the sponsorship platforms listed below,
 2. a page that has text explaining how to support the collaborator
    including zero or more links to the sponsorship platforms listed below.
    The page should not have any outgoing links other than to the
