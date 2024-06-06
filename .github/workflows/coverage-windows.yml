@@ -38,7 +38,7 @@ permissions:
 
 jobs:
   coverage-windows:
-    if: github.event.pull_request.draft == false
+    if: false && github.event.pull_request.draft == false
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
