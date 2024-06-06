@@ -142,7 +142,7 @@ if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="no-shared-roheap" set no_shared_roheap=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
-if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
+if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:out\%config%\node.binlog&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
