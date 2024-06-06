@@ -619,8 +619,8 @@ Refs: #24448, <https://github.com/microsoft/vcpkg/issues/37518>, [vcpkg](https:/
 * The current [version of Python][Python versions] from the
   [Microsoft Store](https://apps.microsoft.com/store/search?publisher=Python+Software+Foundation)
 * The "Desktop development with C++" workload from
-  [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) or
-  the "C++ build tools" workload from the
+  [Visual Studio 2022 (17.6 or newer)](https://visualstudio.microsoft.com/downloads/)
+  or the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
   with the default optional components
 * Basic Unix tools required for some tests,
