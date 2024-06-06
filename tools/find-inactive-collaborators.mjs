@@ -188,8 +188,11 @@ const inactive = collaborators.filter((collaborator) =>
 
 if (inactive.length) {
   console.log('\nInactive collaborators:\n');
-  console.log(inactive.map((entry) => `* ${entry.name}`).join('\n'));
+  const inactiveMD = inactive.map((entry) => `* ${entry.name}`).join('\n');
+  console.log(inactiveMD);
   if (process.env.GITHUB_ACTIONS) {
+    fs.appendFileSync(process.env.GITHUB_OUTPUT,
+                      'INACTIVE_COLLABORATORS<<EOF\n' + inactiveMD + '\nEOF\nSINCE=' + SINCE + '\n');
     console.log('\nGenerating new README.md file...');
     const newReadmeText = await moveCollaboratorToEmeritus(inactive);
     fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
