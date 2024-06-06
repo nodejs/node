@@ -38,7 +38,7 @@ includes (in alphabetical order):
 * [GitHub Sponsors](https://github.com/sponsors)
 * [Open Collective](https://opencollective.com/)
 * [Polar](https://polar.sh/)
-* [thanks.dev](thanks.dev)
+* [thanks.dev](https://thanks.dev)
 
 ## Bi-monthly contributor spotlight
 
