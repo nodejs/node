@@ -48,3 +48,7 @@ async function testCancelableWait2() {
 }
 
 testCancelableWait2().then(common.mustCall());
+
+throws(() => new scheduler.constructor());
+throws(() => new scheduler.constructor.prototype.yield());
+throws(() => new scheduler.constructor.prototype.wait());
