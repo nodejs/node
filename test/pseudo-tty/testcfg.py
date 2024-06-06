@@ -138,7 +138,7 @@ class TTYTestConfiguration(test.TestConfiguration):
         return []
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(self.root)]
+    all_tests = [current_path + [t] for t in self.Ls(self.root)]
     result = []
     # Skip these tests on Windows, as pseudo terminals are not available
     if utils.IsWindows():

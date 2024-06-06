@@ -103,10 +103,10 @@ class SimpleTestConfiguration(test.TestConfiguration):
 
   def Ls(self, path):
       return [f for _0, _1, files in os.walk(path)
-              for f in files if LS_RE.match(f)]
+              for f in files if LS_RE.match(os.path.basename(f))]
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(os.path.join(self.root))]
+    all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root))]
     result = []
     for tst in all_tests:
       if self.Contains(path, tst):
@@ -136,11 +136,11 @@ class AddonTestConfiguration(SimpleTestConfiguration):
     super(AddonTestConfiguration, self).__init__(context, root, section, additional)
 
   def Ls(self, path):
-    return [os.path.join(root, f)[:-3] for root, _, files in os.walk(path)
+    return [f[:-3] for _0, _1, files in os.walk(path)
           for f in files if f.endswith('.js')]
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(os.path.join(self.root))]
+    all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root))]
     result = []
     for tst in all_tests:
       if self.Contains(path, tst):
