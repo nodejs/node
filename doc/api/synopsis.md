@@ -70,7 +70,7 @@ const server = http.createServer((req, res) => {
   // Set the response header to specify the content type as plain text.
   res.setHeader('Content-Type', 'text/plain');
 
-  // End the response with the message 'Hello, World!\n'
+  // Send back 'Hello, World' to the client
   res.end('Hello, World!\n');
 });
 
