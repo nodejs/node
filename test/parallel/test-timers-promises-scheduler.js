@@ -53,4 +53,3 @@ testCancelableWait2().then(common.mustCall());
 throws(() => new scheduler.constructor(), {
   code: 'ERR_ILLEGAL_CONSTRUCTOR',
 });
-
