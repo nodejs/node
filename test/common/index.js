@@ -264,9 +264,9 @@ function childShouldThrowAndAbort() {
   });
 }
 
-function createZeroFilledFile(filename) {
+function createZeroFilledFile(filename, size = 10 * 1024 * 1024) {
   const fd = fs.openSync(filename, 'w');
-  fs.ftruncateSync(fd, 10 * 1024 * 1024);
+  fs.ftruncateSync(fd, size);
   fs.closeSync(fd);
 }
 
