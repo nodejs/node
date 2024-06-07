@@ -1939,6 +1939,13 @@ or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=read
 ```cjs
 const { finalization, stdout } = require('node:process');
 
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
 function setup() {
   // This object can be safely garbage collected,
   // and the resulting shutdown function will not be called.
@@ -1949,13 +1956,6 @@ function setup() {
       stdout.write('disposed.\n');
     },
   };
-
-  // Please make sure that the function passed to finalization.register()
-  // does not create a closure around unnecessary objects.
-  function onFinalize(obj, event) {
-    // You can do whatever you want with the object
-    obj.dispose();
-  }
 
   finalization.register(myDisposableObject, onFinalize);
 }
@@ -1966,6 +1966,13 @@ setup();
 ```mjs
 import { finalization, stdout } from 'node:process';
 
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
 function setup() {
   // This object can be safely garbage collected,
   // and the resulting shutdown function will not be called.
@@ -1977,18 +1984,38 @@ function setup() {
     },
   };
 
-  // Please make sure that the function passed to finalization.register()
-  // does not create a closure around unnecessary objects.
-  function onFinalize(obj, event) {
-    // You can do whatever you want with the object
-    obj.dispose();
-  }
-
   finalization.register(myDisposableObject, onFinalize);
 }
 
 setup();
 ```
+
+The code above uses the following assumptions:
+
+* arrow function is avoided
+* regular function is recommended to be on global context (root)
+
+Regular functions _could_ reference the context where the `obj` lives, making the `obj` not garbage collectible.
+
+Arrow functions will hold the previous context, so if you write a code like this:
+
+```js
+class Test {
+  constructor() {
+    finalization.register(this, (ref) => ref.dispose());
+
+    // even something like this is highly discouraged
+    // finalization.register(this, () => this.dispose());
+   }
+   dispose() {}
+}
+```
+
+It is very unlikely (not impossible) that this object will be garbage collected,
+but at least `dispose` will be called when `process.exit`.
+
+Again, everything we talk about GC are assumptions that may change in the future,
+so be careful and avoid relying the disposal of critical resources in this feature.
 
 ## `process.finalization.registerBeforeExit(ref, callback)`
 
@@ -2033,6 +2060,13 @@ or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=read
 ```cjs
 const { finalization, stdout } = require('node:process');
 
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
 function setup() {
   // This object can be safely garbage collected,
   // and the resulting shutdown function will not be called.
@@ -2043,13 +2077,6 @@ function setup() {
       stdout.write('disposed.\n');
     },
   };
-
-  // Please make sure that the function passed to finalization.registerBeforeExit()
-  // does not create a closure around unnecessary objects.
-  function onFinalize(obj, event) {
-    // You can do whatever you want with the object
-    obj.dispose();
-  }
 
   finalization.registerBeforeExit(myDisposableObject, onFinalize);
 }
@@ -2060,6 +2087,13 @@ setup();
 ```mjs
 import { finalization, stdout } from 'node:process';
 
+// Please make sure that the function passed to finalization.registerBeforeExit()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
 function setup() {
   // This object can be safely garbage collected,
   // and the resulting shutdown function will not be called.
@@ -2071,18 +2105,37 @@ function setup() {
     },
   };
 
-  // Please make sure that the function passed to finalization.registerBeforeExit()
-  // does not create a closure around unnecessary objects.
-  function onFinalize(obj, event) {
-    // You can do whatever you want with the object
-    obj.dispose();
-  }
-
   finalization.registerBeforeExit(myDisposableObject, onFinalize);
 }
 
 setup();
 ```
+
+The code above uses the following assumptions:
+
+* arrow function is avoided
+* regular function is recommended to be on global context (root)
+
+Regular functions _could_ reference the context where the `obj` lives, making the `obj` not garbage collectible.
+
+Arrow functions will hold the previous context, so if you write a code like this:
+
+```js
+class Test {
+  constructor() {
+    finalization.registerBeforeExit(this, (ref) => ref.dispose());
+    // even something like this is highly discouraged
+    // finalization.registerBeforeExit(this, () => this.dispose());
+   }
+   dispose() {}
+}
+```
+
+It is very unlikely (not impossible) that this object will be garbage collected,
+but at least `dispose` will be called when `process.exit`.
+
+Again, everything we talk about GC are assumptions that may change in the future,
+so be careful and avoid relying the disposal of critical resources in this feature.
 
 ## `process.finalization.unregister(ref)`
 
@@ -2101,6 +2154,13 @@ registry, so the callback will not be called anymore.
 ```cjs
 const { finalization, stdout } = require('node:process');
 
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
 function setup() {
   // This object can be safely garbage collected,
   // and the resulting shutdown function will not be called.
@@ -2111,13 +2171,6 @@ function setup() {
       stdout.write('disposed.\n');
     },
   };
-
-  // Please make sure that the function passed to finalization.register()
-  // does not create a closure around unnecessary objects.
-  function onFinalize(obj, event) {
-    // You can do whatever you want with the object
-    obj.dispose();
-  }
 
   finalization.register(myDisposableObject, onFinalize);
 
@@ -2132,6 +2185,13 @@ setup();
 
 ```mjs
 import { finalization, stdout } from 'node:process';
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
 
 function setup() {
   // This object can be safely garbage collected,
