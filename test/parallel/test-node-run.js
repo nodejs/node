@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -8,7 +7,7 @@ const assert = require('node:assert');
 const fixtures = require('../common/fixtures');
 const envSuffix = common.isWindows ? '-windows' : '';
 
-describe('node run [command]', () => {
+describe('node --run [command]', () => {
   it('should emit experimental warning', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
@@ -70,13 +69,21 @@ describe('node run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
-  it('should set PATH environment variable to node_modules/.bin', async () => {
+  it('should set PATH environment variable with paths appended with node_modules/.bin', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
       [ '--no-warnings', '--run', `path-env${envSuffix}`],
-      { cwd: fixtures.path('run-script') },
+      { cwd: fixtures.path('run-script/sub-directory') },
     );
     assert.ok(child.stdout.includes(fixtures.path('run-script/node_modules/.bin')));
+
+    // The following test ensures that we do not add paths that does not contain
+    // "node_modules/.bin"
+    assert.ok(!child.stdout.includes(fixtures.path('node_modules/.bin')));
+
+    // The following test ensures that we add paths that contains "node_modules/.bin"
+    assert.ok(child.stdout.includes(fixtures.path('run-script/sub-directory/node_modules/.bin')));
+
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
@@ -90,6 +97,18 @@ describe('node run [command]', () => {
       { cwd: fixtures.path('run-script') },
     );
     assert.ok(child.stdout.includes(scriptName));
+    assert.ok(child.stdout.includes(packageJsonPath));
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('will search parent directories for a package.json file', async () => {
+    const packageJsonPath = fixtures.path('run-script/package.json');
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--no-warnings', '--run', `special-env-variables${envSuffix}`],
+      { cwd: fixtures.path('run-script/sub-directory') },
+    );
     assert.ok(child.stdout.includes(packageJsonPath));
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);

@@ -1979,6 +1979,11 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/53058
     description: NODE_RUN_PACKAGE_JSON_PATH environment variable is added.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53154
+    description: Traverses up to the root directory and finds
+                 a `package.json` file to run the command from, and updates
+                 `PATH` environment variable accordingly.
 -->
 
 > Stability: 1.1 - Active development
@@ -1986,9 +1991,13 @@ changes:
 This runs a specified command from a package.json's `"scripts"` object.
 If no `"command"` is provided, it will list the available scripts.
 
-`--run` prepends `./node_modules/.bin`, relative to the current
-working directory, to the `PATH` in order to execute the binaries from
-dependencies.
+`--run` will traverse up to the root directory and finds a `package.json`
+file to run the command from.
+
+`--run` prepends `./node_modules/.bin` for each ancestor of
+the current directory, to the `PATH` in order to execute the binaries from
+different folders where multiple `node_modules` directories are present, if
+`ancestor-folder/node_modules/.bin` is a directory.
 
 For example, the following command will run the `test` script of
 the `package.json` in the current folder:
@@ -2013,9 +2022,6 @@ cases.
 Some features of other `run` implementations that are intentionally excluded
 are:
 
-* Searching for `package.json` files outside the current folder.
-* Prepending the `.bin` or `node_modules/.bin` paths of folders outside the
-  current folder.
 * Running `pre` or `post` scripts in addition to the specified script.
 * Defining package manager-specific environment variables.
 
