@@ -342,6 +342,10 @@ a `timeout` of 5 seconds.
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: The `clientCertEngine` option depends on custom engine
+                 support in OpenSSL which is deprecated in OpenSSL 3.
   - version:
       - v16.7.0
       - v14.18.0
@@ -377,7 +381,7 @@ changes:
 Makes a request to a secure web server.
 
 The following additional `options` from [`tls.connect()`][] are also accepted:
-`ca`, `cert`, `ciphers`, `clientCertEngine`, `crl`, `dhparam`, `ecdhCurve`,
+`ca`, `cert`, `ciphers`, `clientCertEngine` (deprecated), `crl`, `dhparam`, `ecdhCurve`,
 `honorCipherOrder`, `key`, `passphrase`, `pfx`, `rejectUnauthorized`,
 `secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`,
 `highWaterMark`.
