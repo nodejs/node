@@ -127,6 +127,7 @@ const webIdlExposedWindow = new Set([
   'Response',
   'WebSocket',
   'EventSource',
+  'CloseEvent',
 ]);
 
 const nodeGlobals = new Set([
