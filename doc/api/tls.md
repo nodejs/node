@@ -1799,7 +1799,14 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: v19.8.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: The `clientCertEngine`, `privateKeyEngine` and
+                 `privateKeyIdentifier` options depend on custom engine
+                 support in OpenSSL which is deprecated in OpenSSL 3.
+  - version:
+    - v19.8.0
+    - v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46978
     description: The `dhparam` option can now be set to `'auto'` to
                  enable DHE with appropriate well-known parameters.
@@ -1884,7 +1891,7 @@ changes:
     ciphers can be obtained via [`tls.getCiphers()`][]. Cipher names must be
     uppercased in order for OpenSSL to accept them.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
-    client certificate.
+    client certificate. **Deprecated.**
   * `crl` {string|string\[]|Buffer|Buffer\[]} PEM formatted CRLs (Certificate
     Revocation Lists).
   * `dhparam` {string|Buffer} `'auto'` or custom Diffie-Hellman parameters,
@@ -1912,11 +1919,11 @@ changes:
     decrypted with `object.passphrase` if provided, or `options.passphrase` if
     it is not.
   * `privateKeyEngine` {string} Name of an OpenSSL engine to get private key
-    from. Should be used together with `privateKeyIdentifier`.
+    from. Should be used together with `privateKeyIdentifier`. **Deprecated.**
   * `privateKeyIdentifier` {string} Identifier of a private key managed by
     an OpenSSL engine. Should be used together with `privateKeyEngine`.
     Should not be set together with `key`, because both options define a
-    private key in different ways.
+    private key in different ways. **Deprecated.**
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option; use one or the other.
@@ -2053,7 +2060,13 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: v20.4.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: The `clientCertEngine` option depends on custom engine
+                 support in OpenSSL which is deprecated in OpenSSL 3.
+  - version:
+    - v20.4.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/45190
     description: The `options` parameter can now include `ALPNCallback`.
   - version: v19.0.0
@@ -2098,7 +2111,7 @@ changes:
     protocols, an error will be thrown. This option cannot be used with the
     `ALPNProtocols` option, and setting both options will throw an error.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
-    client certificate.
+    client certificate. **Deprecated.**
   * `enableTrace` {boolean} If `true`, [`tls.TLSSocket.enableTrace()`][] will be
     called on new connections. Tracing can be enabled after the secure
     connection is established, but this option must be used to trace the secure
