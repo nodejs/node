@@ -36,7 +36,6 @@ The sponsorship platforms to which links can be made currently
 includes (in alphabetical order):
 
 * [GitHub Sponsors](https://github.com/sponsors)
-* [Open Collective](https://opencollective.com/)
 * [Polar](https://polar.sh/)
 * [thanks.dev](https://thanks.dev)
 
