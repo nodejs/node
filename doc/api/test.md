@@ -1670,7 +1670,7 @@ describe('tests', async () => {
 ## `snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1683,7 +1683,7 @@ placing common configuration code in a module preloaded with `--require` or
 ### `snapshot.setDefaultSnapshotSerializers(serializers)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1700,7 +1700,7 @@ more robust serialization mechanism is required, this function should be used.
 ### `snapshot.setResolveSnapshotPath(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1873,7 +1873,7 @@ mock can still be used after calling this function.
 ## Class: `MockModuleContext`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1884,7 +1884,7 @@ created via the [`MockTracker`][] APIs.
 ### `ctx.restore()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 Resets the implementation of the mock module.
@@ -2025,7 +2025,7 @@ test('spies on an object method', (t) => {
 ### `mock.module(specifier[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3138,7 +3138,7 @@ test('test', (t) => {
 #### `context.assert.snapshot(value[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3193,7 +3193,7 @@ test('top level test', (t) => {
 ### `context.fullName`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 The name of the test and each of its ancestors, separated by `>`.

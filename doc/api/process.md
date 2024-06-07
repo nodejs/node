@@ -1920,7 +1920,7 @@ console.log('After:', getActiveResourcesInfo());
 ## `process.getBuiltinModule(id)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 * `id` {string} ID of the built-in module being requested.
