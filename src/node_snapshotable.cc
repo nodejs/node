@@ -1155,8 +1155,11 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     CHECK_EQ(index, SnapshotData::kNodeVMContextIndex);
     index = creator->AddContext(base_context);
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
-    index = creator->AddContext(main_context,
-                                {SerializeNodeContextInternalFields, env});
+    index = creator->AddContext(
+        main_context,
+        v8::SerializeInternalFieldsCallback(SerializeNodeContextInternalFields,
+                                            env),
+        v8::SerializeContextDataCallback(SerializeNodeContextData, env));
     CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
   }
 
@@ -1252,6 +1255,41 @@ std::string SnapshotableObject::GetTypeName() const {
     SERIALIZABLE_OBJECT_TYPES(V)
 #undef V
     default: { UNREACHABLE(); }
+  }
+}
+
+void DeserializeNodeContextData(Local<Context> holder,
+                                int index,
+                                StartupData payload,
+                                void* callback_data) {
+  // This is unreachable for now. We will reset all the pointers in
+  // Environment::AssignToContext() via the realm constructor.
+  UNREACHABLE();
+}
+
+StartupData SerializeNodeContextData(Local<Context> holder,
+                                     int index,
+                                     void* callback_data) {
+  // For now we just reset all of them in Environment::AssignToContext().
+  // We return empty data here to make sure that the embedder data serialized
+  // into the snapshot is reproducible and V8 doesn't have to try to serialize
+  // the pointer values that won't be useful during deserialization.
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag: {
+      void* data = holder->GetAlignedPointerFromEmbedderData(index);
+      per_process::Debug(
+          DebugCategory::MKSNAPSHOT,
+          "Serialize context data, index=%d, holder=%p, ptr=%p\n",
+          static_cast<int>(index),
+          *holder,
+          data);
+      return {nullptr, 0};
+    }
+    default:
+      UNREACHABLE();
   }
 }
 
