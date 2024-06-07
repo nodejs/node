@@ -1106,12 +1106,15 @@ added:
   - v21.0.0
   - v20.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53352
+    description: No longer experimental.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51594
     description: No longer behind `--experimental-websocket` CLI flag.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of [`WebSocket`][]. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
