@@ -322,6 +322,19 @@ added: v0.0.1
 
 [`clearTimeout`][] is described in the [timers][] section.
 
+## `CloseEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The `CloseEvent` class. See [`CloseEvent`][] for more details.
+
+A browser-compatible implementation of [`CloseEvent`][]. Disable this API
+with the [`--no-experimental-websocket`][] CLI flag.
+
 ## Class: `CompressionStream`
 
 <!-- YAML
@@ -1159,6 +1172,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
+[`CloseEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent/CloseEvent
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
 [`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
