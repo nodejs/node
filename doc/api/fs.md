@@ -1021,7 +1021,7 @@ try {
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53127
     description: This API is no longer experimental.
   - version:
@@ -2430,7 +2430,7 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53127
     description: This API is no longer experimental.
   - version:
@@ -5470,7 +5470,7 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53127
     description: This API is no longer experimental.
   - version:

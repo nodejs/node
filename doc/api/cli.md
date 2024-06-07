@@ -272,7 +272,7 @@ Relative paths are NOT supported through the CLI flag.
 ### `--allow-wasi`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.1 - Active development
@@ -696,7 +696,7 @@ code from strings throw an exception instead. This does not affect the Node.js
 ### `--expose-gc`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
@@ -940,7 +940,7 @@ CommonJS. This includes the following:
 ### `--experimental-eventsource`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 Enable exposition of [EventSource Web API][] on the global scope.
@@ -1069,7 +1069,7 @@ report is not generated. See the documentation on
 ### `--experimental-test-module-mocks`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1079,7 +1079,7 @@ Enable module mocking in the test runner.
 ### `--experimental-test-snapshots`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1973,13 +1973,13 @@ Modules preloaded with `--require` will run before modules preloaded with `--imp
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53032
     description: NODE_RUN_SCRIPT_NAME environment variable is added.
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53058
     description: NODE_RUN_PACKAGE_JSON_PATH environment variable is added.
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53154
     description: Traverses up to the root directory and finds
                  a `package.json` file to run the command from, and updates
@@ -2253,7 +2253,7 @@ subtests inherit this value from their parent. The default value is `Infinity`.
 ### `--test-update-snapshots`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3009,7 +3009,7 @@ added:
  - v12.16.0
 changes:
   - version:
-     - REPLACEME
+     - v22.3.0
     pr-url: https://github.com/nodejs/node/pull/52905
     description:
       Remove the possibility to use this env var with
