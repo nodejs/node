@@ -1,7 +1,7 @@
 # Contributing a new API to Node-API
 
 Node-API is the ABI-stable API for native addons. We encourage contributions to enhance the API,
-but also ensuring compatibility and adherence to guidelines. When adding a new API to Node-API,
+while also ensuring compatibility and adherence to guidelines. When adding a new API to Node-API,
 please follow these principles and guidelines:
 
 ## Core principles
