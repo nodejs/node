@@ -37,7 +37,7 @@ permissions:
 
 jobs:
   test-ubsan:
-    if: github.event.pull_request.draft == false
+    # if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     env:
       CC: sccache clang
