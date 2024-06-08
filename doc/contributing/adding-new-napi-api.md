@@ -13,7 +13,7 @@ please follow these principles and guidelines:
    * **Should** consume `napi_env`.
    * **Must** operate on primitive data types, pointers to primitive data types, or opaque handles.
    * **Must** be a necessary API, not a convenience API (which belongs in node-addon-api).
-   * **Must** not alter the signature of existing Node-API or break ABI compatibility with other Node.js versions.
+   * **Must** not break ABI compatibility with other Node.js versions.
 
 2. **Maintaining VM agnosticism**
    * New APIs **should** be compatible with various JavaScript VMs.
