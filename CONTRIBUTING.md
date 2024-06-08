@@ -19,7 +19,7 @@ works.
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
-* [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin)
+* [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
 
 ## [Code of Conduct](./doc/contributing/code-of-conduct.md)
 
@@ -47,11 +47,9 @@ dependencies, and tools contained in the `nodejs/node` repository.
 * [Reviewing Pull Requests](./doc/contributing/pull-requests.md#reviewing-pull-requests)
 * [Notes](./doc/contributing/pull-requests.md#notes)
 
-<a id="developers-certificate-of-origin"></a>
-
 ## Developer's Certificate of Origin 1.1
 
-<pre>
+```text
 By making a contribution to this project, I certify that:
 
  (a) The contribution was created in whole or in part by me and I
@@ -75,4 +73,4 @@ By making a contribution to this project, I certify that:
      personal information I submit with it, including my sign-off) is
      maintained indefinitely and may be redistributed consistent with
      this project or the open source license(s) involved.
-</pre>
+```
