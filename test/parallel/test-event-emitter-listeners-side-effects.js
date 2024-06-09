@@ -32,7 +32,6 @@ let fl;  // foo listeners
 fl = e.listeners('foo');
 assert(Array.isArray(fl));
 assert.strictEqual(fl.length, 0);
-assert(!(e._events instanceof Object));
 assert.deepStrictEqual(Object.keys(e._events), []);
 
 e.on('foo', assert.fail);

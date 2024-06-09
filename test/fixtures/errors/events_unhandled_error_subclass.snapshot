@@ -1,6 +1,6 @@
-node:events:*
-      throw er; * Unhandled 'error' event
-      ^
+node:internal*events*shared_internal_event_emitter:*
+    throw er; * Unhandled 'error' event
+    ^
 
 Error
     at Object.<anonymous> (*events_unhandled_error_subclass.js:*:*)
