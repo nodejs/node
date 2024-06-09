@@ -2429,8 +2429,7 @@ be called multiple times to provide successive parts of the body.
 
 If `rejectNonStandardBodyWrites` is set to true in `createServer`
 then writing to the body is not allowed when the request method or response
-status do not support content.
-If an attempt is made to write to the body for a
+status do not support content. If an attempt is made to write to the body for a
 HEAD request or as part of a `204` or `304`response, a synchronous `Error`
 with the code `ERR_HTTP_BODY_NOT_ALLOWED` is thrown.
 
