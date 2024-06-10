@@ -132,13 +132,12 @@ class TTYTestCase(test.TestCase):
 class TTYTestConfiguration(test.TestConfiguration):
   def Ls(self, path):
     if isdir(path):
-      return [f[:-3] for _0, _1, files in os.walk(path)
-              for f in files if f.endswith('.js')]
+        return [f[:-3] for _, _, f in os.walk(path) for f in f if f.endswith('.js')]
     else:
         return []
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + [t] for t in self.Ls(self.root)]
+    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(self.root)]
     result = []
     # Skip these tests on Windows, as pseudo terminals are not available
     if utils.IsWindows():
