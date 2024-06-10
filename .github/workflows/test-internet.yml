@@ -8,6 +8,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
+      - .github/workflows/test-internet.yml
       - test/internet/**
       - internal/dns/**
       - lib/dns.js
@@ -19,6 +20,7 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths:
+      - .github/workflows/test-internet.yml
       - test/internet/**
       - internal/dns/**
       - lib/dns.js
@@ -31,6 +33,8 @@ concurrency:
 env:
   PYTHON_VERSION: '3.12'
   FLAKY_TESTS: keep_retrying
+  CC: clang
+  CXX: clang++
 
 permissions:
   contents: read
@@ -38,7 +42,7 @@ permissions:
 jobs:
   test-internet:
     if: github.repository == 'nodejs/node' || github.event_name != 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
         with:
