@@ -28,74 +28,52 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
 }
 
 {
+  fs.writeFile(traversalPath, 'test', common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(traversalPath),
+  }));
+}
+
+{
+  fs.readFile(traversalPath, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(traversalPath),
+  }));
+}
+
+{
   assert.throws(() => {
-    fs.writeFile(traversalPath, 'test', (error) => {
-      assert.ifError(error);
-    });
+    fs.mkdtempSync(traversalFolderPath);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(resolve(traversalPath)),
+    resource: traversalFolderPath + 'XXXXXX',
   }));
 }
 
 {
-  assert.throws(() => {
-    fs.readFile(traversalPath, (error) => {
-      assert.ifError(error);
-    });
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(resolve(traversalPath)),
-  }));
-}
-
-{
-  assert.throws(() => {
-    fs.mkdtempSync(traversalFolderPath, (error) => {
-      assert.ifError(error);
-    });
-  }, common.expectsError({
+  fs.mkdtemp(traversalFolderPath, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
-    resource: resolve(traversalFolderPath + 'XXXXXX'),
+    resource: traversalFolderPath + 'XXXXXX',
   }));
 }
 
 {
-  assert.throws(() => {
-    fs.mkdtemp(traversalFolderPath, (error) => {
-      assert.ifError(error);
-    });
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemWrite',
-    resource: resolve(traversalFolderPath + 'XXXXXX'),
-  }));
-}
-
-{
-  assert.throws(() => {
-    fs.readFile(bufferTraversalPath, (error) => {
-      assert.ifError(error);
-    });
-  }, common.expectsError({
+  fs.readFile(bufferTraversalPath, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: resolve(traversalPath),
+    resource: traversalPath,
   }));
 }
 
 {
-  assert.throws(() => {
-    fs.readFile(uint8ArrayTraversalPath, (error) => {
-      assert.ifError(error);
-    });
-  }, common.expectsError({
+  fs.readFile(uint8ArrayTraversalPath, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: resolve(traversalPath),
+    resource: traversalPath,
   }));
 }
 
@@ -111,11 +89,11 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
   } catch { }
 
   assert.throws(() => {
-    fs.readFile(cwd, common.mustNotCall());
+    fs.readFileSync(cwd);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: resolve(cwd.toString()),
+    resource: cwd.toString(),
   }));
 }
 
@@ -136,19 +114,19 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
   assert.strictEqual(Buffer.from(resolve(traversalPathWithExtraChars)).toString(), traversalPath);
 
   assert.throws(() => {
-    fs.readFile(traversalPathWithExtraBytes, common.mustNotCall());
+    fs.readFileSync(traversalPathWithExtraBytes);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: resolve(traversalPathWithExtraChars),
+    resource: traversalPathWithExtraChars,
   }));
 
   assert.throws(() => {
-    fs.readFile(new TextEncoder().encode(traversalPathWithExtraBytes.toString()), common.mustNotCall());
+    fs.readFileSync(new TextEncoder().encode(traversalPathWithExtraBytes.toString()));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: resolve(traversalPathWithExtraChars),
+    resource: traversalPathWithExtraChars,
   }));
 }
 

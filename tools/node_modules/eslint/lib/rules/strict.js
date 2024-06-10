@@ -173,7 +173,7 @@ module.exports = {
         function enterFunctionInFunctionMode(node, useStrictDirectives) {
             const isInClass = classScopes.length > 0,
                 isParentGlobal = scopes.length === 0 && classScopes.length === 0,
-                isParentStrict = scopes.length > 0 && scopes[scopes.length - 1],
+                isParentStrict = scopes.length > 0 && scopes.at(-1),
                 isStrict = useStrictDirectives.length > 0;
 
             if (isStrict) {

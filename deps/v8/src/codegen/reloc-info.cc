@@ -8,6 +8,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-reference.h"
 #include "src/codegen/external-reference-encoder.h"
+#include "src/codegen/reloc-info-inl.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -183,75 +184,61 @@ void RelocIteratorBase<RelocInfoT>::next() {
 }
 
 RelocIterator::RelocIterator(Tagged<Code> code, int mode_mask)
-    : RelocIteratorBase<RelocInfo>(
-          code->instruction_start(), code->constant_pool(),
-          code->instruction_stream()->relocation_info()->GetDataEndAddress(),
-          code->instruction_stream()->relocation_info()->GetDataStartAddress(),
-          mode_mask) {}
+    : RelocIterator(code->instruction_stream(), mode_mask) {}
 
-RelocIterator::RelocIterator(Tagged<Code> code,
-                             Tagged<InstructionStream> instruction_stream,
-                             Tagged<ByteArray> relocation_info, int mode_mask)
-    : RelocIteratorBase<RelocInfo>(instruction_stream->instruction_start(),
-                                   code->constant_pool(instruction_stream),
-                                   relocation_info->GetDataEndAddress(),
-                                   relocation_info->GetDataStartAddress(),
-                                   mode_mask) {}
+RelocIterator::RelocIterator(Tagged<InstructionStream> istream, int mode_mask)
+    : RelocIterator(
+          istream->instruction_start(), istream->constant_pool(),
+          // Use unchecked accessors since this can be called during GC
+          istream->unchecked_relocation_info()->end(),
+          istream->unchecked_relocation_info()->begin(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference)
-    : RelocIteratorBase<RelocInfo>(
-          code_reference.instruction_start(), code_reference.constant_pool(),
-          code_reference.relocation_end(), code_reference.relocation_start(),
-          kAllModesMask) {}
+    : RelocIterator(code_reference.instruction_start(),
+                    code_reference.constant_pool(),
+                    code_reference.relocation_end(),
+                    code_reference.relocation_start(), kAllModesMask) {}
 
 RelocIterator::RelocIterator(EmbeddedData* embedded_data, Tagged<Code> code,
                              int mode_mask)
-    : RelocIteratorBase<RelocInfo>(
-          embedded_data->InstructionStartOf(code->builtin_id()),
-          code->constant_pool(), code->relocation_end(),
-          code->relocation_start(), mode_mask) {}
+    : RelocIterator(embedded_data->InstructionStartOf(code->builtin_id()),
+                    code->constant_pool(), code->relocation_end(),
+                    code->relocation_start(), mode_mask) {}
 
 RelocIterator::RelocIterator(base::Vector<uint8_t> instructions,
                              base::Vector<const uint8_t> reloc_info,
                              Address const_pool, int mode_mask)
+    : RelocIterator(reinterpret_cast<Address>(instructions.begin()), const_pool,
+                    reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
+                    mode_mask) {}
+
+RelocIterator::RelocIterator(Address pc, Address constant_pool,
+                             const uint8_t* pos, const uint8_t* end,
+                             int mode_mask)
     : RelocIteratorBase<RelocInfo>(
-          reinterpret_cast<Address>(instructions.begin()), const_pool,
-          reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
+          RelocInfo(pc, RelocInfo::NO_INFO, 0, constant_pool), pos, end,
           mode_mask) {}
 
 WritableRelocIterator::WritableRelocIterator(
     WritableJitAllocation& jit_allocation, Tagged<InstructionStream> istream,
     Address constant_pool, int mode_mask)
     : RelocIteratorBase<WritableRelocInfo>(
-          istream->instruction_start(), constant_pool,
-          istream->unchecked_relocation_info()->GetDataEndAddress(),
-          istream->unchecked_relocation_info()->GetDataStartAddress(),
-          mode_mask) {}
+          WritableRelocInfo(jit_allocation, istream->instruction_start(),
+                            RelocInfo::NO_INFO, 0, constant_pool),
+          // Use unchecked accessors since this can be called during GC
+          istream->unchecked_relocation_info()->end(),
+          istream->unchecked_relocation_info()->begin(), mode_mask) {}
 
 WritableRelocIterator::WritableRelocIterator(
     WritableJitAllocation& jit_allocation, base::Vector<uint8_t> instructions,
     base::Vector<const uint8_t> reloc_info, Address constant_pool,
     int mode_mask)
     : RelocIteratorBase<WritableRelocInfo>(
-          reinterpret_cast<Address>(instructions.begin()), constant_pool,
+          WritableRelocInfo(jit_allocation,
+                            reinterpret_cast<Address>(instructions.begin()),
+                            RelocInfo::NO_INFO, 0, constant_pool),
           reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
           mode_mask) {}
-
-template <typename RelocInfoT>
-RelocIteratorBase<RelocInfoT>::RelocIteratorBase(Address pc,
-                                                 Address constant_pool,
-                                                 const uint8_t* pos,
-                                                 const uint8_t* end,
-                                                 int mode_mask)
-    : pos_(pos),
-      end_(end),
-      rinfo_(pc, RelocInfo::NO_INFO, 0, constant_pool),
-      mode_mask_(mode_mask) {
-  // Relocation info is read backwards.
-  DCHECK_GE(pos_, end_);
-  if (mode_mask_ == 0) pos_ = end_;
-  next();
-}
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo

@@ -255,10 +255,9 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     scope_info->set_parameter_count(parameter_count);
     scope_info->set_context_local_count(context_local_count);
 
-    // Jump ahead to set the number of module variables so that we can use range
-    // DCHECKs in future steps.
     if (scope->is_module_scope()) {
       scope_info->set_module_variable_count(module_vars_count);
+      ++index;
     }
     if (!has_inlined_local_names) {
       scope_info->set_context_local_names_hashtable(*local_names_hashtable);
@@ -269,7 +268,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     int context_local_base = index;
     int context_local_info_base =
         context_local_base + local_names_container_size;
-    int module_var_entry = scope_info->ModuleVariableCountIndex() + 1;
+    int module_var_entry = scope_info->ModuleVariablesIndex();
 
     for (Variable* var : *scope->locals()) {
       switch (var->location()) {
@@ -407,9 +406,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     if (scope->is_module_scope()) {
       DCHECK_EQ(index, scope_info->ModuleInfoIndex());
       scope_info->set(index++, *module_info);
-      DCHECK_EQ(index, scope_info->ModuleVariableCountIndex());
-      // Module variable count was already written above.
-      index++;
       DCHECK_EQ(index, scope_info->ModuleVariablesIndex());
       // The variable entries themselves have already been written above.
       index += kModuleVariableEntryLength * module_vars_count;
@@ -508,6 +504,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                                  (type == BootstrappingType::kShadowRealm);
   const bool is_script = type == BootstrappingType::kScript;
   const bool is_shadow_realm = type == BootstrappingType::kShadowRealm;
+  const bool has_const_tracking_let_side_data = is_script;
   const int context_local_count =
       is_empty_function || is_native_context ? 0 : 1;
   const bool has_inferred_function_name = is_empty_function;
@@ -547,7 +544,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(is_native_context) |
+      HasContextExtensionSlotBit::encode(is_native_context ||
+                                         has_const_tracking_let_side_data) |
       IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);
@@ -1058,7 +1056,7 @@ FunctionKind ScopeInfo::function_kind() const {
 }
 
 int ScopeInfo::ContextLocalNamesIndex() const {
-  return ConvertOffsetToIndex(kContextLocalNamesOffset);
+  return ConvertOffsetToIndex(ContextLocalNamesOffset());
 }
 
 int ScopeInfo::ContextLocalInfosIndex() const {
@@ -1094,7 +1092,7 @@ int ScopeInfo::ModuleInfoIndex() const {
 }
 
 int ScopeInfo::ModuleVariableCountIndex() const {
-  return ConvertOffsetToIndex(ModuleVariableCountOffset());
+  return ConvertOffsetToIndex(kModuleVariableCountOffset);
 }
 
 int ScopeInfo::ModuleVariablesIndex() const {
@@ -1155,24 +1153,24 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
 template <typename IsolateT>
 Handle<ModuleRequest> ModuleRequest::New(IsolateT* isolate,
                                          Handle<String> specifier,
-                                         Handle<FixedArray> import_assertions,
+                                         Handle<FixedArray> import_attributes,
                                          int position) {
   Handle<ModuleRequest> result = Handle<ModuleRequest>::cast(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<ModuleRequest> raw = *result;
   raw->set_specifier(*specifier);
-  raw->set_import_assertions(*import_assertions);
+  raw->set_import_attributes(*import_attributes);
   raw->set_position(position);
   return result;
 }
 
 template Handle<ModuleRequest> ModuleRequest::New(
     Isolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions, int position);
+    Handle<FixedArray> import_attributes, int position);
 template Handle<ModuleRequest> ModuleRequest::New(
     LocalIsolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions, int position);
+    Handle<FixedArray> import_attributes, int position);
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(

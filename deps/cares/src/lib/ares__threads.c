@@ -138,9 +138,9 @@ struct ares__thread {
   HANDLE thread;
   DWORD  id;
 
-  void  *(*func)(void *arg);
-  void  *arg;
-  void  *rv;
+  void *(*func)(void *arg);
+  void *arg;
+  void *rv;
 };
 
 /* Wrap for pthread compatibility */
@@ -335,8 +335,8 @@ static void ares__timespec_timeout(struct timespec *ts, unsigned long add_ms)
 #      error cannot determine current system time
 #    endif
 
-  ts->tv_sec  += add_ms / 1000;
-  ts->tv_nsec += (add_ms % 1000) * 1000000;
+  ts->tv_sec  += (time_t)(add_ms / 1000);
+  ts->tv_nsec += (long)((add_ms % 1000) * 1000000);
 
   /* Normalize if needed */
   if (ts->tv_nsec >= 1000000000) {
@@ -537,12 +537,12 @@ void ares__channel_threading_destroy(ares_channel_t *channel)
   channel->cond_empty = NULL;
 }
 
-void ares__channel_lock(ares_channel_t *channel)
+void ares__channel_lock(const ares_channel_t *channel)
 {
   ares__thread_mutex_lock(channel->lock);
 }
 
-void ares__channel_unlock(ares_channel_t *channel)
+void ares__channel_unlock(const ares_channel_t *channel)
 {
   ares__thread_mutex_unlock(channel->lock);
 }
@@ -584,6 +584,12 @@ ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
       } else {
         status =
           ares__thread_cond_timedwait(channel->cond_empty, channel->lock, tms);
+      }
+
+      /* If there was a timeout, don't loop.  Otherwise, make sure this wasn't
+       * a spurious wakeup by looping and checking the condition. */
+      if (status == ARES_ETIMEOUT) {
+        break;
       }
     }
   }

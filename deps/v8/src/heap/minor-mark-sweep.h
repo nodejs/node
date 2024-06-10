@@ -63,13 +63,13 @@ class YoungGenerationRememberedSetsMarkingWorklist {
    public:
     enum class SlotsType { kRegularSlots, kTypedSlots };
 
-    MarkingItem(MemoryChunk* chunk, SlotsType slots_type, SlotSet* slot_set,
-                SlotSet* background_slot_set)
+    MarkingItem(MutablePageMetadata* chunk, SlotsType slots_type,
+                SlotSet* slot_set, SlotSet* background_slot_set)
         : chunk_(chunk),
           slots_type_(slots_type),
           slot_set_(slot_set),
           background_slot_set_(background_slot_set) {}
-    MarkingItem(MemoryChunk* chunk, SlotsType slots_type,
+    MarkingItem(MutablePageMetadata* chunk, SlotsType slots_type,
                 TypedSlotSet* typed_slot_set)
         : chunk_(chunk),
           slots_type_(slots_type),
@@ -93,15 +93,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
     V8_INLINE SlotCallbackResult CheckAndMarkObject(Visitor* visitor,
                                                     TSlot slot);
 
-    V8_INLINE void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                     Address slot_address,
-                                                     MaybeObject object);
-    V8_INLINE void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
-                                                   SlotType slot_type,
-                                                   Address slot_address,
-                                                   MaybeObject new_target);
-
-    MemoryChunk* const chunk_;
+    MutablePageMetadata* const chunk_;
     const SlotsType slots_type_;
     union {
       SlotSet* slot_set_;
@@ -152,7 +144,7 @@ class MinorMarkSweepCollector final {
 
   void TearDown();
   void CollectGarbage();
-  void StartMarking();
+  void StartMarking(bool force_use_background_threads);
 
   void RequestGC();
 
@@ -182,6 +174,10 @@ class MinorMarkSweepCollector final {
 
   bool gc_finalization_requsted() const {
     return gc_finalization_requested_.load(std::memory_order_relaxed);
+  }
+
+  bool UseBackgroundThreadsInCycle() const {
+    return use_background_threads_in_cycle_.value();
   }
 
  private:
@@ -232,6 +228,8 @@ class MinorMarkSweepCollector final {
       remembered_sets_marking_handler_;
 
   ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
+
+  base::Optional<bool> use_background_threads_in_cycle_;
 
   std::atomic<bool> is_in_atomic_pause_{false};
   std::atomic<bool> gc_finalization_requested_{false};

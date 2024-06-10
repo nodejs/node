@@ -124,6 +124,9 @@ class TrapHandlerTest : public TestWithIsolate,
 #elif V8_HOST_ARCH_LOONG64
     // SIGTRAP to simulate crashes which are not handled by the trap handler.
     EXPECT_EQ(0, sigaction(SIGTRAP, &action, &g_old_other_action));
+#elif V8_HOST_ARCH_RISCV64
+    // SIGTRAP to simulate crashes which are not handled by the trap handler.
+    EXPECT_EQ(0, sigaction(SIGTRAP, &action, &g_old_other_action));
 #else
 #error Unsupported platform
 #endif
@@ -153,6 +156,8 @@ class TrapHandlerTest : public TestWithIsolate,
 #elif V8_HOST_ARCH_ARM64
       EXPECT_EQ(0, sigaction(SIGTRAP, &g_old_other_action, nullptr));
 #elif V8_HOST_ARCH_LOONG64
+      EXPECT_EQ(0, sigaction(SIGTRAP, &g_old_other_action, nullptr));
+#elif V8_HOST_ARCH_RISCV64
       EXPECT_EQ(0, sigaction(SIGTRAP, &g_old_other_action, nullptr));
 #else
 #error Unsupported platform
@@ -201,6 +206,8 @@ class TrapHandlerTest : public TestWithIsolate,
     sigaction(SIGTRAP, &g_old_other_action, nullptr);
 #elif V8_HOST_ARCH_LOONG64
     sigaction(SIGTRAP, &g_old_other_action, nullptr);
+#elif V8_HOST_ARCH_RISCV64
+    sigaction(SIGTRAP, &g_old_other_action, nullptr);
 #else
 #error Unsupported platform
 #endif
@@ -217,6 +224,8 @@ class TrapHandlerTest : public TestWithIsolate,
     uc->uc_mcontext.pc = g_recovery_address;
 #elif V8_OS_LINUX && V8_HOST_ARCH_LOONG64
     uc->uc_mcontext.__pc = g_recovery_address;
+#elif V8_OS_LINUX && V8_HOST_ARCH_RISCV64
+    uc->uc_mcontext.__gregs[REG_PC] = g_recovery_address;
 #elif V8_OS_LINUX && V8_HOST_ARCH_X64
     uc->uc_mcontext.gregs[REG_RIP] = g_recovery_address;
 #elif V8_OS_FREEBSD
@@ -273,6 +282,16 @@ class TrapHandlerTest : public TestWithIsolate,
     Register one = temps.Acquire();
     masm->li(one, 1);
     masm->St_d(one, MemOperand(addr, 0));
+#elif V8_HOST_ARCH_RISCV64
+    UseScratchRegisterScope temps(masm);
+    Register addr = temps.Acquire();
+    masm->li(
+        addr,
+        static_cast<int64_t>(
+            i_isolate()->thread_local_top()->thread_in_wasm_flag_address_));
+    Register one = temps.Acquire();
+    masm->li(one, 1);
+    masm->StoreWord(one, MemOperand(addr, 0));
 #else
 #error Unsupported platform
 #endif
@@ -298,6 +317,14 @@ class TrapHandlerTest : public TestWithIsolate,
         static_cast<int64_t>(
             i_isolate()->thread_local_top()->thread_in_wasm_flag_address_));
     masm->St_d(zero_reg, MemOperand(addr, 0));
+#elif V8_HOST_ARCH_RISCV64
+    UseScratchRegisterScope temps(masm);
+    Register addr = temps.Acquire();
+    masm->li(
+        addr,
+        static_cast<int64_t>(
+            i_isolate()->thread_local_top()->thread_in_wasm_flag_address_));
+    masm->StoreWord(zero_reg, MemOperand(addr, 0));
 #else
 #error Unsupported platform
 #endif
@@ -384,6 +411,15 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   __ Ld_d(scratch, MemOperand(scratch, 0));
   uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
+#elif V8_HOST_ARCH_RISCV64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  __ li(scratch, static_cast<int64_t>(crash_address_));
+  uint32_t crash_offset = __ pc_offset();
+  __ LoadWord(scratch, MemOperand(scratch, 0));
+  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
 #else
 #error Unsupported platform
 #endif
@@ -391,12 +427,15 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
-                                                               recovery_offset};
+  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
+  uintptr_t landing_pad =
+      reinterpret_cast<uintptr_t>(buffer_->start()) + recovery_offset;
+  trap_handler::SetLandingPad(landing_pad);
   ExecuteBuffer();
+  trap_handler::SetLandingPad(0);
 }
 
 TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
@@ -431,6 +470,15 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   __ Ld_d(scratch, MemOperand(scratch, 0));
   uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
+#elif V8_HOST_ARCH_RISCV64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  __ li(scratch, static_cast<int64_t>(crash_address_));
+  uint32_t crash_offset = __ pc_offset();
+  __ LoadWord(scratch, MemOperand(scratch, 0));
+  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
 #else
 #error Unsupported platform
 #endif
@@ -438,19 +486,21 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
-                                                               recovery_offset};
+  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
   int handler_id = trap_handler::RegisterHandlerData(
       reinterpret_cast<Address>(desc.buffer), desc.instr_size, 1,
       &protected_instruction);
 
+  uintptr_t landing_pad =
+      reinterpret_cast<uintptr_t>(buffer_->start()) + recovery_offset;
+  trap_handler::SetLandingPad(landing_pad);
   ExecuteBuffer();
-
   // Deregister from the trap handler. The trap handler should not do the
   // recovery now.
   trap_handler::ReleaseHandlerData(handler_id);
 
   ExecuteExpectCrash(buffer_.get());
+  trap_handler::SetLandingPad(0);
 }
 
 TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
@@ -463,7 +513,6 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
-  uint32_t recovery_offset = __ pc_offset();
   __ Pop(scratch);
 #elif V8_HOST_ARCH_ARM64
   UseScratchRegisterScope temps(&masm);
@@ -471,14 +520,18 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   __ Mov(scratch, crash_address_);
   uint32_t crash_offset = __ pc_offset();
   __ Ldr(scratch, MemOperand(scratch));
-  uint32_t recovery_offset = __ pc_offset();
 #elif V8_HOST_ARCH_LOONG64
   UseScratchRegisterScope temps(&masm);
   Register scratch = temps.Acquire();
   __ li(scratch, static_cast<int64_t>(crash_address_));
   uint32_t crash_offset = __ pc_offset();
   __ Ld_d(scratch, MemOperand(scratch, 0));
-  uint32_t recovery_offset = __ pc_offset();
+#elif V8_HOST_ARCH_RISCV64
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  __ li(scratch, static_cast<int64_t>(crash_address_));
+  uint32_t crash_offset = __ pc_offset();
+  __ LoadWord(scratch, MemOperand(scratch, 0));
 #else
 #error Unsupported platform
 #endif
@@ -486,8 +539,7 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
-                                                               recovery_offset};
+  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
@@ -505,8 +557,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   uint32_t no_crash_offset = __ pc_offset();
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   __ testl(MemOperand(scratch, 0), Immediate(1));
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
 #elif V8_HOST_ARCH_ARM64
@@ -516,8 +566,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   uint32_t no_crash_offset = __ pc_offset();
   __ Mov(scratch, crash_address_);
   __ Ldr(scratch, MemOperand(scratch));
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
 #elif V8_HOST_ARCH_LOONG64
   GenerateSetThreadInWasmFlagCode(&masm);
@@ -526,8 +574,14 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   uint32_t no_crash_offset = __ pc_offset();
   __ li(scratch, static_cast<int64_t>(crash_address_));
   __ Ld_d(scratch, MemOperand(scratch, 0));
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
+#elif V8_HOST_ARCH_RISCV64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  uint32_t no_crash_offset = __ pc_offset();
+  __ li(scratch, static_cast<int64_t>(crash_address_));
+  __ LoadWord(scratch, MemOperand(scratch, 0));
   GenerateResetThreadInWasmFlagCode(&masm);
 #else
 #error Unsupported platform
@@ -536,8 +590,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{no_crash_offset,
-                                                               recovery_offset};
+  trap_handler::ProtectedInstructionData protected_instruction{no_crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
@@ -555,8 +608,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   __ xorq(scratch, scratch);
   uint32_t crash_offset = __ pc_offset();
   __ divq(scratch);
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
 #elif V8_HOST_ARCH_ARM64
@@ -564,16 +615,18 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   UseScratchRegisterScope temps(&masm);
   uint32_t crash_offset = __ pc_offset();
   __ Trap();
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
 #elif V8_HOST_ARCH_LOONG64
   GenerateSetThreadInWasmFlagCode(&masm);
   UseScratchRegisterScope temps(&masm);
   uint32_t crash_offset = __ pc_offset();
   __ Trap();
-  // Offset where the crash is not happening.
-  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
+#elif V8_HOST_ARCH_RISCV64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  uint32_t crash_offset = __ pc_offset();
+  __ Trap();
   GenerateResetThreadInWasmFlagCode(&masm);
 #else
 #error Unsupported platform
@@ -582,8 +635,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
-                                                               recovery_offset};
+  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
@@ -636,7 +688,6 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
-  uint32_t recovery_offset = __ pc_offset();
   __ Pop(scratch);
 #elif V8_HOST_ARCH_ARM64
   UseScratchRegisterScope temps(&masm);
@@ -644,14 +695,18 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   __ Mov(scratch, crash_address_);
   uint32_t crash_offset = __ pc_offset();
   __ Ldr(scratch, MemOperand(scratch));
-  uint32_t recovery_offset = __ pc_offset();
 #elif V8_HOST_ARCH_LOONG64
   UseScratchRegisterScope temps(&masm);
   Register scratch = temps.Acquire();
   __ li(scratch, static_cast<int64_t>(crash_address_));
   uint32_t crash_offset = __ pc_offset();
   __ Ld_d(scratch, MemOperand(scratch, 0));
-  uint32_t recovery_offset = __ pc_offset();
+#elif V8_HOST_ARCH_RISCV64
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.Acquire();
+  __ li(scratch, static_cast<int64_t>(crash_address_));
+  uint32_t crash_offset = __ pc_offset();
+  __ LoadWord(scratch, MemOperand(scratch, 0));
 #else
 #error Unsupported platform
 #endif
@@ -659,8 +714,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
-                                                               recovery_offset};
+  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 

@@ -34,15 +34,14 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-//
-// Most object types in the V8 JavaScript are described in this file.
-//
-
 namespace v8 {
 namespace internal {
 
 struct InliningPosition;
+class LookupIterator;
 class PropertyDescriptorObject;
+class ReadOnlyRoots;
+class RootVisitor;
 
 // UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
 // SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
@@ -65,12 +64,14 @@ enum PropertyNormalizationMode {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag { INSERT_TRANSITION, OMIT_TRANSITION };
 
-// Indicates whether the transition is simple: the target map of the transition
+// Indicates the kind of transition: the target map of the transition
 // either extends the current map with a new property, or it modifies the
-// property that was added last to the current map.
-enum SimpleTransitionFlag {
+// property that was added last to the current map. Otherwise, it can
+// be a prototype transition, or anything else.
+enum TransitionKindFlag {
   SIMPLE_PROPERTY_TRANSITION,
   PROPERTY_TRANSITION,
+  PROTOTYPE_TRANSITION,
   SPECIAL_TRANSITION
 };
 
@@ -125,13 +126,10 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 // For a design overview, see https://goo.gl/Ph4CGz.
 class Object : public AllStatic {
  public:
-  // Whether the object is in the RO heap and the RO heap is shared, or in the
-  // writable shared heap.
-  static V8_INLINE bool InSharedHeap(Tagged<Object> obj);
-
-  static V8_INLINE bool InWritableSharedSpace(Tagged<Object> obj);
-
-  enum class Conversion { kToNumber, kToNumeric };
+  enum class Conversion {
+    kToNumber,  // Number = Smi or HeapNumber
+    kToNumeric  // Numeric = Smi or HeapNumber or BigInt
+  };
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
@@ -440,6 +438,11 @@ class Object : public AllStatic {
   // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are
   // not allowed.
   static void VerifyPointer(Isolate* isolate, Tagged<Object> p);
+  // Verify a pointer is a valid (non-InstructionStream) object pointer,
+  // potentially a weak one.
+  // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are
+  // not allowed.
+  static void VerifyMaybeObjectPointer(Isolate* isolate, Tagged<MaybeObject> p);
   // Verify a pointer is a valid object pointer.
   // InstructionStream objects are allowed regardless of the
   // V8_EXTERNAL_CODE_SPACE mode.
@@ -463,8 +466,9 @@ class Object : public AllStatic {
     }
   };
 
-  // For use with std::unordered_set/unordered_map when using both
-  // InstructionStream and non-InstructionStream objects as keys.
+  // For use with std::unordered_set/unordered_map when one of the objects may
+  // be located outside the main pointer compression cage, for example in
+  // trusted space. In this case, we must use full pointer comparison.
   struct KeyEqualSafe {
     bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
       return a.SafeEquals(b);
@@ -475,6 +479,15 @@ class Object : public AllStatic {
   struct Comparer {
     bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
       return a < b;
+    }
+  };
+
+  // Same as above, but can be used when one of the objects may be located
+  // outside of the main pointer compression cage, for example in trusted
+  // space. In this case, we must use full pointer comparison.
+  struct FullPtrComparer {
+    bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
+      return a.ptr() < b.ptr();
     }
   };
 
@@ -548,10 +561,14 @@ class Object : public AllStatic {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Tagged<Object> obj);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Object::Conversion kind);
 
 struct Brief {
-  template <typename TObject>
-  explicit Brief(TObject v) : value{v.ptr()} {}
+  template <HeapObjectReferenceType kRefType>
+  explicit Brief(TaggedImpl<kRefType, Address> v) : value{v.ptr()} {}
+  template <typename T>
+  explicit Brief(T* v) : value{v->ptr()} {}
   // {value} is a tagged heap object reference (weak or strong), equivalent to
   // a MaybeObject's payload. It has a plain Address type to keep #includes
   // lightweight.
@@ -581,6 +598,11 @@ template <HeapObjectReferenceType kRefType, typename StorageType>
 V8_INLINE constexpr bool IsHeapObject(TaggedImpl<kRefType, StorageType> obj) {
   return obj.IsHeapObject();
 }
+template <typename StorageType>
+V8_INLINE constexpr bool IsWeak(
+    TaggedImpl<HeapObjectReferenceType::WEAK, StorageType> obj) {
+  return obj.IsWeak();
+}
 
 // TODO(leszeks): These exist both as free functions and members of Tagged. They
 // probably want to be cleaned up at some point.
@@ -601,12 +623,14 @@ OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 #undef IS_TYPE_FUNCTION_DECL
 V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
 
 // A wrapper around IsHole to make it easier to distinguish from specific hole
 // checks (e.g. IsTheHole).
 V8_INLINE bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base);
+V8_INLINE bool IsAnyHole(Tagged<Object> obj);
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.

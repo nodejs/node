@@ -138,8 +138,6 @@ namespace base {
 
 namespace {
 
-bool g_hard_abort = false;
-
 }  // namespace
 
 class WindowsTimezoneCache : public TimezoneCache {
@@ -704,6 +702,7 @@ void OS::PrintError(const char* format, ...) {
   va_start(args, format);
   VPrintError(format, args);
   va_end(args);
+  fflush(stderr);
 }
 
 
@@ -753,8 +752,8 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
                                 GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
-  g_hard_abort = hard_abort;
+void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
+  g_abort_mode = abort_mode;
 }
 
 typedef PVOID(__stdcall* VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
@@ -1205,9 +1204,15 @@ void OS::Abort() {
   fflush(stdout);
   fflush(stderr);
 
-  if (g_hard_abort) {
-    IMMEDIATE_CRASH();
+  switch (g_abort_mode) {
+    case AbortMode::kSoft:
+      _exit(-1);
+    case AbortMode::kHard:
+      IMMEDIATE_CRASH();
+    case AbortMode::kDefault:
+      break;
   }
+
   // Make the MSVCRT do a silent abort.
   raise(SIGABRT);
 
@@ -1654,7 +1659,7 @@ int OS::ActivationFrameAlignment() {
 #endif
 }
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(V8_OS_WIN)
 void EnsureConsoleOutputWin32() {
   UINT new_flags =
       SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
@@ -1670,7 +1675,7 @@ void EnsureConsoleOutputWin32() {
   _set_error_mode(_OUT_TO_STDERR);
 #endif  // defined(_MSC_VER)
 }
-#endif  // (defined(_WIN32) || defined(_WIN64))
+#endif  // defined(V8_OS_WIN)
 
 // ----------------------------------------------------------------------------
 // Win32 thread support.

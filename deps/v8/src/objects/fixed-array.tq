@@ -17,18 +17,36 @@ extern class FixedArray extends FixedArrayBase {
 type EmptyFixedArray extends FixedArray;
 
 @cppObjectDefinition
+extern class TrustedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: Object;
+}
+
+@cppObjectDefinition
+extern class ProtectedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: TrustedObject|Smi;
+}
+
+@cppObjectDefinition
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
-@generateBodyDescriptor
+@cppObjectDefinition
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
-  @cppRelaxedLoad objects[length]: MaybeObject;
+  objects[length]: MaybeObject;
 }
 
 @cppObjectDefinition
 extern class ByteArray extends FixedArrayBase {
+  bytes[length]: uint8;
+}
+
+@cppObjectDefinition
+extern class TrustedByteArray extends TrustedObject {
+  const length: Smi;
   bytes[length]: uint8;
 }
 
@@ -40,9 +58,11 @@ extern class ExternalPointerArray extends FixedArrayBase {
 extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 
 @cppObjectDefinition
-@hasSameInstanceTypeAsParent
-@doNotGenerateCast
-extern class ArrayList extends FixedArray {}
+extern class ArrayList extends HeapObject {
+  const capacity: Smi;
+  length: Smi;
+  objects[capacity]: Object;
+}
 
 @generateBodyDescriptor
 extern class WeakArrayList extends HeapObject {
@@ -132,14 +152,14 @@ extern macro CopyFixedArrayElements(
     intptr, intptr, intptr): void;
 
 macro ExtractFixedArray(
-    source: FixedArray, first: intptr, count: intptr,
-    capacity: intptr): FixedArray {
+    source: FixedArray, first: intptr, count: intptr, capacity: intptr,
+    initialElement: Hole): FixedArray {
   // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedArray(
       capacity,
       IteratorSequence<Object>(
           (&source.objects).Iterator(first, first + count),
-          ConstantIterator(TheHole)));
+          ConstantIterator(initialElement)));
 }
 macro ExtractFixedDoubleArray(
     source: FixedDoubleArray, first: intptr, count: intptr,

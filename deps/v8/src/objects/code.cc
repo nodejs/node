@@ -20,13 +20,13 @@
 namespace v8 {
 namespace internal {
 
-Tagged<ByteArray> Code::raw_position_table() const {
-  return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
+Tagged<Object> Code::raw_deoptimization_data_or_interpreter_data() const {
+  return RawProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset)
+      .load();
 }
 
-Tagged<HeapObject> Code::raw_deoptimization_data_or_interpreter_data() const {
-  return TaggedField<HeapObject,
-                     kDeoptimizationDataOrInterpreterDataOffset>::load(*this);
+Tagged<Object> Code::raw_position_table() const {
+  return RawProtectedPointerField(kPositionTableOffset).load();
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
@@ -168,7 +168,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind) && kind != CodeKind::BASELINE) {
+  if (CodeKindIsOptimizedJSFunction(kind)) {
     os << "stack_slots = " << code->stack_slots() << "\n";
   }
   os << "compiler = "
@@ -199,7 +199,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "\n";
 
   // TODO(cbruni): add support for baseline code.
-  if (kind != CodeKind::BASELINE) {
+  if (code->has_source_position_table()) {
     {
       SourcePositionTableIterator it(
           code->source_position_table(),
@@ -232,7 +232,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     }
   }
 
-  if (CodeKindCanDeoptimize(kind)) {
+  if (code->uses_deoptimization_data()) {
     Tagged<DeoptimizationData> data =
         DeoptimizationData::cast(code->deoptimization_data());
     data->PrintDeoptimizationData(os);

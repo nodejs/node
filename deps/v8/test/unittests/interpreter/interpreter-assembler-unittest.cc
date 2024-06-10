@@ -4,7 +4,8 @@
 
 #include "test/unittests/interpreter/interpreter-assembler-unittest.h"
 
-#include "src/codegen/code-factory.h"
+#include "src/builtins/builtins-inl.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -385,44 +386,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetContext) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    {
-      TNode<IntPtrT> index = m.IntPtrConstant(2);
-      TNode<Object> load_constant = m.LoadConstantPoolEntry(index);
-      Matcher<c::Node*> constant_pool_matcher = m.IsLoadFromObject(
-          MachineType::AnyTagged(),
-          c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
-          c::IsIntPtrConstant(BytecodeArray::kConstantPoolOffset -
-                              kHeapObjectTag));
-      EXPECT_THAT(load_constant,
-                  m.IsLoadFromObject(
-                      MachineType::AnyTagged(), constant_pool_matcher,
-                      c::IsIntPtrConstant(FixedArray::OffsetOfElementAt(2) -
-                                          kHeapObjectTag)));
-    }
-    {
-      c::Node* index = m.UntypedParameter(2);
-      TNode<Object> load_constant =
-          m.LoadConstantPoolEntry(m.ReinterpretCast<IntPtrT>(index));
-      Matcher<c::Node*> constant_pool_matcher = m.IsLoadFromObject(
-          MachineType::AnyTagged(),
-          c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
-          c::IsIntPtrConstant(BytecodeArray::kConstantPoolOffset -
-                              kHeapObjectTag));
-      EXPECT_THAT(
-          load_constant,
-          m.IsLoadFromObject(
-              MachineType::AnyTagged(), constant_pool_matcher,
-              c::IsIntPtrAdd(
-                  c::IsIntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
-                  c::IsWordShl(index, c::IsIntPtrConstant(kTaggedSizeLog2)))));
-    }
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
@@ -460,8 +423,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
       if (Bytecodes::IsCallRuntime(bytecode)) {
         InterpreterAssemblerTestState state(this, bytecode);
         InterpreterAssemblerForTest m(&state, bytecode);
-        Callable builtin =
-            CodeFactory::InterpreterCEntry(isolate(), result_size);
+        Callable builtin = Builtins::CallableFor(
+            isolate(), Builtins::InterpreterCEntry(result_size));
 
         TNode<Uint32T> function_id = m.Uint32Constant(0);
         InterpreterAssembler::RegListNodePair registers(m.IntPtrConstant(1),

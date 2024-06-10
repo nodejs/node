@@ -1,40 +1,42 @@
-## c-ares version 1.27.0 - Feb 23 2024
+## c-ares version 1.29.0 - May 24 2024
 
-This is a security, feature, and bugfix release.
-
-Security:
-
-* Moderate. CVE-2024-25629. Reading malformatted `/etc/resolv.conf`,
-  `/etc/nsswitch.conf` or the `HOSTALIASES` file could result in a crash.
-  [GHSA-mg26-v6qh-x48q](https://github.com/c-ares/c-ares/security/advisories/GHSA-mg26-v6qh-x48q)
+This is a feature and bugfix release.
 
 Features:
 
-* New function `ares_queue_active_queries()` to retrieve number of in-flight
-  queries. [PR #712](https://github.com/c-ares/c-ares/pull/712)
-* New function `ares_queue_wait_empty()` to wait for the number of in-flight
-  queries to reach zero. [PR #710](https://github.com/c-ares/c-ares/pull/710)
-* New `ARES_FLAG_NO_DEFLT_SVR` for `ares_init_options()` to return a failure if
-  no DNS servers can be found rather than attempting to use `127.0.0.1`. This
-  also introduces a new ares status code of `ARES_ENOSERVER`. [PR #713](https://github.com/c-ares/c-ares/pull/713)
+* When using `ARES_OPT_EVENT_THREAD`, automatically reload system configuration
+  when network conditions change. [PR #759](https://github.com/c-ares/c-ares/pull/759)
+* Apple: reimplement DNS configuration reading to more accurately pull DNS
+  settings. [PR #750](https://github.com/c-ares/c-ares/pull/750)
+* Add observability into DNS server health via a server state callback, invoked
+  whenever a query finishes. [PR #744](https://github.com/c-ares/c-ares/pull/744)
+* Add server failover retry behavior, where failed servers are retried with
+  small probability after a minimum delay. [PR #731](https://github.com/c-ares/c-ares/pull/731)
 
 Changes:
 
-* EDNS Packet size should be 1232 as per DNS Flag Day. [PR #705](https://github.com/c-ares/c-ares/pull/705)
+* Mark `ares_channel_t *` as const in more places in the public API. [PR #758](https://github.com/c-ares/c-ares/pull/758)
 
 Bugfixes:
 
-* Windows DNS suffix search list memory leak. [PR #711](https://github.com/c-ares/c-ares/pull/711)
-* Fix warning due to ignoring return code of `write()`. [PR #709](https://github.com/c-ares/c-ares/pull/709)
-* CMake: don't override target output locations if not top-level. [Issue #708](https://github.com/c-ares/c-ares/issues/708)
-* Fix building c-ares without thread support. [PR #700](https://github.com/c-ares/c-ares/pull/700)
+* Due to a logic flaw dns name compression writing was not properly implemented
+  which would result in the name prefix not being written for a partial match.
+  This could cause issues in various record types such as MX records when using
+  the deprecated API.  Regression introduced in 1.28.0. [Issue #757](https://github.com/c-ares/c-ares/issues/757)
+* Revert OpenBSD `SOCK_DNS` flag, it doesn't do what the docs say it does and
+  causes c-ares to become non-functional. [PR #754](https://github.com/c-ares/c-ares/pull/754)
+* `ares_getnameinfo()`: loosen validation on `salen` parameter. [Issue #752](https://github.com/c-ares/c-ares/issues/752)
+* cmake: Android requires C99. [PR #748](https://github.com/c-ares/c-ares/pull/748)
+* `ares_queue_wait_empty()` does not honor timeout_ms >= 0. [Issue #742](https://github.com/c-ares/c-ares/pull/742)
 
-Thanks go to these friendly people for their efforts and contributions for this release:
+Thanks go to these friendly people for their efforts and contributions for this
+release:
 
-* Anthony Alayo (@anthonyalayo)
 * Brad House (@bradh352)
-* Cheng Zhao (@zcbenz)
-* Cristian Rodríguez (@crrodriguez)
 * Daniel Stenberg (@bagder)
+* David Hotham (@dimbleby)
+* Jiwoo Park (@jimmy-park)
 * Oliver Welsh (@oliverwelsh)
-* Vojtěch Vobr (@vojtechvobr)
+* Volker Schlecht (@VlkrS)
+
+

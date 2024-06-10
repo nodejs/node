@@ -361,12 +361,16 @@ class V8_EXPORT_PRIVATE Debug {
       Handle<Script> script, int start_position, int end_position,
       std::vector<Handle<SharedFunctionInfo>>* candidates);
 
+  MaybeHandle<SharedFunctionInfo> GetTopLevelWithRecompile(
+      Handle<Script> script, bool* did_compile = nullptr);
+
   static Handle<Object> GetSourceBreakLocations(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
 
+  // Walks the call stack to see if any frames are not ignore listed.
   bool AllFramesOnStackAreBlackboxed();
 
   // Set new script source, throw an exception if error occurred. When preview
@@ -397,7 +401,7 @@ class V8_EXPORT_PRIVATE Debug {
 
   // Make a one-time exception for a next call to given side-effectful API
   // function.
-  void IgnoreSideEffectsOnNextCallTo(Handle<CallHandlerInfo> call_handler_info);
+  void IgnoreSideEffectsOnNextCallTo(Handle<FunctionTemplateInfo> function);
 
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
@@ -405,8 +409,7 @@ class V8_EXPORT_PRIVATE Debug {
   bool PerformSideEffectCheckForAccessor(Handle<AccessorInfo> accessor_info,
                                          Handle<Object> receiver,
                                          AccessorComponent component);
-  bool PerformSideEffectCheckForCallback(
-      Handle<CallHandlerInfo> call_handler_info);
+  bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
       Handle<InterceptorInfo> interceptor_info);
 
@@ -508,9 +511,7 @@ class V8_EXPORT_PRIVATE Debug {
     return thread_local_.suspended_generator_ != Smi::zero();
   }
 
-  bool IsExceptionBlackboxed(bool uncaught);
-
-  void OnException(Handle<Object> exception, Handle<Object> promise,
+  void OnException(Handle<Object> exception, MaybeHandle<JSPromise> promise,
                    v8::debug::ExceptionType exception_type);
 
   void ProcessCompileEvent(bool has_compile_error, Handle<Script> script);
@@ -672,9 +673,9 @@ class V8_EXPORT_PRIVATE Debug {
 
   // This is a part of machinery for allowing to ignore side effects for one
   // call to this API function. See Function::NewInstanceWithSideEffectType().
-  // Since the call_handler_info is allowlisted right before the call to
+  // Since the FunctionTemplateInfo is allowlisted right before the call to
   // constructor there must be never more than one such object at a time.
-  Handle<CallHandlerInfo> ignore_side_effects_for_call_handler_info_;
+  Handle<FunctionTemplateInfo> ignore_side_effects_for_function_template_info_;
 
   Isolate* isolate_;
 

@@ -83,6 +83,8 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value path(env->isolate(), args[0]);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   int err = uv_chdir(*path);
   if (err) {
     // Also include the original working directory, since that will usually
@@ -492,7 +494,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
       break;
     }
     case dotenv.ParseResult::FileError: {
-      env->ThrowUVException(UV_ENOENT, "Failed to load '%s'.", path.c_str());
+      env->ThrowUVException(UV_ENOENT, "open", nullptr, path.c_str());
       break;
     }
     default:

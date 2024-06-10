@@ -84,12 +84,12 @@ typedef struct {
 } nv_t;
 
 static const nv_t configflags[] = {
-  {"usevc",      ARES_FLAG_USEVC    },
-  { "primary",   ARES_FLAG_PRIMARY  },
-  { "igntc",     ARES_FLAG_IGNTC    },
-  { "norecurse", ARES_FLAG_NORECURSE},
-  { "stayopen",  ARES_FLAG_STAYOPEN },
-  { "noaliases", ARES_FLAG_NOALIASES}
+  { "usevc",     ARES_FLAG_USEVC     },
+  { "primary",   ARES_FLAG_PRIMARY   },
+  { "igntc",     ARES_FLAG_IGNTC     },
+  { "norecurse", ARES_FLAG_NORECURSE },
+  { "stayopen",  ARES_FLAG_STAYOPEN  },
+  { "noaliases", ARES_FLAG_NOALIASES }
 };
 static const size_t nconfigflags = sizeof(configflags) / sizeof(*configflags);
 

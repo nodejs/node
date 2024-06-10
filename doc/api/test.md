@@ -230,14 +230,24 @@ const { describe, it } = require('node:test');
 ## `only` tests
 
 If Node.js is started with the [`--test-only`][] command-line option, it is
-possible to skip all top level tests except for a selected subset by passing
-the `only` option to the tests that should be run. When a test with the `only`
-option set is run, all subtests are also run. The test context's `runOnly()`
-method can be used to implement the same behavior at the subtest level.
+possible to skip all tests except for a selected subset by passing
+the `only` option to the tests that should run. When a test with the `only`
+option is set, all subtests are also run.
+If a suite has the `only` option set, all tests within the suite are run,
+unless it has descendants with the `only` option set, in which case only those
+tests are run.
+
+When using [subtests][] within a `test()`/`it()`, it is required to mark
+all ancestor tests with the `only` option to run only a
+selected subset of tests.
+
+The test context's `runOnly()`
+method can be used to implement the same behavior at the subtest level. Tests
+that are not executed are omitted from the test runner output.
 
 ```js
 // Assume Node.js is run with the --test-only command-line option.
-// The 'only' option is set, so this test is run.
+// The suite's 'only' option is set, so these tests are run.
 test('this test is run', { only: true }, async (t) => {
   // Within this test, all subtests are run by default.
   await t.test('running subtest');
@@ -261,16 +271,42 @@ test('this test is not run', () => {
   // This code is not run.
   throw new Error('fail');
 });
+
+describe('a suite', () => {
+  // The 'only' option is set, so this test is run.
+  it('this test is run', { only: true }, () => {
+    // This code is run.
+  });
+
+  it('this test is not run', () => {
+    // This code is not run.
+    throw new Error('fail');
+  });
+});
+
+describe.only('a suite', () => {
+  // The 'only' option is set, so this test is run.
+  it('this test is run', () => {
+    // This code is run.
+  });
+
+  it('this test is run', () => {
+    // This code is run.
+  });
+});
 ```
 
 ## Filtering tests by name
 
-The [`--test-name-pattern`][] command-line option can be used to only run tests
-whose name matches the provided pattern. Test name patterns are interpreted as
-JavaScript regular expressions. The `--test-name-pattern` option can be
-specified multiple times in order to run nested tests. For each test that is
-executed, any corresponding test hooks, such as `beforeEach()`, are also
-run.
+The [`--test-name-pattern`][] command-line option can be used to only run
+tests whose name matches the provided pattern, and the
+[`--test-skip-pattern`][] option can be used to skip tests whose name
+matches the provided pattern. Test name patterns are interpreted as
+JavaScript regular expressions. The `--test-name-pattern` and
+`--test-skip-pattern` options can be specified multiple times in order to run
+nested tests. For each test that is executed, any corresponding test hooks,
+such as `beforeEach()`, are also run. Tests that are not executed are omitted
+from the test runner output.
 
 Given the following test file, starting Node.js with the
 `--test-name-pattern="test [1-3]"` option would cause the test runner to execute
@@ -294,8 +330,8 @@ test('Test 4', async (t) => {
 
 Test name patterns can also be specified using regular expression literals. This
 allows regular expression flags to be used. In the previous example, starting
-Node.js with `--test-name-pattern="/test [4-5]/i"` would match `Test 4` and
-`Test 5` because the pattern is case-insensitive.
+Node.js with `--test-name-pattern="/test [4-5]/i"` (or `--test-skip-pattern="/test [4-5]/i"`)
+would match `Test 4` and `Test 5` because the pattern is case-insensitive.
 
 To match a single test with a pattern, you can prefix it with all its ancestor
 test names separated by space, to ensure it is unique.
@@ -315,6 +351,9 @@ Starting Node.js with `--test-name-pattern="test 1 some test"` would match
 only `some test` in `test 1`.
 
 Test name patterns do not change the set of files that the test runner executes.
+
+If both `--test-name-pattern` and `--test-skip-pattern` are supplied,
+tests must satisfy **both** requirements in order to be executed.
 
 ## Extraneous asynchronous activity
 
@@ -471,12 +510,8 @@ node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-de
 
 ### Limitations
 
-The test runner's code coverage functionality has the following limitations,
-which will be addressed in a future Node.js release:
-
-* Source maps are not supported.
-* Excluding specific files or directories from the coverage report is not
-  supported.
+The test runner's code coverage functionality does not support excluding
+specific files or directories from the coverage report.
 
 ## Mocking
 
@@ -606,7 +641,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
 
@@ -625,7 +660,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   // Reset the globally tracked mocks.
   mock.timers.reset();
 
-  // If you call reset mock instance, it'll also reset timers instance
+  // If you call reset mock instance, it will also reset timers instance
   mock.reset();
 });
 ```
@@ -653,7 +688,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -884,6 +919,61 @@ test('runs timers as setTime passes ticks', (context) => {
   assert.strictEqual(Date.now(), 3000);
 });
 ```
+
+## Snapshot testing
+
+> Stability: 1.0 - Early development
+
+Snapshot tests allow arbitrary values to be serialized into string values and
+compared against a set of known good values. The known good values are known as
+snapshots, and are stored in a snapshot file. Snapshot files are managed by the
+test runner, but are designed to be human readable to aid in debugging. Best
+practice is for snapshot files to be checked into source control along with your
+test files. In order to enable snapshot testing, Node.js must be started with
+the [`--experimental-test-snapshots`][] command-line flag.
+
+Snapshot files are generated by starting Node.js with the
+[`--test-update-snapshots`][] command-line flag. A separate snapshot file is
+generated for each test file. By default, the snapshot file has the same name
+as `process.argv[1]` with a `.snapshot` file extension. This behavior can be
+configured using the `snapshot.setResolveSnapshotPath()` function. Each
+snapshot assertion corresponds to an export in the snapshot file.
+
+An example snapshot test is shown below. The first time this test is executed,
+it will fail because the corresponding snapshot file does not exist.
+
+```js
+// test.js
+suite('suite of snapshot tests', () => {
+  test('snapshot test', (t) => {
+    t.assert.snapshot({ value1: 1, value2: 2 });
+    t.assert.snapshot(5);
+  });
+});
+```
+
+Generate the snapshot file by running the test file with
+`--test-update-snapshots`. The test should pass, and a file named
+`test.js.snapshot` is created in the same directory as the test file. The
+contents of the snapshot file are shown below. Each snapshot is identified by
+the full name of test and a counter to differentiate between snapshots in the
+same test.
+
+```js
+exports[`suite of snapshot tests > snapshot test 1`] = `
+{
+  "value1": 1,
+  "value2": 2
+}
+`;
+
+exports[`suite of snapshot tests > snapshot test 2`] = `
+5
+`;
+```
+
+Once the snapshot file is created, run the tests again without the
+`--test-update-snapshots` flag. The tests should pass now.
 
 ## Test reporters
 
@@ -1151,7 +1241,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.14.0
     pr-url: https://github.com/nodejs/node/pull/52038
     description: Added the `forceExit` option.
   - version:
@@ -1239,7 +1331,9 @@ run({ files: [path.resolve('./tests/test.js')] })
 ## `suite([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 * `name` {string} The name of the suite, which is displayed when reporting test
@@ -1257,7 +1351,9 @@ The `suite()` function is imported from the `node:test` module.
 ## `suite.skip([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for skipping a suite. This is the same as
@@ -1266,7 +1362,9 @@ Shorthand for skipping a suite. This is the same as
 ## `suite.todo([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for marking a suite as `TODO`. This is the same as
@@ -1275,7 +1373,9 @@ Shorthand for marking a suite as `TODO`. This is the same as
 ## `suite.only([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.0.0
+  - v20.13.0
 -->
 
 Shorthand for marking a suite as `only`. This is the same as
@@ -1329,6 +1429,10 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+    If the number of assertions run in the test does not match the number
+    specified in the plan, the test will fail.
+    **Default:** `undefined`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -1573,6 +1677,54 @@ describe('tests', async () => {
 });
 ```
 
+## `snapshot`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+An object whose methods are used to configure default snapshot settings in the
+current process. It is possible to apply the same configuration to all files by
+placing common configuration code in a module preloaded with `--require` or
+`--import`.
+
+### `snapshot.setDefaultSnapshotSerializers(serializers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `serializers` {Array} An array of synchronous functions used as the default
+  serializers for snapshot tests.
+
+This function is used to customize the default serialization mechanism used by
+the test runner. By default, the test runner performs serialization by calling
+`JSON.stringify(value, null, 2)` on the provided value. `JSON.stringify()` does
+have limitations regarding circular structures and supported data types. If a
+more robust serialization mechanism is required, this function should be used.
+
+### `snapshot.setResolveSnapshotPath(fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `fn` {Function} A function used to compute the location of the snapshot file.
+  The function receives the path of the test file as its only argument. If the
+  `process.argv[1]` is not associated with a file (for example in the REPL),
+  the input is undefined. `fn()` must return a string specifying the location of
+  the snapshot file.
+
+This function is used to customize the location of the snapshot file used for
+snapshot testing. By default, the snapshot filename is the same as the entry
+point filename with a `.snapshot` file extension.
+
 ## Class: `MockFunctionContext`
 
 <!-- YAML
@@ -1728,6 +1880,25 @@ added:
 Resets the implementation of the mock function to its original behavior. The
 mock can still be used after calling this function.
 
+## Class: `MockModuleContext`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+The `MockModuleContext` class is used to manipulate the behavior of module mocks
+created via the [`MockTracker`][] APIs.
+
+### `ctx.restore()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets the implementation of the mock module.
+
 ## Class: `MockTracker`
 
 <!-- YAML
@@ -1861,6 +2032,68 @@ test('spies on an object method', (t) => {
 });
 ```
 
+### `mock.module(specifier[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `specifier` {string} A string identifying the module to mock.
+* `options` {Object} Optional configuration options for the mock module. The
+  following properties are supported:
+  * `cache` {boolean} If `false`, each call to `require()` or `import()`
+    generates a new mock module. If `true`, subsequent calls will return the same
+    module mock, and the mock module is inserted into the CommonJS cache.
+    **Default:** false.
+  * `defaultExport` {any} An optional value used as the mocked module's default
+    export. If this value is not provided, ESM mocks do not include a default
+    export. If the mock is a CommonJS or builtin module, this setting is used as
+    the value of `module.exports`. If this value is not provided, CJS and builtin
+    mocks use an empty object as the value of `module.exports`.
+  * `namedExports` {Object} An optional object whose keys and values are used to
+    create the named exports of the mock module. If the mock is a CommonJS or
+    builtin module, these values are copied onto `module.exports`. Therefore, if a
+    mock is created with both named exports and a non-object default export, the
+    mock will throw an exception when used as a CJS or builtin module.
+* Returns: {MockModuleContext} An object that can be used to manipulate the mock.
+
+This function is used to mock the exports of ECMAScript modules, CommonJS
+modules, and Node.js builtin modules. Any references to the original module
+prior to mocking are not impacted. The following example demonstrates how a mock
+is created for a module.
+
+```js
+test('mocks a builtin module in both module systems', async (t) => {
+  // Create a mock of 'node:readline' with a named export named 'fn', which
+  // does not exist in the original 'node:readline' module.
+  const mock = t.mock.module('node:readline', {
+    namedExports: { fn() { return 42; } },
+  });
+
+  let esmImpl = await import('node:readline');
+  let cjsImpl = require('node:readline');
+
+  // cursorTo() is an export of the original 'node:readline' module.
+  assert.strictEqual(esmImpl.cursorTo, undefined);
+  assert.strictEqual(cjsImpl.cursorTo, undefined);
+  assert.strictEqual(esmImpl.fn(), 42);
+  assert.strictEqual(cjsImpl.fn(), 42);
+
+  mock.restore();
+
+  // The mock is restored, so the original builtin module is returned.
+  esmImpl = await import('node:readline');
+  cjsImpl = require('node:readline');
+
+  assert.strictEqual(typeof esmImpl.cursorTo, 'function');
+  assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
+  assert.strictEqual(esmImpl.fn, undefined);
+  assert.strictEqual(cjsImpl.fn, undefined);
+});
+```
+
 ### `mock.reset()`
 
 <!-- YAML
@@ -1944,7 +2177,8 @@ Enables timer mocking for the specified timers.
     The currently supported timer values are `'setInterval'`, `'setTimeout'`, `'setImmediate'`,
     and `'Date'`. **Default:** `['setInterval', 'setTimeout', 'setImmediate', 'Date']`.
     If no array is provided, all time related APIs (`'setInterval'`, `'clearInterval'`,
-    `'setTimeout'`, `'clearTimeout'`, and `'Date'`) will be mocked by default.
+    `'setTimeout'`, `'clearTimeout'`, `'setImmediate'`, `'clearImmediate'`, and
+    `'Date'`) will be mocked by default.
   * `now` {number | Date} An optional number or Date object representing the
     initial time (in milliseconds) to use as the value
     for `Date.now()`. **Default:** `0`.
@@ -1999,10 +2233,11 @@ mock.timers.enable({ apis: ['Date'], now: new Date() });
 
 Alternatively, if you call `mock.timers.enable()` without any parameters:
 
-All timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`, and `'clearTimeout'`)
-will be mocked. The `setInterval`, `clearInterval`, `setTimeout`, and `clearTimeout`
-functions from `node:timers`, `node:timers/promises`,
-and `globalThis` will be mocked. As well as the global `Date` object.
+All timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`, `'clearTimeout'`,
+`'setImmediate'`, and `'clearImmediate'`) will be mocked. The `setInterval`,
+`clearInterval`, `setTimeout`, `clearTimeout`, `setImmediate`, and
+`clearImmediate` functions from `node:timers`, `node:timers/promises`, and
+`globalThis` will be mocked. As well as the global `Date` object.
 
 ### `timers.reset()`
 
@@ -2033,7 +2268,7 @@ mock.timers.reset();
 
 Calls `timers.reset()`.
 
-### `timers.tick(milliseconds)`
+### `timers.tick([milliseconds])`
 
 <!-- YAML
 added:
@@ -2044,7 +2279,7 @@ added:
 Advances time for all mocked timers.
 
 * `milliseconds` {number} The amount of time, in milliseconds,
-  to advance the timers.
+  to advance the timers. **Default:** `1`.
 
 **Note:** This diverges from how `setTimeout` in Node.js behaves and accepts
 only positive numbers. In Node.js, `setTimeout` with negative numbers is
@@ -2104,10 +2339,10 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
-  const twoSeconds = 3000;
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
+  const threeSeconds = 3000;
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
 
   assert.strictEqual(fn.mock.callCount(), 1);
 });
@@ -2123,10 +2358,10 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
-  const twoSeconds = 3000;
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
-  context.mock.timers.tick(twoSeconds);
+  const threeSeconds = 3000;
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
+  context.mock.timers.tick(threeSeconds);
 
   assert.strictEqual(fn.mock.callCount(), 1);
 });
@@ -2176,8 +2411,8 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
 #### Using clear functions
 
-As mentioned, all clear functions from timers (`clearTimeout` and `clearInterval`)
-are implicity mocked. Take a look at this example using `setTimeout`:
+As mentioned, all clear functions from timers (`clearTimeout`, `clearInterval`,and
+`clearImmediate`) are implicitly mocked. Take a look at this example using `setTimeout`:
 
 ```mjs
 import assert from 'node:assert';
@@ -2190,7 +2425,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
-  // Implicity mocked as well
+  // Implicitly mocked as well
   clearTimeout(id);
   context.mock.timers.tick(9999);
 
@@ -2210,7 +2445,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
-  // Implicity mocked as well
+  // Implicitly mocked as well
   clearTimeout(id);
   context.mock.timers.tick(9999);
 
@@ -2732,11 +2967,7 @@ The corresponding execution ordered event is `'test:dequeue'`.
 ### Event: `'test:stderr'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
-  * `line` {number|undefined} The line number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stderr`.
 
 Emitted when a running test writes to `stderr`.
@@ -2747,11 +2978,7 @@ defined.
 ### Event: `'test:stdout'`
 
 * `data` {Object}
-  * `column` {number|undefined} The column number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
-  * `line` {number|undefined} The line number where the test is defined, or
-    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stdout`.
 
 Emitted when a running test writes to `stdout`.
@@ -2900,6 +3127,59 @@ test('top level test', async (t) => {
 });
 ```
 
+### `context.assert`
+
+<!-- YAML
+added:
+  - v22.2.0
+-->
+
+An object containing assertion methods bound to `context`. The top-level
+functions from the `node:assert` module are exposed here for the purpose of
+creating test plans.
+
+```js
+test('test', (t) => {
+  t.plan(1);
+  t.assert.strictEqual(true, true);
+});
+```
+
+#### `context.assert.snapshot(value[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `value` {any} A value to serialize to a string. If Node.js was started with
+  the [`--test-update-snapshots`][] flag, the serialized value is written to
+  the snapshot file. Otherwise, the serialized value is compared to the
+  corresponding value in the existing snapshot file.
+* `options` {Object} Optional configuration options. The following properties
+  are supported:
+  * `serializers` {Array} An array of synchronous functions used to serialize
+    `value` into a string. `value` is passed as the only argument to the first
+    serializer function. The return value of each serializer is passed as input
+    to the next serializer. Once all serializers have run, the resulting value
+    is coerced to a string. **Default:** If no serializers are provided, the
+    test runner's default serializers are used.
+
+This function implements assertions for snapshot testing.
+
+```js
+test('snapshot test with default serialization', (t) => {
+  t.assert.snapshot({ value1: 1, value2: 2 });
+});
+
+test('snapshot test with custom serialization', (t) => {
+  t.assert.snapshot({ value3: 3, value4: 4 }, {
+    serializers: [(value) => JSON.stringify(value)]
+  });
+});
+```
+
 ### `context.diagnostic(message)`
 
 <!-- YAML
@@ -2920,6 +3200,14 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.fullName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The name of the test and each of its ancestors, separated by `>`.
+
 ### `context.name`
 
 <!-- YAML
@@ -2929,6 +3217,54 @@ added:
 -->
 
 The name of the test.
+
+### `context.plan(count)`
+
+<!-- YAML
+added:
+  - v22.2.0
+-->
+
+> Stability: 1 - Experimental
+
+* `count` {number} The number of assertions and subtests that are expected to run.
+
+This function is used to set the number of assertions and subtests that are expected to run
+within the test. If the number of assertions and subtests that run does not match the
+expected count, the test will fail.
+
+> Note: To make sure assertions are tracked, `t.assert` must be used instead of `assert` directly.
+
+```js
+test('top level test', (t) => {
+  t.plan(2);
+  t.assert.ok('some relevant assertion here');
+  t.test('subtest', () => {});
+});
+```
+
+When working with asynchronous code, the `plan` function can be used to ensure that the
+correct number of assertions are run:
+
+```js
+test('planning with streams', (t, done) => {
+  function* generate() {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+  }
+  const expected = ['a', 'b', 'c'];
+  t.plan(expected.length);
+  const stream = Readable.from(generate());
+  stream.on('data', (chunk) => {
+    t.assert.strictEqual(chunk, expected.shift());
+  });
+
+  stream.on('end', () => {
+    done();
+  });
+});
+```
 
 ### `context.runOnly(shouldRunOnlyTests)`
 
@@ -3060,6 +3396,10 @@ changes:
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `plan` {number} The number of assertions and subtests expected to be run in the test.
+    If the number of assertions run in the test does not match the number
+    specified in the plan, the test will fail.
+    **Default:** `undefined`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -3073,7 +3413,7 @@ behaves in the same fashion as the top level [`test()`][] function.
 test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
-    { only: false, skip: false, concurrency: 1, todo: false },
+    { only: false, skip: false, concurrency: 1, todo: false, plan: 4 },
     (t) => {
       assert.ok('some relevant assertion here');
     },
@@ -3118,12 +3458,15 @@ Can be used to abort test subtasks when the test has been aborted.
 [TAP]: https://testanything.org/
 [TTY]: tty.md
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
+[`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
 [`--test-reporter`]: cli.md#--test-reporter
+[`--test-skip-pattern`]: cli.md#--test-skip-pattern
+[`--test-update-snapshots`]: cli.md#--test-update-snapshots
 [`--test`]: cli.md#--test
 [`MockFunctionContext`]: #class-mockfunctioncontext
 [`MockTimers`]: #class-mocktimers
@@ -3144,6 +3487,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
+[subtests]: #subtests
 [suite options]: #suitename-options-fn
 [test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model

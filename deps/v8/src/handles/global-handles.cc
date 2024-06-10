@@ -700,7 +700,7 @@ V8_INLINE bool GlobalHandles::ResetWeakNodeIfDead(
       node->ResetPhantomHandle();
       break;
     case WeaknessType::kCallback:
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case WeaknessType::kCallbackWithTwoEmbedderFields:
       node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
       break;

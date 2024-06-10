@@ -124,6 +124,8 @@ struct FieldAccess {
                                         // guarantee that the value is at most
                                         // kMaxSafeBufferSizeForSandbox after
                                         // decoding.
+  bool is_immutable = false;  // Whether this field is known to be immutable for
+                              // the purpose of loads.
   IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag;
 
   FieldAccess()
@@ -145,6 +147,7 @@ struct FieldAccess {
               bool is_store_in_literal = false,
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
               bool maybe_initializing_or_transitioning_store = false,
+              bool is_immutable = false,
               IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
       : base_is_tagged(base_is_tagged),
         offset(offset),
@@ -158,6 +161,7 @@ struct FieldAccess {
         external_pointer_tag(external_pointer_tag),
         maybe_initializing_or_transitioning_store(
             maybe_initializing_or_transitioning_store),
+        is_immutable(is_immutable),
         indirect_pointer_tag(indirect_pointer_tag) {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(
@@ -967,6 +971,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeUint64ToTagged();
   const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64ToTaggedPointer();
+  const Operator* ChangeFloat64HoleToTagged();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
   const Operator* TruncateBigIntToWord64();
@@ -1003,6 +1008,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const FeedbackSource& feedback);
   const Operator* CheckString(const FeedbackSource& feedback);
+  const Operator* CheckStringOrStringWrapper(const FeedbackSource& feedback);
   const Operator* CheckSymbol();
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
@@ -1181,8 +1187,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmTypeCheckAbstract(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
   const Operator* WasmTypeCastAbstract(WasmTypeCheckConfig config);
-  const Operator* WasmExternInternalize();
-  const Operator* WasmExternExternalize();
+  const Operator* WasmAnyConvertExtern();
+  const Operator* WasmExternConvertAny();
   const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
                                 bool is_signed, CheckForNull null_check);
   const Operator* WasmStructSet(const wasm::StructType* type, int field_index,

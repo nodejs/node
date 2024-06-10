@@ -962,7 +962,7 @@ myEmitter.emit('event');
 ```
 
 Because listeners are managed using an internal array, calling this will
-change the position indices of any listener registered _after_ the listener
+change the position indexes of any listener registered _after_ the listener
 being removed. This will not impact the order in which listeners are called,
 but it means that any copies of the listener array as returned by
 the `emitter.listeners()` method will need to be recreated.
@@ -1661,12 +1661,33 @@ console.log(listenerCount(myEmitter, 'event'));
 added:
  - v13.6.0
  - v12.16.0
+changes:
+  - version:
+    - v22.0.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52080
+    description: Support `highWaterMark` and `lowWaterMark` options,
+                 For consistency. Old options are still supported.
+  - version:
+    - v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/41276
+    description: The `close`, `highWatermark`, and `lowWatermark`
+                 options are supported now.
 -->
 
 * `emitter` {EventEmitter}
 * `eventName` {string|symbol} The name of the event being listened for
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
+  * `close` - {string\[]} Names of events that will end the iteration.
+  * `highWaterMark` - {integer} **Default:** `Number.MAX_SAFE_INTEGER`
+    The high watermark. The emitter is paused every time the size of events
+    being buffered is higher than it. Supported only on emitters implementing
+    `pause()` and `resume()` methods.
+  * `lowWaterMark` - {integer} **Default:** `1`
+    The low watermark. The emitter is resumed every time the size of events
+    being buffered is lower than it. Supported only on emitters implementing
+    `pause()` and `resume()` methods.
 * Returns: {AsyncIterator} that iterates `eventName` events emitted by the `emitter`
 
 ```mjs
@@ -2407,9 +2428,15 @@ Removes the `listener` from the list of handlers for event `type`.
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52618
+    description: CustomEvent is now stable.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 * Extends: {Event}
 
@@ -2422,9 +2449,15 @@ Instances are created internally by Node.js.
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52618
+    description: CustomEvent is now stable.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 * Type: {any} Returns custom data passed when initializing.
 

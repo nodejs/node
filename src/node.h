@@ -349,7 +349,7 @@ NODE_DEPRECATED("Use InitializeOncePerProcess() instead",
 // including the arguments split into argv/exec_argv, a list of potential
 // errors encountered during initialization, and a potential suggested
 // exit code.
-NODE_EXTERN std::unique_ptr<InitializationResult> InitializeOncePerProcess(
+NODE_EXTERN std::shared_ptr<InitializationResult> InitializeOncePerProcess(
     const std::vector<std::string>& args,
     ProcessInitializationFlags::Flags flags =
         ProcessInitializationFlags::kNoFlags);
@@ -358,7 +358,7 @@ NODE_EXTERN std::unique_ptr<InitializationResult> InitializeOncePerProcess(
 NODE_EXTERN void TearDownOncePerProcess();
 // Convenience overload for specifying multiple flags without having
 // to worry about casts.
-inline std::unique_ptr<InitializationResult> InitializeOncePerProcess(
+inline std::shared_ptr<InitializationResult> InitializeOncePerProcess(
     const std::vector<std::string>& args,
     std::initializer_list<ProcessInitializationFlags::Flags> list) {
   uint64_t flags_accum = ProcessInitializationFlags::kNoFlags;
@@ -537,6 +537,7 @@ class EmbedderSnapshotData {
   // If the snapshot is invalid, this returns an empty pointer.
   static Pointer FromFile(FILE* in);
   static Pointer FromBlob(const std::vector<char>& in);
+  static Pointer FromBlob(std::string_view in);
 
   // Write this EmbedderSnapshotData object to an output file.
   // Calling this method will not close the FILE* handle.
@@ -656,7 +657,11 @@ enum Flags : uint64_t {
   // This control is needed by embedders who may not want to initialize the V8
   // inspector in situations where one has already been created,
   // e.g. Blink's in Chromium.
-  kNoCreateInspector = 1 << 9
+  kNoCreateInspector = 1 << 9,
+  // Controls where or not the InspectorAgent for this Environment should
+  // call StartDebugSignalHandler.  This control is needed by embedders who may
+  // not want to allow other processes to start the V8 inspector.
+  kNoStartDebugSignalHandler = 1 << 10
 };
 }  // namespace EnvironmentFlags
 

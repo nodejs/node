@@ -10,12 +10,11 @@
 
 namespace v8::internal {
 
-// This is just a collection of compression scheme related functions. Having
-// such a class allows plugging different decompression scheme in certain
-// places by introducing another CompressionScheme class with a customized
-// implementation. This is useful, for example, for Code::code
-// field (see InstructionStreamSlot).
-class V8HeapCompressionScheme {
+// This is just a collection of common compression scheme related functions.
+// Each pointer compression cage then has its own compression scheme, which
+// mainly differes in the cage base address they use.
+template <typename Cage>
+class V8HeapCompressionSchemeImpl {
  public:
   V8_INLINE static Address GetPtrComprCageBaseAddress(Address on_heap_addr);
 
@@ -50,9 +49,13 @@ class V8HeapCompressionScheme {
 
   // Process-wide cage base value used for decompression.
   V8_INLINE static void InitBase(Address base);
-  V8_INLINE static Address base();
+  V8_CONST V8_INLINE static Address base();
+};
 
- private:
+// The main pointer compression cage, used for most objects.
+class MainCage : public AllStatic {
+  friend class V8HeapCompressionSchemeImpl<MainCage>;
+
   // These non-inlined accessors to base_ field are used in component builds
   // where cross-component access to thread local variables is not allowed.
   static V8_EXPORT_PRIVATE Address base_non_inlined();
@@ -64,12 +67,46 @@ class V8HeapCompressionScheme {
   static thread_local uintptr_t base_ V8_CONSTINIT;
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 };
+using V8HeapCompressionScheme = V8HeapCompressionSchemeImpl<MainCage>;
+
+#ifdef V8_ENABLE_SANDBOX
+// Compression scheme used for compressed pointers between trusted objects in
+// the trusted heap space, outside of the sandbox.
+class TrustedCage : public AllStatic {
+  friend class V8HeapCompressionSchemeImpl<TrustedCage>;
+
+  // The TrustedCage is only used in the shared cage build configuration, so
+  // there is no need for a thread_local version.
+  static V8_EXPORT_PRIVATE uintptr_t base_ V8_CONSTINIT;
+};
+using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
+#else
+// The trusted cage does not exist in this case.
+using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
+#endif  // V8_ENABLE_SANDBOX
+
+// A compression scheme which can be passed if the only objects we ever expect
+// to see are Smis (e.g. for {TaggedField<Smi, 0, SmiCompressionScheme>}).
+class SmiCompressionScheme : public AllStatic {
+ public:
+  static Address DecompressTaggedSigned(Tagged_t raw_value) {
+    // For runtime code the upper 32-bits of the Smi value do not matter.
+    return static_cast<Address>(raw_value);
+  }
+
+  static Tagged_t CompressObject(Address tagged) {
+    V8_ASSUME(HAS_SMI_TAG(tagged));
+    return static_cast<Tagged_t>(tagged);
+  }
+};
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-
 // Compression scheme used for fields containing InstructionStream objects
 // (namely for the Code::code field). Same as
 // V8HeapCompressionScheme but with a different base value.
+// TODO(ishell): consider also using V8HeapCompressionSchemeImpl here unless
+// this becomes a different compression scheme that allows crossing the 4GB
+// boundary.
 class ExternalCodeCompressionScheme {
  public:
   V8_INLINE static Address PrepareCageBaseAddress(Address on_heap_addr);

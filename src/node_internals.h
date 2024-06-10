@@ -370,6 +370,7 @@ typedef struct tm TIME_TYPE;
 #endif
 
 double GetCurrentTimeInMicroseconds();
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count);
 int WriteFileSync(const char* path, uv_buf_t buf);
 int WriteFileSync(v8::Isolate* isolate,
                   const char* path,
@@ -413,10 +414,6 @@ using HeapSnapshotPointer =
 BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Environment* env, HeapSnapshotPointer&& snapshot);
 }  // namespace heap
-
-namespace fs {
-std::string Basename(const std::string& str, const std::string& extension);
-}  // namespace fs
 
 node_module napi_module_to_node_module(const napi_module* mod);
 

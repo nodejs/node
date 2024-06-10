@@ -9,14 +9,16 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
+#include "src/heap/main-allocator.h"
 
 namespace v8 {
 namespace internal {
 
 class AllocationObserver;
 class CodeLargeObjectSpace;
-class ConcurrentAllocator;
 class Heap;
+class LocalHeap;
+class LinearAllocationArea;
 class MainAllocator;
 class NewSpace;
 class NewLargeObjectSpace;
@@ -29,9 +31,12 @@ class Space;
 // right bottleneck.
 class V8_EXPORT_PRIVATE HeapAllocator final {
  public:
-  explicit HeapAllocator(Heap*);
+  explicit HeapAllocator(LocalHeap*);
 
-  void Setup();
+  // Set up all LABs for this LocalHeap.
+  void Setup(LinearAllocationArea* new_allocation_info = nullptr,
+             LinearAllocationArea* old_allocation_info = nullptr);
+
   void SetReadOnlySpace(ReadOnlySpace*);
 
   // Supports all `AllocationType` types.
@@ -76,27 +81,50 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
   static void SetAllocationGcInterval(int allocation_gc_interval);
   static void InitializeOncePerProcess();
+
+  int get_allocation_timeout_for_testing() const { return allocation_timeout_; }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-  void MakeLinearAllocationAreaIterable();
+  // Give up all LABs. Used for e.g. full GCs.
+  void FreeLinearAllocationAreas();
 
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
+  // Make all LABs iterable.
+  void MakeLinearAllocationAreasIterable();
+
+#if DEBUG
+  void VerifyLinearAllocationAreas() const;
+#endif  // DEBUG
+
+  // Mark/Unmark all LABs except for new and shared space. Use for black
+  // allocation.
+  void MarkLinearAllocationAreasBlack();
+  void UnmarkLinearAllocationsArea();
+
+  // Mark/Unmark linear allocation areas in shared heap black. Used for black
+  // allocation.
+  void MarkSharedLinearAllocationAreasBlack();
+  void UnmarkSharedLinearAllocationAreas();
 
   void PauseAllocationObservers();
   void ResumeAllocationObservers();
+
+  void PublishPendingAllocations();
 
   void AddAllocationObserver(AllocationObserver* observer,
                              AllocationObserver* new_space_observer);
   void RemoveAllocationObserver(AllocationObserver* observer,
                                 AllocationObserver* new_space_observer);
 
-  MainAllocator* new_space_allocator() { return new_space_allocator_; }
-  MainAllocator* old_space_allocator() { return old_space_allocator_; }
-  MainAllocator* trusted_space_allocator() { return trusted_space_allocator_; }
-  MainAllocator* code_space_allocator() { return code_space_allocator_; }
-  ConcurrentAllocator* shared_space_allocator() {
-    return shared_old_allocator_;
+  MainAllocator* new_space_allocator() { return &new_space_allocator_.value(); }
+  MainAllocator* old_space_allocator() { return &old_space_allocator_.value(); }
+  MainAllocator* trusted_space_allocator() {
+    return &trusted_space_allocator_.value();
+  }
+  MainAllocator* code_space_allocator() {
+    return &code_space_allocator_.value();
+  }
+  MainAllocator* shared_space_allocator() {
+    return &shared_space_allocator_.value();
   }
 
  private:
@@ -127,16 +155,18 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   void IncrementObjectCounters();
 #endif  // DEBUG
 
+  LocalHeap* local_heap_;
   Heap* const heap_;
   Space* spaces_[LAST_SPACE + 1];
   ReadOnlySpace* read_only_space_;
 
-  MainAllocator* new_space_allocator_;
-  MainAllocator* old_space_allocator_;
-  MainAllocator* trusted_space_allocator_;
-  MainAllocator* code_space_allocator_;
+  base::Optional<MainAllocator> new_space_allocator_;
+  base::Optional<MainAllocator> old_space_allocator_;
+  base::Optional<MainAllocator> trusted_space_allocator_;
+  base::Optional<MainAllocator> code_space_allocator_;
 
-  ConcurrentAllocator* shared_old_allocator_;
+  // Allocators for the shared spaces.
+  base::Optional<MainAllocator> shared_space_allocator_;
   OldLargeObjectSpace* shared_lo_space_;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

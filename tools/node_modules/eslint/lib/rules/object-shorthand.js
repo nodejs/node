@@ -284,35 +284,22 @@ module.exports = {
             const arrowToken = sourceCode.getTokenBefore(node.value.body, astUtils.isArrowToken);
             const fnBody = sourceCode.text.slice(arrowToken.range[1], node.value.range[1]);
 
-            let shouldAddParensAroundParameters = false;
-            let tokenBeforeParams;
+            // First token should not be `async`
+            const firstValueToken = sourceCode.getFirstToken(node.value, {
+                skip: node.value.async ? 1 : 0
+            });
 
-            if (node.value.params.length === 0) {
-                tokenBeforeParams = sourceCode.getFirstToken(node.value, astUtils.isOpeningParenToken);
-            } else {
-                tokenBeforeParams = sourceCode.getTokenBefore(node.value.params[0]);
-            }
-
-            if (node.value.params.length === 1) {
-                const hasParen = astUtils.isOpeningParenToken(tokenBeforeParams);
-                const isTokenOutsideNode = tokenBeforeParams.range[0] < node.range[0];
-
-                shouldAddParensAroundParameters = !hasParen || isTokenOutsideNode;
-            }
-
-            const sliceStart = shouldAddParensAroundParameters
-                ? node.value.params[0].range[0]
-                : tokenBeforeParams.range[0];
+            const sliceStart = firstValueToken.range[0];
             const sliceEnd = sourceCode.getTokenBefore(arrowToken).range[1];
+            const shouldAddParens = node.value.params.length === 1 && node.value.params[0].range[0] === sliceStart;
 
             const oldParamText = sourceCode.text.slice(sliceStart, sliceEnd);
-            const newParamText = shouldAddParensAroundParameters ? `(${oldParamText})` : oldParamText;
+            const newParamText = shouldAddParens ? `(${oldParamText})` : oldParamText;
 
             return fixer.replaceTextRange(
                 fixRange,
                 methodPrefix + newParamText + fnBody
             );
-
         }
 
         /**
@@ -497,6 +484,13 @@ module.exports = {
                         node,
                         messageId: "expectedPropertyShorthand",
                         fix(fixer) {
+
+                            // x: /* */ x
+                            // x: (/* */ x)
+                            if (sourceCode.getCommentsInside(node).length > 0) {
+                                return null;
+                            }
+
                             return fixer.replaceText(node, node.value.name);
                         }
                     });
@@ -510,6 +504,13 @@ module.exports = {
                         node,
                         messageId: "expectedPropertyShorthand",
                         fix(fixer) {
+
+                            // "x": /* */ x
+                            // "x": (/* */ x)
+                            if (sourceCode.getCommentsInside(node).length > 0) {
+                                return null;
+                            }
+
                             return fixer.replaceText(node, node.value.name);
                         }
                     });

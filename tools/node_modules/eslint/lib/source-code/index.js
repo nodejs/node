@@ -1,5 +1,7 @@
 "use strict";
 
+const SourceCode = require("./source-code");
+
 module.exports = {
-    SourceCode: require("./source-code")
+    SourceCode
 };

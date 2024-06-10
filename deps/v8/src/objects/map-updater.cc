@@ -969,6 +969,10 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
 }
 
 MapUpdater::State MapUpdater::ConstructNewMap() {
+#ifdef DEBUG
+  Handle<EnumCache> old_enum_cache =
+      handle(old_map_->instance_descriptors()->enum_cache(), isolate_);
+#endif
   Handle<DescriptorArray> new_descriptors = BuildDescriptorArray();
 
   Handle<Map> split_map = FindSplitMap(new_descriptors);
@@ -1036,17 +1040,30 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   Handle<Map> new_map =
       Map::AddMissingTransitions(isolate_, split_map, new_descriptors);
 
+  bool had_any_enum_cache =
+      split_map->instance_descriptors(isolate_)
+              ->enum_cache()
+              ->keys()
+              ->length() > 0 ||
+      old_descriptors_->enum_cache()->keys()->length() > 0;
+
   // Deprecated part of the transition tree is no longer reachable, so replace
   // current instance descriptors in the "survived" part of the tree with
   // the new descriptors to maintain descriptors sharing invariant.
   split_map->ReplaceDescriptors(isolate_, *new_descriptors);
 
-  // If the old descriptors had an enum cache, make sure the new ones do too.
-  if (old_descriptors_->enum_cache()->keys()->length() > 0 &&
-      new_map->NumberOfEnumerableProperties() > 0) {
+  // If the old descriptors had an enum cache (or if {split_map}'s descriptors
+  // had one), make sure the new ones do too.
+  if (had_any_enum_cache && new_map->NumberOfEnumerableProperties() > 0) {
     FastKeyAccumulator::InitializeFastPropertyEnumCache(
         isolate_, new_map, new_map->NumberOfEnumerableProperties());
   }
+
+  // The old map has to still point to the old enum cache. This is because we
+  // might have cached the enum indices, for iterating over objects with the old
+  // map -- we don't want this enum cache to move ownership to the new branch,
+  // because then it might get trimmed past the old map's field count.
+  DCHECK_EQ(old_map_->instance_descriptors()->enum_cache(), *old_enum_cache);
 
   if (has_integrity_level_transition_) {
     target_map_ = new_map;
@@ -1129,7 +1146,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
                                  const MaybeObjectHandle& new_wrapped_type) {
-  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeak());
+  DCHECK(IsSmi(*new_wrapped_type) || IsWeak(*new_wrapped_type));
   // We store raw pointers in the queue, so no allocations are allowed.
   PropertyDetails details =
       map->instance_descriptors(isolate)->GetDetails(descriptor);

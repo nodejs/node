@@ -49,14 +49,19 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
 
 // Looks up the capture of the given name. Returns the (1-based) numbered
 // capture index or -1 on failure.
+// The lookup starts at index |index_in_out|. On success |index_in_out| is set
+// to the index after the entry was found (i.e. the start index to continue the
+// search in the presence of duplicate group names).
 int LookupNamedCapture(const std::function<bool(Tagged<String>)>& name_matches,
-                       Tagged<FixedArray> capture_name_map) {
+                       Tagged<FixedArray> capture_name_map, int* index_in_out) {
+  DCHECK_GE(*index_in_out, 0);
   // TODO(jgruber): Sort capture_name_map and do binary search via
   // internalized strings.
 
   int maybe_capture_index = -1;
   const int named_capture_count = capture_name_map->length() >> 1;
-  for (int j = 0; j < named_capture_count; j++) {
+  DCHECK_LE(*index_in_out, named_capture_count);
+  for (int j = *index_in_out; j < named_capture_count; j++) {
     // The format of {capture_name_map} is documented at
     // JSRegExp::kIrregexpCaptureNameMapIndex.
     const int name_ix = j * 2;
@@ -66,6 +71,7 @@ int LookupNamedCapture(const std::function<bool(Tagged<String>)>& name_matches,
     if (!name_matches(capture_name)) continue;
 
     maybe_capture_index = Smi::ToInt(capture_name_map->get(index_ix));
+    *index_in_out = j + 1;
     break;
   }
 
@@ -269,33 +275,40 @@ class CompiledReplacement {
               break;
             }
 
+            if (i > last) {
+              parts_.emplace_back(
+                  ReplacementPart::ReplacementSubString(last, i));
+            }
+
             base::Vector<Char> requested_name =
                 characters.SubVector(name_start_index, closing_bracket_index);
-
-            // Let capture be ? Get(namedCaptures, groupName).
-
-            const int capture_index = LookupNamedCapture(
-                [=](Tagged<String> capture_name) {
-                  return capture_name->IsEqualTo(requested_name);
-                },
-                capture_name_map);
 
             // If capture is undefined or does not exist, replace the text
             // through the following '>' with the empty string.
             // Otherwise, replace the text through the following '>' with
             // ? ToString(capture).
+            // For duplicated capture group names we don't know which of them
+            // matches at this point in time, so we create a seperate
+            // replacement for each possible match. When applying the
+            // replacement unmatched groups will be skipped.
 
-            DCHECK(capture_index == -1 ||
-                   (1 <= capture_index && capture_index <= capture_count));
+            int capture_index = 0;
+            int capture_name_map_index = 0;
+            while (capture_index != -1) {
+              capture_index = LookupNamedCapture(
+                  [=](Tagged<String> capture_name) {
+                    return capture_name->IsEqualTo(requested_name);
+                  },
+                  capture_name_map, &capture_name_map_index);
+              DCHECK(capture_index == -1 ||
+                     (1 <= capture_index && capture_index <= capture_count));
 
-            if (i > last) {
               parts_.emplace_back(
-                  ReplacementPart::ReplacementSubString(last, i));
+                  capture_index == -1
+                      ? ReplacementPart::EmptyReplacement()
+                      : ReplacementPart::SubjectCapture(capture_index));
             }
-            parts_.emplace_back(
-                (capture_index == -1)
-                    ? ReplacementPart::EmptyReplacement()
-                    : ReplacementPart::SubjectCapture(capture_index));
+
             last = closing_bracket_index + 1;
             i = closing_bracket_index;
             break;
@@ -1006,12 +1019,12 @@ class MatchInfoBackedMatch : public String::Match {
   }
 
   Handle<String> GetPrefix() override {
-    const int match_start = match_info_->Capture(0);
+    const int match_start = match_info_->capture(0);
     return isolate_->factory()->NewSubString(subject_, 0, match_start);
   }
 
   Handle<String> GetSuffix() override {
-    const int match_end = match_info_->Capture(1);
+    const int match_end = match_info_->capture(1);
     return isolate_->factory()->NewSubString(subject_, match_end,
                                              subject_->length());
   }
@@ -1019,7 +1032,7 @@ class MatchInfoBackedMatch : public String::Match {
   bool HasNamedCaptures() override { return has_named_captures_; }
 
   int CaptureCount() override {
-    return match_info_->NumberOfCaptureRegisters() / 2;
+    return match_info_->number_of_capture_registers() / 2;
   }
 
   MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
@@ -1032,31 +1045,29 @@ class MatchInfoBackedMatch : public String::Match {
   MaybeHandle<String> GetNamedCapture(Handle<String> name,
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
-    const int capture_index = LookupNamedCapture(
-        [=](Tagged<String> capture_name) {
-          return capture_name->Equals(*name);
-        },
-        *capture_name_map_);
-
-    if (capture_index == -1) {
-      *state = UNMATCHED;
-      return isolate_->factory()->empty_string();
-    }
-
-    DCHECK(1 <= capture_index && capture_index <= CaptureCount());
-
-    bool capture_exists;
-    Handle<String> capture_value;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_value,
-                               GetCapture(capture_index, &capture_exists),
-                               String);
-
-    if (!capture_exists) {
-      *state = UNMATCHED;
-      return isolate_->factory()->empty_string();
-    } else {
-      *state = MATCHED;
-      return capture_value;
+    int capture_index = 0;
+    int capture_name_map_index = 0;
+    while (true) {
+      capture_index = LookupNamedCapture(
+          [=](Tagged<String> capture_name) {
+            return capture_name->Equals(*name);
+          },
+          *capture_name_map_, &capture_name_map_index);
+      if (capture_index == -1) {
+        *state = UNMATCHED;
+        return isolate_->factory()->empty_string();
+      }
+      if (RegExpUtils::IsMatchedCapture(*match_info_, capture_index)) {
+        Handle<String> capture_value;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate_, capture_value,
+            Object::ToString(isolate_,
+                             RegExpUtils::GenericCaptureGetter(
+                                 isolate_, match_info_, capture_index)),
+            String);
+        *state = MATCHED;
+        return capture_value;
+      }
     }
   }
 
@@ -1116,6 +1127,15 @@ class VectorBackedMatch : public String::Match {
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
 
+    // Strings representing integer indices are not valid identifiers (and
+    // therefore not valid capture names).
+    {
+      size_t unused;
+      if (name->AsIntegerIndex(&unused)) {
+        *state = UNMATCHED;
+        return isolate_->factory()->empty_string();
+      }
+    }
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
                                Object::GetProperty(isolate_, groups_obj_, name),
@@ -1160,7 +1180,20 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
     DCHECK(IsUndefined(*capture_value, isolate) || IsString(*capture_value));
 
-    JSObject::AddProperty(isolate, groups, capture_name, capture_value, NONE);
+    LookupIterator it(isolate, groups, capture_name, groups,
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    if (it.IsFound()) {
+      DCHECK(v8_flags.js_regexp_duplicate_named_groups);
+      if (!IsUndefined(*capture_value, isolate)) {
+        DCHECK(IsUndefined(*it.GetDataValue(), isolate));
+        CHECK(Object::SetDataProperty(&it, capture_value).ToChecked());
+      }
+    } else {
+      CHECK(Object::AddDataProperty(&it, capture_value, NONE,
+                                    Just(ShouldThrow::kThrowOnError),
+                                    StoreOrigin::kNamed)
+                .IsJust());
+    }
   }
 
   return groups;
@@ -1323,8 +1356,8 @@ static Tagged<Object> SearchRegExpMultiple(
       for (int i = 0; i < capture_registers; i++) {
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
-      Handle<FixedArray> result_fixed_array =
-          FixedArray::ShrinkOrEmpty(isolate, builder.array(), builder.length());
+      Handle<FixedArray> result_fixed_array = FixedArray::RightTrimOrEmpty(
+          isolate, builder.array(), builder.length());
       // Cache the result and copy the FixedArray into a COW array.
       Handle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1388,8 +1421,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
 
     auto match_indices = Handle<RegExpMatchInfo>::cast(match_indices_obj);
 
-    const int start_index = match_indices->Capture(0);
-    const int end_index = match_indices->Capture(1);
+    const int start_index = match_indices->capture(0);
+    const int end_index = match_indices->capture(1);
 
     if (sticky) {
       regexp->set_last_index(Smi::FromInt(end_index), SKIP_WRITE_BARRIER);
@@ -1529,8 +1562,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   Handle<RegExpMatchInfo> match_indices =
       Handle<RegExpMatchInfo>::cast(match_indices_obj);
 
-  const int index = match_indices->Capture(0);
-  const int end_of_match = match_indices->Capture(1);
+  const int index = match_indices->capture(0);
+  const int end_of_match = match_indices->capture(1);
 
   if (sticky) {
     regexp->set_last_index(Smi::FromInt(end_of_match), SKIP_WRITE_BARRIER);
@@ -1544,7 +1577,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   // named captures, they are also passed as the last argument.
 
   // The number of captures plus one for the match.
-  const int m = match_indices->NumberOfCaptureRegisters() / 2;
+  const int m = match_indices->number_of_capture_registers() / 2;
 
   bool has_named_captures = false;
   Handle<FixedArray> capture_map;
@@ -1625,7 +1658,7 @@ Handle<JSArray> NewJSArrayWithElements(Isolate* isolate,
                                        Handle<FixedArray> elems,
                                        int num_elems) {
   return isolate->factory()->NewJSArrayWithElements(
-      FixedArray::ShrinkOrEmpty(isolate, elems, num_elems));
+      FixedArray::RightTrimOrEmpty(isolate, elems, num_elems));
 }
 
 }  // namespace

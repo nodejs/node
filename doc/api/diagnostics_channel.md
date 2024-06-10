@@ -1131,6 +1131,26 @@ Emitted when a new TCP or pipe client socket is created.
 
 Emitted when a new TCP or pipe connection is received.
 
+`tracing:net.server.listen:asyncStart`
+
+* `server` {net.Server}
+* `options` {Object}
+
+Emitted when [`net.Server.listen()`][] is invoked, before the port or pipe is actually setup.
+
+`tracing:net.server.listen:asyncEnd`
+
+* `server` {net.Server}
+
+Emitted when [`net.Server.listen()`][] has completed and thus the server is ready to accept connection.
+
+`tracing:net.server.listen:error`
+
+* `server` {net.Server}
+* `error` {Error}
+
+Emitted when [`net.Server.listen()`][] is returning an error.
+
 #### UDP
 
 `udp.socket`
@@ -1179,5 +1199,6 @@ Emitted when a new thread is created.
 [`diagnostics_channel.unsubscribe(name, onMessage)`]: #diagnostics_channelunsubscribename-onmessage
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`net.Server.listen()`]: net.md#serverlisten
 [`start` event]: #startevent
 [context loss]: async_context.md#troubleshooting-context-loss

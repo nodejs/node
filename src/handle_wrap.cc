@@ -149,8 +149,9 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   wrap->handle_wrap_queue_.Remove();
 
   if (!wrap->persistent().IsEmpty() &&
-      wrap->object()->Has(env->context(), env->handle_onclose_symbol())
-      .FromMaybe(false)) {
+      wrap->object()
+          ->Has(env->context(), env->handle_onclose_symbol())
+          .FromMaybe(false)) {
     wrap->MakeCallback(env->handle_onclose_symbol(), 0, nullptr);
   }
 }

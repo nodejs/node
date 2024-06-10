@@ -6,7 +6,8 @@
 
 <!-- source_link=lib/http.js -->
 
-To use the HTTP server and client one must `require('node:http')`.
+This module, containing both a client and server, can be imported via
+`require('node:http')` (CommonJS) or `import * as http from 'node:http'` (ES module).
 
 The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
@@ -38,7 +39,7 @@ property, which is an array of `[key, value, key2, value2, ...]`. For
 example, the previous message header object might have a `rawHeaders`
 list like the following:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 [ 'ConTent-Length', '123456',
@@ -179,9 +180,6 @@ changes:
     This will set the timeout when the socket is created.
 
 `options` in [`socket.connect()`][] are also supported.
-
-The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
-of these values set to their respective defaults.
 
 To configure any of them, a custom [`http.Agent`][] instance must be created.
 
@@ -1682,13 +1680,59 @@ connected to this server which are not sending a request or waiting for
 a response.
 See [`net.Server.close()`][].
 
+```js
+const http = require('node:http');
+
+const server = http.createServer({ keepAliveTimeout: 60000 }, (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+// Close the server after 10 seconds
+setTimeout(() => {
+  server.close(() => {
+    console.log('server on port 8000 closed successfully');
+  });
+}, 10000);
+```
+
 ### `server.closeAllConnections()`
 
 <!-- YAML
 added: v18.2.0
 -->
 
-Closes all connections connected to this server.
+Closes all connections connected to this server, including active connections
+connected to this server which are sending a request or waiting for a response.
+
+> This is a forceful way of closing all connections and should be used with
+> caution. Whenever using this in conjunction with `server.close`, calling this
+> _after_ `server.close` is recommended as to avoid race conditions where new
+> connections are created between a call to this and a call to `server.close`.
+
+```js
+const http = require('node:http');
+
+const server = http.createServer({ keepAliveTimeout: 60000 }, (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+// Close the server after 10 seconds
+setTimeout(() => {
+  server.close(() => {
+    console.log('server on port 8000 closed successfully');
+  });
+  // Closes all connections, ensuring the server closes successfully
+  server.closeAllConnections();
+}, 10000);
+```
 
 ### `server.closeIdleConnections()`
 
@@ -1698,6 +1742,37 @@ added: v18.2.0
 
 Closes all connections connected to this server which are not sending a request
 or waiting for a response.
+
+> Starting with Node.js 19.0.0, there's no need for calling this method in
+> conjunction with `server.close` to reap `keep-alive` connections. Using it
+> won't cause any harm though, and it can be useful to ensure backwards
+> compatibility for libraries and applications that need to support versions
+> older than 19.0.0. Whenever using this in conjunction with `server.close`,
+> calling this _after_ `server.close` is recommended as to avoid race
+> conditions where new connections are created between a call to this and a
+> call to `server.close`.
+
+```js
+const http = require('node:http');
+
+const server = http.createServer({ keepAliveTimeout: 60000 }, (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+// Close the server after 10 seconds
+setTimeout(() => {
+  server.close(() => {
+    console.log('server on port 8000 closed successfully');
+  });
+  // Closes idle connections, such as keep-alive connections. Server will close
+  // once remaining active connections are terminated
+  server.closeIdleConnections();
+}, 10000);
+```
 
 ### `server.headersTimeout`
 
@@ -2889,30 +2964,33 @@ Accept: text/plain
 To parse the URL into its parts:
 
 ```js
-new URL(request.url, `http://${request.headers.host}`);
+new URL(`http://${process.env.HOST ?? 'localhost'}${request.url}`);
 ```
 
-When `request.url` is `'/status?name=ryan'` and `request.headers.host` is
-`'localhost:3000'`:
+When `request.url` is `'/status?name=ryan'` and `process.env.HOST` is undefined:
 
 ```console
 $ node
-> new URL(request.url, `http://${request.headers.host}`)
+> new URL(`http://${process.env.HOST ?? 'localhost'}${request.url}`);
 URL {
-  href: 'http://localhost:3000/status?name=ryan',
-  origin: 'http://localhost:3000',
+  href: 'http://localhost/status?name=ryan',
+  origin: 'http://localhost',
   protocol: 'http:',
   username: '',
   password: '',
-  host: 'localhost:3000',
+  host: 'localhost',
   hostname: 'localhost',
-  port: '3000',
+  port: '',
   pathname: '/status',
   search: '?name=ryan',
   searchParams: URLSearchParams { 'name' => 'ryan' },
   hash: ''
 }
 ```
+
+Ensure that you set `process.env.HOST` to the server's host name, or consider
+replacing this part entirely. If using `req.headers.host`, ensure proper
+validation is used, as clients may specify a custom `Host` header.
 
 ## Class: `http.OutgoingMessage`
 
@@ -3654,13 +3732,15 @@ changes:
   - version:
       - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
-    description: The agent now uses HTTP Keep-Alive by default.
+    description: The agent now uses HTTP Keep-Alive and a 5 second timeout by
+                 default.
 -->
 
 * {http.Agent}
 
 Global instance of `Agent` which is used as the default for all HTTP client
-requests.
+requests. Diverges from a default `Agent` configuration by having `keepAlive`
+enabled and a `timeout` of 5 seconds.
 
 ## `http.maxHeaderSize`
 

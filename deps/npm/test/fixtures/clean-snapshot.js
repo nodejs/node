@@ -1,4 +1,4 @@
-const { relative, dirname } = require('path')
+const { relative, dirname } = require('node:path')
 
 // normalize line endings (for ini)
 const cleanNewlines = (s) => s.replace(/\r\n/g, '\n')

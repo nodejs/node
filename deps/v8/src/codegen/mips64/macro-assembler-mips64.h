@@ -226,6 +226,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFromConstantsTable(Register destination, int constant_index) final;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
+  void StoreRootRelative(int32_t offset, Register value) final;
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -268,12 +269,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
+  void TailCallBuiltin(Builtin builtin, Condition cond, Register type,
+                       Operand range);
 
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(Register destination,
-                                Register code_data_container_object);
-  void CallCodeObject(Register code_data_container_object);
+                                Register code_data_container_object,
+                                CodeEntrypointTag tag);
+  void CallCodeObject(Register code_data_container_object,
+                      CodeEntrypointTag tag);
   void JumpCodeObject(Register code_data_container_object,
+                      CodeEntrypointTag tag,
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
@@ -577,10 +583,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // garbage collection, since that might move the code and invalidate the
   // return address (unless this is somehow accounted for by the called
   // function).
-  enum class SetIsolateDataSlots {
-    kNo,
-    kYes,
-  };
   void CallCFunction(
       ExternalReference function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes);
@@ -1108,7 +1110,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
-                               BranchDelaySlot bd = PROTECT,
                                bool builtin_exit_frame = false);
 
   // ---------------------------------------------------------------------------

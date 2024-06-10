@@ -215,9 +215,9 @@ var require_brace_expansion = __commonJS({
   }
 });
 
-// dist/cjs/assert-valid-pattern.js
+// dist/commonjs/assert-valid-pattern.js
 var require_assert_valid_pattern = __commonJS({
-  "dist/cjs/assert-valid-pattern.js"(exports2) {
+  "dist/commonjs/assert-valid-pattern.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.assertValidPattern = void 0;
@@ -234,9 +234,9 @@ var require_assert_valid_pattern = __commonJS({
   }
 });
 
-// dist/cjs/brace-expressions.js
+// dist/commonjs/brace-expressions.js
 var require_brace_expressions = __commonJS({
-  "dist/cjs/brace-expressions.js"(exports2) {
+  "dist/commonjs/brace-expressions.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseClass = void 0;
@@ -352,9 +352,9 @@ var require_brace_expressions = __commonJS({
   }
 });
 
-// dist/cjs/unescape.js
+// dist/commonjs/unescape.js
 var require_unescape = __commonJS({
-  "dist/cjs/unescape.js"(exports2) {
+  "dist/commonjs/unescape.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.unescape = void 0;
@@ -365,9 +365,9 @@ var require_unescape = __commonJS({
   }
 });
 
-// dist/cjs/ast.js
+// dist/commonjs/ast.js
 var require_ast = __commonJS({
-  "dist/cjs/ast.js"(exports2) {
+  "dist/commonjs/ast.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AST = void 0;
@@ -646,6 +646,9 @@ var require_ast = __commonJS({
           _glob: glob
         });
       }
+      get options() {
+        return this.#options;
+      }
       // returns the string match, the regexp source, whether there's magic
       // in the regexp (so a regular expression is required) and whether or
       // not the uflag is needed for the regular expression (for posix classes)
@@ -851,9 +854,9 @@ var require_ast = __commonJS({
   }
 });
 
-// dist/cjs/escape.js
+// dist/commonjs/escape.js
 var require_escape = __commonJS({
-  "dist/cjs/escape.js"(exports2) {
+  "dist/commonjs/escape.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.escape = void 0;
@@ -864,7 +867,7 @@ var require_escape = __commonJS({
   }
 });
 
-// dist/cjs/index.js
+// dist/commonjs/index.js
 var __importDefault = exports && exports.__importDefault || function(mod) {
   return mod && mod.__esModule ? mod : { "default": mod };
 };
@@ -1479,7 +1482,10 @@ var Minimatch = class {
       fastTest = dotStarTest;
     }
     const re = ast_js_1.AST.fromGlob(pattern, this.options).toMMPattern();
-    return fastTest ? Object.assign(re, { test: fastTest }) : re;
+    if (fastTest && typeof re === "object") {
+      Reflect.defineProperty(re, "test", { value: fastTest });
+    }
+    return re;
   }
   makeRe() {
     if (this.regexp || this.regexp === false)

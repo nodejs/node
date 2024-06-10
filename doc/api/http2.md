@@ -3587,7 +3587,7 @@ Accept: text/plain
 
 Then `request.url` will be:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 '/status?name=ryan'

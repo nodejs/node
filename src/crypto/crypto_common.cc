@@ -209,6 +209,8 @@ bool SetGroups(SecureContext* sc, const char* groups) {
   return SSL_CTX_set1_groups_list(sc->ctx().get(), groups) == 1;
 }
 
+// When adding or removing errors below, please also update the list in the API
+// documentation. See the "OpenSSL Error Codes" section of doc/api/errors.md
 const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
   const char* code = "UNSPECIFIED";
 #define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: code = #CODE; break;
@@ -815,8 +817,7 @@ static bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
 }
 
 bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
-  const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
-  CHECK(method == X509V3_EXT_get_nid(NID_subject_alt_name));
+  CHECK_EQ(OBJ_obj2nid(X509_EXTENSION_get_object(ext)), NID_subject_alt_name);
 
   GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
   if (names == nullptr)
@@ -840,8 +841,7 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
 }
 
 bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
-  const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
-  CHECK(method == X509V3_EXT_get_nid(NID_info_access));
+  CHECK_EQ(OBJ_obj2nid(X509_EXTENSION_get_object(ext)), NID_info_access);
 
   AUTHORITY_INFO_ACCESS* descs =
       static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(ext));

@@ -458,7 +458,13 @@ Environment* CreateEnvironment(
   if (use_snapshot) {
     context = Context::FromSnapshot(isolate,
                                     SnapshotData::kNodeMainContextIndex,
-                                    {DeserializeNodeInternalFields, env})
+                                    v8::DeserializeInternalFieldsCallback(
+                                        DeserializeNodeInternalFields, env),
+                                    nullptr,
+                                    MaybeLocal<Value>(),
+                                    nullptr,
+                                    v8::DeserializeContextDataCallback(
+                                        DeserializeNodeContextData, env))
                   .ToLocalChecked();
 
     CHECK(!context.IsEmpty());
@@ -546,6 +552,7 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   if (preload) {
     env->set_embedder_preload(std::move(preload));
   }
+  env->InitializeCompileCache();
 
   return StartExecution(env, cb);
 }

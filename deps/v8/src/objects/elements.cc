@@ -25,6 +25,7 @@
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots.h"
 #include "src/utils/utils.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
 // several abstract ElementsAccessor classes are used to allow sharing
@@ -145,6 +146,7 @@ enum Where { AT_START, AT_END };
   V(Uint8ClampedElementsAccessor, UINT8_CLAMPED_ELEMENTS, ByteArray)          \
   V(BigUint64ElementsAccessor, BIGUINT64_ELEMENTS, ByteArray)                 \
   V(BigInt64ElementsAccessor, BIGINT64_ELEMENTS, ByteArray)                   \
+  V(Float16ElementsAccessor, FLOAT16_ELEMENTS, ByteArray)                     \
   V(RabGsabUint8ElementsAccessor, RAB_GSAB_UINT8_ELEMENTS, ByteArray)         \
   V(RabGsabInt8ElementsAccessor, RAB_GSAB_INT8_ELEMENTS, ByteArray)           \
   V(RabGsabUint16ElementsAccessor, RAB_GSAB_UINT16_ELEMENTS, ByteArray)       \
@@ -156,7 +158,8 @@ enum Where { AT_START, AT_END };
   V(RabGsabUint8ClampedElementsAccessor, RAB_GSAB_UINT8_CLAMPED_ELEMENTS,     \
     ByteArray)                                                                \
   V(RabGsabBigUint64ElementsAccessor, RAB_GSAB_BIGUINT64_ELEMENTS, ByteArray) \
-  V(RabGsabBigInt64ElementsAccessor, RAB_GSAB_BIGINT64_ELEMENTS, ByteArray)
+  V(RabGsabBigInt64ElementsAccessor, RAB_GSAB_BIGINT64_ELEMENTS, ByteArray)   \
+  V(RabGsabFloat16ElementsAccessor, RAB_GSAB_FLOAT16_ELEMENTS, ByteArray)
 
 template <ElementsKind Kind>
 class ElementsKindTraits {
@@ -488,7 +491,7 @@ void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
 
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
-  AtomicSlot start(indices->GetFirstElementAddress());
+  AtomicSlot start(indices->RawFieldOfFirstElement());
   AtomicSlot end(start + sort_size);
   std::sort(start, end, [isolate](Tagged_t elementA, Tagged_t elementB) {
 #ifdef V8_COMPRESS_POINTERS
@@ -835,14 +838,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         // Do not trim from short arrays to prevent frequent trimming on
         // repeated pop operations.
         // Leave some space to allow for subsequent push operations.
-        int elements_to_trim = length + 1 == old_length
-                                   ? (capacity - length) / 2
-                                   : capacity - length;
-        isolate->heap()->RightTrimFixedArray(*backing_store, elements_to_trim);
+        uint32_t new_capacity =
+            length + 1 == old_length ? (capacity + length) / 2 : length;
+        DCHECK_LT(new_capacity, capacity);
+        isolate->heap()->RightTrimArray(BackingStore::cast(*backing_store),
+                                        new_capacity, capacity);
         // Fill the non-trimmed elements with holes.
         BackingStore::cast(*backing_store)
-            ->FillWithHoles(length,
-                            std::min(old_length, capacity - elements_to_trim));
+            ->FillWithHoles(length, std::min(old_length, new_capacity));
       } else {
         // Otherwise, fill the unused tail with holes.
         BackingStore::cast(*backing_store)->FillWithHoles(length, old_length);
@@ -1218,7 +1221,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   V8_WARN_UNUSED_RESULT ExceptionStatus CollectElementIndices(
       Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
       KeyAccumulator* keys) final {
-    if (keys->filter() & ONLY_ALL_CAN_READ) return ExceptionStatus::kSuccess;
     return Subclass::CollectElementIndicesImpl(object, backing_store, keys);
   }
 
@@ -1347,7 +1349,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       // Shrink combined_keys to the final size.
       int final_size = nof_indices + nof_property_keys;
       DCHECK_LE(final_size, combined_keys->length());
-      return FixedArray::ShrinkOrEmpty(isolate, combined_keys, final_size);
+      return FixedArray::RightTrimOrEmpty(isolate, combined_keys, final_size);
     }
 
     return combined_keys;
@@ -1774,7 +1776,6 @@ class DictionaryElementsAccessor
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
     if (filter & SKIP_STRINGS) return list;
-    if (filter & ONLY_ALL_CAN_READ) return list;
 
     Handle<NumberDictionary> dictionary =
         Handle<NumberDictionary>::cast(backing_store);
@@ -2069,6 +2070,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
   static void DeleteAtEnd(Handle<JSObject> obj,
                           Handle<BackingStore> backing_store, uint32_t entry) {
     uint32_t length = static_cast<uint32_t>(backing_store->length());
+    DCHECK_LT(entry, length);
     Isolate* isolate = obj->GetIsolate();
     for (; entry > 0; entry--) {
       if (!backing_store->is_the_hole(isolate, entry - 1)) break;
@@ -2085,7 +2087,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       return;
     }
 
-    isolate->heap()->RightTrimFixedArray(*backing_store, length - entry);
+    isolate->heap()->RightTrimArray(*backing_store, entry, length);
   }
 
   static void DeleteCommon(Handle<JSObject> obj, uint32_t entry,
@@ -2165,8 +2167,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(object);
     entry = InternalIndex(
         dictionary->FindEntry(object->GetIsolate(), entry.as_uint32()));
-    DictionaryElementsAccessor::ReconfigureImpl(object, dictionary, entry,
-                                                value, attributes);
+    DictionaryElementsAccessor::ReconfigureImpl(
+        object, Handle<FixedArrayBase>::cast(dictionary), entry, value,
+        attributes);
   }
 
   static Maybe<bool> AddImpl(Handle<JSObject> object, uint32_t index,
@@ -2272,9 +2275,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     if (IsSmiElementsKind(KindTraits::Kind)) {
       HandleScope scope(isolate);
       for (int i = 0; i < length_int; i++) {
-        DCHECK(IsSmi(*BackingStore::get(backing_store, i, isolate)) ||
-               (IsHoleyElementsKind(KindTraits::Kind) &&
-                backing_store->is_the_hole(isolate, i)));
+        Tagged<Object> element = FixedArray::cast(backing_store)->get(i);
+        DCHECK(IsSmi(element) || (IsHoleyElementsKind(KindTraits::Kind) &&
+                                  IsTheHole(element, isolate)));
       }
     } else if (KindTraits::Kind == PACKED_ELEMENTS ||
                KindTraits::Kind == PACKED_DOUBLE_ELEMENTS) {
@@ -3071,6 +3074,12 @@ class FastHoleyObjectElementsAccessor
           FastHoleyObjectElementsAccessor, ElementsKindTraits<HOLEY_ELEMENTS>> {
 };
 
+// Helper templates to statically determine if our destination type can contain
+// the source type.
+template <ElementsKind Kind, typename ElementType, ElementsKind SourceKind,
+          typename SourceElementType>
+struct CopyBetweenBackingStoresImpl;
+
 template <typename Subclass, typename KindTraits>
 class FastDoubleElementsAccessor
     : public FastElementsAccessor<Subclass, KindTraits> {
@@ -3481,6 +3490,26 @@ class TypedElementsAccessor
     return Just(true);
   }
 
+  static bool ToTypedSearchValue(double search_value,
+                                 ElementType* typed_search_value) {
+    if (!base::IsValueInRangeForNumericType<ElementType>(search_value) &&
+        std::isfinite(search_value)) {
+      // Return true if value can't be represented in this space.
+      return true;
+    }
+    ElementType typed_value;
+    if (IsFloat16TypedArrayElementsKind(Kind)) {
+      typed_value = fp16_ieee_from_fp32_value(static_cast<float>(search_value));
+      *typed_search_value = typed_value;
+      return (static_cast<double>(fp16_ieee_to_fp32_value(typed_value)) !=
+              search_value);  // Loss of precision.
+    }
+    typed_value = static_cast<ElementType>(search_value);
+    *typed_search_value = typed_value;
+    return static_cast<double>(typed_value) !=
+           search_value;  // Loss of precision.
+  }
+
   static MaybeHandle<Object> FillImpl(Handle<JSObject> receiver,
                                       Handle<Object> value, size_t start,
                                       size_t end) {
@@ -3564,27 +3593,27 @@ class TypedElementsAccessor
       double search_value = Object::Number(*value);
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
-        if (!(Kind == FLOAT32_ELEMENTS || Kind == FLOAT64_ELEMENTS ||
-              Kind == RAB_GSAB_FLOAT32_ELEMENTS ||
-              Kind == RAB_GSAB_FLOAT64_ELEMENTS)) {
+        if (!IsFloatTypedArrayElementsKind(Kind)) {
           return Just(false);
         }
         if (std::isnan(search_value)) {
           for (size_t k = start_from; k < length; ++k) {
-            double elem_k = static_cast<double>(
-                AccessorClass::GetImpl(data_ptr + k, is_shared));
-            if (std::isnan(elem_k)) return Just(true);
+            if (IsFloat16TypedArrayElementsKind(Kind)) {
+              float elem_k = fp16_ieee_to_fp32_value(
+                  AccessorClass::GetImpl(data_ptr + k, is_shared));
+              if (std::isnan(elem_k)) return Just(true);
+            } else {
+              double elem_k = static_cast<double>(
+                  AccessorClass::GetImpl(data_ptr + k, is_shared));
+              if (std::isnan(elem_k)) return Just(true);
+            }
           }
           return Just(false);
         }
-      } else if (!base::IsValueInRangeForNumericType<ElementType>(
-                     search_value)) {
-        // Return false if value can't be represented in this space.
-        return Just(false);
       }
-      typed_search_value = static_cast<ElementType>(search_value);
-      if (static_cast<double>(typed_search_value) != search_value) {
-        return Just(false);  // Loss of precision.
+      if (AccessorClass::ToTypedSearchValue(search_value,
+                                            &typed_search_value)) {
+        return Just(false);
       }
     }
 
@@ -3623,7 +3652,6 @@ class TypedElementsAccessor
 
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array->DataPtr());
-
     if (IsBigIntTypedArrayElementsKind(Kind)) {
       if (!IsBigInt(*value)) return Just<int64_t>(-1);
       bool lossless;
@@ -3640,14 +3668,10 @@ class TypedElementsAccessor
         if (std::isnan(search_value)) {
           return Just<int64_t>(-1);
         }
-      } else if (!base::IsValueInRangeForNumericType<ElementType>(
-                     search_value)) {
-        // Return false if value can't be represented in this ElementsKind.
-        return Just<int64_t>(-1);
       }
-      typed_search_value = static_cast<ElementType>(search_value);
-      if (static_cast<double>(typed_search_value) != search_value) {
-        return Just<int64_t>(-1);  // Loss of precision.
+      if (AccessorClass::ToTypedSearchValue(search_value,
+                                            &typed_search_value)) {
+        return Just<int64_t>(-1);
       }
     }
 
@@ -3680,21 +3704,18 @@ class TypedElementsAccessor
       if (!IsNumber(*value)) return Just<int64_t>(-1);
       double search_value = Object::Number(*value);
       if (!std::isfinite(search_value)) {
-        if (std::is_integral<ElementType>::value) {
+        if (!IsFloat16TypedArrayElementsKind(Kind) &&
+            std::is_integral<ElementType>::value) {
           // Integral types cannot represent +Inf or NaN.
           return Just<int64_t>(-1);
         } else if (std::isnan(search_value)) {
           // Strict Equality Comparison of NaN is always false.
           return Just<int64_t>(-1);
         }
-      } else if (!base::IsValueInRangeForNumericType<ElementType>(
-                     search_value)) {
-        // Return -1 if value can't be represented in this ElementsKind.
-        return Just<int64_t>(-1);
       }
-      typed_search_value = static_cast<ElementType>(search_value);
-      if (static_cast<double>(typed_search_value) != search_value) {
-        return Just<int64_t>(-1);  // Loss of precision.
+      if (AccessorClass::ToTypedSearchValue(search_value,
+                                            &typed_search_value)) {
+        return Just<int64_t>(-1);
       }
     }
 
@@ -3807,7 +3828,8 @@ class TypedElementsAccessor
   // TODO(v8:11111): Update this once we have external RAB / GSAB array types.
   static bool HasSimpleRepresentation(ExternalArrayType type) {
     return !(type == kExternalFloat32Array || type == kExternalFloat64Array ||
-             type == kExternalUint8ClampedArray);
+             type == kExternalUint8ClampedArray ||
+             type == kExternalFloat16Array);
   }
 
   template <ElementsKind SourceKind, typename SourceElementType>
@@ -3815,15 +3837,10 @@ class TypedElementsAccessor
                                        ElementType* dest_data_ptr,
                                        size_t length,
                                        IsSharedBuffer is_shared) {
-    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
-      // We use scalar accessors to avoid boxing/unboxing, so there are no
-      // allocations.
-      SourceElementType source_elem =
-          TypedElementsAccessor<SourceKind, SourceElementType>::GetImpl(
-              source_data_ptr, is_shared);
-      ElementType dest_elem = FromScalar(source_elem);
-      SetImpl(dest_data_ptr, dest_elem, is_shared);
-    }
+    CopyBetweenBackingStoresImpl<Kind, ElementType, SourceKind,
+                                 SourceElementType>::Copy(source_data_ptr,
+                                                          dest_data_ptr, length,
+                                                          is_shared);
   }
 
   static void CopyElementsFromTypedArray(Tagged<JSTypedArray> source,
@@ -3978,8 +3995,12 @@ class TypedElementsAccessor
 
       for (size_t i = 0; i < length; i++) {
         Tagged<Object> elem = source_store->get(static_cast<int>(i));
-        SetImpl(dest_data + i, FromScalar(Smi::ToInt(elem)),
-                destination_shared);
+        ElementType elem_k;
+        if (IsFloat16TypedArrayElementsKind(Kind))
+          elem_k = fp16_ieee_from_fp32_value(Smi::ToInt(elem));
+        else
+          elem_k = FromScalar(Smi::ToInt(elem));
+        SetImpl(dest_data + i, elem_k, destination_shared);
       }
       return true;
     } else if (kind == HOLEY_SMI_ELEMENTS) {
@@ -3989,8 +4010,12 @@ class TypedElementsAccessor
           SetImpl(dest_data + i, FromObject(undefined), destination_shared);
         } else {
           Tagged<Object> elem = source_store->get(static_cast<int>(i));
-          SetImpl(dest_data + i, FromScalar(Smi::ToInt(elem)),
-                  destination_shared);
+          ElementType elem_k;
+          if (IsFloat16TypedArrayElementsKind(Kind))
+            elem_k = fp16_ieee_from_fp32_value(Smi::ToInt(elem));
+          else
+            elem_k = FromScalar(Smi::ToInt(elem));
+          SetImpl(dest_data + i, elem_k, destination_shared);
         }
       }
       return true;
@@ -4128,6 +4153,69 @@ class TypedElementsAccessor
   }
 };
 
+template <ElementsKind Kind, typename ElementType, ElementsKind SourceKind,
+          typename SourceElementType>
+struct CopyBetweenBackingStoresImpl {
+  static void Copy(SourceElementType* source_data_ptr,
+                   ElementType* dest_data_ptr, size_t length,
+                   IsSharedBuffer is_shared) {
+    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
+      // We use scalar accessors to avoid boxing/unboxing, so there are no
+      // allocations.
+      SourceElementType source_elem =
+          TypedElementsAccessor<SourceKind, SourceElementType>::GetImpl(
+              source_data_ptr, is_shared);
+      ElementType dest_elem =
+          TypedElementsAccessor<Kind, ElementType>::FromScalar(source_elem);
+
+      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
+                                                        dest_elem, is_shared);
+    }
+  }
+};
+
+template <ElementsKind Kind, typename ElementType>
+struct CopyBetweenBackingStoresImpl<Kind, ElementType, FLOAT16_ELEMENTS,
+                                    uint16_t> {
+  static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
+                   size_t length, IsSharedBuffer is_shared) {
+    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
+      // We use scalar accessors to avoid boxing/unboxing, so there are no
+      // allocations.
+      uint16_t source_elem =
+          TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::GetImpl(
+              source_data_ptr, is_shared);
+      ElementType dest_elem =
+          TypedElementsAccessor<Kind, ElementType>::FromScalar(
+              fp16_ieee_to_fp32_value(source_elem));
+
+      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
+                                                        dest_elem, is_shared);
+    }
+  }
+};
+
+template <ElementsKind Kind, typename ElementType>
+struct CopyBetweenBackingStoresImpl<Kind, ElementType,
+                                    RAB_GSAB_FLOAT16_ELEMENTS, uint16_t> {
+  static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
+                   size_t length, IsSharedBuffer is_shared) {
+    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
+      // We use scalar accessors to avoid boxing/unboxing, so there are no
+      // allocations.
+      uint16_t source_elem =
+          TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::GetImpl(
+              source_data_ptr, is_shared);
+      ElementType dest_elem =
+          TypedElementsAccessor<Kind, ElementType>::FromScalar(
+              fp16_ieee_to_fp32_value(source_elem));
+
+      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
+                                                        dest_elem, is_shared);
+    }
+  }
+};
+
 // static
 template <>
 Handle<Object> TypedElementsAccessor<INT8_ELEMENTS, int8_t>::ToHandle(
@@ -4172,8 +4260,36 @@ Handle<Object> TypedElementsAccessor<UINT32_ELEMENTS, uint32_t>::ToHandle(
 
 // static
 template <>
+uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+    double value) {
+  return DoubleToFloat16(value);
+}
+
+// static
+template <>
 float TypedElementsAccessor<FLOAT32_ELEMENTS, float>::FromScalar(double value) {
   return DoubleToFloat32(value);
+}
+
+// static
+template <>
+uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+    int value) {
+  return fp16_ieee_from_fp32_value(value);
+}
+
+// static
+template <>
+uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+    uint32_t value) {
+  return fp16_ieee_from_fp32_value(value);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::ToHandle(
+    Isolate* isolate, uint16_t value) {
+  return isolate->factory()->NewNumber(fp16_ieee_to_fp32_value(value));
 }
 
 // static
@@ -4376,6 +4492,35 @@ Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT32_ELEMENTS,
                                      uint32_t>::ToHandle(Isolate* isolate,
                                                          uint32_t value) {
   return isolate->factory()->NewNumberFromUint(value);
+}
+
+// static
+template <>
+uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+    double value) {
+  return DoubleToFloat16(value);
+}
+
+// static
+template <>
+uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+    int value) {
+  return fp16_ieee_from_fp32_value(value);
+}
+
+// static
+template <>
+uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::FromScalar(
+    uint32_t value) {
+  return fp16_ieee_from_fp32_value(value);
+}
+
+// static
+template <>
+Handle<Object> TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS,
+                                     uint16_t>::ToHandle(Isolate* isolate,
+                                                         uint16_t value) {
+  return isolate->factory()->NewHeapNumber(fp16_ieee_to_fp32_value(value));
 }
 
 // static
@@ -4947,8 +5092,7 @@ class SlowSloppyArgumentsElementsAccessor
     Isolate* isolate = object->GetIsolate();
     Handle<SloppyArgumentsElements> elements(
         SloppyArgumentsElements::cast(object->elements()), isolate);
-    Handle<FixedArrayBase> old_arguments(
-        FixedArrayBase::cast(elements->arguments()), isolate);
+    Handle<FixedArrayBase> old_arguments(elements->arguments(), isolate);
     Handle<NumberDictionary> dictionary =
         IsNumberDictionary(*old_arguments)
             ? Handle<NumberDictionary>::cast(old_arguments)
@@ -5492,13 +5636,20 @@ void CopyTypedArrayElementsSlice(Address raw_source, Address raw_destination,
 }
 
 void ElementsAccessor::InitializeOncePerProcess() {
-  static ElementsAccessor* accessor_array[] = {
+  // Here we create an array with more entries than element kinds.
+  // This is due to the sandbox: this array is indexed with an ElementsKind
+  // read directly from within the sandbox, which must therefore be considered
+  // attacker-controlled. An ElementsKind is a uint8_t under the hood, so we
+  // can either use an array with 256 entries or have an explicit bounds-check
+  // on access. The latter is probably more expensive.
+  static_assert(std::is_same_v<std::underlying_type_t<ElementsKind>, uint8_t>);
+  static ElementsAccessor* accessor_array[256] = {
 #define ACCESSOR_ARRAY(Class, Kind, Store) new Class(),
       ELEMENTS_LIST(ACCESSOR_ARRAY)
 #undef ACCESSOR_ARRAY
   };
 
-  static_assert((sizeof(accessor_array) / sizeof(*accessor_array)) ==
+  static_assert((sizeof(accessor_array) / sizeof(*accessor_array)) >=
                 kElementsKindCount);
 
   elements_accessors_ = accessor_array;

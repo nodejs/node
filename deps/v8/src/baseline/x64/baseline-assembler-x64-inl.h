@@ -77,7 +77,9 @@ MemOperand BaselineAssembler::FeedbackCellOperand() {
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
 void BaselineAssembler::JumpTarget() {
-  // NOP on x64.
+#ifdef V8_ENABLE_CET_IBT
+  __ endbr64();
+#endif
 }
 
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {

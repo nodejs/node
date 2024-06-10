@@ -27,7 +27,7 @@ If you find a potential security vulnerability, please refer to our
 
 <!-- type=misc -->
 
-> Stability: 1 - Experimental
+> Stability: 0 - Deprecated: Will be removed shortly
 
 <!-- name=policy -->
 
@@ -482,7 +482,7 @@ flag.
 
 When starting Node.js with `--experimental-permission`,
 the ability to access the file system through the `fs` module, spawn processes,
-use `node:worker_threads`, native addons, and enable the runtime inspector
+use `node:worker_threads`, use native addons, use WASI, and enable the runtime inspector
 will be restricted.
 
 ```console
@@ -507,7 +507,7 @@ Allowing access to spawning a process and creating worker threads can be done
 using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
 To allow native addons when using permission model, use the [`--allow-addons`][]
-flag.
+flag. For WASI, use the [`--allow-wasi`][] flag.
 
 #### Runtime API
 
@@ -574,18 +574,18 @@ There are constraints you need to know before using this system:
   * Worker Threads
   * Inspector protocol
   * File system access
+  * WASI
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
   not subject to the rules of the Permission Model.
 * OpenSSL engines cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
+* Using existing file descriptors via the `node:fs` module bypasses the
+  Permission Model.
 
 #### Limitations and Known Issues
 
-* When the permission model is enabled, Node.js may resolve some paths
-  differently than when it is disabled.
-* Relative paths are not supported through the CLI (`--allow-fs-*`).
 * Symbolic links will be followed even to locations outside of the set of paths
   that access has been granted to. Relative symbolic links may allow access to
   arbitrary files and directories. When starting applications with the
@@ -598,6 +598,7 @@ There are constraints you need to know before using this system:
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
+[`--allow-wasi`]: cli.md#--allow-wasi
 [`--allow-worker`]: cli.md#--allow-worker
 [`--experimental-permission`]: cli.md#--experimental-permission
 [`permission.has()`]: process.md#processpermissionhasscope-reference

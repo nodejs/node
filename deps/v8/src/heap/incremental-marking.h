@@ -15,7 +15,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/tasks/cancelable-task.h"
 
 namespace v8 {
@@ -158,6 +158,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void PauseBlackAllocation();
   void FinishBlackAllocation();
 
+  void StartPointerTableBlackAllocation();
+  void StopPointerTableBlackAllocation();
+
   void MarkRoots();
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
@@ -207,7 +210,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   Observer new_generation_observer_;
   Observer old_generation_observer_;
   base::Mutex background_live_bytes_mutex_;
-  std::unordered_map<MemoryChunk*, intptr_t, base::hash<MemoryChunk*>>
+  std::unordered_map<MutablePageMetadata*, intptr_t,
+                     base::hash<MutablePageMetadata*>>
       background_live_bytes_;
   std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
   base::Optional<uint64_t> current_trace_id_;

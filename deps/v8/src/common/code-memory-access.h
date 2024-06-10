@@ -12,7 +12,7 @@
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {
@@ -25,8 +25,6 @@ namespace internal {
 // - CodePageHeaderModificationScope:
 //     Used when we write to the page header of CodeSpace pages. Only needed on
 //     Apple Silicon where we can't have RW- pages in the RWX space.
-// - CodePageMemoryModificationScope:
-//     Allows access to the allocation area of the CodeSpace pages.
 // - CodePageMemoryModificationScopeForDebugging:
 //     A scope only used in non-release builds, e.g. for code zapping.
 // - wasm::CodeSpaceWriteScope:
@@ -38,7 +36,6 @@ namespace internal {
 // - RwxMemoryWriteScopeForTesting:
 //     Same, but for use in testing.
 
-class CodePageMemoryModificationScope;
 class RwxMemoryWriteScopeForTesting;
 namespace wasm {
 class CodeSpaceWriteScope;
@@ -105,11 +102,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // Returns true if current configuration supports fast write-protection of
   // executable pages.
   V8_INLINE static bool IsSupported();
-  // An untrusted version of this check, i.e. the result might be
-  // attacker-controlled if we assume memory corruption. This is needed in
-  // signal handlers in which we might not have read access to the trusted
-  // memory.
-  V8_INLINE static bool IsSupportedUntrusted();
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int memory_protection_key();
@@ -123,7 +115,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
  private:
-  friend class CodePageMemoryModificationScope;
   friend class RwxMemoryWriteScopeForTesting;
   friend class wasm::CodeSpaceWriteScope;
 
@@ -201,8 +192,6 @@ class V8_EXPORT ThreadIsolation {
   // region more quickly without switching the write permissions all the time.
   static WritableJitPage LookupWritableJitPage(Address addr, size_t size);
 
-  static void UnregisterInstructionStreamsInPageExcept(
-      MemoryChunk* chunk, const std::vector<Address>& keep);
   static void UnregisterWasmAllocation(Address addr, size_t size);
 
   // Check for a potential dead lock in case we want to lookup the jit
@@ -210,21 +199,15 @@ class V8_EXPORT ThreadIsolation {
   static bool CanLookupStartOfJitAllocationAt(Address inner_pointer);
   static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
 
-  // Public for testing. Please use the wasm/js specific functions above.
-  static void UnregisterJitAllocationsInPageExceptForTesting(
-      Address page, size_t page_size, const std::vector<Address>& keep);
   static void RegisterJitAllocationForTesting(Address obj, size_t size);
   static void UnregisterJitAllocationForTesting(Address addr, size_t size);
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }
-  // A copy of the pkey, but taken from untrusted memory. This function should
-  // only be used to grant read access to the pkey, never for write access.
-  static int untrusted_pkey() { return untrusted_data_.pkey; }
 #endif
 
 #if DEBUG
-  static bool initialized() { return untrusted_data_.initialized; }
+  static bool initialized() { return trusted_data_.initialized; }
   static void CheckTrackedMemoryEmpty();
 #endif
 
@@ -272,7 +255,7 @@ class V8_EXPORT ThreadIsolation {
 
   // All accesses to the JitPage go through the JitPageReference class, which
   // will guard it against concurrent access.
-  class JitPageReference {
+  class V8_EXPORT JitPageReference {
    public:
     JitPageReference(class JitPage* page, Address address);
     JitPageReference(JitPageReference&&) V8_NOEXCEPT = default;
@@ -289,12 +272,13 @@ class V8_EXPORT ThreadIsolation {
     void UnregisterAllocation(base::Address addr);
     void UnregisterAllocationsExcept(base::Address start, size_t size,
                                      const std::vector<base::Address>& addr);
+    void UnregisterRange(base::Address addr, size_t size);
 
     base::Address StartOfAllocationAt(base::Address inner_pointer);
     std::pair<base::Address, JitAllocation&> AllocationContaining(
         base::Address addr);
 
-    bool Empty() const;
+    bool Empty() const { return jit_page_->allocations_.empty(); }
     void Shrink(class JitPage* tail);
     void Expand(size_t offset);
     void Merge(JitPageReference& next);
@@ -348,19 +332,13 @@ class V8_EXPORT ThreadIsolation {
 
     base::Mutex* jit_pages_mutex_;
     JitPageMap* jit_pages_;
-  };
 
-  struct UntrustedData {
 #if DEBUG
     bool initialized = false;
-#endif
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-    int pkey = -1;
 #endif
   };
 
   static struct TrustedData trusted_data_;
-  static struct UntrustedData untrusted_data_;
 
   static_assert(THREAD_ISOLATION_ALIGN_SZ == 0 ||
                 sizeof(trusted_data_) == THREAD_ISOLATION_ALIGN_SZ);
@@ -405,6 +383,9 @@ class WritableJitAllocation {
   WritableJitAllocation& operator=(const WritableJitAllocation&) = delete;
   V8_INLINE ~WritableJitAllocation();
 
+  static V8_INLINE WritableJitAllocation
+  ForInstructionStream(Tagged<InstructionStream> istream);
+
   // WritableJitAllocations are used during reloc iteration. But in some
   // cases, we relocate code off-heap, e.g. when growing AssemblerBuffers.
   // This function creates a WritableJitAllocation that doesn't unlock the
@@ -423,6 +404,11 @@ class WritableJitAllocation {
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag);
   template <typename T, size_t offset>
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag);
+  template <typename T, size_t offset>
+  V8_INLINE void WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                 RelaxedStoreTag);
+  template <typename T>
+  V8_INLINE void WriteHeaderSlot(Address address, T value, RelaxedStoreTag);
 
   // CopyCode and CopyData have the same implementation at the moment, but
   // they will diverge once we implement validation.
@@ -465,8 +451,47 @@ class WritableJitAllocation {
   friend class WritableJitPage;
 };
 
+// Similar to the WritableJitAllocation, all writes to free space should go
+// through this object since it adds validation that the writes are safe for
+// CFI.
+// For convenience, it can also be used for writes to non-executable memory for
+// which it will skip the CFI checks.
+class WritableFreeSpace {
+ public:
+  // This function can be used to create a WritableFreeSpace object for
+  // non-executable memory only, i.e. it won't perform CFI validation and
+  // doesn't unlock the code space.
+  // For executable memory, use the WritableJitPage::FreeRange function.
+  static V8_INLINE WritableFreeSpace ForNonExecutableMemory(base::Address addr,
+                                                            size_t size);
+
+  WritableFreeSpace(const WritableFreeSpace&) = delete;
+  WritableFreeSpace& operator=(const WritableFreeSpace&) = delete;
+  V8_INLINE ~WritableFreeSpace();
+
+  template <typename T, size_t offset>
+  V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) const;
+  template <size_t offset>
+  V8_INLINE void ClearTagged(size_t count) const;
+
+  base::Address Address() const { return address_; }
+  int Size() const { return size_; }
+  bool Executable() const { return executable_; }
+
+ private:
+  WritableFreeSpace(base::Address addr, size_t size, bool executable);
+
+  const base::Address address_;
+  const int size_;
+  const bool executable_;
+
+  friend class WritableJitPage;
+};
+
 class WritableJitPage {
  public:
+  V8_INLINE WritableJitPage(Address addr, size_t size);
+
   WritableJitPage(const WritableJitPage&) = delete;
   WritableJitPage& operator=(const WritableJitPage&) = delete;
   V8_INLINE ~WritableJitPage();
@@ -474,9 +499,11 @@ class WritableJitPage {
 
   V8_INLINE WritableJitAllocation LookupAllocationContaining(Address addr);
 
- private:
-  V8_INLINE WritableJitPage(Address addr, size_t size);
+  V8_INLINE WritableFreeSpace FreeRange(Address addr, size_t size);
 
+  bool Empty() const { return page_ref_.Empty(); }
+
+ private:
   RwxMemoryWriteScope write_scope_;
   ThreadIsolation::JitPageReference page_ref_;
 };

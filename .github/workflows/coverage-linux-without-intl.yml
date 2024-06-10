@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
   FLAKY_TESTS: keep_retrying
 
 permissions:
@@ -40,14 +40,22 @@ jobs:
   coverage-linux-without-intl:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    env:
+      CC: sccache gcc
+      CXX: sccache g++
+      SCCACHE_GHA_ENABLED: 'true'
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd  # v0.0.4
+        with:
+          version: v0.8.0
       - name: Environment Information
         run: npx envinfo
       - name: Install gcovr
@@ -68,7 +76,7 @@ jobs:
       - name: Clean tmp
         run: rm -rf coverage/tmp && rm -rf out
       - name: Upload
-        uses: codecov/codecov-action@54bcd8715eee62d40e33596ef5e8f0f48dbbccab  # v4.1.0
+        uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c  # v4.4.1
         with:
           directory: ./coverage
           token: ${{ secrets.CODECOV_TOKEN }}

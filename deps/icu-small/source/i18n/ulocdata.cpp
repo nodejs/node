@@ -16,6 +16,7 @@
 *   created by: Ram Viswanadha,John Emmons
 */
 
+#include "charstr.h"
 #include "cmemory.h"
 #include "unicode/ustring.h"
 #include "unicode/ures.h"
@@ -197,17 +198,20 @@ ulocdata_getDelimiter(ULocaleData *uld, ULocaleDataDelimiterType type,
     return len;
 }
 
-static UResourceBundle * measurementTypeBundleForLocale(const char *localeID, const char *measurementType, UErrorCode *status){
-    char region[ULOC_COUNTRY_CAPACITY];
+namespace {
+
+UResourceBundle * measurementTypeBundleForLocale(const char *localeID, const char *measurementType, UErrorCode *status){
+    if (U_FAILURE(*status)) { return nullptr; }
+
     UResourceBundle *rb;
     UResourceBundle *measTypeBundle = nullptr;
-    
-    ulocimp_getRegionForSupplementalData(localeID, true, region, ULOC_COUNTRY_CAPACITY, status);
-    
+
+    icu::CharString region = ulocimp_getRegionForSupplementalData(localeID, true, *status);
+
     rb = ures_openDirect(nullptr, "supplementalData", status);
     ures_getByKey(rb, "measurementData", rb, status);
     if (rb != nullptr) {
-        UResourceBundle *measDataBundle = ures_getByKey(rb, region, nullptr, status);
+        UResourceBundle *measDataBundle = ures_getByKey(rb, region.data(), nullptr, status);
         if (U_SUCCESS(*status)) {
         	measTypeBundle = ures_getByKey(measDataBundle, measurementType, nullptr, status);
         }
@@ -224,6 +228,8 @@ static UResourceBundle * measurementTypeBundleForLocale(const char *localeID, co
     ures_close(rb);
     return measTypeBundle;
 }
+
+}  // namespace
 
 U_CAPI UMeasurementSystem U_EXPORT2
 ulocdata_getMeasurementSystem(const char *localeID, UErrorCode *status){
@@ -275,6 +281,7 @@ ulocdata_getPaperSize(const char* localeID, int32_t *height, int32_t *width, UEr
 
 U_CAPI void U_EXPORT2
 ulocdata_getCLDRVersion(UVersionInfo versionArray, UErrorCode *status) {
+    if (U_FAILURE(*status)) { return; }
     UResourceBundle *rb = nullptr;
     rb = ures_openDirect(nullptr, "supplementalData", status);
     ures_getVersionByKey(rb, "cldrVersion", versionArray, status);

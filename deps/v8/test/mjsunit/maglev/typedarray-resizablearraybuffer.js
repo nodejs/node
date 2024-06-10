@@ -4,6 +4,7 @@
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax --maglev
 // Flags: --no-always-turbofan --turbo-rab-gsab
+// Flags: --js-float16array
 
 "use strict";
 

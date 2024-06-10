@@ -8,6 +8,9 @@ PREFIX ?= /usr/local
 FLAKY_TESTS ?= run
 TEST_CI_ARGS ?=
 STAGINGSERVER ?= node-www
+CLOUDFLARE_ENDPOINT ?= https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflarestorage.com
+CLOUDFLARE_BUCKET ?= dist-staging
+CLOUDFLARE_PROFILE ?= worker
 LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ifeq ($(findstring os/390,$OSTYPE),os/390)
@@ -143,7 +146,8 @@ endif
 ifdef JOBS
 	NINJA_ARGS := $(NINJA_ARGS) -j$(JOBS)
 else
-	NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
+	IMMEDIATE_NINJA_ARGS := $(NINJA_ARGS)
+	NINJA_ARGS = $(filter -j%,$(MAKEFLAGS))$(IMMEDIATE_NINJA_ARGS)
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
 	$(NINJA) -C out/Release $(NINJA_ARGS)
@@ -549,6 +553,7 @@ test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-nat
 test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
+		--skip-tests=$(CI_SKIP_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
@@ -1160,6 +1165,7 @@ pkg-upload: pkg
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME).pkg
 	scp -p $(TARNAME).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
 $(TARBALL): release-only doc-only
@@ -1190,7 +1196,7 @@ $(TARBALL): release-only doc-only
 	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
 	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
 	find $(TARNAME)/deps/zlib/contrib/* -type d ! -regex '.*/contrib/optimizations$$' | xargs $(RM) -r
-	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
+	find $(TARNAME)/ -name "eslint.config*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME).tar $(TARNAME)
 	$(RM) -r $(TARNAME)
@@ -1209,10 +1215,12 @@ tar-upload: tar
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME).tar.gz
 	scp -p $(TARNAME).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.gz.done"
 ifeq ($(XZ), 1)
 	chmod 664 $(TARNAME).tar.xz
 	scp -p $(TARNAME).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz.done"
 endif
 
@@ -1222,6 +1230,7 @@ doc-upload: doc
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/"
 	chmod -R ug=rw-x+X,o=r+X out/doc/
 	scp -pr out/doc/* $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
+	ssh $(STAGINGSERVER) "aws s3 cp --recursive nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/ --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
 
 .PHONY: $(TARBALL)-headers
@@ -1250,10 +1259,12 @@ tar-headers-upload: tar-headers
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME)-headers.tar.gz
 	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
 ifeq ($(XZ), 1)
 	chmod 664 $(TARNAME)-headers.tar.xz
 	scp -p $(TARNAME)-headers.tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
 endif
 
@@ -1295,10 +1306,12 @@ binary-upload: binary
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
 	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz.done"
 ifeq ($(XZ), 1)
 	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
 	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
+	ssh $(STAGINGSERVER) "aws s3 cp nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz s3://$(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz --endpoint=$(CLOUDFLARE_ENDPOINT) --profile=$(CLOUDFLARE_PROFILE)"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
@@ -1361,7 +1374,7 @@ format-md:
 
 
 
-LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
+LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
 	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
@@ -1512,15 +1525,15 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.0.272 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.0.272
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.4.5 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.4.5
 
 .PHONY: lint-py
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
 # Lint the Python code with ruff.
 lint-py:
 	tools/pip/site-packages/bin/ruff --version
-	tools/pip/site-packages/bin/ruff .
+	tools/pip/site-packages/bin/ruff check .
 else
 lint-py:
 	$(warning Python linting with ruff is not available)

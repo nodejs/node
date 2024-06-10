@@ -2,10 +2,10 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.27.0],
+AC_INIT([c-ares], [1.29.0],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="14:0:12"
+CARES_VERSION_INFO="16:0:14"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -334,15 +334,6 @@ case $host_os in
 esac
 AC_MSG_RESULT($need_xnet)
 
-dnl resolv lib for Apple (MacOS and iOS)
-AS_IF([test "x$host_vendor" = "xapple"], [
-  AC_SEARCH_LIBS([res_servicename], [resolv], [
-    AC_DEFINE([CARES_USE_LIBRESOLV], [1], [Use resolver library to configure cares])
-  ], [
-    AC_MSG_ERROR([Unable to find libresolv which is required for iPhone targets])
-  ])
-])
-
 dnl resolv lib for z/OS
 AS_IF([test "x$host_vendor" = "xibm" -a "x$host_os" = "xopenedition" ], [
   AC_SEARCH_LIBS([res_init], [resolv], [
@@ -436,6 +427,7 @@ AC_CHECK_HEADERS(
        netioapi.h \
        netdb.h \
        netinet/in.h \
+       netinet6/in6.h \
        netinet/tcp.h \
        net/if.h \
        ifaddrs.h \

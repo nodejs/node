@@ -13,6 +13,78 @@ namespace v8 {
 namespace internal {
 
 // static
+template <typename T, typename CompressionScheme>
+Address TaggedMember<T, CompressionScheme>::tagged_to_full(
+    Tagged_t tagged_value) {
+#ifdef V8_COMPRESS_POINTERS
+  if constexpr (std::is_same_v<Smi, T>) {
+    V8_ASSUME(HAS_SMI_TAG(tagged_value));
+    return CompressionScheme::DecompressTaggedSigned(tagged_value);
+  } else {
+    return CompressionScheme::DecompressTagged(GetPtrComprCageBase(),
+                                               tagged_value);
+  }
+#else
+  return tagged_value;
+#endif
+}
+
+// static
+template <typename T, typename CompressionScheme>
+Tagged_t TaggedMember<T, CompressionScheme>::full_to_tagged(Address value) {
+#ifdef V8_COMPRESS_POINTERS
+  return CompressionScheme::CompressObject(value);
+#else
+  return value;
+#endif
+}
+
+template <typename T, typename CompressionScheme>
+Tagged<T> TaggedMember<T, CompressionScheme>::load() const {
+  return Tagged<T>(tagged_to_full(ptr()));
+}
+
+template <typename T, typename CompressionScheme>
+void TaggedMember<T, CompressionScheme>::store(HeapObjectLayout* host,
+                                               Tagged<T> value,
+                                               WriteBarrierMode mode) {
+  store_no_write_barrier(value);
+
+#ifndef V8_DISABLE_WRITE_BARRIERS
+  if constexpr (!std::is_same_v<Smi, T>) {
+#if V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
+    mode = UPDATE_WRITE_BARRIER;
+#endif
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(Tagged(host)));
+    CombinedWriteBarrier(host, this, value, mode);
+  }
+#endif
+}
+
+template <typename T, typename CompressionScheme>
+Tagged<T> TaggedMember<T, CompressionScheme>::Relaxed_Load() const {
+  return Tagged<T>(
+      tagged_to_full(AsAtomicTagged::Relaxed_Load(this->ptr_location())));
+}
+
+template <typename T, typename CompressionScheme>
+void TaggedMember<T, CompressionScheme>::store_no_write_barrier(
+    Tagged<T> value) {
+#ifdef V8_ATOMIC_OBJECT_FIELD_WRITES
+  Relaxed_Store_no_write_barrier(value);
+#else
+  *this->ptr_location() = full_to_tagged(value.ptr());
+#endif
+}
+
+template <typename T, typename CompressionScheme>
+void TaggedMember<T, CompressionScheme>::Relaxed_Store_no_write_barrier(
+    Tagged<T> value) {
+  AsAtomicTagged::Relaxed_Store(this->ptr_location(),
+                                full_to_tagged(value.ptr()));
+}
+
+// static
 template <typename T, int kFieldOffset, typename CompressionScheme>
 Address TaggedField<T, kFieldOffset, CompressionScheme>::address(
     Tagged<HeapObject> host, int offset) {
@@ -32,10 +104,9 @@ template <typename TOnHeapAddress>
 Address TaggedField<T, kFieldOffset, CompressionScheme>::tagged_to_full(
     TOnHeapAddress on_heap_addr, Tagged_t tagged_value) {
 #ifdef V8_COMPRESS_POINTERS
-  if (kIsSmi) {
+  if constexpr (kIsSmi) {
+    V8_ASSUME(HAS_SMI_TAG(tagged_value));
     return CompressionScheme::DecompressTaggedSigned(tagged_value);
-  } else if (kIsHeapObject) {
-    return CompressionScheme::DecompressTagged(on_heap_addr, tagged_value);
   } else {
     return CompressionScheme::DecompressTagged(on_heap_addr, tagged_value);
   }
@@ -49,9 +120,7 @@ template <typename T, int kFieldOffset, typename CompressionScheme>
 Tagged_t TaggedField<T, kFieldOffset, CompressionScheme>::full_to_tagged(
     Address value) {
 #ifdef V8_COMPRESS_POINTERS
-  if (std::is_base_of<MaybeObject, T>::value) {
-    return CompressionScheme::CompressAny(value);
-  }
+  if constexpr (kIsSmi) V8_ASSUME(HAS_SMI_TAG(value));
   return CompressionScheme::CompressObject(value);
 #else
   return value;

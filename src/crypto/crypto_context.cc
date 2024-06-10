@@ -53,7 +53,7 @@ static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
 static bool extra_root_certs_loaded = false;
 
-inline X509_STORE* GetOrCreateRootCertStore() {
+X509_STORE* GetOrCreateRootCertStore() {
   // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
   static X509_STORE* store = NewRootCertStore();
   return store;
@@ -140,6 +140,8 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   return ret;
 }
 
+}  // namespace
+
 // Read a file that contains our certificate in "PEM" format,
 // possibly followed by a sequence of CA certificates that should be
 // sent to the peer in the Certificate message.
@@ -193,8 +195,6 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        cert,
                                        issuer);
 }
-
-}  // namespace
 
 X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
@@ -998,6 +998,7 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
 
   int32_t sessionTimeout = args[0].As<Int32>()->Value();
+  CHECK_GE(sessionTimeout, 0);
   SSL_CTX_set_timeout(sc->ctx_.get(), sessionTimeout);
 }
 

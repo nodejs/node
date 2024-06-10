@@ -79,7 +79,7 @@ module.exports = {
                 const after = leftToken.value === "*";
                 const spaceRequired = mode[side];
                 const node = after ? leftToken : rightToken;
-                let messageId = "";
+                let messageId;
 
                 if (spaceRequired) {
                     messageId = side === "before" ? "missingBefore" : "missingAfter";

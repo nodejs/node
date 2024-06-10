@@ -102,7 +102,9 @@ namespace internal {
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")         \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")           \
   V(kInvalidReceiver, "Expected JS object or primitive object")                \
-  V(kUnexpectedInstanceType, "Unexpected instance type encountered")
+  V(kUnexpectedInstanceType, "Unexpected instance type encountered")           \
+  V(kTurboshaftTypeAssertionFailed,                                            \
+    "A type assertion failed in Turboshaft-generated code")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \

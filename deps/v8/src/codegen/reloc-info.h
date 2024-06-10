@@ -408,9 +408,11 @@ class RelocInfo {
 
 class WritableRelocInfo : public RelocInfo {
  public:
-  WritableRelocInfo(Address pc, Mode rmode) : RelocInfo(pc, rmode) {}
-  WritableRelocInfo(Address pc, Mode rmode, intptr_t data,
-                    Address constant_pool)
+  WritableRelocInfo(WritableJitAllocation& jit_allocation, Address pc,
+                    Mode rmode)
+      : RelocInfo(pc, rmode) {}
+  WritableRelocInfo(WritableJitAllocation& jit_allocation, Address pc,
+                    Mode rmode, intptr_t data, Address constant_pool)
       : RelocInfo(pc, rmode, data, constant_pool) {}
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
@@ -511,8 +513,8 @@ class RelocIteratorBase {
   }
 
  protected:
-  RelocIteratorBase(Address pc, Address constant_pool, const uint8_t* pos,
-                    const uint8_t* end, int mode_mask);
+  V8_INLINE RelocIteratorBase(RelocInfoT reloc_info, const uint8_t* pos,
+                              const uint8_t* end, int mode_mask);
 
   // Used for efficiently skipping unwanted modes.
   bool SetMode(RelocInfo::Mode mode) {
@@ -541,6 +543,7 @@ class RelocIteratorBase {
   bool done_ = false;
   const int mode_mask_;
 };
+
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
     RelocIteratorBase<RelocInfo>;
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -549,15 +552,10 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class V8_EXPORT_PRIVATE RelocIterator : public RelocIteratorBase<RelocInfo> {
  public:
   // Prefer using this ctor when possible:
+  explicit RelocIterator(Tagged<InstructionStream> istream, int mode_mask);
+  // Convenience wrapper.
   explicit RelocIterator(Tagged<Code> code, int mode_mask = kAllModesMask);
-  // For when GC may be in progress and thus pointers on the Code object may be
-  // stale (or forwarding pointers); or when objects are not fully constructed,
-  // or we're operating on fake objects for some reason. Then, we pass relevant
-  // objects explicitly. Note they must all refer to the same underlying
-  // {Code,IStream} composite object.
-  explicit RelocIterator(Tagged<Code> code,
-                         Tagged<InstructionStream> instruction_stream,
-                         Tagged<ByteArray> relocation_info, int mode_mask);
+
   // For Wasm.
   explicit RelocIterator(base::Vector<uint8_t> instructions,
                          base::Vector<const uint8_t> reloc_info,
@@ -571,6 +569,10 @@ class V8_EXPORT_PRIVATE RelocIterator : public RelocIteratorBase<RelocInfo> {
   RelocIterator(RelocIterator&&) V8_NOEXCEPT = default;
   RelocIterator(const RelocIterator&) = delete;
   RelocIterator& operator=(const RelocIterator&) = delete;
+
+ private:
+  RelocIterator(Address pc, Address constant_pool, const uint8_t* pos,
+                const uint8_t* end, int mode_mask);
 };
 
 class V8_EXPORT_PRIVATE WritableRelocIterator

@@ -58,21 +58,21 @@ typedef struct ares__htable ares__htable_t;
  *                   but otherwise will not change between calls.
  *  \return hash
  */
-typedef unsigned int        (*ares__htable_hashfunc_t)(const void  *key,
+typedef unsigned int (*ares__htable_hashfunc_t)(const void  *key,
                                                 unsigned int seed);
 
 /*! Callback to free the bucket
  *
  *  \param[in] bucket  user provided bucket
  */
-typedef void                (*ares__htable_bucket_free_t)(void *bucket);
+typedef void (*ares__htable_bucket_free_t)(void *bucket);
 
 /*! Callback to extract the key from the user-provided bucket
  *
  *  \param[in] bucket  user provided bucket
  *  \return pointer to key held in bucket
  */
-typedef const void         *(*ares__htable_bucket_key_t)(const void *bucket);
+typedef const void *(*ares__htable_bucket_key_t)(const void *bucket);
 
 /*! Callback to compare two keys for equality
  *
@@ -80,15 +80,15 @@ typedef const void         *(*ares__htable_bucket_key_t)(const void *bucket);
  *  \param[in] key2  second key
  *  \return ARES_TRUE if equal, ARES_FALSE if not
  */
-typedef ares_bool_t         (*ares__htable_key_eq_t)(const void *key1,
+typedef ares_bool_t (*ares__htable_key_eq_t)(const void *key1,
                                              const void *key2);
 
 
 /*! Destroy the initialized hashtable
  *
- *  \param[in] initialized hashtable
+ *  \param[in] htable initialized hashtable
  */
-void                        ares__htable_destroy(ares__htable_t *htable);
+void            ares__htable_destroy(ares__htable_t *htable);
 
 /*! Create a new hashtable
  *

@@ -72,17 +72,6 @@ class FutexWaitListNode {
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
 
-  class V8_NODISCARD ResetWaitingOnScopeExit {
-   public:
-    explicit ResetWaitingOnScopeExit(FutexWaitListNode* node) : node_(node) {}
-    ~ResetWaitingOnScopeExit() { node_->waiting_ = false; }
-    ResetWaitingOnScopeExit(const ResetWaitingOnScopeExit&) = delete;
-    ResetWaitingOnScopeExit& operator=(const ResetWaitingOnScopeExit&) = delete;
-
-   private:
-    FutexWaitListNode* node_;
-  };
-
  private:
   friend class FutexEmulation;
   friend class FutexWaitList;
@@ -198,8 +187,11 @@ class FutexEmulation : public AllStatic {
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
   // woken. The rest of the waiters will continue to wait. The return value is
   // the number of woken waiters.
+  // Variant 1: Compute the wait address from the |array_buffer| and |addr|.
   V8_EXPORT_PRIVATE static int Wake(Tagged<JSArrayBuffer> array_buffer,
                                     size_t addr, uint32_t num_waiters_to_wake);
+  // Variant 2: Pass raw |addr| (used for WebAssembly atomic.notify).
+  static int Wake(void* addr, uint32_t num_waiters_to_wake);
 
   // Called before |isolate| dies. Removes async waiters owned by |isolate|.
   static void IsolateDeinit(Isolate* isolate);

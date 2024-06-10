@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-stringref --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-stringref
 // For {isOneByteString}:
 // Flags: --expose-externalize-string
 
@@ -162,7 +162,7 @@ function makeWtf8TestDataSegment() {
 
   builder.addMemory(1, undefined);
   let data = makeWtf8TestDataSegment();
-  builder.addDataSegment(0, data.data);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], data.data);
 
   builder.addFunction("string_new_utf8", kSig_w_ii)
     .exportFunc()
@@ -231,7 +231,7 @@ function makeWtf8TestDataSegment() {
 
   builder.addMemory(1, undefined);
   let data = makeWtf8TestDataSegment();
-  builder.addDataSegment(0, data.data);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], data.data);
 
   builder.addFunction("is_null_new_utf8_try", kSig_i_ii)
     .exportFunc()
@@ -284,7 +284,7 @@ function makeWtf16TestDataSegment() {
 
   builder.addMemory(1, undefined);
   let data = makeWtf16TestDataSegment();
-  builder.addDataSegment(0, data.data);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], data.data);
 
   builder.addFunction("string_new_wtf16", kSig_w_ii)
     .exportFunc()
@@ -309,7 +309,7 @@ function makeWtf16TestDataSegment() {
       .exportFunc()
       .addBody([...GCInstr(kExprStringConst), index]);
 
-    builder.addGlobal(kWasmStringRef, false,
+    builder.addGlobal(kWasmStringRef, false, false,
                       [...GCInstr(kExprStringConst), index])
       .exportAs("global" + index);
   }
@@ -1130,7 +1130,7 @@ function makeWtf16TestDataSegment() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let global = builder.addGlobal(kWasmStringViewIter, true);
+  let global = builder.addGlobal(kWasmStringViewIter, true, false);
 
   builder.addFunction("iterate", kSig_v_w)
     .exportFunc()

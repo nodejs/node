@@ -76,6 +76,9 @@ class V8_EXPORT_PRIVATE StringTable {
   void InsertForIsolateDeserialization(
       Isolate* isolate, const std::vector<Handle<String>>& strings);
 
+  // Insert the single empty string. Only for use during heap bootstrapping.
+  void InsertEmptyStringForBootstrapping(Isolate* isolate);
+
   void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
 
@@ -88,6 +91,7 @@ class V8_EXPORT_PRIVATE StringTable {
   void VerifyIfOwnedBy(Isolate* isolate);
 
  private:
+  class OffHeapStringHashSet;
   class Data;
 
   Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);

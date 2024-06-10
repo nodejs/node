@@ -921,6 +921,9 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kWorkerThreads);
     }
+    if (!options_->allow_wasi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
+    }
 
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(this,
@@ -1089,9 +1092,34 @@ void Environment::InitializeLibuv() {
   StartProfilerIdleNotifier();
 }
 
+void Environment::InitializeCompileCache() {
+  std::string dir_from_env;
+  if (!credentials::SafeGetenv(
+          "NODE_COMPILE_CACHE", &dir_from_env, env_vars()) ||
+      dir_from_env.empty()) {
+    return;
+  }
+  auto handler = std::make_unique<CompileCacheHandler>(this);
+  if (handler->InitializeDirectory(this, dir_from_env)) {
+    compile_cache_handler_ = std::move(handler);
+    AtExit(
+        [](void* env) {
+          static_cast<Environment*>(env)->compile_cache_handler()->Persist();
+        },
+        this);
+  }
+}
+
 void Environment::ExitEnv(StopFlags::Flags flags) {
   // Should not access non-thread-safe methods here.
   set_stopping(true);
+
+#if HAVE_INSPECTOR
+  if (inspector_agent_) {
+    inspector_agent_->StopIfWaitingForConnect();
+  }
+#endif
+
   if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
     isolate_->TerminateExecution();
   SetImmediateThreadsafe([](Environment* env) {

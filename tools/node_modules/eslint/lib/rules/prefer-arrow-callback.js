@@ -220,7 +220,7 @@ module.exports = {
 
             // If there are below, it cannot replace with arrow functions merely.
             ThisExpression() {
-                const info = stack[stack.length - 1];
+                const info = stack.at(-1);
 
                 if (info) {
                     info.this = true;
@@ -228,7 +228,7 @@ module.exports = {
             },
 
             Super() {
-                const info = stack[stack.length - 1];
+                const info = stack.at(-1);
 
                 if (info) {
                     info.super = true;
@@ -236,7 +236,7 @@ module.exports = {
             },
 
             MetaProperty(node) {
-                const info = stack[stack.length - 1];
+                const info = stack.at(-1);
 
                 if (info && checkMetaProperty(node, "new", "target")) {
                     info.meta = true;

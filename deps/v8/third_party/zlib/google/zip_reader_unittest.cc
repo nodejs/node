@@ -157,7 +157,7 @@ class ZipReaderTest : public PlatformTest {
 
   static base::FilePath GetTestDataDirectory() {
     base::FilePath path;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &path));
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path));
     return path.AppendASCII("third_party")
         .AppendASCII("zlib")
         .AppendASCII("google")
@@ -234,8 +234,10 @@ TEST_F(ZipReaderTest, Open_ExistentButNonZipFile) {
 TEST_F(ZipReaderTest, Open_EmptyFile) {
   ZipReader reader;
   EXPECT_FALSE(reader.ok());
-  EXPECT_FALSE(reader.Open(data_dir_.AppendASCII("empty.zip")));
-  EXPECT_FALSE(reader.ok());
+  EXPECT_TRUE(reader.Open(data_dir_.AppendASCII("empty.zip")));
+  EXPECT_TRUE(reader.ok());
+  EXPECT_EQ(0, reader.num_entries());
+  EXPECT_EQ(nullptr, reader.Next());
 }
 
 // Iterate through the contents in the test ZIP archive, and compare that the

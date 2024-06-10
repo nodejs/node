@@ -199,7 +199,7 @@ module.exports = {
                     : sourceCode.getLastToken(node),
                 penultimate = sourceCode.getTokenBefore(last),
                 firstElement = node.elements[0],
-                lastElement = node.elements[node.elements.length - 1];
+                lastElement = node.elements.at(-1);
 
             const openingBracketMustBeSpaced =
                 options.objectsInArraysException && isObjectType(firstElement) ||

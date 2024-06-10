@@ -49,7 +49,7 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     for (Handle<AccessorInfo> info : accessor_infos()) {
       RestoreExternalReferenceRedirector(isolate(), *info);
     }
-    for (Handle<CallHandlerInfo> info : call_handler_infos()) {
+    for (Handle<FunctionTemplateInfo> info : function_template_infos()) {
       RestoreExternalReferenceRedirector(isolate(), *info);
     }
 
@@ -97,7 +97,7 @@ void StartupDeserializer::LogNewMapEvents() {
 void StartupDeserializer::FlushICache() {
   DCHECK(!deserializing_user_code());
   // The entire isolate is newly deserialized. Simply flush all code pages.
-  for (Page* p : *isolate()->heap()->code_space()) {
+  for (PageMetadata* p : *isolate()->heap()->code_space()) {
     FlushInstructionCache(p->area_start(), p->area_end() - p->area_start());
   }
 }

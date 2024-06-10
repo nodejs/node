@@ -70,7 +70,7 @@ class ReadOnlyHeapImageDeserializer final {
 
   void DeserializeSegment() {
     uint32_t page_index = source_->GetUint30();
-    ReadOnlyPage* page = PageAt(page_index);
+    ReadOnlyPageMetadata* page = PageAt(page_index);
 
     // Copy over raw contents.
     Address start = page->area_start() + source_->GetUint30();
@@ -92,7 +92,7 @@ class ReadOnlyHeapImageDeserializer final {
   }
 
   Address Decode(ro::EncodedTagged encoded) const {
-    ReadOnlyPage* page = PageAt(encoded.page_index);
+    ReadOnlyPageMetadata* page = PageAt(encoded.page_index);
     return page->OffsetToAddress(encoded.offset * kTaggedSize);
   }
 
@@ -114,7 +114,7 @@ class ReadOnlyHeapImageDeserializer final {
     }
   }
 
-  ReadOnlyPage* PageAt(size_t index) const {
+  ReadOnlyPageMetadata* PageAt(size_t index) const {
     DCHECK_LT(index, ro_space()->pages().size());
     return ro_space()->pages()[index];
   }
@@ -207,7 +207,7 @@ class ObjectPostProcessor final {
   }
 #define POST_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                 \
-  V(CallHandlerInfo)              \
+  V(FunctionTemplateInfo)         \
   V(Code)                         \
   V(SharedFunctionInfo)
 
@@ -267,19 +267,22 @@ class ObjectPostProcessor final {
         AccessorInfo::kMaybeRedirectedGetterOffset, kAccessorInfoGetterTag));
     if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
   }
-  void PostProcessCallHandlerInfo(Tagged<CallHandlerInfo> o) {
+  void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(o->RawExternalPointerField(
-        CallHandlerInfo::kMaybeRedirectedCallbackOffset,
-        kCallHandlerInfoCallbackTag));
+        FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+        kFunctionTemplateInfoCallbackTag));
     if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
   void PostProcessCode(Tagged<Code> o) {
-    o->init_instruction_start(
-        isolate_, embedded_data_.InstructionStartOf(o->builtin_id()));
+    o->init_self_indirect_pointer(isolate_);
+    o->wrapper()->set_code(o);
     // RO space only contains builtin Code objects which don't have an
     // attached InstructionStream.
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
+    o->SetInstructionStartForOffHeapBuiltin(
+        isolate_,
+        EmbeddedData::FromBlob(isolate_).InstructionStartOf(o->builtin_id()));
   }
   void PostProcessSharedFunctionInfo(Tagged<SharedFunctionInfo> o) {
     // Reset the id to avoid collisions - it must be unique in this isolate.

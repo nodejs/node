@@ -33,8 +33,8 @@ void MarkingVerifierBase::VerifyRoots() {
                                       base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
-void MarkingVerifierBase::VerifyMarkingOnPage(const Page* page, Address start,
-                                              Address end) {
+void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
+                                              Address start, Address end) {
   Address next_object_must_be_here_or_later = start;
 
   for (auto [object, size] : LiveObjectRange(page)) {
@@ -67,13 +67,13 @@ void MarkingVerifierBase::VerifyMarking(NewSpace* space) {
     return;
   }
 
-  for (Page* page : *space) {
+  for (PageMetadata* page : *space) {
     VerifyMarkingOnPage(page, page->area_start(), page->area_end());
   }
 }
 
 void MarkingVerifierBase::VerifyMarking(PagedSpaceBase* space) {
-  for (Page* p : *space) {
+  for (PageMetadata* p : *space) {
     VerifyMarkingOnPage(p, p->area_start(), p->area_end());
   }
 }
@@ -152,11 +152,14 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
   MemoryChunkIterator chunk_iterator(heap);
 
   while (chunk_iterator.HasNext()) {
-    MemoryChunk* chunk = chunk_iterator.Next();
+    MutablePageMetadata* chunk = chunk_iterator.Next();
 
     // Old-to-old slot sets must be empty after evacuation.
     DCHECK_NULL((chunk->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
+    DCHECK_NULL((chunk->slot_set<TRUSTED_TO_TRUSTED, AccessMode::ATOMIC>()));
     DCHECK_NULL((chunk->typed_slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
+    DCHECK_NULL(
+        (chunk->typed_slot_set<TRUSTED_TO_TRUSTED, AccessMode::ATOMIC>()));
 
     if (new_space_is_empty &&
         (garbage_collector == GarbageCollector::MARK_COMPACTOR)) {

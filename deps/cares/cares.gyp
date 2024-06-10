@@ -21,12 +21,13 @@
       'src/lib/ares__htable_strvp.h',
       'src/lib/ares__htable_szvp.c',
       'src/lib/ares__htable_szvp.h',
+      'src/lib/ares__htable_vpvp.c',
+      'src/lib/ares__htable_vpvp.h',
       'src/lib/ares__iface_ips.c',
       'src/lib/ares__iface_ips.h',
       'src/lib/ares__llist.c',
       'src/lib/ares__llist.h',
       'src/lib/ares__parse_into_addrinfo.c',
-      'src/lib/ares__read_line.c',
       'src/lib/ares__slist.c',
       'src/lib/ares__slist.h',
       'src/lib/ares__socket.c',
@@ -47,6 +48,7 @@
       'src/lib/ares_dns_record.c',
       'src/lib/ares_dns_private.h',
       'src/lib/ares_dns_write.c',
+      'src/lib/ares_event_configchg.c',
       'src/lib/ares_event.h',
       'src/lib/ares_event_win32.h',
       'src/lib/ares_event_epoll.c',
@@ -74,7 +76,6 @@
       'src/lib/ares_library_init.c',
       'src/lib/ares_ipv6.h',
       'src/lib/ares_math.c',
-      'src/lib/ares_mkquery.c',
       'src/lib/ares_options.c',
       'src/lib/ares_parse_a_reply.c',
       'src/lib/ares_parse_aaaa_reply.c',
@@ -115,6 +116,11 @@
       'src/tools/ares_getopt.c',
       'src/tools/ares_getopt.h',
     ],
+    'cares_sources_mac': [
+      'config/darwin/ares_config.h',
+      'src/lib/ares_sysconfig_mac.c',
+      'src/lib/thirdparty/apple/dnsinfo.h',
+    ],
     'cares_sources_win': [
       'src/lib/config-win32.h',
       'src/lib/windows_port.c',
@@ -154,7 +160,15 @@
       'type': '<(library)',
       'include_dirs': [ 'include' ],
       'direct_dependent_settings': {
-        'include_dirs': [ 'include' ]
+        'include_dirs': [ 'include' ],
+        'cflags': [ '-Wno-error=deprecated-declarations' ],
+        'conditions': [
+          [ 'OS=="mac"', {
+            'xcode_settings': {
+              'OTHER_CFLAGS': [ '-Wno-error=deprecated-declarations' ]
+            }
+          }]
+        ]
       },
       'sources': [
         '<@(cares_sources_common)',
@@ -200,7 +214,9 @@
         }],
         [ 'OS=="mac" or OS=="ios"', {
           'include_dirs': [ 'config/darwin' ],
-          'sources': [ 'config/darwin/ares_config.h' ]
+          'sources': [
+            '<@(cares_sources_mac)',
+          ]
         }],
         [ 'OS=="freebsd" or OS=="dragonflybsd"', {
           'include_dirs': [ 'config/freebsd' ],

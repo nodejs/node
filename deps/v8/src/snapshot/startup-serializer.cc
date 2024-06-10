@@ -66,7 +66,7 @@ StartupSerializer::StartupSerializer(
     : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
       shared_heap_serializer_(shared_heap_serializer),
       accessor_infos_(isolate->heap()),
-      call_handler_infos_(isolate->heap()) {
+      function_template_infos_(isolate->heap()) {
   InitializeCodeAddressMap();
 }
 
@@ -74,7 +74,7 @@ StartupSerializer::~StartupSerializer() {
   for (Handle<AccessorInfo> info : accessor_infos_) {
     RestoreExternalReferenceRedirector(isolate(), *info);
   }
-  for (Handle<CallHandlerInfo> info : call_handler_infos_) {
+  for (Handle<FunctionTemplateInfo> info : function_template_infos_) {
     RestoreExternalReferenceRedirector(isolate(), *info);
   }
   OutputStatistics("StartupSerializer");
@@ -110,10 +110,10 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(obj);
     info->remove_getter_redirection(isolate());
     accessor_infos_.Push(*info);
-  } else if (USE_SIMULATOR_BOOL && IsCallHandlerInfo(*obj, cage_base)) {
-    Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);
+  } else if (USE_SIMULATOR_BOOL && IsFunctionTemplateInfo(*obj, cage_base)) {
+    Handle<FunctionTemplateInfo> info = Handle<FunctionTemplateInfo>::cast(obj);
     info->remove_callback_redirection(isolate());
-    call_handler_infos_.Push(*info);
+    function_template_infos_.Push(*info);
   } else if (IsScript(*obj, cage_base) &&
              Handle<Script>::cast(obj)->IsUserJavaScript()) {
     Handle<Script>::cast(obj)->set_context_data(
@@ -169,9 +169,9 @@ void StartupSerializer::SerializeStrongReferences(
 SerializedHandleChecker::SerializedHandleChecker(
     Isolate* isolate, std::vector<Tagged<Context>>* contexts)
     : isolate_(isolate) {
-  AddToSet(isolate->heap()->serialized_objects());
+  AddToSet(FixedArray::cast(isolate->heap()->serialized_objects()));
   for (auto const& context : *contexts) {
-    AddToSet(context->serialized_objects());
+    AddToSet(FixedArray::cast(context->serialized_objects()));
   }
 }
 

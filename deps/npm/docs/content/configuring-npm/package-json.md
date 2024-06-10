@@ -40,7 +40,7 @@ Some tips:
 * Don't use the same name as a core Node module.
 * Don't put "js" or "node" in the name.  It's assumed that it's js, since
   you're writing a package.json file, and you can specify the engine using
-  the "engines" field.  (See below.)
+  the "[engines](#engines)" field.  (See below.)
 * The name will probably be passed as an argument to require(), so it
   should be something short, but also reasonably descriptive.
 * You may want to check the npm registry to see if there's something by
@@ -75,7 +75,7 @@ your package as it's listed in `npm search`.
 
 ### homepage
 
-The url to the project homepage.
+The URL to the project homepage.
 
 Example:
 
@@ -85,7 +85,7 @@ Example:
 
 ### bugs
 
-The url to your project's issue tracker and / or the email address to which
+The URL to your project's issue tracker and / or the email address to which
 issues should be reported. These are helpful for people who encounter
 issues with your package.
 
@@ -101,10 +101,10 @@ It should look like this:
 ```
 
 You can specify either one or both values. If you want to provide only a
-url, you can specify the value for "bugs" as a simple string instead of an
+URL, you can specify the value for "bugs" as a simple string instead of an
 object.
 
-If a url is provided, it will be used by the `npm bugs` command.
+If a URL is provided, it will be used by the `npm bugs` command.
 
 ### license
 
@@ -368,7 +368,7 @@ For example, myapp could have this:
 ```json
 {
   "bin": {
-    "myapp": "./cli.js"
+    "myapp": "bin/cli.js"
   }
 }
 ```
@@ -385,7 +385,7 @@ package, then you can just supply it as a string.  For example:
 {
   "name": "my-program",
   "version": "1.2.5",
-  "bin": "./path/to/program"
+  "bin": "path/to/program"
 }
 ```
 
@@ -396,7 +396,7 @@ would be the same as this:
   "name": "my-program",
   "version": "1.2.5",
   "bin": {
-    "my-program": "./path/to/program"
+    "my-program": "path/to/program"
   }
 }
 ```
@@ -497,7 +497,7 @@ walking the folder.
 ### repository
 
 Specify the place where your code lives. This is helpful for people who
-want to contribute.  If the git repo is on GitHub, then the `npm docs`
+want to contribute.  If the git repo is on GitHub, then the `npm repo`
 command will be able to find you.
 
 Do it like this:
@@ -511,9 +511,9 @@ Do it like this:
 }
 ```
 
-The URL should be a publicly available (perhaps read-only) url that can be
+The URL should be a publicly available (perhaps read-only) URL that can be
 handed directly to a VCS program without any modification.  It should not
-be a url to an html project page that you put in your browser.  It's for
+be a URL to an html project page that you put in your browser.  It's for
 computers.
 
 For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the
@@ -636,7 +636,7 @@ install time.
 
 #### Git URLs as Dependencies
 
-Git urls are of the form:
+Git URLs are of the form:
 
 ```bash
 <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit-ish> | #semver:<semver>]
@@ -683,7 +683,7 @@ will be rebuilt for every installation.
 
 #### GitHub URLs
 
-As of version 1.1.65, you can refer to GitHub urls as just "foo":
+As of version 1.1.65, you can refer to GitHub URLs as just "foo":
 "user/foo-project".  Just as with git URLs, a `commit-ish` suffix can be
 included.  For example:
 
@@ -818,11 +818,12 @@ to express this. If you depend on features introduced in 1.5.2, use
 
 ### peerDependenciesMeta
 
-When a user installs your package, npm will emit warnings if packages
-specified in `peerDependencies` are not already installed. The
-`peerDependenciesMeta` field serves to provide npm more information on how
+The `peerDependenciesMeta` field serves to provide npm more information on how
 your peer dependencies are to be used. Specifically, it allows peer
-dependencies to be marked as optional.
+dependencies to be marked as optional. Npm will not automatically install
+optional peer dependencies. This allows you to
+integrate and interact with a variety of host packages without requiring
+all of them to be installed.
 
 For example:
 
@@ -841,11 +842,6 @@ For example:
   }
 }
 ```
-
-Marking a peer dependency as optional ensures npm will not emit a warning
-if the `soy-milk` package is not installed on the host. This allows you to
-integrate and interact with a variety of host packages without requiring
-all of them to be installed.
 
 ### bundleDependencies
 
@@ -889,7 +885,7 @@ none.
 If a dependency can be used, but you would like npm to proceed if it cannot
 be found or fails to install, then you may put it in the
 `optionalDependencies` object.  This is a map of package name to version or
-url, just like the `dependencies` object.  The difference is that build
+URL, just like the `dependencies` object.  The difference is that build
 failures do not cause installation to fail.  Running `npm install
 --omit=optional` will prevent these dependencies from being installed.
 
@@ -927,6 +923,13 @@ version of a package is used everywhere, then you may add an override.
 Overrides provide a way to replace a package in your dependency tree with
 another version, or another package entirely. These changes can be scoped as
 specific or as vague as desired.
+
+Overrides are only considered in the root `package.json` file for a project.
+Overrides in installed dependencies (including
+[workspaces](/using-npm/workspaces)) are not considered in dependency tree
+resolution. Published packages may dictate their resolutions by pinning
+dependencies or using an
+[`npm-shrinkwrap.json`](/configuring-npm/npm-shrinkwrap-json) file.
 
 To make sure the package `foo` is always installed as version `1.0.0` no matter
 what version your dependencies rely on:

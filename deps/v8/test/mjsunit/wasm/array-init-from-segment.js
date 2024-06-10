@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestArrayNewElem() {
@@ -226,7 +224,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     struct_type_index);
 
   builder.addGlobal(
-    wasmRefNullType(array_type_index), false,
+    wasmRefNullType(array_type_index), false, false,
     [...wasmI32Const(0), ...wasmI32Const(1),
      kGCPrefix, kExprArrayNewElem,
      array_type_index, passive_segment]);
@@ -371,7 +369,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // TODO(14034): Reenable when we have constant array.new_data.
   /*
   let global = builder.addGlobal(
-    wasmRefType(array_type_index), true,
+    wasmRefType(array_type_index), true, false,
     [...wasmI32Const(1), ...wasmI32Const(2),
      kGCPrefix, kExprArrayNewData, array_type_index, data_segment],
     builder);

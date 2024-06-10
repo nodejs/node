@@ -171,3 +171,11 @@ test({0:0,1:0}, idView);
   };
   test({0: 1, g: undefined}, o4);
 }
+
+// Ensure the IC without feedback vector supports the fast-case
+(function() {
+  var o = {};
+  o.x = "1";
+  var o2 = {...o};
+  assertTrue(%HaveSameMap(o, o2));
+})()

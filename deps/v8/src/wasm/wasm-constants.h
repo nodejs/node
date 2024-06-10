@@ -33,6 +33,7 @@ enum ValueTypeCode : uint8_t {
   kS128Code = 0x7b,             // -0x05
   kI8Code = 0x78,               // -0x08, packed type
   kI16Code = 0x77,              // -0x09, packed type
+  kNoExnCode = 0x74,            // -0x0c
   kNoFuncCode = 0x73,           // -0x0d
   kNoExternCode = 0x72,         // -0x0e
   kNoneCode = 0x71,             // -0x0f
@@ -46,6 +47,7 @@ enum ValueTypeCode : uint8_t {
   kRefCode = 0x64,              // -0x1c
   kRefNullCode = 0x63,          // -0x1d
                                 // Non-finalized proposals below.
+  kExnRefCode = 0x69,           // -0x17
   kStringRefCode = 0x67,        // -0x19
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x62,  // -0x1e
@@ -53,6 +55,7 @@ enum ValueTypeCode : uint8_t {
 };
 
 // Binary encoding of type definitions.
+constexpr uint8_t kSharedFlagCode = 0x65;
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
@@ -145,6 +148,14 @@ enum NameSectionKindCode : uint8_t {
   kTagCode = 11,
 };
 
+enum CatchKind : uint8_t {
+  kCatch = 0x0,
+  kCatchRef = 0x1,
+  kCatchAll = 0x2,
+  kCatchAllRef = 0x3,
+  kLastCatchKind = kCatchAllRef,
+};
+
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
 static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");
@@ -186,6 +197,11 @@ constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
 #endif
+
+enum FPRelativeScope {
+  kEnterFPRelativeOnlyScope,
+  kLeaveFPRelativeOnlyScope,
+};
 
 }  // namespace wasm
 }  // namespace internal

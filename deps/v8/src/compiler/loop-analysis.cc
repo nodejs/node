@@ -4,7 +4,6 @@
 
 #include "src/compiler/loop-analysis.h"
 
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
@@ -625,8 +624,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             Builtin::kWasmTableGetFuncRef, Builtin::kWasmTableSetFuncRef,
             Builtin::kWasmTableGrow,
             // Atomics.
-            Builtin::kWasmAtomicNotify, Builtin::kWasmI32AtomicWait,
-            Builtin::kWasmI64AtomicWait,
+            Builtin::kWasmI32AtomicWait, Builtin::kWasmI64AtomicWait,
             // Exceptions.
             Builtin::kWasmAllocateFixedArray, Builtin::kWasmThrow,
             Builtin::kWasmRethrow, Builtin::kWasmRethrowExplicitContext,
@@ -661,7 +659,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
         // Rationale for PrepareForGetCodeunit: this internal operation is
         // specifically designed for being hoisted out of loops.
         has_instruction_worth_peeling = true;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       default:
         ENQUEUE_USES(use, true)
         break;

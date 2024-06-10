@@ -322,6 +322,19 @@ added: v0.0.1
 
 [`clearTimeout`][] is described in the [timers][] section.
 
+## `CloseEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The `CloseEvent` class. See [`CloseEvent`][] for more details.
+
+A browser-compatible implementation of [`CloseEvent`][]. Disable this API
+with the [`--no-experimental-websocket`][] CLI flag.
+
 ## Class: `CompressionStream`
 
 <!-- YAML
@@ -361,13 +374,15 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52564
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of {Crypto}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -380,13 +395,15 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52564
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of the [Web Crypto API][].
 
@@ -397,13 +414,15 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52564
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -416,13 +435,15 @@ added:
   - v18.7.0
   - v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52723
+    description: No longer experimental.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44860
     description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-customevent`][] CLI flag.
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -981,8 +1002,7 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the
-> [`--no-experimental-global-webcrypto`][] CLI flag.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -1100,11 +1120,14 @@ added:
   - v20.10.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53352
+    description: No longer experimental.
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51594
     description: No longer behind `--experimental-websocket` CLI flag.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable.
 
 A browser-compatible implementation of [`WebSocket`][]. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
@@ -1145,12 +1168,11 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
-[`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
-[`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
+[`CloseEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent/CloseEvent
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
 [`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent

@@ -6,7 +6,3 @@ prefix wasi
 
 [true] # This section applies to all platforms
 
-# Windows on ARM
-[$system==win32 && $arch==arm64]
-# https://github.com/nodejs/node/issues/51822
-test-wasi-poll: PASS, FLAKY

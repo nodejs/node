@@ -27,6 +27,19 @@
 #ifndef ARES_IPV6_H
 #define ARES_IPV6_H
 
+#ifdef HAVE_NETINET6_IN6_H
+#  include <netinet6/in6.h>
+#endif
+
+#if defined(USE_WINSOCK)
+#  if defined(HAVE_IPHLPAPI_H)
+#    include <iphlpapi.h>
+#  endif
+#  if defined(HAVE_NETIOAPI_H)
+#    include <netioapi.h>
+#  endif
+#endif
+
 #ifndef HAVE_PF_INET6
 #  define PF_INET6 AF_INET6
 #endif

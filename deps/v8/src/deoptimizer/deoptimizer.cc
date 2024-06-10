@@ -87,7 +87,7 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
           // moving.
           safepoint_scope_.reset();
           state_ = kDone;
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kDone:
           return Code();
       }
@@ -334,7 +334,11 @@ class ActivationsFinder : public ThreadVisitor {
                 SafepointTable::FindEntry(isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           }
-          DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
+          // TODO(saelo): currently we have to use full pointer comparison as
+          // builtin Code is still inside the sandbox while runtime-generated
+          // Code is in trusted space.
+          static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+          DCHECK_IMPLIES(code.SafeEquals(topmost_), safe_to_deopt_);
           static_assert(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
           // Replace the current pc on the stack with the trampoline.
@@ -431,8 +435,12 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  function->ResetIfCodeFlushed();
-  if (code.is_null()) code = function->code();
+  if (v8_flags.profile_guided_optimization) {
+    function->shared()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
+  function->ResetIfCodeFlushed(isolate);
+  if (code.is_null()) code = function->code(isolate);
 
   if (CodeKindCanDeoptimize(code->kind())) {
     // Mark the code for deoptimization and unlink any functions that also
@@ -566,10 +574,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
   // the first deopt with resume entry.
   if (from_ <= lazy_deopt_start) {
+    DCHECK_EQ(kind, DeoptimizeKind::kEager);
     int offset = static_cast<int>(from_ - kEagerDeoptExitSize - deopt_start);
     DCHECK_EQ(0, offset % kEagerDeoptExitSize);
     deopt_exit_index_ = offset / kEagerDeoptExitSize;
   } else {
+    DCHECK_EQ(kind, DeoptimizeKind::kLazy);
     int offset =
         static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
     DCHECK_EQ(0, offset % kLazyDeoptExitSize);
@@ -682,13 +692,12 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
                                              Tagged<Code> code,
                                              const char* reason) {
+  DCHECK(code->uses_deoptimization_data());
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 
   DisallowGarbageCollection no_gc;
-  Tagged<Object> maybe_data = code->deoptimization_data();
-  if (maybe_data == ReadOnlyRoots(isolate).empty_fixed_array()) return;
-
-  Tagged<DeoptimizationData> deopt_data = DeoptimizationData::cast(maybe_data);
+  Tagged<DeoptimizationData> deopt_data =
+      DeoptimizationData::cast(code->deoptimization_data());
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   if (v8_flags.trace_deopt) {
     PrintF(scope.file(), "[marking dependent code ");
@@ -837,10 +846,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 
   DCHECK_NULL(output_);
-  output_ = new FrameDescription*[count];
-  for (size_t i = 0; i < count; ++i) {
-    output_[i] = nullptr;
-  }
+  output_ = new FrameDescription* [count] {};
   output_count_ = static_cast<int>(count);
 
   // Translate each output frame.
@@ -904,9 +910,12 @@ void Deoptimizer::DoComputeOutputFrames() {
   // deoptimized.
   bool osr_early_exit = Deoptimizer::GetDeoptInfo().deopt_reason ==
                         DeoptimizeReason::kOSREarlyExit;
+  // TODO(saelo): We have to use full pointer comparisons here while not all
+  // Code objects have been migrated into trusted space.
+  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
   if (IsJSFunction(function_) &&
       (compiled_code_->osr_offset().IsNone()
-           ? function_->code() == compiled_code_
+           ? function_->code(isolate()).SafeEquals(compiled_code_)
            : (!osr_early_exit &&
               DeoptExitIsInsideOsrLoop(isolate(), function_,
                                        bytecode_offset_in_outermost_frame_,
@@ -1024,7 +1033,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   base::Optional<Tagged<DebugInfo>> debug_info =
       shared->TryGetDebugInfo(isolate());
   if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
-    bytecode_array = debug_info.value()->DebugBytecodeArray();
+    bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
   } else {
     bytecode_array = shared->GetBytecodeArray(isolate());
   }
@@ -1361,7 +1370,7 @@ void Deoptimizer::DoComputeInlinedExtraArguments(
     // The receiver and arguments with index below the formal parameter
     // count are in the fake adaptor frame, because they are used to create the
     // arguments object. We should however not push them, since the interpreter
-    // frame with do that.
+    // frame will do that.
     value_iterator++;  // Skip function.
     value_iterator++;  // Skip receiver.
     for (int i = 0; i < formal_parameter_count; i++) value_iterator++;
@@ -1708,11 +1717,11 @@ TranslatedValue Deoptimizer::TranslatedValueForWasmReturnKind(
       case wasm::kI32:
         return TranslatedValue::NewInt32(
             &translated_state_,
-            (int32_t)input_->GetRegister(kReturnRegister0.code()));
+            static_cast<int32_t>(input_->GetRegister(kReturnRegister0.code())));
       case wasm::kI64:
         return TranslatedValue::NewInt64ToBigInt(
             &translated_state_,
-            (int64_t)input_->GetRegister(kReturnRegister0.code()));
+            static_cast<int64_t>(input_->GetRegister(kReturnRegister0.code())));
       case wasm::kF32:
         return TranslatedValue::NewFloat(
             &translated_state_,

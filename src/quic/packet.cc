@@ -161,7 +161,7 @@ Packet* Packet::FromFreeList(Environment* env,
   CHECK_NOT_NULL(packet);
   CHECK_EQ(env, packet->env());
   Debug(packet, "Reusing packet from freelist");
-  packet->data_ = data;
+  packet->data_ = std::move(data);
   packet->destination_ = destination;
   packet->listener_ = listener;
   return packet;

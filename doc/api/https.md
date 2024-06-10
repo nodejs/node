@@ -327,10 +327,13 @@ changes:
   - version:
       - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
-    description: The agent now uses HTTP Keep-Alive by default.
+    description: The agent now uses HTTP Keep-Alive and a 5 second timeout by
+                 default.
 -->
 
-Global instance of [`https.Agent`][] for all HTTPS client requests.
+Global instance of [`https.Agent`][] for all HTTPS client requests. Diverges
+from a default [`https.Agent`][] configuration by having `keepAlive` enabled and
+a `timeout` of 5 seconds.
 
 ## `https.request(options[, callback])`
 
@@ -339,6 +342,10 @@ Global instance of [`https.Agent`][] for all HTTPS client requests.
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: The `clientCertEngine` option depends on custom engine
+                 support in OpenSSL which is deprecated in OpenSSL 3.
   - version:
       - v16.7.0
       - v14.18.0
@@ -374,7 +381,7 @@ changes:
 Makes a request to a secure web server.
 
 The following additional `options` from [`tls.connect()`][] are also accepted:
-`ca`, `cert`, `ciphers`, `clientCertEngine`, `crl`, `dhparam`, `ecdhCurve`,
+`ca`, `cert`, `ciphers`, `clientCertEngine` (deprecated), `crl`, `dhparam`, `ecdhCurve`,
 `honorCipherOrder`, `key`, `passphrase`, `pfx`, `rejectUnauthorized`,
 `secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`,
 `highWaterMark`.

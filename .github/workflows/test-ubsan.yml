@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
   FLAKY_TESTS: keep_retrying
 
 permissions:
@@ -37,24 +37,28 @@ permissions:
 
 jobs:
   test-ubsan:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-20.04
+    if: false  # Temporary disabled. Reference: https://github.com/nodejs/node/pull/52293#issuecomment-2059270585
+    runs-on: ubuntu-latest
     env:
-      CC: gcc
-      CXX: g++
-      LINK: g++
+      CC: sccache gcc
+      CXX: sccache g++
+      LINK: sccache g++
       CONFIG_FLAGS: --enable-ubsan
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
         with:
           persist-credentials: false
       - name: Store suppressions path
         run: |
           echo "UBSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/suppressions.supp" >> $GITHUB_ENV
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd  # v0.0.4
+        with:
+          version: v0.8.0
       - name: Environment Information
         run: npx envinfo
       - name: Build

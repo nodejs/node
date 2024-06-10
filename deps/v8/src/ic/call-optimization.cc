@@ -28,17 +28,14 @@ base::Optional<Tagged<NativeContext>> CallOptimization::GetAccessorContext(
   if (is_constant_call()) {
     return constant_function_->native_context();
   }
-  Tagged<Object> maybe_constructor = holder_map->GetConstructor();
-  if (IsJSFunction(maybe_constructor)) {
-    Tagged<JSFunction> constructor = JSFunction::cast(maybe_constructor);
-    return constructor->native_context();
+  Tagged<Object> maybe_native_context =
+      holder_map->map()->native_context_or_null();
+  if (IsNull(maybe_native_context)) {
+    // The holder is a remote object which doesn't have a creation context.
+    return {};
   }
-  // |maybe_constructor| might theoretically be |null| for some objects but
-  // they can't be holders for lazy accessor properties.
-  CHECK(IsFunctionTemplateInfo(maybe_constructor));
-
-  // The holder is a remote object which doesn't have a creation context.
-  return {};
+  DCHECK(IsNativeContext(maybe_native_context));
+  return NativeContext::cast(maybe_native_context);
 }
 
 bool CallOptimization::IsCrossContextLazyAccessorPair(
@@ -117,10 +114,8 @@ bool CallOptimization::IsCompatibleReceiverMap(
 template <class IsolateT>
 void CallOptimization::Initialize(
     IsolateT* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  Tagged<HeapObject> call_code =
-      function_template_info->call_code(kAcquireLoad);
-  if (IsUndefined(call_code, isolate)) return;
-  api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
+  if (!function_template_info->has_callback(isolate)) return;
+  api_call_info_ = function_template_info;
 
   Tagged<HeapObject> signature = function_template_info->signature();
   if (!IsUndefined(signature, isolate)) {
@@ -134,7 +129,7 @@ void CallOptimization::Initialize(
 template <class IsolateT>
 void CallOptimization::Initialize(IsolateT* isolate,
                                   Handle<JSFunction> function) {
-  if (function.is_null() || !function->is_compiled()) return;
+  if (function.is_null() || !function->is_compiled(isolate)) return;
 
   constant_function_ = function;
   AnalyzePossibleApiFunction(isolate, function);
@@ -144,21 +139,9 @@ template <class IsolateT>
 void CallOptimization::AnalyzePossibleApiFunction(IsolateT* isolate,
                                                   Handle<JSFunction> function) {
   if (!function->shared()->IsApiFunction()) return;
-  Handle<FunctionTemplateInfo> info(function->shared()->api_func_data(),
-                                    isolate);
-
-  // Require a C++ callback.
-  Tagged<HeapObject> call_code = info->call_code(kAcquireLoad);
-  if (IsUndefined(call_code, isolate)) return;
-  api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
-
-  if (!IsUndefined(info->signature(), isolate)) {
-    expected_receiver_type_ =
-        handle(FunctionTemplateInfo::cast(info->signature()), isolate);
-  }
-
-  is_simple_api_call_ = true;
-  accept_any_receiver_ = info->accept_any_receiver();
+  Handle<FunctionTemplateInfo> function_template_info(
+      function->shared()->api_func_data(), isolate);
+  Initialize(isolate, function_template_info);
 }
 }  // namespace internal
 }  // namespace v8

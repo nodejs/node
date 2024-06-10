@@ -4,9 +4,9 @@
 
 #include "src/compiler/turboshaft/loop-unrolling-phase.h"
 
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/loop-unrolling-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -15,11 +15,14 @@
 namespace v8::internal::compiler::turboshaft {
 
 void LoopUnrollingPhase::Run(Zone* temp_zone) {
-  turboshaft::OptimizationPhase<
-      turboshaft::LoopUnrollingReducer, turboshaft::VariableReducer,
-      turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-      turboshaft::RequiredOptimizationReducer,
-      turboshaft::ValueNumberingReducer>::Run(temp_zone);
+  LoopUnrollingAnalyzer analyzer(temp_zone, &PipelineData::Get().graph());
+  if (analyzer.CanUnrollAtLeastOneLoop()) {
+    PipelineData::Get().set_loop_unrolling_analyzer(&analyzer);
+    turboshaft::CopyingPhase<turboshaft::LoopUnrollingReducer,
+                             turboshaft::MachineOptimizationReducer,
+                             turboshaft::ValueNumberingReducer>::Run(temp_zone);
+    PipelineData::Get().clear_loop_unrolling_analyzer();
+  }
 }
 
 }  // namespace v8::internal::compiler::turboshaft

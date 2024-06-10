@@ -7,10 +7,12 @@
 
 #include "src/base/logging.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/loop-finder.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/phase.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -18,98 +20,8 @@ namespace v8::internal::compiler::turboshaft {
 
 // OVERVIEW:
 // LoopUnrollingReducer fully unrolls small inner loops with a small
-// statically-computable number of iterations, and partially unrolls other small
-// inner loops.
-
-class LoopFinder {
-  // This analyzer finds which loop each Block of a graph belongs to, and
-  // computes a list of all of the loops headers.
-  //
-  // A block is considered to "belong to a loop" if there is a forward-path (ie,
-  // without taking backedges) from this block to the backedge of the loop.
-  //
-  // This analysis runs in O(number of blocks), iterating each block once, and
-  // iterating blocks that are in a loop twice.
-  //
-  // Implementation:
-  // LoopFinder::Run walks the blocks of the graph backwards, and when it
-  // reaches a LoopHeader, it calls LoopFinder::VisitLoop.
-  // LoopFinder::VisitLoop iterates all of the blocks of the loop backwards,
-  // starting from the backedge, and stopping upon reaching the loop header. It
-  // marks the blocks that don't have a `parent_loops_` set as being part of the
-  // current loop (= sets their `parent_loops_` to the current loop header). If
-  // it finds a block that already has a `parent_loops_` set, it means that this
-  // loop contains an inner loop, so we skip this inner block as set the
-  // `has_inner_loops` bit.
-  //
-  // By iterating the blocks backwards in Run, we are guaranteed that inner
-  // loops are visited before their outer loops. Walking the graph forward
-  // doesn't work quite as nicely:
-  //  - When seeing loop headers for the 1st time, we wouldn't have visited
-  //    their inner loops yet.
-  //  - If we decided to still iterate forward but to call VisitLoop when
-  //    reaching their backedge rather than their header, it would work in most
-  //    cases but not all, since the backedge of an outer loop can have a
-  //    BlockIndex that is smaller than the one of an inner loop.
- public:
-  struct LoopInfo {
-    Block* start = nullptr;
-    Block* end = nullptr;
-    bool has_inner_loops = false;
-    size_t block_count = 0;  // Number of blocks in this loop
-                             // (excluding inner loops)
-    size_t op_count = 0;     // Upper bound on the number of operations in this
-                             // loop (excluding inner loops). This is computed
-                             // using "end - begin" for each block, which can be
-                             // more than the number of operations when some
-                             // operations are large (like CallOp and
-                             // FrameStateOp typically).
-  };
-  LoopFinder(Zone* phase_zone, Graph* input_graph)
-      : phase_zone_(phase_zone),
-        input_graph_(input_graph),
-        loop_headers_(input_graph->block_count(), nullptr, phase_zone),
-        loop_header_info_(phase_zone),
-        queue_(phase_zone) {}
-
-  void Run();
-  const ZoneUnorderedMap<Block*, LoopInfo>& LoopHeaders() const {
-    return loop_header_info_;
-  }
-  Block* GetLoopHeader(Block* block) const {
-    return loop_headers_[block->index()];
-  }
-  LoopInfo GetLoopInfo(Block* block) const {
-    DCHECK(block->IsLoop());
-    auto it = loop_header_info_.find(block);
-    DCHECK_NE(it, loop_header_info_.end());
-    return it->second;
-  }
-
- private:
-  LoopInfo VisitLoop(Block* header);
-
-  Zone* phase_zone_;
-  Graph* input_graph_;
-
-  // Map from block to the loop header of the closest enclosing loop. For loop
-  // headers, this map contains the enclosing loop header, rather than the
-  // identity.
-  // For instance, if a loop B1 contains a loop B2 which contains a block B3,
-  // {loop_headers_} will map:
-  //   B3 -> B2
-  //   B2 -> B1
-  //   B1 -> nullptr (if B1 is an outermost loop)
-  FixedBlockSidetable<Block*> loop_headers_;
-
-  // Map from Loop headers to the LoopInfo for their loops. Only Loop blocks
-  // have entries in this map.
-  ZoneUnorderedMap<Block*, LoopInfo> loop_header_info_;
-
-  // {queue_} is used in `VisitLoop`, but is declared as a class variable to
-  // reuse memory.
-  ZoneVector<const Block*> queue_;
-};
+// statically-computable number of iterations, partially unrolls other small
+// inner loops, and remove loops that we detect as always having 0 iterations.
 
 class StaticCanonicalForLoopMatcher {
   // In the context of this class, a "static canonical for-loop" is one of the
@@ -131,7 +43,8 @@ class StaticCanonicalForLoopMatcher {
                                 const int max_iter)
       : max_iter_(max_iter), matcher_(matcher) {}
 
-  bool MatchStaticCanonicalForLoop(OpIndex cond_idx, int* iter_count) const;
+  bool MatchStaticCanonicalForLoop(OpIndex cond_idx, bool loop_if_cond_is,
+                                   int* iter_count) const;
 
   enum class CmpOp {
     kEqual,
@@ -174,7 +87,7 @@ class StaticCanonicalForLoopMatcher {
   bool HasFewIterations(uint64_t equal_cst, CmpOp cmp_op,
                         uint64_t initial_input, uint64_t binop_cst,
                         BinOp binop_op, WordRepresentation binop_rep,
-                        int* iter_count) const;
+                        bool loop_if_cond_is, int* iter_count) const;
 
   const int max_iter_;
   const OperationMatcher& matcher_;
@@ -188,60 +101,65 @@ class LoopUnrollingAnalyzer {
   //    for (let i = 0; i < 4; i++) { ... }
   //
   // where `i++` could alternatively be pretty much any WordBinopOp or
-  // OverflowCheckedBinopOp, and `i < 4` could be any ComparisonOp or EqualOp.
+  // OverflowCheckedBinopOp, and `i < 4` could be any ComparisonOp.
   // Such loops, if small enough, could be fully unrolled.
   //
   // Loops that don't have statically-known bounds could still be partially
   // unrolled if they are small enough.
  public:
   LoopUnrollingAnalyzer(Zone* phase_zone, Graph* input_graph)
-      : phase_zone_(phase_zone),
-        input_graph_(input_graph),
+      : input_graph_(input_graph),
         matcher_(*input_graph),
         loop_finder_(phase_zone, input_graph),
         loop_iteration_count_(phase_zone),
         canonical_loop_matcher_(matcher_, kPartialUnrollingCount) {
-    loop_finder_.Run();
     DetectUnrollableLoops();
   }
 
-  bool ShouldFullyUnrollLoop(Block* loop_header) const {
+  bool ShouldFullyUnrollLoop(const Block* loop_header) const {
     DCHECK(loop_header->IsLoop());
     DCHECK_IMPLIES(GetIterationCount(loop_header) > 0,
                    !loop_finder_.GetLoopInfo(loop_header).has_inner_loops);
-    return GetIterationCount(loop_header) > 0;
+    auto iter_count = GetIterationCount(loop_header);
+    return iter_count.has_value() && *iter_count > 0;
   }
 
-  bool ShouldPartiallyUnrollLoop(Block* loop_header) const {
+  bool ShouldPartiallyUnrollLoop(const Block* loop_header) const {
     DCHECK(loop_header->IsLoop());
     auto info = loop_finder_.GetLoopInfo(loop_header);
     return !info.has_inner_loops &&
            info.op_count < kMaxLoopSizeForPartialUnrolling;
   }
 
-  int GetIterationCount(Block* loop_header) const {
+  bool ShouldRemoveLoop(const Block* loop_header) const {
+    auto iter_count = GetIterationCount(loop_header);
+    return iter_count.has_value() && *iter_count == 0;
+  }
+
+  base::Optional<int> GetIterationCount(const Block* loop_header) const {
     DCHECK(loop_header->IsLoop());
     auto it = loop_iteration_count_.find(loop_header);
-    if (it == loop_iteration_count_.end()) return 0;
+    if (it == loop_iteration_count_.end()) return base::nullopt;
     return it->second;
   }
 
-  struct BlockCmp {
-    bool operator()(Block* a, Block* b) const {
-      return a->index().id() < b->index().id();
-    }
-  };
-  ZoneSet<Block*, BlockCmp> GetLoopBody(Block* loop_header);
+  ZoneSet<const Block*, LoopFinder::BlockCmp> GetLoopBody(
+      const Block* loop_header) {
+    return loop_finder_.GetLoopBody(loop_header);
+  }
 
-  Block* GetLoopHeader(Block* block) {
+  const Block* GetLoopHeader(const Block* block) {
     return loop_finder_.GetLoopHeader(block);
   }
+
+  bool CanUnrollAtLeastOneLoop() const { return can_unroll_at_least_one_loop_; }
 
   // TODO(dmercadier): consider tweaking these value for a better size-speed
   // trade-off. In particular, having the number of iterations to unroll be a
   // function of the loop's size and a MaxLoopSize could make sense.
   static constexpr size_t kMaxLoopSizeForFullUnrolling = 150;
-  static constexpr size_t kMaxLoopSizeForPartialUnrolling = 50;
+  static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 50;
+  static constexpr size_t kWasmMaxLoopSizeForPartialUnrolling = 80;
   static constexpr size_t kMaxLoopIterationsForFullUnrolling = 4;
   static constexpr size_t kPartialUnrollingCount = 4;
 
@@ -250,18 +168,36 @@ class LoopUnrollingAnalyzer {
   bool CanFullyUnrollLoop(const LoopFinder::LoopInfo& info,
                           int* iter_count) const;
 
-  Zone* phase_zone_;
   Graph* input_graph_;
   OperationMatcher matcher_;
   LoopFinder loop_finder_;
-  ZoneUnorderedMap<Block*, int> loop_iteration_count_;
+  // {loop_iteration_count_} maps loop headers to number of iterations. It
+  // doesn't contain entries for loops for which we don't know the number of
+  // iterations.
+  ZoneUnorderedMap<const Block*, int> loop_iteration_count_;
   const StaticCanonicalForLoopMatcher canonical_loop_matcher_;
+  const size_t kMaxLoopSizeForPartialUnrolling =
+      PipelineData::Get().is_wasm() ? kWasmMaxLoopSizeForPartialUnrolling
+                                    : kJSMaxLoopSizeForPartialUnrolling;
+  bool can_unroll_at_least_one_loop_ = false;
 };
+
+template <class Next>
+class LoopPeelingReducer;
 
 template <class Next>
 class LoopUnrollingReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(LoopUnrolling)
+
+#if defined(__clang__)
+  // LoopUnrolling and LoopPeeling shouldn't be performed in the same phase, see
+  // the comment in pipeline.cc where LoopUnrolling is triggered.
+  static_assert(!reducer_list_contains<ReducerList, LoopPeelingReducer>::value);
+
+  // TODO(dmercadier): Add static_assert that this is ran as part of a
+  // CopyingPhase.
+#endif
 
   OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_idx, const GotoOp& gto) {
     // Note that the "ShouldSkipOptimizationStep" are placed in the parts of
@@ -270,14 +206,17 @@ class LoopUnrollingReducer : public Next {
     // mandatory lowering when unrolling is being performed.
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphGoto(ig_idx, gto); }
 
-    Block* dst = gto.destination;
+    const Block* dst = gto.destination;
     if (unrolling_ == UnrollingStatus::kNotUnrolling && dst->IsLoop() &&
-        __ current_input_block() != dst->LastPredecessor()) {
+        !gto.is_backedge) {
       // We trigger unrolling when reaching the GotoOp that jumps to the loop
       // header (note that loop headers only have 2 predecessor, including the
       // backedge), and that isn't the backedge.
       if (ShouldSkipOptimizationStep()) goto no_change;
-      if (analyzer_.ShouldFullyUnrollLoop(dst)) {
+      if (analyzer_.ShouldRemoveLoop(dst)) {
+        RemoveLoop(dst);
+        return OpIndex::Invalid();
+      } else if (analyzer_.ShouldFullyUnrollLoop(dst)) {
         FullyUnrollLoop(dst);
         return OpIndex::Invalid();
       } else if (analyzer_.ShouldPartiallyUnrollLoop(dst)) {
@@ -291,12 +230,15 @@ class LoopUnrollingReducer : public Next {
       // PartiallyUnrollLoop will emit a Goto to the next unrolled iteration.
       return OpIndex::Invalid();
     }
-
     goto no_change;
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_idx, const BranchOp& branch) {
-    if (unrolling_ == UnrollingStatus::kFinalizingUnrolling) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphBranch(ig_idx, branch);
+    }
+
+    if (unrolling_ == UnrollingStatus::kRemoveLoop) {
       // We know that the branch of the final inlined header of a fully unrolled
       // loop never actually goes to the loop, so we can replace it by a Goto
       // (so that the non-unrolled loop doesn't get emitted). We still need to
@@ -321,16 +263,39 @@ class LoopUnrollingReducer : public Next {
         DCHECK(is_true_in_loop && is_false_in_loop);
       }
     }
-    return Next::ReduceInputGraphBranch(ig_idx, branch);
+    goto no_change;
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Call)(OpIndex ig_idx, const CallOp& call) {
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
+    if (V8_LIKELY(!IsRunningBuiltinPipeline())) {
+      if (unrolling_ == UnrollingStatus::kUnrolling) {
+        if (call.IsStackCheck(__ input_graph(), broker_,
+                              StackCheckKind::kJSIterationBody)) {
+          // When we unroll a loop, we get rid of its stack checks. (note that
+          // we don't do this for the 1st folded body of partially unrolled
+          // loops so that the loop keeps a stack check).
+          DCHECK_NE(unrolling_, UnrollingStatus::kUnrollingFirstIteration);
+          return OpIndex::Invalid();
+        }
+      }
+    }
+
+    goto no_change;
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(StackCheck)(OpIndex ig_idx,
+                                         const StackCheckOp& check) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphStackCheck(ig_idx, check);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
     if (unrolling_ == UnrollingStatus::kUnrolling) {
-      if (call.IsStackCheck(__ input_graph(), broker_,
-                            StackCheckKind::kJSIterationBody)) {
+      DCHECK(!IsRunningBuiltinPipeline());
+      if (check.check_kind == StackCheckOp::CheckKind::kLoopCheck) {
         // When we unroll a loop, we get rid of its stack checks. (note that we
         // don't do this for the 1st folded body of partially unrolled loops so
         // that the loop keeps a stack check).
@@ -344,30 +309,60 @@ class LoopUnrollingReducer : public Next {
 
  private:
   enum class UnrollingStatus {
-    kNotUnrolling,             // Not currently unrolling a loop.
-    kUnrollingFirstIteration,  // Currently on the 1st iteration of a partially
-                               // unrolled loop.
-    kUnrolling,                // Currently unrolling a loop.
-    kFinalizingUnrolling  // Unrolling is finished and we are currently emitting
-                          // the header a last time, and should change its final
-                          // Branch into a Goto.
+    // Not currently unrolling a loop.
+    kNotUnrolling,
+    // Currently on the 1st iteration of a partially unrolled loop.
+    kUnrollingFirstIteration,
+    // Currently unrolling a loop.
+    kUnrolling,
+    // We use kRemoveLoop in 2 cases:
+    //   - When unrolling is finished and we are currently emitting the header
+    //     one last time, and should change its final branch into a Goto.
+    //   - We decided to remove a loop and will just emit its header.
+    // Both cases are fairly similar: we are currently emitting a loop header,
+    // and would like to not emit the loop body that follows.
+    kRemoveLoop,
   };
-  void FullyUnrollLoop(Block* header);
-  void PartiallyUnrollLoop(Block* header);
-  void FixLoopPhis(Block* input_graph_loop, Block* output_graph_loop,
-                   Block* backedge_block);
+  void RemoveLoop(const Block* header);
+  void FullyUnrollLoop(const Block* header);
+  void PartiallyUnrollLoop(const Block* header);
+  void FixLoopPhis(const Block* input_graph_loop, Block* output_graph_loop,
+                   const Block* backedge_block);
+  bool IsRunningBuiltinPipeline() const {
+    return PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA;
+  }
+  bool StopUnrollingIfUnreachable(
+      base::Optional<Block*> output_graph_header = base::nullopt) {
+    if (__ generating_unreachable_operations()) {
+      // By unrolling the loop, we realized that it was actually exiting early
+      // (probably because a Branch inside the loop was using a loop Phi in a
+      // condition, and unrolling showed that this loop Phi became true or
+      // false), and that lasts iterations were unreachable. We thus don't both
+      // unrolling the next iterations of the loop.
+      unrolling_ = UnrollingStatus::kNotUnrolling;
+      if (output_graph_header.has_value()) {
+        // The loop that we're unrolling has a header (which means that we're
+        // only partially unrolling), which needs to be turned into a Merge (and
+        // its PendingLoopPhis into regular Phis).
+        __ FinalizeLoop(*output_graph_header);
+      }
+      return true;
+    }
+    return false;
+  }
 
-  ZoneUnorderedSet<Block*> loop_body_{__ phase_zone()};
-  LoopUnrollingAnalyzer analyzer_{__ phase_zone(),
-                                  &__ modifiable_input_graph()};
+  // The analysis should be ran ahead of time so that the LoopUnrollingPhase
+  // doesn't trigger the CopyingPhase if there are no loops to unroll.
+  LoopUnrollingAnalyzer& analyzer_ =
+      *PipelineData::Get().loop_unrolling_analyzer();
   // {unrolling_} is true if a loop is currently being unrolled.
   UnrollingStatus unrolling_ = UnrollingStatus::kNotUnrolling;
-  void* current_loop_header_ = nullptr;
+  const Block* current_loop_header_ = nullptr;
   JSHeapBroker* broker_ = PipelineData::Get().broker();
 };
 
 template <class Next>
-void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(Block* header) {
+void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
   DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
   // When unrolling the 1st iteration,
 
@@ -386,28 +381,19 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(Block* header) {
   unrolling_ = UnrollingStatus::kUnrollingFirstIteration;
   Block* output_graph_header =
       __ CloneSubGraph(loop_body, /* keep_loop_kinds */ true);
+  if (StopUnrollingIfUnreachable(output_graph_header)) return;
 
   // Emitting the subsequent folded iterations. We set `unrolling_` to
   // kUnrolling so that stack checks are skipped.
   unrolling_ = UnrollingStatus::kUnrolling;
   for (int i = 0; i < unroll_count - 1; i++) {
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
-    if (__ generating_unreachable_operations()) {
-      // By unrolling the loop, we realized that it was actually exiting early
-      // (probably because a Branch inside the loop was using a loop Phi in a
-      // condition, and unrolling showed that this loop Phi became true or
-      // false), and that lasts iterations were unreachable. We thus don't both
-      // unrolling the next iterations of the loop.
-      unrolling_ = UnrollingStatus::kNotUnrolling;
-      __ FinalizeLoop(output_graph_header);
-      return;
-    }
+    if (StopUnrollingIfUnreachable(output_graph_header)) return;
   }
 
   // ReduceInputGraphGoto ignores backedge Gotos while kUnrolling is true, which
   // means that we are still missing the loop's backedge, which we thus emit
   // now.
-  unrolling_ = UnrollingStatus::kFinalizingUnrolling;
   DCHECK(output_graph_header->IsLoop());
   Block* backedge_block = __ current_block();
   __ Goto(output_graph_header);
@@ -420,9 +406,9 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(Block* header) {
 }
 
 template <class Next>
-void LoopUnrollingReducer<Next>::FixLoopPhis(Block* input_graph_loop,
+void LoopUnrollingReducer<Next>::FixLoopPhis(const Block* input_graph_loop,
                                              Block* output_graph_loop,
-                                             Block* backedge_block) {
+                                             const Block* backedge_block) {
   // FixLoopPhis for partially unrolled loops is a bit tricky: the mapping from
   // input Loop Phis to output Loop Phis is in the Variable Snapshot of the
   // header (`output_graph_loop`), but the mapping from the 2nd input of the
@@ -472,10 +458,22 @@ void LoopUnrollingReducer<Next>::FixLoopPhis(Block* input_graph_loop,
 }
 
 template <class Next>
-void LoopUnrollingReducer<Next>::FullyUnrollLoop(Block* header) {
+void LoopUnrollingReducer<Next>::RemoveLoop(const Block* header) {
+  DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
+  // When removing a loop, we still need to emit the header (since it has to
+  // always be executed before the 1st iteration anyways), but by setting
+  // {unrolling_} to `kRemoveLoop`, the final Branch of the loop will become a
+  // Goto to outside the loop.
+  unrolling_ = UnrollingStatus::kRemoveLoop;
+  __ CloneAndInlineBlock(header);
+  unrolling_ = UnrollingStatus::kNotUnrolling;
+}
+
+template <class Next>
+void LoopUnrollingReducer<Next>::FullyUnrollLoop(const Block* header) {
   DCHECK_EQ(unrolling_, UnrollingStatus::kNotUnrolling);
 
-  int iter_count = analyzer_.GetIterationCount(header);
+  int iter_count = *analyzer_.GetIterationCount(header);
   DCHECK_GT(iter_count, 0);
 
   auto loop_body = analyzer_.GetLoopBody(header);
@@ -484,21 +482,13 @@ void LoopUnrollingReducer<Next>::FullyUnrollLoop(Block* header) {
   unrolling_ = UnrollingStatus::kUnrolling;
   for (int i = 0; i < iter_count; i++) {
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
-    if (__ generating_unreachable_operations()) {
-      // By unrolling the loop, we realized that it was actually exiting early
-      // (probably because a Branch inside the loop was using a loop Phi in a
-      // condition, and unrolling showed that this loop Phi became true or
-      // false), and that lasts iterations were unreachable. We thus don't both
-      // unrolling the next iterations of the loop.
-      unrolling_ = UnrollingStatus::kNotUnrolling;
-      return;
-    }
+    if (StopUnrollingIfUnreachable()) return;
   }
 
   // The loop actually finishes on the header rather than its last block. We
   // thus inline the header, and we'll replace its final BranchOp by a GotoOp to
   // outside of the loop.
-  unrolling_ = UnrollingStatus::kFinalizingUnrolling;
+  unrolling_ = UnrollingStatus::kRemoveLoop;
   __ CloneAndInlineBlock(header);
 
   unrolling_ = UnrollingStatus::kNotUnrolling;

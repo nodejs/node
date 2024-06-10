@@ -1,23 +1,20 @@
 'use strict'
 
-const { mkdir } = require('fs/promises')
+const { mkdir } = require('node:fs/promises')
 const Arborist = require('@npmcli/arborist')
 const ciInfo = require('ci-info')
-const crypto = require('crypto')
-const log = require('proc-log')
+const crypto = require('node:crypto')
+const { log, input } = require('proc-log')
 const npa = require('npm-package-arg')
-const npmlog = require('npmlog')
 const pacote = require('pacote')
-const read = require('read')
+const { read } = require('read')
 const semver = require('semver')
-
 const { fileExists, localFileExists } = require('./file-exists.js')
 const getBinFromManifest = require('./get-bin-from-manifest.js')
 const noTTY = require('./no-tty.js')
 const runScript = require('./run-script.js')
 const isWindows = require('./is-windows.js')
-
-const { dirname, resolve } = require('path')
+const { dirname, resolve } = require('node:path')
 
 const binPaths = []
 
@@ -76,6 +73,11 @@ const missingFromTree = async ({ spec, tree, flatOptions, isNpxTree }) => {
   }
 }
 
+// see if the package.json at `path` has an entry that matches `cmd`
+const hasPkgBin = (path, cmd, flatOptions) =>
+  pacote.manifest(path, flatOptions)
+    .then(manifest => manifest?.bin?.[cmd]).catch(() => null)
+
 const exec = async (opts) => {
   const {
     args = [],
@@ -84,7 +86,6 @@ const exec = async (opts) => {
     locationMsg = undefined,
     globalBin = '',
     globalPath,
-    output,
     // dereference values because we manipulate it later
     packages: [...packages] = [],
     path = '.',
@@ -93,13 +94,19 @@ const exec = async (opts) => {
     ...flatOptions
   } = opts
 
+  let pkgPaths = opts.pkgPath
+  if (typeof pkgPaths === 'string') {
+    pkgPaths = [pkgPaths]
+  }
+  if (!pkgPaths) {
+    pkgPaths = ['.']
+  }
   let yes = opts.yes
   const run = () => runScript({
     args,
     call,
     flatOptions,
     locationMsg,
-    output,
     path,
     binPaths,
     runPath,
@@ -111,28 +118,31 @@ const exec = async (opts) => {
     return run()
   }
 
+  // Look in the local tree too
+  pkgPaths.push(path)
+
   let needPackageCommandSwap = (args.length > 0) && (packages.length === 0)
   // If they asked for a command w/o specifying a package, see if there is a
   // bin that directly matches that name:
-  // - in the local package itself
-  // - in the local tree
+  // - in any local packages (pkgPaths can have workspaces in them or just the root)
+  // - in the local tree (path)
   // - globally
   if (needPackageCommandSwap) {
-    let localManifest
-    try {
-      localManifest = await pacote.manifest(path, flatOptions)
-    } catch {
-      // no local package.json? no problem, move one.
+    // Local packages and local tree
+    for (const p of pkgPaths) {
+      if (await hasPkgBin(p, args[0], flatOptions)) {
+        // we have to install the local package into the npx cache so that its
+        // bin links get set up
+        flatOptions.installLinks = false
+        // args[0] will exist when the package is installed
+        packages.push(p)
+        yes = true
+        needPackageCommandSwap = false
+        break
+      }
     }
-    if (localManifest?.bin?.[args[0]]) {
-      // we have to install the local package into the npx cache so that its
-      // bin links get set up
-      flatOptions.installLinks = false
-      // args[0] will exist when the package is installed
-      packages.push(path)
-      yes = true
-      needPackageCommandSwap = false
-    } else {
+    if (needPackageCommandSwap) {
+      // no bin entry in local packages or in tree, now we look for binPaths
       const dir = dirname(dirname(localBin))
       const localBinPath = await localFileExists(dir, args[0], '/')
       if (localBinPath) {
@@ -245,27 +255,24 @@ const exec = async (opts) => {
 
     if (add.length) {
       if (!yes) {
-        const missingPackages = add.map(a => `${a.replace(/@$/, '')}`)
+        const addList = add.map(a => `${a.replace(/@$/, '')}`)
+
         // set -n to always say no
         if (yes === false) {
           // Error message lists missing package(s) when process is canceled
           /* eslint-disable-next-line max-len */
-          throw new Error(`npx canceled due to missing packages and no YES option: ${JSON.stringify(missingPackages)}`)
+          throw new Error(`npx canceled due to missing packages and no YES option: ${JSON.stringify(addList)}`)
         }
 
         if (noTTY() || ciInfo.isCI) {
-          log.warn('exec', `The following package${
-            add.length === 1 ? ' was' : 's were'
-          } not found and will be installed: ${
-            add.map((pkg) => pkg.replace(/@$/, '')).join(', ')
-          }`)
+          /* eslint-disable-next-line max-len */
+          log.warn('exec', `The following package${add.length === 1 ? ' was' : 's were'} not found and will be installed: ${addList.join(', ')}`)
         } else {
-          const addList = missingPackages.join('\n') + '\n'
-          const prompt = `Need to install the following packages:\n${
-          addList
-        }Ok to proceed? `
-          npmlog.clearProgress()
-          const confirm = await read({ prompt, default: 'y' })
+          const confirm = await input.read(() => read({
+            /* eslint-disable-next-line max-len */
+            prompt: `Need to install the following packages:\n${addList.join('\n')}\nOk to proceed? `,
+            default: 'y',
+          }))
           if (confirm.trim().toLowerCase().charAt(0) !== 'y') {
             throw new Error('canceled')
           }

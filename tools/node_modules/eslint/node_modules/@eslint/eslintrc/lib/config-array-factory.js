@@ -1148,4 +1148,8 @@ class ConfigArrayFactory {
     }
 }
 
-export { ConfigArrayFactory, createContext };
+export {
+    ConfigArrayFactory,
+    createContext,
+    loadConfigFile
+};

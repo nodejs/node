@@ -28,7 +28,7 @@
     "path": "fetch/data-urls/resources"
   },
   "FileAPI": {
-    "commit": "e36dbb6f00fb59f9fc792f509194432e9e6d0b6d",
+    "commit": "cceaf3628da950621004d9b5d8c1d1f367073347",
     "path": "FileAPI"
   },
   "hr-time": {
@@ -68,11 +68,11 @@
     "path": "resources"
   },
   "streams": {
-    "commit": "3df6d94318b225845a0c8e4c7718484f41c9b8ce",
+    "commit": "9b03282a99ef2314c1c2d5050a105a74a2940019",
     "path": "streams"
   },
   "url": {
-    "commit": "c2d7e70b52cbd9a5b938aa32f37078d7a71e0b21",
+    "commit": "0f550ab9f5a07ed293926a306e914866164b346b",
     "path": "url"
   },
   "user-timing": {

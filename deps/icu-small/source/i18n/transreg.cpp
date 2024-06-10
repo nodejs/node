@@ -85,7 +85,7 @@ TransliteratorAlias::TransliteratorAlias(const UnicodeString& theAliasID,
                                          const UnicodeSet* cpdFilter) :
     ID(),
     aliasesOrRules(theAliasID),
-    transes(0),
+    transes(nullptr),
     compoundFilter(cpdFilter),
     direction(UTRANS_FORWARD),
     type(TransliteratorAlias::SIMPLE) {
@@ -108,8 +108,8 @@ TransliteratorAlias::TransliteratorAlias(const UnicodeString& theID,
                                          UTransDirection dir) :
     ID(theID),
     aliasesOrRules(rules),
-    transes(0),
-    compoundFilter(0),
+    transes(nullptr),
+    compoundFilter(nullptr),
     direction(dir),
     type(TransliteratorAlias::RULES) {
 }
@@ -122,16 +122,16 @@ TransliteratorAlias::~TransliteratorAlias() {
 Transliterator* TransliteratorAlias::create(UParseError& pe,
                                             UErrorCode& ec) {
     if (U_FAILURE(ec)) {
-        return 0;
+        return nullptr;
     }
     Transliterator *t = nullptr;
     switch (type) {
     case SIMPLE:
         t = Transliterator::createInstance(aliasesOrRules, UTRANS_FORWARD, pe, ec);
         if(U_FAILURE(ec)){
-            return 0;
+            return nullptr;
         }
-        if (compoundFilter != 0)
+        if (compoundFilter != nullptr)
             t->adoptFilter(compoundFilter->clone());
         break;
     case COMPOUND:
@@ -171,9 +171,9 @@ Transliterator* TransliteratorAlias::create(UParseError& pe,
                 t = new CompoundTransliterator(ID, transliterators,
                         (compoundFilter ? compoundFilter->clone() : nullptr),
                         anonymousRBTs, pe, ec);
-                if (t == 0) {
+                if (t == nullptr) {
                     ec = U_MEMORY_ALLOCATION_ERROR;
-                    return 0;
+                    return nullptr;
                 }
             } else {
                 for (int32_t i = 0; i < transliterators.size(); i++)
@@ -253,7 +253,7 @@ class TransliteratorSpec : public UMemory {
 
 TransliteratorSpec::TransliteratorSpec(const UnicodeString& theSpec)
 : top(theSpec),
-  res(0)
+  res(nullptr)
 {
     UErrorCode status = U_ZERO_ERROR;
     Locale topLoc("");
@@ -261,12 +261,12 @@ TransliteratorSpec::TransliteratorSpec(const UnicodeString& theSpec)
     if (!topLoc.isBogus()) {
         res = new ResourceBundle(U_ICUDATA_TRANSLIT, topLoc, status);
         /* test for nullptr */
-        if (res == 0) {
+        if (res == nullptr) {
             return;
         }
         if (U_FAILURE(status) || status == U_USING_DEFAULT_WARNING) {
             delete res;
-            res = 0;
+            res = nullptr;
         }
     }
 
@@ -281,7 +281,7 @@ TransliteratorSpec::TransliteratorSpec(const UnicodeString& theSpec)
     }
 
     // Canonicalize top
-    if (res != 0) {
+    if (res != nullptr) {
         // Canonicalize locale name
         UnicodeString locStr;
         LocaleUtility::initNameFromLocale(topLoc, locStr);
@@ -308,7 +308,7 @@ UBool TransliteratorSpec::hasFallback() const {
 void TransliteratorSpec::reset() {
     if (spec != top) {
         spec = top;
-        isSpecLocale = (res != 0);
+        isSpecLocale = (res != nullptr);
         setupNext();
     }
 }
@@ -474,7 +474,7 @@ private:
 };
 
 TransliteratorEntry::TransliteratorEntry() {
-    u.prototype = 0;
+    u.prototype = nullptr;
     compoundFilter = nullptr;
     entryType = NONE;
     DEBUG_newEntry(this);
@@ -553,7 +553,7 @@ Transliterator* TransliteratorRegistry::get(const UnicodeString& ID,
                                             UErrorCode& status) {
     U_ASSERT(aliasReturn == nullptr);
     TransliteratorEntry *entry = find(ID);
-    return (entry == 0) ? 0
+    return entry == nullptr ? nullptr
         : instantiateEntry(ID, entry, aliasReturn, status);
 }
 
@@ -564,11 +564,11 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
     U_ASSERT(aliasReturn == nullptr);
     TransliteratorEntry *entry = find(ID);
 
-    if (entry == 0) {
+    if (entry == nullptr) {
         // We get to this point if there are two threads, one of which
         // is instantiating an ID, and another of which is removing
         // the same ID from the registry, and the timing is just right.
-        return 0;
+        return nullptr;
     }
 
     // The usage model for the caller is that they will first call
@@ -588,7 +588,7 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
         entry->entryType == TransliteratorEntry::LOCALE_RULES) {
         
         if (parser.idBlockVector.isEmpty() && parser.dataVector.isEmpty()) {
-            entry->u.data = 0;
+            entry->u.data = nullptr;
             entry->entryType = TransliteratorEntry::ALIAS;
             entry->stringArg = UNICODE_STRING_SIMPLE("Any-nullptr");
         }
@@ -771,14 +771,14 @@ int32_t TransliteratorRegistry::countAvailableSources() const {
 UnicodeString& TransliteratorRegistry::getAvailableSource(int32_t index,
                                                           UnicodeString& result) const {
     int32_t pos = UHASH_FIRST;
-    const UHashElement *e = 0;
+    const UHashElement* e = nullptr;
     while (index-- >= 0) {
         e = specDAG.nextElement(pos);
-        if (e == 0) {
+        if (e == nullptr) {
             break;
         }
     }
-    if (e == 0) {
+    if (e == nullptr) {
         result.truncate(0);
     } else {
         result = *(UnicodeString*) e->key.pointer;
@@ -788,26 +788,26 @@ UnicodeString& TransliteratorRegistry::getAvailableSource(int32_t index,
 
 int32_t TransliteratorRegistry::countAvailableTargets(const UnicodeString& source) const {
     Hashtable *targets = (Hashtable*) specDAG.get(source);
-    return (targets == 0) ? 0 : targets->count();
+    return (targets == nullptr) ? 0 : targets->count();
 }
 
 UnicodeString& TransliteratorRegistry::getAvailableTarget(int32_t index,
                                                           const UnicodeString& source,
                                                           UnicodeString& result) const {
     Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    if (targets == nullptr) {
         result.truncate(0); // invalid source
         return result;
     }
     int32_t pos = UHASH_FIRST;
-    const UHashElement *e = 0;
+    const UHashElement* e = nullptr;
     while (index-- >= 0) {
         e = targets->nextElement(pos);
-        if (e == 0) {
+        if (e == nullptr) {
             break;
         }
     }
-    if (e == 0) {
+    if (e == nullptr) {
         result.truncate(0); // invalid index
     } else {
         result = *(UnicodeString*) e->key.pointer;
@@ -818,7 +818,7 @@ UnicodeString& TransliteratorRegistry::getAvailableTarget(int32_t index,
 int32_t TransliteratorRegistry::countAvailableVariants(const UnicodeString& source,
                                                        const UnicodeString& target) const {
     Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    if (targets == nullptr) {
         return 0;
     }
     uint32_t varMask = targets->geti(target);
@@ -837,7 +837,7 @@ UnicodeString& TransliteratorRegistry::getAvailableVariant(int32_t index,
                                                            const UnicodeString& target,
                                                            UnicodeString& result) const {
     Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    if (targets == nullptr) {
         result.truncate(0); // invalid source
         return result;
     }
@@ -986,7 +986,7 @@ void TransliteratorRegistry::registerSTV(const UnicodeString& source,
     // assert(target.length() > 0);
     UErrorCode status = U_ZERO_ERROR;
     Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    if (targets == nullptr) {
         int32_t size = 3;
         if (source.compare(ANY,3) == 0) {
             size = ANY_TARGETS_INIT_SIZE;
@@ -1084,7 +1084,7 @@ TransliteratorEntry* TransliteratorRegistry::findInDynamicStore(const Transliter
 TransliteratorEntry* TransliteratorRegistry::findInStaticStore(const TransliteratorSpec& src,
                                                  const TransliteratorSpec& trg,
                                                  const UnicodeString& variant) {
-    TransliteratorEntry* entry = 0;
+    TransliteratorEntry* entry = nullptr;
     if (src.isLocale()) {
         entry = findInBundle(src, trg, variant, UTRANS_FORWARD);
     } else if (trg.isLocale()) {
@@ -1093,7 +1093,7 @@ TransliteratorEntry* TransliteratorRegistry::findInStaticStore(const Translitera
 
     // If we found an entry, store it in the Hashtable for next
     // time.
-    if (entry != 0) {
+    if (entry != nullptr) {
         registerEntry(src.getTop(), trg.getTop(), variant, entry, false);
     }
 
@@ -1179,7 +1179,7 @@ TransliteratorEntry* TransliteratorRegistry::findInBundle(const TransliteratorSp
     // We have succeeded in loading a string from the locale
     // resources.  Create a new registry entry to hold it and return it.
     TransliteratorEntry *entry = new TransliteratorEntry();
-    if (entry != 0) {
+    if (entry != nullptr) {
         // The direction is always forward for the
         // TransliterateTo_xxx and TransliterateFrom_xxx
         // items; those are unidirectional forward rules.
@@ -1240,7 +1240,7 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
     UnicodeString ID;
     TransliteratorIDParser::STVtoID(source, target, variant, ID);
     entry = (TransliteratorEntry*) registry.get(ID);
-    if (entry != 0) {
+    if (entry != nullptr) {
         // std::string ss;
         // std::cout << ID.toUTF8String(ss) << std::endl;
         return entry;
@@ -1250,13 +1250,13 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
         
         // Seek exact match in hashtable
         entry = findInDynamicStore(src, trg, variant);
-        if (entry != 0) {
+        if (entry != nullptr) {
             return entry;
         }
-        
+
         // Seek exact match in locale resources
         entry = findInStaticStore(src, trg, variant);
-        if (entry != 0) {
+        if (entry != nullptr) {
             return entry;
         }
     }
@@ -1266,13 +1266,13 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
         for (;;) {
             // Seek match in hashtable
             entry = findInDynamicStore(src, trg, NO_VARIANT);
-            if (entry != 0) {
+            if (entry != nullptr) {
                 return entry;
             }
-            
+
             // Seek match in locale resources
             entry = findInStaticStore(src, trg, NO_VARIANT);
-            if (entry != 0) {
+            if (entry != nullptr) {
                 return entry;
             }
             if (!src.hasFallback()) {
@@ -1286,7 +1286,7 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
         trg.next();
     }
 
-    return 0;
+    return nullptr;
 }
 
 /**
@@ -1305,31 +1305,31 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
                                                          TransliteratorEntry *entry,
                                                          TransliteratorAlias* &aliasReturn,
                                                          UErrorCode& status) {
-    Transliterator *t = 0;
+    Transliterator* t = nullptr;
     U_ASSERT(aliasReturn == 0);
 
     switch (entry->entryType) {
     case TransliteratorEntry::RBT_DATA:
         t = new RuleBasedTransliterator(ID, entry->u.data);
-        if (t == 0) {
+        if (t == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
         return t;
     case TransliteratorEntry::PROTOTYPE:
         t = entry->u.prototype->clone();
-        if (t == 0) {
+        if (t == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
         return t;
     case TransliteratorEntry::ALIAS:
         aliasReturn = new TransliteratorAlias(entry->stringArg, entry->compoundFilter);
-        if (aliasReturn == 0) {
+        if (aliasReturn == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
-        return 0;
+        return nullptr;
     case TransliteratorEntry::FACTORY:
         t = entry->u.factory.function(ID, entry->u.factory.context);
-        if (t == 0) {
+        if (t == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
         return t;
@@ -1346,29 +1346,29 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
                 // TODO: Should passNumber be turned into a decimal-string representation (1 -> "1")?
                 Transliterator* tl = new RuleBasedTransliterator(UnicodeString(CompoundTransliterator::PASS_STRING) + UnicodeString(passNumber++),
                     (TransliterationRuleData*)(entry->u.dataVector->elementAt(i)), false);
-                if (tl == 0)
+                if (tl == nullptr)
                     status = U_MEMORY_ALLOCATION_ERROR;
                 else
                     rbts->adoptElement(tl, status);
             }
             if (U_FAILURE(status)) {
                 delete rbts;
-                return 0;
+                return nullptr;
             }
             rbts->setDeleter(nullptr);
             aliasReturn = new TransliteratorAlias(ID, entry->stringArg, rbts, entry->compoundFilter);
         }
-        if (aliasReturn == 0) {
+        if (aliasReturn == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
-        return 0;
+        return nullptr;
     case TransliteratorEntry::LOCALE_RULES:
         aliasReturn = new TransliteratorAlias(ID, entry->stringArg,
                                               (UTransDirection) entry->intArg);
-        if (aliasReturn == 0) {
+        if (aliasReturn == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
-        return 0;
+        return nullptr;
     case TransliteratorEntry::RULES_FORWARD:
     case TransliteratorEntry::RULES_REVERSE:
         // Process the rule data into a TransliteratorRuleData object,
@@ -1404,12 +1404,12 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
                 aliasReturn = new TransliteratorAlias(ID, rules,
                     ((entry->entryType == TransliteratorEntry::RULES_REVERSE) ?
                      UTRANS_REVERSE : UTRANS_FORWARD));
-                if (aliasReturn == 0) {
+                if (aliasReturn == nullptr) {
                     status = U_MEMORY_ALLOCATION_ERROR;
                 }
             //}
         }
-        return 0;
+        return nullptr;
     default:
         UPRV_UNREACHABLE_EXIT; // can't get here
     }

@@ -41,7 +41,7 @@ class PythonFinder {
   static findPython = (...args) => new PythonFinder(...args).findPython()
 
   log = log.withPrefix('find Python')
-  argsExecutable = ['-c', 'import sys; print(sys.executable);']
+  argsExecutable = ['-c', 'import sys; sys.stdout.buffer.write(sys.executable.encode(\'utf-8\'));']
   argsVersion = ['-c', 'import sys; print("%s.%s.%s" % sys.version_info[:3]);']
   semverRange = '>=3.6.0'
 

@@ -1021,6 +1021,9 @@ try {
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53127
+    description: This API is no longer experimental.
   - version:
     - v20.1.0
     - v18.17.0
@@ -1034,8 +1037,6 @@ changes:
     description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
 -->
-
-> Stability: 1 - Experimental
 
 * `src` {string|URL} source path to copy.
 * `dest` {string|URL} destination path to copy to.
@@ -1072,7 +1073,11 @@ behavior is similar to `cp dir1/ dir2/`.
 ### `fsPromises.glob(pattern[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
+changes:
+  - version: v22.2.0
+    pr-url: https://github.com/nodejs/node/pull/52837
+    description: Add support for `withFileTypes` as an option.
 -->
 
 > Stability: 1 - Experimental
@@ -1082,6 +1087,8 @@ added: REPLACEME
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
   that match the pattern.
 
@@ -1693,7 +1700,7 @@ changes:
 Creates a symbolic link.
 
 The `type` argument is only used on Windows platforms and can be one of `'dir'`,
-`'file'`, or `'junction'`. If the `type` argument is not a string, Node.js will
+`'file'`, or `'junction'`. If the `type` argument is `null`, Node.js will
 autodetect `target` type and use `'file'` or `'dir'`. If the `target` does not
 exist, `'file'` will be used. Windows junction points require the destination
 path to be absolute. When using `'junction'`, the `target` argument will
@@ -2381,6 +2388,7 @@ changes:
 * `dest` {string|Buffer|URL} destination filename of the copy operation
 * `mode` {integer} modifiers for copy operation. **Default:** `0`.
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. No arguments other than a possible exception are given to the
@@ -2422,6 +2430,9 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53127
+    description: This API is no longer experimental.
   - version:
     - v20.1.0
     - v18.17.0
@@ -2440,8 +2451,6 @@ changes:
     description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
 -->
-
-> Stability: 1 - Experimental
 
 * `src` {string|URL} source path to copy.
 * `dest` {string|URL} destination path to copy to.
@@ -2468,6 +2477,7 @@ changes:
   * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.
@@ -3108,7 +3118,11 @@ descriptor. See [`fs.utimes()`][].
 ### `fs.glob(pattern[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
+changes:
+  - version: v22.2.0
+    pr-url: https://github.com/nodejs/node/pull/52837
+    description: Add support for `withFileTypes` as an option.
 -->
 
 > Stability: 1 - Experimental
@@ -3119,6 +3133,8 @@ added: REPLACEME
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
 
 * `callback` {Function}
   * `err` {Error}
@@ -3669,6 +3685,37 @@ number of bytes read is zero.
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a promise for an `Object` with `bytesRead` and `buffer` properties.
 
+The `fs.read()` method reads data from the file specified
+by the file descriptor (`fd`).
+The `length` argument indicates the maximum number
+of bytes that Node.js
+will attempt to read from the kernel.
+However, the actual number of bytes read (`bytesRead`) can be lower
+than the specified `length` for various reasons.
+
+For example:
+
+* If the file is shorter than the specified `length`, `bytesRead`
+  will be set to the actual number of bytes read.
+* If the file encounters EOF (End of File) before the buffer could
+  be filled, Node.js will read all available bytes until EOF is encountered,
+  and the `bytesRead` parameter in the callback will indicate
+  the actual number of bytes read, which may be less than the specified `length`.
+* If the file is on a slow network `filesystem`
+  or encounters any other issue during reading,
+  `bytesRead` can be lower than the specified `length`.
+
+Therefore, when using `fs.read()`, it's important to
+check the `bytesRead` value to
+determine how many bytes were actually read from the file.
+Depending on your application
+logic, you may need to handle cases where `bytesRead`
+is lower than the specified `length`,
+such as by wrapping the read call in a loop if you require
+a minimum amount of bytes.
+
+This behavior is similar to the POSIX `preadv2` function.
+
 ### `fs.read(fd[, options], callback)`
 
 <!-- YAML
@@ -4072,6 +4119,9 @@ the path returned will be passed as a {Buffer} object.
 If `path` resolves to a socket or a pipe, the function will return a system
 dependent name for that object.
 
+A path that does not exist results in an ENOENT error.
+`error.path` is the absolute file path.
+
 ### `fs.realpath.native(path[, options], callback)`
 
 <!-- YAML
@@ -4444,7 +4494,7 @@ See the POSIX symlink(2) documentation for more details.
 
 The `type` argument is only available on Windows and ignored on other platforms.
 It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
-not a string, Node.js will autodetect `target` type and use `'file'` or `'dir'`.
+`null`, Node.js will autodetect `target` type and use `'file'` or `'dir'`.
 If the `target` does not exist, `'file'` will be used. Windows junction points
 require the destination path to be absolute. When using `'junction'`, the
 `target` argument will automatically be normalized to absolute path. Junction
@@ -5420,6 +5470,9 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53127
+    description: This API is no longer experimental.
   - version:
     - v20.1.0
     - v18.17.0
@@ -5433,8 +5486,6 @@ changes:
     description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
 -->
-
-> Stability: 1 - Experimental
 
 * `src` {string|URL} source path to copy.
 * `dest` {string|URL} destination path to copy to.
@@ -5602,7 +5653,11 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 ### `fs.globSync(pattern[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
+changes:
+  - version: v22.2.0
+    pr-url: https://github.com/nodejs/node/pull/52837
+    description: Add support for `withFileTypes` as an option.
 -->
 
 > Stability: 1 - Experimental
@@ -5612,6 +5667,8 @@ added: REPLACEME
   * `cwd` {string} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function} Function to filter out files/directories. Return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+    `false` otherwise. **Default:** `false`.
 * Returns: {string\[]} paths of files that match the pattern.
 
 ```mjs
@@ -6763,13 +6820,17 @@ deprecated:
   - v21.5.0
   - v20.12.0
   - v18.20.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51050
+    description: Accessing this property emits a warning. It is now read-only.
 -->
 
 > Stability: 0 - Deprecated: Use [`dirent.parentPath`][] instead.
 
 * {string}
 
-Alias for `dirent.parentPath`.
+Alias for `dirent.parentPath`. Read-only.
 
 ### Class: `fs.FSWatcher`
 
@@ -7004,7 +7065,9 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51879
     description: Public constructor is deprecated.
   - version: v8.1.0

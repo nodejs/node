@@ -122,15 +122,15 @@ v8::Maybe<bool> ModuleWrap::CheckUnsettledTopLevelAwait() {
   if (!module->IsGraphAsync()) {  // There is no TLA, no need to check.
     return v8::Just(true);
   }
-  auto stalled = module->GetStalledTopLevelAwaitMessage(isolate);
-  if (stalled.size() == 0) {
+
+  auto stalled_messages =
+      std::get<1>(module->GetStalledTopLevelAwaitMessages(isolate));
+  if (stalled_messages.size() == 0) {
     return v8::Just(true);
   }
 
   if (env()->options()->warnings) {
-    for (auto& pair : stalled) {
-      Local<v8::Message> message = std::get<1>(pair);
-
+    for (auto& message : stalled_messages) {
       std::string reason = "Warning: Detected unsettled top-level await at ";
       std::string info =
           FormatErrorMessage(isolate, context, "", message, true);
@@ -142,8 +142,18 @@ v8::Maybe<bool> ModuleWrap::CheckUnsettledTopLevelAwait() {
   return v8::Just(false);
 }
 
-// new ModuleWrap(url, context, source, lineOffset, columnOffset)
-// new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
+Local<PrimitiveArray> ModuleWrap::GetHostDefinedOptions(
+    Isolate* isolate, Local<Symbol> id_symbol) {
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
+  host_defined_options->Set(isolate, HostDefinedOptions::kID, id_symbol);
+  return host_defined_options;
+}
+
+// new ModuleWrap(url, context, source, lineOffset, columnOffset[, cachedData]);
+// new ModuleWrap(url, context, source, lineOffset, columOffset,
+//                idSymbol);
+// new ModuleWrap(url, context, exportNames, evaluationCallback[, cjsModule])
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   CHECK_GE(args.Length(), 3);
@@ -172,22 +182,41 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   int column_offset = 0;
 
   bool synthetic = args[2]->IsArray();
+  bool can_use_builtin_cache = false;
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
+  Local<Symbol> id_symbol;
   if (synthetic) {
-    // new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
+    // new ModuleWrap(url, context, exportNames, evaluationCallback[,
+    // cjsModule])
     CHECK(args[3]->IsFunction());
   } else {
-    // new ModuleWrap(url, context, source, lineOffset, columOffset, cachedData)
+    // new ModuleWrap(url, context, source, lineOffset, columOffset[,
+    //                cachedData]);
+    // new ModuleWrap(url, context, source, lineOffset, columOffset,
+    //                idSymbol);
     CHECK(args[2]->IsString());
     CHECK(args[3]->IsNumber());
     line_offset = args[3].As<Int32>()->Value();
     CHECK(args[4]->IsNumber());
     column_offset = args[4].As<Int32>()->Value();
-  }
+    if (args[5]->IsSymbol()) {
+      id_symbol = args[5].As<Symbol>();
+      can_use_builtin_cache =
+          (id_symbol ==
+           realm->isolate_data()->source_text_module_default_hdo());
+    } else {
+      id_symbol = Symbol::New(isolate, url);
+    }
+    host_defined_options = GetHostDefinedOptions(isolate, id_symbol);
 
-  Local<PrimitiveArray> host_defined_options =
-      PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
-  Local<Symbol> id_symbol = Symbol::New(isolate, url);
-  host_defined_options->Set(isolate, HostDefinedOptions::kID, id_symbol);
+    if (that->SetPrivate(context,
+                         realm->isolate_data()->host_defined_option_symbol(),
+                         id_symbol)
+            .IsNothing()) {
+      return;
+    }
+  }
 
   ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
   TryCatchScope try_catch(realm->env());
@@ -214,37 +243,34 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       module = Module::CreateSyntheticModule(
           isolate, url, span, SyntheticModuleEvaluationStepsCallback);
     } else {
-      ScriptCompiler::CachedData* cached_data = nullptr;
-      if (!args[5]->IsUndefined()) {
-        CHECK(args[5]->IsArrayBufferView());
+      // When we are compiling for the default loader, this will be
+      // std::nullopt, and CompileSourceTextModule() should use
+      // on-disk cache.
+      std::optional<v8::ScriptCompiler::CachedData*> user_cached_data;
+      if (id_symbol !=
+          realm->isolate_data()->source_text_module_default_hdo()) {
+        user_cached_data = nullptr;
+      }
+      if (args[5]->IsArrayBufferView()) {
+        CHECK(!can_use_builtin_cache);  // We don't use this option internally.
         Local<ArrayBufferView> cached_data_buf = args[5].As<ArrayBufferView>();
         uint8_t* data =
             static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
-        cached_data =
+        user_cached_data =
             new ScriptCompiler::CachedData(data + cached_data_buf->ByteOffset(),
                                            cached_data_buf->ByteLength());
       }
-
       Local<String> source_text = args[2].As<String>();
-      ScriptOrigin origin(isolate,
-                          url,
-                          line_offset,
-                          column_offset,
-                          true,                             // is cross origin
-                          -1,                               // script id
-                          Local<Value>(),                   // source map URL
-                          false,                            // is opaque (?)
-                          false,                            // is WASM
-                          true,                             // is ES Module
-                          host_defined_options);
-      ScriptCompiler::Source source(source_text, origin, cached_data);
-      ScriptCompiler::CompileOptions options;
-      if (source.GetCachedData() == nullptr) {
-        options = ScriptCompiler::kNoCompileOptions;
-      } else {
-        options = ScriptCompiler::kConsumeCodeCache;
-      }
-      if (!ScriptCompiler::CompileModule(isolate, &source, options)
+
+      bool cache_rejected = false;
+      if (!CompileSourceTextModule(realm,
+                                   source_text,
+                                   url,
+                                   line_offset,
+                                   column_offset,
+                                   host_defined_options,
+                                   user_cached_data,
+                                   &cache_rejected)
                .ToLocal(&module)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
           CHECK(!try_catch.Message().IsEmpty());
@@ -257,8 +283,9 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         }
         return;
       }
-      if (options == ScriptCompiler::kConsumeCodeCache &&
-          source.GetCachedData()->rejected) {
+
+      if (user_cached_data.has_value() && user_cached_data.value() != nullptr &&
+          cache_rejected) {
         THROW_ERR_VM_MODULE_CACHED_DATA_REJECTED(
             realm, "cachedData buffer was rejected");
         try_catch.ReThrow();
@@ -279,9 +306,16 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  if (synthetic && args[4]->IsObject() &&
+      that->Set(context, realm->isolate_data()->imported_cjs_symbol(), args[4])
+          .IsNothing()) {
+    return;
+  }
+
+  // Initialize an empty slot for source map cache before the object is frozen.
   if (that->SetPrivate(context,
-                       realm->isolate_data()->host_defined_option_symbol(),
-                       id_symbol)
+                       realm->isolate_data()->source_map_data_private_symbol(),
+                       Undefined(isolate))
           .IsNothing()) {
     return;
   }
@@ -302,142 +336,175 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(that);
 }
 
+MaybeLocal<Module> ModuleWrap::CompileSourceTextModule(
+    Realm* realm,
+    Local<String> source_text,
+    Local<String> url,
+    int line_offset,
+    int column_offset,
+    Local<PrimitiveArray> host_defined_options,
+    std::optional<ScriptCompiler::CachedData*> user_cached_data,
+    bool* cache_rejected) {
+  Isolate* isolate = realm->isolate();
+  EscapableHandleScope scope(isolate);
+  ScriptOrigin origin(url,
+                      line_offset,
+                      column_offset,
+                      true,            // is cross origin
+                      -1,              // script id
+                      Local<Value>(),  // source map URL
+                      false,           // is opaque (?)
+                      false,           // is WASM
+                      true,            // is ES Module
+                      host_defined_options);
+  ScriptCompiler::CachedData* cached_data = nullptr;
+  CompileCacheEntry* cache_entry = nullptr;
+  // When compiling for the default loader, user_cached_data is std::nullptr.
+  // When compiling for vm.Module, it's either nullptr or a pointer to the
+  // cached data.
+  if (user_cached_data.has_value()) {
+    cached_data = user_cached_data.value();
+  } else if (realm->env()->use_compile_cache()) {
+    cache_entry = realm->env()->compile_cache_handler()->GetOrInsert(
+        source_text, url, CachedCodeType::kESM);
+  }
+
+  if (cache_entry != nullptr && cache_entry->cache != nullptr) {
+    // source will take ownership of cached_data.
+    cached_data = cache_entry->CopyCache();
+  }
+
+  ScriptCompiler::Source source(source_text, origin, cached_data);
+  ScriptCompiler::CompileOptions options;
+  if (cached_data == nullptr) {
+    options = ScriptCompiler::kNoCompileOptions;
+  } else {
+    options = ScriptCompiler::kConsumeCodeCache;
+  }
+
+  Local<Module> module;
+  if (!ScriptCompiler::CompileModule(isolate, &source, options)
+           .ToLocal(&module)) {
+    return scope.EscapeMaybe(MaybeLocal<Module>());
+  }
+
+  if (options == ScriptCompiler::kConsumeCodeCache) {
+    *cache_rejected = source.GetCachedData()->rejected;
+  }
+
+  if (cache_entry != nullptr) {
+    realm->env()->compile_cache_handler()->MaybeSave(
+        cache_entry, module, *cache_rejected);
+  }
+
+  return scope.Escape(module);
+}
+
 static Local<Object> createImportAttributesContainer(
     Realm* realm,
     Isolate* isolate,
     Local<FixedArray> raw_attributes,
     const int elements_per_attribute) {
   CHECK_EQ(raw_attributes->Length() % elements_per_attribute, 0);
-  Local<Object> attributes =
-      Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+  size_t num_attributes = raw_attributes->Length() / elements_per_attribute;
+  std::vector<Local<v8::Name>> names(num_attributes);
+  std::vector<Local<v8::Value>> values(num_attributes);
+
   for (int i = 0; i < raw_attributes->Length(); i += elements_per_attribute) {
-    attributes
-        ->Set(realm->context(),
-              raw_attributes->Get(realm->context(), i).As<String>(),
-              raw_attributes->Get(realm->context(), i + 1).As<Value>())
-        .ToChecked();
+    int idx = i / elements_per_attribute;
+    names[idx] = raw_attributes->Get(realm->context(), i).As<v8::Name>();
+    values[idx] = raw_attributes->Get(realm->context(), i + 1).As<Value>();
   }
 
-  return attributes;
+  return Object::New(
+      isolate, v8::Null(isolate), names.data(), values.data(), num_attributes);
 }
 
-void ModuleWrap::GetModuleRequestsSync(
-    const FunctionCallbackInfo<Value>& args) {
+static Local<Array> createModuleRequestsContainer(
+    Realm* realm, Isolate* isolate, Local<FixedArray> raw_requests) {
+  std::vector<Local<Value>> requests(raw_requests->Length());
+
+  for (int i = 0; i < raw_requests->Length(); i++) {
+    Local<ModuleRequest> module_request =
+        raw_requests->Get(realm->context(), i).As<ModuleRequest>();
+
+    Local<String> specifier = module_request->GetSpecifier();
+
+    // Contains the import attributes for this request in the form:
+    // [key1, value1, source_offset1, key2, value2, source_offset2, ...].
+    Local<FixedArray> raw_attributes = module_request->GetImportAttributes();
+    Local<Object> attributes =
+        createImportAttributesContainer(realm, isolate, raw_attributes, 3);
+
+    Local<v8::Name> names[] = {
+        realm->isolate_data()->specifier_string(),
+        realm->isolate_data()->attributes_string(),
+    };
+    Local<Value> values[] = {
+        specifier,
+        attributes,
+    };
+    DCHECK_EQ(arraysize(names), arraysize(values));
+
+    Local<Object> request = Object::New(
+        isolate, v8::Null(isolate), names, values, arraysize(names));
+
+    requests[i] = request;
+  }
+
+  return Array::New(isolate, requests.data(), requests.size());
+}
+
+void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-
   Local<Object> that = args.This();
 
   ModuleWrap* obj;
   ASSIGN_OR_RETURN_UNWRAP(&obj, that);
 
-  CHECK(!obj->linked_);
-
   Local<Module> module = obj->module_.Get(isolate);
-  Local<FixedArray> module_requests = module->GetModuleRequests();
-  const int module_requests_length = module_requests->Length();
-
-  std::vector<Local<Value>> requests;
-  requests.reserve(module_requests_length);
-  // call the dependency resolve callbacks
-  for (int i = 0; i < module_requests_length; i++) {
-    Local<ModuleRequest> module_request =
-        module_requests->Get(realm->context(), i).As<ModuleRequest>();
-    Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
-    std::vector<Local<Value>> request = {
-        module_request->GetSpecifier(),
-        createImportAttributesContainer(realm, isolate, raw_attributes, 3),
-    };
-    requests.push_back(Array::New(isolate, request.data(), request.size()));
-  }
-
-  args.GetReturnValue().Set(
-      Array::New(isolate, requests.data(), requests.size()));
+  args.GetReturnValue().Set(createModuleRequestsContainer(
+      realm, isolate, module->GetModuleRequests()));
 }
 
-void ModuleWrap::CacheResolvedWrapsSync(
-    const FunctionCallbackInfo<Value>& args) {
+// moduleWrap.link(specifiers, moduleWraps)
+void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-
-  CHECK_EQ(args.Length(), 3);
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsPromise());
-  CHECK(args[2]->IsBoolean());
+  Local<Context> context = realm->context();
 
   ModuleWrap* dependent;
   ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
 
-  Utf8Value specifier(isolate, args[0]);
-  dependent->resolve_cache_[specifier.ToString()].Reset(isolate,
-                                                        args[1].As<Promise>());
+  CHECK_EQ(args.Length(), 2);
 
-  if (args[2].As<v8::Boolean>()->Value()) {
-    dependent->linked_ = true;
-  }
-}
+  Local<Array> specifiers = args[0].As<Array>();
+  Local<Array> modules = args[1].As<Array>();
+  CHECK_EQ(specifiers->Length(), modules->Length());
 
-void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-  Isolate* isolate = args.GetIsolate();
-
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsFunction());
-
-  Local<Object> that = args.This();
-
-  ModuleWrap* obj;
-  ASSIGN_OR_RETURN_UNWRAP(&obj, that);
-
-  if (obj->linked_)
+  std::vector<v8::Global<Value>> specifiers_buffer;
+  if (FromV8Array(context, specifiers, &specifiers_buffer).IsNothing()) {
     return;
-  obj->linked_ = true;
-
-  Local<Function> resolver_arg = args[0].As<Function>();
-
-  Local<Context> mod_context = obj->context();
-  Local<Module> module = obj->module_.Get(isolate);
-
-  Local<FixedArray> module_requests = module->GetModuleRequests();
-  const int module_requests_length = module_requests->Length();
-  MaybeStackBuffer<Local<Value>, 16> promises(module_requests_length);
-
-  // call the dependency resolve callbacks
-  for (int i = 0; i < module_requests_length; i++) {
-    Local<ModuleRequest> module_request =
-        module_requests->Get(realm->context(), i).As<ModuleRequest>();
-    Local<String> specifier = module_request->GetSpecifier();
-    Utf8Value specifier_utf8(realm->isolate(), specifier);
-    std::string specifier_std(*specifier_utf8, specifier_utf8.length());
-
-    Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
-    Local<Object> attributes =
-        createImportAttributesContainer(realm, isolate, raw_attributes, 3);
-
-    Local<Value> argv[] = {
-        specifier,
-        attributes,
-    };
-
-    MaybeLocal<Value> maybe_resolve_return_value =
-        resolver_arg->Call(mod_context, that, arraysize(argv), argv);
-    if (maybe_resolve_return_value.IsEmpty()) {
-      return;
-    }
-    Local<Value> resolve_return_value =
-        maybe_resolve_return_value.ToLocalChecked();
-    if (!resolve_return_value->IsPromise()) {
-      THROW_ERR_VM_MODULE_LINK_FAILURE(
-          realm, "request for '%s' did not return promise", specifier_std);
-      return;
-    }
-    Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
-    obj->resolve_cache_[specifier_std].Reset(isolate, resolve_promise);
-
-    promises[i] = resolve_promise;
+  }
+  std::vector<v8::Global<Value>> modules_buffer;
+  if (FromV8Array(context, modules, &modules_buffer).IsNothing()) {
+    return;
   }
 
-  args.GetReturnValue().Set(
-      Array::New(isolate, promises.out(), promises.length()));
+  for (uint32_t i = 0; i < specifiers->Length(); i++) {
+    Local<String> specifier_str =
+        specifiers_buffer[i].Get(isolate).As<String>();
+    Local<Object> module_object = modules_buffer[i].Get(isolate).As<Object>();
+
+    CHECK(
+        realm->isolate_data()->module_wrap_constructor_template()->HasInstance(
+            module_object));
+
+    Utf8Value specifier(isolate, specifier_str);
+    dependent->resolve_cache_[specifier.ToString()].Reset(isolate,
+                                                          module_object);
+  }
 }
 
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
@@ -489,7 +556,6 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 
   ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
   TryCatchScope try_catch(realm->env());
-  Isolate::SafeForTerminationScope safe_for_termination(isolate);
 
   bool timed_out = false;
   bool received_signal = false;
@@ -614,11 +680,10 @@ void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
 
   if (module->IsGraphAsync()) {
     CHECK(env->options()->print_required_tla);
-    auto stalled = module->GetStalledTopLevelAwaitMessage(isolate);
-    if (stalled.size() != 0) {
-      for (auto pair : stalled) {
-        Local<v8::Message> message = std::get<1>(pair);
-
+    auto stalled_messages =
+        std::get<1>(module->GetStalledTopLevelAwaitMessages(isolate));
+    if (stalled_messages.size() != 0) {
+      for (auto& message : stalled_messages) {
         std::string reason = "Error: unexpected top-level await at ";
         std::string info =
             FormatErrorMessage(isolate, context, "", message, true);
@@ -646,14 +711,12 @@ void ModuleWrap::GetNamespaceSync(const FunctionCallbackInfo<Value>& args) {
     case v8::Module::Status::kUninstantiated:
     case v8::Module::Status::kInstantiating:
       return realm->env()->ThrowError(
-          "cannot get namespace, module has not been instantiated");
-    case v8::Module::Status::kEvaluating:
-      return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env());
+          "Cannot get namespace, module has not been instantiated");
     case v8::Module::Status::kInstantiated:
     case v8::Module::Status::kEvaluated:
     case v8::Module::Status::kErrored:
       break;
-    default:
+    case v8::Module::Status::kEvaluating:
       UNREACHABLE();
   }
 
@@ -700,29 +763,6 @@ void ModuleWrap::GetStatus(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(module->GetStatus());
 }
 
-void ModuleWrap::GetStaticDependencySpecifiers(
-    const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-  ModuleWrap* obj;
-  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
-
-  Local<Module> module = obj->module_.Get(realm->isolate());
-
-  Local<FixedArray> module_requests = module->GetModuleRequests();
-  int count = module_requests->Length();
-
-  MaybeStackBuffer<Local<Value>, 16> specifiers(count);
-
-  for (int i = 0; i < count; i++) {
-    Local<ModuleRequest> module_request =
-        module_requests->Get(realm->context(), i).As<ModuleRequest>();
-    specifiers[i] = module_request->GetSpecifier();
-  }
-
-  args.GetReturnValue().Set(
-      Array::New(realm->isolate(), specifiers.out(), count));
-}
-
 void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
@@ -760,16 +800,8 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
     return MaybeLocal<Module>();
   }
 
-  Local<Promise> resolve_promise =
+  Local<Object> module_object =
       dependent->resolve_cache_[specifier_std].Get(isolate);
-
-  if (resolve_promise->State() != Promise::kFulfilled) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not yet fulfilled", specifier_std);
-    return MaybeLocal<Module>();
-  }
-
-  Local<Object> module_object = resolve_promise->Result().As<Object>();
   if (module_object.IsEmpty() || !module_object->IsObject()) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
         env, "request for '%s' did not return an object", specifier_std);
@@ -879,7 +911,7 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
     return;
   }
   DCHECK(id->IsSymbol());
-  Local<Value> args[] = {id, meta};
+  Local<Value> args[] = {id, meta, wrap};
   TryCatchScope try_catch(env);
   USE(callback->Call(
       context, Undefined(realm->isolate()), arraysize(args), args));
@@ -996,9 +1028,7 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
       ModuleWrap::kInternalFieldCount);
 
   SetProtoMethod(isolate, tpl, "link", Link);
-  SetProtoMethod(isolate, tpl, "getModuleRequestsSync", GetModuleRequestsSync);
-  SetProtoMethod(
-      isolate, tpl, "cacheResolvedWrapsSync", CacheResolvedWrapsSync);
+  SetProtoMethod(isolate, tpl, "getModuleRequests", GetModuleRequests);
   SetProtoMethod(isolate, tpl, "instantiateSync", InstantiateSync);
   SetProtoMethod(isolate, tpl, "evaluateSync", EvaluateSync);
   SetProtoMethod(isolate, tpl, "getNamespaceSync", GetNamespaceSync);
@@ -1010,12 +1040,8 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
   SetProtoMethodNoSideEffect(isolate, tpl, "getStatus", GetStatus);
   SetProtoMethodNoSideEffect(isolate, tpl, "getError", GetError);
-  SetProtoMethodNoSideEffect(isolate,
-                             tpl,
-                             "getStaticDependencySpecifiers",
-                             GetStaticDependencySpecifiers);
-
   SetConstructorFunction(isolate, target, "ModuleWrap", tpl);
+  isolate_data->set_module_wrap_constructor_template(tpl);
 
   SetMethod(isolate,
             target,
@@ -1053,8 +1079,7 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(New);
 
   registry->Register(Link);
-  registry->Register(GetModuleRequestsSync);
-  registry->Register(CacheResolvedWrapsSync);
+  registry->Register(GetModuleRequests);
   registry->Register(InstantiateSync);
   registry->Register(EvaluateSync);
   registry->Register(GetNamespaceSync);
@@ -1065,7 +1090,6 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(GetNamespace);
   registry->Register(GetStatus);
   registry->Register(GetError);
-  registry->Register(GetStaticDependencySpecifiers);
 
   registry->Register(SetImportModuleDynamicallyCallback);
   registry->Register(SetInitializeImportMetaObjectCallback);

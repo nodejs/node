@@ -151,8 +151,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
           SharedFunctionInfo::cast(declarations->get(i)), isolate);
       int feedback_index = Smi::ToInt(declarations->get(++i));
       index = Smi::ToInt(declarations->get(++i));
-      Handle<FeedbackCell> feedback_cell =
-          closure_feedback_cell_array->GetFeedbackCell(feedback_index);
+      Handle<FeedbackCell> feedback_cell(
+          closure_feedback_cell_array->get(feedback_index), isolate);
       value = *Factory::JSFunctionBuilder(isolate, sfi, context)
                    .set_feedback_cell(feedback_cell)
                    .Build();
@@ -199,8 +199,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
       Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(decl);
       name = handle(sfi->Name(), isolate);
       int index = Smi::ToInt(declarations->get(++i));
-      Handle<FeedbackCell> feedback_cell =
-          closure_feedback_cell_array->GetFeedbackCell(index);
+      Handle<FeedbackCell> feedback_cell(
+          closure_feedback_cell_array->get(index), isolate);
       value = Factory::JSFunctionBuilder(isolate, sfi, context)
                   .set_feedback_cell(feedback_cell)
                   .Build();
@@ -219,7 +219,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     Tagged<Object> result =
         DeclareGlobal(isolate, global, name, value, attr, is_var,
                       RedeclarationType::kSyntaxError);
-    if (isolate->has_pending_exception()) return result;
+    if (IsException(result)) return result;
   });
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -260,7 +260,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
       Context::Lookup(context, name, DONT_FOLLOW_CHAINS, &index, &attributes,
                       &init_flag, &mode);
   DCHECK(holder.is_null() || !IsSourceTextModule(*holder));
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
 
   Handle<JSObject> object;
 
@@ -451,11 +451,12 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 
       // Walk all context slots to find context allocated parameters. Mark each
       // found parameter as mapped.
+      ReadOnlyRoots roots{isolate};
       for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
         if (!scope_info->ContextLocalIsParameter(i)) continue;
         int parameter = scope_info->ContextLocalParameterNumber(i);
         if (parameter >= mapped_count) continue;
-        arguments->set_the_hole(parameter);
+        arguments->set_the_hole(roots, parameter);
         Tagged<Smi> slot = Smi::FromInt(scope_info->ContextHeaderLength() + i);
         parameter_map->set_mapped_entries(parameter, slot);
       }
@@ -548,6 +549,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   Handle<JSObject> result = isolate->factory()->NewJSArray(
       PACKED_ELEMENTS, num_elements, num_elements,
       ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
+  if (num_elements == 0) return *result;
   {
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> elements = FixedArray::cast(result->elements());
@@ -643,8 +645,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // If the slot was not found the result is true.
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception())
-      return ReadOnlyRoots(isolate).exception();
+    if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
     return ReadOnlyRoots(isolate).true_value();
   }
 
@@ -676,7 +677,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   Handle<Context> context(isolate->context(), isolate);
   Handle<Object> holder = Context::Lookup(context, name, FOLLOW_CHAINS, &index,
                                           &attributes, &flag, &mode);
-  if (isolate->has_pending_exception()) return MaybeHandle<Object>();
+  if (isolate->has_exception()) return MaybeHandle<Object>();
 
   if (!holder.is_null() && IsSourceTextModule(*holder)) {
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -773,7 +774,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotForCall_Baseline) {
   Handle<Object> value;
   if (!LoadLookupSlot(isolate, name, kThrowOnError, &receiver)
            .ToHandle(&value)) {
-    DCHECK((isolate)->has_pending_exception());
+    DCHECK((isolate)->has_exception());
     value_ret.store(ReadOnlyRoots(isolate).exception());
     receiver_ret.store(Tagged<Object>());
     return ReadOnlyRoots(isolate).exception();
@@ -799,7 +800,7 @@ MaybeHandle<Object> StoreLookupSlot(
                       &flag, &mode, &is_sloppy_function_name);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception()) return MaybeHandle<Object>();
+    if (isolate->has_exception()) return MaybeHandle<Object>();
   } else if (IsSourceTextModule(*holder)) {
     if ((attributes & READ_ONLY) == 0) {
       SourceTextModule::StoreVariable(Handle<SourceTextModule>::cast(holder),
@@ -812,13 +813,18 @@ MaybeHandle<Object> StoreLookupSlot(
   }
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
+    auto holder_context = Handle<Context>::cast(holder);
     if (flag == kNeedsInitialization &&
-        IsTheHole(Handle<Context>::cast(holder)->get(index), isolate)) {
+        IsTheHole(holder_context->get(index), isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),
                       Object);
     }
     if ((attributes & READ_ONLY) == 0) {
+      if (v8_flags.const_tracking_let && holder_context->IsScriptContext()) {
+        Context::UpdateConstTrackingLetSideData(holder_context, index, value,
+                                                isolate);
+      }
       Handle<Context>::cast(holder)->set(index, *value);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
       THROW_NEW_ERROR(
@@ -903,8 +909,16 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   VariableLookupResult lookup_result;
   bool found = script_contexts->Lookup(name, &lookup_result);
   CHECK(found);
-  Handle<Context> script_context = ScriptContextTable::GetContext(
-      isolate, script_contexts, lookup_result.context_index);
+  Handle<Context> script_context =
+      handle(script_contexts->get(lookup_result.context_index), isolate);
+  // We need to initialize the side data also for variables declared with
+  // VariableMode::kConst. This is because such variables can be accessed
+  // by functions using the LdaContextSlot bytecode, and such accesses are not
+  // regarded as "immutable" when optimizing.
+  if (v8_flags.const_tracking_let) {
+    Context::UpdateConstTrackingLetSideData(
+        script_context, lookup_result.slot_index, value, isolate);
+  }
 
   script_context->set(lookup_result.slot_index, *value);
   return *value;

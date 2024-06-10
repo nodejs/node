@@ -1111,6 +1111,29 @@ assert.throws(
   assert.notDeepStrictEqual(err, err2);
 }
 
+// Check for Errors with cause property
+{
+  const e1 = new Error('err', { cause: new Error('cause e1') });
+  const e2 = new Error('err', { cause: new Error('cause e2') });
+  assertNotDeepOrStrict(e1, e2, AssertionError);
+  assertNotDeepOrStrict(e1, new Error('err'), AssertionError);
+  assertDeepAndStrictEqual(e1, new Error('err', { cause: new Error('cause e1') }));
+}
+
+// Check for AggregateError
+{
+  const e1 = new Error('e1');
+  const e1duplicate = new Error('e1');
+  const e2 = new Error('e2');
+
+  const e3 = new AggregateError([e1duplicate, e2], 'Aggregate Error');
+  const e3duplicate = new AggregateError([e1, e2], 'Aggregate Error');
+  const e4 = new AggregateError([e1], 'Aggregate Error');
+  assertNotDeepOrStrict(e1, e3, AssertionError);
+  assertNotDeepOrStrict(e3, e4, AssertionError);
+  assertDeepAndStrictEqual(e3, e3duplicate);
+}
+
 // Verify that `valueOf` is not called for boxed primitives.
 {
   const a = new Number(5);
