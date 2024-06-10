@@ -13,9 +13,7 @@ permissions:
 
 jobs:
   build-lto:
-    runs-on: ubuntu-latest
-    # not working on gcc-8 and gcc-9 see https://github.com/nodejs/node/issues/38570
-    container: gcc:11
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
         with:
@@ -28,6 +26,6 @@ jobs:
         run: npx envinfo
       - name: Build lto
         run: |
-          apt-get update && apt-get install ninja-build python-is-python3 -y
+          sudo apt-get update && sudo apt-get install ninja-build -y
           ./configure --enable-lto --ninja
           ninja -C out/Release
