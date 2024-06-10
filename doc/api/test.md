@@ -2327,7 +2327,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-Alternativelly, the `.tick` function can be called many times
+Alternatively, the `.tick` function can be called many times
 
 ```mjs
 import assert from 'node:assert';
