@@ -25,70 +25,29 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import print_function
-
 import test
 import os
-from os.path import join, exists, basename, dirname, isdir
 import re
-import sys
-import utils
 from functools import reduce
+from io import open
+
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-PTY_HELPER = join(dirname(__file__), '../../tools/pseudo-tty.py')
+LS_RE = re.compile(r'^test-.*\.m?js$')
 
-class TTYTestCase(test.TestCase):
+class SimpleTestCase(test.TestCase):
 
-  def __init__(self, path, file, expected, input_arg, arch, mode, context, config):
-    super(TTYTestCase, self).__init__(context, path, arch, mode)
+  def __init__(self, path, file, arch, mode, context, config, additional=None):
+    super(SimpleTestCase, self).__init__(context, path, arch, mode)
     self.file = file
-    self.expected = expected
-    self.input = input_arg
     self.config = config
     self.arch = arch
     self.mode = mode
-    self.parallel = True
+    if additional is not None:
+      self.additional_flags = additional
+    else:
+      self.additional_flags = []
 
-  def IgnoreLine(self, str_arg):
-    """Ignore empty lines and valgrind output."""
-    if not str_arg.strip(): return True
-    else: return str_arg.startswith('==') or str_arg.startswith('**')
-
-  def IsFailureOutput(self, output):
-    f = open(self.expected)
-    # Convert output lines to regexps that we can match
-    env = { 'basename': basename(self.file) }
-    patterns = [ ]
-    for line in f:
-      if not line.strip():
-        continue
-      pattern = re.escape(line.rstrip() % env)
-      pattern = pattern.replace('\\*', '.*')
-      pattern = '^%s$' % pattern
-      patterns.append(pattern)
-    # Compare actual output with the expected
-    raw_lines = (output.stdout + output.stderr).split('\n')
-    outlines = [ s.rstrip() for s in raw_lines if not self.IgnoreLine(s) ]
-    if len(outlines) != len(patterns):
-      print(" length differs.")
-      print("expect=%d" % len(patterns))
-      print("actual=%d" % len(outlines))
-      print("patterns:")
-      for i in range(len(patterns)):
-        print("pattern = %s" % patterns[i])
-      print("outlines:")
-      for i in range(len(outlines)):
-        print("outline = %s" % outlines[i])
-      return True
-    for i in range(len(patterns)):
-      if not re.match(patterns[i], outlines[i]):
-        print(" match failed")
-        print("line=%d" % i)
-        print("expect=%s" % patterns[i])
-        print("actual=%s" % outlines[i])
-        return True
-    return False
 
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
@@ -98,67 +57,120 @@ class TTYTestCase(test.TestCase):
 
   def GetCommand(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
-    source = open(self.file).read()
+    source = open(self.file, encoding='utf8').read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      result += flags_match.group(1).strip().split()
-    result.append(self.file)
+      flags = flags_match.group(1).strip().split()
+      # The following block reads config.gypi to extract the v8_enable_inspector
+      # value. This is done to check if the inspector is disabled in which case
+      # the '--inspect' flag cannot be passed to the node process as it will
+      # cause node to exit and report the test as failed. The use case
+      # is currently when Node is configured --without-ssl and the tests should
+      # still be runnable but skip any tests that require ssl (which includes the
+      # inspector related tests). Also, if there is no ssl support the options
+      # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
+      # failure so such tests are also skipped.
+      if (any(flag.startswith('--inspect') for flag in flags) and
+          not self.context.v8_enable_inspector):
+        print(': Skipping as node was compiled without inspector support')
+      elif (('--use-bundled-ca' in flags or
+          '--use-openssl-ca' in flags or
+          '--tls-v1.0' in flags or
+          '--tls-v1.1' in flags) and
+          not self.context.node_has_crypto):
+        print(': Skipping as node was compiled without crypto support')
+      else:
+        result += flags
+
+    if self.additional_flags:
+      result += self.additional_flags
+
+    result += [self.file]
+
     return result
 
   def GetSource(self):
-    return (open(self.file).read()
-          + "\n--- expected output ---\n"
-          + open(self.expected).read())
-
-  def RunCommand(self, command, env):
-    fd = None
-    if self.input is not None and exists(self.input):
-      fd = os.open(self.input, os.O_RDONLY)
-    full_command = self.context.processor(command)
-    full_command = [sys.executable, PTY_HELPER] + full_command
-    output = test.Execute(full_command,
-                     self.context,
-                     self.context.GetTimeout(self.mode),
-                     env,
-                     stdin=fd)
-    if fd is not None:
-      os.close(fd)
-    return test.TestOutput(self,
-                      full_command,
-                      output,
-                      self.context.store_unexpected_output)
+    return open(self.file).read()
 
 
-class TTYTestConfiguration(test.TestConfiguration):
-  def Ls(self, path):
-    if isdir(path):
-        return [f[:-3] for _, _, f in os.walk(path) for f in f if f.endswith('.js')]
+class SimpleTestConfiguration(test.TestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(SimpleTestConfiguration, self).__init__(context, root, section)
+    if additional is not None:
+      self.additional_flags = additional
     else:
-        return []
+      self.additional_flags = []
+
+  def Ls(self, path):
+    return [f for _, _, f in os.walk(path) for f in f if LS_RE.match(os.path.basename(f))]
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(self.root)]
+    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(os.path.join(self.root))]
     result = []
-    # Skip these tests on Windows, as pseudo terminals are not available
-    if utils.IsWindows():
-      print ("Skipping pseudo-tty tests, as pseudo terminals are not available"
-             " on Windows.")
-      return result
     for tst in all_tests:
       if self.Contains(path, tst):
-        file_prefix = join(self.root, reduce(join, tst[1:], ""))
-        file_path = file_prefix + ".js"
-        input_path = file_prefix + ".in"
-        output_path = file_prefix + ".out"
-        if not exists(output_path):
-          raise Exception("Could not find %s" % output_path)
-        result.append(TTYTestCase(tst, file_path, output_path,
-                                  input_path, arch, mode, self.context, self))
+        file_path = os.path.join(self.root, reduce(os.path.join, tst[1:], ""))
+        test_name = tst[:-1] + [os.path.splitext(tst[-1])[0]]
+        result.append(SimpleTestCase(test_name, file_path, arch, mode,
+                                     self.context, self, self.additional_flags))
     return result
 
   def GetBuildRequirements(self):
     return ['sample', 'sample=shell']
 
+class ParallelTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(ParallelTestConfiguration, self).__init__(context, root, section,
+                                                    additional)
 
-def GetConfiguration(context, root):
-  return TTYTestConfiguration(context, root, 'pseudo-tty')
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(ParallelTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for tst in result:
+      tst.parallel = True
+    return result
+
+class AddonTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(AddonTestConfiguration, self).__init__(context, root, section, additional)
+
+  def Ls(self, path):
+    result = []
+    for subpath in os.listdir(path):
+      if os.path.isdir(os.path.join(path, subpath)):
+        dir = [f[:-3] for _, _, files in os.walk(os.path.join(path, subpath)) for f in files if f.endswith('.js')]
+        result += dir
+
+  def ListTests(self, current_path, path, arch, mode):
+    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(os.path.join(self.root))]
+    result = []
+    for tst in all_tests:
+      if self.Contains(path, tst):
+        file_path = os.path.join(self.root, reduce(os.path.join, tst[1:], "") + ".js")
+        result.append(
+            SimpleTestCase(tst, file_path, arch, mode, self.context, self, self.additional_flags))
+    return result
+
+class AbortTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(AbortTestConfiguration, self).__init__(context, root, section,
+                                                 additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(AbortTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for tst in result:
+      tst.disable_core_files = True
+    return result
+
+class WasmAllocationTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(WasmAllocationTestConfiguration, self).__init__(context, root, section,
+                                                          additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(WasmAllocationTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for tst in result:
+      tst.max_virtual_memory = 5 * 1024 * 1024 * 1024 # 5GB
+    return result
