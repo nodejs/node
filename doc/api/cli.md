@@ -980,7 +980,7 @@ Use the specified file as a security policy.
 added: REPLACEME
 -->
 
-> Stability: 1.1 - Active Developement
+> Stability: 1.1 - Active Development
 
 Supports loading a synchronous ES module graph in `require()`.
 
