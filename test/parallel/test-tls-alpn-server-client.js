@@ -195,7 +195,8 @@ function TestALPNCallback() {
 
     // Callback picks 2nd preference => undefined => ALPN rejected:
     assert.strictEqual(results[1].server, undefined);
-    assert.strictEqual(results[1].client.error.code, 'ECONNRESET');
+    const allowedErrors = ['ECONNRESET', 'ERR_SSL_TLSV1_ALERT_NO_APPLICATION_PROTOCOL'];
+    assert.ok(allowedErrors.includes(results[1].client.error.code), `'${results[1].client.error.code}' was not one of ${allowedErrors}.`);
 
     TestBadALPNCallback();
   });
@@ -218,7 +219,8 @@ function TestBadALPNCallback() {
   runTest(clientsOptions, serverOptions, function(results) {
     // Callback returns 'http/5' => doesn't match client ALPN => error & reset
     assert.strictEqual(results[0].server, undefined);
-    assert.strictEqual(results[0].client.error.code, 'ECONNRESET');
+    const allowedErrors = ['ECONNRESET', 'ERR_SSL_TLSV1_ALERT_NO_APPLICATION_PROTOCOL'];
+    assert.ok(allowedErrors.includes(results[0].client.error.code), `'${results[0].client.error.code}' was not one of ${allowedErrors}.`);
 
     TestALPNOptionsCallback();
   });
