@@ -181,6 +181,9 @@ void SetConsoleExtensionInstaller(const FunctionCallbackInfo<Value>& info) {
 
 void CallAndPauseOnStart(const FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                    permission::PermissionScope::kInspector,
+                                    "PauseOnNextJavascriptStatement");
   CHECK_GT(args.Length(), 1);
   CHECK(args[0]->IsFunction());
   SlicedArguments call_args(args, /* start */ 2);
