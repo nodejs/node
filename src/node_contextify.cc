@@ -1123,6 +1123,21 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
 
 #if HAVE_INSPECTOR
   if (break_on_first_line) {
+    if (UNLIKELY(!env->permission()->is_granted(
+            env,
+            permission::PermissionScope::kInspector,
+            "PauseOnNextJavascriptStatement"))) {
+      node::permission::Permission::ThrowAccessDenied(
+          env,
+          permission::PermissionScope::kInspector,
+          "PauseOnNextJavascriptStatement");
+      if (display_errors) {
+        // We should decorate non-termination exceptions
+        errors::DecorateErrorStack(env, try_catch);
+      }
+      try_catch.ReThrow();
+      return false;
+    }
     env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
   }
 #endif
