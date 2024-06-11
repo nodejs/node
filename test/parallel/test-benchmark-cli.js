@@ -38,9 +38,11 @@ testFilterPattern(['foo'], ['bar'], 'foo', false);
 testFilterPattern(['foo'], ['bar'], 'foo-bar', true);
 
 function testNoSettingsPattern(filters, excludes, filename, expectedResult) {
-  process.argv = process.argv.concat(...filters.map((p) => ['--filter', p]));
-  process.argv = process.argv.concat(...excludes.map((p) => ['--exclude', p]));
-  process.argv = process.argv.concat(['bench']);
+  process.argv = process.argv.concat(
+    filters.flatMap((p) => ['--filter', p]),
+    excludes.flatMap((p) => ['--exclude', p]),
+    ['bench'],
+  );
   try {
     const cli = new CLI('');
     assert.deepStrictEqual(cli.shouldSkip(filename), expectedResult);
