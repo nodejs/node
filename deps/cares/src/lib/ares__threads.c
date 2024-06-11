@@ -551,7 +551,7 @@ void ares__channel_unlock(const ares_channel_t *channel)
 ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
 {
   ares_status_t  status = ARES_SUCCESS;
-  struct timeval tout;
+  ares_timeval_t tout;
 
   if (!ares_threadsafety()) {
     return ARES_ENOTIMP;
@@ -562,9 +562,9 @@ ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
   }
 
   if (timeout_ms >= 0) {
-    tout          = ares__tvnow();
-    tout.tv_sec  += timeout_ms / 1000;
-    tout.tv_usec += (timeout_ms % 1000) * 1000;
+    tout       = ares__tvnow();
+    tout.sec  += (ares_int64_t)(timeout_ms / 1000);
+    tout.usec += (unsigned int)(timeout_ms % 1000) * 1000;
   }
 
   ares__thread_mutex_lock(channel->lock);
@@ -572,13 +572,13 @@ ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
     if (timeout_ms < 0) {
       ares__thread_cond_wait(channel->cond_empty, channel->lock);
     } else {
-      struct timeval tv_remaining;
-      struct timeval tv_now = ares__tvnow();
+      ares_timeval_t tv_remaining;
+      ares_timeval_t tv_now = ares__tvnow();
       unsigned long  tms;
 
       ares__timeval_remaining(&tv_remaining, &tv_now, &tout);
-      tms = (unsigned long)((tv_remaining.tv_sec * 1000) +
-                            (tv_remaining.tv_usec / 1000));
+      tms =
+        (unsigned long)((tv_remaining.sec * 1000) + (tv_remaining.usec / 1000));
       if (tms == 0) {
         status = ARES_ETIMEOUT;
       } else {

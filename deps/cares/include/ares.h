@@ -883,7 +883,7 @@ CARES_EXTERN CARES_DEPRECATED_FOR(ares_get_servers_csv) int ares_get_servers(
   const ares_channel_t *channel, struct ares_addr_node **servers);
 
 CARES_EXTERN
-CARES_DEPRECATED_FOR(ares_get_servers_ports_csv)
+CARES_DEPRECATED_FOR(ares_get_servers_csv)
 int                        ares_get_servers_ports(const ares_channel_t        *channel,
                                                   struct ares_addr_port_node **servers);
 
