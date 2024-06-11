@@ -2427,8 +2427,9 @@ it will switch to implicit header mode and flush the implicit headers.
 This sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 
-Writing to the body is not allowed when the request method or response status
-do not support content. If an attempt is made to write to the body for a
+If `rejectNonStandardBodyWrites` is set to true in `createServer`
+then writing to the body is not allowed when the request method or response
+status do not support content. If an attempt is made to write to the body for a
 HEAD request or as part of a `204` or `304`response, a synchronous `Error`
 with the code `ERR_HTTP_BODY_NOT_ALLOWED` is thrown.
 
@@ -3571,6 +3572,9 @@ changes:
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
+  * `rejectNonStandardBodyWrites` {boolean} If set to `true`, an error is thrown
+    when writing to an HTTP response which does not have a body.
+    **Default:** `false`.
 
 * `requestListener` {Function}
 
