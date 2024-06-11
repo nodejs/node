@@ -187,8 +187,6 @@ if defined nosnapshot       set configure_flags=%configure_flags% --without-snap
 if defined nonpm            set configure_flags=%configure_flags% --without-npm
 if defined nocorepack       set configure_flags=%configure_flags% --without-corepack
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
-:: If clang-cl build is requested, set it to 17.0, which is the version shipped with VS 2022.
-if defined clang_cl         set configure_flags=%configure_flags% --clang-cl=17.0
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
@@ -256,7 +254,7 @@ echo Looking for Visual Studio 2022
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease"
+call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease" %clang_cl%
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 @rem check if VS2022 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
@@ -276,12 +274,33 @@ set PLATFORM_TOOLSET=v143
 goto msbuild-found
 
 :msbuild-not-found
-echo Failed to find a suitable Visual Studio installation.
+set "clang_echo="
+if defined clang_cl set "clang_echo= or Clang compiler/LLVM toolset"
+echo Failed to find a suitable Visual Studio installation%clang_echo%.
 echo Try to run in a "Developer Command Prompt" or consult
 echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
 goto exit
 
 :msbuild-found
+
+@rem check if the clang-cl build is requested
+if not defined clang_cl goto clang-skip
+@rem x64 is hard coded as it is used for both cross and native compilation.
+set "clang_path=%VCINSTALLDIR%\Tools\Llvm\x64\bin\clang.exe"
+for /F "tokens=3" %%i in ('"%clang_path%" --version') do (
+    set clang_version=%%i
+    goto clang-found
+)
+
+:clang-not-found
+echo Failed to find Clang compiler in %clang_path%.
+goto exit
+
+:clang-found
+echo Found Clang version %clang_version%
+set configure_flags=%configure_flags% --clang-cl=%clang_version%
+
+:clang-skip
 
 set project_generated=
 :project-gen
