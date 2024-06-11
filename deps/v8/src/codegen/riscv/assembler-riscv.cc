@@ -1104,7 +1104,6 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
 }
 
 void Assembler::li_ptr(Register rd, int64_t imm) {
-  base::CPU cpu;
   // Initialize rd with an address
   // Pointers are 48 bits
   // 6 fixed instructions are generated
