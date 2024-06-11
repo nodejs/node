@@ -42,7 +42,7 @@ function CLI(usage, settings = kEmptyObject) {
     } else if (mode === 'both' && arg[0] === '-') {
       // Optional arguments declaration
 
-      currentOptional = arg.split('-').pop();
+      currentOptional = arg.slice(arg[1] === '-' ? 2 : 1);
 
       if (settings.boolArgs?.includes(currentOptional)) {
         this.optional[currentOptional] = true;
