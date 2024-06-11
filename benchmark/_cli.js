@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const kEmptyObject = Object.freeze(Object.create(null));
+const kEmptyObject = Object.freeze({__proto__: null});
 // Create an object of all benchmark scripts
 const benchmarks = {};
 fs.readdirSync(__dirname)
@@ -106,8 +106,8 @@ CLI.prototype.benchmarks = function() {
 };
 
 CLI.prototype.shouldSkip = function(scripts) {
-  const filters = this.optional.filter ? [...this.optional.filter] : [];
-  const excludes = this.optional.exclude ? [...this.optional.exclude] : [];
+  const filters = this.optional.filter || [];
+  const excludes = this.optional.exclude || [];
   let skip = filters.length > 0;
 
   for (const filter of filters) {
