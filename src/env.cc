@@ -520,7 +520,7 @@ void IsolateData::CreateProperties() {
   CreateEnvProxyTemplate(this);
 }
 
-constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
+constexpr uint16_t kDefaultCppGCEmbedderID = 0x90de;
 Mutex IsolateData::isolate_data_mutex_;
 std::unordered_map<uint16_t, std::unique_ptr<PerIsolateWrapperData>>
     IsolateData::wrapper_data_map_;
@@ -540,7 +540,7 @@ IsolateData::IsolateData(Isolate* isolate,
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
   v8::CppHeap* cpp_heap = isolate->GetCppHeap();
 
-  uint16_t cppgc_id = kDefaultCppGCEmebdderID;
+  uint16_t cppgc_id = kDefaultCppGCEmbedderID;
   if (cpp_heap != nullptr) {
     // The general convention of the wrappable layout for cppgc in the
     // ecosystem is:
