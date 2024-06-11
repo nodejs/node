@@ -636,13 +636,21 @@ Optional requirements to build the MSI installer package:
 * The .NET SDK component from [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
   * This component can be installed via the Visual Studio Installer Application
 
-Optional requirements for compiling for Windows 10 on ARM (ARM64):
+Optional requirements for compiling for Windows on ARM (ARM64):
 
 * Visual Studio 17.6.0 or newer
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64
 * Windows 10 SDK 10.0.17763.0 or newer
+
+Optional requirements for compiling with ClangCL:
+
+* Visual Studio optional components
+  * C++ Clang Compiler for Windows
+  * MSBuild support for LLVM toolset
+
+NOTE: Currently we only support compiling with Clang that comes from Visual Studio.
 
 ##### Option 2: Automated install with Boxstarter
 
