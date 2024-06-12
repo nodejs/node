@@ -1392,8 +1392,8 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/53434
-    description: Add support for default values when an undefined
-                 value is supplied.
+    description: Add support for `required` and `placeholder`
+                 options.
   - version:
     - v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46718
