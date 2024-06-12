@@ -992,3 +992,74 @@ test('multiple as false should expect a String', () => {
   }, /"options\.alpha\.default" property must be of type string/
   );
 });
+
+// Required
+test('required must be a boolean', () => {
+  const args = [];
+  const options = { alpha: { type: 'string', required: 'not a boolean' } };
+  assert.throws(() => {
+    parseArgs({ args, options });
+  }, /"options\.alpha\.required" property must be of type boolean/
+  );
+});
+
+test('required cannot be true when default is set', () => {
+  const args = [];
+  const options = { alpha: { type: 'string', required: true, default: 'HELLO' } };
+  assert.throws(() => {
+    parseArgs({ args, options });
+  }, /'options\.alpha\.required' cannot be true when default value is provided/
+  );
+});
+
+test('required option must be passed', () => {
+  const args = [];
+  const options = { alpha: { type: 'string', required: true } };
+  assert.throws(() => {
+    parseArgs({ args, options });
+  }, /Option 'alpha' is required/
+  );
+});
+
+test('required option with no value throws', () => {
+  const args = ['--alpha'];
+  const options = { alpha: { type: 'string', required: true } };
+  assert.throws(() => {
+    parseArgs({ args, options });
+  }, /Option '--alpha <value>' argument missing/
+  );
+});
+
+// Placeholder
+test('placeholder must be the same type as the option (except array)', () => {
+  const args = [];
+  const options = { alpha: { type: 'string', placeholder: true } };
+  assert.throws(() => {
+    parseArgs({ args, options });
+  }, /"options\.alpha\.placeholder" property must be of type string/
+  );
+});
+
+test('placeholder must be the same type as the option, even when multiple', () => {
+  const args = ['--alpha'];
+  const options = { alpha: { type: 'string', multiple: true, placeholder: 'hello' } };
+  const expected = { values: { __proto__: null, alpha: ['hello'] }, positionals: [] };
+  const result = parseArgs({ args, options });
+  assert.deepStrictEqual(result, expected);
+});
+
+test('placeholder will be used when option is supplied with no value', () => {
+  const args = ['--alpha'];
+  const options = { alpha: { type: 'string', placeholder: 'HELLO', default: 'WORLD' } };
+  const expected = { values: { __proto__: null, alpha: 'HELLO' }, positionals: [] };
+  const result = parseArgs({ args, options });
+  assert.deepStrictEqual(result, expected);
+});
+
+test('placeholder can be used with required option', () => {
+  const args = ['--alpha'];
+  const options = { alpha: { type: 'string', placeholder: 'HELLO', required: true } };
+  const expected = { values: { __proto__: null, alpha: 'HELLO' }, positionals: [] };
+  const result = parseArgs({ args, options });
+  assert.deepStrictEqual(result, expected);
+});

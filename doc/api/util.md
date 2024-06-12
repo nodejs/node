@@ -1390,6 +1390,10 @@ added:
   - v18.3.0
   - v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53434
+    description: Add support for default values when an undefined
+                 value is supplied.
   - version:
     - v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46718
@@ -1422,6 +1426,9 @@ changes:
     * `default` {string | boolean | string\[] | boolean\[]} The default option
       value when it is not set by args. It must be of the same type as the
       `type` property. When `multiple` is `true`, it must be an array.
+    * `required` {boolean} Whether the argument must be supplied. **Default:** `false`.
+    * `placeholder` {string | boolean} The default value to supply when an
+      empty argument is supplied.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
