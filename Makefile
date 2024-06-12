@@ -1151,13 +1151,14 @@ pkg: $(PKG)
 .PHONY: corepack-update
 corepack-update:
 	mkdir -p /tmp/node-corepack
-	curl -qLo /tmp/node-corepack/package.tgz "$$(npm view corepack dist.tarball)"
+	curl -qLo /tmp/node-corepack/package.tgz "$$($(call available-node,$(NPM) view corepack dist.tarball))"
 
 	rm -rf deps/corepack && mkdir deps/corepack
 	cd deps/corepack && tar xf /tmp/node-corepack/package.tgz --strip-components=1
 	chmod +x deps/corepack/shims/*
 
-	node deps/corepack/dist/corepack.js --version
+	$(call available-node,'-p' \
+			 'require(`./deps/corepack/package.json`).version')
 
 .PHONY: pkg-upload
 # Note: this is strictly for release builds on release machines only.
