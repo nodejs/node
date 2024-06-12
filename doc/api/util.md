@@ -2923,6 +2923,24 @@ util.types.isWeakSet(new WeakSet());  // Returns true
 The following APIs are deprecated and should no longer be used. Existing
 applications and modules should be updated to find alternative approaches.
 
+### `util._extend(target, source)`
+
+<!-- YAML
+added: v0.7.5
+deprecated: v6.0.0
+-->
+
+> Stability: 0 - Deprecated: Use [`Object.assign()`][] instead.
+
+* `target` {Object}
+* `source` {Object}
+
+The `util._extend()` method was never intended to be used outside of internal
+Node.js modules. The community found and used it anyway.
+
+It is deprecated and should not be used in new code. JavaScript comes with very
+similar built-in functionality through [`Object.assign()`][].
+
 ### `util.isArray(object)`
 
 <!-- YAML
@@ -2972,6 +2990,7 @@ util.isArray({});
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`MIMEparams`]: #class-utilmimeparams
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
+[`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`Promise`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [`Proxy`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
