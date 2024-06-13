@@ -4,6 +4,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <cassert>  // For static_assert
+#include <cstddef>  // For offsetof
 #include "aliased_buffer.h"
 #include "base_object.h"
 #include "util.h"
@@ -33,13 +35,13 @@ bool WithoutCodeCache(const SnapshotConfig& config);
 // and pass it into the V8 callback as the payload of StartupData.
 // The memory chunk looks like this:
 //
-// [   type   ] - EmbedderObjectType (a uint8_t)
-// [  length  ] - a size_t
+// [   type   ] - EmbedderObjectType (a uint64_t)
+// [  length  ] - a uint64_t
 // [    ...   ] - custom bytes of size |length - header size|
 struct InternalFieldInfoBase {
  public:
   EmbedderObjectType type;
-  size_t length;
+  uint64_t length;
 
   template <typename T>
   static T* New(EmbedderObjectType type) {
@@ -71,13 +73,34 @@ struct InternalFieldInfoBase {
   InternalFieldInfoBase() = default;
 };
 
+// Make sure that there's no padding in the struct since we will memcpy
+// them into the snapshot blob and they need to be reproducible.
+static_assert(offsetof(InternalFieldInfoBase, type) == 0,
+              "InternalFieldInfoBase::type should start from offset 0");
+static_assert(offsetof(InternalFieldInfoBase, length) ==
+                  sizeof(EmbedderObjectType),
+              "InternalFieldInfoBase::type should have no padding");
+
 struct EmbedderTypeInfo {
-  enum class MemoryMode : uint8_t { kBaseObject, kCppGC };
+  // To avoid padding, the enum is uint64_t.
+  enum class MemoryMode : uint64_t { kBaseObject = 0, kCppGC };
   EmbedderTypeInfo(EmbedderObjectType t, MemoryMode m) : type(t), mode(m) {}
   EmbedderTypeInfo() = default;
+
   EmbedderObjectType type;
   MemoryMode mode;
 };
+
+// Make sure that there's no padding in the struct since we will memcpy
+// them into the snapshot blob and they need to be reproducible.
+static_assert(offsetof(EmbedderTypeInfo, type) == 0,
+              "EmbedderTypeInfo::type should start from offset 0");
+static_assert(offsetof(EmbedderTypeInfo, mode) == sizeof(EmbedderObjectType),
+              "EmbedderTypeInfo::type should have no padding");
+static_assert(sizeof(EmbedderTypeInfo) ==
+                  sizeof(EmbedderObjectType) +
+                      sizeof(EmbedderTypeInfo::MemoryMode),
+              "EmbedderTypeInfo::mode should have no padding");
 
 // An interface for snapshotable native objects to inherit from.
 // Use the SERIALIZABLE_OBJECT_METHODS() macro in the class to define
@@ -149,6 +172,12 @@ class BindingData : public SnapshotableObject {
   struct InternalFieldInfo : public node::InternalFieldInfoBase {
     AliasedBufferIndex is_building_snapshot_buffer;
   };
+
+  // Make sure that there's no padding in the struct since we will memcpy
+  // them into the snapshot blob and they need to be reproducible.
+  static_assert(sizeof(InternalFieldInfo) ==
+                    sizeof(InternalFieldInfoBase) + sizeof(AliasedBufferIndex),
+                "InternalFieldInfo should have no padding");
 
   BindingData(Realm* realm,
               v8::Local<v8::Object> obj,

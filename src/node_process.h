@@ -54,6 +54,12 @@ class BindingData : public SnapshotableObject {
     AliasedBufferIndex hrtime_buffer;
   };
 
+  // Make sure that there's no padding in the struct since we will memcpy
+  // them into the snapshot blob and they need to be reproducible.
+  static_assert(sizeof(InternalFieldInfo) ==
+                    sizeof(InternalFieldInfoBase) + sizeof(AliasedBufferIndex),
+                "InternalFieldInfo should have no padding");
+
   static void AddMethods(v8::Isolate* isolate,
                          v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
