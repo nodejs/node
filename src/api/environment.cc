@@ -119,14 +119,6 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
   return ret;
 }
 
-void* NodeArrayBufferAllocator::Reallocate(
-    void* data, size_t old_size, size_t size) {
-  void* ret = allocator_->Reallocate(data, old_size, size);
-  if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
-    total_mem_usage_.fetch_add(size - old_size, std::memory_order_relaxed);
-  return ret;
-}
-
 void NodeArrayBufferAllocator::Free(void* data, size_t size) {
   total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
   allocator_->Free(data, size);
@@ -154,31 +146,6 @@ void DebuggingArrayBufferAllocator::Free(void* data, size_t size) {
   Mutex::ScopedLock lock(mutex_);
   UnregisterPointerInternal(data, size);
   NodeArrayBufferAllocator::Free(data, size);
-}
-
-void* DebuggingArrayBufferAllocator::Reallocate(void* data,
-                                                size_t old_size,
-                                                size_t size) {
-  Mutex::ScopedLock lock(mutex_);
-  void* ret = NodeArrayBufferAllocator::Reallocate(data, old_size, size);
-  if (ret == nullptr) {
-    if (size == 0) {  // i.e. equivalent to free().
-      // suppress coverity warning as data is used as key versus as pointer
-      // in UnregisterPointerInternal
-      // coverity[pass_freed_arg]
-      UnregisterPointerInternal(data, old_size);
-    }
-    return nullptr;
-  }
-
-  if (data != nullptr) {
-    auto it = allocations_.find(data);
-    CHECK_NE(it, allocations_.end());
-    allocations_.erase(it);
-  }
-
-  RegisterPointerInternal(ret, size);
-  return ret;
 }
 
 void DebuggingArrayBufferAllocator::RegisterPointer(void* data, size_t size) {
