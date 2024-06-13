@@ -51,6 +51,7 @@ typedef enum {
   ARES_REC_TYPE_HINFO = 13,    /*!< Host information. */
   ARES_REC_TYPE_MX    = 15,    /*!< Mail routing information. */
   ARES_REC_TYPE_TXT   = 16,    /*!< Text strings. */
+  ARES_REC_TYPE_SIG   = 24,    /*!< RFC 2535 / RFC 2931. SIG Record */
   ARES_REC_TYPE_AAAA  = 28,    /*!< RFC 3596. Ip6 Address. */
   ARES_REC_TYPE_SRV   = 33,    /*!< RFC 2782. Server Selection. */
   ARES_REC_TYPE_NAPTR = 35,    /*!< RFC 3403. Naming Authority Pointer */
@@ -208,6 +209,24 @@ typedef enum {
   ARES_RR_MX_EXCHANGE = (ARES_REC_TYPE_MX * 100) + 2,
   /*! TXT Record. Data. Datatype: BINP */
   ARES_RR_TXT_DATA = (ARES_REC_TYPE_TXT * 100) + 1,
+  /*! SIG Record. Type Covered. Datatype: U16 */
+  ARES_RR_SIG_TYPE_COVERED = (ARES_REC_TYPE_SIG * 100) + 1,
+  /*! SIG Record. Algorithm. Datatype: U8 */
+  ARES_RR_SIG_ALGORITHM = (ARES_REC_TYPE_SIG * 100) + 2,
+  /*! SIG Record. Labels. Datatype: U8 */
+  ARES_RR_SIG_LABELS = (ARES_REC_TYPE_SIG * 100) + 3,
+  /*! SIG Record. Original TTL. Datatype: U32 */
+  ARES_RR_SIG_ORIGINAL_TTL = (ARES_REC_TYPE_SIG * 100) + 4,
+  /*! SIG Record. Signature Expiration. Datatype: U32 */
+  ARES_RR_SIG_EXPIRATION = (ARES_REC_TYPE_SIG * 100) + 5,
+  /*! SIG Record. Signature Inception. Datatype: U32 */
+  ARES_RR_SIG_INCEPTION = (ARES_REC_TYPE_SIG * 100) + 6,
+  /*! SIG Record. Key Tag. Datatype: U16 */
+  ARES_RR_SIG_KEY_TAG = (ARES_REC_TYPE_SIG * 100) + 7,
+  /*! SIG Record. Signers Name. Datatype: NAME */
+  ARES_RR_SIG_SIGNERS_NAME = (ARES_REC_TYPE_SIG * 100) + 8,
+  /*! SIG Record. Signature. Datatype: BIN */
+  ARES_RR_SIG_SIGNATURE = (ARES_REC_TYPE_SIG * 100) + 9,
   /*! AAAA Record. Address. Datatype: INADDR6 */
   ARES_RR_AAAA_ADDR = (ARES_REC_TYPE_AAAA * 100) + 1,
   /*! SRV Record. Priority. Datatype: U16 */

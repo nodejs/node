@@ -424,6 +424,74 @@ static ares_status_t ares_dns_write_rr_txt(ares__buf_t         *buf,
   return ares_dns_write_rr_binstrs(buf, rr, ARES_RR_TXT_DATA);
 }
 
+static ares_status_t ares_dns_write_rr_sig(ares__buf_t         *buf,
+                                           const ares_dns_rr_t *rr,
+                                           ares__llist_t      **namelist)
+{
+  ares_status_t        status;
+  const unsigned char *data;
+  size_t               len = 0;
+
+  (void)namelist;
+
+  /* TYPE COVERED */
+  status = ares_dns_write_rr_be16(buf, rr, ARES_RR_SIG_TYPE_COVERED);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* ALGORITHM */
+  status = ares_dns_write_rr_u8(buf, rr, ARES_RR_SIG_ALGORITHM);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* LABELS */
+  status = ares_dns_write_rr_u8(buf, rr, ARES_RR_SIG_LABELS);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* ORIGINAL TTL */
+  status = ares_dns_write_rr_be32(buf, rr, ARES_RR_SIG_ORIGINAL_TTL);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* EXPIRATION */
+  status = ares_dns_write_rr_be32(buf, rr, ARES_RR_SIG_EXPIRATION);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* INCEPTION */
+  status = ares_dns_write_rr_be32(buf, rr, ARES_RR_SIG_INCEPTION);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* KEY TAG */
+  status = ares_dns_write_rr_be16(buf, rr, ARES_RR_SIG_KEY_TAG);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* SIGNERS NAME */
+  status = ares_dns_write_rr_name(buf, rr, namelist, ARES_FALSE,
+                                  ARES_RR_SIG_SIGNERS_NAME);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  /* SIGNATURE -- binary, rest of buffer, required to be non-zero length */
+  data = ares_dns_rr_get_bin(rr, ARES_RR_SIG_SIGNATURE, &len);
+  if (data == NULL || len == 0) {
+    return ARES_EFORMERR;
+  }
+
+  return ares__buf_append(buf, data, len);
+}
+
 static ares_status_t ares_dns_write_rr_aaaa(ares__buf_t         *buf,
                                             const ares_dns_rr_t *rr,
                                             ares__llist_t      **namelist)
@@ -924,6 +992,9 @@ static ares_status_t ares_dns_write_rr(const ares_dns_record_t *dnsrec,
         break;
       case ARES_REC_TYPE_TXT:
         status = ares_dns_write_rr_txt(buf, rr, namelistptr);
+        break;
+      case ARES_REC_TYPE_SIG:
+        status = ares_dns_write_rr_sig(buf, rr, namelistptr);
         break;
       case ARES_REC_TYPE_AAAA:
         status = ares_dns_write_rr_aaaa(buf, rr, namelistptr);

@@ -296,6 +296,74 @@ static ares_status_t ares_dns_parse_rr_txt(ares__buf_t *buf, ares_dns_rr_t *rr,
                                            ARES_RR_TXT_DATA);
 }
 
+static ares_status_t ares_dns_parse_rr_sig(ares__buf_t *buf, ares_dns_rr_t *rr,
+                                           size_t rdlength)
+{
+  ares_status_t  status;
+  size_t         orig_len = ares__buf_len(buf);
+  size_t         len;
+  unsigned char *data;
+
+  status = ares_dns_parse_and_set_be16(buf, rr, ARES_RR_SIG_TYPE_COVERED);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_parse_and_set_u8(buf, rr, ARES_RR_SIG_ALGORITHM);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_parse_and_set_u8(buf, rr, ARES_RR_SIG_LABELS);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_parse_and_set_be32(buf, rr, ARES_RR_SIG_ORIGINAL_TTL);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_parse_and_set_be32(buf, rr, ARES_RR_SIG_EXPIRATION);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_parse_and_set_be32(buf, rr, ARES_RR_SIG_INCEPTION);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_parse_and_set_be16(buf, rr, ARES_RR_SIG_KEY_TAG);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_parse_and_set_dns_name(buf, ARES_FALSE, rr,
+                                           ARES_RR_SIG_SIGNERS_NAME);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  len = ares_dns_rr_remaining_len(buf, orig_len, rdlength);
+  if (len == 0) {
+    return ARES_EBADRESP;
+  }
+
+  status = ares__buf_fetch_bytes_dup(buf, len, ARES_FALSE, &data);
+  if (status != ARES_SUCCESS) {
+    return status;
+  }
+
+  status = ares_dns_rr_set_bin_own(rr, ARES_RR_SIG_SIGNATURE, data, len);
+  if (status != ARES_SUCCESS) {
+    ares_free(data);
+    return status;
+  }
+
+  return ARES_SUCCESS;
+}
+
 static ares_status_t ares_dns_parse_rr_aaaa(ares__buf_t *buf, ares_dns_rr_t *rr,
                                             size_t rdlength)
 {
@@ -632,6 +700,11 @@ static ares_status_t ares_dns_parse_rr_uri(ares__buf_t *buf, ares_dns_rr_t *rr,
     return status;
   }
 
+  if (!ares__str_isprint(name, remaining_len)) {
+    ares_free(name);
+    return ARES_EBADRESP;
+  }
+
   status = ares_dns_rr_set_str_own(rr, ARES_RR_URI_TARGET, name);
   if (status != ARES_SUCCESS) {
     ares_free(name);
@@ -907,6 +980,8 @@ static ares_status_t
       return ares_dns_parse_rr_mx(buf, rr, rdlength);
     case ARES_REC_TYPE_TXT:
       return ares_dns_parse_rr_txt(buf, rr, rdlength);
+    case ARES_REC_TYPE_SIG:
+      return ares_dns_parse_rr_sig(buf, rr, rdlength);
     case ARES_REC_TYPE_AAAA:
       return ares_dns_parse_rr_aaaa(buf, rr, rdlength);
     case ARES_REC_TYPE_SRV:
