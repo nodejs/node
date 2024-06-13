@@ -64,6 +64,12 @@ class BindingData : public SnapshotableObject {
     AliasedBufferIndex statfs_field_bigint_array;
   };
 
+  // Make sure that there's no padding in the struct since we will memcpy
+  // them into the snapshot blob and they need to be reproducible.
+  static_assert(sizeof(InternalFieldInfo) == sizeof(InternalFieldInfoBase) +
+                                                 sizeof(AliasedBufferIndex) * 4,
+                "InternalFieldInfo should have no padding");
+
   enum class FilePathIsFileReturnType {
     kIsFile = 0,
     kIsNotFile,
