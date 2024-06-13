@@ -1101,8 +1101,7 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
 
   EscapableHandleScope scope(env->isolate());
   Local<Object> info = Object::New(env->isolate());
-  if (!SSL_get_server_tmp_key(ssl.get(), &raw_key))
-    return scope.Escape(info);
+  if (!SSL_get_peer_tmp_key(ssl.get(), &raw_key)) return scope.Escape(info);
 
   Local<Context> context = env->context();
   crypto::EVPKeyPointer key(raw_key);
