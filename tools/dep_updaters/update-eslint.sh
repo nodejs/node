@@ -42,8 +42,7 @@ cd ../eslint
 # Use dmn to remove some unneeded files.
 "$NODE" "$NPM" exec --package=dmn@2.2.2 --yes -- dmn -f clean
 # TODO: Get this into dmn.
-find node_modules -name .package-lock.json -exec rm {} \;
-find node_modules -name 'README*' -exec rm {} \;
+find node_modules \( -name .package-lock.json -or -name 'README*' \) -exec rm {} \;
 
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
