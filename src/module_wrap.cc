@@ -125,7 +125,7 @@ v8::Maybe<bool> ModuleWrap::CheckUnsettledTopLevelAwait() {
 
   auto stalled_messages =
       std::get<1>(module->GetStalledTopLevelAwaitMessages(isolate));
-  if (stalled_messages.size() == 0) {
+  if (stalled_messages.empty()) {
     return v8::Just(true);
   }
 
