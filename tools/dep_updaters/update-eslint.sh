@@ -27,17 +27,17 @@ rm -rf ../eslint/node_modules ../eslint/package-lock.json
 
 cd ../eslint
 "$NODE" "$NPM" install \
---ignore-scripts \
---no-bin-links \
-"eslint@$NEW_VERSION" \
-eslint-formatter-tap \
-eslint-plugin-jsdoc \
-eslint-plugin-markdown \
-globals \
-@babel/core \
-@babel/eslint-parser \
-@babel/plugin-syntax-import-attributes \
-@stylistic/eslint-plugin-js
+    --ignore-scripts \
+    --no-bin-links \
+    "eslint@$NEW_VERSION" \
+    eslint-formatter-tap \
+    eslint-plugin-jsdoc \
+    eslint-plugin-markdown \
+    globals \
+    @babel/core \
+    @babel/eslint-parser \
+    @babel/plugin-syntax-import-attributes \
+    @stylistic/eslint-plugin-js
 
 # Use dmn to remove some unneeded files.
 "$NODE" "$NPM" exec --package=dmn@2.2.2 --yes -- dmn -f clean
