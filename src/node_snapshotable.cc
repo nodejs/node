@@ -1262,18 +1262,30 @@ void DeserializeNodeContextData(Local<Context> holder,
                                 int index,
                                 StartupData payload,
                                 void* callback_data) {
-  // This is unreachable for now. We will reset all the pointers in
-  // Environment::AssignToContext() via the realm constructor.
-  UNREACHABLE();
+  // We will reset all the pointers in Environment::AssignToContext()
+  // via the realm constructor.
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag: {
+      uint64_t index_64;
+      int size = sizeof(index_64);
+      CHECK_EQ(payload.raw_size, size);
+      memcpy(&index_64, payload.data, payload.raw_size);
+      CHECK_EQ(index_64, static_cast<uint64_t>(index));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 StartupData SerializeNodeContextData(Local<Context> holder,
                                      int index,
                                      void* callback_data) {
-  // For now we just reset all of them in Environment::AssignToContext().
-  // We return empty data here to make sure that the embedder data serialized
-  // into the snapshot is reproducible and V8 doesn't have to try to serialize
-  // the pointer values that won't be useful during deserialization.
+  // For pointer values, we need to return some non-empty data so that V8
+  // does not serialize them verbatim, making the snapshot unreproducible.
   switch (index) {
     case ContextEmbedderIndex::kEnvironment:
     case ContextEmbedderIndex::kContextifyContext:
@@ -1286,7 +1298,13 @@ StartupData SerializeNodeContextData(Local<Context> holder,
           static_cast<int>(index),
           *holder,
           data);
-      return {nullptr, 0};
+      // We use uint64_t to avoid padding.
+      uint64_t index_64 = static_cast<uint64_t>(index);
+      // It must be allocated with new[] because V8 will call delete[] on it.
+      size_t size = sizeof(index_64);
+      char* startup_data = new char[size];
+      memcpy(startup_data, &index_64, size);
+      return {startup_data, static_cast<int>(size)};
     }
     default:
       UNREACHABLE();
