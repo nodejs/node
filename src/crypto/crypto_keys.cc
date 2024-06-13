@@ -1033,7 +1033,7 @@ void KeyObjectHandle::InitJWK(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value kty_string(env->isolate(), kty);
 
-  if (strcmp(*kty_string, "oct") == 0) {
+  if (kty_string == "oct") {
     // Secret key
     key->data_ = ImportJWKSecretKey(env, input);
     if (!key->data_) {
