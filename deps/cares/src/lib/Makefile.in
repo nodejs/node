@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Fri May 24 08:48:15 CEST 2024
+# from AX_AM_MACROS_STATIC on Fri Jun  7 06:50:45 EDT 2024
 
 # Copyright (C) The c-ares project and its contributors
 # SPDX-License-Identifier: MIT
@@ -728,7 +728,8 @@ HHEADERS = ares__buf.h			\
   ares_str.h				\
   ares_strsplit.h			\
   ares_setup.h				\
-  setup_once.h
+  setup_once.h				\
+  thirdparty/apple/dnsinfo.h
 
 
 # Makefile.inc provides the CSOURCES and HHEADERS defines

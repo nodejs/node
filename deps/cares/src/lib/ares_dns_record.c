@@ -148,6 +148,11 @@ static void ares__dns_rr_free(ares_dns_rr_t *rr)
       ares_free(rr->r.txt.data);
       break;
 
+    case ARES_REC_TYPE_SIG:
+      ares_free(rr->r.sig.signers_name);
+      ares_free(rr->r.sig.signature);
+      break;
+
     case ARES_REC_TYPE_SRV:
       ares_free(rr->r.srv.target);
       break;
@@ -245,7 +250,7 @@ ares_status_t ares_dns_record_query_add(ares_dns_record_t  *dnsrec,
 
   if (dnsrec == NULL || name == NULL ||
       !ares_dns_rec_type_isvalid(qtype, ARES_TRUE) ||
-      !ares_dns_class_isvalid(qclass, ARES_TRUE)) {
+      !ares_dns_class_isvalid(qclass, qtype, ARES_TRUE)) {
     return ARES_EFORMERR;
   }
 
@@ -412,7 +417,7 @@ ares_status_t ares_dns_record_rr_add(ares_dns_rr_t    **rr_out,
   if (dnsrec == NULL || name == NULL || rr_out == NULL ||
       !ares_dns_section_isvalid(sect) ||
       !ares_dns_rec_type_isvalid(type, ARES_FALSE) ||
-      !ares_dns_class_isvalid(rclass, ARES_FALSE)) {
+      !ares_dns_class_isvalid(rclass, type, ARES_FALSE)) {
     return ARES_EFORMERR;
   }
 
@@ -626,6 +631,37 @@ static void *ares_dns_rr_data_ptr(ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key,
 
     case ARES_RR_MX_EXCHANGE:
       return &dns_rr->r.mx.exchange;
+
+    case ARES_RR_SIG_TYPE_COVERED:
+      return &dns_rr->r.sig.type_covered;
+
+    case ARES_RR_SIG_ALGORITHM:
+      return &dns_rr->r.sig.algorithm;
+
+    case ARES_RR_SIG_LABELS:
+      return &dns_rr->r.sig.labels;
+
+    case ARES_RR_SIG_ORIGINAL_TTL:
+      return &dns_rr->r.sig.original_ttl;
+
+    case ARES_RR_SIG_EXPIRATION:
+      return &dns_rr->r.sig.expiration;
+
+    case ARES_RR_SIG_INCEPTION:
+      return &dns_rr->r.sig.inception;
+
+    case ARES_RR_SIG_KEY_TAG:
+      return &dns_rr->r.sig.key_tag;
+
+    case ARES_RR_SIG_SIGNERS_NAME:
+      return &dns_rr->r.sig.signers_name;
+
+    case ARES_RR_SIG_SIGNATURE:
+      if (lenptr == NULL) {
+        return NULL;
+      }
+      *lenptr = &dns_rr->r.sig.signature_len;
+      return &dns_rr->r.sig.signature;
 
     case ARES_RR_TXT_DATA:
       if (lenptr == NULL) {

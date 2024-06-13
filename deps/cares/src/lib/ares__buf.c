@@ -941,9 +941,9 @@ ares_status_t ares__buf_set_position(ares__buf_t *buf, size_t idx)
   return ARES_SUCCESS;
 }
 
-ares_status_t ares__buf_parse_dns_binstr(ares__buf_t *buf, size_t remaining_len,
-                                         unsigned char **bin, size_t *bin_len,
-                                         ares_bool_t allow_multiple)
+static ares_status_t ares__buf_parse_dns_binstr_int(
+  ares__buf_t *buf, size_t remaining_len, unsigned char **bin, size_t *bin_len,
+  ares_bool_t allow_multiple, ares_bool_t validate_printable)
 {
   unsigned char len;
   ares_status_t status;
@@ -970,7 +970,17 @@ ares_status_t ares__buf_parse_dns_binstr(ares__buf_t *buf, size_t remaining_len,
     }
 
     if (len) {
-      /* XXX: Maybe we should scan to make sure it is printable? */
+      /* When used by the _str() parser, it really needs to be validated to
+       * be a valid printable ascii string.  Do that here */
+      if (validate_printable && ares__buf_len(buf) >= len) {
+        size_t      mylen;
+        const char *data = (const char *)ares__buf_peek(buf, &mylen);
+        if (!ares__str_isprint(data, len)) {
+          status = ARES_EBADSTR;
+          break;
+        }
+      }
+
       if (bin != NULL) {
         status = ares__buf_fetch_bytes_into_buf(buf, binbuf, len);
       } else {
@@ -1003,12 +1013,21 @@ ares_status_t ares__buf_parse_dns_binstr(ares__buf_t *buf, size_t remaining_len,
   return status;
 }
 
+ares_status_t ares__buf_parse_dns_binstr(ares__buf_t *buf, size_t remaining_len,
+                                         unsigned char **bin, size_t *bin_len,
+                                         ares_bool_t allow_multiple)
+{
+  return ares__buf_parse_dns_binstr_int(buf, remaining_len, bin, bin_len,
+                                        allow_multiple, ARES_FALSE);
+}
+
 ares_status_t ares__buf_parse_dns_str(ares__buf_t *buf, size_t remaining_len,
                                       char **str, ares_bool_t allow_multiple)
 {
   size_t len;
-  return ares__buf_parse_dns_binstr(buf, remaining_len, (unsigned char **)str,
-                                    &len, allow_multiple);
+
+  return ares__buf_parse_dns_binstr_int(
+    buf, remaining_len, (unsigned char **)str, &len, allow_multiple, ARES_TRUE);
 }
 
 ares_status_t ares__buf_append_num_dec(ares__buf_t *buf, size_t num, size_t len)
