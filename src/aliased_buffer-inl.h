@@ -8,7 +8,7 @@
 
 namespace node {
 
-typedef size_t AliasedBufferIndex;
+typedef uint64_t AliasedBufferIndex;
 
 template <typename NativeT, typename V8T>
 AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(

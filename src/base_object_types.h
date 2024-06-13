@@ -42,10 +42,13 @@ namespace node {
   SERIALIZABLE_NON_BINDING_TYPES(V)
 
 #define V(TypeId, NativeType) k_##TypeId,
-enum class BindingDataType : uint8_t { BINDING_TYPES(V) kBindingDataTypeCount };
+// To avoid padding, the enums are uint64_t.
+enum class BindingDataType : uint64_t {
+  BINDING_TYPES(V) kBindingDataTypeCount
+};
 // Make sure that we put the bindings first so that we can also use the enums
 // for the bindings as index to the binding data store.
-enum class EmbedderObjectType : uint8_t {
+enum class EmbedderObjectType : uint64_t {
   BINDING_TYPES(V) SERIALIZABLE_NON_BINDING_TYPES(V)
   // We do not need to know about all the unserializable non-binding types for
   // now so we do not list them.
