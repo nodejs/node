@@ -679,6 +679,6 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 
   finished(stream, { readable: false }, common.mustCall((err) => {
     assert(!err);
-    assert.strictEqual(stream._writableState.pendingcb, 0)
+    assert.strictEqual(stream._writableState.pendingcb, 0);
   }));
 }
