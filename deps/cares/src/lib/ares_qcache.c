@@ -137,7 +137,7 @@ fail:
 }
 
 static void ares__qcache_expire(ares__qcache_t       *cache,
-                                const struct timeval *now)
+                                const ares_timeval_t *now)
 {
   ares__slist_node_t *node;
 
@@ -147,7 +147,9 @@ static void ares__qcache_expire(ares__qcache_t       *cache,
 
   while ((node = ares__slist_node_first(cache->expire)) != NULL) {
     const ares__qcache_entry_t *entry = ares__slist_node_val(node);
-    if (entry->expire_ts > now->tv_sec) {
+
+    /* If now is NULL, we're flushing everything, so don't break */
+    if (now != NULL && entry->expire_ts > now->sec) {
       break;
     }
 
@@ -158,9 +160,7 @@ static void ares__qcache_expire(ares__qcache_t       *cache,
 
 void ares__qcache_flush(ares__qcache_t *cache)
 {
-  struct timeval now;
-  memset(&now, 0, sizeof(now));
-  ares__qcache_expire(cache, &now);
+  ares__qcache_expire(cache, NULL /* flush all */);
 }
 
 void ares__qcache_destroy(ares__qcache_t *cache)
@@ -254,7 +254,10 @@ static unsigned int ares__qcache_calc_minttl(ares_dns_record_t *dnsrec)
         ares_dns_record_rr_get(dnsrec, (ares_dns_section_t)sect, i);
       ares_dns_rec_type_t type = ares_dns_rr_get_type(rr);
       unsigned int        ttl  = ares_dns_rr_get_ttl(rr);
-      if (type == ARES_REC_TYPE_OPT || type == ARES_REC_TYPE_SOA) {
+
+      /* TTL is meaningless on these record types */
+      if (type == ARES_REC_TYPE_OPT || type == ARES_REC_TYPE_SOA ||
+          type == ARES_REC_TYPE_SIG) {
         continue;
       }
 
@@ -319,7 +322,7 @@ done:
 static ares_status_t ares__qcache_insert(ares__qcache_t      *qcache,
                                          ares_dns_record_t   *dnsrec,
                                          const unsigned char *qbuf, size_t qlen,
-                                         const struct timeval *now)
+                                         const ares_timeval_t *now)
 {
   ares__qcache_entry_t *entry;
   unsigned int          ttl;
@@ -362,8 +365,8 @@ static ares_status_t ares__qcache_insert(ares__qcache_t      *qcache,
   }
 
   entry->dnsrec    = dnsrec;
-  entry->expire_ts = now->tv_sec + (time_t)ttl;
-  entry->insert_ts = now->tv_sec;
+  entry->expire_ts = now->sec + (time_t)ttl;
+  entry->insert_ts = now->sec;
 
   /* We can't guarantee the server responded with the same flags as the
    * request had, so we have to re-parse the request in order to generate the
@@ -394,7 +397,7 @@ fail:
 }
 
 ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
-                                const struct timeval     *now,
+                                const ares_timeval_t     *now,
                                 const ares_dns_record_t  *dnsrec,
                                 const ares_dns_record_t **dnsrec_resp)
 {
@@ -425,7 +428,7 @@ ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
   }
 
   ares_dns_record_write_ttl_decrement(
-    entry->dnsrec, (unsigned int)(now->tv_sec - entry->insert_ts));
+    entry->dnsrec, (unsigned int)(now->sec - entry->insert_ts));
 
   *dnsrec_resp = entry->dnsrec;
 
@@ -435,7 +438,7 @@ done:
 }
 
 ares_status_t ares_qcache_insert(ares_channel_t       *channel,
-                                 const struct timeval *now,
+                                 const ares_timeval_t *now,
                                  const struct query   *query,
                                  ares_dns_record_t    *dnsrec)
 {

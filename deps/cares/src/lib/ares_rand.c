@@ -70,7 +70,7 @@ static void ares_rc4_generate_key(ares_rand_rc4 *rc4_state, unsigned char *key,
   size_t         i;
   size_t         len = 0;
   unsigned int   data;
-  struct timeval tv;
+  ares_timeval_t tv;
 
   if (key_len != ARES_RC4_KEY_LEN) {
     return;
@@ -89,12 +89,12 @@ static void ares_rc4_generate_key(ares_rand_rc4 *rc4_state, unsigned char *key,
   len += sizeof(data);
 
   tv   = ares__tvnow();
-  data = (unsigned int)((tv.tv_sec | tv.tv_usec) & 0xFFFFFFFF);
+  data = (unsigned int)((tv.sec | tv.usec) & 0xFFFFFFFF);
   memcpy(key + len, &data, sizeof(data));
   len += sizeof(data);
 
   srand(ares_u32_from_ptr(rc4_state) | ares_u32_from_ptr(&i) |
-        (unsigned int)((tv.tv_sec | tv.tv_usec) & 0xFFFFFFFF));
+        (unsigned int)((tv.sec | tv.usec) & 0xFFFFFFFF));
 
   for (i = len; i < key_len; i++) {
     key[i] = (unsigned char)(rand() % 256); /* LCOV_EXCL_LINE */

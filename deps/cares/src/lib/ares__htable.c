@@ -142,14 +142,14 @@ const void **ares__htable_all_buckets(const ares__htable_t *htable, size_t *num)
   size_t       i;
 
   if (htable == NULL || num == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE */
   }
 
   *num = 0;
 
   out = ares_malloc_zero(sizeof(*out) * htable->num_keys);
   if (out == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE */
   }
 
   for (i = 0; i < htable->size; i++) {
@@ -197,7 +197,7 @@ static ares_bool_t ares__htable_expand(ares__htable_t *htable)
 
   /* Not a failure, just won't expand */
   if (old_size == ARES__HTABLE_MAX_BUCKETS) {
-    return ARES_TRUE;
+    return ARES_TRUE; /* LCOV_EXCL_LINE */
   }
 
   htable->size <<= 1;
@@ -207,7 +207,7 @@ static ares_bool_t ares__htable_expand(ares__htable_t *htable)
    * middle, we wouldn't be able to recover. */
   buckets = ares_malloc_zero(sizeof(*buckets) * htable->size);
   if (buckets == NULL) {
-    goto done;
+    goto done;  /* LCOV_EXCL_LINE */
   }
 
   /* The maximum number of new llists we'll need is the number of collisions
@@ -217,7 +217,7 @@ static ares_bool_t ares__htable_expand(ares__htable_t *htable)
     prealloc_llist =
       ares_malloc_zero(sizeof(*prealloc_llist) * prealloc_llist_len);
     if (prealloc_llist == NULL) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE */
     }
   }
   for (i = 0; i < prealloc_llist_len; i++) {
@@ -270,7 +270,7 @@ static ares_bool_t ares__htable_expand(ares__htable_t *htable)
       if (buckets[idx] == NULL) {
         /* Silence static analysis, this isn't possible but it doesn't know */
         if (prealloc_llist == NULL || prealloc_llist_len == 0) {
-          goto done;
+          goto done;  /* LCOV_EXCL_LINE */
         }
         buckets[idx] = prealloc_llist[prealloc_llist_len - 1];
         prealloc_llist_len--;
@@ -304,7 +304,7 @@ done:
 
   /* On failure, we need to restore the htable size */
   if (rv != ARES_TRUE) {
-    htable->size = old_size;
+    htable->size = old_size;  /* LCOV_EXCL_LINE */
   }
 
   return rv;
@@ -336,7 +336,7 @@ ares_bool_t ares__htable_insert(ares__htable_t *htable, void *bucket)
   if (htable->num_keys + 1 >
       (htable->size * ARES__HTABLE_EXPAND_PERCENT) / 100) {
     if (!ares__htable_expand(htable)) {
-      return ARES_FALSE;
+      return ARES_FALSE;  /* LCOV_EXCL_LINE */
     }
     /* If we expanded, need to calculate a new index */
     idx = HASH_IDX(htable, key);

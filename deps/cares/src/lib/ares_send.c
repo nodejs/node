@@ -55,7 +55,7 @@ static ares_status_t ares_send_dnsrec_int(ares_channel_t          *channel,
 {
   struct query            *query;
   size_t                   packetsz;
-  struct timeval           now = ares__tvnow();
+  ares_timeval_t           now = ares__tvnow();
   ares_status_t            status;
   unsigned short           id          = generate_unique_qid(channel);
   const ares_dns_record_t *dnsrec_resp = NULL;
@@ -91,9 +91,9 @@ static ares_status_t ares_send_dnsrec_int(ares_channel_t          *channel,
     return status;
   }
 
-  query->qid             = id;
-  query->timeout.tv_sec  = 0;
-  query->timeout.tv_usec = 0;
+  query->qid          = id;
+  query->timeout.sec  = 0;
+  query->timeout.usec = 0;
 
   /* Ignore first 2 bytes, assign our own query id */
   query->qbuf[0] = (unsigned char)((id >> 8) & 0xFF);

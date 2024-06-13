@@ -179,12 +179,15 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
     sysconfig->domains = new_domains;
 
     for (i = 0; i < resolver->n_search; i++) {
+      const char *search;
+      /* UBSAN: copy pointer using memcpy due to misalignment */
+      memcpy(&search, resolver->search + i, sizeof(search));
+
       /* Skip duplicates */
-      if (search_is_duplicate(sysconfig, resolver->search[i])) {
+      if (search_is_duplicate(sysconfig, search)) {
         continue;
       }
-      sysconfig->domains[sysconfig->ndomains] =
-        ares_strdup(resolver->search[i]);
+      sysconfig->domains[sysconfig->ndomains] = ares_strdup(search);
       if (sysconfig->domains[sysconfig->ndomains] == NULL) {
         return ARES_ENOMEM;
       }
@@ -227,21 +230,31 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
    */
 
   for (i = 0; i < resolver->n_nameserver; i++) {
-    struct ares_addr addr;
-    unsigned short   addrport;
+    struct ares_addr       addr;
+    unsigned short         addrport;
+    const struct sockaddr *sockaddr;
 
-    if (resolver->nameserver[i]->sa_family == AF_INET) {
-      struct sockaddr_in *addr_in =
-        (struct sockaddr_in *)(void *)resolver->nameserver[i];
+    /* UBSAN alignment workaround to fetch memory address */
+    memcpy(&sockaddr, resolver->nameserver + i, sizeof(sockaddr));
+
+    if (sockaddr->sa_family == AF_INET) {
+      /* NOTE: memcpy sockaddr_in due to alignment issues found by UBSAN due to
+       *       dnsinfo packing */
+      struct sockaddr_in addr_in;
+      memcpy(&addr_in, sockaddr, sizeof(addr_in));
+
       addr.family = AF_INET;
-      memcpy(&addr.addr.addr4, &(addr_in->sin_addr), sizeof(addr.addr.addr4));
-      addrport = ntohs(addr_in->sin_port);
-    } else if (resolver->nameserver[i]->sa_family == AF_INET6) {
-      struct sockaddr_in6 *addr_in6 =
-        (struct sockaddr_in6 *)(void *)resolver->nameserver[i];
+      memcpy(&addr.addr.addr4, &(addr_in.sin_addr), sizeof(addr.addr.addr4));
+      addrport = ntohs(addr_in.sin_port);
+    } else if (sockaddr->sa_family == AF_INET6) {
+      /* NOTE: memcpy sockaddr_in6 due to alignment issues found by UBSAN due to
+       *       dnsinfo packing */
+      struct sockaddr_in6 addr_in6;
+      memcpy(&addr_in6, sockaddr, sizeof(addr_in6));
+
       addr.family = AF_INET6;
-      memcpy(&addr.addr.addr6, &(addr_in6->sin6_addr), sizeof(addr.addr.addr6));
-      addrport = ntohs(addr_in6->sin6_port);
+      memcpy(&addr.addr.addr6, &(addr_in6.sin6_addr), sizeof(addr.addr.addr6));
+      addrport = ntohs(addr_in6.sin6_port);
     } else {
       continue;
     }
@@ -266,7 +279,19 @@ static ares_status_t read_resolvers(dns_resolver_t **resolvers, int nresolvers,
   int           i;
 
   for (i = 0; status == ARES_SUCCESS && i < nresolvers; i++) {
-    status = read_resolver(resolvers[i], sysconfig);
+    const dns_resolver_t *resolver_ptr;
+    dns_resolver_t        resolver;
+
+    /* UBSAN doesn't like that this is unaligned, lets use memcpy to get the
+     * address.  Equivalent to:
+     *   resolver = resolvers[i]
+     */
+    memcpy(&resolver_ptr, resolvers + i, sizeof(resolver_ptr));
+
+    /* UBSAN. If the pointer is misaligned, try to use memcpy to get the data
+     * into a new structure that is hopefully aligned properly */
+    memcpy(&resolver, resolver_ptr, sizeof(resolver));
+    status = read_resolver(&resolver, sysconfig);
   }
 
   return status;
