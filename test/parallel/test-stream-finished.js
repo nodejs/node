@@ -669,9 +669,13 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 }
 
 {
+  let isCalld = false;
   const stream = new Duplex({
     write(chunk, enc, cb) {
-      setImmediate(cb);
+      setImmediate(() => {
+        isCalld = true;
+        cb();
+      });
     }
   });
 
@@ -679,6 +683,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 
   finished(stream, { readable: false }, common.mustCall((err) => {
     assert(!err);
+    assert.strictEqual(isCalld, true);
     assert.strictEqual(stream._writableState.pendingcb, 0);
   }));
 }
