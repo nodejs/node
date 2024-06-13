@@ -82,17 +82,17 @@ static int ares_query_timeout_cmp_cb(const void *arg1, const void *arg2)
   const struct query *q1 = arg1;
   const struct query *q2 = arg2;
 
-  if (q1->timeout.tv_sec > q2->timeout.tv_sec) {
+  if (q1->timeout.sec > q2->timeout.sec) {
     return 1;
   }
-  if (q1->timeout.tv_sec < q2->timeout.tv_sec) {
+  if (q1->timeout.sec < q2->timeout.sec) {
     return -1;
   }
 
-  if (q1->timeout.tv_usec > q2->timeout.tv_usec) {
+  if (q1->timeout.usec > q2->timeout.usec) {
     return 1;
   }
-  if (q1->timeout.tv_usec < q2->timeout.tv_usec) {
+  if (q1->timeout.usec < q2->timeout.usec) {
     return -1;
   }
 

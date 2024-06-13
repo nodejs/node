@@ -146,8 +146,8 @@ fail:
   return ARES_FALSE;
 }
 
-ares_bool_t ares__htable_vpvp_get(const ares__htable_vpvp_t *htable, void *key,
-                                  void **val)
+ares_bool_t ares__htable_vpvp_get(const ares__htable_vpvp_t *htable,
+                                  const void *key, void **val)
 {
   ares__htable_vpvp_bucket_t *bucket = NULL;
 
@@ -170,14 +170,16 @@ ares_bool_t ares__htable_vpvp_get(const ares__htable_vpvp_t *htable, void *key,
   return ARES_TRUE;
 }
 
-void *ares__htable_vpvp_get_direct(const ares__htable_vpvp_t *htable, void *key)
+void *ares__htable_vpvp_get_direct(const ares__htable_vpvp_t *htable,
+                                   const void                *key)
 {
   void *val = NULL;
   ares__htable_vpvp_get(htable, key, &val);
   return val;
 }
 
-ares_bool_t ares__htable_vpvp_remove(ares__htable_vpvp_t *htable, void *key)
+ares_bool_t ares__htable_vpvp_remove(ares__htable_vpvp_t *htable,
+                                     const void          *key)
 {
   if (htable == NULL) {
     return ARES_FALSE;
