@@ -21,6 +21,14 @@
 #include <string>
 #include <unordered_map>
 
+// Some OpenSSL 1.1.1 functions unnecessarily operate on and return non-const
+// pointers, whereas the same functions in OpenSSL 3 use const pointers.
+#if OPENSSL_VERSION_MAJOR >= 3
+#define OSSL3_CONST const
+#else
+#define OSSL3_CONST
+#endif
+
 namespace node {
 
 using v8::Array;
@@ -425,20 +433,15 @@ MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
       MaybeLocal<Value>(Undefined(env->isolate()));
 }
 
-MaybeLocal<Value> GetECPubKey(
-    Environment* env,
-    const EC_GROUP* group,
-    const ECPointer& ec) {
-  const EC_POINT* pubkey = EC_KEY_get0_public_key(ec.get());
+MaybeLocal<Value> GetECPubKey(Environment* env,
+                              const EC_GROUP* group,
+                              OSSL3_CONST EC_KEY* ec) {
+  const EC_POINT* pubkey = EC_KEY_get0_public_key(ec);
   if (pubkey == nullptr)
     return Undefined(env->isolate());
 
-  return ECPointToBuffer(
-      env,
-      group,
-      pubkey,
-      EC_KEY_get_conv_form(ec.get()),
-      nullptr).FromMaybe(Local<Object>());
+  return ECPointToBuffer(env, group, pubkey, EC_KEY_get_conv_form(ec), nullptr)
+      .FromMaybe(Local<Object>());
 }
 
 MaybeLocal<Value> GetECGroupBits(Environment* env, const EC_GROUP* group) {
@@ -452,8 +455,8 @@ MaybeLocal<Value> GetECGroupBits(Environment* env, const EC_GROUP* group) {
   return Integer::New(env->isolate(), bits);
 }
 
-MaybeLocal<Object> GetPubKey(Environment* env, const RSAPointer& rsa) {
-  int size = i2d_RSA_PUBKEY(rsa.get(), nullptr);
+MaybeLocal<Object> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
+  int size = i2d_RSA_PUBKEY(rsa, nullptr);
   CHECK_GE(size, 0);
 
   std::unique_ptr<BackingStore> bs;
@@ -463,7 +466,7 @@ MaybeLocal<Object> GetPubKey(Environment* env, const RSAPointer& rsa) {
   }
 
   unsigned char* serialized = reinterpret_cast<unsigned char*>(bs->Data());
-  CHECK_GE(i2d_RSA_PUBKEY(rsa.get(), &serialized), 0);
+  CHECK_GE(i2d_RSA_PUBKEY(rsa, &serialized), 0);
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
   return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
@@ -1124,8 +1127,8 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
       {
         const char* curve_name;
         if (kid == EVP_PKEY_EC) {
-          ECKeyPointer ec(EVP_PKEY_get1_EC_KEY(key.get()));
-          int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec.get()));
+          OSSL3_CONST EC_KEY* ec = EVP_PKEY_get0_EC_KEY(key.get());
+          int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
           curve_name = OBJ_nid2sn(nid);
         } else {
           curve_name = OBJ_nid2sn(kid);
@@ -1284,16 +1287,16 @@ MaybeLocal<Object> X509ToObject(
     return MaybeLocal<Object>();
   }
 
-  EVPKeyPointer pkey(X509_get_pubkey(cert));
-  RSAPointer rsa;
-  ECPointer ec;
-  if (pkey) {
-    switch (EVP_PKEY_id(pkey.get())) {
+  OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert);
+  OSSL3_CONST RSA* rsa = nullptr;
+  OSSL3_CONST EC_KEY* ec = nullptr;
+  if (pkey != nullptr) {
+    switch (EVP_PKEY_id(pkey)) {
       case EVP_PKEY_RSA:
-        rsa.reset(EVP_PKEY_get1_RSA(pkey.get()));
+        rsa = EVP_PKEY_get0_RSA(pkey);
         break;
       case EVP_PKEY_EC:
-        ec.reset(EVP_PKEY_get1_EC_KEY(pkey.get()));
+        ec = EVP_PKEY_get0_EC_KEY(pkey);
         break;
     }
   }
@@ -1301,7 +1304,7 @@ MaybeLocal<Object> X509ToObject(
   if (rsa) {
     const BIGNUM* n;
     const BIGNUM* e;
-    RSA_get0_key(rsa.get(), &n, &e, nullptr);
+    RSA_get0_key(rsa, &n, &e, nullptr);
     if (!Set<Value>(context,
                     info,
                     env->modulus_string(),
@@ -1318,7 +1321,7 @@ MaybeLocal<Object> X509ToObject(
       return MaybeLocal<Object>();
     }
   } else if (ec) {
-    const EC_GROUP* group = EC_KEY_get0_group(ec.get());
+    const EC_GROUP* group = EC_KEY_get0_group(ec);
 
     if (!Set<Value>(
             context, info, env->bits_string(), GetECGroupBits(env, group)) ||
@@ -1346,11 +1349,6 @@ MaybeLocal<Object> X509ToObject(
       // but aren't used much (at all?) with X.509/TLS. Support later if needed.
     }
   }
-
-  // pkey, rsa, and ec pointers are no longer needed.
-  pkey.reset();
-  rsa.reset();
-  ec.reset();
 
   if (!Set<Value>(context,
                   info,
