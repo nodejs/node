@@ -40,6 +40,15 @@ assert.strictEqual(util.isArray(/regexp/), false);
 assert.strictEqual(util.isArray(new Error()), false);
 assert.strictEqual(util.isArray({ __proto__: Array.prototype }), false);
 
+// _extend
+assert.deepStrictEqual(util._extend({ a: 1 }), { a: 1 });
+assert.deepStrictEqual(util._extend({ a: 1 }, []), { a: 1 });
+assert.deepStrictEqual(util._extend({ a: 1 }, null), { a: 1 });
+assert.deepStrictEqual(util._extend({ a: 1 }, true), { a: 1 });
+assert.deepStrictEqual(util._extend({ a: 1 }, false), { a: 1 });
+assert.deepStrictEqual(util._extend({ a: 1 }, { b: 2 }), { a: 1, b: 2 });
+assert.deepStrictEqual(util._extend({ a: 1, b: 2 }, { b: 3 }), { a: 1, b: 3 });
+
 assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
 
 {
