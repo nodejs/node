@@ -992,7 +992,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
   }
 
-  if (!per_process::cli_options->run.empty()) {
+  if (!per_process::cli_options->run.empty() && !per_process::cli_options->per_isolate->per_env->watch_mode) {
     // TODO(@anonrig): Handle NODE_NO_WARNINGS, NODE_REDIRECT_WARNINGS,
     //  --disable-warning and --redirect-warnings.
     if (per_process::cli_options->per_isolate->per_env->warnings) {
