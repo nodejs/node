@@ -289,11 +289,9 @@ MaybeLocal<Value> BIOToStringOrBuffer(
   }
 }
 
-
-MaybeLocal<Value> WritePrivateKey(
-    Environment* env,
-    EVP_PKEY* pkey,
-    const PrivateKeyEncodingConfig& config) {
+MaybeLocal<Value> WritePrivateKey(Environment* env,
+                                  OSSL3_CONST EVP_PKEY* pkey,
+                                  const PrivateKeyEncodingConfig& config) {
   BIOPointer bio(BIO_new(BIO_s_mem()));
   CHECK(bio);
 
@@ -327,20 +325,21 @@ MaybeLocal<Value> WritePrivateKey(
     // PKCS#1 is only permitted for RSA keys.
     CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
 
-    RSAPointer rsa(EVP_PKEY_get1_RSA(pkey));
+    OSSL3_CONST RSA* rsa = EVP_PKEY_get0_RSA(pkey);
     if (config.format_ == kKeyFormatPEM) {
       // Encode PKCS#1 as PEM.
-      err = PEM_write_bio_RSAPrivateKey(
-                bio.get(), rsa.get(),
-                config.cipher_,
-                reinterpret_cast<unsigned char*>(pass),
-                pass_len,
-                nullptr, nullptr) != 1;
+      err = PEM_write_bio_RSAPrivateKey(bio.get(),
+                                        rsa,
+                                        config.cipher_,
+                                        reinterpret_cast<unsigned char*>(pass),
+                                        pass_len,
+                                        nullptr,
+                                        nullptr) != 1;
     } else {
       // Encode PKCS#1 as DER. This does not permit encryption.
       CHECK_EQ(config.format_, kKeyFormatDER);
       CHECK_NULL(config.cipher_);
-      err = i2d_RSAPrivateKey_bio(bio.get(), rsa.get()) != 1;
+      err = i2d_RSAPrivateKey_bio(bio.get(), rsa) != 1;
     }
   } else if (encoding_type == kKeyEncodingPKCS8) {
     if (config.format_ == kKeyFormatPEM) {
@@ -367,20 +366,21 @@ MaybeLocal<Value> WritePrivateKey(
     // SEC1 is only permitted for EC keys.
     CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_EC);
 
-    ECKeyPointer ec_key(EVP_PKEY_get1_EC_KEY(pkey));
+    OSSL3_CONST EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey);
     if (config.format_ == kKeyFormatPEM) {
       // Encode SEC1 as PEM.
-      err = PEM_write_bio_ECPrivateKey(
-                bio.get(), ec_key.get(),
-                config.cipher_,
-                reinterpret_cast<unsigned char*>(pass),
-                pass_len,
-                nullptr, nullptr) != 1;
+      err = PEM_write_bio_ECPrivateKey(bio.get(),
+                                       ec_key,
+                                       config.cipher_,
+                                       reinterpret_cast<unsigned char*>(pass),
+                                       pass_len,
+                                       nullptr,
+                                       nullptr) != 1;
     } else {
       // Encode SEC1 as DER. This does not permit encryption.
       CHECK_EQ(config.format_, kKeyFormatDER);
       CHECK_NULL(config.cipher_);
-      err = i2d_ECPrivateKey_bio(bio.get(), ec_key.get()) != 1;
+      err = i2d_ECPrivateKey_bio(bio.get(), ec_key) != 1;
     }
   }
 
@@ -391,20 +391,20 @@ MaybeLocal<Value> WritePrivateKey(
   return BIOToStringOrBuffer(env, bio.get(), config.format_);
 }
 
-bool WritePublicKeyInner(EVP_PKEY* pkey,
+bool WritePublicKeyInner(OSSL3_CONST EVP_PKEY* pkey,
                          const BIOPointer& bio,
                          const PublicKeyEncodingConfig& config) {
   if (config.type_.ToChecked() == kKeyEncodingPKCS1) {
     // PKCS#1 is only valid for RSA keys.
     CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
-    RSAPointer rsa(EVP_PKEY_get1_RSA(pkey));
+    OSSL3_CONST RSA* rsa = EVP_PKEY_get0_RSA(pkey);
     if (config.format_ == kKeyFormatPEM) {
       // Encode PKCS#1 as PEM.
-      return PEM_write_bio_RSAPublicKey(bio.get(), rsa.get()) == 1;
+      return PEM_write_bio_RSAPublicKey(bio.get(), rsa) == 1;
     } else {
       // Encode PKCS#1 as DER.
       CHECK_EQ(config.format_, kKeyFormatDER);
-      return i2d_RSAPublicKey_bio(bio.get(), rsa.get()) == 1;
+      return i2d_RSAPublicKey_bio(bio.get(), rsa) == 1;
     }
   } else {
     CHECK_EQ(config.type_.ToChecked(), kKeyEncodingSPKI);
@@ -420,7 +420,7 @@ bool WritePublicKeyInner(EVP_PKEY* pkey,
 }
 
 MaybeLocal<Value> WritePublicKey(Environment* env,
-                                 EVP_PKEY* pkey,
+                                 OSSL3_CONST EVP_PKEY* pkey,
                                  const PublicKeyEncodingConfig& config) {
   BIOPointer bio(BIO_new(BIO_s_mem()));
   CHECK(bio);
