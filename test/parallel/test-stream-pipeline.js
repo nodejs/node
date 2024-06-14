@@ -17,6 +17,8 @@ const http = require('http');
 const { promisify } = require('util');
 const net = require('net');
 const tsp = require('timers/promises');
+const tmpdir = require('../common/tmpdir');
+const fs = require('fs');
 
 {
   let finished = false;
@@ -67,6 +69,17 @@ const tsp = require('timers/promises');
   assert.throws(() => {
     pipeline();
   }, /ERR_INVALID_ARG_TYPE/);
+}
+
+tmpdir.refresh();
+{
+  assert.rejects(async () => {
+    const read = fs.createReadStream(__filename);
+    const write = fs.createWriteStream(tmpdir.resolve('a'));
+    const close = promisify(write.close);
+    await close.call(write);
+    await pipelinep(read, write);
+  }, /ERR_STREAM_UNABLE_TO_PIPE/).then(common.mustCall());
 }
 
 {

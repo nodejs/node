@@ -2621,6 +2621,12 @@ or a pipeline ends non gracefully with no explicit error.
 An attempt was made to call [`stream.push()`][] after a `null`(EOF) had been
 pushed to the stream.
 
+<a id="ERR_STREAM_UNABLE_TO_PIPE"></a>
+
+### `ERR_STREAM_UNABLE_TO_PIPE`
+
+An attempt was made to pipe to a closed or destroyed stream in a pipeline.
+
 <a id="ERR_STREAM_UNSHIFT_AFTER_END_EVENT"></a>
 
 ### `ERR_STREAM_UNSHIFT_AFTER_END_EVENT`
