@@ -134,7 +134,7 @@ WebCryptoCipherStatus AES_Cipher(
   //
   // Refs: https://github.com/openssl/openssl/commit/420cb707b880e4fb649094241371701013eeb15f
   // Refs: https://github.com/nodejs/node/pull/38913#issuecomment-866505244
-  if (in.size() == 0) {
+  if (in.empty()) {
     out_len = 0;
   } else if (!EVP_CipherUpdate(ctx.get(),
                                buf.data<unsigned char>(),
