@@ -247,7 +247,7 @@ size_t BlobSerializer<Impl>::WriteVector(const std::vector<T>& data) {
   }
 
   size_t written_total = WriteArithmetic<size_t>(data.size());
-  if (data.size() == 0) {
+  if (data.empty()) {
     return written_total;
   }
 
