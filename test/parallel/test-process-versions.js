@@ -23,7 +23,6 @@ const expected_keys = [
   'sqlite',
   'ada',
   'cjs_module_lexer',
-  'base64',
 ];
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
