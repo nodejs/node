@@ -954,6 +954,17 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
+##### `writable[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`writable.destroy()`][writable-destroy] with an `AbortError` and returns
+a promise that fulfills when the stream is finished.
+
 ##### `writable.write(chunk[, encoding][, callback])`
 
 <!-- YAML
