@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.isLinux)
   common.skip('This test can run only on Linux');
 
-// Test the watcher do not crash if the file "disappears" while
+// Test that the watcher do not crash if the file "disappears" while
 // watch is being set up.
 
 const path = require('node:path');
