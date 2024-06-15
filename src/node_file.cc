@@ -1705,7 +1705,7 @@ int MKDirpSync(uv_loop_t* loop,
         // ~FSReqWrapSync():
         case 0:
           req_wrap->continuation_data()->MaybeSetFirstPath(next_path);
-          if (req_wrap->continuation_data()->paths().size() == 0) {
+          if (req_wrap->continuation_data()->paths().empty()) {
             return 0;
           }
           break;
@@ -1721,7 +1721,7 @@ int MKDirpSync(uv_loop_t* loop,
           if (dirname != next_path) {
             req_wrap->continuation_data()->PushPath(std::move(next_path));
             req_wrap->continuation_data()->PushPath(std::move(dirname));
-          } else if (req_wrap->continuation_data()->paths().size() == 0) {
+          } else if (req_wrap->continuation_data()->paths().empty()) {
             err = UV_EEXIST;
             continue;
           }
@@ -1778,7 +1778,7 @@ int MKDirpAsync(uv_loop_t* loop,
         // Note: uv_fs_req_cleanup in terminal paths will be called by
         // FSReqAfterScope::~FSReqAfterScope()
         case 0: {
-          if (req_wrap->continuation_data()->paths().size() == 0) {
+          if (req_wrap->continuation_data()->paths().empty()) {
             req_wrap->continuation_data()->MaybeSetFirstPath(path);
             req_wrap->continuation_data()->Done(0);
           } else {
@@ -1801,7 +1801,7 @@ int MKDirpAsync(uv_loop_t* loop,
           if (dirname != path) {
             req_wrap->continuation_data()->PushPath(path);
             req_wrap->continuation_data()->PushPath(std::move(dirname));
-          } else if (req_wrap->continuation_data()->paths().size() == 0) {
+          } else if (req_wrap->continuation_data()->paths().empty()) {
             err = UV_EEXIST;
             continue;
           }

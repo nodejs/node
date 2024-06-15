@@ -398,8 +398,7 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferOrViewContents<char> args0(args[0]);
   if (UNLIKELY(!args0.CheckSizeInt32()))
     return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
-  if (args0.size() == 0)
-    return args.GetReturnValue().SetEmptyString();
+  if (args0.empty()) return args.GetReturnValue().SetEmptyString();
 
   node::Utf8Value curve(env->isolate(), args[1]);
 
