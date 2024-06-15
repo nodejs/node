@@ -76,12 +76,6 @@ const hasOpenSSL = (major = 0, minor = 0, patch = 0) => {
   return OPENSSL_VERSION_NUMBER >= opensslVersionNumber(major, minor, patch);
 };
 
-const hasOpenSSL3 = hasOpenSSL(3);
-
-const hasOpenSSL31 = hasOpenSSL(3, 1);
-
-const hasOpenSSL32 = hasOpenSSL(3, 2);
-
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
 function parseTestFlags(filename = process.argv[1]) {
@@ -986,9 +980,6 @@ const common = {
   hasIntl,
   hasCrypto,
   hasOpenSSL,
-  hasOpenSSL3,
-  hasOpenSSL31,
-  hasOpenSSL32,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,
@@ -1047,6 +1038,18 @@ const common = {
       return re.test(name) &&
              iFaces[name].some(({ family }) => family === 'IPv6');
     });
+  },
+
+  get hasOpenSSL3() {
+    return hasOpenSSL(3);
+  },
+
+  get hasOpenSSL31() {
+    return hasOpenSSL(3, 1);
+  },
+
+  get hasOpenSSL32() {
+    return hasOpenSSL(3, 2);
   },
 
   get inFreeBSDJail() {
