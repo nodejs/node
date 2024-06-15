@@ -177,7 +177,7 @@ FSPermission::RadixTree::~RadixTree() {
 bool FSPermission::RadixTree::Lookup(const std::string_view& s,
                                      bool when_empty_return) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
-  if (current_node->children.size() == 0) {
+  if (current_node->children.empty()) {
     return when_empty_return;
   }
   size_t parent_node_prefix_len = current_node->prefix.length();
