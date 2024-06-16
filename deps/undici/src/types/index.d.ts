@@ -18,6 +18,7 @@ import EnvHttpProxyAgent from './env-http-proxy-agent'
 import RetryHandler from'./retry-handler'
 import RetryAgent from'./retry-agent'
 import { request, pipeline, stream, connect, upgrade } from './api'
+import interceptors from './interceptors'
 
 export * from './util'
 export * from './cookies'
@@ -32,7 +33,7 @@ export * from './content-type'
 export * from './cache'
 export { Interceptable } from './mock-interceptor'
 
-export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent }
+export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent }
 export default Undici
 
 declare namespace Undici {

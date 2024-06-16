@@ -10,9 +10,7 @@ const nodeUtil = require('node:util')
 const {
   isValidHTTPToken,
   sameOrigin,
-  normalizeMethod,
-  environmentSettingsObject,
-  normalizeMethodRecord
+  environmentSettingsObject
 } = require('./util')
 const {
   forbiddenMethodsSet,
@@ -24,7 +22,7 @@ const {
   requestCache,
   requestDuplex
 } = require('./constants')
-const { kEnumerableProperty } = util
+const { kEnumerableProperty, normalizedMethodRecordsBase, normalizedMethodRecords } = util
 const { kHeaders, kSignal, kState, kDispatcher } = require('./symbols')
 const { webidl } = require('./webidl')
 const { URLSerializer } = require('./data-url')
@@ -349,7 +347,7 @@ class Request {
       // 1. Let method be init["method"].
       let method = init.method
 
-      const mayBeNormalized = normalizeMethodRecord[method]
+      const mayBeNormalized = normalizedMethodRecords[method]
 
       if (mayBeNormalized !== undefined) {
         // Note: Bypass validation DELETE, GET, HEAD, OPTIONS, POST, PUT, PATCH and these lowercase ones
@@ -361,12 +359,16 @@ class Request {
           throw new TypeError(`'${method}' is not a valid HTTP method.`)
         }
 
-        if (forbiddenMethodsSet.has(method.toUpperCase())) {
+        const upperCase = method.toUpperCase()
+
+        if (forbiddenMethodsSet.has(upperCase)) {
           throw new TypeError(`'${method}' HTTP method is unsupported.`)
         }
 
         // 3. Normalize method.
-        method = normalizeMethod(method)
+        // https://fetch.spec.whatwg.org/#concept-method-normalize
+        // Note: must be in uppercase
+        method = normalizedMethodRecordsBase[upperCase] ?? method
 
         // 4. Set request’s method to method.
         request.method = method
