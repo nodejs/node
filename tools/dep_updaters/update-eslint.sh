@@ -40,7 +40,7 @@ cd ../eslint
     @stylistic/eslint-plugin-js
 
 # Use dmn to remove some unneeded files.
-"$NODE" "$NPM" exec --package=dmn@2.2.2 --yes -- dmn -f clean
+"$NODE" "$NPM" exec --package=dmn@3.0.1 --yes -- dmn -f clean
 # TODO: Get this into dmn.
 find node_modules \( -name .package-lock.json -or -name 'README*' \) -exec rm {} \;
 
