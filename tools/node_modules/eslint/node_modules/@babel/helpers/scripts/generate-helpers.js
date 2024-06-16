@@ -97,7 +97,41 @@ const helpers: Record<string, Helper> = {
         /**
          * @type {import("@babel/core").PluginObj}
          */
-        {
+        ({ types: t }) => ({
+          // These pre/post hooks are needed because the TS transform is,
+          // when building in the old Babel e2e test, removing the
+          // `export { OverloadYield as default }` in the OverloadYield helper.
+          // TODO: Remove in Babel 8.
+          pre(file) {
+            if (!process.env.IS_BABEL_OLD_E2E) return;
+            file.metadata.exportName = null;
+            file.path.traverse({
+              ExportSpecifier(path) {
+                if (path.node.exported.name === "default") {
+                  file.metadata.exportName = path.node.local.name;
+                }
+              },
+            });
+          },
+          post(file) {
+            if (!process.env.IS_BABEL_OLD_E2E) return;
+            if (!file.metadata.exportName) return;
+            file.path.traverse({
+              ExportNamedDeclaration(path) {
+                if (
+                  !path.node.declaration &&
+                  path.node.specifiers.length === 0
+                ) {
+                  path.node.specifiers.push(
+                    t.exportSpecifier(
+                      t.identifier(file.metadata.exportName),
+                      t.identifier("default")
+                    )
+                  );
+                }
+              },
+            });
+          },
           visitor: {
             ImportDeclaration(path) {
               const source = path.node.source;
@@ -117,7 +151,7 @@ const helpers: Record<string, Helper> = {
               }
             },
           },
-        },
+        }),
       ],
     }).code;
     code = (

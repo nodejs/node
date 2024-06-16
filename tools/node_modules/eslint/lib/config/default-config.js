@@ -20,6 +20,10 @@ exports.defaultConfig = [
         plugins: {
             "@": {
 
+                languages: {
+                    js: require("../languages/js")
+                },
+
                 /*
                  * Because we try to delay loading rules until absolutely
                  * necessary, a proxy allows us to hook into the lazy-loading
@@ -37,6 +41,7 @@ exports.defaultConfig = [
                 })
             }
         },
+        language: "@/js",
         languageOptions: {
             sourceType: "module",
             ecmaVersion: "latest",

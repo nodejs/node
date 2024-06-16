@@ -91,7 +91,7 @@ class AllFilesIgnoredError extends Error {
      */
     constructor(pattern) {
         super(`All files matched by '${pattern}' are ignored.`);
-        this.messageTemplate = "all-files-ignored";
+        this.messageTemplate = "all-matched-files-ignored";
         this.messageData = { pattern };
     }
 }
@@ -494,7 +494,7 @@ async function globMultiSearch({ searches, configs, errorOnUnmatchedPattern }) {
 
     }
 
-    return [...new Set(filePaths)];
+    return filePaths;
 
 }
 
@@ -543,10 +543,7 @@ async function findFiles({
 
             // files are added directly to the list
             if (stat.isFile()) {
-                results.push({
-                    filePath,
-                    ignored: !configs.getConfig(filePath)
-                });
+                results.push(filePath);
             }
 
             // directories need extensions attached
@@ -604,11 +601,10 @@ async function findFiles({
     });
 
     return [
-        ...results,
-        ...globbyResults.map(filePath => ({
-            filePath: path.resolve(filePath),
-            ignored: false
-        }))
+        ...new Set([
+            ...results,
+            ...globbyResults.map(filePath => path.resolve(filePath))
+        ])
     ];
 }
 
@@ -630,17 +626,31 @@ function isErrorMessage(message) {
  * Returns result with warning by ignore settings
  * @param {string} filePath File path of checked code
  * @param {string} baseDir Absolute path of base directory
+ * @param {"ignored"|"external"|"unconfigured"} configStatus A status that determines why the file is ignored
  * @returns {LintResult} Result with single warning
  * @private
  */
-function createIgnoreResult(filePath, baseDir) {
+function createIgnoreResult(filePath, baseDir, configStatus) {
     let message;
-    const isInNodeModules = baseDir && path.dirname(path.relative(baseDir, filePath)).split(path.sep).includes("node_modules");
 
-    if (isInNodeModules) {
-        message = "File ignored by default because it is located under the node_modules directory. Use ignore pattern \"!**/node_modules/\" to disable file ignore settings or use \"--no-warn-ignored\" to suppress this warning.";
-    } else {
-        message = "File ignored because of a matching ignore pattern. Use \"--no-ignore\" to disable file ignore settings or use \"--no-warn-ignored\" to suppress this warning.";
+    switch (configStatus) {
+        case "external":
+            message = "File ignored because outside of base path.";
+            break;
+        case "unconfigured":
+            message = "File ignored because no matching configuration was supplied.";
+            break;
+        default:
+            {
+                const isInNodeModules = baseDir && path.dirname(path.relative(baseDir, filePath)).split(path.sep).includes("node_modules");
+
+                if (isInNodeModules) {
+                    message = "File ignored by default because it is located under the node_modules directory. Use ignore pattern \"!**/node_modules/\" to disable file ignore settings or use \"--no-warn-ignored\" to suppress this warning.";
+                } else {
+                    message = "File ignored because of a matching ignore pattern. Use \"--no-ignore\" to disable file ignore settings or use \"--no-warn-ignored\" to suppress this warning.";
+                }
+            }
+            break;
     }
 
     return {

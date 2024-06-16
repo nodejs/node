@@ -89,6 +89,13 @@ export function getHelperMetadata(babel, code, helperName) {
           spansToRemove.push([child.node.start, child.node.end]);
           child.remove();
         } else if (
+          process.env.IS_BABEL_OLD_E2E &&
+          child.isExportNamedDeclaration() &&
+          child.node.specifiers.length === 0
+        ) {
+          spansToRemove.push([child.node.start, child.node.end]);
+          child.remove();
+        } else if (
           child.isExportAllDeclaration() ||
           child.isExportNamedDeclaration()
         ) {

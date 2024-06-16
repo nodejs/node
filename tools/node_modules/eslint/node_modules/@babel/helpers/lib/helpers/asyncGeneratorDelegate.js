@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = _asyncGeneratorDelegate;
-var _OverloadYield = require("OverloadYield");
+var _OverloadYield = require("./OverloadYield.js");
 function _asyncGeneratorDelegate(inner) {
   var iter = {},
     waiting = false;
@@ -15,7 +15,7 @@ function _asyncGeneratorDelegate(inner) {
     });
     return {
       done: false,
-      value: new _OverloadYield(value, 1)
+      value: new _OverloadYield.default(value, 1)
     };
   }
   iter[typeof Symbol !== "undefined" && Symbol.iterator || "@@iterator"] = function () {

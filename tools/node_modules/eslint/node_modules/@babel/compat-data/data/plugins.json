@@ -4,9 +4,10 @@
     "opera": "98",
     "edge": "112",
     "firefox": "116",
-    "safari": "tp",
+    "safari": "17",
     "node": "20",
     "deno": "1.32",
+    "ios": "17",
     "opera_mobile": "75",
     "electron": "24.0"
   },
@@ -374,6 +375,7 @@
     "deno": "1",
     "ios": "11.3",
     "samsung": "8",
+    "rhino": "1.7.15",
     "opera_mobile": "46",
     "electron": "3.0"
   },
@@ -466,6 +468,7 @@
     "deno": "1",
     "ios": "9",
     "samsung": "4",
+    "rhino": "1.7.15",
     "opera_mobile": "32",
     "electron": "0.30"
   },
@@ -599,6 +602,7 @@
     "deno": "1",
     "ios": "10",
     "samsung": "5",
+    "rhino": "1.7.15",
     "opera_mobile": "36",
     "electron": "0.37"
   },
@@ -612,6 +616,7 @@
     "deno": "1",
     "ios": "9",
     "samsung": "4",
+    "rhino": "1.7.15",
     "opera_mobile": "32",
     "electron": "0.30"
   },

@@ -27,9 +27,10 @@ const { defaultConfig } = require("../config/default-config");
 const ajv = require("../shared/ajv")({ strictDefaults: true });
 
 const parserSymbol = Symbol.for("eslint.RuleTester.parser");
-const { SourceCode } = require("../source-code");
 const { ConfigArraySymbol } = require("@eslint/config-array");
 const { isSerializable } = require("../shared/serialization");
+
+const { SourceCode } = require("../languages/js/source-code");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -591,7 +592,8 @@ class RuleTester {
                          * here, just use the default one to keep that performance
                          * enhancement.
                          */
-                        rules: defaultConfig[0].plugins["@"].rules
+                        rules: defaultConfig[0].plugins["@"].rules,
+                        languages: defaultConfig[0].plugins["@"].languages
                     },
                     "rule-to-test": {
                         rules: {
@@ -611,6 +613,7 @@ class RuleTester {
                         }
                     }
                 },
+                language: defaultConfig[0].language,
                 languageOptions: {
                     ...defaultConfig[0].languageOptions
                 }

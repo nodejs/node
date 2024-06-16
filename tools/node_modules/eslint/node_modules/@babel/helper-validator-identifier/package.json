@@ -1,6 +1,6 @@
 {
   "name": "@babel/helper-validator-identifier",
-  "version": "7.24.6",
+  "version": "7.24.7",
   "description": "Validate identifier/keywords name",
   "repository": {
     "type": "git",
