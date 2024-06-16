@@ -202,7 +202,7 @@ class RetryHandler {
         this.abort(
           new RequestRetryError('Content-Range mismatch', statusCode, {
             headers,
-            count: this.retryCount
+            data: { count: this.retryCount }
           })
         )
         return false
@@ -213,7 +213,7 @@ class RetryHandler {
         this.abort(
           new RequestRetryError('ETag mismatch', statusCode, {
             headers,
-            count: this.retryCount
+            data: { count: this.retryCount }
           })
         )
         return false
