@@ -80,7 +80,7 @@ void nghttp3_ringbuf_free(nghttp3_ringbuf *rb) {
 
 void *nghttp3_ringbuf_push_front(nghttp3_ringbuf *rb) {
   rb->first = (rb->first - 1) & (rb->nmemb - 1);
-  rb->len = nghttp3_min(rb->nmemb, rb->len + 1);
+  rb->len = nghttp3_min_size(rb->nmemb, rb->len + 1);
 
   return (void *)&rb->buf[rb->first * rb->size];
 }

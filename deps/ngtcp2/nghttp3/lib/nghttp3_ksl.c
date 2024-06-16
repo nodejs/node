@@ -61,8 +61,7 @@ void nghttp3_ksl_init(nghttp3_ksl *ksl, nghttp3_ksl_compar compar,
   size_t nodelen = ksl_nodelen(keylen);
 
   nghttp3_objalloc_init(&ksl->blkalloc,
-                        ((ksl_blklen(nodelen) + 0xfu) & ~(uintptr_t)0xfu) * 8,
-                        mem);
+                        (ksl_blklen(nodelen) + 0xfu) & ~(uintptr_t)0xfu, mem);
 
   ksl->head = NULL;
   ksl->front = ksl->back = NULL;
@@ -826,6 +825,6 @@ int nghttp3_ksl_range_compar(const nghttp3_ksl_key *lhs,
 int nghttp3_ksl_range_exclusive_compar(const nghttp3_ksl_key *lhs,
                                        const nghttp3_ksl_key *rhs) {
   const nghttp3_range *a = lhs, *b = rhs;
-  return a->begin < b->begin &&
-         !(nghttp3_max(a->begin, b->begin) < nghttp3_min(a->end, b->end));
+  return a->begin < b->begin && !(nghttp3_max_uint64(a->begin, b->begin) <
+                                  nghttp3_min_uint64(a->end, b->end));
 }
