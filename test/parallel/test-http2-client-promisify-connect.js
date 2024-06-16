@@ -8,6 +8,7 @@ const assert = require('assert');
 const http2 = require('http2');
 const util = require('util');
 
+// Successful connection test
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   stream.respond();
@@ -27,6 +28,21 @@ server.listen(0, common.mustCall(() => {
         assert.strictEqual(data, 'ok');
         client.close();
         server.close();
+        testConnectionError();
       }));
     }));
 }));
+
+// Error connection test
+function testConnectionError() {
+  const connect = util.promisify(http2.connect);
+
+  // Attempt to connect to an invalid port
+  connect('http://localhost:9999')
+    .then(common.mustNotCall('Promise should not be resolved'))
+    .catch(common.mustCall((err) => {
+      assert(err instanceof Error);
+      assert.strictEqual(err.code, 'ECONNREFUSED');
+      console.log('Error test passed.');
+    }));
+}
