@@ -479,7 +479,7 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
 
 void FileHandle::Close(const FunctionCallbackInfo<Value>& args) {
   FileHandle* fd;
-  ASSIGN_OR_RETURN_UNWRAP(&fd, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&fd, args.This());
   Local<Promise> ret;
   if (!fd->ClosePromise().ToLocal(&ret)) return;
   args.GetReturnValue().Set(ret);
@@ -488,7 +488,7 @@ void FileHandle::Close(const FunctionCallbackInfo<Value>& args) {
 
 void FileHandle::ReleaseFD(const FunctionCallbackInfo<Value>& args) {
   FileHandle* fd;
-  ASSIGN_OR_RETURN_UNWRAP(&fd, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&fd, args.This());
   fd->Release();
 }
 

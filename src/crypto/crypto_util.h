@@ -136,7 +136,7 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
             void (*callback)(T*, const v8::FunctionCallbackInfo<v8::Value>&,
                              const char*, size_t)) {
   T* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
 
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
@@ -417,7 +417,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     Environment* env = Environment::GetCurrent(args);
 
     CryptoJob<CryptoJobTraits>* job;
-    ASSIGN_OR_RETURN_UNWRAP(&job, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
     if (job->mode() == kCryptoJobAsync)
       return job->ScheduleWork();
 

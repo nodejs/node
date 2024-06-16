@@ -131,14 +131,14 @@ class JSBindingsConnection : public BaseObject {
 
   static void Disconnect(const FunctionCallbackInfo<Value>& info) {
     JSBindingsConnection* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, info.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, info.This());
     session->Disconnect();
   }
 
   static void Dispatch(const FunctionCallbackInfo<Value>& info) {
     Environment* env = Environment::GetCurrent(info);
     JSBindingsConnection* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, info.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, info.This());
     CHECK(info[0]->IsString());
 
     if (session->session_) {
@@ -207,11 +207,8 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
     CHECK(inspector_method->IsFunction());
     if (!env->is_in_inspector_console_call()) {
       env->set_is_in_inspector_console_call(true);
-      MaybeLocal<Value> ret =
-          inspector_method.As<Function>()->Call(context,
-                                                info.Holder(),
-                                                call_args.length(),
-                                                call_args.out());
+      MaybeLocal<Value> ret = inspector_method.As<Function>()->Call(
+          context, info.This(), call_args.length(), call_args.out());
       env->set_is_in_inspector_console_call(false);
       if (ret.IsEmpty())
         return;
@@ -220,10 +217,8 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
 
   Local<Value> node_method = info[1];
   CHECK(node_method->IsFunction());
-  USE(node_method.As<Function>()->Call(context,
-                                   info.Holder(),
-                                   call_args.length(),
-                                   call_args.out()));
+  USE(node_method.As<Function>()->Call(
+      context, info.This(), call_args.length(), call_args.out()));
 }
 
 static void* GetAsyncTask(int64_t asyncId) {

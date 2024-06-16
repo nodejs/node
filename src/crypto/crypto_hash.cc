@@ -378,7 +378,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Hash* hash;
-  ASSIGN_OR_RETURN_UNWRAP(&hash, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&hash, args.This());
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {

@@ -1753,14 +1753,14 @@ struct Session::Impl {
 
   static void DoDestroy(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Destroy();
   }
 
   static void GetRemoteAddress(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     auto address = session->remote_address();
     args.GetReturnValue().Set(
         SocketAddressBase::Create(env, std::make_shared<SocketAddress>(address))
@@ -1770,7 +1770,7 @@ struct Session::Impl {
   static void GetCertificate(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Value> ret;
     if (session->tls_session().cert(env).ToLocal(&ret))
       args.GetReturnValue().Set(ret);
@@ -1779,7 +1779,7 @@ struct Session::Impl {
   static void GetEphemeralKeyInfo(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Object> ret;
     if (!session->is_server() &&
         session->tls_session().ephemeral_key(env).ToLocal(&ret))
@@ -1789,7 +1789,7 @@ struct Session::Impl {
   static void GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     Local<Value> ret;
     if (session->tls_session().peer_cert(env).ToLocal(&ret))
       args.GetReturnValue().Set(ret);
@@ -1797,20 +1797,20 @@ struct Session::Impl {
 
   static void GracefulClose(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Close(Session::CloseMethod::GRACEFUL);
   }
 
   static void SilentClose(const FunctionCallbackInfo<Value>& args) {
     // This is exposed for testing purposes only!
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     session->Close(Session::CloseMethod::SILENT);
   }
 
   static void UpdateKey(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     // Initiating a key update may fail if it is done too early (either
     // before the TLS handshake has been confirmed or while a previous
     // key update is being processed). When it fails, InitiateKeyUpdate()
@@ -1821,7 +1821,7 @@ struct Session::Impl {
 
   static void DoOpenStream(const FunctionCallbackInfo<Value>& args) {
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     DCHECK(args[0]->IsUint32());
     auto direction = static_cast<Direction>(args[0].As<Uint32>()->Value());
     BaseObjectPtr<Stream> stream = session->OpenStream(direction);
@@ -1832,7 +1832,7 @@ struct Session::Impl {
   static void DoSendDatagram(const FunctionCallbackInfo<Value>& args) {
     auto env = Environment::GetCurrent(args);
     Session* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     DCHECK(args[0]->IsArrayBufferView());
     args.GetReturnValue().Set(BigInt::New(
         env->isolate(),
