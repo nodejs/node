@@ -5,21 +5,32 @@ common.skipIfInspectorDisabled();
 common.skipIf32Bits();
 
 const assert = require('assert');
+const { inspect } = require('util');
 const { internalBinding } = require('internal/test/binding');
-const { async_hook_fields, constants } = internalBinding('async_wrap');
+const { async_hook_fields, constants, getPromiseHooks } = internalBinding('async_wrap');
 const { kTotals } = constants;
 const inspector = require('inspector/promises');
 
 const setDepth = 'Debugger.setAsyncCallStackDepth';
-
+const emptyPromiseHooks = [ undefined, undefined, undefined, undefined ];
 function verifyAsyncHookDisabled(message) {
   assert.strictEqual(async_hook_fields[kTotals], 0,
                      `${async_hook_fields[kTotals]} !== 0: ${message}`);
+  const promiseHooks = getPromiseHooks();
+  assert.deepStrictEqual(
+    promiseHooks, emptyPromiseHooks,
+    `${message}: promise hooks ${inspect(promiseHooks)}`
+  );
 }
 
 function verifyAsyncHookEnabled(message) {
   assert.strictEqual(async_hook_fields[kTotals], 4,
                      `${async_hook_fields[kTotals]} !== 4: ${message}`);
+  const promiseHooks = getPromiseHooks();
+  assert.notDeepStrictEqual(
+    promiseHooks, emptyPromiseHooks,
+    `${message}: promise hooks ${inspect(promiseHooks)}`
+  );
 }
 
 // By default inspector async hooks should not have been installed.
@@ -61,7 +72,7 @@ verifyAsyncHookDisabled('connecting a session should not enable async hooks');
   await session.post(setDepth, { maxDepth: 64 });
   verifyAsyncHookEnabled('valid message should enable async hooks');
 
-  session.disconnect();
+  await session.disconnect();
 
   verifyAsyncHookDisabled('Disconnecting session should disable ' +
                           'async hooks');
