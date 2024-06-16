@@ -16,7 +16,8 @@ const {
   isBlobLike,
   buildURL,
   validateHandler,
-  getServerName
+  getServerName,
+  normalizedMethodRecords
 } = require('./util')
 const { channels } = require('./diagnostics.js')
 const { headerNameLowerCasedRecord } = require('./constants')
@@ -51,13 +52,13 @@ class Request {
       method !== 'CONNECT'
     ) {
       throw new InvalidArgumentError('path must be an absolute URL or start with a slash')
-    } else if (invalidPathRegex.exec(path) !== null) {
+    } else if (invalidPathRegex.test(path)) {
       throw new InvalidArgumentError('invalid request path')
     }
 
     if (typeof method !== 'string') {
       throw new InvalidArgumentError('method must be a string')
-    } else if (!isValidHTTPToken(method)) {
+    } else if (normalizedMethodRecords[method] === undefined && !isValidHTTPToken(method)) {
       throw new InvalidArgumentError('invalid request method')
     }
 
