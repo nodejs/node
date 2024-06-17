@@ -47,7 +47,7 @@ please follow these principles and guidelines:
      * Opening a PR in `nodejs/node` to remove experimental status, tagged as **node-api** and **semver-minor**.
      * Approval by the Node-API team.
      * Availability of a down-level implementation if backporting is needed.
-     * Usage by a published real-world module to support de-experimentation.
+     * Usage by a published real-world module.
      * Implementation in an alternative VM.
 
 ## Modifying released APIs
