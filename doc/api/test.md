@@ -2920,7 +2920,7 @@ The name of the test.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.15.0
 -->
 
 > Stability: 1 - Experimental
