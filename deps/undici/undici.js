@@ -3917,7 +3917,7 @@ var require_util2 = __commonJS({
     __name(appendFetchMetadata, "appendFetchMetadata");
     function appendRequestOriginHeader(request) {
       let serializedOrigin = request.origin;
-      if (serializedOrigin === "client") {
+      if (serializedOrigin === "client" || serializedOrigin === void 0) {
         return;
       }
       if (request.responseTainting === "cors" || request.mode === "websocket") {

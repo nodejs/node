@@ -260,10 +260,13 @@ function appendRequestOriginHeader (request) {
   // TODO: implement "byte-serializing a request origin"
   let serializedOrigin = request.origin
 
-  // "'client' is changed to an origin during fetching."
-  // This doesn't happen in undici (in most cases) because undici, by default,
-  // has no concept of origin.
-  if (serializedOrigin === 'client') {
+  // - "'client' is changed to an origin during fetching."
+  //   This doesn't happen in undici (in most cases) because undici, by default,
+  //   has no concept of origin.
+  // - request.origin can also be set to request.client.origin (client being
+  //   an environment settings object), which is undefined without using
+  //   setGlobalOrigin.
+  if (serializedOrigin === 'client' || serializedOrigin === undefined) {
     return
   }
 
