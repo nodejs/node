@@ -52,22 +52,6 @@ module.exports = async (client, context) => {
     return new CodeOwners(content);
   }
 
-  function shouldPingTSC(changedFiles) {
-    const user = context.payload.sender.login;
-    if (user === 'nodejs-github-bot') {
-      return false;
-    }
-
-    const TSC_FILE_PATHS = [
-      globToRegex('/deps/**'),
-    ];
-
-    return changedFiles.some((filePath) => {
-      const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
-      return TSC_FILE_PATHS.some((pattern) => pattern.test(normalizedPath));
-    });
-  }
-
   async function makeInitialComment(changedFiles) {
     const codeOwners = await getCodeOwners();
 
@@ -86,10 +70,6 @@ module.exports = async (client, context) => {
             'They, along with other project maintainers, will be notified of your pull request.' +
             'Please be patient and wait for them to review your changes.\n\n' +
             "If you have any questions, please don't hesitate to ask!";
-
-    if (shouldPingTSC(changedFiles)) {
-      body += '\n\nA modification in this PR may require @nodejs/tsc\'s approval.';
-    }
 
     return client.rest.issues.createComment({
       owner: context.repo.owner,
