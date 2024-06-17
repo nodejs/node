@@ -375,7 +375,11 @@ assertOnlyDeepEqual(
   new Map([[undefined, null], ['+000', 2n]]),
   new Map([[null, undefined], [false, '2']]),
 );
-
+const xarray = ['x'];
+assertDeepAndStrictEqual(
+  new Set([xarray, ['y']]),
+  new Set([xarray, ['y']])
+);
 assertOnlyDeepEqual(
   new Set([null, '', 1n, 5, 2n, false]),
   new Set([undefined, 0, 5n, true, '2', '-000'])
