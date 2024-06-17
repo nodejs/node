@@ -43,6 +43,5 @@ function testConnectionError() {
     .catch(common.mustCall((err) => {
       assert(err instanceof Error);
       assert.strictEqual(err.code, 'ECONNREFUSED');
-      console.log('Error test passed.');
     }));
 }
