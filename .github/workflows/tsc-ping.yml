@@ -13,7 +13,7 @@ jobs:
         with:
           number: ${{ github.event.pull_request.number }}
           message: |
-            This PR modifies a directory typically controlled by 
+            This PR modifies a directory typically controlled by
             @nodejs/tsc should review this change before anything
             can be merged.
       - uses: actions-ecosystem/action-add-labels@v1
