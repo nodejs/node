@@ -62,7 +62,7 @@ module.exports = async (client, context) => {
 
     const ownersList = Array.from(owners).map((owner) => `- ${owner}`).join('\n');
 
-    let body =
+    const body =
             'Hi 👋! Thank you for submitting this pull-request!\n\n' +
             'According to the CODEOWNERS file, the following people are responsible for' +
             "reviewing changes to the files you've modified:\n\n" +
