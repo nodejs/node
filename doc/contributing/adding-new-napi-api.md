@@ -41,7 +41,7 @@ please follow these principles and guidelines:
 
 3. **Experimental phase**
    * New APIs **must** be marked as experimental for at least one minor Node.js release before promotion.
-   * **Must** have a feature flag (`NODE_API_EXPERIMENTAL_HAS_<FEATURE>`) for distinguishing experimental features.
+   * **Must** have a feature flag (`NODE_API_EXPERIMENTAL_HAS_<FEATURE>`) for distinguishing experimental feature existence.
    * **Must** be considered for backporting.
    * Exit criteria from experimental status include:
      * Opening a PR in `nodejs/node` to remove experimental status, tagged as **node-api** and **semver-minor**.
