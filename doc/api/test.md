@@ -3223,6 +3223,7 @@ The name of the test.
 <!-- YAML
 added:
   - v22.2.0
+  - v20.15.0
 -->
 
 > Stability: 1 - Experimental
