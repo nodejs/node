@@ -1913,18 +1913,18 @@ added: REPLACEME
 
 This function registers a callback to be called when the process emits the `exit` event.
 
-If the object is garbage collected before `exit` event is emitted, the callback will be
+If the object `ref` is garbage collected before the `exit` event is emitted, the callback will be
 removed from the finalization registry, and it will not be called on process exit.
 
 Inside the callback you can do whatever you want with the object,
 including the release of resources allocated by that resource.
 
-The idea of ​​this function is to help you free up resources when the process exit,
+The idea of ​​this function is to help you free up resources when the starts process exiting,
 but also let the object be garbage collected if it is no longer being used.
 
-Ex: you can register a stream to be released when the process exit, if the stream is
-garbage collected before the process exit, we no longer need to release the stream, so in this case
-we just remove the callback from the finalization registry.
+Eg: you can register an object that contains a buffer, you want to make sure that buffer is released
+when the process exit, but if the object is garbage collected before the process exit, we no longer
+need to release the buffer, so in this case we just remove the callback from the finalization registry.
 
 Caveats: This function relies on the `FinalizationRegistry` API, which the
 authors of this API said to "avoid where possible" because the nature of
@@ -1990,14 +1990,14 @@ function setup() {
 setup();
 ```
 
-The code above uses the following assumptions:
+The code above relies on the following assumptions:
 
-* arrow function is avoided
-* regular function is recommended to be on global context (root)
+* arrow functions are avoided
+* regular functions are recommended to be within the global context (root)
 
 Regular functions _could_ reference the context where the `obj` lives, making the `obj` not garbage collectible.
 
-Arrow functions will hold the previous context, so if you write a code like this:
+Arrow functions will hold the previous context. Consider, for example:
 
 ```js
 class Test {
@@ -2012,10 +2012,10 @@ class Test {
 ```
 
 It is very unlikely (not impossible) that this object will be garbage collected,
-but at least `dispose` will be called when `process.exit`.
+but if it is not, `dispose` will be called when `process.exit` is called.
 
 Again, everything we talk about GC are assumptions that may change in the future,
-so be careful and avoid relying the disposal of critical resources in this feature.
+so be careful and avoid relying on this feature for the disposal of critical resources.
 
 ## `process.finalization.registerBeforeExit(ref, callback)`
 
@@ -2032,110 +2032,8 @@ added: REPLACEME
   * `ref` {Object | Function} The reference to the resource that is being tracked.
   * `event` {string} The event that triggered the finalization. Defaults to 'beforeExit'.
 
-This function registers a callback to be called when the process emits the `beforeExit` event.
-
-If the object is garbage collected before `beforeExit` event is emitted, the callback will be
-removed from the finalization registry, and it will not be called when `beforeExit` is emitted.
-
-Inside the callback you can do whatever you want with the object,
-including the release of resources allocated by that resource.
-
-The idea of ​​this function is to help you free up resources when the process start exiting,
-but also let the object be garbage collected if it is no longer being used.
-
-Ex: you can register a stream to be released when `beforeExit` is emitted, if the stream is
-garbage collected before the process exit, we no longer need to release the stream, so in this case
-we just remove the callback from the finalization registry.
-
-Caveats: This function relies on the `FinalizationRegistry` API, which the
-authors of this API said to "avoid where possible" because the nature of how
-the garbage collector works differently between engines, there's no specific
-behavior guarantee by the specification. In their words: "Developers
-shouldn't rely on cleanup callbacks for essential program logic. Cleanup
-callbacks may be useful for reducing memory usage across the course of a
-program, but are unlikely to be useful otherwise". You can read more about
-the caveats at [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry#avoid_where_possible)
-or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=readme-ov-file#a-note-of-caution).
-
-```cjs
-const { finalization, stdout } = require('node:process');
-
-// Please make sure that the function passed to finalization.register()
-// does not create a closure around unnecessary objects.
-function onFinalize(obj, event) {
-  // You can do whatever you want with the object
-  obj.dispose();
-}
-
-function setup() {
-  // This object can be safely garbage collected,
-  // and the resulting shutdown function will not be called.
-  // There are no leaks.
-  const myDisposableObject = {
-    dispose() {
-      // Free your resources synchronously
-      stdout.write('disposed.\n');
-    },
-  };
-
-  finalization.registerBeforeExit(myDisposableObject, onFinalize);
-}
-
-setup();
-```
-
-```mjs
-import { finalization, stdout } from 'node:process';
-
-// Please make sure that the function passed to finalization.registerBeforeExit()
-// does not create a closure around unnecessary objects.
-function onFinalize(obj, event) {
-  // You can do whatever you want with the object
-  obj.dispose();
-}
-
-function setup() {
-  // This object can be safely garbage collected,
-  // and the resulting shutdown function will not be called.
-  // There are no leaks.
-  const myDisposableObject = {
-    dispose() {
-      // Free your resources synchronously
-      stdout.write('disposed.\n');
-    },
-  };
-
-  finalization.registerBeforeExit(myDisposableObject, onFinalize);
-}
-
-setup();
-```
-
-The code above uses the following assumptions:
-
-* arrow function is avoided
-* regular function is recommended to be on global context (root)
-
-Regular functions _could_ reference the context where the `obj` lives, making the `obj` not garbage collectible.
-
-Arrow functions will hold the previous context, so if you write a code like this:
-
-```js
-class Test {
-  constructor() {
-    finalization.registerBeforeExit(this, (ref) => ref.dispose());
-    // even something like this is highly discouraged
-    // finalization.registerBeforeExit(this, () => this.dispose());
-   }
-   dispose() {}
-}
-```
-
-It is very unlikely (not impossible) that this object will be garbage collected,
-but at least `dispose` will be called when `process.exit`.
-
-Again, everything we talk about GC are assumptions that may change in the future,
-so be careful and avoid relying the disposal of critical resources in this feature.
+This function behaves exactly like the `register`, except that the callback will be called
+when the process emits the `beforeExit` event.
 
 ## `process.finalization.unregister(ref)`
 
