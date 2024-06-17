@@ -51,8 +51,7 @@ request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 ### Welcoming first-time contributors
 
 Always show courtesy to individuals submitting issues and pull requests. Be
-welcoming to first-time contributors, identified by the GitHub
-![First-time contributor](../first_timer_badge.png) badge.
+welcoming to first-time contributors, identified by the GitHub **First-time contributor** badge.
 
 For first-time contributors, check if the commit author is the same as the pull
 request author. This way, once their pull request lands, GitHub will show them
