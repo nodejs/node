@@ -1,0 +1,21 @@
+on:
+  pull_request_target:
+    paths:
+      - "deps/**"
+
+jobs:
+  ping-tsc:
+    runs-on: ubuntu-latest
+    name: Ping the TSC
+    if: github.event.pull_request.user.login != 'nodejs-github-bot'  # Check if user is not the bot
+    steps:
+      - uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ github.event.pull_request.number }}
+          message: |
+            This PR modifies a directory typically controlled by automation.
+            @nodejs/tsc should review this change before anything
+            can be merged.      - name: add label
+      - uses: actions-ecosystem/action-add-labels@v1
+        with:
+          labels: blocked
