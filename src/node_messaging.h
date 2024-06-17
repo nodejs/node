@@ -19,6 +19,12 @@ class MessagePort;
 
 typedef MaybeStackBuffer<v8::Local<v8::Value>, 8> TransferList;
 
+// Get a transfer list out of an array of Javascript objects.
+bool GetTransferList(Environment* env,
+                     v8::Local<v8::Context> context,
+                     v8::Local<v8::Value> transfer_list_v,
+                     TransferList* transfer_list_out);
+
 // Used to represent the in-flight structure of an object that is being
 // transferred or cloned using postMessage().
 class TransferData : public MemoryRetainer {
@@ -288,7 +294,7 @@ class MessagePort : public HandleWrap {
   // alone is often not enough, since the backing C++ MessagePort object may
   // have been deleted already. For all intents and purposes, an object with a
   // NULL pointer to the C++ MessagePort object is also detached.
-  inline bool IsDetached() const;
+  bool IsDetached() const;
 
   BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;

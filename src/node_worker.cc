@@ -6,6 +6,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "node_messaging.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_snapshot_builder.h"
@@ -46,6 +47,8 @@ namespace node {
 namespace worker {
 
 constexpr double kMB = 1024 * 1024;
+std::unordered_map<uint64_t, MessagePort*> message_ports;
+Mutex Worker::messagePortsMutex;
 
 Worker::Worker(Environment* env,
                Local<Object> wrap,
@@ -63,22 +66,21 @@ Worker::Worker(Environment* env,
       name_(name),
       env_vars_(env_vars),
       embedder_preload_(env->embedder_preload()),
+      parent_port_(MessagePort::New(env, env->context())),
       snapshot_data_(snapshot_data) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
 
-  // Set up everything that needs to be set up in the parent environment.
-  MessagePort* parent_port = MessagePort::New(env, env->context());
-  if (parent_port == nullptr) {
+  if (parent_port_ == nullptr) {
     // This can happen e.g. because execution is terminating.
     return;
   }
 
   child_port_data_ = std::make_unique<MessagePortData>(nullptr);
-  MessagePort::Entangle(parent_port, child_port_data_.get());
+  MessagePort::Entangle(parent_port_, child_port_data_.get());
 
   object()
-      ->Set(env->context(), env->message_port_string(), parent_port->object())
+      ->Set(env->context(), env->message_port_string(), parent_port_->object())
       .Check();
 
   object()->Set(env->context(),
@@ -660,7 +662,6 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
   Mutex::ScopedLock lock(w->mutex_);
-
   w->stopped_ = false;
 
   if (w->resource_limits_[kStackSizeMb] > 0) {
@@ -685,6 +686,14 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     // gcc 6.3 detect undefined behaviour when there shouldn't be any.
     // gcc 7+ handles this well.
     Worker* w = static_cast<Worker*>(arg);
+
+    // Store a reference to the worker so that it can be used
+    // for inter thread communication
+    {
+      Mutex::ScopedLock message_ports_lock(messagePortsMutex);
+      message_ports[w->thread_id_.id] = w->parent_port_;
+    }
+
     const uintptr_t stack_top = reinterpret_cast<uintptr_t>(&arg);
 
     // Leave a few kilobytes just to make sure we're within limits and have
@@ -775,6 +784,13 @@ void Worker::Exit(ExitCode code,
                   const char* error_code,
                   const char* error_message) {
   Mutex::ScopedLock lock(mutex_);
+
+  // Remove reference to the port used for inter-thread communication
+  {
+    Mutex::ScopedLock message_ports_lock(messagePortsMutex);
+    message_ports.erase(thread_id_.id);
+  }
+
   Debug(this,
         "Worker %llu called Exit(%d, %s, %s)",
         thread_id_.id,
@@ -918,6 +934,65 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void SetMainPort(const FunctionCallbackInfo<Value>& args) {
+  Mutex::ScopedLock lock(Worker::messagePortsMutex);
+
+  if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
+    message_ports.erase(0);
+    return;
+  }
+
+  MessagePort* port;
+  ASSIGN_OR_RETURN_UNWRAP(&port, args[0]);
+
+  message_ports[0] = port;
+}
+
+void SendToWorker(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  v8::Isolate* isolate = args.GetIsolate();
+
+  // args[0] is the target worker thread id
+  // args[1] is the message to send via PostMessage
+  // args[2] is the transfer list to send via PostMessage, it is optional
+  CHECK_GT(args.Length(), 1);
+
+  CHECK(args[0]->IsUint32());
+  auto tid = args[0].As<v8::Uint32>()->Value();
+
+  MessagePort* port = nullptr;
+  {
+    Mutex::ScopedLock lock(Worker::messagePortsMutex);
+
+    auto it = message_ports.find(tid);
+    if (it == message_ports.end()) {
+      std::string message = SPrintF("Invalid worker id %d", tid);
+      THROW_ERR_WORKER_INVALID_ID(isolate, message.c_str());
+      return;
+    }
+
+    port = it->second;
+  }
+
+  TransferList transfer_list;
+  // Not all messages require a transfer_list
+  if (args.Length() > 2) {
+    if (!GetTransferList(env, context, args[2], &transfer_list)) {
+      THROW_ERR_INVALID_ARG_TYPE(isolate, "Invalid transfer list");
+      return;
+    }
+  }
+
+  if (port == nullptr || port->IsDetached()) {
+    std::string message = SPrintF("Invalid worker id %d", tid);
+    THROW_ERR_WORKER_INVALID_ID(isolate, message.c_str());
+    return;
+  }
+
+  port->PostMessage(env, context, args[1], transfer_list);
+}
+
 void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
                                       Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -957,6 +1032,8 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
   }
 
   SetMethod(isolate, target, "getEnvMessagePort", GetEnvMessagePort);
+  SetMethod(isolate, target, "sendToWorker", SendToWorker);
+  SetMethod(isolate, target, "setMainPort", SetMainPort);
 }
 
 void CreateWorkerPerContextProperties(Local<Object> target,
@@ -1001,6 +1078,8 @@ void CreateWorkerPerContextProperties(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetEnvMessagePort);
+  registry->Register(SetMainPort);
+  registry->Register(SendToWorker);
   registry->Register(Worker::New);
   registry->Register(Worker::StartThread);
   registry->Register(Worker::StopThread);

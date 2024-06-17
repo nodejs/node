@@ -77,6 +77,9 @@ class Worker : public AsyncWrap {
   static void LoopIdleTime(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoopStartTime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  // this mutex is to synchronize access to message_ports calls
+  static Mutex messagePortsMutex;
+
  private:
   bool CreateEnvMessagePort(Environment* env);
   static size_t NearHeapLimit(void* data, size_t current_heap_limit,
@@ -130,6 +133,9 @@ class Worker : public AsyncWrap {
   // when the worker thread creates a new Environment, and gets
   // destroyed alongwith the worker thread.
   Environment* env_ = nullptr;
+
+  // The parent port used to communicate with the worker
+  MessagePort* parent_port_ = nullptr;
 
   const SnapshotData* snapshot_data_ = nullptr;
   friend class WorkerThreadData;

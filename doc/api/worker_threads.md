@@ -61,6 +61,128 @@ Worker threads inherit non-process-specific options by default. Refer to
 [`Worker constructor options`][] to know how to customize worker thread options,
 specifically `argv` and `execArgv` options.
 
+## `worker.connect(target[, data][, timeout])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `target` {number} The target thread ID.
+* `data` {any} Any arbitrary, cloneable JavaScript value.
+  The data will be passed as the second argument to the callback provided in the
+  target thread via [`worker.setConnectionsListener()`][].
+* `timeout` {number} Time to wait for the communication port to the target thread,
+  in milliseconds. By default it's `undefined`, which means wait forever.
+* Returns: {Promise} A promise for a `MessagePort`.
+
+Establishes a connection to another worker thread in the same process, returning a
+`MessagePort` that can be used for the communication.
+
+The target thread must have a connection listener setup via [`worker.setConnectionsListener()`][]
+otherwise the connection request will fail.
+
+This method does not support transferables in the `data` argument. If there is need to
+transfer objects between threads it can be accomplished via the returned port once the
+connection has been established.
+
+This method should be used when the target thread is not the direct
+parent or child of the current thread.
+If the two threads are parent-children, use the [`require('node:worker_threads').parentPort.postMessage()`][]
+and the [`worker.postMessage()`][] to let the threads communicate.
+
+If the messages never need transferable, use `BroadcastChannel` for the communication. Remember that
+they are one to many channels so if you need to narrow it down to a one to one channel you will have to
+ensure only two threads subscribe to a certain channel, for instance by using unique channel IDs.
+
+The example below shows the combined use of `connect` and [`worker.setConnectionsListener()`][]:
+it creates 10 nested threads, the last one will try to communicate with the third one.
+Since `MessagePort`s cannot be transferred in `BroadcastChannel`, the `connect` API was the only way
+to let the two threads talk.
+
+```mjs
+import { fileURLToPath } from 'node:url';
+import {
+  Worker,
+  connect,
+  setConnectionsListener,
+  threadId,
+  workerData,
+} from 'node:worker_threads';
+
+const level = workerData?.level ?? 0;
+const targetThread =
+  workerData?.targetThread ?? (level === 2 ? threadId : undefined);
+
+if (level < 10) {
+  const worker = new Worker(fileURLToPath(import.meta.url), {
+    workerData: { level: level + 1, targetThread },
+  });
+}
+
+if (level === 2) {
+  setConnectionsListener((sender, port, data) => {
+    port.on('message', (message) => {
+      console.log(`${sender} -> ${threadId}`, message);
+      port.postMessage({ message: 'pong', data });
+    });
+
+    return true;
+  });
+} else if (level === 10) {
+  const port = await connect(targetThread, { foo: 'bar' });
+
+  port.on('message', (message) => {
+    console.log(`${targetThread} -> ${threadId}`, message);
+    port.close();
+  });
+
+  port.postMessage({ message: 'ping' });
+}
+```
+
+```cjs
+const {
+  Worker,
+  connect,
+  setConnectionsListener,
+  threadId,
+  workerData,
+} = require('node:worker_threads');
+
+const level = workerData?.level ?? 0;
+const targetThread =
+  workerData?.targetThread ?? (level === 2 ? threadId : undefined);
+
+if (level < 10) {
+  const worker = new Worker(__filename, {
+    workerData: { level: level + 1, targetThread },
+  });
+}
+
+if (level === 2) {
+  setConnectionsListener((sender, port, data) => {
+    port.on('message', (message) => {
+      console.log(`${sender} -> ${threadId}`, message);
+      port.postMessage({ message: 'pong', data });
+    });
+
+    return true;
+  });
+} else if (level === 10) {
+  connect(targetThread, { foo: 'bar' }).then((port) => {
+    port.on('message', (message) => {
+      console.log(`${targetThread} -> ${threadId}`, message);
+      port.close();
+    });
+
+    port.postMessage({ message: 'ping' });
+
+  });
+}
+```
+
 ## `worker.getEnvironmentData(key)`
 
 <!-- YAML
@@ -324,6 +446,32 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
   });
 ```
+
+## `worker.setConnectionsListener(fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `fn` {Function} A callback to be executed when [`worker.connect()`][] is called from another thread.
+  The function will receive the following arguments:
+
+  * `sender` {number} The other thread ID.
+  * `port` {MessagePort} The port than can be used to communicate with the other thread.
+  * `data` {any} The data passed as second argument to [`worker.connect()`][].
+
+The function must return `true` to accept the connection or any other value to
+refuse the connection. If the function returns a `Promise`, it will be awaited.
+
+Sets the callback that handles connection from other worker threads in the same process.
+If the callback is `null` or `undefined` then the current listener is removed.
+
+When no listeners are present (the default) all connection requests are immediately
+refused.
+
+See the example in [`worker.connect()`][] for more info on how to use this function and its callback.
 
 ## `worker.setEnvironmentData(key[, value])`
 
@@ -1437,8 +1585,10 @@ thread spawned will spawn another until the application crashes.
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #workershare_env
+[`worker.connect()`]: #workerconnecttarget-data-timeout
 [`worker.on('message')`]: #event-message_1
 [`worker.postMessage()`]: #workerpostmessagevalue-transferlist
+[`worker.setConnectionsListener()`]: #workersetconnectionslistenerfn
 [`worker.terminate()`]: #workerterminate
 [`worker.threadId`]: #workerthreadid_1
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool

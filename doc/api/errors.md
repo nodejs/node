@@ -3072,6 +3072,16 @@ added: v18.1.0
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 `WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
 
+<a id="ERR_WORKER_CONNECTION_REFUSED"></a>
+
+### `ERR_WORKER_CONNECTION_REFUSED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The thread requested in [`connect()`][] refused the connection or has no connections listener provided.
+
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
 ### `ERR_WORKER_INIT_FAILED`
@@ -3084,6 +3094,16 @@ The `Worker` initialization failed.
 
 The `execArgv` option passed to the `Worker` constructor contains
 invalid flags.
+
+<a id="ERR_WORKER_INVALID_ID"></a>
+
+### `ERR_WORKER_INVALID_ID`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The thread ID requested in [`connect()`][] is invalid.
 
 <a id="ERR_WORKER_NOT_RUNNING"></a>
 
@@ -3103,6 +3123,16 @@ The `Worker` instance terminated because it reached its memory limit.
 
 The path for the main script of a worker is neither an absolute path
 nor a relative path starting with `./` or `../`.
+
+<a id="ERR_WORKER_SAME_THREAD"></a>
+
+### `ERR_WORKER_SAME_THREAD`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The thread id requested in [`connect()`][] is the current thread id.
 
 <a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
 
@@ -3999,6 +4029,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`Writable`]: stream.md#class-streamwritable
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag
+[`connect()`]: worker_threads.md#workerconnecttarget-data-timeout
 [`crypto.getDiffieHellman()`]: crypto.md#cryptogetdiffiehellmangroupname
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`crypto.scryptSync()`]: crypto.md#cryptoscryptsyncpassword-salt-keylen-options
