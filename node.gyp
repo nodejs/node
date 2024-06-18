@@ -187,8 +187,6 @@
       'src/base_object.h',
       'src/base_object-inl.h',
       'src/base_object_types.h',
-      'src/base64.h',
-      'src/base64-inl.h',
       'src/blob_serializer_deserializer.h',
       'src/blob_serializer_deserializer-inl.h',
       'src/callback_queue.h',
@@ -293,7 +291,6 @@
       'src/string_bytes.h',
       'src/string_decoder.h',
       'src/string_decoder-inl.h',
-      'src/string_search.h',
       'src/tcp_wrap.h',
       'src/timers.h',
       'src/tracing/agent.h',
@@ -854,6 +851,7 @@
         'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
+        'deps/nbytes/nbytes.gyp:nbytes',
         'node_js2c#host',
       ],
 
@@ -1130,6 +1128,7 @@
         'deps/sqlite/sqlite.gyp:sqlite',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/ada/ada.gyp:ada',
+        'deps/nbytes/nbytes.gyp:nbytes',
       ],
       'includes': [
         'node.gypi'
@@ -1180,6 +1179,7 @@
         'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
+        'deps/nbytes/nbytes.gyp:nbytes',
       ],
 
       'includes': [
@@ -1256,6 +1256,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/sqlite/sqlite.gyp:sqlite',
         'deps/ada/ada.gyp:ada',
+        'deps/nbytes/nbytes.gyp:nbytes',
       ],
 
       'includes': [
@@ -1371,6 +1372,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/sqlite/sqlite.gyp:sqlite',
         'deps/ada/ada.gyp:ada',
+        'deps/nbytes/nbytes.gyp:nbytes',
         'deps/simdjson/simdjson.gyp:simdjson',
         'deps/simdutf/simdutf.gyp:simdutf',
       ],

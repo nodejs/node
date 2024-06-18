@@ -22,10 +22,10 @@
 #include "cares_wrap.h"
 #include "ada.h"
 #include "async_wrap-inl.h"
-#include "base64-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "nbytes.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -591,11 +591,11 @@ int ParseSoaReply(
         return ARES_EBADRESP;
       }
 
-      const unsigned int serial = ReadUint32BE(ptr + 0 * 4);
-      const unsigned int refresh = ReadUint32BE(ptr + 1 * 4);
-      const unsigned int retry = ReadUint32BE(ptr + 2 * 4);
-      const unsigned int expire = ReadUint32BE(ptr + 3 * 4);
-      const unsigned int minttl = ReadUint32BE(ptr + 4 * 4);
+      const unsigned int serial = nbytes::ReadUint32BE(ptr + 0 * 4);
+      const unsigned int refresh = nbytes::ReadUint32BE(ptr + 1 * 4);
+      const unsigned int retry = nbytes::ReadUint32BE(ptr + 2 * 4);
+      const unsigned int expire = nbytes::ReadUint32BE(ptr + 3 * 4);
+      const unsigned int minttl = nbytes::ReadUint32BE(ptr + 4 * 4);
 
       Local<Object> soa_record = Object::New(env->isolate());
       soa_record->Set(env->context(),
@@ -1801,7 +1801,7 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   // to 0 (any).
 
   if (uv_inet_pton(AF_INET, *ip0, &addr0) == 0) {
-    ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr0));
+    ares_set_local_ip4(channel->cares_channel(), nbytes::ReadUint32BE(addr0));
     type0 = 4;
   } else if (uv_inet_pton(AF_INET6, *ip0, &addr0) == 0) {
     ares_set_local_ip6(channel->cares_channel(), addr0);
@@ -1820,7 +1820,8 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
         THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv4 addresses.");
         return;
       } else {
-        ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr1));
+        ares_set_local_ip4(channel->cares_channel(),
+                           nbytes::ReadUint32BE(addr1));
       }
     } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
       if (type0 == 6) {
