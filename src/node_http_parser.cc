@@ -553,7 +553,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     delete parser;
   }
@@ -561,7 +561,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Free(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     // Since the Parser destructor isn't going to run the destroy() callbacks
     // it needs to be triggered manually.
@@ -571,7 +571,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Remove(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     if (parser->connectionsList_ != nullptr) {
       parser->connectionsList_->Pop(parser);
@@ -595,7 +595,7 @@ class Parser : public AsyncWrap, public StreamListener {
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     ArrayBufferViewContents<char> buffer(args[0]);
 
@@ -608,7 +608,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Finish(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     Local<Value> ret = parser->Execute(nullptr, 0);
 
@@ -651,7 +651,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
 
@@ -685,7 +685,7 @@ class Parser : public AsyncWrap, public StreamListener {
   static void Pause(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
 
@@ -699,7 +699,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Consume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
     CHECK(args[0]->IsObject());
     StreamBase* stream = StreamBase::FromObject(args[0].As<Object>());
     CHECK_NOT_NULL(stream);
@@ -709,7 +709,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Unconsume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     // Already unconsumed
     if (parser->stream_ == nullptr)
@@ -721,7 +721,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void GetCurrentBuffer(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     Local<Object> ret = Buffer::Copy(
         parser->env(),
@@ -733,7 +733,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Duration(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     if (parser->last_message_start_ == 0) {
       args.GetReturnValue().Set(0);
@@ -746,7 +746,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void HeadersCompleted(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     args.GetReturnValue().Set(parser->headers_completed_);
   }
@@ -1056,7 +1056,7 @@ void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
 
   ConnectionsList* list;
 
-  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
   std::vector<Local<Value>> result;
   result.reserve(list->all_connections_.size());
@@ -1073,7 +1073,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
 
   ConnectionsList* list;
 
-  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
   std::vector<Local<Value>> result;
   result.reserve(list->all_connections_.size());
@@ -1092,7 +1092,7 @@ void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
 
   ConnectionsList* list;
 
-  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
   std::vector<Local<Value>> result;
   result.reserve(list->active_connections_.size());
@@ -1109,7 +1109,7 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
 
   ConnectionsList* list;
 
-  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
   CHECK(args[0]->IsNumber());
   CHECK(args[1]->IsNumber());
   uint64_t headers_timeout =

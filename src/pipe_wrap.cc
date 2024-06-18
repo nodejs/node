@@ -160,7 +160,7 @@ PipeWrap::PipeWrap(Environment* env,
 
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   node::Utf8Value name(args.GetIsolate(), args[0]);
   int err = uv_pipe_bind2(&wrap->handle_, *name, name.length(), 0);
   args.GetReturnValue().Set(err);
@@ -169,7 +169,7 @@ void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 #ifdef _WIN32
 void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   CHECK(args[0]->IsInt32());
   int instances = args[0].As<Int32>()->Value();
   uv_pipe_pending_instances(&wrap->handle_, instances);
@@ -178,7 +178,7 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
 
 void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   CHECK(args[0]->IsInt32());
   int mode = args[0].As<Int32>()->Value();
   int err = uv_pipe_chmod(&wrap->handle_, mode);
@@ -187,7 +187,7 @@ void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   Environment* env = wrap->env();
   int backlog;
   if (!args[0]->Int32Value(env->context()).To(&backlog)) return;
@@ -200,7 +200,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   int fd;
   if (!args[0]->Int32Value(env->context()).To(&fd)) return;
@@ -215,7 +215,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());

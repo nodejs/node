@@ -155,7 +155,7 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
   if (!EC_KEY_generate_key(ecdh->key_.get()))
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to generate key");
@@ -196,7 +196,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsAnyBufferSource(args[0]));
 
   ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -240,7 +240,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
 
   ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
   const EC_GROUP* group = EC_KEY_get0_group(ecdh->key_.get());
   const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_.get());
@@ -263,7 +263,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
   const BIGNUM* b = EC_KEY_get0_private_key(ecdh->key_.get());
   if (b == nullptr)
@@ -289,7 +289,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
   ArrayBufferOrViewContents<unsigned char> priv_buffer(args[0]);
   if (UNLIKELY(!priv_buffer.CheckSizeInt32()))
@@ -345,7 +345,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh;
-  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.This());
 
   CHECK(IsAnyBufferSource(args[0]));
 
