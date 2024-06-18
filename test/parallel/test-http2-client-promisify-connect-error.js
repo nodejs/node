@@ -9,10 +9,6 @@ const http2 = require('http2');
 const util = require('util');
 
 const server = http2.createServer();
-server.on('stream', common.mustCall((stream) => {
-  stream.respond();
-  stream.end('ok');
-}));
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
