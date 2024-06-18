@@ -48,6 +48,10 @@ const bufferSourceChunksForDeflate = [
     value: new Uint32Array(new Uint8Array(compressedBytesWithDeflate).buffer)
   },
   {
+    name: 'Float16Array',
+    value: new Float16Array(new Uint8Array(compressedBytesWithDeflate).buffer)
+  },
+  {
     name: 'Float32Array',
     value: new Float32Array(new Uint8Array(compressedBytesWithDeflate).buffer)
   },
@@ -95,6 +99,10 @@ const bufferSourceChunksForGzip = [
     value: new Uint32Array(new Uint8Array(compressedBytesWithGzip).buffer)
   },
   {
+    name: 'Float16Array',
+    value: new Float16Array(new Uint8Array(compressedBytesWithGzip).buffer)
+  },
+  {
     name: 'Float32Array',
     value: new Float32Array(new Uint8Array(compressedBytesWithGzip).buffer)
   },
@@ -140,6 +148,10 @@ const bufferSourceChunksForDeflateRaw = [
   {
     name: 'Uint32Array',
     value: new Uint32Array(new Uint8Array(compressedBytesWithDeflateRaw).buffer)
+  },
+  {
+    name: 'Float16Array',
+    value: new Float16Array(new Uint8Array(compressedBytesWithDeflateRaw).buffer)
   },
   {
     name: 'Float32Array',
