@@ -13,6 +13,8 @@
 #include "stream_base-inl.h"
 #include "util-inl.h"
 
+#include "nbytes.h"
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -455,8 +457,8 @@ Origins::Origins(
   }
 
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
-  char* start = AlignUp(static_cast<char*>(bs_->Data()),
-                        alignof(nghttp2_origin_entry));
+  char* start = nbytes::AlignUp(static_cast<char*>(bs_->Data()),
+                                alignof(nghttp2_origin_entry));
   char* origin_contents = start + (count_ * sizeof(nghttp2_origin_entry));
   nghttp2_origin_entry* const nva =
       reinterpret_cast<nghttp2_origin_entry*>(start);

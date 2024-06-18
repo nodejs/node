@@ -54,6 +54,7 @@
 #include "util-inl.h"
 #include "v8.h"
 
+#include "nbytes.h"
 #include <unicode/putil.h>
 #include <unicode/timezone.h>
 #include <unicode/uchar.h>
@@ -113,7 +114,7 @@ MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
                 "Currently only one- or two-byte buffers are supported");
   if constexpr (sizeof(T) > 1 && IsBigEndian()) {
     SPREAD_BUFFER_ARG(ret.ToLocalChecked(), retbuf);
-    SwapBytes16(retbuf_data, retbuf_length);
+    CHECK(nbytes::SwapBytes16(retbuf_data, retbuf_length));
   }
 
   return ret;
@@ -129,7 +130,7 @@ void CopySourceBuffer(MaybeStackBuffer<UChar>* dest,
   char* dst = reinterpret_cast<char*>(**dest);
   memcpy(dst, data, length);
   if constexpr (IsBigEndian()) {
-    SwapBytes16(dst, length);
+    CHECK(nbytes::SwapBytes16(dst, length));
   }
 }
 
@@ -528,7 +529,7 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     char* value = reinterpret_cast<char*>(output) + beginning;
 
     if constexpr (IsBigEndian()) {
-      SwapBytes16(value, length);
+      CHECK(nbytes::SwapBytes16(value, length));
     }
 
     MaybeLocal<Value> encoded =

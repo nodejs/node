@@ -21,12 +21,12 @@
 
 #include "string_bytes.h"
 
-#include "base64-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "simdutf.h"
 #include "util.h"
+#include "nbytes.h"
 
 #include <climits>
 #include <cstring>  // memcpy
@@ -200,27 +200,6 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
 
 }  // anonymous namespace
 
-// supports regular and URL-safe base64
-const int8_t unbase64_table[256] =
-  { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1, -1, -2, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, 62, -1, 63,
-    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1,
-    -1,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
-    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, 63,
-    -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-  };
-
-
 static const int8_t unhex_table[256] =
   { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -270,7 +249,7 @@ size_t StringBytes::WriteUCS2(
     return 0;
   }
 
-  uint16_t* const aligned_dst = AlignUp(dst, sizeof(*dst));
+  uint16_t* const aligned_dst = nbytes::AlignUp(dst, sizeof(*dst));
   size_t nchars;
   if (aligned_dst == dst) {
     nchars = str->Write(isolate, dst, 0, max_chars, flags);
@@ -339,7 +318,7 @@ size_t StringBytes::Write(Isolate* isolate,
       // the Buffer, so we need to reorder on BE platforms.  See
       // https://nodejs.org/api/buffer.html regarding Node's "ucs2"
       // encoding specification
-      if constexpr (IsBigEndian()) SwapBytes16(buf, nbytes);
+      if constexpr (IsBigEndian()) CHECK(nbytes::SwapBytes16(buf, nbytes));
 
       break;
     }
@@ -356,7 +335,7 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // adapted for base64url
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
+          nbytes = nbytes::Base64Decode(buf, buflen, ext->data(), ext->length());
         }
       } else if (str->IsOneByte()) {
         MaybeStackBuffer<uint8_t> stack_buf(str->Length());
@@ -378,7 +357,7 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = base64_decode(buf, buflen, *stack_buf, stack_buf.length());
+          nbytes = nbytes::Base64Decode(buf, buflen, *stack_buf, stack_buf.length());
         }
       } else {
         String::Value value(isolate, str);
@@ -395,7 +374,7 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = base64_decode(buf, buflen, *value, value.length());
+          nbytes = nbytes::Base64Decode(buf, buflen, *value, value.length());
         }
       }
       break;
@@ -411,7 +390,7 @@ size_t StringBytes::Write(Isolate* isolate,
         } else {
           // The input does not follow the WHATWG forgiving-base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
+          nbytes = nbytes::Base64Decode(buf, buflen, ext->data(), ext->length());
         }
       } else if (str->IsOneByte()) {
         MaybeStackBuffer<uint8_t> stack_buf(str->Length());
@@ -432,7 +411,7 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = base64_decode(buf, buflen, *stack_buf, stack_buf.length());
+          nbytes = nbytes::Base64Decode(buf, buflen, *stack_buf, stack_buf.length());
         }
       } else {
         String::Value value(isolate, str);
@@ -447,7 +426,7 @@ size_t StringBytes::Write(Isolate* isolate,
         } else {
           // The input does not follow the WHATWG base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = base64_decode(buf, buflen, *value, value.length());
+          nbytes = nbytes::Base64Decode(buf, buflen, *value, value.length());
         }
       }
       break;
@@ -810,7 +789,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
     }
     size_t nbytes = buflen * sizeof(uint16_t);
     memcpy(dst, buf, nbytes);
-    SwapBytes16(reinterpret_cast<char*>(dst), nbytes);
+    CHECK(nbytes::SwapBytes16(reinterpret_cast<char*>(dst), nbytes));
     return ExternTwoByteString::New(isolate, dst, buflen, error);
   } else {
     return ExternTwoByteString::NewFromCopy(isolate, buf, buflen, error);
