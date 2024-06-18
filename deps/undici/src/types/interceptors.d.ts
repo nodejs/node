@@ -1,11 +1,15 @@
 import Dispatcher from "./dispatcher";
 import RetryHandler from "./retry-handler";
 
-export type DumpInterceptorOpts = { maxSize?: number }
-export type RetryInterceptorOpts = RetryHandler.RetryOptions
-export type RedirectInterceptorOpts = { maxRedirections?: number }
+export default Interceptors;
 
-export declare function createRedirectInterceptor (opts: RedirectInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
-export declare function dump(opts?: DumpInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
-export declare function retry(opts?: RetryInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
-export declare function redirect(opts?: RedirectInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
+declare namespace Interceptors {
+  export type DumpInterceptorOpts = { maxSize?: number }
+  export type RetryInterceptorOpts = RetryHandler.RetryOptions
+  export type RedirectInterceptorOpts = { maxRedirections?: number }
+  
+  export function createRedirectInterceptor(opts: RedirectInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
+  export function dump(opts?: DumpInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
+  export function retry(opts?: RetryInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
+  export function redirect(opts?: RedirectInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
+}
