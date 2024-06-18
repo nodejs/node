@@ -32,7 +32,7 @@ professionalism across all documents.
 ### Editor configuration
 
 * Follow the formatting rules specified in `.editorconfig`.
-  * A [plugin][plugin] is available for some editors to enforce these rules.
+  * A [plugin][] is available for some editors to enforce these rules.
 
 ### Testing documentation
 
@@ -50,7 +50,7 @@ professionalism across all documents.
 ### Commas
 
 * **Serial Commas:** Use [serial commas][] for clarity.
-  * Example: _apples, oranges, and bananas_
+  * Example: _apples, oranges**,** and bananas_
 
 ### Pronouns
 
