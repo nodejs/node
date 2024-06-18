@@ -4,7 +4,7 @@
     "path": "common"
   },
   "compression": {
-    "commit": "c82521cfa587505746a853a24d22589633825b10",
+    "commit": "5aa50dd4151b5bc1d04d5505366c6e27df30af5b",
     "path": "compression"
   },
   "console": {
