@@ -50,12 +50,3 @@ please follow these principles and guidelines:
      * Availability of a down-level implementation if backporting is needed.
      * Usage by a published real-world module.
      * Implementation in an alternative VM.
-
-## Modifying released APIs
-
-Changes to existing APIs that do not affect ABI or API compatibility with earlier versions are permissible
-with an opt-out flag (`NODE_API_EXPERIMENTAL_<FEATURE>_OPT_OUT`). This helps addon maintainers by providing:
-
-* Quick fixes for breakages.
-* Notifications of impending changes.
-* An additional buffer for adoption beyond the initial compile-time flag.
