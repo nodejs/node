@@ -1304,3 +1304,35 @@ if (common.hasCrypto) {
     }
   })().then(common.mustCall());
 }
+
+// Comparing two identical WeakMap instances
+{
+  const weakMap = new WeakMap();
+  assertDeepAndStrictEqual(weakMap, weakMap);
+}
+
+// Comparing two different WeakMap instances
+{
+  const weakMap1 = new WeakMap();
+  const objA = {};
+  weakMap1.set(objA, 'ok');
+
+  const weakMap2 = new WeakMap();
+  const objB = {};
+  weakMap2.set(objB, 'ok');
+
+  assertNotDeepOrStrict(weakMap1, weakMap2);
+}
+
+// Comparing two identical WeakSet instances
+{
+  const weakSet = new WeakSet();
+  assertDeepAndStrictEqual(weakSet, weakSet);
+}
+
+// Comparing two different WeakSet instances
+{
+  const weakSet1 = new WeakSet();
+  const weakSet2 = new WeakSet();
+  assertNotDeepOrStrict(weakSet1, weakSet2);
+}
