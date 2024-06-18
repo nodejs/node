@@ -87,6 +87,18 @@ void AsyncHooks::ResetPromiseHooks(Local<Function> init,
   js_promise_hooks_[3].Reset(env()->isolate(), resolve);
 }
 
+Local<Array> AsyncHooks::GetPromiseHooks(Isolate* isolate) {
+  std::vector<Local<Value>> values;
+  for (size_t i = 0; i < js_promise_hooks_.size(); ++i) {
+    if (js_promise_hooks_[i].IsEmpty()) {
+      values.push_back(Undefined(isolate));
+    } else {
+      values.push_back(js_promise_hooks_[i].Get(isolate));
+    }
+  }
+  return Array::New(isolate, values.data(), values.size());
+}
+
 void Environment::ResetPromiseHooks(Local<Function> init,
                                     Local<Function> before,
                                     Local<Function> after,
