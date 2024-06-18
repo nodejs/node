@@ -1404,7 +1404,7 @@ template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   CHECK_EQ(false, args.IsConstructCall());
   CHECK(args[0]->IsObject());
@@ -1664,7 +1664,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 void GetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   Local<Array> server_array = Array::New(env->isolate());
 
@@ -1702,7 +1702,7 @@ void GetServers(const FunctionCallbackInfo<Value>& args) {
 void SetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   if (channel->active_query_count()) {
     return args.GetReturnValue().Set(DNS_ESETSRVPENDING);
@@ -1783,7 +1783,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
 void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsString());
@@ -1846,7 +1846,7 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
 
 void Cancel(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   TRACE_EVENT_INSTANT0(TRACING_CATEGORY_NODE2(dns, native),
       "cancel", TRACE_EVENT_SCOPE_THREAD);

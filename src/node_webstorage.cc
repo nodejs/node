@@ -414,13 +414,13 @@ static Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
 
 static void Clear(const FunctionCallbackInfo<Value>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
   storage->Clear();
 }
 
 static void GetItem(const FunctionCallbackInfo<Value>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
   Environment* env = Environment::GetCurrent(info);
 
   if (info.Length() < 1) {
@@ -443,7 +443,7 @@ static void GetItem(const FunctionCallbackInfo<Value>& info) {
 
 static void Key(const FunctionCallbackInfo<Value>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
   Environment* env = Environment::GetCurrent(info);
   int index;
 
@@ -471,7 +471,7 @@ static void Key(const FunctionCallbackInfo<Value>& info) {
 
 static void RemoveItem(const FunctionCallbackInfo<Value>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
   Environment* env = Environment::GetCurrent(info);
   Local<String> prop;
 
@@ -490,7 +490,7 @@ static void RemoveItem(const FunctionCallbackInfo<Value>& info) {
 
 static void SetItem(const FunctionCallbackInfo<Value>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
   Environment* env = Environment::GetCurrent(info);
 
   if (info.Length() < 2) {
@@ -510,7 +510,7 @@ template <typename T>
 static bool ShouldIntercept(Local<Name> property,
                             const PropertyCallbackInfo<T>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Value> proto = info.Holder()->GetPrototype();
+  Local<Value> proto = info.This()->GetPrototype();
 
   if (proto->IsObject()) {
     bool has_prop;
@@ -534,7 +534,7 @@ static Intercepted StorageGetter(Local<Name> property,
   }
 
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
   Local<Value> result = storage->Load(property);
 
   if (result.IsEmpty()) {
@@ -550,7 +550,7 @@ static Intercepted StorageSetter(Local<Name> property,
                                  Local<Value> value,
                                  const PropertyCallbackInfo<void>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
 
   if (storage->Store(property, value)) {
     info.GetReturnValue().Set(value);
@@ -566,7 +566,7 @@ static Intercepted StorageQuery(Local<Name> property,
   }
 
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
   Local<Value> result = storage->Load(property);
   if (result.IsEmpty()) {
     return Intercepted::kNo;
@@ -579,7 +579,7 @@ static Intercepted StorageQuery(Local<Name> property,
 static Intercepted StorageDeleter(Local<Name> property,
                                   const PropertyCallbackInfo<Boolean>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
 
   if (storage->Remove(property)) {
     info.GetReturnValue().Set(true);
@@ -590,7 +590,7 @@ static Intercepted StorageDeleter(Local<Name> property,
 
 static void StorageEnumerator(const PropertyCallbackInfo<Array>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
   info.GetReturnValue().Set(storage->Enumerate());
 }
 
@@ -598,7 +598,7 @@ static Intercepted StorageDefiner(Local<Name> property,
                                   const PropertyDescriptor& desc,
                                   const PropertyCallbackInfo<void>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
 
   if (desc.has_value()) {
     return StorageSetter(property, desc.value(), info);

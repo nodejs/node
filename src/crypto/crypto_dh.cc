@@ -292,7 +292,7 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
 
   if (!DH_generate_key(diffieHellman->dh_.get())) {
     return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
@@ -327,7 +327,7 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
   Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* dh;
-  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&dh, args.This());
 
   const BIGNUM* num = get_field(dh->dh_.get());
   if (num == nullptr)
@@ -388,7 +388,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
 
   ClearErrorOnReturn clear_error_on_return;
 
@@ -447,7 +447,7 @@ void DiffieHellman::SetKey(const FunctionCallbackInfo<Value>& args,
                            int (*set_field)(DH*, BIGNUM*), const char* what) {
   Environment* env = Environment::GetCurrent(args);
   DiffieHellman* dh;
-  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&dh, args.This());
   CHECK_EQ(args.Length(), 1);
   ArrayBufferOrViewContents<unsigned char> buf(args[0]);
   if (UNLIKELY(!buf.CheckSizeInt32()))
@@ -473,7 +473,7 @@ void DiffieHellman::VerifyErrorGetter(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
 
   DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
 
   args.GetReturnValue().Set(diffieHellman->verifyError_);
 }

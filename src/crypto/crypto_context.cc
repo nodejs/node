@@ -422,7 +422,7 @@ void SecureContext::New(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
 
   CHECK_EQ(args.Length(), 3);
@@ -595,7 +595,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // Private key argument is mandatory
 
@@ -626,7 +626,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetSigalgs(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
   ClearErrorOnReturn clear_error_on_return;
 
@@ -644,7 +644,7 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 2);
 
@@ -707,7 +707,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // Certificate argument is mandatory
 
@@ -734,7 +734,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // CA certificate argument is mandatory
 
@@ -771,7 +771,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);  // CRL argument is mandatory
 
@@ -790,7 +790,7 @@ void SecureContext::SetRootCerts() {
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   sc->SetRootCerts();
 }
 
@@ -798,7 +798,7 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
   // BoringSSL doesn't allow API config of TLS1.3 cipher suites.
 #ifndef OPENSSL_IS_BORINGSSL
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
   ClearErrorOnReturn clear_error_on_return;
 
@@ -813,7 +813,7 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
   ClearErrorOnReturn clear_error_on_return;
 
@@ -837,7 +837,7 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
 
   CHECK_GE(args.Length(), 1);  // ECDH curve name argument is mandatory
@@ -899,7 +899,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsInt32());
@@ -911,7 +911,7 @@ void SecureContext::SetMinProto(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetMaxProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsInt32());
@@ -923,7 +923,7 @@ void SecureContext::SetMaxProto(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::GetMinProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 0);
 
@@ -934,7 +934,7 @@ void SecureContext::GetMinProto(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::GetMaxProto(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_EQ(args.Length(), 0);
 
@@ -946,7 +946,7 @@ void SecureContext::GetMaxProto(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsNumber());
@@ -960,7 +960,7 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetSessionIdContext(
     const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
 
   CHECK_GE(args.Length(), 1);
@@ -992,7 +992,7 @@ void SecureContext::SetSessionIdContext(
 
 void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsInt32());
@@ -1004,7 +1004,7 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   sc->Reset();
 }
 
@@ -1016,7 +1016,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   bool ret = false;
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() < 1) {
@@ -1125,7 +1125,7 @@ void SecureContext::SetClientCertEngine(
   CHECK(args[0]->IsString());
 
   SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -1162,7 +1162,7 @@ void SecureContext::SetClientCertEngine(
 
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   Local<Object> buff;
   if (!Buffer::New(wrap->env(), 48).ToLocal(&buff))
@@ -1177,7 +1177,7 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   CHECK_GE(args.Length(), 1);  // Ticket keys argument is mandatory
   CHECK(args[0]->IsArrayBufferView());
@@ -1197,7 +1197,7 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::EnableTicketKeyCallback(
     const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_.get(), TicketKeyCallback);
 }
@@ -1351,7 +1351,7 @@ void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
 template <bool primary>
 void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   Environment* env = wrap->env();
   X509* cert;
 

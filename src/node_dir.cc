@@ -187,7 +187,7 @@ void DirHandle::Close(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 1);
 
   DirHandle* dir;
-  ASSIGN_OR_RETURN_UNWRAP(&dir, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&dir, args.This());
 
   dir->closing_ = false;
   dir->closed_ = true;
@@ -288,7 +288,7 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
   const enum encoding encoding = ParseEncoding(isolate, args[0], UTF8);
 
   DirHandle* dir;
-  ASSIGN_OR_RETURN_UNWRAP(&dir, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&dir, args.This());
 
   CHECK(args[1]->IsNumber());
   uint64_t buffer_size = static_cast<uint64_t>(args[1].As<Number>()->Value());
