@@ -193,6 +193,12 @@ static void SetPromiseHooks(const FunctionCallbackInfo<Value>& args) {
       args[3]->IsFunction() ? args[3].As<Function>() : Local<Function>());
 }
 
+static void GetPromiseHooks(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(
+      env->async_hooks()->GetPromiseHooks(args.GetIsolate()));
+}
+
 class DestroyParam {
  public:
   double asyncId;
@@ -364,6 +370,7 @@ void AsyncWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "clearAsyncIdStack", ClearAsyncIdStack);
   SetMethod(isolate, target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   SetMethod(isolate, target, "setPromiseHooks", SetPromiseHooks);
+  SetMethod(isolate, target, "getPromiseHooks", GetPromiseHooks);
   SetMethod(isolate, target, "registerDestroyHook", RegisterDestroyHook);
   AsyncWrap::GetConstructorTemplate(isolate_data);
 }
@@ -469,6 +476,7 @@ void AsyncWrap::RegisterExternalReferences(
   registry->Register(ClearAsyncIdStack);
   registry->Register(QueueDestroyAsyncId);
   registry->Register(SetPromiseHooks);
+  registry->Register(GetPromiseHooks);
   registry->Register(RegisterDestroyHook);
   registry->Register(AsyncWrap::GetAsyncId);
   registry->Register(AsyncWrap::AsyncReset);
