@@ -4367,7 +4367,7 @@ var require_util2 = __commonJS({
       });
     }
     __name(iteratorMixin, "iteratorMixin");
-    async function fullyReadBody(body, processBody, processBodyError, shouldClone) {
+    async function fullyReadBody(body, processBody, processBodyError) {
       const successSteps = processBody;
       const errorSteps = processBodyError;
       let reader;
@@ -4378,7 +4378,7 @@ var require_util2 = __commonJS({
         return;
       }
       try {
-        successSteps(await readAllBytes(reader, shouldClone));
+        successSteps(await readAllBytes(reader));
       } catch (e) {
         errorSteps(e);
       }
@@ -4405,19 +4405,12 @@ var require_util2 = __commonJS({
       return input;
     }
     __name(isomorphicEncode, "isomorphicEncode");
-    async function readAllBytes(reader, shouldClone) {
+    async function readAllBytes(reader) {
       const bytes = [];
       let byteLength = 0;
       while (true) {
         const { done, value: chunk } = await reader.read();
         if (done) {
-          if (bytes.length === 1) {
-            const { buffer, byteOffset, byteLength: byteLength2 } = bytes[0];
-            if (shouldClone === false) {
-              return Buffer.from(buffer, byteOffset, byteLength2);
-            }
-            return Buffer.from(buffer.slice(byteOffset, byteOffset + byteLength2), 0, byteLength2);
-          }
           return Buffer.concat(bytes, byteLength);
         }
         if (!isUint8Array(chunk)) {
@@ -5393,18 +5386,18 @@ Content-Type: ${value.type || "application/octet-stream"}\r
               mimeType = serializeAMimeType(mimeType);
             }
             return new Blob2([bytes], { type: mimeType });
-          }, instance, false);
+          }, instance);
         },
         arrayBuffer() {
           return consumeBody(this, (bytes) => {
-            return bytes.buffer;
-          }, instance, true);
+            return new Uint8Array(bytes).buffer;
+          }, instance);
         },
         text() {
-          return consumeBody(this, utf8DecodeBytes, instance, false);
+          return consumeBody(this, utf8DecodeBytes, instance);
         },
         json() {
-          return consumeBody(this, parseJSONFromBytes, instance, false);
+          return consumeBody(this, parseJSONFromBytes, instance);
         },
         formData() {
           return consumeBody(this, (value) => {
@@ -5433,12 +5426,12 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             throw new TypeError(
               'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
             );
-          }, instance, false);
+          }, instance);
         },
         bytes() {
           return consumeBody(this, (bytes) => {
-            return new Uint8Array(bytes.buffer, 0, bytes.byteLength);
-          }, instance, true);
+            return new Uint8Array(bytes);
+          }, instance);
         }
       };
       return methods;
@@ -5448,7 +5441,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       Object.assign(prototype.prototype, bodyMixinMethods(prototype));
     }
     __name(mixinBody, "mixinBody");
-    async function consumeBody(object, convertBytesToJSValue, instance, shouldClone) {
+    async function consumeBody(object, convertBytesToJSValue, instance) {
       webidl.brandCheck(object, instance);
       if (bodyUnusable(object[kState].body)) {
         throw new TypeError("Body is unusable: Body has already been read");
@@ -5467,7 +5460,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         successSteps(Buffer.allocUnsafe(0));
         return promise.promise;
       }
-      await fullyReadBody(object[kState].body, successSteps, errorSteps, shouldClone);
+      await fullyReadBody(object[kState].body, successSteps, errorSteps);
       return promise.promise;
     }
     __name(consumeBody, "consumeBody");
