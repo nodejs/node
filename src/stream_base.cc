@@ -658,7 +658,7 @@ void StreamBase::GetExternal(const FunctionCallbackInfo<Value>& args) {
 
 template <int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
-  StreamBase* wrap = StreamBase::FromObject(args.Holder().As<Object>());
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
   if (wrap == nullptr) return;
 
   if (!wrap->IsAlive()) return args.GetReturnValue().Set(UV_EINVAL);

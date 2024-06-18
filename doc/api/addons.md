@@ -923,7 +923,7 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
 void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
-  MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.Holder());
+  MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.This());
   obj->value_ += 1;
 
   args.GetReturnValue().Set(Number::New(isolate, obj->value_));
@@ -1138,7 +1138,7 @@ void MyObject::NewInstance(const FunctionCallbackInfo<Value>& args) {
 void MyObject::PlusOne(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
-  MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.Holder());
+  MyObject* obj = ObjectWrap::Unwrap<MyObject>(args.This());
   obj->value_ += 1;
 
   args.GetReturnValue().Set(Number::New(isolate, obj->value_));
