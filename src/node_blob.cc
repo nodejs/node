@@ -247,7 +247,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
 void Blob::GetReader(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Blob* blob;
-  ASSIGN_OR_RETURN_UNWRAP(&blob, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
 
   BaseObjectPtr<Blob::Reader> reader =
       Blob::Reader::Create(env, BaseObjectPtr<Blob>(blob));
@@ -257,7 +257,7 @@ void Blob::GetReader(const FunctionCallbackInfo<Value>& args) {
 void Blob::ToSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Blob* blob;
-  ASSIGN_OR_RETURN_UNWRAP(&blob, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&blob, args.This());
   CHECK(args[0]->IsUint32());
   CHECK(args[1]->IsUint32());
   size_t start = args[0].As<Uint32>()->Value();
@@ -326,7 +326,7 @@ BaseObjectPtr<Blob::Reader> Blob::Reader::Create(Environment* env,
 void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Blob::Reader* reader;
-  ASSIGN_OR_RETURN_UNWRAP(&reader, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&reader, args.This());
 
   CHECK(args[0]->IsFunction());
   Local<Function> fn = args[0].As<Function>();

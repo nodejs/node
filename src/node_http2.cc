@@ -2107,7 +2107,7 @@ void Http2Session::Consume(Local<Object> stream_obj) {
 // https://github.com/nodejs/node/issues/35475
 void Http2Session::Receive(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   CHECK(args[0]->IsObject());
 
   ArrayBufferViewContents<char> buffer(args[0]);
@@ -2700,7 +2700,7 @@ void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
 void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   int32_t id = args[0]->Int32Value(env->context()).ToChecked();
   if (nghttp2_session_set_next_stream_id(session->session(), id) < 0) {
     Debug(session, "failed to set next stream id to %d", id);
@@ -2717,7 +2717,7 @@ void Http2Session::SetLocalWindowSize(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   int32_t window_size = args[0]->Int32Value(env->context()).ToChecked();
 
@@ -2735,7 +2735,7 @@ void Http2Session::SetLocalWindowSize(
 template <get_setting fn, bool local>
 void Http2Session::RefreshSettings(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Http2Settings::Update(session, fn, local);
   Debug(session, "settings refreshed for session");
 }
@@ -2745,7 +2745,7 @@ void Http2Session::RefreshSettings(const FunctionCallbackInfo<Value>& args) {
 // TypedArray so those can be read in JS land.
 void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Debug(session, "refreshing state");
 
   AliasedFloat64Array& buffer = session->http2_state()->session_state_buffer;
@@ -2789,7 +2789,7 @@ void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
 // Binds the Http2Session with a StreamBase used for i/o
 void Http2Session::Consume(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   CHECK(args[0]->IsObject());
   session->Consume(args[0].As<Object>());
 }
@@ -2797,7 +2797,7 @@ void Http2Session::Consume(const FunctionCallbackInfo<Value>& args) {
 // Destroys the Http2Session instance and renders it unusable
 void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Debug(session, "destroying session");
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
@@ -2810,7 +2810,7 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
 // or the Http2Stream object.
 void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = session->env();
 
   Local<Array> headers = args[0].As<Array>();
@@ -2861,7 +2861,7 @@ void Http2Session::Goaway(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   uint32_t code = args[0]->Uint32Value(context).ToChecked();
   int32_t lastStreamID = args[1]->Int32Value(context).ToChecked();
@@ -2881,7 +2881,7 @@ void Http2Session::UpdateChunksSent(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   uint32_t length = session->chunks_sent_since_last_write_;
 
@@ -2899,7 +2899,7 @@ void Http2Stream::RstStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
   uint32_t code = args[0]->Uint32Value(context).ToChecked();
   Debug(stream, "sending rst_stream with code %d", code);
   stream->SubmitRstStream(code);
@@ -2910,7 +2910,7 @@ void Http2Stream::RstStream(const FunctionCallbackInfo<Value>& args) {
 void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
   Local<Array> headers = args[0].As<Array>();
   int32_t options = args[1]->Int32Value(env->context()).ToChecked();
@@ -2927,7 +2927,7 @@ void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
 void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
   Local<Array> headers = args[0].As<Array>();
 
@@ -2938,7 +2938,7 @@ void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
 void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
   Local<Array> headers = args[0].As<Array>();
 
@@ -2949,14 +2949,14 @@ void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
 // Grab the numeric id of the Http2Stream
 void Http2Stream::GetID(const FunctionCallbackInfo<Value>& args) {
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
   args.GetReturnValue().Set(stream->id());
 }
 
 // Destroy the Http2Stream, rendering it no longer usable
 void Http2Stream::Destroy(const FunctionCallbackInfo<Value>& args) {
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
   Debug(stream, "destroying stream");
   stream->Destroy();
 }
@@ -2965,7 +2965,7 @@ void Http2Stream::Destroy(const FunctionCallbackInfo<Value>& args) {
 void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Stream* parent;
-  ASSIGN_OR_RETURN_UNWRAP(&parent, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&parent, args.This());
 
   Local<Array> headers = args[0].As<Array>();
   int32_t options = args[1]->Int32Value(env->context()).ToChecked();
@@ -2991,7 +2991,7 @@ void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
 void Http2Stream::Priority(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
   CHECK_EQ(stream->SubmitPriority(
       Http2Priority(env, args[0], args[1], args[2]),
@@ -3004,7 +3004,7 @@ void Http2Stream::Priority(const FunctionCallbackInfo<Value>& args) {
 // TypedArray so that the state can be read by JS.
 void Http2Stream::RefreshState(const FunctionCallbackInfo<Value>& args) {
   Http2Stream* stream;
-  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
   Debug(stream, "refreshing state");
 
@@ -3061,7 +3061,7 @@ void Http2Session::Origin(const Origins& origins) {
 void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   int32_t id = args[0]->Int32Value(env->context()).ToChecked();
 
@@ -3092,7 +3092,7 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   Local<String> origin_string = args[0].As<String>();
   size_t count = args[1]->Int32Value(context).ToChecked();
@@ -3103,7 +3103,7 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
 // Submits a PING frame to be sent to the connected peer.
 void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   // A PING frame may have exactly 8 bytes of payload data. If not provided,
   // then the current hrtime will be used as the payload.
@@ -3121,7 +3121,7 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
 // Submits a SETTINGS frame for the Http2Session
 void Http2Session::Settings(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   CHECK(args[0]->IsFunction());
   args.GetReturnValue().Set(session->AddSettings(args[0].As<Function>()));
 }

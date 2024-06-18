@@ -971,7 +971,7 @@ KeyObjectHandle::KeyObjectHandle(Environment* env,
 
 void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   CHECK(args[0]->IsInt32());
@@ -1015,7 +1015,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
 void KeyObjectHandle::InitJWK(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   // The argument must be a JavaScript object that we will inspect
@@ -1054,7 +1054,7 @@ void KeyObjectHandle::InitJWK(const FunctionCallbackInfo<Value>& args) {
 void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsString());
   Utf8Value name(env->isolate(), args[0]);
@@ -1092,7 +1092,7 @@ void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
 void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsString());
   Utf8Value name(env->isolate(), args[0]);
@@ -1134,7 +1134,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
 void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* self_handle;
   KeyObjectHandle* arg_handle;
-  ASSIGN_OR_RETURN_UNWRAP(&self_handle, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&self_handle, args.This());
   ASSIGN_OR_RETURN_UNWRAP(&arg_handle, args[0].As<Object>());
   std::shared_ptr<KeyObjectData> key = self_handle->Data();
   std::shared_ptr<KeyObjectData> key2 = arg_handle->Data();
@@ -1182,7 +1182,7 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
 void KeyObjectHandle::GetKeyDetail(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsObject());
 
@@ -1235,7 +1235,7 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
 void KeyObjectHandle::GetAsymmetricKeyType(
     const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
 }
@@ -1263,7 +1263,7 @@ bool KeyObjectHandle::CheckEcKeyData() const {
 
 void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   args.GetReturnValue().Set(key->CheckEcKeyData());
 }
@@ -1271,14 +1271,14 @@ void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {
 void KeyObjectHandle::GetSymmetricKeySize(
     const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
   args.GetReturnValue().Set(
       static_cast<uint32_t>(key->Data()->GetSymmetricKeySize()));
 }
 
 void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   KeyType type = key->Data()->GetKeyType();
 
@@ -1328,7 +1328,7 @@ void KeyObjectHandle::ExportJWK(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsBoolean());

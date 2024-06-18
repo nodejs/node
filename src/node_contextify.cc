@@ -1026,7 +1026,7 @@ void ContextifyScript::CreateCachedData(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ContextifyScript* wrapped_script;
-  ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.This());
   Local<UnboundScript> unbound_script =
       PersistentToLocal::Default(env->isolate(), wrapped_script->script_);
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
@@ -1046,7 +1046,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ContextifyScript* wrapped_script;
-  ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.This());
 
   CHECK_EQ(args.Length(), 5);
   CHECK(args[0]->IsObject() || args[0]->IsNull());
@@ -1107,7 +1107,7 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
 
   if (!env->can_call_into_js())
     return false;
-  if (!ContextifyScript::InstanceOf(env, args.Holder())) {
+  if (!ContextifyScript::InstanceOf(env, args.This())) {
     THROW_ERR_INVALID_THIS(
         env,
         "Script methods can only be called on script instances.");
@@ -1116,7 +1116,7 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
 
   TryCatchScope try_catch(env);
   ContextifyScript* wrapped_script;
-  ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
+  ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.This(), false);
   Local<UnboundScript> unbound_script =
       PersistentToLocal::Default(env->isolate(), wrapped_script->script_);
   Local<Script> script = unbound_script->BindToCurrentContext();
