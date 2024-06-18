@@ -2,6 +2,7 @@
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "nbytes.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_crypto.h"
@@ -90,10 +91,10 @@ void LogSecret(
   }
 
   std::string line = name;
-  line += " " + StringBytes::hex_encode(reinterpret_cast<const char*>(crandom),
-                                        kTlsClientRandomSize);
-  line += " " + StringBytes::hex_encode(
-      reinterpret_cast<const char*>(secret), secretlen);
+  line += " " + nbytes::HexEncode(reinterpret_cast<const char*>(crandom),
+                                  kTlsClientRandomSize);
+  line +=
+      " " + nbytes::HexEncode(reinterpret_cast<const char*>(secret), secretlen);
   keylog_cb(ssl.get(), line.c_str());
 }
 

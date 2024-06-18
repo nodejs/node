@@ -7,6 +7,7 @@
 #include <string_bytes.h>
 #include <util-inl.h>
 #include <algorithm>
+#include "nbytes.h"
 
 namespace node {
 namespace quic {
@@ -49,8 +50,8 @@ TokenSecret::operator const char*() const {
 
 std::string TokenSecret::ToString() const {
   char dest[QUIC_TOKENSECRET_LEN * 2];
-  size_t written = StringBytes::hex_encode(
-      *this, QUIC_TOKENSECRET_LEN, dest, arraysize(dest));
+  size_t written =
+      nbytes::HexEncode(*this, QUIC_TOKENSECRET_LEN, dest, arraysize(dest));
   DCHECK_EQ(written, arraysize(dest));
   return std::string(dest, written);
 }
@@ -117,7 +118,7 @@ std::string StatelessResetToken::ToString() const {
   if (ptr_ == nullptr) return std::string();
   char dest[kStatelessTokenLen * 2];
   size_t written =
-      StringBytes::hex_encode(*this, kStatelessTokenLen, dest, arraysize(dest));
+      nbytes::HexEncode(*this, kStatelessTokenLen, dest, arraysize(dest));
   DCHECK_EQ(written, arraysize(dest));
   return std::string(dest, written);
 }
@@ -230,7 +231,7 @@ std::string RetryToken::ToString() const {
   if (ptr_.base == nullptr) return std::string();
   MaybeStackBuffer<char, 32> dest(ptr_.len * 2);
   size_t written =
-      StringBytes::hex_encode(*this, ptr_.len, dest.out(), dest.length());
+      nbytes::HexEncode(*this, ptr_.len, dest.out(), dest.length());
   DCHECK_EQ(written, dest.length());
   return std::string(dest.out(), written);
 }
@@ -289,7 +290,7 @@ std::string RegularToken::ToString() const {
   if (ptr_.base == nullptr) return std::string();
   MaybeStackBuffer<char, 32> dest(ptr_.len * 2);
   size_t written =
-      StringBytes::hex_encode(*this, ptr_.len, dest.out(), dest.length());
+      nbytes::HexEncode(*this, ptr_.len, dest.out(), dest.length());
   DCHECK_EQ(written, dest.length());
   return std::string(dest.out(), written);
 }

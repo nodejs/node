@@ -1,7 +1,7 @@
 #include "inspector_socket.h"
 #include "llhttp.h"
 
-#include "base64.h"
+#include "nbytes.h"
 #include "simdutf.h"
 #include "util-inl.h"
 
@@ -11,7 +11,7 @@
 #include <cstring>
 #include <map>
 
-#define ACCEPT_KEY_LENGTH base64_encoded_size(20)
+#define ACCEPT_KEY_LENGTH nbytes::Base64EncodedSize(20)
 
 #define DUMP_READS 0
 #define DUMP_WRITES 0
@@ -149,7 +149,7 @@ static void generate_accept_string(const std::string& client_key,
   std::string input(client_key + ws_magic);
   char hash[SHA_DIGEST_LENGTH];
 
-  CHECK(ACCEPT_KEY_LENGTH >= base64_encoded_size(SHA_DIGEST_LENGTH) &&
+  CHECK(ACCEPT_KEY_LENGTH >= nbytes::Base64EncodedSize(SHA_DIGEST_LENGTH) &&
         "not enough space provided for base64 encode");
   USE(SHA1(reinterpret_cast<const unsigned char*>(input.data()),
            input.size(),

@@ -5,6 +5,7 @@
 #include "brotli/encode.h"
 #include "cjs_module_lexer_version.h"
 #include "llhttp.h"
+#include "nbytes.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
 #include "simdjson.h"
@@ -133,6 +134,7 @@ Metadata::Versions::Versions() {
   simdutf = SIMDUTF_VERSION;
   sqlite = SQLITE_VERSION;
   ada = ADA_VERSION;
+  nbytes = NBYTES_VERSION;
 }
 
 Metadata::Release::Release() : name(NODE_RELEASE) {

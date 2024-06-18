@@ -1,9 +1,10 @@
-#include "node_sockaddr-inl.h"  // NOLINT(build/include)
-#include "env-inl.h"
-#include "base64-inl.h"
+#include "node_sockaddr.h"  // NOLINT(build/include_inline)
 #include "base_object-inl.h"
+#include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "nbytes.h"
 #include "node_errors.h"
+#include "node_sockaddr-inl.h"  // NOLINT(build/include_inline)
 #include "uv.h"
 
 #include <memory>
@@ -308,7 +309,7 @@ bool in_network_ipv6_ipv4(
     return false;
 
   ptr += sizeof(mask);
-  uint32_t check = ReadUint32BE(ptr);
+  uint32_t check = nbytes::ReadUint32BE(ptr);
 
   return (check & m) == (htonl(net_in->sin_addr.s_addr) & m);
 }
