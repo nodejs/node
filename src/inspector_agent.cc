@@ -923,7 +923,7 @@ void Agent::EnableAsyncHook() {
 
 void Agent::DisableAsyncHook() {
   HandleScope scope(parent_env_->isolate());
-  Local<Function> disable = parent_env_->inspector_enable_async_hooks();
+  Local<Function> disable = parent_env_->inspector_disable_async_hooks();
   if (!disable.IsEmpty()) {
     ToggleAsyncHook(parent_env_->isolate(), disable);
   } else if (pending_enable_async_hook_) {
