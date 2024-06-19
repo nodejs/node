@@ -150,7 +150,8 @@ the reason is clearly documented and either the PR is
 reviewed in detail or it is from an existing collaborator.
 
 In general updates to dependencies should only be accepted
-if they have already landed in the upstream. This avoids
+if they have already landed in the upstream. The TSC may
+grant an exception on a case-by-case basis. This avoids
 the project having to float patches for a long time and
 ensures that tooling can generate updates automatically.
 
