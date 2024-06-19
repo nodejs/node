@@ -7,8 +7,8 @@
 #include "env-inl.h"
 #include "v8.h"
 
-#include "nbytes.h"
 #include <algorithm>
+#include "nbytes.h"
 
 namespace node {
 

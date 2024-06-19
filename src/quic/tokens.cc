@@ -50,8 +50,8 @@ TokenSecret::operator const char*() const {
 
 std::string TokenSecret::ToString() const {
   char dest[QUIC_TOKENSECRET_LEN * 2];
-  size_t written = nbytes::HexEncode(
-      *this, QUIC_TOKENSECRET_LEN, dest, arraysize(dest));
+  size_t written =
+      nbytes::HexEncode(*this, QUIC_TOKENSECRET_LEN, dest, arraysize(dest));
   DCHECK_EQ(written, arraysize(dest));
   return std::string(dest, written);
 }

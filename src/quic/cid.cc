@@ -4,8 +4,8 @@
 #include <memory_tracker-inl.h>
 #include <node_mutex.h>
 #include <string_bytes.h>
-#include "quic/defs.h"
 #include "nbytes.h"
+#include "quic/defs.h"
 
 namespace node {
 namespace quic {
@@ -72,11 +72,10 @@ size_t CID::length() const {
 
 std::string CID::ToString() const {
   char dest[kMaxLength * 2];
-  size_t written =
-      nbytes::HexEncode(reinterpret_cast<const char*>(ptr_->data),
-                        ptr_->datalen,
-                        dest,
-                        arraysize(dest));
+  size_t written = nbytes::HexEncode(reinterpret_cast<const char*>(ptr_->data),
+                                     ptr_->datalen,
+                                     dest,
+                                     arraysize(dest));
   return std::string(dest, written);
 }
 

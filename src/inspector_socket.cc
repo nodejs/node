@@ -1,8 +1,8 @@
 #include "inspector_socket.h"
 #include "llhttp.h"
 
-#include "simdutf.h"
 #include "nbytes.h"
+#include "simdutf.h"
 #include "util-inl.h"
 
 #include "openssl/sha.h"  // Sha-1 hash

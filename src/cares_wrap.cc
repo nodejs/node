@@ -25,6 +25,7 @@
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "nbytes.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -32,7 +33,6 @@
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
-#include "nbytes.h"
 
 #include <cerrno>
 #include <cstring>
@@ -1820,7 +1820,8 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
         THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv4 addresses.");
         return;
       } else {
-        ares_set_local_ip4(channel->cares_channel(), nbytes::ReadUint32BE(addr1));
+        ares_set_local_ip4(channel->cares_channel(),
+                           nbytes::ReadUint32BE(addr1));
       }
     } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
       if (type0 == 6) {

@@ -54,7 +54,6 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#include "nbytes.h"
 #include <unicode/putil.h>
 #include <unicode/timezone.h>
 #include <unicode/uchar.h>
@@ -70,6 +69,7 @@
 #include <unicode/utypes.h>
 #include <unicode/uvernum.h>
 #include <unicode/uversion.h>
+#include "nbytes.h"
 
 #ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.

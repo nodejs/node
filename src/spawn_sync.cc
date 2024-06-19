@@ -27,9 +27,8 @@
 #include "string_bytes.h"
 #include "util-inl.h"
 
-#include "nbytes.h"
 #include <cstring>
-
+#include "nbytes.h"
 
 namespace node {
 

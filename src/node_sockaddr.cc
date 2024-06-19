@@ -1,10 +1,11 @@
-#include "node_sockaddr-inl.h"  // NOLINT(build/include)
-#include "env-inl.h"
+#include "node_sockaddr.h"  // NOLINT(build/include_inline)
 #include "base_object-inl.h"
+#include "env-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_errors.h"
-#include "uv.h"
 #include "nbytes.h"
+#include "node_errors.h"
+#include "node_sockaddr-inl.h"  // NOLINT(build/include_inline)
+#include "uv.h"
 
 #include <memory>
 #include <string>

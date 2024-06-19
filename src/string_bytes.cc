@@ -22,11 +22,11 @@
 #include "string_bytes.h"
 
 #include "env-inl.h"
+#include "nbytes.h"
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "simdutf.h"
 #include "util.h"
-#include "nbytes.h"
 
 #include <climits>
 #include <cstring>  // memcpy
@@ -295,7 +295,8 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // adapted for base64url
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = nbytes::Base64Decode(buf, buflen, ext->data(), ext->length());
+          nbytes =
+              nbytes::Base64Decode(buf, buflen, ext->data(), ext->length());
         }
       } else if (str->IsOneByte()) {
         MaybeStackBuffer<uint8_t> stack_buf(str->Length());
@@ -317,7 +318,8 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = nbytes::Base64Decode(buf, buflen, *stack_buf, stack_buf.length());
+          nbytes =
+              nbytes::Base64Decode(buf, buflen, *stack_buf, stack_buf.length());
         }
       } else {
         String::Value value(isolate, str);
@@ -350,7 +352,8 @@ size_t StringBytes::Write(Isolate* isolate,
         } else {
           // The input does not follow the WHATWG forgiving-base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = nbytes::Base64Decode(buf, buflen, ext->data(), ext->length());
+          nbytes =
+              nbytes::Base64Decode(buf, buflen, ext->data(), ext->length());
         }
       } else if (str->IsOneByte()) {
         MaybeStackBuffer<uint8_t> stack_buf(str->Length());
@@ -371,7 +374,8 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = nbytes::Base64Decode(buf, buflen, *stack_buf, stack_buf.length());
+          nbytes =
+              nbytes::Base64Decode(buf, buflen, *stack_buf, stack_buf.length());
         }
       } else {
         String::Value value(isolate, str);

@@ -35,9 +35,9 @@
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
-#include "nbytes.h"
-#include <cstring>
 #include <climits>
+#include <cstring>
+#include "nbytes.h"
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
   THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")                      \

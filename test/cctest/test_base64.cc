@@ -1,6 +1,6 @@
 #include "nbytes.h"
-#include "util-inl.h"
 #include "simdutf.h"
+#include "util-inl.h"
 
 #include <cstddef>
 #include <cstring>
