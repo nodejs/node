@@ -1,0 +1,16 @@
+{
+  "name": "eslint-tools",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@babel/core": "^7.24.7",
+    "@babel/eslint-parser": "^7.24.7",
+    "@babel/plugin-syntax-import-attributes": "^7.24.7",
+    "@stylistic/eslint-plugin-js": "^2.1.0",
+    "eslint": "^9.4.0",
+    "eslint-formatter-tap": "^8.40.0",
+    "eslint-plugin-jsdoc": "^48.2.9",
+    "eslint-plugin-markdown": "^5.0.0",
+    "globals": "^15.4.0"
+  }
+}

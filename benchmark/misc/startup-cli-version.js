@@ -11,7 +11,7 @@ const path = require('path');
 // indispensible part of the CLI.
 // NOTE: not all tools are present in tarball hence need to filter
 const availableCli = [
-  'tools/node_modules/eslint/bin/eslint.js',
+  'tools/eslint/node_modules/eslint/bin/eslint.js',
   'deps/npm/bin/npx-cli.js',
   'deps/npm/bin/npm-cli.js',
   'deps/corepack/dist/corepack.js',
