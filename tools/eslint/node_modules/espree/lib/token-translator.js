@@ -40,7 +40,7 @@ const Token = {
  */
 function convertTemplatePart(tokens, code) {
     const firstToken = tokens[0],
-        lastTemplateToken = tokens[tokens.length - 1];
+        lastTemplateToken = tokens.at(-1);
 
     const token = {
         type: Token.Template,

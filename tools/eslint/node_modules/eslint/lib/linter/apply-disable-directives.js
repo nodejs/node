@@ -369,6 +369,8 @@ function applyDirectives(options) {
 
     const processed = processUnusedDirectives(unusedDisableDirectivesToReport)
         .concat(processUnusedDirectives(unusedEnableDirectivesToReport));
+    const columnOffset = options.language.columnStart === 1 ? 0 : 1;
+    const lineOffset = options.language.lineStart === 1 ? 0 : 1;
 
     const unusedDirectives = processed
         .map(({ description, fix, unprocessedDirective }) => {
@@ -388,8 +390,8 @@ function applyDirectives(options) {
             return {
                 ruleId: null,
                 message,
-                line: type === "disable-next-line" ? parentDirective.node.loc.start.line : line,
-                column: type === "disable-next-line" ? parentDirective.node.loc.start.column + 1 : column,
+                line: type === "disable-next-line" ? parentDirective.node.loc.start.line + lineOffset : line,
+                column: type === "disable-next-line" ? parentDirective.node.loc.start.column + columnOffset : column,
                 severity: options.reportUnusedDisableDirectives === "warn" ? 1 : 2,
                 nodeType: null,
                 ...options.disableFixes ? {} : { fix }
@@ -403,6 +405,7 @@ function applyDirectives(options) {
  * Given a list of directive comments (i.e. metadata about eslint-disable and eslint-enable comments) and a list
  * of reported problems, adds the suppression information to the problems.
  * @param {Object} options Information about directives and problems
+ * @param {Language} options.language The language being linted.
  * @param {{
  *      type: ("disable"|"enable"|"disable-line"|"disable-next-line"),
  *      ruleId: (string|null),
@@ -421,7 +424,7 @@ function applyDirectives(options) {
  * @returns {{ruleId: (string|null), line: number, column: number, suppressions?: {kind: string, justification: string}}[]}
  * An object with a list of reported problems, the suppressed of which contain the suppression information.
  */
-module.exports = ({ directives, disableFixes, problems, configuredRules, ruleFilter, reportUnusedDisableDirectives = "off" }) => {
+module.exports = ({ language, directives, disableFixes, problems, configuredRules, ruleFilter, reportUnusedDisableDirectives = "off" }) => {
     const blockDirectives = directives
         .filter(directive => directive.type === "disable" || directive.type === "enable")
         .map(directive => Object.assign({}, directive, { unprocessedDirective: directive }))
@@ -470,6 +473,7 @@ module.exports = ({ directives, disableFixes, problems, configuredRules, ruleFil
     }
 
     const blockDirectivesResult = applyDirectives({
+        language,
         problems,
         directives: blockDirectives,
         disableFixes,
@@ -477,6 +481,7 @@ module.exports = ({ directives, disableFixes, problems, configuredRules, ruleFil
         rulesToIgnore
     });
     const lineDirectivesResult = applyDirectives({
+        language,
         problems: blockDirectivesResult.problems,
         directives: lineDirectives,
         disableFixes,

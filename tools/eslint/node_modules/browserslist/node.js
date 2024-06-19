@@ -50,7 +50,7 @@ function eachParent(file, callback) {
   var dir = isFile(file) ? path.dirname(file) : file
   var loc = path.resolve(dir)
   do {
-    if (!pathInRoot(loc)) break;
+    if (!pathInRoot(loc)) break
     var result = callback(loc)
     if (typeof result !== 'undefined') return result
   } while (loc !== (loc = path.dirname(loc)))
@@ -59,9 +59,9 @@ function eachParent(file, callback) {
 
 function pathInRoot(p) {
   if (!process.env.BROWSERSLIST_ROOT_PATH) return true
-  var rootPath = path.resolve(process.env.BROWSERSLIST_ROOT_PATH);
-  if (path.relative(rootPath, p).substring(0,2) === '..') {
-    return false;
+  var rootPath = path.resolve(process.env.BROWSERSLIST_ROOT_PATH)
+  if (path.relative(rootPath, p).substring(0, 2) === '..') {
+    return false
   }
   return true
 }
@@ -167,7 +167,6 @@ function normalizeStats(data, stats) {
 function normalizeUsageData(usageData, data) {
   for (var browser in usageData) {
     var browserUsage = usageData[browser]
-    // eslint-disable-next-line max-len
     // https://github.com/browserslist/browserslist/issues/431#issuecomment-565230615
     // caniuse-db returns { 0: "percentage" } for `and_*` regional stats
     if ('0' in browserUsage) {

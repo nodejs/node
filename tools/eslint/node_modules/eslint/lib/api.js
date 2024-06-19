@@ -13,7 +13,7 @@ const { ESLint, shouldUseFlatConfig } = require("./eslint/eslint");
 const { LegacyESLint } = require("./eslint/legacy-eslint");
 const { Linter } = require("./linter");
 const { RuleTester } = require("./rule-tester");
-const { SourceCode } = require("./source-code");
+const { SourceCode } = require("./languages/js/source-code");
 
 //-----------------------------------------------------------------------------
 // Functions
