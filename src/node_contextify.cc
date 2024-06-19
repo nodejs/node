@@ -81,7 +81,6 @@ using v8::Symbol;
 using v8::Uint32;
 using v8::UnboundScript;
 using v8::Value;
-using v8::WeakCallbackInfo;
 
 // The vm module executes code in a sandboxed environment with a different
 // global object than the rest of the code. This is achieved by applying
@@ -414,12 +413,6 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
       try_catch.ReThrow();
     return;
   }
-}
-
-void ContextifyContext::WeakCallback(
-    const WeakCallbackInfo<ContextifyContext>& data) {
-  ContextifyContext* context = data.GetParameter();
-  delete context;
 }
 
 // static
