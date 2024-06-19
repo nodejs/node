@@ -98,6 +98,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
+  'NativeModule diagnostics_channel',
   'Internal Binding wasm_web_api',
   'NativeModule internal/events/abort_listener',
 ]);
@@ -162,11 +163,11 @@ if (process.features.inspector) {
   expected.beforePreExec.add('Internal Binding inspector');
   expected.beforePreExec.add('NativeModule internal/util/inspector');
   expected.atRunTime.add('NativeModule internal/inspector_async_hook');
+}
 
-  // This is loaded if the test is run with NODE_V8_COVERAGE.
-  if (process.env.NODE_V8_COVERAGE) {
-    expected.atRunTime.add('Internal Binding profiler');
-  }
+// This is loaded if the test is run with NODE_V8_COVERAGE.
+if (process.env.NODE_V8_COVERAGE) {
+  expected.atRunTime.add('Internal Binding profiler');
 }
 
 const difference = (setA, setB) => {
