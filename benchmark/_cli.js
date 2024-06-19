@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const kEmptyObject = Object.freeze({__proto__: null});
+const kEmptyObject = Object.freeze({ __proto__: null });
 // Create an object of all benchmark scripts
 const benchmarks = {};
 fs.readdirSync(__dirname)

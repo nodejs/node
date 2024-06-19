@@ -12,9 +12,9 @@ const originalArgv = process.argv;
 
 function testFilterPattern(filters, excludes, filename, expectedResult) {
   process.argv = process.argv.concat(
-      filters.flatMap((p) => ['--filter', p]),
-      excludes.flatMap((p) => ['--exclude', p]),
-      ['bench'],
+    filters.flatMap((p) => ['--filter', p]),
+    excludes.flatMap((p) => ['--exclude', p]),
+    ['bench'],
   );
 
   const cli = new CLI('', { 'arrayArgs': ['filter', 'exclude'] });
@@ -74,10 +74,10 @@ function testNormalOption(options = [], expectedResult = []) {
   process.argv = process.argv.concat(options);
   const cli = new CLI('', { boolArgs: ['foo', 'bar', 'foo-bar'] });
   const optional = Object.keys(cli.optional);
-  assert.deepEqual(optional, expectedResult);
+  assert.deepStrictEqual(optional, expectedResult);
   process.argv = originalArgv;
 }
 
-testNormalOption(['--foo'], ['foo'])
-testNormalOption(['--foo', '--bar'], ['foo', 'bar'])
-testNormalOption(['--foo-bar'], ['foo-bar'])
+testNormalOption(['--foo'], ['foo']);
+testNormalOption(['--foo', '--bar'], ['foo', 'bar']);
+testNormalOption(['--foo-bar'], ['foo-bar']);
