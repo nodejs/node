@@ -210,7 +210,7 @@
     "remark-github": "^11.2.4",
     "rimraf": "^5.0.5",
     "spawk": "^1.7.1",
-    "tap": "^16.3.9"
+    "tap": "^19.0.2"
   },
   "scripts": {
     "dependencies": "node scripts/bundle-and-gitignore-deps.js && node scripts/dependency-graph.js",
