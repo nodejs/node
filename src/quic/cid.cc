@@ -5,6 +5,7 @@
 #include <node_mutex.h>
 #include <string_bytes.h>
 #include "quic/defs.h"
+#include "nbytes.h"
 
 namespace node {
 namespace quic {
@@ -72,10 +73,10 @@ size_t CID::length() const {
 std::string CID::ToString() const {
   char dest[kMaxLength * 2];
   size_t written =
-      StringBytes::hex_encode(reinterpret_cast<const char*>(ptr_->data),
-                              ptr_->datalen,
-                              dest,
-                              arraysize(dest));
+      nbytes::HexEncode(reinterpret_cast<const char*>(ptr_->data),
+                        ptr_->datalen,
+                        dest,
+                        arraysize(dest));
   return std::string(dest, written);
 }
 

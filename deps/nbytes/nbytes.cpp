@@ -146,6 +146,106 @@ const int8_t unbase64_table[256] =
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
   };
 
+// ============================================================================
+// Hex
 
+const int8_t unhex_table[256] =
+  { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+  };
+
+size_t HexEncode(
+    const char* src,
+    size_t slen,
+    char* dst,
+    size_t dlen) {
+  // We know how much we'll write, just make sure that there's space.
+  NBYTES_ASSERT_TRUE(
+      dlen >= MultiplyWithOverflowCheck<size_t>(slen, 2u) &&
+      "not enough space provided for hex encode");
+
+  dlen = slen * 2;
+  for (size_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
+    static const char hex[] = "0123456789abcdef";
+    uint8_t val = static_cast<uint8_t>(src[i]);
+    dst[k + 0] = hex[val >> 4];
+    dst[k + 1] = hex[val & 15];
+  }
+
+  return dlen;
+}
+
+std::string HexEncode(const char* src, size_t slen) {
+  size_t dlen = slen * 2;
+  std::string dst(dlen, '\0');
+  HexEncode(src, slen, dst.data(), dlen);
+  return dst;
+}
+
+// ============================================================================
+
+void ForceAsciiSlow(const char* src, char* dst, size_t len) {
+  for (size_t i = 0; i < len; ++i) {
+    dst[i] = src[i] & 0x7f;
+  }
+}
+
+void ForceAscii(const char* src, char* dst, size_t len) {
+  if (len < 16) {
+    ForceAsciiSlow(src, dst, len);
+    return;
+  }
+
+  const unsigned bytes_per_word = sizeof(uintptr_t);
+  const unsigned align_mask = bytes_per_word - 1;
+  const unsigned src_unalign = reinterpret_cast<uintptr_t>(src) & align_mask;
+  const unsigned dst_unalign = reinterpret_cast<uintptr_t>(dst) & align_mask;
+
+  if (src_unalign > 0) {
+    if (src_unalign == dst_unalign) {
+      const unsigned unalign = bytes_per_word - src_unalign;
+      ForceAsciiSlow(src, dst, unalign);
+      src += unalign;
+      dst += unalign;
+      len -= src_unalign;
+    } else {
+      ForceAsciiSlow(src, dst, len);
+      return;
+    }
+  }
+
+#if defined(_WIN64) || defined(_LP64)
+  const uintptr_t mask = ~0x8080808080808080ll;
+#else
+  const uintptr_t mask = ~0x80808080l;
+#endif
+
+  const uintptr_t* srcw = reinterpret_cast<const uintptr_t*>(src);
+  uintptr_t* dstw = reinterpret_cast<uintptr_t*>(dst);
+
+  for (size_t i = 0, n = len / bytes_per_word; i < n; ++i) {
+    dstw[i] = srcw[i] & mask;
+  }
+
+  const unsigned remainder = len & align_mask;
+  if (remainder > 0) {
+    const size_t offset = len - remainder;
+    ForceAsciiSlow(src + offset, dst + offset, remainder);
+  }
+}
 
 }  // namespace nbytes

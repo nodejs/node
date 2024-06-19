@@ -1,11 +1,43 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
-#include <cmath>
+#include <string>
 #include <cstddef>
+#include <cstdint>
+#include <cmath>
 
 namespace nbytes {
+
+#if NBYTES_DEVELOPMENT_CHECKS
+#define NBYTES_STR(x) #x
+#define NBYTES_REQUIRE(EXPR)                                                   \
+  {                                                                            \
+    if (!(EXPR) { abort(); }) }
+
+#define NBYTES_FAIL(MESSAGE)                                                   \
+  do {                                                                         \
+    std::cerr << "FAIL: " << (MESSAGE) << std::endl;                           \
+    abort();                                                                   \
+  } while (0);
+#define NBYTES_ASSERT_EQUAL(LHS, RHS, MESSAGE)                                 \
+  do {                                                                         \
+    if (LHS != RHS) {                                                          \
+      std::cerr << "Mismatch: '" << LHS << "' - '" << RHS << "'" << std::endl; \
+      NBYTES_FAIL(MESSAGE);                                                    \
+    }                                                                          \
+  } while (0);
+#define NBYTES_ASSERT_TRUE(COND)                                               \
+  do {                                                                         \
+    if (!(COND)) {                                                             \
+      std::cerr << "Assert at line " << __LINE__ << " of file " << __FILE__    \
+                << std::endl;                                                  \
+      NBYTES_FAIL(NBYTES_STR(COND));                                           \
+    }                                                                          \
+  } while (0);
+#else
+#define NBYTES_FAIL(MESSAGE)
+#define NBYTES_ASSERT_EQUAL(LHS, RHS, MESSAGE)
+#define NBYTES_ASSERT_TRUE(COND)
+#endif
 
 // The nbytes (short for "node bytes") is a set of utility helpers for
 // working with bytes that are extracted from Node.js' internals. The
@@ -25,6 +57,19 @@ constexpr T* AlignUp(T* ptr, U alignment) {
   return reinterpret_cast<T*>(
       RoundUp(reinterpret_cast<uintptr_t>(ptr), alignment));
 }
+
+template <typename T>
+inline T MultiplyWithOverflowCheck(T a, T b) {
+  auto ret = a * b;
+  if (a != 0) {
+    NBYTES_ASSERT_TRUE(b == ret / a);
+  }
+
+  return ret;
+}
+
+void ForceAsciiSlow(const char* src, char* dst, size_t len);
+void ForceAscii(const char* src, char* dst, size_t len);
 
 // ============================================================================
 // Byte Swapping
@@ -159,5 +204,35 @@ size_t Base64Decode(char* const dst, const size_t dstlen,
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+
+// ============================================================================
+// Hex (legacy)
+
+extern const int8_t unhex_table[256];
+
+template <typename TypeName>
+static size_t HexDecode(char* buf,
+                        size_t len,
+                        const TypeName* src,
+                        const size_t srcLen) {
+  size_t i;
+  for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
+    unsigned a = unhex_table[static_cast<uint8_t>(src[i * 2 + 0])];
+    unsigned b = unhex_table[static_cast<uint8_t>(src[i * 2 + 1])];
+    if (!~a || !~b)
+      return i;
+    buf[i] = (a << 4) | b;
+  }
+
+  return i;
+}
+
+size_t HexEncode(
+    const char* src,
+    size_t slen,
+    char* dst,
+    size_t dlen);
+
+std::string HexEncode(const char* src, size_t slen);
 
 }  // namespace nbytes

@@ -200,46 +200,6 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
 
 }  // anonymous namespace
 
-static const int8_t unhex_table[256] =
-  { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
-    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-  };
-
-static inline unsigned unhex(uint8_t x) {
-  return unhex_table[x];
-}
-
-template <typename TypeName>
-static size_t hex_decode(char* buf,
-                         size_t len,
-                         const TypeName* src,
-                         const size_t srcLen) {
-  size_t i;
-  for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
-    unsigned a = unhex(static_cast<uint8_t>(src[i * 2 + 0]));
-    unsigned b = unhex(static_cast<uint8_t>(src[i * 2 + 1]));
-    if (!~a || !~b)
-      return i;
-    buf[i] = (a << 4) | b;
-  }
-
-  return i;
-}
-
 size_t StringBytes::WriteUCS2(
     Isolate* isolate, char* buf, size_t buflen, Local<String> str, int flags) {
   uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
@@ -434,10 +394,10 @@ size_t StringBytes::Write(Isolate* isolate,
     case HEX:
       if (str->IsExternalOneByte()) {
         auto ext = str->GetExternalOneByteStringResource();
-        nbytes = hex_decode(buf, buflen, ext->data(), ext->length());
+        nbytes = nbytes::HexDecode(buf, buflen, ext->data(), ext->length());
       } else {
         String::Value value(isolate, str);
-        nbytes = hex_decode(buf, buflen, *value, value.length());
+        nbytes = nbytes::HexDecode(buf, buflen, *value, value.length());
       }
       break;
 
@@ -547,85 +507,6 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
   UNREACHABLE();
 }
 
-static void force_ascii_slow(const char* src, char* dst, size_t len) {
-  for (size_t i = 0; i < len; ++i) {
-    dst[i] = src[i] & 0x7f;
-  }
-}
-
-
-static void force_ascii(const char* src, char* dst, size_t len) {
-  if (len < 16) {
-    force_ascii_slow(src, dst, len);
-    return;
-  }
-
-  const unsigned bytes_per_word = sizeof(uintptr_t);
-  const unsigned align_mask = bytes_per_word - 1;
-  const unsigned src_unalign = reinterpret_cast<uintptr_t>(src) & align_mask;
-  const unsigned dst_unalign = reinterpret_cast<uintptr_t>(dst) & align_mask;
-
-  if (src_unalign > 0) {
-    if (src_unalign == dst_unalign) {
-      const unsigned unalign = bytes_per_word - src_unalign;
-      force_ascii_slow(src, dst, unalign);
-      src += unalign;
-      dst += unalign;
-      len -= src_unalign;
-    } else {
-      force_ascii_slow(src, dst, len);
-      return;
-    }
-  }
-
-#if defined(_WIN64) || defined(_LP64)
-  const uintptr_t mask = ~0x8080808080808080ll;
-#else
-  const uintptr_t mask = ~0x80808080l;
-#endif
-
-  const uintptr_t* srcw = reinterpret_cast<const uintptr_t*>(src);
-  uintptr_t* dstw = reinterpret_cast<uintptr_t*>(dst);
-
-  for (size_t i = 0, n = len / bytes_per_word; i < n; ++i) {
-    dstw[i] = srcw[i] & mask;
-  }
-
-  const unsigned remainder = len & align_mask;
-  if (remainder > 0) {
-    const size_t offset = len - remainder;
-    force_ascii_slow(src + offset, dst + offset, remainder);
-  }
-}
-
-
-size_t StringBytes::hex_encode(
-    const char* src,
-    size_t slen,
-    char* dst,
-    size_t dlen) {
-  // We know how much we'll write, just make sure that there's space.
-  CHECK(dlen >= MultiplyWithOverflowCheck<size_t>(slen, 2u) &&
-        "not enough space provided for hex encode");
-
-  dlen = slen * 2;
-  for (size_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
-    static const char hex[] = "0123456789abcdef";
-    uint8_t val = static_cast<uint8_t>(src[i]);
-    dst[k + 0] = hex[val >> 4];
-    dst[k + 1] = hex[val & 15];
-  }
-
-  return dlen;
-}
-
-std::string StringBytes::hex_encode(const char* src, size_t slen) {
-  size_t dlen = slen * 2;
-  std::string dst(dlen, '\0');
-  hex_encode(src, slen, dst.data(), dlen);
-  return dst;
-}
-
 #define CHECK_BUFLEN_IN_RANGE(len)                                    \
   do {                                                                \
     if ((len) > Buffer::kMaxLength) {                                 \
@@ -667,7 +548,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
           return MaybeLocal<Value>();
         }
-        force_ascii(buf, out, buflen);
+        nbytes::ForceAscii(buf, out, buflen);
         return ExternOneByteString::New(isolate, out, buflen, error);
       } else {
         return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);
@@ -726,7 +607,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
         *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
         return MaybeLocal<Value>();
       }
-      size_t written = hex_encode(buf, buflen, dst, dlen);
+      size_t written = nbytes::HexEncode(buf, buflen, dst, dlen);
       CHECK_EQ(written, dlen);
 
       return ExternOneByteString::New(isolate, dst, dlen, error);

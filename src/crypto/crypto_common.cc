@@ -8,6 +8,7 @@
 #include "node_internals.h"
 #include "string_bytes.h"
 #include "v8.h"
+#include "nbytes.h"
 
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
@@ -90,10 +91,10 @@ void LogSecret(
   }
 
   std::string line = name;
-  line += " " + StringBytes::hex_encode(reinterpret_cast<const char*>(crandom),
-                                        kTlsClientRandomSize);
-  line += " " + StringBytes::hex_encode(
-      reinterpret_cast<const char*>(secret), secretlen);
+  line += " " + nbytes::HexEncode(reinterpret_cast<const char*>(crandom),
+                                  kTlsClientRandomSize);
+  line += " " + nbytes::HexEncode(reinterpret_cast<const char*>(secret),
+                                  secretlen);
   keylog_cb(ssl.get(), line.c_str());
 }
 
