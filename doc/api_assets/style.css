@@ -434,7 +434,7 @@ dd + dt.pre {
   padding-top: 1rem;
 }
 
-#apicontent section {
+#api-section-all #apicontent section {
   content-visibility: auto;
   contain-intrinsic-size: 1px auto 5000px;
 }
