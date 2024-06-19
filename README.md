@@ -455,8 +455,6 @@ For information about the governance of the Node.js project, see
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 * [watilde](https://github.com/watilde) -
   **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
-* [XadillaX](https://github.com/XadillaX) -
-  **Khaidi Chu** <<i@2333.moe>> (he/him)
 * [zcbenz](https://github.com/zcbenz) -
   **Cheng Zhao** <<zcbenz@gmail.com>> (he/him)
 * [ZYSzys](https://github.com/ZYSzys) -
@@ -705,6 +703,8 @@ For information about the governance of the Node.js project, see
   **Thomas Watson** <<w@tson.dk>>
 * [whitlockjc](https://github.com/whitlockjc) -
   **Jeremy Whitlock** <<jwhitlock@apache.org>>
+* [XadillaX](https://github.com/XadillaX) -
+  **Khaidi Chu** <<i@2333.moe>> (he/him)
 * [yashLadha](https://github.com/yashLadha) -
   **Yash Ladha** <<yash@yashladha.in>> (he/him)
 * [yhwang](https://github.com/yhwang) -
