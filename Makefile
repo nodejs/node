@@ -1192,7 +1192,7 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/tools/eslint
 	$(RM) -r $(TARNAME)/tools/eslint-rules
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
-	$(RM) -r $(TARNAME)/tools/node_modules
+	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
 	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
@@ -1378,7 +1378,7 @@ format-md:
 
 LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
-run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
+run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
 	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
@@ -1402,7 +1402,7 @@ lint-js lint-js-doc:
 jslint: lint-js
 	$(warning Please use lint-js instead of jslint)
 
-run-lint-js-ci = tools/node_modules/eslint/bin/eslint.js \
+run-lint-js-ci = tools/eslint/node_modules/eslint/bin/eslint.js \
   --max-warnings=0 --report-unused-disable-directives -f tap \
 	-o test-eslint.tap $(LINT_JS_TARGETS)
 
@@ -1562,7 +1562,7 @@ lint-yaml:
 
 .PHONY: lint
 .PHONY: lint-ci
-ifneq ("","$(wildcard tools/node_modules/eslint/)")
+ifneq ("","$(wildcard tools/eslint/node_modules/eslint/)")
 lint: ## Run JS, C++, MD and doc linters.
 	@EXIT_STATUS=0 ; \
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \

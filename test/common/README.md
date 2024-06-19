@@ -472,7 +472,7 @@ Skip the rest of the tests if the current terminal is a dumb terminal
 ### `skipIfEslintMissing()`
 
 Skip the rest of the tests in the current file when `ESLint` is not available
-at `tools/node_modules/eslint`
+at `tools/eslint/node_modules/eslint`
 
 ### `skipIfInspectorDisabled()`
 

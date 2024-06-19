@@ -9,7 +9,7 @@ if ((!common.hasCrypto) || (!common.hasIntl)) {
 
 common.skipIfEslintMissing();
 
-const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
+const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-util-format-errors');
 
 new RuleTester()

@@ -2003,7 +2003,7 @@ The externally maintained libraries used by Node.js are:
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
-- ESLint, located at tools/node_modules/eslint, is licensed as follows:
+- ESLint, located at tools/eslint/node_modules/eslint, is licensed as follows:
   """
     Copyright OpenJS Foundation and other contributors, <www.openjsf.org>
 
