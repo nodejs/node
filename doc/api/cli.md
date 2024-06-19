@@ -1049,6 +1049,14 @@ added:
 
 Use this flag to enable [ShadowRealm][] support.
 
+### `--experimental-sqlite`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable the experimental [`node:sqlite`][] module.
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -2852,6 +2860,7 @@ one is included in the list below.
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
+* `--experimental-sqlite`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
@@ -3409,6 +3418,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
+[`node:sqlite`]: sqlite.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`process.setuid()`]: process.md#processsetuidid
 [`setuid(2)`]: https://man7.org/linux/man-pages/man2/setuid.2.html

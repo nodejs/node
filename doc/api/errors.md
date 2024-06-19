@@ -2573,6 +2573,16 @@ disconnected socket.
 
 A call was made and the UDP subsystem was not running.
 
+<a id="ERR_SQLITE_ERROR"></a>
+
+### `ERR_SQLITE_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An error was returned from [SQLite][].
+
 <a id="ERR_SRI_PARSE"></a>
 
 ### `ERR_SRI_PARSE`
@@ -4023,6 +4033,7 @@ An error occurred trying to allocate memory. This should never happen.
 [Node.js error codes]: #nodejs-error-codes
 [Permission Model]: permissions.md#permission-model
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
+[SQLite]: sqlite.md
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [V8's stack trace API]: https://v8.dev/docs/stack-trace-api
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings

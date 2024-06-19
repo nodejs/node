@@ -396,6 +396,7 @@
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
+  V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(streambaseentry_ctor_template, v8::FunctionTemplate)                       \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(streamentry_ctor_template, v8::FunctionTemplate)                           \
