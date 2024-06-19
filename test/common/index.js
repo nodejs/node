@@ -509,7 +509,7 @@ function hasMultiLocalhost() {
 
 function skipIfEslintMissing() {
   if (!fs.existsSync(
-    path.join(__dirname, '..', '..', 'tools', 'node_modules', 'eslint'),
+    path.join(__dirname, '..', '..', 'tools', 'eslint', 'node_modules', 'eslint'),
   )) {
     skip('missing ESLint');
   }
