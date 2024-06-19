@@ -291,7 +291,6 @@
       'src/string_bytes.h',
       'src/string_decoder.h',
       'src/string_decoder-inl.h',
-      'src/string_search.h',
       'src/tcp_wrap.h',
       'src/timers.h',
       'src/tracing/agent.h',

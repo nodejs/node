@@ -50,6 +50,7 @@ namespace node {
   V(simdutf)                                                                   \
   V(sqlite)                                                                    \
   V(ada)                                                                       \
+  V(nbytes)                                                                    \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
   V(cjs_module_lexer)
 

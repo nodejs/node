@@ -56,7 +56,7 @@ bool SwapBytes16(void* data, size_t nbytes) {
     for (size_t i = 0; i < len16; i++) {
       data16[i] = BSWAP_2(data16[i]);
     }
-    return;
+    return true;
   }
 #endif
 
@@ -82,7 +82,7 @@ bool SwapBytes32(void* data, size_t nbytes) {
     for (size_t i = 0; i < len32; i++) {
       data32[i] = BSWAP_4(data32[i]);
     }
-    return;
+    return true;
   }
 #endif
 
@@ -108,7 +108,7 @@ bool SwapBytes64(void* data, size_t nbytes) {
     for (size_t i = 0; i < len64; i++) {
       data64[i] = BSWAP_8(data64[i]);
     }
-    return;
+    return true;
   }
 #endif
 
