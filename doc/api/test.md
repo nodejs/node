@@ -509,7 +509,7 @@ node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-de
 ```
 
 * No test results are reported by this reporter.
-* This reporter should ideally be used in conjunction with another reporter.
+* This reporter should ideally be used alongside another reporter.
 
 ### Limitations
 
