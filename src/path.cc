@@ -3,7 +3,6 @@
 #include <vector>
 #include "env-inl.h"
 #include "node_internals.h"
-#include "util.h"
 
 namespace node {
 
@@ -89,7 +88,7 @@ std::string NormalizeString(const std::string_view path,
 }
 
 #ifdef _WIN32
-bool IsWindowsDeviceRoot(const char c) noexcept {
+constexpr bool IsWindowsDeviceRoot(const char c) noexcept {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
@@ -266,5 +265,53 @@ std::string PathResolve(Environment* env,
   return normalizedPath;
 }
 #endif  // _WIN32
+
+void ToNamespacedPath(Environment* env, BufferValue* path) {
+#ifdef _WIN32
+  if (path->length() == 0) return;
+  auto resolved_path = node::PathResolve(env, {path->ToStringView()});
+  if (resolved_path.size() <= 2) {
+    return;
+  }
+
+  // SAFETY: We know that resolved_path.size() > 2, therefore accessing [0],
+  // [1], and [2] is safe.
+  if (resolved_path[0] == '\\') {
+    // Possible UNC root
+    if (resolved_path[1] == '\\') {
+      if (resolved_path[2] != '?' && resolved_path[2] != '.') {
+        // Matched non-long UNC root, convert the path to a long UNC path
+        std::string_view unc_prefix = R"(\\?\UNC\)";
+        std::string_view resolved_path2 = resolved_path.substr(2);
+        size_t new_length = unc_prefix.size() + resolved_path2.size();
+        path->AllocateSufficientStorage(new_length + 1);
+        path->SetLength(new_length);
+        memcpy(path->out(), unc_prefix.data(), unc_prefix.size());
+        memcpy(path->out() + unc_prefix.size(),
+               resolved_path.c_str() + 2,
+               resolved_path2.size() + 1);
+        return;
+      }
+    }
+  } else if (IsWindowsDeviceRoot(resolved_path[0]) && resolved_path[1] == ':' &&
+             resolved_path[2] == '\\') {
+    // Matched device root, convert the path to a long UNC path
+    std::string_view new_prefix = R"(\\?\)";
+    size_t new_length = new_prefix.size() + resolved_path.size();
+    path->AllocateSufficientStorage(new_length + 1);
+    path->SetLength(new_length);
+    memcpy(path->out(), new_prefix.data(), new_prefix.size());
+    memcpy(path->out() + new_prefix.size(),
+           resolved_path.c_str(),
+           resolved_path.size() + 1);
+    return;
+  }
+
+  size_t new_length = resolved_path.size();
+  path->AllocateSufficientStorage(new_length + 1);
+  path->SetLength(new_length);
+  memcpy(path->out(), resolved_path.c_str(), resolved_path.size() + 1);
+#endif
+}
 
 }  // namespace node
