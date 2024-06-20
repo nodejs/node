@@ -54,20 +54,6 @@ const {
   }
 } = http2
 
-function parseH2Headers (headers) {
-  // set-cookie is always an array. Duplicates are added to the array.
-  // For duplicate cookie headers, the values are joined together with '; '.
-  headers = Object.entries(headers).flat(2)
-
-  const result = []
-
-  for (const header of headers) {
-    result.push(Buffer.from(header))
-  }
-
-  return result
-}
-
 async function connectH2 (client, socket) {
   client[kSocket] = socket
 
@@ -405,19 +391,7 @@ function writeH2 (client, request) {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
     request.onResponseStarted()
 
-    // Due to the stream nature, it is possible we face a race condition
-    // where the stream has been assigned, but the request has been aborted
-    // the request remains in-flight and headers hasn't been received yet
-    // for those scenarios, best effort is to destroy the stream immediately
-    // as there's no value to keep it open.
-    if (request.aborted || request.completed) {
-      const err = new RequestAbortedError()
-      errorRequest(client, request, err)
-      util.destroy(stream, err)
-      return
-    }
-
-    if (request.onHeaders(Number(statusCode), parseH2Headers(realHeaders), stream.resume.bind(stream), '') === false) {
+    if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), '') === false) {
       stream.pause()
     }
 

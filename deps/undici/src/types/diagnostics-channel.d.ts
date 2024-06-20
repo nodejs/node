@@ -9,7 +9,8 @@ declare namespace DiagnosticsChannel {
     completed: boolean;
     method?: Dispatcher.HttpMethod;
     path: string;
-    headers: any;
+    headers: string;
+    addHeader(key: string, value: string): Request;
   }
   interface Response {
     statusCode: number;
