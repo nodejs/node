@@ -1127,7 +1127,7 @@ bool MapRef::CanInlineElementAccess() const {
       (Is64() || (kind != BIGINT64_ELEMENTS && kind != BIGUINT64_ELEMENTS))) {
     return true;
   }
-  if (v8_flags.turbo_rab_gsab && IsRabGsabTypedArrayElementsKind(kind) &&
+  if (IsRabGsabTypedArrayElementsKind(kind) &&
       kind != RAB_GSAB_BIGUINT64_ELEMENTS &&
       kind != RAB_GSAB_BIGINT64_ELEMENTS) {
     return true;
