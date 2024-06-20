@@ -138,20 +138,19 @@ function getMockDispatch (mockDispatches, key) {
   // Match method
   matchedMockDispatches = matchedMockDispatches.filter(({ method }) => matchValue(method, key.method))
   if (matchedMockDispatches.length === 0) {
-    throw new MockNotMatchedError(`Mock dispatch not matched for method '${key.method}' on path '${resolvedPath}'`)
+    throw new MockNotMatchedError(`Mock dispatch not matched for method '${key.method}'`)
   }
 
   // Match body
   matchedMockDispatches = matchedMockDispatches.filter(({ body }) => typeof body !== 'undefined' ? matchValue(body, key.body) : true)
   if (matchedMockDispatches.length === 0) {
-    throw new MockNotMatchedError(`Mock dispatch not matched for body '${key.body}' on path '${resolvedPath}'`)
+    throw new MockNotMatchedError(`Mock dispatch not matched for body '${key.body}'`)
   }
 
   // Match headers
   matchedMockDispatches = matchedMockDispatches.filter((mockDispatch) => matchHeaders(mockDispatch, key.headers))
   if (matchedMockDispatches.length === 0) {
-    const headers = typeof key.headers === 'object' ? JSON.stringify(key.headers) : key.headers
-    throw new MockNotMatchedError(`Mock dispatch not matched for headers '${headers}' on path '${resolvedPath}'`)
+    throw new MockNotMatchedError(`Mock dispatch not matched for headers '${typeof key.headers === 'object' ? JSON.stringify(key.headers) : key.headers}'`)
   }
 
   return matchedMockDispatches[0]
@@ -358,6 +357,5 @@ module.exports = {
   buildMockDispatch,
   checkNetConnect,
   buildMockOptions,
-  getHeaderByName,
-  buildHeadersFromArray
+  getHeaderByName
 }

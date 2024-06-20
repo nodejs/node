@@ -17,7 +17,7 @@ class TstNode {
   /** @type {number} */
   code
   /**
-   * @param {string} key
+   * @param {Uint8Array} key
    * @param {any} value
    * @param {number} index
    */
@@ -25,11 +25,7 @@ class TstNode {
     if (index === undefined || index >= key.length) {
       throw new TypeError('Unreachable')
     }
-    const code = this.code = key.charCodeAt(index)
-    // check code is ascii string
-    if (code > 0x7F) {
-      throw new TypeError('key must be ascii string')
-    }
+    this.code = key[index]
     if (key.length !== ++index) {
       this.middle = new TstNode(key, value, index)
     } else {
@@ -38,45 +34,33 @@ class TstNode {
   }
 
   /**
-   * @param {string} key
+   * @param {Uint8Array} key
    * @param {any} value
+   * @param {number} index
    */
-  add (key, value) {
-    const length = key.length
-    if (length === 0) {
+  add (key, value, index) {
+    if (index === undefined || index >= key.length) {
       throw new TypeError('Unreachable')
     }
-    let index = 0
-    let node = this
-    while (true) {
-      const code = key.charCodeAt(index)
-      // check code is ascii string
-      if (code > 0x7F) {
-        throw new TypeError('key must be ascii string')
-      }
-      if (node.code === code) {
-        if (length === ++index) {
-          node.value = value
-          break
-        } else if (node.middle !== null) {
-          node = node.middle
-        } else {
-          node.middle = new TstNode(key, value, index)
-          break
-        }
-      } else if (node.code < code) {
-        if (node.left !== null) {
-          node = node.left
-        } else {
-          node.left = new TstNode(key, value, index)
-          break
-        }
-      } else if (node.right !== null) {
-        node = node.right
+    const code = key[index]
+    if (this.code === code) {
+      if (key.length === ++index) {
+        this.value = value
+      } else if (this.middle !== null) {
+        this.middle.add(key, value, index)
       } else {
-        node.right = new TstNode(key, value, index)
-        break
+        this.middle = new TstNode(key, value, index)
       }
+    } else if (this.code < code) {
+      if (this.left !== null) {
+        this.left.add(key, value, index)
+      } else {
+        this.left = new TstNode(key, value, index)
+      }
+    } else if (this.right !== null) {
+      this.right.add(key, value, index)
+    } else {
+      this.right = new TstNode(key, value, index)
     }
   }
 
@@ -91,10 +75,7 @@ class TstNode {
     while (node !== null && index < keylength) {
       let code = key[index]
       // A-Z
-      // First check if it is bigger than 0x5a.
-      // Lowercase letters have higher char codes than uppercase ones.
-      // Also we assume that headers will mostly contain lowercase characters.
-      if (code <= 0x5a && code >= 0x41) {
+      if (code >= 0x41 && code <= 0x5a) {
         // Lowercase for uppercase.
         code |= 32
       }
@@ -119,20 +100,19 @@ class TernarySearchTree {
   node = null
 
   /**
-   * @param {string} key
+   * @param {Uint8Array} key
    * @param {any} value
    * */
   insert (key, value) {
     if (this.node === null) {
       this.node = new TstNode(key, value, 0)
     } else {
-      this.node.add(key, value)
+      this.node.add(key, value, 0)
     }
   }
 
   /**
    * @param {Uint8Array} key
-   * @return {any}
    */
   lookup (key) {
     return this.node?.search(key)?.value ?? null
@@ -143,7 +123,7 @@ const tree = new TernarySearchTree()
 
 for (let i = 0; i < wellknownHeaderNames.length; ++i) {
   const key = headerNameLowerCasedRecord[wellknownHeaderNames[i]]
-  tree.insert(key, key)
+  tree.insert(Buffer.from(key), key)
 }
 
 module.exports = {
