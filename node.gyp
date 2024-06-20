@@ -19,6 +19,7 @@
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_sqlite%': 'false',
     'node_shared_uvwasi%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_use_openssl%': 'true',
@@ -546,7 +547,6 @@
 
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
-        'deps/sqlite/sqlite.gyp:sqlite',
       ],
 
       'msvs_settings': {

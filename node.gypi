@@ -220,6 +220,10 @@
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
     }],
 
+    [ 'node_shared_sqlite=="false"', {
+      'dependencies': [ 'deps/sqlite/sqlite.gyp:sqlite' ],
+    }],
+
     [ 'OS=="mac"', {
       # linking Corefoundation is needed since certain OSX debugging tools
       # like Instruments require it for some features
