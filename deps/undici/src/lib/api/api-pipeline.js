@@ -147,13 +147,11 @@ class PipelineHandler extends AsyncResource {
   onConnect (abort, context) {
     const { ret, res } = this
 
-    if (this.reason) {
-      abort(this.reason)
-      return
-    }
-
     assert(!res, 'pipeline cannot be retried')
-    assert(!ret.destroyed)
+
+    if (ret.destroyed) {
+      throw new RequestAbortedError()
+    }
 
     this.abort = abort
     this.context = context

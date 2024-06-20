@@ -90,7 +90,7 @@ class MockInterceptor {
     this[kContentLength] = false
   }
 
-  createMockScopeDispatchData ({ statusCode, data, responseOptions }) {
+  createMockScopeDispatchData (statusCode, data, responseOptions = {}) {
     const responseData = getResponseData(data)
     const contentLength = this[kContentLength] ? { 'content-length': responseData.length } : {}
     const headers = { ...this[kDefaultHeaders], ...contentLength, ...responseOptions.headers }
@@ -99,11 +99,14 @@ class MockInterceptor {
     return { statusCode, data, headers, trailers }
   }
 
-  validateReplyParameters (replyParameters) {
-    if (typeof replyParameters.statusCode === 'undefined') {
+  validateReplyParameters (statusCode, data, responseOptions) {
+    if (typeof statusCode === 'undefined') {
       throw new InvalidArgumentError('statusCode must be defined')
     }
-    if (typeof replyParameters.responseOptions !== 'object' || replyParameters.responseOptions === null) {
+    if (typeof data === 'undefined') {
+      throw new InvalidArgumentError('data must be defined')
+    }
+    if (typeof responseOptions !== 'object' || responseOptions === null) {
       throw new InvalidArgumentError('responseOptions must be an object')
     }
   }
@@ -111,28 +114,28 @@ class MockInterceptor {
   /**
    * Mock an undici request with a defined reply.
    */
-  reply (replyOptionsCallbackOrStatusCode) {
+  reply (replyData) {
     // Values of reply aren't available right now as they
     // can only be available when the reply callback is invoked.
-    if (typeof replyOptionsCallbackOrStatusCode === 'function') {
+    if (typeof replyData === 'function') {
       // We'll first wrap the provided callback in another function,
       // this function will properly resolve the data from the callback
       // when invoked.
       const wrappedDefaultsCallback = (opts) => {
         // Our reply options callback contains the parameter for statusCode, data and options.
-        const resolvedData = replyOptionsCallbackOrStatusCode(opts)
+        const resolvedData = replyData(opts)
 
         // Check if it is in the right format
-        if (typeof resolvedData !== 'object' || resolvedData === null) {
+        if (typeof resolvedData !== 'object') {
           throw new InvalidArgumentError('reply options callback must return an object')
         }
 
-        const replyParameters = { data: '', responseOptions: {}, ...resolvedData }
-        this.validateReplyParameters(replyParameters)
+        const { statusCode, data = '', responseOptions = {} } = resolvedData
+        this.validateReplyParameters(statusCode, data, responseOptions)
         // Since the values can be obtained immediately we return them
         // from this higher order function that will be resolved later.
         return {
-          ...this.createMockScopeDispatchData(replyParameters)
+          ...this.createMockScopeDispatchData(statusCode, data, responseOptions)
         }
       }
 
@@ -145,15 +148,11 @@ class MockInterceptor {
     // we should have 1-3 parameters. So we spread the arguments of
     // this function to obtain the parameters, since replyData will always
     // just be the statusCode.
-    const replyParameters = {
-      statusCode: replyOptionsCallbackOrStatusCode,
-      data: arguments[1] === undefined ? '' : arguments[1],
-      responseOptions: arguments[2] === undefined ? {} : arguments[2]
-    }
-    this.validateReplyParameters(replyParameters)
+    const [statusCode, data = '', responseOptions = {}] = [...arguments]
+    this.validateReplyParameters(statusCode, data, responseOptions)
 
     // Send in-already provided data like usual
-    const dispatchData = this.createMockScopeDispatchData(replyParameters)
+    const dispatchData = this.createMockScopeDispatchData(statusCode, data, responseOptions)
     const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], dispatchData)
     return new MockScope(newMockDispatch)
   }

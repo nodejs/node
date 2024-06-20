@@ -4,7 +4,7 @@ const { Writable } = require('node:stream')
 const { parserStates, opcodes, states, emptyBuffer, sentCloseFrameState } = require('./constants')
 const { kReadyState, kSentClose, kResponse, kReceivedClose } = require('./symbols')
 const { channels } = require('../../core/diagnostics')
-const { isValidStatusCode, failWebsocketConnection, websocketMessageReceived, utf8Decode } = require('./util')
+const { isValidStatusCode, failWebsocketConnection, websocketMessageReceived } = require('./util')
 const { WebsocketFrameSend } = require('./frame')
 
 // This code was influenced by ws released under the MIT license.
@@ -314,7 +314,8 @@ class ByteParser extends Writable {
     }
 
     try {
-      reason = utf8Decode(reason)
+      // TODO: optimize this
+      reason = new TextDecoder('utf-8', { fatal: true }).decode(reason)
     } catch {
       return null
     }

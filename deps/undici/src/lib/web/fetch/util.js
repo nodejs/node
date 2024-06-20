@@ -72,13 +72,14 @@ function responseLocationURL (response, requestFragment) {
  * @returns {boolean}
  */
 function isValidEncodedURL (url) {
-  for (let i = 0; i < url.length; ++i) {
-    const code = url.charCodeAt(i)
-
-    if (
-      code > 0x7E || // Non-US-ASCII + DEL
-      code < 0x20 // Control characters NUL - US
-    ) {
+  for (const c of url) {
+    const code = c.charCodeAt(0)
+    // Not used in US-ASCII
+    if (code >= 0x80) {
+      return false
+    }
+    // Control characters
+    if ((code >= 0x00 && code <= 0x1F) || code === 0x7F) {
       return false
     }
   }
@@ -158,15 +159,24 @@ const isValidHeaderName = isValidHTTPToken
 function isValidHeaderValue (potentialValue) {
   // - Has no leading or trailing HTTP tab or space bytes.
   // - Contains no 0x00 (NUL) or HTTP newline bytes.
-  return (
-    potentialValue[0] === '\t' ||
-    potentialValue[0] === ' ' ||
-    potentialValue[potentialValue.length - 1] === '\t' ||
-    potentialValue[potentialValue.length - 1] === ' ' ||
-    potentialValue.includes('\n') ||
+  if (
+    potentialValue.startsWith('\t') ||
+    potentialValue.startsWith(' ') ||
+    potentialValue.endsWith('\t') ||
+    potentialValue.endsWith(' ')
+  ) {
+    return false
+  }
+
+  if (
+    potentialValue.includes('\0') ||
     potentialValue.includes('\r') ||
-    potentialValue.includes('\0')
-  ) === false
+    potentialValue.includes('\n')
+  ) {
+    return false
+  }
+
+  return true
 }
 
 // https://w3c.github.io/webappsec-referrer-policy/#set-requests-referrer-policy-on-redirect
@@ -1158,21 +1168,13 @@ function urlIsLocal (url) {
 
 /**
  * @param {string|URL} url
- * @returns {boolean}
  */
 function urlHasHttpsScheme (url) {
-  return (
-    (
-      typeof url === 'string' &&
-      url[5] === ':' &&
-      url[0] === 'h' &&
-      url[1] === 't' &&
-      url[2] === 't' &&
-      url[3] === 'p' &&
-      url[4] === 's'
-    ) ||
-    url.protocol === 'https:'
-  )
+  if (typeof url === 'string') {
+    return url.startsWith('https:')
+  }
+
+  return url.protocol === 'https:'
 }
 
 /**
@@ -1564,7 +1566,6 @@ function utf8DecodeBytes (buffer) {
 module.exports = {
   isAborted,
   isCancelled,
-  isValidEncodedURL,
   createDeferredPromise,
   ReadableStreamFrom,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,

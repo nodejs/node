@@ -1,6 +1,6 @@
 'use strict'
 
-const { InvalidArgumentError, SocketError } = require('../core/errors')
+const { InvalidArgumentError, RequestAbortedError, SocketError } = require('../core/errors')
 const { AsyncResource } = require('node:async_hooks')
 const util = require('../core/util')
 const { addSignal, removeSignal } = require('./abort-signal')
@@ -34,12 +34,9 @@ class UpgradeHandler extends AsyncResource {
   }
 
   onConnect (abort, context) {
-    if (this.reason) {
-      abort(this.reason)
-      return
+    if (!this.callback) {
+      throw new RequestAbortedError()
     }
-
-    assert(this.callback)
 
     this.abort = abort
     this.context = null

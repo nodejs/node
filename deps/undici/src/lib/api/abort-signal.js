@@ -8,14 +8,11 @@ function abort (self) {
   if (self.abort) {
     self.abort(self[kSignal]?.reason)
   } else {
-    self.reason = self[kSignal]?.reason ?? new RequestAbortedError()
+    self.onError(self[kSignal]?.reason ?? new RequestAbortedError())
   }
-  removeSignal(self)
 }
 
 function addSignal (self, signal) {
-  self.reason = null
-
   self[kSignal] = null
   self[kListener] = null
 
