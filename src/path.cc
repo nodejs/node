@@ -314,4 +314,17 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
 #endif
 }
 
+// Reverse the logic applied by path.toNamespacedPath() to create a
+// namespace-prefixed path.
+void FromNamespacedPath(std::string* path) {
+#ifdef _WIN32
+  if (path->starts_with("\\\\?\\UNC\\")) {
+    *path = path->substr(8);
+    path->insert(0, "\\\\");
+  } else if (path->starts_with("\\\\?\\")) {
+    *path = path->substr(4);
+  }
+#endif
+}
+
 }  // namespace node
