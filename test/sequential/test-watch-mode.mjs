@@ -29,9 +29,10 @@ function createTmpFile(content = 'console.log("running");', ext = '.js', basenam
   writeFileSync(file, content);
   return file;
 }
+
 function createPackageJSON(content = {}, basename = tmpdir.path) {
   const file = path.join(basename, 'package.json');
-  console.error(file)
+  console.error(file);
   writeFileSync(file, JSON.stringify(content, null, 2));
   return file;
 }
@@ -557,9 +558,9 @@ console.log(values.random);
   });
 
   it('should run when `--watch --run`', async () => {
-    const script = Math.random()
-    const output = Math.random()
-    const command = `echo ${output}`
+    const script = Math.random();
+    const output = Math.random();
+    const command = `echo ${output}`;
     const file = createPackageJSON({
       scripts: {
         [script]: command
