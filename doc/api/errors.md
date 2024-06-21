@@ -2363,7 +2363,7 @@ cannot be imported through the package resolution, unless using an absolute URL.
 
 ### `ERR_PACKAGE_SCRIPT_MISSING`
 
-The `package.json` [`"script"`][] field does not contain the requested script.
+The `package.json` "scripts" field does not contain the requested script.
 In order to use `--run` ensure that the contents are an object containing a
 `"scripts"` field that contains the missing script name as a field.
 
