@@ -1,6 +1,5 @@
 {
   'variables': {
-    'v8_enable_i18n_support%': 1,
     'nbytes_sources': [ 'nbytes.cpp' ],
   },
   'targets': [
