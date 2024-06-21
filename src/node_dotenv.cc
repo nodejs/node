@@ -135,8 +135,7 @@ void Dotenv::ParseContent(const std::string_view input) {
     }
 
     // Remove export prefix from key
-    auto have_export = key.compare(0, 7, "export ") == 0;
-    if (have_export) {
+    if (key.starts_with("export ")) {
       key.remove_prefix(7);
     }
 
