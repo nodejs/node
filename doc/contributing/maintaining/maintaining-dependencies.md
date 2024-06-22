@@ -20,12 +20,12 @@ This a list of all the dependencies:
 * [icu-small][]
 * [libuv][]
 * [llhttp][]
-* [minimatch][]
 * [nghttp2][]
 * [nghttp3][]
 * [ngtcp2][]
 * [npm][]
 * [openssl][]
+* [picomatch][]
 * [postject][]
 * [simdjson][]
 * [simdutf][]
@@ -224,11 +224,6 @@ The [llhttp](https://github.com/nodejs/llhttp) dependency is
 the http parser used by Node.js.
 See [maintaining-http][] for more information.
 
-### minimatch
-
-The [minimatch](https://github.com/isaacs/minimatch) dependency is a
-minimal matching utility.
-
 ### nghttp2
 
 The [nghttp2](https://github.com/nghttp2/nghttp2) dependency is a C library
@@ -286,6 +281,11 @@ Node.js currently uses the quictls/openssl fork, which closely tracks
 the main openssl/openssl releases with the addition of APIs to support
 the QUIC protocol.
 See [maintaining-openssl][] for more information.
+
+### picomatch
+
+The [picomatch](https://github.com/micromatch/picomatch) dependency is a
+minimal matching utility.
 
 ### postject
 
@@ -353,12 +353,12 @@ performance improvements not currently available in standard zlib.
 [maintaining-icu]: ./maintaining-icu.md
 [maintaining-openssl]: ./maintaining-openssl.md
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
-[minimatch]: #minimatch
 [nghttp2]: #nghttp2
 [nghttp3]: #nghttp3
 [ngtcp2]: #ngtcp2
 [npm]: #npm
 [openssl]: #openssl
+[picomatch]: #picomatch
 [postject]: #postject
 [simdjson]: #simdjson
 [simdutf]: #simdutf
