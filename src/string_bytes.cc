@@ -450,7 +450,9 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
 
     case BASE64URL:
     case BASE64:
-      data_size = str->Length() % 4 <= 1 ? str->Length() / 4 * 3 : str->Length() / 4 * 3 + (str->Length() % 4)  -  1;
+      data_size = str->Length() % 4 <= 1
+                      ? str->Length() / 4 * 3
+                      : str->Length() / 4 * 3 + (str->Length() % 4) - 1;
       break;
 
     case HEX:
