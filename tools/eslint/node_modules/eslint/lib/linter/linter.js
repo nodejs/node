@@ -17,7 +17,6 @@ const
     espree = require("espree"),
     merge = require("lodash.merge"),
     pkg = require("../../package.json"),
-    astUtils = require("../shared/ast-utils"),
     {
         directivesPattern
     } = require("../shared/directives"),
@@ -29,7 +28,7 @@ const
         }
     } = require("@eslint/eslintrc/universal"),
     Traverser = require("../shared/traverser"),
-    { SourceCode } = require("../source-code"),
+    { SourceCode } = require("../languages/js/source-code"),
     applyDisableDirectives = require("./apply-disable-directives"),
     ConfigCommentParser = require("./config-comment-parser"),
     NodeEventGenerator = require("./node-event-generator"),
@@ -45,6 +44,7 @@ const { startTime, endTime } = require("../shared/stats");
 const { RuleValidator } = require("../config/rule-validator");
 const { assertIsRuleSeverity } = require("../config/flat-config-schema");
 const { normalizeSeverityToString } = require("../shared/severity");
+const jslang = require("../languages/js");
 const debug = require("debug")("eslint:linter");
 const MAX_AUTOFIX_PASSES = 10;
 const DEFAULT_PARSER_NAME = "espree";
@@ -53,6 +53,7 @@ const commentParser = new ConfigCommentParser();
 const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } };
 const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 const { LATEST_ECMA_VERSION } = require("../../conf/ecma-version");
+const { VFile } = require("./vfile");
 const STEP_KIND_VISIT = 1;
 const STEP_KIND_CALL = 2;
 
@@ -240,12 +241,42 @@ function createMissingRuleMessage(ruleId) {
 }
 
 /**
+ * Updates a given location based on the language offsets. This allows us to
+ * change 0-based locations to 1-based locations. We always want ESLint
+ * reporting lines and columns starting from 1.
+ * @param {Object} location The location to update.
+ * @param {number} location.line The starting line number.
+ * @param {number} location.column The starting column number.
+ * @param {number} [location.endLine] The ending line number.
+ * @param {number} [location.endColumn] The ending column number.
+ * @param {Language} language The language to use to adjust the location information.
+ * @returns {Object} The updated location.
+ */
+function updateLocationInformation({ line, column, endLine, endColumn }, language) {
+
+    const columnOffset = language.columnStart === 1 ? 0 : 1;
+    const lineOffset = language.lineStart === 1 ? 0 : 1;
+
+    // calculate separately to account for undefined
+    const finalEndLine = endLine === void 0 ? endLine : endLine + lineOffset;
+    const finalEndColumn = endColumn === void 0 ? endColumn : endColumn + columnOffset;
+
+    return {
+        line: line + lineOffset,
+        column: column + columnOffset,
+        endLine: finalEndLine,
+        endColumn: finalEndColumn
+    };
+}
+
+/**
  * creates a linting problem
  * @param {Object} options to create linting error
  * @param {string} [options.ruleId] the ruleId to report
  * @param {Object} [options.loc] the loc to report
  * @param {string} [options.message] the error message to report
  * @param {string} [options.severity] the error message to report
+ * @param {Language} [options.language] the language to use to adjust the location information
  * @returns {LintMessage} created problem, returns a missing-rule problem if only provided ruleId.
  * @private
  */
@@ -254,16 +285,24 @@ function createLintingProblem(options) {
         ruleId = null,
         loc = DEFAULT_ERROR_LOC,
         message = createMissingRuleMessage(options.ruleId),
-        severity = 2
+        severity = 2,
+
+        // fallback for eslintrc mode
+        language = {
+            columnStart: 0,
+            lineStart: 1
+        }
     } = options;
 
     return {
         ruleId,
         message,
-        line: loc.start.line,
-        column: loc.start.column + 1,
-        endLine: loc.end.line,
-        endColumn: loc.end.column + 1,
+        ...updateLocationInformation({
+            line: loc.start.line,
+            column: loc.start.column,
+            endLine: loc.end.line,
+            endColumn: loc.end.column
+        }, language),
         severity,
         nodeType: null
     };
@@ -541,10 +580,11 @@ function getDirectiveComments(sourceCode, ruleMapper, warnInlineConfig, config) 
  * Parses comments in file to extract disable directives.
  * @param {SourceCode} sourceCode The SourceCode object to get comments from.
  * @param {function(string): {create: Function}} ruleMapper A map from rule IDs to defined rules
+ * @param {Language} language The language to use to adjust the location information
  * @returns {{problems: LintMessage[], disableDirectives: DisableDirective[]}}
  * A collection of the directive comments that were found, along with any problems that occurred when parsing
  */
-function getDirectiveCommentsForFlatConfig(sourceCode, ruleMapper) {
+function getDirectiveCommentsForFlatConfig(sourceCode, ruleMapper, language) {
     const disableDirectives = [];
     const problems = [];
 
@@ -553,7 +593,10 @@ function getDirectiveCommentsForFlatConfig(sourceCode, ruleMapper) {
         problems: directivesProblems
     } = sourceCode.getDisableDirectives();
 
-    problems.push(...directivesProblems.map(createLintingProblem));
+    problems.push(...directivesProblems.map(directiveProblem => createLintingProblem({
+        ...directiveProblem,
+        language
+    })));
 
     directivesSources.forEach(directive => {
         const { directives, directiveProblems } = createDisableDirectives(directive, ruleMapper);
@@ -782,24 +825,6 @@ function resolveGlobals(providedGlobals, enabledEnvironments) {
 }
 
 /**
- * Strips Unicode BOM from a given text.
- * @param {string} text A text to strip.
- * @returns {string} The stripped text.
- */
-function stripUnicodeBOM(text) {
-
-    /*
-     * Check Unicode BOM.
-     * In JavaScript, string data is stored as UTF-16, so BOM is 0xFEFF.
-     * http://www.ecma-international.org/ecma-262/6.0/#sec-unicode-format-control-characters
-     */
-    if (text.charCodeAt(0) === 0xFEFF) {
-        return text.slice(1);
-    }
-    return text;
-}
-
-/**
  * Store time measurements in map
  * @param {number} time Time measurement
  * @param {Object} timeOpts Options relating which time was measured
@@ -866,93 +891,40 @@ function analyzeScope(ast, languageOptions, visitorKeys) {
 }
 
 /**
- * Parses text into an AST. Moved out here because the try-catch prevents
+ * Parses file into an AST. Moved out here because the try-catch prevents
  * optimization of functions, so it's best to keep the try-catch as isolated
  * as possible
- * @param {string} text The text to parse.
+ * @param {VFile} file The file to parse.
+ * @param {Language} language The language to use.
  * @param {LanguageOptions} languageOptions Options to pass to the parser
- * @param {string} filePath The path to the file being parsed.
  * @returns {{success: false, error: LintMessage}|{success: true, sourceCode: SourceCode}}
  * An object containing the AST and parser services if parsing was successful, or the error if parsing failed
  * @private
  */
-function parse(text, languageOptions, filePath) {
-    const textToParse = stripUnicodeBOM(text).replace(astUtils.shebangPattern, (match, captured) => `//${captured}`);
-    const { ecmaVersion, sourceType, parser } = languageOptions;
-    const parserOptions = Object.assign(
-        { ecmaVersion, sourceType },
-        languageOptions.parserOptions,
-        {
-            loc: true,
-            range: true,
-            raw: true,
-            tokens: true,
-            comment: true,
-            eslintVisitorKeys: true,
-            eslintScopeManager: true,
-            filePath
-        }
-    );
+function parse(file, language, languageOptions) {
 
-    /*
-     * Check for parsing errors first. If there's a parsing error, nothing
-     * else can happen. However, a parsing error does not throw an error
-     * from this method - it's just considered a fatal error message, a
-     * problem that ESLint identified just like any other.
-     */
-    try {
-        debug("Parsing:", filePath);
-        const parseResult = (typeof parser.parseForESLint === "function")
-            ? parser.parseForESLint(textToParse, parserOptions)
-            : { ast: parser.parse(textToParse, parserOptions) };
+    const result = language.parse(file, { languageOptions });
 
-        debug("Parsing successful:", filePath);
-        const ast = parseResult.ast;
-        const parserServices = parseResult.services || {};
-        const visitorKeys = parseResult.visitorKeys || evk.KEYS;
-
-        debug("Scope analysis:", filePath);
-        const scopeManager = parseResult.scopeManager || analyzeScope(ast, languageOptions, visitorKeys);
-
-        debug("Scope analysis successful:", filePath);
-
+    if (result.ok) {
         return {
             success: true,
-
-            /*
-             * Save all values that `parseForESLint()` returned.
-             * If a `SourceCode` object is given as the first parameter instead of source code text,
-             * linter skips the parsing process and reuses the source code object.
-             * In that case, linter needs all the values that `parseForESLint()` returned.
-             */
-            sourceCode: new SourceCode({
-                text,
-                ast,
-                parserServices,
-                scopeManager,
-                visitorKeys
-            })
-        };
-    } catch (ex) {
-
-        // If the message includes a leading line number, strip it:
-        const message = `Parsing error: ${ex.message.replace(/^line \d+:/iu, "").trim()}`;
-
-        debug("%s\n%s", message, ex.stack);
-
-        return {
-            success: false,
-            error: {
-                ruleId: null,
-                fatal: true,
-                severity: 2,
-                message,
-                line: ex.lineNumber,
-                column: ex.column,
-                nodeType: null
-            }
+            sourceCode: language.createSourceCode(file, result, { languageOptions })
         };
     }
+
+    // if we made it to here there was an error
+    return {
+        success: false,
+        errors: result.errors.map(error => ({
+            ruleId: null,
+            nodeType: null,
+            fatal: true,
+            severity: 2,
+            message: error.message,
+            line: error.line,
+            column: error.column
+        }))
+    };
 }
 
 /**
@@ -983,6 +955,7 @@ function createRuleListeners(rule, ruleContext) {
  * @param {Object} configuredRules The rules configuration
  * @param {function(string): Rule} ruleMapper A mapper function from rule names to rules
  * @param {string | undefined} parserName The name of the parser in the config
+ * @param {Language} language The language object used for parsing.
  * @param {LanguageOptions} languageOptions The options for parsing the code.
  * @param {Object} settings The settings that were enabled in the config
  * @param {string} filename The reported filename of the code
@@ -995,8 +968,11 @@ function createRuleListeners(rule, ruleContext) {
  * @returns {LintMessage[]} An array of reported problems
  * @throws {Error} If traversal into a node fails.
  */
-function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageOptions, settings, filename, disableFixes, cwd, physicalFilename, ruleFilter,
-    stats, slots) {
+function runRules(
+    sourceCode, configuredRules, ruleMapper, parserName, language, languageOptions,
+    settings, filename, disableFixes, cwd, physicalFilename, ruleFilter,
+    stats, slots
+) {
     const emitter = createEmitter();
 
     // must happen first to assign all node.parent properties
@@ -1043,7 +1019,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
         const rule = ruleMapper(ruleId);
 
         if (!rule) {
-            lintingProblems.push(createLintingProblem({ ruleId }));
+            lintingProblems.push(createLintingProblem({ ruleId, language }));
             return;
         }
 
@@ -1073,7 +1049,8 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
                                 severity,
                                 sourceCode,
                                 messageIds,
-                                disableFixes
+                                disableFixes,
+                                language
                             });
                         }
                         const problem = reportTranslator(...args);
@@ -1144,7 +1121,12 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
         });
     });
 
-    const eventGenerator = new NodeEventGenerator(emitter, { visitorKeys: sourceCode.visitorKeys, fallback: Traverser.getKeys });
+    const eventGenerator = new NodeEventGenerator(emitter, {
+        visitorKeys: sourceCode.visitorKeys,
+        fallback: Traverser.getKeys,
+        matchClass: language.matchesSelectorClass,
+        nodeTypeKey: language.nodeTypeKey
+    });
 
     for (const step of eventQueue) {
         switch (step.kind) {
@@ -1360,6 +1342,9 @@ class Linter {
             parser,
             parserOptions
         });
+        const file = new VFile(options.filename, text, {
+            physicalPath: providedOptions.physicalFilename
+        });
 
         if (!slots.lastSourceCode) {
             let t;
@@ -1369,9 +1354,9 @@ class Linter {
             }
 
             const parseResult = parse(
-                text,
-                languageOptions,
-                options.filename
+                file,
+                jslang,
+                languageOptions
             );
 
             if (options.stats) {
@@ -1382,7 +1367,7 @@ class Linter {
             }
 
             if (!parseResult.success) {
-                return [parseResult.error];
+                return parseResult.errors;
             }
 
             slots.lastSourceCode = parseResult.sourceCode;
@@ -1396,6 +1381,7 @@ class Linter {
                 slots.lastSourceCode = new SourceCode({
                     text: slots.lastSourceCode.text,
                     ast: slots.lastSourceCode.ast,
+                    hasBOM: slots.lastSourceCode.hasBOM,
                     parserServices: slots.lastSourceCode.parserServices,
                     visitorKeys: slots.lastSourceCode.visitorKeys,
                     scopeManager: analyzeScope(slots.lastSourceCode.ast, languageOptions)
@@ -1408,7 +1394,6 @@ class Linter {
             ? getDirectiveComments(sourceCode, ruleId => getRule(slots, ruleId), options.warnInlineConfig, config)
             : { configuredRules: {}, enabledGlobals: {}, exportedVariables: {}, problems: [], disableDirectives: [] };
 
-        // augment global scope with declared global variables
         addDeclaredGlobals(
             sourceCode.scopeManager.scopes[0],
             configuredGlobals,
@@ -1425,6 +1410,7 @@ class Linter {
                 configuredRules,
                 ruleId => getRule(slots, ruleId),
                 parserName,
+                jslang,
                 languageOptions,
                 settings,
                 options.filename,
@@ -1457,6 +1443,7 @@ class Linter {
         }
 
         return applyDisableDirectives({
+            language: jslang,
             directives: commentDirectives.disableDirectives,
             disableFixes: options.disableFixes,
             problems: lintingProblems
@@ -1659,6 +1646,9 @@ class Linter {
         }
 
         const settings = config.settings || {};
+        const file = new VFile(options.filename, text, {
+            physicalPath: providedOptions.physicalFilename
+        });
 
         if (!slots.lastSourceCode) {
             let t;
@@ -1668,9 +1658,9 @@ class Linter {
             }
 
             const parseResult = parse(
-                text,
-                languageOptions,
-                options.filename
+                file,
+                config.language,
+                languageOptions
             );
 
             if (options.stats) {
@@ -1680,7 +1670,7 @@ class Linter {
             }
 
             if (!parseResult.success) {
-                return [parseResult.error];
+                return parseResult.errors;
             }
 
             slots.lastSourceCode = parseResult.sourceCode;
@@ -1694,6 +1684,7 @@ class Linter {
                 slots.lastSourceCode = new SourceCode({
                     text: slots.lastSourceCode.text,
                     ast: slots.lastSourceCode.ast,
+                    hasBOM: slots.lastSourceCode.hasBOM,
                     parserServices: slots.lastSourceCode.parserServices,
                     visitorKeys: slots.lastSourceCode.visitorKeys,
                     scopeManager: analyzeScope(slots.lastSourceCode.ast, languageOptions)
@@ -1730,7 +1721,8 @@ class Linter {
                         ruleId: null,
                         message: `'${sourceCode.text.slice(node.range[0], node.range[1])}' has no effect because you have 'noInlineConfig' setting in ${options.warnInlineConfig}.`,
                         loc: node.loc,
-                        severity: 1
+                        severity: 1,
+                        language: config.language
                     }));
 
                 });
@@ -1739,7 +1731,7 @@ class Linter {
 
                 inlineConfigProblems.push(
                     ...inlineConfigResult.problems
-                        .map(createLintingProblem)
+                        .map(problem => createLintingProblem({ ...problem, language: config.language }))
                         .map(problem => {
                             problem.fatal = true;
                             return problem;
@@ -1756,14 +1748,19 @@ class Linter {
                         const ruleValue = inlineConfig.rules[ruleId];
 
                         if (!rule) {
-                            inlineConfigProblems.push(createLintingProblem({ ruleId, loc: node.loc }));
+                            inlineConfigProblems.push(createLintingProblem({
+                                ruleId,
+                                loc: node.loc,
+                                language: config.language
+                            }));
                             return;
                         }
 
                         if (Object.hasOwn(mergedInlineConfig.rules, ruleId)) {
                             inlineConfigProblems.push(createLintingProblem({
                                 message: `Rule "${ruleId}" is already configured by another configuration comment in the preceding code. This configuration is ignored.`,
-                                loc: node.loc
+                                loc: node.loc,
+                                language: config.language
                             }));
                             return;
                         }
@@ -1855,7 +1852,8 @@ class Linter {
                             inlineConfigProblems.push(createLintingProblem({
                                 ruleId,
                                 message: `Inline configuration for rule "${ruleId}" is invalid:\n\t${baseMessage}\n`,
-                                loc: node.loc
+                                loc: node.loc,
+                                language: config.language
                             }));
                         }
                     });
@@ -1866,7 +1864,8 @@ class Linter {
         const commentDirectives = options.allowInlineConfig && !options.warnInlineConfig
             ? getDirectiveCommentsForFlatConfig(
                 sourceCode,
-                ruleId => getRuleFromConfig(ruleId, config)
+                ruleId => getRuleFromConfig(ruleId, config),
+                config.language
             )
             : { problems: [], disableDirectives: [] };
 
@@ -1882,6 +1881,7 @@ class Linter {
                 configuredRules,
                 ruleId => getRuleFromConfig(ruleId, config),
                 void 0,
+                config.language,
                 languageOptions,
                 settings,
                 options.filename,
@@ -1915,6 +1915,7 @@ class Linter {
         }
 
         return applyDisableDirectives({
+            language: config.language,
             directives: commentDirectives.disableDirectives,
             disableFixes: options.disableFixes,
             problems: lintingProblems

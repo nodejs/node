@@ -240,15 +240,22 @@ function mapSuggestions(descriptor, sourceCode, messages) {
  * @param {{start: SourceLocation, end: (SourceLocation|null)}} options.loc Start and end location
  * @param {{text: string, range: (number[]|null)}} options.fix The fix object
  * @param {Array<{text: string, range: (number[]|null)}>} options.suggestions The array of suggestions objects
+ * @param {Language} [options.language] The language to use to adjust line and column offsets.
  * @returns {LintMessage} Information about the report
  */
 function createProblem(options) {
+    const { language } = options;
+
+    // calculate offsets based on the language in use
+    const columnOffset = language.columnStart === 1 ? 0 : 1;
+    const lineOffset = language.lineStart === 1 ? 0 : 1;
+
     const problem = {
         ruleId: options.ruleId,
         severity: options.severity,
         message: options.message,
-        line: options.loc.start.line,
-        column: options.loc.start.column + 1,
+        line: options.loc.start.line + lineOffset,
+        column: options.loc.start.column + columnOffset,
         nodeType: options.node && options.node.type || null
     };
 
@@ -261,8 +268,8 @@ function createProblem(options) {
     }
 
     if (options.loc.end) {
-        problem.endLine = options.loc.end.line;
-        problem.endColumn = options.loc.end.column + 1;
+        problem.endLine = options.loc.end.line + lineOffset;
+        problem.endColumn = options.loc.end.column + columnOffset;
     }
 
     if (options.fix) {
@@ -313,8 +320,7 @@ function validateSuggestions(suggest, messages) {
 /**
  * Returns a function that converts the arguments of a `context.report` call from a rule into a reported
  * problem for the Node.js API.
- * @param {{ruleId: string, severity: number, sourceCode: SourceCode, messageIds: Object, disableFixes: boolean}} metadata Metadata for the reported problem
- * @param {SourceCode} sourceCode The `SourceCode` instance for the text being linted
+ * @param {{ruleId: string, severity: number, sourceCode: SourceCode, messageIds: Object, disableFixes: boolean, language:Language}} metadata Metadata for the reported problem
  * @returns {function(...args): LintMessage} Function that returns information about the report
  */
 
@@ -363,7 +369,8 @@ module.exports = function createReportTranslator(metadata) {
             messageId: descriptor.messageId,
             loc: normalizeReportLoc(descriptor),
             fix: metadata.disableFixes ? null : normalizeFixes(descriptor, metadata.sourceCode),
-            suggestions: metadata.disableFixes ? [] : mapSuggestions(descriptor, metadata.sourceCode, messages)
+            suggestions: metadata.disableFixes ? [] : mapSuggestions(descriptor, metadata.sourceCode, messages),
+            language: metadata.language
         });
     };
 };

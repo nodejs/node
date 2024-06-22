@@ -11,18 +11,16 @@
 const
     { isCommentToken } = require("@eslint-community/eslint-utils"),
     TokenStore = require("./token-store"),
-    astUtils = require("../shared/ast-utils"),
-    Traverser = require("../shared/traverser"),
-    globals = require("../../conf/globals"),
+    astUtils = require("../../../shared/ast-utils"),
+    Traverser = require("../../../shared/traverser"),
+    globals = require("../../../../conf/globals"),
     {
         directivesPattern
-    } = require("../shared/directives"),
+    } = require("../../../shared/directives"),
 
-    /* eslint-disable n/no-restricted-require -- Should eventually be moved into SourceCode. */
-    CodePathAnalyzer = require("../linter/code-path-analysis/code-path-analyzer"),
-    createEmitter = require("../linter/safe-emitter"),
-    ConfigCommentParser = require("../linter/config-comment-parser"),
-    /* eslint-enable n/no-restricted-require -- Should eventually be moved into SourceCode. */
+    CodePathAnalyzer = require("../../../linter/code-path-analysis/code-path-analyzer"),
+    createEmitter = require("../../../linter/safe-emitter"),
+    ConfigCommentParser = require("../../../linter/config-comment-parser"),
 
     eslintScope = require("eslint-scope");
 
@@ -441,24 +439,28 @@ class SourceCode extends TokenStore {
     #steps;
 
     /**
+     * Creates a new instance.
      * @param {string|Object} textOrConfig The source code text or config object.
      * @param {string} textOrConfig.text The source code text.
      * @param {ASTNode} textOrConfig.ast The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
+     * @param {boolean} textOrConfig.hasBOM Indicates if the text has a Unicode BOM.
      * @param {Object|null} textOrConfig.parserServices The parser services.
      * @param {ScopeManager|null} textOrConfig.scopeManager The scope of this source code.
      * @param {Object|null} textOrConfig.visitorKeys The visitor keys to traverse AST.
      * @param {ASTNode} [astIfNoConfig] The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
      */
     constructor(textOrConfig, astIfNoConfig) {
-        let text, ast, parserServices, scopeManager, visitorKeys;
+        let text, hasBOM, ast, parserServices, scopeManager, visitorKeys;
 
-        // Process overloading.
+        // Process overloading of arguments
         if (typeof textOrConfig === "string") {
             text = textOrConfig;
             ast = astIfNoConfig;
+            hasBOM = false;
         } else if (typeof textOrConfig === "object" && textOrConfig !== null) {
             text = textOrConfig.text;
             ast = textOrConfig.ast;
+            hasBOM = textOrConfig.hasBOM;
             parserServices = textOrConfig.parserServices;
             scopeManager = textOrConfig.scopeManager;
             visitorKeys = textOrConfig.visitorKeys;
@@ -477,17 +479,38 @@ class SourceCode extends TokenStore {
         ]);
 
         /**
+         * Indicates if the AST is ESTree compatible.
+         * @type {boolean}
+         */
+        this.isESTree = ast.type === "Program";
+
+        /*
+         * Backwards compatibility for BOM handling.
+         *
+         * The `hasBOM` property has been available on the `SourceCode` object
+         * for a long time and is used to indicate if the source contains a BOM.
+         * The linter strips the BOM and just passes the `hasBOM` property to the
+         * `SourceCode` constructor to make it easier for languages to not deal with
+         * the BOM.
+         *
+         * However, the text passed in to the `SourceCode` constructor might still
+         * have a BOM if the constructor is called outside of the linter, so we still
+         * need to check for the BOM in the text.
+         */
+        const textHasBOM = text.charCodeAt(0) === 0xFEFF;
+
+        /**
          * The flag to indicate that the source code has Unicode BOM.
          * @type {boolean}
          */
-        this.hasBOM = (text.charCodeAt(0) === 0xFEFF);
+        this.hasBOM = textHasBOM || !!hasBOM;
 
         /**
          * The original text source code.
          * BOM was stripped from this text.
          * @type {string}
          */
-        this.text = (this.hasBOM ? text.slice(1) : text);
+        this.text = (textHasBOM ? text.slice(1) : text);
 
         /**
          * The parsed AST for the source code.
@@ -1164,12 +1187,11 @@ class SourceCode extends TokenStore {
      */
     finalize() {
 
-        // Step 1: ensure that all of the necessary variables are up to date
         const varsCache = this[caches].get("vars");
-        const globalScope = this.scopeManager.scopes[0];
         const configGlobals = varsCache.get("configGlobals");
         const inlineGlobals = varsCache.get("inlineGlobals");
         const exportedVariables = varsCache.get("exportedVariables");
+        const globalScope = this.scopeManager.scopes[0];
 
         addDeclaredGlobals(globalScope, configGlobals, inlineGlobals);
 
@@ -1227,9 +1249,7 @@ class SourceCode extends TokenStore {
          * Program node at the top level. This is not a perfect heuristic, but it
          * is good enough for now.
          */
-        const isESTree = this.ast.type === "Program";
-
-        if (isESTree) {
+        if (this.isESTree) {
             analyzer = new CodePathAnalyzer(analyzer);
 
             CODE_PATH_EVENTS.forEach(eventName => {
