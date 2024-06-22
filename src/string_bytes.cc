@@ -493,9 +493,9 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
 
     case BASE64URL:
     case BASE64:
-      return Just<size_t>(str->Length() % 4 <= 1
-                      ? str->Length() / 4 * 3
-                      : str->Length() / 4 * 3 + (str->Length() % 4) - 1);
+      return Just<size_t>(str->Length() % 4 <= 1 ? str->Length() / 4 * 3
+                                                 : str->Length() / 4 * 3 +
+                                                       (str->Length() % 4) - 1);
 
     case HEX:
       return Just<size_t>(str->Length() / 2);
