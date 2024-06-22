@@ -25,9 +25,11 @@
     "mocha": "mocha --reporter dot",
     "test": "npm run lint && npm run mocha",
     "test:ci": "npm run test:cover",
-    "test:cover": "nyc npm run mocha"
+    "test:cover": "nyc npm run mocha",
+    "node-build": "esbuild ./index.js --bundle --platform=node --outfile=index.js --allow-overwrite"
   },
   "devDependencies": {
+    "esbuild": "^0.21.5",
     "eslint": "^8.57.0",
     "fill-range": "^7.0.1",
     "gulp-format-md": "^2.0.0",

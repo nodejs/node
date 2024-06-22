@@ -46,11 +46,21 @@ PICOMATCH_TGZ="picomatch-$NEW_VERSION.tgz"
 
 log_and_verify_sha256sum "picomatch" "$PICOMATCH_TGZ"
 
-rm -rf "$DEPS_DIR/picomatch"
+rm -r "$DEPS_DIR/picomatch"/*
 
 tar -xf "$PICOMATCH_TGZ"
 
-mv package "$DEPS_DIR/picomatch"
+cd package
+
+"$NODE" "$NPM" install esbuild --save-dev
+
+"$NODE" "$NPM" pkg set scripts.node-build="esbuild ./index.js --bundle --platform=node --outfile=index.js --allow-overwrite"
+
+"$NODE" "$NPM" run node-build
+
+rm -rf node_modules
+
+mv ./* "$DEPS_DIR/picomatch"
 
 echo "All done!"
 echo ""
