@@ -30,10 +30,10 @@ on:
           # - libuv
           - lint-md-dependencies
           - llhttp
-          - minimatch
           - nghttp2
           - nghttp3
           - ngtcp2
+          - picomatch
           - postject
           - root-certificates
           - simdjson
@@ -212,14 +212,6 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: minimatch
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-minimatch.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: nghttp2
             subsystem: deps
             label: dependencies
@@ -241,6 +233,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-ngtcp2.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: picomatch
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-picomatch.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output

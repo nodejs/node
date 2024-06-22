@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Shell script to update minimatch in the source tree to the latest release.
+# Shell script to update picomatch in the source tree to the latest release.
 
 # This script must be in the tools directory when it runs because it uses the
 # script source file path to determine directories to work in.
@@ -16,11 +16,11 @@ NPM="$DEPS_DIR/npm/bin/npm-cli.js"
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
-NEW_VERSION=$("$NODE" "$NPM" view minimatch dist-tags.latest)
-CURRENT_VERSION=$("$NODE" -p "require('./deps/minimatch/package.json').version")
+NEW_VERSION=$("$NODE" "$NPM" view picomatch dist-tags.latest)
+CURRENT_VERSION=$("$NODE" -p "require('./deps/picomatch/package.json').version")
 
 # This function exit with 0 if new version and current version are the same
-compare_dependency_version "minimatch" "$NEW_VERSION" "$CURRENT_VERSION"
+compare_dependency_version "picomatch" "$NEW_VERSION" "$CURRENT_VERSION"
 
 cd "$( dirname "$0" )/../.." || exit
 
@@ -38,39 +38,29 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-echo "Fetching minimatch source archive..."
+echo "Fetching picomatch source archive..."
 
-"$NODE" "$NPM" pack "minimatch@$NEW_VERSION"
+"$NODE" "$NPM" pack "picomatch@$NEW_VERSION"
 
-MINIMATCH_TGZ="minimatch-$NEW_VERSION.tgz"
+PICOMATCH_TGZ="picomatch-$NEW_VERSION.tgz"
 
-log_and_verify_sha256sum "minimatch" "$MINIMATCH_TGZ"
+log_and_verify_sha256sum "picomatch" "$PICOMATCH_TGZ"
 
-rm -r "$DEPS_DIR/minimatch"/*
+rm -rf "$DEPS_DIR/picomatch"
 
-tar -xf "$MINIMATCH_TGZ"
+tar -xf "$PICOMATCH_TGZ"
 
-cd package
-
-"$NODE" "$NPM" install esbuild --save-dev
-
-"$NODE" "$NPM" pkg set scripts.node-build="esbuild ./dist/commonjs/index.js --bundle --platform=node --outfile=index.js"
-
-"$NODE" "$NPM" run node-build
-
-rm -rf node_modules
-
-mv ./* "$DEPS_DIR/minimatch"
+mv package "$DEPS_DIR/picomatch"
 
 echo "All done!"
 echo ""
-echo "Please git add minimatch, commit the new version:"
+echo "Please git add picomatch, commit the new version:"
 echo ""
-echo "$ git add -A deps/minimatch"
-echo "$ git commit -m \"deps: update minimatch to $NEW_VERSION\""
+echo "$ git add -A deps/picomatch"
+echo "$ git commit -m \"deps: update picomatch to $NEW_VERSION\""
 echo ""
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
 # to add it to $GITHUB_ENV variable
-finalize_version_update "minimatch" "$NEW_VERSION"
+finalize_version_update "picomatch" "$NEW_VERSION"
