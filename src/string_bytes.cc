@@ -449,12 +449,8 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       break;
 
     case BASE64URL:
-      data_size = simdutf::base64_length_from_binary(str->Length(),
-                                                     simdutf::base64_url);
-      break;
-
     case BASE64:
-      data_size = simdutf::base64_length_from_binary(str->Length());
+      data_size = str->Length() % 4 <= 1 ? str->Length() / 4 * 3 : str->Length() / 4 * 3 + (str->Length() % 4)  -  1;
       break;
 
     case HEX:
