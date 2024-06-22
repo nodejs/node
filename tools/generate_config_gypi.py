@@ -106,6 +106,7 @@ def translate_config(out_dir, config, v8_config):
       'node_shared_nghttp3': 'false',
       'node_shared_ngtcp2': 'false',
       'node_shared_openssl': 'false',
+      'node_shared_sqlite': 'false',
       'node_shared_zlib': 'false',
     }
   }
