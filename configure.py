@@ -2253,7 +2253,7 @@ if flavor == 'win' and python.lower().endswith('.exe'):
 gyp_args += ['-Dpython=' + python]
 
 if options.use_ninja:
-  gyp_args += ['-f', 'ninja-' + flavor]
+  gyp_args += ['-f', 'ninja-' + flavor, '-G', 'config=' + config['BUILDTYPE']]
 elif flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
 else:
