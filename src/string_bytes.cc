@@ -493,16 +493,12 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
     case UCS2:
       return Just(str->Length() * sizeof(uint16_t));
 
-    case BASE64URL: {
-      String::Value value(isolate, str);
-      return Just(simdutf::base64_length_from_binary(value.length(),
+    case BASE64URL:
+      return Just(simdutf::base64_length_from_binary(str->Length(),
                                                      simdutf::base64_url));
-    }
 
-    case BASE64: {
-      String::Value value(isolate, str);
-      return Just(simdutf::base64_length_from_binary(value.length()));
-    }
+    case BASE64:
+      return Just(simdutf::base64_length_from_binary(str->Length()));
 
     case HEX:
       return Just<size_t>(str->Length() / 2);
