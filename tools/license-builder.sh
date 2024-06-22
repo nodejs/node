@@ -85,8 +85,8 @@ licenseText="$(cat "${rootdir}/deps/simdutf/LICENSE-MIT")"
 addlicense "simdutf" "deps/simdutf" "$licenseText"
 licenseText="$(curl -sL https://raw.githubusercontent.com/ada-url/ada/HEAD/LICENSE-MIT)"
 addlicense "ada" "deps/ada" "$licenseText"
-licenseText="$(cat "${rootdir}/deps/minimatch/LICENSE")"
-addlicense "minimatch" "deps/minimatch" "$licenseText"
+licenseText="$(cat "${rootdir}/deps/picomatch/LICENSE")"
+addlicense "picomatch" "deps/picomatch" "$licenseText"
 
 # npm
 licenseText="$(cat "${rootdir}/deps/npm/LICENSE")"
