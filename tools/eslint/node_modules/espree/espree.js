@@ -1,5 +1,3 @@
-/* eslint-disable jsdoc/no-multi-asterisks -- needed to preserve original formatting of licences */
-
 /**
  * @fileoverview Main Espree file that converts Acorn into Esprima output.
  *
@@ -57,7 +55,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* eslint-enable jsdoc/no-multi-asterisks -- needed to preserve original formatting of licences */
 
 import * as acorn from "acorn";
 import jsx from "acorn-jsx";
@@ -160,7 +157,7 @@ export const Syntax = (function() {
     }
 
     for (key in VisitorKeys) {
-        if (Object.hasOwnProperty.call(VisitorKeys, key)) {
+        if (Object.hasOwn(VisitorKeys, key)) {
             types[key] = key;
         }
     }

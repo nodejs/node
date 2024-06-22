@@ -19,7 +19,8 @@ const SUPPORTED_VERSIONS = [
     12, // 2021
     13, // 2022
     14, // 2023
-    15 // 2024
+    15, // 2024
+    16 // 2025
 ];
 
 /**
@@ -27,7 +28,7 @@ const SUPPORTED_VERSIONS = [
  * @returns {number} The latest ECMAScript version.
  */
 export function getLatestEcmaVersion() {
-    return SUPPORTED_VERSIONS[SUPPORTED_VERSIONS.length - 1];
+    return SUPPORTED_VERSIONS.at(-1);
 }
 
 /**

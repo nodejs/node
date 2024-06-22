@@ -33,12 +33,6 @@ const ruleSeverities = new Map([
     [2, 2], ["error", 2]
 ]);
 
-const globalVariablesValues = new Set([
-    true, "true", "writable", "writeable",
-    false, "false", "readonly", "readable", null,
-    "off"
-]);
-
 /**
  * Check if a value is a non-null object.
  * @param {any} value The value to check.
@@ -141,6 +135,23 @@ function normalizeRuleOptions(ruleOptions) {
 
     finalOptions[0] = ruleSeverities.get(finalOptions[0]);
     return structuredClone(finalOptions);
+}
+
+/**
+ * Determines if an object has any methods.
+ * @param {Object} object The object to check.
+ * @returns {boolean} `true` if the object has any methods.
+ */
+function hasMethod(object) {
+
+    for (const key of Object.keys(object)) {
+
+        if (typeof object[key] === "function") {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 //-----------------------------------------------------------------------------
@@ -301,47 +312,48 @@ const deepObjectAssignSchema = {
     validate: "object"
 };
 
+
 //-----------------------------------------------------------------------------
 // High-Level Schemas
 //-----------------------------------------------------------------------------
 
 /** @type {ObjectPropertySchema} */
-const globalsSchema = {
-    merge: "assign",
-    validate(value) {
+const languageOptionsSchema = {
+    merge(first = {}, second = {}) {
 
-        assertIsObject(value);
+        const result = deepMerge(first, second);
 
-        for (const key of Object.keys(value)) {
+        for (const [key, value] of Object.entries(result)) {
 
-            // avoid hairy edge case
-            if (key === "__proto__") {
+            /*
+             * Special case: Because the `parser` property is an object, it should
+             * not be deep merged. Instead, it should be replaced if it exists in
+             * the second object. To make this more generic, we just check for
+             * objects with methods and replace them if they exist in the second
+             * object.
+             */
+            if (isNonArrayObject(value)) {
+                if (hasMethod(value)) {
+                    result[key] = second[key] ?? first[key];
+                    continue;
+                }
+
+                // for other objects, make sure we aren't reusing the same object
+                result[key] = { ...result[key] };
                 continue;
             }
 
-            if (key !== key.trim()) {
-                throw new TypeError(`Global "${key}" has leading or trailing whitespace.`);
-            }
-
-            if (!globalVariablesValues.has(value[key])) {
-                throw new TypeError(`Key "${key}": Expected "readonly", "writable", or "off".`);
-            }
         }
-    }
+
+        return result;
+    },
+    validate: "object"
 };
 
 /** @type {ObjectPropertySchema} */
-const parserSchema = {
+const languageSchema = {
     merge: "replace",
-    validate(value) {
-
-        if (!value || typeof value !== "object" ||
-            (typeof value.parse !== "function" && typeof value.parseForESLint !== "function")
-        ) {
-            throw new TypeError("Expected object with parse() or parseForESLint() method.");
-        }
-
-    }
+    validate: assertIsPluginMemberName
 };
 
 /** @type {ObjectPropertySchema} */
@@ -501,28 +513,6 @@ const rulesSchema = {
     }
 };
 
-/** @type {ObjectPropertySchema} */
-const ecmaVersionSchema = {
-    merge: "replace",
-    validate(value) {
-        if (typeof value === "number" || value === "latest") {
-            return;
-        }
-
-        throw new TypeError("Expected a number or \"latest\".");
-    }
-};
-
-/** @type {ObjectPropertySchema} */
-const sourceTypeSchema = {
-    merge: "replace",
-    validate(value) {
-        if (typeof value !== "string" || !/^(?:script|module|commonjs)$/u.test(value)) {
-            throw new TypeError("Expected \"script\", \"module\", or \"commonjs\".");
-        }
-    }
-};
-
 /**
  * Creates a schema that always throws an error. Useful for warning
  * about eslintrc-style keys.
@@ -568,15 +558,8 @@ const flatConfigSchema = {
             reportUnusedDisableDirectives: disableDirectiveSeveritySchema
         }
     },
-    languageOptions: {
-        schema: {
-            ecmaVersion: ecmaVersionSchema,
-            sourceType: sourceTypeSchema,
-            globals: globalsSchema,
-            parser: parserSchema,
-            parserOptions: deepObjectAssignSchema
-        }
-    },
+    language: languageSchema,
+    languageOptions: languageOptionsSchema,
     processor: processorSchema,
     plugins: pluginsSchema,
     rules: rulesSchema
@@ -588,5 +571,6 @@ const flatConfigSchema = {
 
 module.exports = {
     flatConfigSchema,
+    hasMethod,
     assertIsRuleSeverity
 };

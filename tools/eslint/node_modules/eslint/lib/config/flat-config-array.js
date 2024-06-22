@@ -10,7 +10,7 @@
 //-----------------------------------------------------------------------------
 
 const { ConfigArray, ConfigArraySymbol } = require("@eslint/config-array");
-const { flatConfigSchema } = require("./flat-config-schema");
+const { flatConfigSchema, hasMethod } = require("./flat-config-schema");
 const { RuleValidator } = require("./rule-validator");
 const { defaultConfig } = require("./default-config");
 
@@ -121,6 +121,43 @@ function wrapConfigErrorWithDetails(error, originalLength, baseLength) {
         `${error.message.slice(0, -1)} at ${location} index ${configIndex}.`,
         { cause: error }
     );
+}
+
+/**
+ * Converts a languageOptions object to a JSON representation.
+ * @param {Record<string, any>} languageOptions The options to create a JSON
+ *     representation of.
+ * @param {string} objectKey The key of the object being converted.
+ * @returns {Record<string, any>} The JSON representation of the languageOptions.
+ * @throws {TypeError} If a function is found in the languageOptions.
+ */
+function languageOptionsToJSON(languageOptions, objectKey = "languageOptions") {
+
+    const result = {};
+
+    for (const [key, value] of Object.entries(languageOptions)) {
+        if (value) {
+            if (typeof value === "object") {
+                const name = getObjectId(value);
+
+                if (name && hasMethod(value)) {
+                    result[key] = name;
+                } else {
+                    result[key] = languageOptionsToJSON(value, key);
+                }
+                continue;
+            }
+
+            if (typeof value === "function") {
+                throw new TypeError(`Cannot serialize key "${key}" in ${objectKey}: Function values are not supported.`);
+            }
+
+        }
+
+        result[key] = value;
+    }
+
+    return result;
 }
 
 const originalBaseConfig = Symbol("originalBaseConfig");
@@ -269,10 +306,11 @@ class FlatConfigArray extends ConfigArray {
      */
     [ConfigArraySymbol.finalizeConfig](config) {
 
-        const { plugins, languageOptions, processor } = config;
-        let parserName, processorName;
+        const { plugins, language, languageOptions, processor } = config;
+        let parserName, processorName, languageName;
         let invalidParser = false,
-            invalidProcessor = false;
+            invalidProcessor = false,
+            invalidLanguage = false;
 
         // Check parser value
         if (languageOptions && languageOptions.parser) {
@@ -287,6 +325,29 @@ class FlatConfigArray extends ConfigArray {
 
             } else {
                 invalidParser = true;
+            }
+        }
+
+        // Check language value
+        if (language) {
+            if (typeof language === "string") {
+                const { pluginName, objectName: localLanguageName } = splitPluginIdentifier(language);
+
+                languageName = language;
+
+                if (!plugins || !plugins[pluginName] || !plugins[pluginName].languages || !plugins[pluginName].languages[localLanguageName]) {
+                    throw new TypeError(`Key "language": Could not find "${localLanguageName}" in plugin "${pluginName}".`);
+                }
+
+                config.language = plugins[pluginName].languages[localLanguageName];
+            } else {
+                invalidLanguage = true;
+            }
+
+            try {
+                config.language.validateLanguageOptions(config.languageOptions);
+            } catch (error) {
+                throw new TypeError(`Key "languageOptions": ${error.message}`, { cause: error });
             }
         }
 
@@ -329,6 +390,10 @@ class FlatConfigArray extends ConfigArray {
                     throw new Error("Could not serialize processor object (missing 'meta' object).");
                 }
 
+                if (invalidLanguage) {
+                    throw new Error("Caching is not supported when language is an object.");
+                }
+
                 return {
                     ...this,
                     plugins: Object.entries(plugins).map(([namespace, plugin]) => {
@@ -341,10 +406,8 @@ class FlatConfigArray extends ConfigArray {
 
                         return `${namespace}:${pluginId}`;
                     }),
-                    languageOptions: {
-                        ...languageOptions,
-                        parser: parserName
-                    },
+                    language: languageName,
+                    languageOptions: languageOptionsToJSON(languageOptions),
                     processor: processorName
                 };
             }
