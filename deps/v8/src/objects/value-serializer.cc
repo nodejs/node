@@ -1009,7 +1009,6 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
   if (IsJSTypedArray(view)) {
     if (JSTypedArray::cast(view)->IsOutOfBounds()) {
-      DCHECK(v8_flags.harmony_rab_gsab);
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
                                  handle(view, isolate_));
     }
@@ -1025,7 +1024,6 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
     DCHECK(IsJSDataViewOrRabGsabDataView(view));
     if (IsJSRabGsabDataView(view) &&
         JSRabGsabDataView::cast(view)->IsOutOfBounds()) {
-      DCHECK(v8_flags.harmony_rab_gsab);
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
                                  handle(view, isolate_));
     }
@@ -2105,13 +2103,6 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
     if (byte_length > max_byte_length) {
       return MaybeHandle<JSArrayBuffer>();
     }
-    if (!v8_flags.harmony_rab_gsab) {
-      // Disable resizability. This ensures that no resizable buffers are
-      // created in a version which has the harmony_rab_gsab turned off, even if
-      // such a version is reading data containing resizable buffers from disk.
-      is_resizable = false;
-      max_byte_length = byte_length;
-    }
   }
   if (byte_length > static_cast<size_t>(end_ - position_)) {
     return MaybeHandle<JSArrayBuffer>();
@@ -2232,16 +2223,6 @@ bool ValueDeserializer::ValidateJSArrayBufferViewFlags(
 
   // TODO(marja): When the version number is bumped the next time, check that
   // serialized_flags doesn't contain spurious 1-bits.
-
-  if (!v8_flags.harmony_rab_gsab) {
-    // Disable resizability. This ensures that no resizable buffers are
-    // created in a version which has the harmony_rab_gsab turned off, even if
-    // such a version is reading data containing resizable buffers from disk.
-    is_length_tracking = false;
-    is_backed_by_rab = false;
-    // The resizability of the buffer was already disabled.
-    CHECK(!buffer->is_resizable_by_js());
-  }
 
   if (is_backed_by_rab || is_length_tracking) {
     if (!buffer->is_resizable_by_js()) {
