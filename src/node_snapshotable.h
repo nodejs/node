@@ -47,6 +47,7 @@ struct InternalFieldInfoBase {
                       std::is_same_v<InternalFieldInfoBase, T>,
                   "Can only accept InternalFieldInfoBase subclasses");
     void* buf = ::operator new[](sizeof(T));
+    memset(buf, 0, sizeof(T));  // Make the padding reproducible.
     T* result = new (buf) T;
     result->type = type;
     result->length = sizeof(T);
