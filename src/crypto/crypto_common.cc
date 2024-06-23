@@ -22,14 +22,6 @@
 #include <string>
 #include <unordered_map>
 
-// Some OpenSSL 1.1.1 functions unnecessarily operate on and return non-const
-// pointers, whereas the same functions in OpenSSL 3 use const pointers.
-#if OPENSSL_VERSION_MAJOR >= 3
-#define OSSL3_CONST const
-#else
-#define OSSL3_CONST
-#endif
-
 namespace node {
 
 using v8::Array;
