@@ -77,8 +77,8 @@ static ares_status_t ares_send_dnsrec_int(ares_channel_t          *channel,
   /* Allocate space for query and allocated fields. */
   query = ares_malloc(sizeof(struct query));
   if (!query) {
-    callback(arg, ARES_ENOMEM, 0, NULL);
-    return ARES_ENOMEM;
+    callback(arg, ARES_ENOMEM, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   memset(query, 0, sizeof(*query));
 
@@ -121,18 +121,22 @@ static ares_status_t ares_send_dnsrec_int(ares_channel_t          *channel,
   query->node_all_queries =
     ares__llist_insert_last(channel->all_queries, query);
   if (query->node_all_queries == NULL) {
+    /* LCOV_EXCL_START: OutOfMemory */
     callback(arg, ARES_ENOMEM, 0, NULL);
     ares__free_query(query);
     return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
 
   /* Keep track of queries bucketed by qid, so we can process DNS
    * responses quickly.
    */
   if (!ares__htable_szvp_insert(channel->queries_by_qid, query->qid, query)) {
+    /* LCOV_EXCL_START: OutOfMemory */
     callback(arg, ARES_ENOMEM, 0, NULL);
     ares__free_query(query);
     return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
 
   /* Perform the first query action. */
@@ -152,7 +156,7 @@ ares_status_t ares_send_dnsrec(ares_channel_t          *channel,
   ares_status_t status;
 
   if (channel == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__channel_lock(channel);
@@ -189,10 +193,12 @@ void ares_send(ares_channel_t *channel, const unsigned char *qbuf, int qlen,
 
   carg = ares__dnsrec_convert_arg(callback, arg);
   if (carg == NULL) {
+    /* LCOV_EXCL_START: OutOfMemory */
     status = ARES_ENOMEM;
     ares_dns_record_destroy(dnsrec);
     callback(arg, (int)status, 0, NULL, 0);
     return;
+    /* LCOV_EXCL_STOP */
   }
 
   ares_send_dnsrec(channel, dnsrec, ares__dnsrec_convert_cb, carg, NULL);

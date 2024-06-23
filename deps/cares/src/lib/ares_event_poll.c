@@ -37,7 +37,7 @@ static ares_bool_t ares_evsys_poll_init(ares_event_thread_t *e)
 {
   e->ev_signal = ares_pipeevent_create(e);
   if (e->ev_signal == NULL) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: UntestablePath */
   }
   return ARES_TRUE;
 }
@@ -78,7 +78,7 @@ static size_t ares_evsys_poll_wait(ares_event_thread_t *e,
   if (fdlist != NULL && num_fds) {
     pollfd = ares_malloc_zero(sizeof(*pollfd) * num_fds);
     if (pollfd == NULL) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     for (i = 0; i < num_fds; i++) {
       const ares_event_t *ev =
@@ -111,7 +111,7 @@ static size_t ares_evsys_poll_wait(ares_event_thread_t *e,
 
     ev = ares__htable_asvp_get_direct(e->ev_sock_handles, pollfd[i].fd);
     if (ev == NULL || ev->cb == NULL) {
-      continue;
+      continue; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     if (pollfd[i].revents & (POLLERR | POLLHUP | POLLIN)) {

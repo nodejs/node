@@ -1,5 +1,3 @@
-** This file is adapted from libcurl and not yet fully rewritten for c-ares! **
-
 ```
                           ___       __ _ _ __ ___  ___
                          / __| ___ / _` | '__/ _ \/ __|

@@ -87,7 +87,7 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
   if (host != NULL) {
     status = ares__addrinfo2hostent(&ai, AF_INET6, host);
     if (status != ARES_SUCCESS && status != ARES_ENODATA) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
   }
 
