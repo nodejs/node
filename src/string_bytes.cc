@@ -453,6 +453,23 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       data_size = str->Length() % 4 <= 1
                       ? str->Length() / 4 * 3
                       : str->Length() / 4 * 3 + (str->Length() % 4) - 1;
+      // When the string is external, we can check if it ends with one or two
+      // padding characters and adjust the size accordingly. Note that the
+      // input can contain non-base64 characters, so, at best, we can provide
+      // an upper bound. A correct size would requires scanning the entire
+      // input. We try to keep the function as fast as possible, so we only
+      // check the last two characters when the string is one-byte external.
+      if (str->IsExternalOneByte()) {
+        auto ext = str->GetExternalOneByteStringResource();
+        if(ext->length() > 1) {
+          if(ext->data()[ext->length() - 1] == '=') {
+            data_size--;
+            if(ext->data()[ext->length() - 2] == '=') {
+              data_size--;
+            }
+          }
+        }
+      }
       break;
 
     case HEX:
@@ -492,10 +509,29 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
       return Just(str->Length() * sizeof(uint16_t));
 
     case BASE64URL:
-    case BASE64:
-      return Just<size_t>(str->Length() % 4 <= 1 ? str->Length() / 4 * 3
+    case BASE64: {
+      size_t data_size = str->Length() % 4 <= 1 ? str->Length() / 4 * 3
                                                  : str->Length() / 4 * 3 +
-                                                       (str->Length() % 4) - 1);
+                                                       (str->Length() % 4) - 1;
+      // When the string is external, we can check if it ends with one or two
+      // padding characters and adjust the size accordingly. Note that the
+      // input can contain non-base64 characters, so, at best, we can provide
+      // an upper bound. A correct size would requires scanning the entire
+      // input. We try to keep the function as fast as possible, so we only
+      // check the last two characters when the string is one-byte external.
+      if (str->IsExternalOneByte()) {
+        auto ext = str->GetExternalOneByteStringResource();
+        if(ext->length() > 1) {
+          if(ext->data()[ext->length() - 1] == '=') {
+            data_size--;
+            if(ext->data()[ext->length() - 2] == '=') {
+              data_size--;
+            }
+          }
+        }
+      }
+      return Just<size_t>(data_size);
+    }
 
     case HEX:
       return Just<size_t>(str->Length() / 2);
