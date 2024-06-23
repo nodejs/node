@@ -1708,7 +1708,7 @@ added: v18.2.0
 Closes all established HTTP(S) connections connected to this server, including
 active connections connected to this server which are sending a request or
 waiting for a response. This does _not_ destroy sockets upgraded to a different
-protocol, such as WebSocket.
+protocol, such as WebSocket or HTTP/2.
 
 > This is a forceful way of closing all connections and should be used with
 > caution. Whenever using this in conjunction with `server.close`, calling this
