@@ -461,10 +461,10 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       // check the last two characters when the string is one-byte external.
       if (str->IsExternalOneByte()) {
         auto ext = str->GetExternalOneByteStringResource();
-        if(ext->length() > 1) {
-          if(ext->data()[ext->length() - 1] == '=') {
+        if (ext->length() > 1) {
+          if (ext->data()[ext->length() - 1] == '=') {
             data_size--;
-            if(ext->data()[ext->length() - 2] == '=') {
+            if (ext->data()[ext->length() - 2] == '=') {
               data_size--;
             }
           }
@@ -510,9 +510,9 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
 
     case BASE64URL:
     case BASE64: {
-      size_t data_size = str->Length() % 4 <= 1 ? str->Length() / 4 * 3
-                                                 : str->Length() / 4 * 3 +
-                                                       (str->Length() % 4) - 1;
+      size_t data_size = str->Length() % 4 <= 1
+                             ? str->Length() / 4 * 3
+                             : str->Length() / 4 * 3 + (str->Length() % 4) - 1;
       // When the string is external, we can check if it ends with one or two
       // padding characters and adjust the size accordingly. Note that the
       // input can contain non-base64 characters, so, at best, we can provide
@@ -521,10 +521,10 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
       // check the last two characters when the string is one-byte external.
       if (str->IsExternalOneByte()) {
         auto ext = str->GetExternalOneByteStringResource();
-        if(ext->length() > 1) {
-          if(ext->data()[ext->length() - 1] == '=') {
+        if (ext->length() > 1) {
+          if (ext->data()[ext->length() - 1] == '=') {
             data_size--;
-            if(ext->data()[ext->length() - 2] == '=') {
+            if (ext->data()[ext->length() - 2] == '=') {
               data_size--;
             }
           }
