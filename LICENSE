@@ -1560,11 +1560,11 @@ The externally maintained libraries used by Node.js are:
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   """
 
-- picomatch, located at deps/picomatch, is licensed as follows:
+- micromatch, located at deps/micromatch, is licensed as follows:
   """
     The MIT License (MIT)
 
-    Copyright (c) 2017-present, Jon Schlinkert.
+    Copyright (c) 2014-present, Jon Schlinkert.
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
