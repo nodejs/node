@@ -55,7 +55,7 @@
       'deps/v8/tools/tickprocessor-driver.mjs',
       'deps/acorn/acorn/dist/acorn.js',
       'deps/acorn/acorn-walk/dist/walk.js',
-      'deps/picomatch/index.js',
+      'deps/micromatch/index.js',
       '<@(node_builtin_shareable_builtins)',
     ],
     'node_sources': [
