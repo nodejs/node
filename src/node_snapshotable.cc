@@ -1416,6 +1416,7 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
   if (index == BaseObject::kEmbedderType) {
     int size = sizeof(EmbedderTypeInfo);
     char* data = new char[size];
+    memset(data, 0, size);  // Make the padding reproducible.
     // We need to use placement new because V8 calls delete[] on the returned
     // data.
     // TODO(joyeecheung): support cppgc objects.
