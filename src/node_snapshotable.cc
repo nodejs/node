@@ -1415,9 +1415,11 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
   // To serialize the type field, save data in a EmbedderTypeInfo.
   if (index == BaseObject::kEmbedderType) {
     int size = sizeof(EmbedderTypeInfo);
-    char* data = new char[size];
     // We need to use placement new because V8 calls delete[] on the returned
     // data.
+    // The () syntax at the end would zero-initialize the block and make
+    // the padding reproducible.
+    char* data = new char[size]();
     // TODO(joyeecheung): support cppgc objects.
     new (data) EmbedderTypeInfo(obj->type(),
                                 EmbedderTypeInfo::MemoryMode::kBaseObject);
