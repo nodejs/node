@@ -497,16 +497,11 @@ const CallableInstance =
         const proto =  (
           constr.prototype
         );
-        const func = proto[property];
+        const value = proto[property];
         const apply = function () {
-          return func.apply(apply, arguments)
+          return value.apply(apply, arguments)
         };
         Object.setPrototypeOf(apply, proto);
-        const names = Object.getOwnPropertyNames(func);
-        for (const p of names) {
-          const descriptor = Object.getOwnPropertyDescriptor(func, p);
-          if (descriptor) Object.defineProperty(apply, p, descriptor);
-        }
         return apply
       }
     )
