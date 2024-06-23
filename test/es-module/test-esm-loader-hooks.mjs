@@ -772,6 +772,19 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
     assert.strictEqual(signal, null);
   });
 
+  describe('should use hooks', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+      '--import',
+      fixtures.fileURL('es-module-loaders/builtin-named-exports.mjs'),
+      fixtures.path('es-modules/require-esm-throws-with-loaders.js'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
   it('should support source maps in commonjs translator', async () => {
     const readFile = async () => {};
     const hook = `
