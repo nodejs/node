@@ -3199,8 +3199,6 @@ JSNativeContextSpecialization::BuildElementAccess(
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
-  DCHECK_IMPLIES(IsRabGsabTypedArrayElementsKind(elements_kind),
-                 v8_flags.turbo_rab_gsab);
   ZoneVector<MapRef> const& receiver_maps =
       access_info.lookup_start_object_maps();
 
@@ -3586,8 +3584,6 @@ JSNativeContextSpecialization::
         KeyedAccessMode const& keyed_mode) {
   DCHECK(IsTypedArrayElementsKind(elements_kind) ||
          IsRabGsabTypedArrayElementsKind(elements_kind));
-  DCHECK_IMPLIES(IsRabGsabTypedArrayElementsKind(elements_kind),
-                 v8_flags.turbo_rab_gsab);
   // AccessMode::kDefine is not handled here. Optimization should be skipped by
   // caller.
   DCHECK(keyed_mode.access_mode() != AccessMode::kDefine);

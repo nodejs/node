@@ -134,18 +134,16 @@ BUILTIN(ArrayBufferConstructor) {
   }
 
   Handle<Object> number_max_length;
-  if (v8_flags.harmony_rab_gsab) {
-    Handle<Object> max_length;
-    Handle<Object> options = args.atOrUndefined(isolate, 2);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, max_length,
-        JSObject::ReadFromOptionsBag(
-            options, isolate->factory()->max_byte_length_string(), isolate));
+  Handle<Object> max_length;
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, max_length,
+      JSObject::ReadFromOptionsBag(
+          options, isolate->factory()->max_byte_length_string(), isolate));
 
-    if (!IsUndefined(*max_length, isolate)) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, number_max_length, Object::ToInteger(isolate, max_length));
-    }
+  if (!IsUndefined(*max_length, isolate)) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_max_length,
+                                       Object::ToInteger(isolate, max_length));
   }
   return ConstructBuffer(isolate, target, new_target, number_length,
                          number_max_length, InitializedFlag::kZeroInitialized);
