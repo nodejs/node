@@ -32,7 +32,6 @@ function createTmpFile(content = 'console.log("running");', ext = '.js', basenam
 
 function createPackageJSON(content = {}, basename = tmpdir.path) {
   const file = path.join(basename, 'package.json');
-  console.error(file);
   writeFileSync(file, JSON.stringify(content, null, 2));
   return file;
 }
