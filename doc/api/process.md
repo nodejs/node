@@ -2042,7 +2042,7 @@ This function remove the register of the object from the finalization
 registry, so the callback will not be called anymore.
 
 ```cjs
-const { finalization, stdout } = require('node:process');
+const { finalization } = require('node:process');
 
 // Please make sure that the function passed to finalization.register()
 // does not create a closure around unnecessary objects.
@@ -2058,7 +2058,6 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      stdout.write('disposed.\n');
     },
   };
 
@@ -2074,7 +2073,7 @@ setup();
 ```
 
 ```mjs
-import { finalization, stdout } from 'node:process';
+import { finalization } from 'node:process';
 
 // Please make sure that the function passed to finalization.register()
 // does not create a closure around unnecessary objects.
@@ -2090,7 +2089,6 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      stdout.write('disposed.\n');
     },
   };
 
