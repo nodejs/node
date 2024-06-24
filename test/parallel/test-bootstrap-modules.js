@@ -53,7 +53,6 @@ expected.beforePreExec = new Set([
   'Internal Binding messaging',
   'NativeModule internal/worker/js_transferable',
   'Internal Binding process_methods',
-  'NativeModule internal/process/finalization',
   'NativeModule internal/process/per_thread',
   'Internal Binding credentials',
   'NativeModule internal/process/promises',
