@@ -2,6 +2,10 @@
   "name": "eslint-tools",
   "version": "0.0.0",
   "private": true,
+  "overrides": {
+    "caniuse-lite": "1.0.30001636",
+    "electron-to-chromium": "1.4.806"
+  },
   "dependencies": {
     "@babel/core": "^7.24.7",
     "@babel/eslint-parser": "^7.24.7",
