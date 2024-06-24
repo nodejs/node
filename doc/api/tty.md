@@ -341,7 +341,7 @@ The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
-[`net.Socket` constructor]: net.md#net_new_socket_options
+[`net.Socket` constructor]: net.md#new-netsocketoptions
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
