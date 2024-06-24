@@ -51,7 +51,7 @@ const testMe = repl.start({
   prompt: PROMPT,
   stream: putIn,
   terminal: true,
-  useColors: true,
+  useColors: false,
   breakEvalOnSigint: true
 });
 

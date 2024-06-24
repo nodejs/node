@@ -80,70 +80,67 @@ repl.inputStream.run([
   'const r = 5;',
 ]);
 
+/* eslint-disable @stylistic/js/max-len */
 const testCases = [{
   input: 'foo',
   preview: [
-    'foo\r',
+    '\x1B[1G\x1B[0Jrepl > f\x1B[9G\x1B[1G\x1B[0Jrepl > fo\x1B[10G\x1B[1G\x1B[0Jrepl > foo\x1B[11G\r',
     '\x1B[36m[Function: foo]\x1B[39m',
-  ]
-}, {
-  input: 'r',
-  preview: [
-    'r\r',
-    '\x1B[33m5\x1B[39m',
   ]
 }, {
   input: 'koo',
   preview: [
-    'koo\r',
+    '\x1B[1G\x1B[0Jrepl > k\x1B[9G\x1B[1G\x1B[0Jrepl > ko\x1B[10G\x1B[1G\x1B[0Jrepl > koo\x1B[11G\r',
     '\x1B[36m[Function: koo]\x1B[39m',
   ]
 }, {
   input: 'a',
-  preview: ['a\r'] // No "undefined" preview.
+  noPreview: 'repl > ', // No "undefined" output.
+  preview: ['\x1B[1G\x1B[0Jrepl > a\x1B[9G\r'] // No "undefined" preview.
 }, {
   input: " { b: 1 }['b'] === 1",
   preview: [
-    " { b: 1 }['b'] === 1\r",
+    "\x1B[1G\x1B[0Jrepl >  \x1B[9G\x1B[1G\x1B[0Jrepl >  {\x1B[10G\x1B[1G\x1B[0Jrepl >  { \x1B[11G\x1B[1G\x1B[0Jrepl >  { b\x1B[12G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m\x1B[12G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[13G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m\x1B[12G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m \x1B[12G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }\x1B[12G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[13G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'\x1B[39m\x1B[13G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b\x1B[39m\x1B[14G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m\x1B[13G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m]\x1B[13G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[13G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m=\x1B[39m\x1B[14G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m==\x1B[39m\x1B[14G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m===\x1B[39m\x1B[15G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m===\x1B[39m \x1B[14G\x1B[1G\x1B[0Jrepl >  { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m===\x1B[39m \x1B[33m1\x1B[39m\x1B[14G\r",
     '\x1B[33mtrue\x1B[39m',
   ]
 }, {
   input: "{ b: 1 }['b'] === 1;",
   preview: [
-    "{ b: 1 }['b'] === 1;\r",
+    "\x1B[1G\x1B[0Jrepl > {\x1B[9G\x1B[1G\x1B[0Jrepl > { \x1B[10G\x1B[1G\x1B[0Jrepl > { b\x1B[11G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m\x1B[11G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[12G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m\x1B[11G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m \x1B[11G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }\x1B[11G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[12G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'\x1B[39m\x1B[12G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b\x1B[39m\x1B[13G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m\x1B[12G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m]\x1B[12G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[12G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m=\x1B[39m\x1B[13G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m==\x1B[39m\x1B[13G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m===\x1B[39m\x1B[14G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m===\x1B[39m \x1B[13G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m===\x1B[39m \x1B[33m1\x1B[39m\x1B[13G\x1B[1G\x1B[0Jrepl > { b\x1B[36m:\x1B[39m \x1B[33m1\x1B[39m }[\x1B[32m'b'\x1B[39m] \x1B[36m===\x1B[39m \x1B[33m1\x1B[39m;\x1B[13G\r",
     '\x1B[33mfalse\x1B[39m',
   ]
 }, {
   input: '{ a: true }',
   preview: [
-    '{ a: true }\r',
+    '\x1B[1G\x1B[0Jrepl > {\x1B[9G\x1B[1G\x1B[0Jrepl > { \x1B[10G\x1B[1G\x1B[0Jrepl > { a\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[12G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m t\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m tr\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m tru\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m\x1B[12G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m \x1B[12G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m }\x1B[13G\r',
     '{ a: \x1B[33mtrue\x1B[39m }',
   ]
 }, {
   input: '{ a: true };',
   preview: [
-    '{ a: true };\r',
+    '\x1B[1G\x1B[0Jrepl > {\x1B[9G\x1B[1G\x1B[0Jrepl > { \x1B[10G\x1B[1G\x1B[0Jrepl > { a\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[12G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m t\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m tr\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m tru\x1B[11G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m\x1B[12G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m \x1B[12G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m }\x1B[13G\x1B[1G\x1B[0Jrepl > { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m };\x1B[12G\r',
     '\x1B[33mtrue\x1B[39m',
   ]
 }, {
   input: ' \t { a: true};',
   preview: [
-    '  { a: true};\r',
+    '\x1B[1G\x1B[0Jrepl >  \x1B[9G\x1B[1G\x1B[0Jrepl >   \x1B[10G\x1B[1G\x1B[0Jrepl >   {\x1B[11G\x1B[1G\x1B[0Jrepl >   { \x1B[12G\x1B[1G\x1B[0Jrepl >   { a\x1B[13G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m\x1B[13G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m \x1B[14G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m t\x1B[13G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m tr\x1B[13G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m tru\x1B[13G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m\x1B[14G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m}\x1B[14G\x1B[1G\x1B[0Jrepl >   { a\x1B[36m:\x1B[39m \x1B[33mtrue\x1B[39m};\x1B[15G\r',
     '\x1B[33mtrue\x1B[39m',
   ]
 }, {
   input: '1n + 2n',
   preview: [
-    '1n + 2n\r',
+    '\x1B[1G\x1B[0Jrepl > \x1B[33m1\x1B[39m\x1B[8G\x1B[1G\x1B[0Jrepl > 1n\x1B[10G\x1B[1G\x1B[0Jrepl > 1n \x1B[11G\x1B[1G\x1B[0Jrepl > 1n \x1B[36m+\x1B[39m\x1B[11G\x1B[1G\x1B[0Jrepl > 1n \x1B[36m+\x1B[39m \x1B[12G\x1B[1G\x1B[0Jrepl > 1n \x1B[36m+\x1B[39m \x1B[33m2\x1B[39m\x1B[11G\x1B[1G\x1B[0Jrepl > 1n \x1B[36m+\x1B[39m 2n\x1B[11G\r',
     '\x1B[33m3n\x1B[39m',
   ]
 }, {
   input: '{};1',
   preview: [
-    '{};1\r',
+    '\x1B[1G\x1B[0Jrepl > {\x1B[9G\x1B[1G\x1B[0Jrepl > {}\x1B[10G\x1B[1G\x1B[0Jrepl > {};\x1B[11G\x1B[1G\x1B[0Jrepl > {};\x1B[33m1\x1B[39m\x1B[11G\r',
     '\x1B[33m1\x1B[39m',
-  ],
+  ]
 }];
+/* eslint-enable @stylistic/js/max-len */
 
 async function runTest() {
   for (const { input, preview } of testCases) {

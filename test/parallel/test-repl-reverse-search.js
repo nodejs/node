@@ -112,7 +112,9 @@ const tests = [
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
       // 1. '7'
-      '7',
+      '\x1B[1G', '\x1B[0J',
+      '> \x1B[33m7\x1B[39m',
+      '\x1B[3G',
       // 2. SEARCH FORWARDS
       '\nfwd-i-search: _', '\x1B[1A', '\x1B[4G',
       // 3. SEARCH FORWARDS
