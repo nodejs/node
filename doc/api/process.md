@@ -1911,13 +1911,14 @@ added: REPLACEME
   * `ref` {Object | Function} The reference to the resource that is being tracked.
   * `event` {string} The event that triggered the finalization. Defaults to 'exit'.
 
-This function registers a callback to be called when the process emits the `exit` event.
+This function registers a callback to be called when the process emits the `exit`
+event if the `ref` object was not garbage collected. If the object `ref` was garbage collected
+before the `exit` event is emitted, the callback will be removed from the finalization registry,
+and it will not be called on process exit.
 
-If the object `ref` is garbage collected before the `exit` event is emitted, the callback will be
-removed from the finalization registry, and it will not be called on process exit.
-
-Inside the callback you can do whatever you want with the object,
-including the release of resources allocated by that resource.
+Inside the callback you can release the resources allocated by the `ref` object.
+Be aware that all limitations applied to the `beforeExit` event are also applied to the `callback` function,
+this means that there is a possibility that the callback will not be called under special circumstances.
 
 The idea of ​​this function is to help you free up resources when the starts process exiting,
 but also let the object be garbage collected if it is no longer being used.
@@ -1926,18 +1927,8 @@ Eg: you can register an object that contains a buffer, you want to make sure tha
 when the process exit, but if the object is garbage collected before the process exit, we no longer
 need to release the buffer, so in this case we just remove the callback from the finalization registry.
 
-Caveats: This function relies on the `FinalizationRegistry` API, which the
-authors of this API said to "avoid where possible" because the nature of
-how the garbage collector works differently between engines, there's no
-specific behavior guarantee by the specification. In their words:
-"Developers shouldn't rely on cleanup callbacks for essential program
-logic. Cleanup callbacks may be useful for reducing memory usage across
-the course of a program, but are unlikely to be useful otherwise". You
-can read more about the caveats at [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry#avoid_where_possible)
-or in the [proposal WeakRefs](https://github.com/tc39/proposal-weakrefs?tab=readme-ov-file#a-note-of-caution).
-
 ```cjs
-const { finalization, stdout } = require('node:process');
+const { finalization } = require('node:process');
 
 // Please make sure that the function passed to finalization.register()
 // does not create a closure around unnecessary objects.
@@ -1953,7 +1944,6 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      stdout.write('disposed.\n');
     },
   };
 
@@ -1964,7 +1954,7 @@ setup();
 ```
 
 ```mjs
-import { finalization, stdout } from 'node:process';
+import { finalization } from 'node:process';
 
 // Please make sure that the function passed to finalization.register()
 // does not create a closure around unnecessary objects.
@@ -1980,7 +1970,6 @@ function setup() {
   const myDisposableObject = {
     dispose() {
       // Free your resources synchronously
-      stdout.write('disposed.\n');
     },
   };
 
@@ -2014,8 +2003,8 @@ class Test {
 It is very unlikely (not impossible) that this object will be garbage collected,
 but if it is not, `dispose` will be called when `process.exit` is called.
 
-Again, everything we talk about GC are assumptions that may change in the future,
-so be careful and avoid relying on this feature for the disposal of critical resources.
+Be careful and avoid relying on this feature for the disposal of critical resources,
+as it is not guaranteed that the callback will be called under all circumstances.
 
 ## `process.finalization.registerBeforeExit(ref, callback)`
 
@@ -2033,7 +2022,10 @@ added: REPLACEME
   * `event` {string} The event that triggered the finalization. Defaults to 'beforeExit'.
 
 This function behaves exactly like the `register`, except that the callback will be called
-when the process emits the `beforeExit` event.
+when the process emits the `beforeExit` event if `ref` object was not garbage collected.
+
+Be aware that all limitations applied to the `beforeExit` event are also applied to the `callback` function,
+this means that there is a possibility that the callback will not be called under special circumstances.
 
 ## `process.finalization.unregister(ref)`
 
