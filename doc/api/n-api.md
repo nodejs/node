@@ -6242,7 +6242,7 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(node_api_nogc_env env,
 * `[out] loop`: The current libuv loop instance.
 
 Note: While libuv has been relatively stable over time, it does
-not provide an ABI stability guarrantee. Use of this function should be avoided.
+not provide an ABI stability guarantee. Use of this function should be avoided.
 Its use may result in an addon that does not work across Node.js versions.
 [asynchronous-thread-safe-function-calls](https://nodejs.org/docs/latest/api/n-api.html#asynchronous-thread-safe-function-calls)
 are an alternative for many use cases.
