@@ -65,6 +65,15 @@ or `require('node:stream').promises`.
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version:
+      - v18.0.0
+      - v17.2.0
+      - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/40886
+    description: Add the `end` option, which can be set to `false` to prevent
+                 automatically closing the destination stream when the source
+                 ends.
 -->
 
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
@@ -76,9 +85,11 @@ added: v15.0.0
 * `destination` {Stream|Function}
   * `source` {AsyncIterable}
   * Returns: {Promise|AsyncIterable}
-* `options` {Object}
+* `options` {Object} Pipeline options
   * `signal` {AbortSignal}
-  * `end` {boolean}
+  * `end` {boolean} End the destination stream when the source stream ends.
+    Transform streams are always ended, even if this value is `false`.
+    **Default:** `true`.
 * Returns: {Promise} Fulfills when the pipeline is complete.
 
 ```cjs
@@ -317,7 +328,9 @@ buffer.
 The amount of data potentially buffered depends on the `highWaterMark` option
 passed into the stream's constructor. For normal streams, the `highWaterMark`
 option specifies a [total number of bytes][hwm-gotcha]. For streams operating
-in object mode, the `highWaterMark` specifies a total number of objects.
+in object mode, the `highWaterMark` specifies a total number of objects. For
+streams operating on (but not decoding) strings, the `highWaterMark` specifies
+a total number of UTF-16 code units.
 
 Data is buffered in `Readable` streams when the implementation calls
 [`stream.push(chunk)`][stream-push]. If the consumer of the Stream does not
@@ -727,7 +740,9 @@ console.log(myStream.destroyed); // true
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v15.0.0
@@ -939,12 +954,25 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
+##### `writable[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`writable.destroy()`][writable-destroy] with an `AbortError` and returns
+a promise that fulfills when the stream is finished.
+
 ##### `writable.write(chunk[, encoding][, callback])`
 
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0
@@ -1265,9 +1293,11 @@ changes:
 -->
 
 The `'readable'` event is emitted when there is data available to be read from
-the stream or when the end of the stream has been reached. Effectively, the
-`'readable'` event indicates that the stream has new information. If data is
-available, [`stream.read()`][stream-read] will return that data.
+the stream, up to the configured high water mark (`state.highWaterMark`). Effectively,
+it indicates that the stream has new information within the buffer. If data is available
+within this buffer, [`stream.read()`][stream-read] can be called to retrieve that data.
+Additionally, the `'readable'` event may also be emitted when the end of the stream has been
+reached.
 
 ```js
 const readable = getReadableStreamSomehow();
@@ -1536,13 +1566,14 @@ readable.on('end', () => {
 });
 ```
 
-Each call to `readable.read()` returns a chunk of data, or `null`. The chunks
-are not concatenated. A `while` loop is necessary to consume all data
-currently in the buffer. When reading a large file `.read()` may return `null`,
-having consumed all buffered content so far, but there is still more data to
-come not yet buffered. In this case a new `'readable'` event will be emitted
-when there is more data in the buffer. Finally the `'end'` event will be
-emitted when there is no more data to come.
+Each call to `readable.read()` returns a chunk of data or `null`, signifying
+that there's no more data to read at that moment. These chunks aren't automatically
+concatenated. Because a single `read()` call does not return all the data, using
+a while loop may be necessary to continuously read chunks until all data is retrieved.
+When reading a large file, `.read()` might return `null` temporarily, indicating
+that it has consumed all buffered content but there may be more data yet to be
+buffered. In such cases, a new `'readable'` event is emitted once there's more
+data in the buffer, and the `'end'` event signifies the end of data transmission.
 
 Therefore to read a file's whole contents from a `readable`, it is necessary
 to collect chunks across multiple `'readable'` events:
@@ -1784,7 +1815,9 @@ setTimeout(() => {
 <!-- YAML
 added: v0.9.11
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0
@@ -3395,7 +3428,7 @@ added:
 * Returns: {integer}
 
 Returns the default highWaterMark used by streams.
-Defaults to `16384` (16 KiB), or `16` for `objectMode`.
+Defaults to `65536` (64 KiB), or `16` for `objectMode`.
 
 ### `stream.setDefaultHighWaterMark(objectMode, value)`
 
@@ -3503,7 +3536,7 @@ method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52037
     description: bump default highWaterMark.
   - version: v15.5.0
@@ -3883,7 +3916,7 @@ constructor and implement the [`readable._read()`][] method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52037
     description: bump default highWaterMark.
   - version: v15.5.0
@@ -4092,7 +4125,9 @@ It can be overridden by child classes but it **must not** be called directly.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.0.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0

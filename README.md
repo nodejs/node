@@ -164,8 +164,6 @@ For information about the governance of the Node.js project, see
 
 * [aduh95](https://github.com/aduh95) -
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
-* [anonrig](https://github.com/anonrig) -
-  **Yagiz Nizipli** <<yagiz.nizipli@sentry.io>> (he/him)
 * [apapirovski](https://github.com/apapirovski) -
   **Anatoli Papirovski** <<apapirovski@mac.com>> (he/him)
 * [benjamingr](https://github.com/benjamingr) -
@@ -182,6 +180,8 @@ For information about the governance of the Node.js project, see
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
 * [legendecas](https://github.com/legendecas) -
   **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
+* [marco-ippolito](https://github.com/marco-ippolito) -
+  **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
@@ -205,6 +205,8 @@ For information about the governance of the Node.js project, see
 
 #### TSC regular members
 
+* [anonrig](https://github.com/anonrig) -
+  **Yagiz Nizipli** <<yagiz.nizipli@sentry.io>> (he/him)
 * [BethGriggs](https://github.com/BethGriggs) -
   **Beth Griggs** <<bethanyngriggs@gmail.com>> (she/her)
 * [bnoordhuis](https://github.com/bnoordhuis) -
@@ -411,6 +413,8 @@ For information about the governance of the Node.js project, see
   **Claudio Wunder** <<cwunder@gnome.org>> (he/they)
 * [panva](https://github.com/panva) -
   **Filip Skokan** <<panva.ip@gmail.com>> (he/him)
+* [pimterry](https://github.com/pimterry) -
+  **Tim Perry** <<pimterry@gmail.com>> (he/him)
 * [Qard](https://github.com/Qard) -
   **Stephen Belanger** <<admin@stephenbelanger.com>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
@@ -429,6 +433,8 @@ For information about the governance of the Node.js project, see
   **Paolo Insogna** <<paolo@cowtech.it>> (he/him)
 * [srl295](https://github.com/srl295) -
   **Steven R Loomis** <<srl295@gmail.com>>
+* [StefanStojanovic](https://github.com/StefanStojanovic) -
+  **Stefan Stojanovic** <<stefan.stojanovic@janeasystems.com>> (he/him)
 * [sxa](https://github.com/sxa) -
   **Stewart X Addison** <<sxa@redhat.com>> (he/him)
 * [targos](https://github.com/targos) -
@@ -449,10 +455,6 @@ For information about the governance of the Node.js project, see
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 * [watilde](https://github.com/watilde) -
   **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
-* [XadillaX](https://github.com/XadillaX) -
-  **Khaidi Chu** <<i@2333.moe>> (he/him)
-* [yashLadha](https://github.com/yashLadha) -
-  **Yash Ladha** <<yash@yashladha.in>> (he/him)
 * [zcbenz](https://github.com/zcbenz) -
   **Cheng Zhao** <<zcbenz@gmail.com>> (he/him)
 * [ZYSzys](https://github.com/ZYSzys) -
@@ -701,6 +703,10 @@ For information about the governance of the Node.js project, see
   **Thomas Watson** <<w@tson.dk>>
 * [whitlockjc](https://github.com/whitlockjc) -
   **Jeremy Whitlock** <<jwhitlock@apache.org>>
+* [XadillaX](https://github.com/XadillaX) -
+  **Khaidi Chu** <<i@2333.moe>> (he/him)
+* [yashLadha](https://github.com/yashLadha) -
+  **Yash Ladha** <<yash@yashladha.in>> (he/him)
 * [yhwang](https://github.com/yhwang) -
   **Yihong Wang** <<yh.wang@ibm.com>>
 * [yorkie](https://github.com/yorkie) -
@@ -771,7 +777,7 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
   `8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
 * **Myles Borins** <<myles.borins@gmail.com>>
   `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
-* **RafaelGSS** <<rafael.nunu@hotmail.com>>
+* **Rafael Gonzaga** <<rafael.nunu@hotmail.com>>
   `890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4`
 * **Richard Lau** <<rlau@redhat.com>>
   `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
@@ -784,17 +790,17 @@ To import the full set of trusted release keys (including subkeys possibly used
 to sign releases):
 
 ```bash
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 141F07595B7B3FFE74309A937405533BE57C7D57
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 74F12602B6F1C4E913FAA37AD3A89613643B6201
-gpg --keyserver hkps://keys.openpgp.org --recv-keys DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7
-gpg --keyserver hkps://keys.openpgp.org --recv-keys CC68F5A3106FF448322E48ED27F5E38D5B0A215F
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600
-gpg --keyserver hkps://keys.openpgp.org --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4
-gpg --keyserver hkps://keys.openpgp.org --recv-keys C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 108F52B48DB57BB0CC439B2997B01419BD92F80A
-gpg --keyserver hkps://keys.openpgp.org --recv-keys A363A499291CBBC940DD62E41F10027AF002F8B0
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C # Beth Griggs
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 141F07595B7B3FFE74309A937405533BE57C7D57 # Bryan English
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 74F12602B6F1C4E913FAA37AD3A89613643B6201 # Danielle Adams
+gpg --keyserver hkps://keys.openpgp.org --recv-keys DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7 # Juan José Arboleda
+gpg --keyserver hkps://keys.openpgp.org --recv-keys CC68F5A3106FF448322E48ED27F5E38D5B0A215F # Marco Ippolito
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600 # Michaël Zasso
+gpg --keyserver hkps://keys.openpgp.org --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8 # Myles Borins
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4 # Rafael Gonzaga
+gpg --keyserver hkps://keys.openpgp.org --recv-keys C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C # Richard Lau
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 108F52B48DB57BB0CC439B2997B01419BD92F80A # Ruy Adorno
+gpg --keyserver hkps://keys.openpgp.org --recv-keys A363A499291CBBC940DD62E41F10027AF002F8B0 # Ulises Gascón
 ```
 
 See [Verifying binaries](#verifying-binaries) for how to use these keys to

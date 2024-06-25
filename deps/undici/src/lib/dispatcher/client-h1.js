@@ -978,19 +978,19 @@ function writeH1 (client, request) {
 
   /* istanbul ignore else: assertion */
   if (!body || bodyLength === 0) {
-    writeBuffer({ abort, body: null, client, request, socket, contentLength, header, expectsPayload })
+    writeBuffer(abort, null, client, request, socket, contentLength, header, expectsPayload)
   } else if (util.isBuffer(body)) {
-    writeBuffer({ abort, body, client, request, socket, contentLength, header, expectsPayload })
+    writeBuffer(abort, body, client, request, socket, contentLength, header, expectsPayload)
   } else if (util.isBlobLike(body)) {
     if (typeof body.stream === 'function') {
-      writeIterable({ abort, body: body.stream(), client, request, socket, contentLength, header, expectsPayload })
+      writeIterable(abort, body.stream(), client, request, socket, contentLength, header, expectsPayload)
     } else {
-      writeBlob({ abort, body, client, request, socket, contentLength, header, expectsPayload })
+      writeBlob(abort, body, client, request, socket, contentLength, header, expectsPayload)
     }
   } else if (util.isStream(body)) {
-    writeStream({ abort, body, client, request, socket, contentLength, header, expectsPayload })
+    writeStream(abort, body, client, request, socket, contentLength, header, expectsPayload)
   } else if (util.isIterable(body)) {
-    writeIterable({ abort, body, client, request, socket, contentLength, header, expectsPayload })
+    writeIterable(abort, body, client, request, socket, contentLength, header, expectsPayload)
   } else {
     assert(false)
   }
@@ -998,7 +998,7 @@ function writeH1 (client, request) {
   return true
 }
 
-function writeStream ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+function writeStream (abort, body, client, request, socket, contentLength, header, expectsPayload) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'stream body cannot be pipelined')
 
   let finished = false
@@ -1101,7 +1101,7 @@ function writeStream ({ abort, body, client, request, socket, contentLength, hea
   }
 }
 
-async function writeBuffer ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+function writeBuffer (abort, body, client, request, socket, contentLength, header, expectsPayload) {
   try {
     if (!body) {
       if (contentLength === 0) {
@@ -1131,7 +1131,7 @@ async function writeBuffer ({ abort, body, client, request, socket, contentLengt
   }
 }
 
-async function writeBlob ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+async function writeBlob (abort, body, client, request, socket, contentLength, header, expectsPayload) {
   assert(contentLength === body.size, 'blob body must have content length')
 
   try {
@@ -1159,7 +1159,7 @@ async function writeBlob ({ abort, body, client, request, socket, contentLength,
   }
 }
 
-async function writeIterable ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+async function writeIterable (abort, body, client, request, socket, contentLength, header, expectsPayload) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'iterator body cannot be pipelined')
 
   let callback = null

@@ -44,10 +44,6 @@
 #include "ares_platform.h"
 #include "ares_private.h"
 
-#ifdef WATT32
-#  undef WIN32
-#endif
-
 struct addr_query {
   /* Arguments passed to ares_gethostbyaddr() */
   ares_channel_t    *channel;
@@ -92,9 +88,11 @@ static void ares_gethostbyaddr_int(ares_channel_t *channel, const void *addr,
   }
   aquery->lookups = ares_strdup(channel->lookups);
   if (aquery->lookups == NULL) {
+    /* LCOV_EXCL_START: OutOfMemory */
     ares_free(aquery);
     callback(arg, ARES_ENOMEM, 0, NULL);
     return;
+    /* LCOV_EXCL_STOP */
   }
   aquery->channel = channel;
   if (family == AF_INET) {
@@ -134,8 +132,8 @@ static void next_lookup(struct addr_query *aquery)
       case 'b':
         name = ares_dns_addr_to_ptr(&aquery->addr);
         if (name == NULL) {
-          end_aquery(aquery, ARES_ENOMEM, NULL);
-          return;
+          end_aquery(aquery, ARES_ENOMEM, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+          return; /* LCOV_EXCL_LINE: OutOfMemory */
         }
         aquery->remaining_lookups = p + 1;
         ares_query_dnsrec(aquery->channel, name, ARES_CLASS_IN,
@@ -227,7 +225,7 @@ static ares_status_t file_lookup(ares_channel_t         *channel,
 
   status = ares__hosts_entry_to_hostent(entry, addr->family, host);
   if (status != ARES_SUCCESS) {
-    return status;
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_SUCCESS;

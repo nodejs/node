@@ -4,14 +4,9 @@
 :: explicitly allow them to persist in the calling shell.
 endlocal
 
-if /i "%1"=="help" goto help
-if /i "%1"=="--help" goto help
-if /i "%1"=="-help" goto help
-if /i "%1"=="/help" goto help
-if /i "%1"=="?" goto help
-if /i "%1"=="-?" goto help
-if /i "%1"=="--?" goto help
-if /i "%1"=="/?" goto help
+set "arg=%1"
+if /i "%arg:~-1%"=="?" goto help
+if /i "%arg:~-4%"=="help" goto help
 
 cd %~dp0
 
@@ -32,6 +27,7 @@ set ltcg=
 set target_env=
 set noprojgen=
 set projgen=
+set clang_cl=
 set nobuild=
 set sign=
 set nosnapshot=
@@ -87,6 +83,7 @@ if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
 if /i "%1"=="vs2022"        set target_env=vs2022&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
+if /i "%1"=="clang-cl"      set clang_cl=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
@@ -145,7 +142,7 @@ if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="no-shared-roheap" set no_shared_roheap=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
-if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
+if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:out\%config%\node.binlog&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -204,7 +201,11 @@ if defined debug_nghttp2    set configure_flags=%configure_flags% --debug-nghttp
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined no_shared_roheap set configure_flags=%configure_flags% --disable-shared-readonly-heap
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
-if "%target_arch%"=="x86" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set configure_flags=%configure_flags% --no-cross-compiling
+
+if "%target_arch%"=="x86" (
+  echo "32-bit Windows builds are not supported anymore."
+  exit /b 1
+)
 
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
@@ -221,7 +222,7 @@ if "%target%"=="TestClean" (
 call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
 
-REM NASM is only needed on IA32 and x86_64.
+REM NASM is only needed on x86_64.
 if not defined openssl_no_asm if "%target_arch%" NEQ "arm64" call tools\msvs\find_nasm.cmd
 if errorlevel 1 echo Could not find NASM, install it or build with openssl-no-asm. See BUILDING.md.
 
@@ -237,9 +238,7 @@ if defined noprojgen if defined nobuild goto :after-build
 
 @rem Set environment for msbuild
 
-set msvs_host_arch=x86
-if _%PROCESSOR_ARCHITECTURE%_==_AMD64_ set msvs_host_arch=amd64
-if _%PROCESSOR_ARCHITEW6432%_==_AMD64_ set msvs_host_arch=amd64
+set msvs_host_arch=amd64
 if _%PROCESSOR_ARCHITECTURE%_==_ARM64_ set msvs_host_arch=arm64
 @rem usually vcvarsall takes an argument: host + '_' + target
 set vcvarsall_arg=%msvs_host_arch%_%target_arch%
@@ -255,7 +254,7 @@ echo Looking for Visual Studio 2022
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease"
+call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease" %clang_cl%
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 @rem check if VS2022 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
@@ -275,12 +274,33 @@ set PLATFORM_TOOLSET=v143
 goto msbuild-found
 
 :msbuild-not-found
-echo Failed to find a suitable Visual Studio installation.
+set "clang_echo="
+if defined clang_cl set "clang_echo= or Clang compiler/LLVM toolset"
+echo Failed to find a suitable Visual Studio installation%clang_echo%.
 echo Try to run in a "Developer Command Prompt" or consult
 echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
 goto exit
 
 :msbuild-found
+
+@rem check if the clang-cl build is requested
+if not defined clang_cl goto clang-skip
+@rem x64 is hard coded as it is used for both cross and native compilation.
+set "clang_path=%VCINSTALLDIR%\Tools\Llvm\x64\bin\clang.exe"
+for /F "tokens=3" %%i in ('"%clang_path%" --version') do (
+    set clang_version=%%i
+    goto clang-found
+)
+
+:clang-not-found
+echo Failed to find Clang compiler in %clang_path%.
+goto exit
+
+:clang-found
+echo Found Clang version %clang_version%
+set configure_flags=%configure_flags% --clang-cl=%clang_version%
+
+:clang-skip
 
 set project_generated=
 :project-gen
@@ -320,8 +340,7 @@ if defined nobuild goto :after-build
 @rem Build the sln with msbuild.
 set "msbcpu=/m:2"
 if "%NUMBER_OF_PROCESSORS%"=="1" set "msbcpu=/m:1"
-set "msbplatform=Win32"
-if "%target_arch%"=="x64" set "msbplatform=x64"
+set "msbplatform=x64"
 if "%target_arch%"=="arm64" set "msbplatform=ARM64"
 if "%target%"=="Build" (
   if defined no_cctest set target=node
@@ -329,6 +348,7 @@ if "%target%"=="Build" (
   if defined cctest set target="Build"
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
+if "%target%"=="node" if exist "%config%\embedtest.exe" del "%config%\embedtest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
 @rem Setup env variables to use multiprocessor build
 set UseMultiToolTask=True
@@ -434,12 +454,28 @@ if defined dll (
   copy /Y libnode.dll %TARGET_NAME%\ > nul
   if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
 
+  copy /Y libnode.lib %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy libnode.lib && goto package_error
+
   mkdir %TARGET_NAME%\Release > nul
   copy /Y node.def %TARGET_NAME%\Release\ > nul
   if errorlevel 1 echo Cannot copy node.def && goto package_error
 
-  python ..\tools\install.py install --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only --silent
+  python ..\tools\install.py install --root-dir .. --config-gypi-path %CD%\..\config.gypi --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only
   if errorlevel 1 echo Cannot install headers && goto package_error
+
+  if exist ..\Debug (
+    mkdir %TARGET_NAME%\Debug > nul
+
+    copy /Y ..\Debug\libnode.dll %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
+
+    copy /Y ..\Debug\libnode.lib %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy libnode.lib && goto package_error
+
+    copy /Y ..\Debug\node.def %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy node.def && goto package_error
+  )
 )
 cd ..
 
@@ -497,21 +533,38 @@ if not defined SSHCONFIG (
 )
 
 if not defined STAGINGSERVER set STAGINGSERVER=node-www
+if not defined CLOUDFLARE_ENDPOINT set CLOUDFLARE_ENDPOINT=https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflarestorage.com
+if not defined CLOUDFLARE_BUCKET set CLOUDFLARE_BUCKET=dist-staging
+if not defined CLOUDFLARE_PROFILE set CLOUDFLARE_PROFILE=worker
 ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "aws s3 cp nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi s3://%CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi --endpoint=%CLOUDFLARE_ENDPOINT% --profile=%CLOUDFLARE_PROFILE%"
 if errorlevel 1 goto exit
 ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 if errorlevel 1 goto exit
@@ -567,7 +620,7 @@ for /d %%F in (test\addons\??_*) do (
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\addons"
+python "%~dp0tools\build_addons.py" "%~dp0test\addons" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 
@@ -584,7 +637,7 @@ for /d %%F in (test\js-native-api\??_*) do (
 )
 :: building js-native-api
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto build-node-api-tests
@@ -602,7 +655,7 @@ for /d %%F in (test\node-api\??_*) do (
 )
 :: building node-api
 setlocal
-python "%~dp0tools\build_addons.py" "%~dp0test\node-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\node-api" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
@@ -638,6 +691,9 @@ if not exist "%config%\cctest.exe" echo cctest.exe not found. Run "vcbuild test"
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 if %errorlevel% neq 0 set exit_code=%errorlevel%
+echo running '%node_exe% test\embedding\test-embedding.js'
+"%node_exe%" test\embedding\test-embedding.js
+if %errorlevel% neq 0 set exit_code=%errorlevel%
 :run-test-py
 echo running 'python tools\test.py %test_args%'
 python tools\test.py %test_args%
@@ -667,9 +723,9 @@ goto lint-js
 
 :lint-js
 if not defined lint_js goto lint-md-build
-if not exist tools\node_modules\eslint goto no-lint
+if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js
-%node_exe% tools\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "linebreak-style: 0" .eslintrc.js benchmark doc lib test tools
+%node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools
 goto lint-md-build
 
 :no-lint
@@ -717,7 +773,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

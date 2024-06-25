@@ -480,7 +480,7 @@ class ConstOrV {
   template <typename U,
             typename = std::enable_if_t<std::is_constructible_v<V<T>, V<U>>>>
   ConstOrV(V<U> index)  // NOLINT(runtime/explicit)
-      : constant_value_(), value_(index) {}
+      : constant_value_(std::nullopt), value_(index) {}
 
   bool is_constant() const { return constant_value_.has_value(); }
   constant_type constant_value() const {

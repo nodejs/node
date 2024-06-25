@@ -1,20 +1,21 @@
 'use strict'
 
-const { uid, states, sentCloseFrameState } = require('./constants')
+const { uid, states, sentCloseFrameState, emptyBuffer, opcodes } = require('./constants')
 const {
   kReadyState,
   kSentClose,
   kByteParser,
-  kReceivedClose
+  kReceivedClose,
+  kResponse
 } = require('./symbols')
-const { fireEvent, failWebsocketConnection } = require('./util')
+const { fireEvent, failWebsocketConnection, isClosing, isClosed, isEstablished, parseExtensions } = require('./util')
 const { channels } = require('../../core/diagnostics')
 const { CloseEvent } = require('./events')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
-const { Headers } = require('../fetch/headers')
+const { Headers, getHeadersList } = require('../fetch/headers')
 const { getDecodeSplit } = require('../fetch/util')
-const { kHeadersList } = require('../../core/symbols')
+const { WebsocketFrameSend } = require('./frame')
 
 /** @type {import('crypto')} */
 let crypto
@@ -30,10 +31,10 @@ try {
  * @param {URL} url
  * @param {string|string[]} protocols
  * @param {import('./websocket').WebSocket} ws
- * @param {(response: any) => void} onEstablish
+ * @param {(response: any, extensions: string[] | undefined) => void} onEstablish
  * @param {Partial<import('../../types/websocket').WebSocketInit>} options
  */
-function establishWebSocketConnection (url, protocols, ws, onEstablish, options) {
+function establishWebSocketConnection (url, protocols, client, ws, onEstablish, options) {
   // 1. Let requestURL be a copy of url, with its scheme set to "http", if url’s
   //    scheme is "ws", and to "https" otherwise.
   const requestURL = url
@@ -46,6 +47,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
   //    and redirect mode is "error".
   const request = makeRequest({
     urlList: [requestURL],
+    client,
     serviceWorkers: 'none',
     referrer: 'no-referrer',
     mode: 'websocket',
@@ -56,7 +58,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
 
   // Note: undici extension, allow setting custom headers.
   if (options.headers) {
-    const headersList = new Headers(options.headers)[kHeadersList]
+    const headersList = getHeadersList(new Headers(options.headers))
 
     request.headersList = headersList
   }
@@ -89,12 +91,11 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
   // 9. Let permessageDeflate be a user-agent defined
   //    "permessage-deflate" extension header value.
   // https://github.com/mozilla/gecko-dev/blob/ce78234f5e653a5d3916813ff990f053510227bc/netwerk/protocol/websocket/WebSocketChannel.cpp#L2673
-  // TODO: enable once permessage-deflate is supported
-  const permessageDeflate = '' // 'permessage-deflate; 15'
+  const permessageDeflate = 'permessage-deflate; client_max_window_bits'
 
   // 10. Append (`Sec-WebSocket-Extensions`, permessageDeflate) to
   //     request’s header list.
-  // request.headersList.append('sec-websocket-extensions', permessageDeflate)
+  request.headersList.append('sec-websocket-extensions', permessageDeflate)
 
   // 11. Fetch request with useParallelQueue set to true, and
   //     processResponse given response being these steps:
@@ -165,10 +166,15 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
       //    header field to determine which extensions are requested is
       //    discussed in Section 9.1.)
       const secExtension = response.headersList.get('Sec-WebSocket-Extensions')
+      let extensions
 
-      if (secExtension !== null && secExtension !== permessageDeflate) {
-        failWebsocketConnection(ws, 'Received different permessage-deflate than the one set.')
-        return
+      if (secExtension !== null) {
+        extensions = parseExtensions(secExtension)
+
+        if (!extensions.has('permessage-deflate')) {
+          failWebsocketConnection(ws, 'Sec-WebSocket-Extensions header does not match.')
+          return
+        }
       }
 
       // 6. If the response includes a |Sec-WebSocket-Protocol| header field
@@ -204,11 +210,73 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
         })
       }
 
-      onEstablish(response)
+      onEstablish(response, extensions)
     }
   })
 
   return controller
+}
+
+function closeWebSocketConnection (ws, code, reason, reasonByteLength) {
+  if (isClosing(ws) || isClosed(ws)) {
+    // If this's ready state is CLOSING (2) or CLOSED (3)
+    // Do nothing.
+  } else if (!isEstablished(ws)) {
+    // If the WebSocket connection is not yet established
+    // Fail the WebSocket connection and set this's ready state
+    // to CLOSING (2).
+    failWebsocketConnection(ws, 'Connection was closed before it was established.')
+    ws[kReadyState] = states.CLOSING
+  } else if (ws[kSentClose] === sentCloseFrameState.NOT_SENT) {
+    // If the WebSocket closing handshake has not yet been started
+    // Start the WebSocket closing handshake and set this's ready
+    // state to CLOSING (2).
+    // - If neither code nor reason is present, the WebSocket Close
+    //   message must not have a body.
+    // - If code is present, then the status code to use in the
+    //   WebSocket Close message must be the integer given by code.
+    // - If reason is also present, then reasonBytes must be
+    //   provided in the Close message after the status code.
+
+    ws[kSentClose] = sentCloseFrameState.PROCESSING
+
+    const frame = new WebsocketFrameSend()
+
+    // If neither code nor reason is present, the WebSocket Close
+    // message must not have a body.
+
+    // If code is present, then the status code to use in the
+    // WebSocket Close message must be the integer given by code.
+    if (code !== undefined && reason === undefined) {
+      frame.frameData = Buffer.allocUnsafe(2)
+      frame.frameData.writeUInt16BE(code, 0)
+    } else if (code !== undefined && reason !== undefined) {
+      // If reason is also present, then reasonBytes must be
+      // provided in the Close message after the status code.
+      frame.frameData = Buffer.allocUnsafe(2 + reasonByteLength)
+      frame.frameData.writeUInt16BE(code, 0)
+      // the body MAY contain UTF-8-encoded data with value /reason/
+      frame.frameData.write(reason, 2, 'utf-8')
+    } else {
+      frame.frameData = emptyBuffer
+    }
+
+    /** @type {import('stream').Duplex} */
+    const socket = ws[kResponse].socket
+
+    socket.write(frame.createFrame(opcodes.CLOSE))
+
+    ws[kSentClose] = sentCloseFrameState.SENT
+
+    // Upon either sending or receiving a Close control frame, it is said
+    // that _The WebSocket Closing Handshake is Started_ and that the
+    // WebSocket connection is in the CLOSING state.
+    ws[kReadyState] = states.CLOSING
+  } else {
+    // Otherwise
+    // Set this's ready state to CLOSING (2).
+    ws[kReadyState] = states.CLOSING
+  }
 }
 
 /**
@@ -226,6 +294,11 @@ function onSocketData (chunk) {
  */
 function onSocketClose () {
   const { ws } = this
+  const { [kResponse]: response } = ws
+
+  response.socket.off('data', onSocketData)
+  response.socket.off('close', onSocketClose)
+  response.socket.off('error', onSocketError)
 
   // If the TCP connection was closed after the
   // WebSocket closing handshake was completed, the WebSocket connection
@@ -237,10 +310,10 @@ function onSocketClose () {
 
   const result = ws[kByteParser].closingInfo
 
-  if (result) {
+  if (result && !result.error) {
     code = result.code ?? 1005
     reason = result.reason
-  } else if (ws[kSentClose] !== sentCloseFrameState.SENT) {
+  } else if (!ws[kReceivedClose]) {
     // If _The WebSocket
     // Connection is Closed_ and no Close control frame was received by the
     // endpoint (such as could occur if the underlying transport connection
@@ -267,7 +340,7 @@ function onSocketClose () {
   //    decode without BOM to the WebSocket connection close
   //    reason.
   // TODO: process.nextTick
-  fireEvent('close', ws, CloseEvent, {
+  fireEvent('close', ws, (type, init) => new CloseEvent(type, init), {
     wasClean, code, reason
   })
 
@@ -293,5 +366,6 @@ function onSocketError (error) {
 }
 
 module.exports = {
-  establishWebSocketConnection
+  establishWebSocketConnection,
+  closeWebSocketConnection
 }

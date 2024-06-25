@@ -42,10 +42,6 @@ std::vector<std::string> Dotenv::GetPathFromArgs(
 }
 
 void Dotenv::SetEnvironment(node::Environment* env) {
-  if (store_.empty()) {
-    return;
-  }
-
   auto isolate = env->isolate();
 
   for (const auto& entry : store_) {
@@ -67,7 +63,7 @@ void Dotenv::SetEnvironment(node::Environment* env) {
   }
 }
 
-Local<Object> Dotenv::ToObject(Environment* env) {
+Local<Object> Dotenv::ToObject(Environment* env) const {
   Local<Object> result = Object::New(env->isolate());
 
   for (const auto& entry : store_) {
@@ -139,8 +135,7 @@ void Dotenv::ParseContent(const std::string_view input) {
     }
 
     // Remove export prefix from key
-    auto have_export = key.compare(0, 7, "export ") == 0;
-    if (have_export) {
+    if (key.starts_with("export ")) {
       key.remove_prefix(7);
     }
 
@@ -263,7 +258,7 @@ Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
   return ParseResult::Valid;
 }
 
-void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
+void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) const {
   auto match = store_.find("NODE_OPTIONS");
 
   if (match != store_.end()) {

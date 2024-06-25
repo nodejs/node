@@ -6,7 +6,7 @@ const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet 
 const { getGlobalOrigin } = require('./global')
 const { collectASequenceOfCodePoints, collectAnHTTPQuotedString, removeChars, parseMIMEType } = require('./data-url')
 const { performance } = require('node:perf_hooks')
-const { isBlobLike, ReadableStreamFrom, isValidHTTPToken } = require('../../core/util')
+const { isBlobLike, ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
 const assert = require('node:assert')
 const { isUint8Array } = require('node:util/types')
 const { webidl } = require('./webidl')
@@ -255,16 +255,26 @@ function appendFetchMetadata (httpRequest) {
 
 // https://fetch.spec.whatwg.org/#append-a-request-origin-header
 function appendRequestOriginHeader (request) {
-  // 1. Let serializedOrigin be the result of byte-serializing a request origin with request.
+  // 1. Let serializedOrigin be the result of byte-serializing a request origin
+  //    with request.
+  // TODO: implement "byte-serializing a request origin"
   let serializedOrigin = request.origin
 
-  // 2. If request’s response tainting is "cors" or request’s mode is "websocket", then append (`Origin`, serializedOrigin) to request’s header list.
-  if (request.responseTainting === 'cors' || request.mode === 'websocket') {
-    if (serializedOrigin) {
-      request.headersList.append('origin', serializedOrigin, true)
-    }
+  // - "'client' is changed to an origin during fetching."
+  //   This doesn't happen in undici (in most cases) because undici, by default,
+  //   has no concept of origin.
+  // - request.origin can also be set to request.client.origin (client being
+  //   an environment settings object), which is undefined without using
+  //   setGlobalOrigin.
+  if (serializedOrigin === 'client' || serializedOrigin === undefined) {
+    return
+  }
 
+  // 2. If request’s response tainting is "cors" or request’s mode is "websocket",
+  //    then append (`Origin`, serializedOrigin) to request’s header list.
   // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
+  if (request.responseTainting === 'cors' || request.mode === 'websocket') {
+    request.headersList.append('origin', serializedOrigin, true)
   } else if (request.method !== 'GET' && request.method !== 'HEAD') {
     // 1. Switch on request’s referrer policy:
     switch (request.referrerPolicy) {
@@ -275,13 +285,16 @@ function appendRequestOriginHeader (request) {
       case 'no-referrer-when-downgrade':
       case 'strict-origin':
       case 'strict-origin-when-cross-origin':
-        // If request’s origin is a tuple origin, its scheme is "https", and request’s current URL’s scheme is not "https", then set serializedOrigin to `null`.
+        // If request’s origin is a tuple origin, its scheme is "https", and
+        // request’s current URL’s scheme is not "https", then set
+        // serializedOrigin to `null`.
         if (request.origin && urlHasHttpsScheme(request.origin) && !urlHasHttpsScheme(requestCurrentURL(request))) {
           serializedOrigin = null
         }
         break
       case 'same-origin':
-        // If request’s origin is not same origin with request’s current URL’s origin, then set serializedOrigin to `null`.
+        // If request’s origin is not same origin with request’s current URL’s
+        // origin, then set serializedOrigin to `null`.
         if (!sameOrigin(request, requestCurrentURL(request))) {
           serializedOrigin = null
         }
@@ -290,10 +303,8 @@ function appendRequestOriginHeader (request) {
         // Do nothing.
     }
 
-    if (serializedOrigin) {
-      // 2. Append (`Origin`, serializedOrigin) to request’s header list.
-      request.headersList.append('origin', serializedOrigin, true)
-    }
+    // 2. Append (`Origin`, serializedOrigin) to request’s header list.
+    request.headersList.append('origin', serializedOrigin, true)
   }
 }
 
@@ -783,37 +794,12 @@ function isCancelled (fetchParams) {
     fetchParams.controller.state === 'terminated'
 }
 
-const normalizeMethodRecordBase = {
-  delete: 'DELETE',
-  DELETE: 'DELETE',
-  get: 'GET',
-  GET: 'GET',
-  head: 'HEAD',
-  HEAD: 'HEAD',
-  options: 'OPTIONS',
-  OPTIONS: 'OPTIONS',
-  post: 'POST',
-  POST: 'POST',
-  put: 'PUT',
-  PUT: 'PUT'
-}
-
-const normalizeMethodRecord = {
-  ...normalizeMethodRecordBase,
-  patch: 'patch',
-  PATCH: 'PATCH'
-}
-
-// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
-Object.setPrototypeOf(normalizeMethodRecordBase, null)
-Object.setPrototypeOf(normalizeMethodRecord, null)
-
 /**
  * @see https://fetch.spec.whatwg.org/#concept-method-normalize
  * @param {string} method
  */
 function normalizeMethod (method) {
-  return normalizeMethodRecordBase[method.toLowerCase()] ?? method
+  return normalizedMethodRecordsBase[method.toLowerCase()] ?? method
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string
@@ -1016,7 +1002,7 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
       configurable: true,
       value: function forEach (callbackfn, thisArg = globalThis) {
         webidl.brandCheck(this, object)
-        webidl.argumentLengthCheck(arguments, 1, { header: `${name}.forEach` })
+        webidl.argumentLengthCheck(arguments, 1, `${name}.forEach`)
         if (typeof callbackfn !== 'function') {
           throw new TypeError(
             `Failed to execute 'forEach' on '${name}': parameter 1 is not of type 'Function'.`
@@ -1069,8 +1055,7 @@ async function fullyReadBody (body, processBody, processBodyError) {
 
   // 5. Read all bytes from reader, given successSteps and errorSteps.
   try {
-    const result = await readAllBytes(reader)
-    successSteps(result)
+    successSteps(await readAllBytes(reader))
   } catch (e) {
     errorSteps(e)
   }
@@ -1098,15 +1083,15 @@ function readableStreamClose (controller) {
   }
 }
 
+const invalidIsomorphicEncodeValueRegex = /[^\x00-\xFF]/ // eslint-disable-line
+
 /**
  * @see https://infra.spec.whatwg.org/#isomorphic-encode
  * @param {string} input
  */
 function isomorphicEncode (input) {
   // 1. Assert: input contains no code points greater than U+00FF.
-  for (let i = 0; i < input.length; i++) {
-    assert(input.charCodeAt(i) <= 0xFF)
-  }
+  assert(!invalidIsomorphicEncodeValueRegex.test(input))
 
   // 2. Return a byte sequence whose length is equal to input’s code
   //    point length and whose bytes have the same values as the
@@ -1562,6 +1547,24 @@ function utf8DecodeBytes (buffer) {
   return output
 }
 
+class EnvironmentSettingsObjectBase {
+  get baseUrl () {
+    return getGlobalOrigin()
+  }
+
+  get origin () {
+    return this.baseUrl?.origin
+  }
+
+  policyContainer = makePolicyContainer()
+}
+
+class EnvironmentSettingsObject {
+  settingsObject = new EnvironmentSettingsObjectBase()
+}
+
+const environmentSettingsObject = new EnvironmentSettingsObject()
+
 module.exports = {
   isAborted,
   isCancelled,
@@ -1606,12 +1609,12 @@ module.exports = {
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
   readAllBytes,
-  normalizeMethodRecord,
   simpleRangeHeaderValue,
   buildContentRange,
   parseMetadata,
   createInflate,
   extractMimeType,
   getDecodeSplit,
-  utf8DecodeBytes
+  utf8DecodeBytes,
+  environmentSettingsObject
 }

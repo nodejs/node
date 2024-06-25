@@ -62,8 +62,8 @@ int ares_parse_soa_reply(const unsigned char *abuf, int alen_int,
 
     if (rr == NULL) {
       /* Shouldn't be possible */
-      status = ARES_EBADRESP;
-      goto done;
+      status = ARES_EBADRESP; /* LCOV_EXCL_LINE: DefensiveCoding */
+      goto done; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     if (ares_dns_rr_get_class(rr) != ARES_CLASS_IN ||
@@ -74,8 +74,8 @@ int ares_parse_soa_reply(const unsigned char *abuf, int alen_int,
     /* allocate result struct */
     soa = ares_malloc_data(ARES_DATATYPE_SOA_REPLY);
     if (soa == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     soa->serial  = ares_dns_rr_get_u32(rr, ARES_RR_SOA_SERIAL);
@@ -85,13 +85,13 @@ int ares_parse_soa_reply(const unsigned char *abuf, int alen_int,
     soa->minttl  = ares_dns_rr_get_u32(rr, ARES_RR_SOA_MINIMUM);
     soa->nsname  = ares_strdup(ares_dns_rr_get_str(rr, ARES_RR_SOA_MNAME));
     if (soa->nsname == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     soa->hostmaster = ares_strdup(ares_dns_rr_get_str(rr, ARES_RR_SOA_RNAME));
     if (soa->hostmaster == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     break;
   }

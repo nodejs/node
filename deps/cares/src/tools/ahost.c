@@ -27,7 +27,7 @@
 
 #include "ares_setup.h"
 
-#if !defined(WIN32) || defined(WATT32)
+#if !defined(_WIN32) || defined(WATT32)
 #  include <netinet/in.h>
 #  include <arpa/inet.h>
 #  include <netdb.h>

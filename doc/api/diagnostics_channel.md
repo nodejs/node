@@ -1117,6 +1117,58 @@ Emitted when server receives a request.
 
 Emitted when server sends a response.
 
+#### Modules
+
+`module.require.start`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `require()`. Module name.
+  * `parentFilename` - Name of the module that attempted to require(id).
+
+Emitted when `require()` is executed. See [`start` event][].
+
+`module.require.end`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `require()`. Module name.
+  * `parentFilename` - Name of the module that attempted to require(id).
+
+Emitted when a `require()` call returns. See [`end` event][].
+
+`module.require.error`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `require()`. Module name.
+  * `parentFilename` - Name of the module that attempted to require(id).
+* `error` {Error}
+
+Emitted when a `require()` throws an error. See [`error` event][].
+
+`module.import.asyncStart`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `import()`. Module name.
+  * `parentURL` - URL object of the module that attempted to import(id).
+
+Emitted when `import()` is invoked. See [`asyncStart` event][].
+
+`module.import.asyncEnd`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `import()`. Module name.
+  * `parentURL` - URL object of the module that attempted to import(id).
+
+Emitted when `import()` has completed. See [`asyncEnd` event][].
+
+`module.import.error`
+
+* `event` {Object} containing the following properties
+  * `id` - Argument passed to `import()`. Module name.
+  * `parentURL` - URL object of the module that attempted to import(id).
+* `error` {Error}
+
+Emitted when a `import()` throws an error. See [`error` event][].
+
 #### NET
 
 `net.client.socket`
@@ -1130,6 +1182,26 @@ Emitted when a new TCP or pipe client socket is created.
 * `socket` {net.Socket}
 
 Emitted when a new TCP or pipe connection is received.
+
+`tracing:net.server.listen:asyncStart`
+
+* `server` {net.Server}
+* `options` {Object}
+
+Emitted when [`net.Server.listen()`][] is invoked, before the port or pipe is actually setup.
+
+`tracing:net.server.listen:asyncEnd`
+
+* `server` {net.Server}
+
+Emitted when [`net.Server.listen()`][] has completed and thus the server is ready to accept connection.
+
+`tracing:net.server.listen:error`
+
+* `server` {net.Server}
+* `error` {Error}
+
+Emitted when [`net.Server.listen()`][] is returning an error.
 
 #### UDP
 
@@ -1179,5 +1251,6 @@ Emitted when a new thread is created.
 [`diagnostics_channel.unsubscribe(name, onMessage)`]: #diagnostics_channelunsubscribename-onmessage
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`net.Server.listen()`]: net.md#serverlisten
 [`start` event]: #startevent
 [context loss]: async_context.md#troubleshooting-context-loss

@@ -62,11 +62,6 @@
 
 #include "ares_getopt.h"
 
-#ifdef WATT32
-#  undef WIN32 /* Redefined in MingW headers */
-#endif
-
-
 typedef struct {
   ares_bool_t         is_help;
   struct ares_options options;
@@ -84,12 +79,12 @@ typedef struct {
 } nv_t;
 
 static const nv_t configflags[] = {
-  {"usevc",      ARES_FLAG_USEVC    },
-  { "primary",   ARES_FLAG_PRIMARY  },
-  { "igntc",     ARES_FLAG_IGNTC    },
-  { "norecurse", ARES_FLAG_NORECURSE},
-  { "stayopen",  ARES_FLAG_STAYOPEN },
-  { "noaliases", ARES_FLAG_NOALIASES}
+  { "usevc",     ARES_FLAG_USEVC     },
+  { "primary",   ARES_FLAG_PRIMARY   },
+  { "igntc",     ARES_FLAG_IGNTC     },
+  { "norecurse", ARES_FLAG_NORECURSE },
+  { "stayopen",  ARES_FLAG_STAYOPEN  },
+  { "noaliases", ARES_FLAG_NOALIASES }
 };
 static const size_t nconfigflags = sizeof(configflags) / sizeof(*configflags);
 

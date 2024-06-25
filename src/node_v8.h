@@ -23,6 +23,13 @@ class BindingData : public SnapshotableObject {
     AliasedBufferIndex heap_space_statistics_buffer;
     AliasedBufferIndex heap_code_statistics_buffer;
   };
+
+  // Make sure that there's no padding in the struct since we will memcpy
+  // them into the snapshot blob and they need to be reproducible.
+  static_assert(sizeof(InternalFieldInfo) == sizeof(InternalFieldInfoBase) +
+                                                 sizeof(AliasedBufferIndex) * 3,
+                "InternalFieldInfo should have no padding");
+
   BindingData(Realm* realm,
               v8::Local<v8::Object> obj,
               InternalFieldInfo* info = nullptr);

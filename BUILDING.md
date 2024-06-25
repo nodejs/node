@@ -100,26 +100,25 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                          | Support Type                                    | Notes                                |
-| ---------------- | ---------------- | --------------------------------- | ----------------------------------------------- | ------------------------------------ |
-| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental                                    | e.g. Alpine 3.8                      |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental                                    | Downgraded as of Node.js 10          |
-| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 11         |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental                                    | Downgraded as of Node.js 12          |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. Ubuntu 20.04, RHEL 8            |
-| GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. RHEL 8                          |
-| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental                                    |                                      |
-| Windows          | x64, x86 (WoW64) | >= Windows 10/Server 2016         | Tier 1                                          | [^2],[^3]                            |
-| Windows          | x86 (native)     | >= Windows 10/Server 2016         | Tier 1 (running) / Experimental (compiling)[^4] |                                      |
-| Windows          | x64, x86         | Windows 8.1/Server 2012           | Experimental                                    |                                      |
-| Windows          | arm64            | >= Windows 10                     | Tier 2                                          |                                      |
-| macOS            | x64              | >= 11.0                           | Tier 1                                          | For notes about compilation see [^5] |
-| macOS            | arm64            | >= 11.0                           | Tier 1                                          |                                      |
-| SmartOS          | x64              | >= 18                             | Tier 2                                          |                                      |
-| AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                          |                                      |
-| FreeBSD          | x64              | >= 13.2                           | Experimental                                    |                                      |
+| Operating System | Architectures    | Versions                          | Support Type | Notes                                |
+| ---------------- | ---------------- | --------------------------------- | ------------ | ------------------------------------ |
+| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                      |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10          |
+| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 11         |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12          |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
+| GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                          |
+| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
+| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                            |
+| Windows          | x64              | Windows 8.1/Server 2012           | Experimental |                                      |
+| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                      |
+| macOS            | x64              | >= 11.0                           | Tier 1       | For notes about compilation see [^4] |
+| macOS            | arm64            | >= 11.0                           | Tier 1       |                                      |
+| SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
+| AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2       |                                      |
+| FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
 
 <!--lint disable final-definition-->
 
@@ -141,12 +140,7 @@ platforms. This is true regardless of entries in the table below.
     Windows binary (`node.exe`) in WSL will not work without workarounds such as
     stdio redirection.
 
-[^4]: Running Node.js on x86 Windows should work and binaries
-    are provided. However, tests in our infrastructure only run on WoW64.
-    Furthermore, compiling on x86 Windows is Experimental and
-    may not be possible.
-
-[^5]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
+[^4]: Our macOS x64 Binaries are compiled with 11.0 as a target. Xcode 13 is
     required to compile.
 
 <!--lint enable final-definition-->
@@ -175,7 +169,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | linux-s390x             | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
-| win-x64 and win-x86     | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
+| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
 
 <!--lint disable final-definition-->
 
@@ -222,9 +216,9 @@ Supported platforms and toolchains change with each major version of Node.js.
 This document is only valid for the current major version of Node.js.
 Consult previous versions of this document for older versions of Node.js:
 
-* [Node.js 19](https://github.com/nodejs/node/blob/v19.x/BUILDING.md)
+* [Node.js 21](https://github.com/nodejs/node/blob/v21.x/BUILDING.md)
+* [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
 * [Node.js 18](https://github.com/nodejs/node/blob/v18.x/BUILDING.md)
-* [Node.js 16](https://github.com/nodejs/node/blob/v16.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
@@ -546,10 +540,13 @@ If you encounter any difficulties, consider disabling `mold` as a
 troubleshooting step.
 
 If you plan to frequently rebuild Node.js, especially if using several
-branches, installing `ccache` and `mold` can help to greatly reduce build
+branches, installing `ccache` can help to greatly reduce build
 times. Set up with:
 
 On GNU/Linux:
+
+Tips: `mold` can speed up the link process, which can't be cached, you may
+need to install the latest version but not the apt version.
 
 ```bash
 sudo apt install ccache mold   # for Debian/Ubuntu, included in most Linux distros
@@ -558,13 +555,17 @@ export CXX="ccache g++"        # add to your .profile
 export LDFLAGS="-fuse-ld=mold" # add to your .profile
 ```
 
+Refs:
+
+1. <https://ccache.dev/performance.html>
+2. <https://github.com/rui314/mold>
+
 On macOS:
 
 ```bash
-brew install ccache mold       # see https://brew.sh
+brew install ccache            # see https://brew.sh
 export CC="ccache cc"          # add to ~/.zshrc or other shell config file
 export CXX="ccache c++"        # add to ~/.zshrc or other shell config file
-export LDFLAGS="-fuse-ld=mold" # add to ~/.zshrc or other shell config file
 ```
 
 This will allow for near-instantaneous rebuilds when switching branches back
@@ -581,11 +582,6 @@ The resulting binary won't include any JS files and will try to load them from
 the specified directory. The JS debugger of Visual Studio Code supports this
 configuration since the November 2020 version and allows for setting
 breakpoints.
-
-Refs:
-
-1. <https://ccache.dev/performance.html>
-2. <https://github.com/rui314/mold>
 
 #### Troubleshooting Unix and macOS builds
 
@@ -623,8 +619,8 @@ Refs: #24448, <https://github.com/microsoft/vcpkg/issues/37518>, [vcpkg](https:/
 * The current [version of Python][Python versions] from the
   [Microsoft Store](https://apps.microsoft.com/store/search?publisher=Python+Software+Foundation)
 * The "Desktop development with C++" workload from
-  [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) or
-  the "C++ build tools" workload from the
+  [Visual Studio 2022 (17.6 or newer)](https://visualstudio.microsoft.com/downloads/)
+  or the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
   with the default optional components
 * Basic Unix tools required for some tests,
@@ -640,13 +636,21 @@ Optional requirements to build the MSI installer package:
 * The .NET SDK component from [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)
   * This component can be installed via the Visual Studio Installer Application
 
-Optional requirements for compiling for Windows 10 on ARM (ARM64):
+Optional requirements for compiling for Windows on ARM (ARM64):
 
 * Visual Studio 17.6.0 or newer
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64
 * Windows 10 SDK 10.0.17763.0 or newer
+
+Optional requirements for compiling with ClangCL:
+
+* Visual Studio optional components
+  * C++ Clang Compiler for Windows
+  * MSBuild support for LLVM toolset
+
+NOTE: Currently we only support compiling with Clang that comes from Visual Studio.
 
 ##### Option 2: Automated install with Boxstarter
 
@@ -689,6 +693,15 @@ disk space.
   git clone https://github.com/nodejs/node.git
   cd node
   ```
+
+> \[!TIP]
+> If you are building from a Windows machine, symlinks are disabled by default, and can be enabled by cloning
+> with the `-c core.symlinks=true` flag.
+>
+> ```powershell
+> git clone -c core.symlinks=true <repository_url>
+> ```
+
 * If the path to your build directory contains a space or a non-ASCII character,
   the build will likely fail
 

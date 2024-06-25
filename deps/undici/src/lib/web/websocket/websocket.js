@@ -2,8 +2,8 @@
 
 const { webidl } = require('../fetch/webidl')
 const { URLSerializer } = require('../fetch/data-url')
-const { getGlobalOrigin } = require('../fetch/global')
-const { staticPropertyDescriptors, states, sentCloseFrameState, opcodes, emptyBuffer } = require('./constants')
+const { environmentSettingsObject } = require('../fetch/util')
+const { staticPropertyDescriptors, states, sentCloseFrameState, sendHints } = require('./constants')
 const {
   kWebSocketURL,
   kReadyState,
@@ -16,20 +16,17 @@ const {
 const {
   isConnecting,
   isEstablished,
-  isClosed,
   isClosing,
   isValidSubprotocol,
-  failWebsocketConnection,
   fireEvent
 } = require('./util')
-const { establishWebSocketConnection } = require('./connection')
-const { WebsocketFrameSend } = require('./frame')
+const { establishWebSocketConnection, closeWebSocketConnection } = require('./connection')
 const { ByteParser } = require('./receiver')
 const { kEnumerableProperty, isBlobLike } = require('../../core/util')
 const { getGlobalDispatcher } = require('../../global')
 const { types } = require('node:util')
-
-let experimentalWarned = false
+const { ErrorEvent, CloseEvent } = require('./events')
+const { SendQueue } = require('./sender')
 
 // https://websockets.spec.whatwg.org/#interface-definition
 class WebSocket extends EventTarget {
@@ -44,6 +41,9 @@ class WebSocket extends EventTarget {
   #protocol = ''
   #extensions = ''
 
+  /** @type {SendQueue} */
+  #sendQueue
+
   /**
    * @param {string} url
    * @param {string|string[]} protocols
@@ -51,22 +51,16 @@ class WebSocket extends EventTarget {
   constructor (url, protocols = []) {
     super()
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'WebSocket constructor' })
+    const prefix = 'WebSocket constructor'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    if (!experimentalWarned) {
-      experimentalWarned = true
-      process.emitWarning('WebSockets are experimental, expect them to change at any time.', {
-        code: 'UNDICI-WS'
-      })
-    }
+    const options = webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'](protocols, prefix, 'options')
 
-    const options = webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'](protocols)
-
-    url = webidl.converters.USVString(url)
+    url = webidl.converters.USVString(url, prefix, 'url')
     protocols = options.protocols
 
     // 1. Let baseURL be this's relevant settings object's API base URL.
-    const baseURL = getGlobalOrigin()
+    const baseURL = environmentSettingsObject.settingsObject.baseUrl
 
     // 1. Let urlRecord be the result of applying the URL parser to url with baseURL.
     let urlRecord
@@ -122,6 +116,7 @@ class WebSocket extends EventTarget {
     this[kWebSocketURL] = new URL(urlRecord.href)
 
     // 11. Let client be this's relevant settings object.
+    const client = environmentSettingsObject.settingsObject
 
     // 12. Run this step in parallel:
 
@@ -130,8 +125,9 @@ class WebSocket extends EventTarget {
     this[kController] = establishWebSocketConnection(
       urlRecord,
       protocols,
+      client,
       this,
-      (response) => this.#onConnectionEstablished(response),
+      (response, extensions) => this.#onConnectionEstablished(response, extensions),
       options
     )
 
@@ -159,12 +155,14 @@ class WebSocket extends EventTarget {
   close (code = undefined, reason = undefined) {
     webidl.brandCheck(this, WebSocket)
 
+    const prefix = 'WebSocket.close'
+
     if (code !== undefined) {
-      code = webidl.converters['unsigned short'](code, { clamp: true })
+      code = webidl.converters['unsigned short'](code, prefix, 'code', { clamp: true })
     }
 
     if (reason !== undefined) {
-      reason = webidl.converters.USVString(reason)
+      reason = webidl.converters.USVString(reason, prefix, 'reason')
     }
 
     // 1. If code is present, but is neither an integer equal to 1000 nor an
@@ -194,67 +192,7 @@ class WebSocket extends EventTarget {
     }
 
     // 3. Run the first matching steps from the following list:
-    if (isClosing(this) || isClosed(this)) {
-      // If this's ready state is CLOSING (2) or CLOSED (3)
-      // Do nothing.
-    } else if (!isEstablished(this)) {
-      // If the WebSocket connection is not yet established
-      // Fail the WebSocket connection and set this's ready state
-      // to CLOSING (2).
-      failWebsocketConnection(this, 'Connection was closed before it was established.')
-      this[kReadyState] = WebSocket.CLOSING
-    } else if (this[kSentClose] === sentCloseFrameState.NOT_SENT) {
-      // If the WebSocket closing handshake has not yet been started
-      // Start the WebSocket closing handshake and set this's ready
-      // state to CLOSING (2).
-      // - If neither code nor reason is present, the WebSocket Close
-      //   message must not have a body.
-      // - If code is present, then the status code to use in the
-      //   WebSocket Close message must be the integer given by code.
-      // - If reason is also present, then reasonBytes must be
-      //   provided in the Close message after the status code.
-
-      this[kSentClose] = sentCloseFrameState.PROCESSING
-
-      const frame = new WebsocketFrameSend()
-
-      // If neither code nor reason is present, the WebSocket Close
-      // message must not have a body.
-
-      // If code is present, then the status code to use in the
-      // WebSocket Close message must be the integer given by code.
-      if (code !== undefined && reason === undefined) {
-        frame.frameData = Buffer.allocUnsafe(2)
-        frame.frameData.writeUInt16BE(code, 0)
-      } else if (code !== undefined && reason !== undefined) {
-        // If reason is also present, then reasonBytes must be
-        // provided in the Close message after the status code.
-        frame.frameData = Buffer.allocUnsafe(2 + reasonByteLength)
-        frame.frameData.writeUInt16BE(code, 0)
-        // the body MAY contain UTF-8-encoded data with value /reason/
-        frame.frameData.write(reason, 2, 'utf-8')
-      } else {
-        frame.frameData = emptyBuffer
-      }
-
-      /** @type {import('stream').Duplex} */
-      const socket = this[kResponse].socket
-
-      socket.write(frame.createFrame(opcodes.CLOSE), (err) => {
-        if (!err) {
-          this[kSentClose] = sentCloseFrameState.SENT
-        }
-      })
-
-      // Upon either sending or receiving a Close control frame, it is said
-      // that _The WebSocket Closing Handshake is Started_ and that the
-      // WebSocket connection is in the CLOSING state.
-      this[kReadyState] = states.CLOSING
-    } else {
-      // Otherwise
-      // Set this's ready state to CLOSING (2).
-      this[kReadyState] = WebSocket.CLOSING
-    }
+    closeWebSocketConnection(this, code, reason, reasonByteLength)
   }
 
   /**
@@ -264,9 +202,10 @@ class WebSocket extends EventTarget {
   send (data) {
     webidl.brandCheck(this, WebSocket)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'WebSocket.send' })
+    const prefix = 'WebSocket.send'
+    webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    data = webidl.converters.WebSocketSendData(data)
+    data = webidl.converters.WebSocketSendData(data, prefix, 'data')
 
     // 1. If this's ready state is CONNECTING, then throw an
     //    "InvalidStateError" DOMException.
@@ -282,9 +221,6 @@ class WebSocket extends EventTarget {
       return
     }
 
-    /** @type {import('stream').Duplex} */
-    const socket = this[kResponse].socket
-
     // If data is a string
     if (typeof data === 'string') {
       // If the WebSocket connection is established and the WebSocket
@@ -298,14 +234,12 @@ class WebSocket extends EventTarget {
       // the bufferedAmount attribute by the number of bytes needed to
       // express the argument as UTF-8.
 
-      const value = Buffer.from(data)
-      const frame = new WebsocketFrameSend(value)
-      const buffer = frame.createFrame(opcodes.TEXT)
+      const length = Buffer.byteLength(data)
 
-      this.#bufferedAmount += value.byteLength
-      socket.write(buffer, () => {
-        this.#bufferedAmount -= value.byteLength
-      })
+      this.#bufferedAmount += length
+      this.#sendQueue.add(data, () => {
+        this.#bufferedAmount -= length
+      }, sendHints.string)
     } else if (types.isArrayBuffer(data)) {
       // If the WebSocket connection is established, and the WebSocket
       // closing handshake has not yet started, then the user agent must
@@ -319,14 +253,10 @@ class WebSocket extends EventTarget {
       // increase the bufferedAmount attribute by the length of the
       // ArrayBuffer in bytes.
 
-      const value = Buffer.from(data)
-      const frame = new WebsocketFrameSend(value)
-      const buffer = frame.createFrame(opcodes.BINARY)
-
-      this.#bufferedAmount += value.byteLength
-      socket.write(buffer, () => {
-        this.#bufferedAmount -= value.byteLength
-      })
+      this.#bufferedAmount += data.byteLength
+      this.#sendQueue.add(data, () => {
+        this.#bufferedAmount -= data.byteLength
+      }, sendHints.arrayBuffer)
     } else if (ArrayBuffer.isView(data)) {
       // If the WebSocket connection is established, and the WebSocket
       // closing handshake has not yet started, then the user agent must
@@ -340,15 +270,10 @@ class WebSocket extends EventTarget {
       // not throw an exception must increase the bufferedAmount attribute
       // by the length of data’s buffer in bytes.
 
-      const ab = Buffer.from(data, data.byteOffset, data.byteLength)
-
-      const frame = new WebsocketFrameSend(ab)
-      const buffer = frame.createFrame(opcodes.BINARY)
-
-      this.#bufferedAmount += ab.byteLength
-      socket.write(buffer, () => {
-        this.#bufferedAmount -= ab.byteLength
-      })
+      this.#bufferedAmount += data.byteLength
+      this.#sendQueue.add(data, () => {
+        this.#bufferedAmount -= data.byteLength
+      }, sendHints.typedArray)
     } else if (isBlobLike(data)) {
       // If the WebSocket connection is established, and the WebSocket
       // closing handshake has not yet started, then the user agent must
@@ -361,18 +286,10 @@ class WebSocket extends EventTarget {
       // an exception must increase the bufferedAmount attribute by the size
       // of the Blob object’s raw data, in bytes.
 
-      const frame = new WebsocketFrameSend()
-
-      data.arrayBuffer().then((ab) => {
-        const value = Buffer.from(ab)
-        frame.frameData = value
-        const buffer = frame.createFrame(opcodes.BINARY)
-
-        this.#bufferedAmount += value.byteLength
-        socket.write(buffer, () => {
-          this.#bufferedAmount -= value.byteLength
-        })
-      })
+      this.#bufferedAmount += data.size
+      this.#sendQueue.add(data, () => {
+        this.#bufferedAmount -= data.size
+      }, sendHints.blob)
     }
   }
 
@@ -511,18 +428,19 @@ class WebSocket extends EventTarget {
   /**
    * @see https://websockets.spec.whatwg.org/#feedback-from-the-protocol
    */
-  #onConnectionEstablished (response) {
+  #onConnectionEstablished (response, parsedExtensions) {
     // processResponse is called when the "response’s header list has been received and initialized."
     // once this happens, the connection is open
     this[kResponse] = response
 
-    const parser = new ByteParser(this)
-    parser.on('drain', function onParserDrain () {
-      this.ws[kResponse].socket.resume()
-    })
+    const parser = new ByteParser(this, parsedExtensions)
+    parser.on('drain', onParserDrain)
+    parser.on('error', onParserError.bind(this))
 
     response.socket.ws = this
     this[kByteParser] = parser
+
+    this.#sendQueue = new SendQueue(response.socket)
 
     // 1. Change the ready state to OPEN (1).
     this[kReadyState] = states.OPEN
@@ -595,29 +513,25 @@ webidl.converters['sequence<DOMString>'] = webidl.sequenceConverter(
   webidl.converters.DOMString
 )
 
-webidl.converters['DOMString or sequence<DOMString>'] = function (V) {
+webidl.converters['DOMString or sequence<DOMString>'] = function (V, prefix, argument) {
   if (webidl.util.Type(V) === 'Object' && Symbol.iterator in V) {
     return webidl.converters['sequence<DOMString>'](V)
   }
 
-  return webidl.converters.DOMString(V)
+  return webidl.converters.DOMString(V, prefix, argument)
 }
 
-// This implements the propsal made in https://github.com/whatwg/websockets/issues/42
+// This implements the proposal made in https://github.com/whatwg/websockets/issues/42
 webidl.converters.WebSocketInit = webidl.dictionaryConverter([
   {
     key: 'protocols',
     converter: webidl.converters['DOMString or sequence<DOMString>'],
-    get defaultValue () {
-      return []
-    }
+    defaultValue: () => new Array(0)
   },
   {
     key: 'dispatcher',
-    converter: (V) => V,
-    get defaultValue () {
-      return getGlobalDispatcher()
-    }
+    converter: webidl.converters.any,
+    defaultValue: () => getGlobalDispatcher()
   },
   {
     key: 'headers',
@@ -645,6 +559,26 @@ webidl.converters.WebSocketSendData = function (V) {
   }
 
   return webidl.converters.USVString(V)
+}
+
+function onParserDrain () {
+  this.ws[kResponse].socket.resume()
+}
+
+function onParserError (err) {
+  let message
+  let code
+
+  if (err instanceof CloseEvent) {
+    message = err.reason
+    code = err.code
+  } else {
+    message = err.message
+  }
+
+  fireEvent('error', this, () => new ErrorEvent('error', { error: err, message }))
+
+  closeWebSocketConnection(this, code)
 }
 
 module.exports = {

@@ -3,7 +3,7 @@
 const errors = require('./errors.js')
 const { Response } = require('minipass-fetch')
 const defaultOpts = require('./default-opts.js')
-const log = require('proc-log')
+const { log } = require('proc-log')
 const { redact: cleanUrl } = require('@npmcli/redact')
 
 /* eslint-disable-next-line max-len */

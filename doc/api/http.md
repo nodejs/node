@@ -6,7 +6,8 @@
 
 <!-- source_link=lib/http.js -->
 
-To use the HTTP server and client one must `require('node:http')`.
+This module, containing both a client and server, can be imported via
+`require('node:http')` (CommonJS) or `import * as http from 'node:http'` (ES module).
 
 The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
@@ -1679,13 +1680,61 @@ connected to this server which are not sending a request or waiting for
 a response.
 See [`net.Server.close()`][].
 
+```js
+const http = require('node:http');
+
+const server = http.createServer({ keepAliveTimeout: 60000 }, (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+// Close the server after 10 seconds
+setTimeout(() => {
+  server.close(() => {
+    console.log('server on port 8000 closed successfully');
+  });
+}, 10000);
+```
+
 ### `server.closeAllConnections()`
 
 <!-- YAML
 added: v18.2.0
 -->
 
-Closes all connections connected to this server.
+Closes all established HTTP(S) connections connected to this server, including
+active connections connected to this server which are sending a request or
+waiting for a response. This does _not_ destroy sockets upgraded to a different
+protocol, such as WebSocket or HTTP/2.
+
+> This is a forceful way of closing all connections and should be used with
+> caution. Whenever using this in conjunction with `server.close`, calling this
+> _after_ `server.close` is recommended as to avoid race conditions where new
+> connections are created between a call to this and a call to `server.close`.
+
+```js
+const http = require('node:http');
+
+const server = http.createServer({ keepAliveTimeout: 60000 }, (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+// Close the server after 10 seconds
+setTimeout(() => {
+  server.close(() => {
+    console.log('server on port 8000 closed successfully');
+  });
+  // Closes all connections, ensuring the server closes successfully
+  server.closeAllConnections();
+}, 10000);
+```
 
 ### `server.closeIdleConnections()`
 
@@ -1695,6 +1744,37 @@ added: v18.2.0
 
 Closes all connections connected to this server which are not sending a request
 or waiting for a response.
+
+> Starting with Node.js 19.0.0, there's no need for calling this method in
+> conjunction with `server.close` to reap `keep-alive` connections. Using it
+> won't cause any harm though, and it can be useful to ensure backwards
+> compatibility for libraries and applications that need to support versions
+> older than 19.0.0. Whenever using this in conjunction with `server.close`,
+> calling this _after_ `server.close` is recommended as to avoid race
+> conditions where new connections are created between a call to this and a
+> call to `server.close`.
+
+```js
+const http = require('node:http');
+
+const server = http.createServer({ keepAliveTimeout: 60000 }, (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+// Close the server after 10 seconds
+setTimeout(() => {
+  server.close(() => {
+    console.log('server on port 8000 closed successfully');
+  });
+  // Closes idle connections, such as keep-alive connections. Server will close
+  // once remaining active connections are terminated
+  server.closeIdleConnections();
+}, 10000);
+```
 
 ### `server.headersTimeout`
 
@@ -2349,8 +2429,9 @@ it will switch to implicit header mode and flush the implicit headers.
 This sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 
-Writing to the body is not allowed when the request method or response status
-do not support content. If an attempt is made to write to the body for a
+If `rejectNonStandardBodyWrites` is set to true in `createServer`
+then writing to the body is not allowed when the request method or response
+status do not support content. If an attempt is made to write to the body for a
 HEAD request or as part of a `204` or `304`response, a synchronous `Error`
 with the code `ERR_HTTP_BODY_NOT_ALLOWED` is thrown.
 
@@ -3493,6 +3574,9 @@ changes:
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
+  * `rejectNonStandardBodyWrites` {boolean} If set to `true`, an error is thrown
+    when writing to an HTTP response which does not have a body.
+    **Default:** `false`.
 
 * `requestListener` {Function}
 

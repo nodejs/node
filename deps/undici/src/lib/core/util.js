@@ -1,18 +1,71 @@
 'use strict'
 
 const assert = require('node:assert')
-const { kDestroyed, kBodyUsed, kListeners } = require('./symbols')
+const { kDestroyed, kBodyUsed, kListeners, kBody } = require('./symbols')
 const { IncomingMessage } = require('node:http')
 const stream = require('node:stream')
 const net = require('node:net')
-const { InvalidArgumentError } = require('./errors')
 const { Blob } = require('node:buffer')
 const nodeUtil = require('node:util')
 const { stringify } = require('node:querystring')
+const { EventEmitter: EE } = require('node:events')
+const { InvalidArgumentError } = require('./errors')
 const { headerNameLowerCasedRecord } = require('./constants')
 const { tree } = require('./tree')
 
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
+
+class BodyAsyncIterable {
+  constructor (body) {
+    this[kBody] = body
+    this[kBodyUsed] = false
+  }
+
+  async * [Symbol.asyncIterator] () {
+    assert(!this[kBodyUsed], 'disturbed')
+    this[kBodyUsed] = true
+    yield * this[kBody]
+  }
+}
+
+function wrapRequestBody (body) {
+  if (isStream(body)) {
+    // TODO (fix): Provide some way for the user to cache the file to e.g. /tmp
+    // so that it can be dispatched again?
+    // TODO (fix): Do we need 100-expect support to provide a way to do this properly?
+    if (bodyLength(body) === 0) {
+      body
+        .on('data', function () {
+          assert(false)
+        })
+    }
+
+    if (typeof body.readableDidRead !== 'boolean') {
+      body[kBodyUsed] = false
+      EE.prototype.on.call(body, 'data', function () {
+        this[kBodyUsed] = true
+      })
+    }
+
+    return body
+  } else if (body && typeof body.pipeTo === 'function') {
+    // TODO (fix): We can't access ReadableStream internal state
+    // to determine whether or not it has been disturbed. This is just
+    // a workaround.
+    return new BodyAsyncIterable(body)
+  } else if (
+    body &&
+    typeof body !== 'string' &&
+    !ArrayBuffer.isView(body) &&
+    isIterable(body)
+  ) {
+    // TODO: Should we allow re-using iterable if !this.opts.idempotent
+    // or through some other flag?
+    return new BodyAsyncIterable(body)
+  } else {
+    return body
+  }
+}
 
 function nop () {}
 
@@ -52,11 +105,37 @@ function buildURL (url, queryParams) {
   return url
 }
 
+function isValidPort (port) {
+  const value = parseInt(port, 10)
+  return (
+    value === Number(port) &&
+    value >= 0 &&
+    value <= 65535
+  )
+}
+
+function isHttpOrHttpsPrefixed (value) {
+  return (
+    value != null &&
+    value[0] === 'h' &&
+    value[1] === 't' &&
+    value[2] === 't' &&
+    value[3] === 'p' &&
+    (
+      value[4] === ':' ||
+      (
+        value[4] === 's' &&
+        value[5] === ':'
+      )
+    )
+  )
+}
+
 function parseURL (url) {
   if (typeof url === 'string') {
     url = new URL(url)
 
-    if (!/^https?:/.test(url.origin || url.protocol)) {
+    if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
       throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
     }
 
@@ -67,12 +146,8 @@ function parseURL (url) {
     throw new InvalidArgumentError('Invalid URL: The URL argument must be a non-null object.')
   }
 
-  if (!/^https?:/.test(url.origin || url.protocol)) {
-    throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
-  }
-
   if (!(url instanceof URL)) {
-    if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
+    if (url.port != null && url.port !== '' && isValidPort(url.port) === false) {
       throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
     }
 
@@ -92,28 +167,36 @@ function parseURL (url) {
       throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
     }
 
+    if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
+      throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
+    }
+
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
     let origin = url.origin != null
       ? url.origin
-      : `${url.protocol}//${url.hostname}:${port}`
+      : `${url.protocol || ''}//${url.hostname || ''}:${port}`
     let path = url.path != null
       ? url.path
       : `${url.pathname || ''}${url.search || ''}`
 
-    if (origin.endsWith('/')) {
-      origin = origin.substring(0, origin.length - 1)
+    if (origin[origin.length - 1] === '/') {
+      origin = origin.slice(0, origin.length - 1)
     }
 
-    if (path && !path.startsWith('/')) {
+    if (path && path[0] !== '/') {
       path = `/${path}`
     }
     // new URL(path, origin) is unsafe when `path` contains an absolute URL
     // From https://developer.mozilla.org/en-US/docs/Web/API/URL/URL:
     // If first parameter is a relative URL, second param is required, and will be used as the base URL.
     // If first parameter is an absolute URL, a given second param will be ignored.
-    url = new URL(origin + path)
+    return new URL(`${origin}${path}`)
+  }
+
+  if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
+    throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
   }
 
   return url
@@ -191,11 +274,6 @@ function bodyLength (body) {
 
 function isDestroyed (body) {
   return body && !!(body.destroyed || body[kDestroyed] || (stream.isDestroyed?.(body)))
-}
-
-function isReadableAborted (stream) {
-  const state = stream?._readableState
-  return isDestroyed(stream) && state && !state.endEmitted
 }
 
 function destroy (stream, err) {
@@ -522,7 +600,7 @@ const headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/
 /**
  * @param {string} characters
  */
-function isValidHeaderChar (characters) {
+function isValidHeaderValue (characters) {
   return !headerCharRegex.test(characters)
 }
 
@@ -567,6 +645,31 @@ function errorRequest (client, request, err) {
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
+const normalizedMethodRecordsBase = {
+  delete: 'DELETE',
+  DELETE: 'DELETE',
+  get: 'GET',
+  GET: 'GET',
+  head: 'HEAD',
+  HEAD: 'HEAD',
+  options: 'OPTIONS',
+  OPTIONS: 'OPTIONS',
+  post: 'POST',
+  POST: 'POST',
+  put: 'PUT',
+  PUT: 'PUT'
+}
+
+const normalizedMethodRecords = {
+  ...normalizedMethodRecordsBase,
+  patch: 'patch',
+  PATCH: 'PATCH'
+}
+
+// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
+Object.setPrototypeOf(normalizedMethodRecordsBase, null)
+Object.setPrototypeOf(normalizedMethodRecords, null)
+
 module.exports = {
   kEnumerableProperty,
   nop,
@@ -575,7 +678,6 @@ module.exports = {
   isReadable,
   toUSVString,
   isUSVString,
-  isReadableAborted,
   isBlobLike,
   parseOrigin,
   parseURL,
@@ -603,11 +705,15 @@ module.exports = {
   buildURL,
   addAbortListener,
   isValidHTTPToken,
-  isValidHeaderChar,
+  isValidHeaderValue,
   isTokenCharCode,
   parseRangeHeader,
+  normalizedMethodRecordsBase,
+  normalizedMethodRecords,
+  isValidPort,
+  isHttpOrHttpsPrefixed,
   nodeMajor,
   nodeMinor,
-  nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13),
-  safeHTTPMethods: ['GET', 'HEAD', 'OPTIONS', 'TRACE']
+  safeHTTPMethods: ['GET', 'HEAD', 'OPTIONS', 'TRACE'],
+  wrapRequestBody
 }

@@ -1716,6 +1716,10 @@ config("toolchain") {
 
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108517
       "-Wno-nonnull",
+
+      # Disable dangling pointer warnings, which are often false positives when
+      # using scopes.
+      "-Wno-dangling-pointer",
     ]
   }
 

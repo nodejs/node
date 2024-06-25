@@ -833,7 +833,7 @@ void Reference::WeakCallback(const v8::WeakCallbackInfo<Reference>& data) {
  */
 class ExternalWrapper {
  private:
-  explicit ExternalWrapper(void* data) : data_(data) {}
+  explicit ExternalWrapper(void* data) : data_(data), type_tag_{0, 0} {}
 
   static void WeakCallback(const v8::WeakCallbackInfo<ExternalWrapper>& data) {
     ExternalWrapper* wrapper = data.GetParameter();

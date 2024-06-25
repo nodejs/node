@@ -115,4 +115,4 @@ size_t      ares__htable_strvp_num_keys(const ares__htable_strvp_t *htable);
 
 /*! @} */
 
-#endif /* __ARES__HTABLE_STVP_H */
+#endif /* __ARES__HTABLE_STRVP_H */

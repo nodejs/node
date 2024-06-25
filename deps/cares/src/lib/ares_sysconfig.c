@@ -71,12 +71,7 @@
 #include "ares_platform.h"
 #include "ares_private.h"
 
-#ifdef WATT32
-#  undef WIN32 /* Redefined in MingW/MSVC headers */
-#endif
-
-
-#ifdef WIN32
+#if defined(USE_WINSOCK)
 /*
  * get_REG_SZ()
  *
@@ -957,22 +952,23 @@ static ares_status_t ares__init_sysconfig_libresolv(ares_sysconfig_t *sysconfig)
   if (res.ndots >= 0) {
     sysconfig->ndots = (size_t)res.ndots;
   }
+/* Apple does not allow configuration of retry, so this is a static dummy
+ * value, ignore */
+#  ifndef __APPLE__
   if (res.retry > 0) {
     sysconfig->tries = (size_t)res.retry;
   }
+#  endif
   if (res.options & RES_ROTATE) {
     sysconfig->rotate = ARES_TRUE;
   }
 
   if (res.retrans > 0) {
+/* Apple does not allow configuration of retrans, so this is a dummy value
+ * that is extremely high (5s) */
+#  ifndef __APPLE__
     if (res.retrans > 0) {
       sysconfig->timeout_ms = (unsigned int)res.retrans * 1000;
-    }
-#  ifdef __APPLE__
-    if (res.retry >= 0) {
-      sysconfig->timeout_ms /=
-        ((unsigned int)res.retry + 1) *
-        (unsigned int)(res.nscount > 0 ? res.nscount : 1);
     }
 #  endif
   }
@@ -1011,7 +1007,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     char **temp =
       ares__strsplit_duplicate(sysconfig->domains, sysconfig->ndomains);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     ares__strsplit_free(channel->domains, channel->ndomains);
@@ -1022,7 +1018,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
   if (sysconfig->lookups && !(channel->optmask & ARES_OPT_LOOKUPS)) {
     char *temp = ares_strdup(sysconfig->lookups);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     ares_free(channel->lookups);
@@ -1033,7 +1029,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     struct apattern *temp =
       ares_malloc(sizeof(*channel->sortlist) * sysconfig->nsortlist);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     memcpy(temp, sysconfig->sortlist,
            sizeof(*channel->sortlist) * sysconfig->nsortlist);
@@ -1043,7 +1039,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     channel->nsort    = sysconfig->nsortlist;
   }
 
-  if (sysconfig->ndots && !(channel->optmask & ARES_OPT_NDOTS)) {
+  if (!(channel->optmask & ARES_OPT_NDOTS)) {
     channel->ndots = sysconfig->ndots;
   }
 
@@ -1073,7 +1069,7 @@ ares_status_t ares__init_by_sysconfig(ares_channel_t *channel)
 
   memset(&sysconfig, 0, sizeof(sysconfig));
 
-#ifdef _WIN32
+#if defined(USE_WINSOCK)
   status = ares__init_sysconfig_windows(&sysconfig);
 #elif defined(__MVS__)
   status = ares__init_sysconfig_mvs(&sysconfig);
@@ -1083,6 +1079,8 @@ ares_status_t ares__init_by_sysconfig(ares_channel_t *channel)
   status = ares__init_sysconfig_watt32(&sysconfig);
 #elif defined(ANDROID) || defined(__ANDROID__)
   status = ares__init_sysconfig_android(&sysconfig);
+#elif defined(__APPLE__)
+  status = ares__init_sysconfig_macos(&sysconfig);
 #elif defined(CARES_USE_LIBRESOLV)
   status = ares__init_sysconfig_libresolv(&sysconfig);
 #else
@@ -1099,7 +1097,14 @@ ares_status_t ares__init_by_sysconfig(ares_channel_t *channel)
     goto done;
   }
 
+  /* Lock when applying the configuration to the channel.  Don't need to
+   * lock prior to this. */
+
+  ares__channel_lock(channel);
+
   status = ares_sysconfig_apply(channel, &sysconfig);
+  ares__channel_unlock(channel);
+
   if (status != ARES_SUCCESS) {
     goto done;
   }

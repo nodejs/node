@@ -46,6 +46,13 @@ const parserStates = {
 
 const emptyBuffer = Buffer.allocUnsafe(0)
 
+const sendHints = {
+  string: 1,
+  typedArray: 2,
+  arrayBuffer: 3,
+  blob: 4
+}
+
 module.exports = {
   uid,
   sentCloseFrameState,
@@ -54,5 +61,6 @@ module.exports = {
   opcodes,
   maxUnsigned16Bit,
   parserStates,
-  emptyBuffer
+  emptyBuffer,
+  sendHints
 }

@@ -8,7 +8,6 @@ module.exports = {
   kQueue: Symbol('queue'),
   kConnect: Symbol('connect'),
   kConnecting: Symbol('connecting'),
-  kHeadersList: Symbol('headers list'),
   kKeepAliveDefaultTimeout: Symbol('default keep alive timeout'),
   kKeepAliveMaxTimeout: Symbol('max keep alive timeout'),
   kKeepAliveTimeoutThreshold: Symbol('keep alive timeout threshold'),
@@ -21,6 +20,7 @@ module.exports = {
   kHost: Symbol('host'),
   kNoRef: Symbol('no ref'),
   kBodyUsed: Symbol('used'),
+  kBody: Symbol('abstracted request body'),
   kRunning: Symbol('running'),
   kBlocking: Symbol('blocking'),
   kPending: Symbol('pending'),
@@ -60,5 +60,8 @@ module.exports = {
   kConstruct: Symbol('constructable'),
   kListeners: Symbol('listeners'),
   kHTTPContext: Symbol('http context'),
-  kMaxConcurrentStreams: Symbol('max concurrent streams')
+  kMaxConcurrentStreams: Symbol('max concurrent streams'),
+  kNoProxyAgent: Symbol('no proxy agent'),
+  kHttpProxyAgent: Symbol('http proxy agent'),
+  kHttpsProxyAgent: Symbol('https proxy agent')
 }

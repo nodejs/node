@@ -67,11 +67,11 @@ static ares_bool_t ares__addr_match(const struct ares_addr *addr1,
                                     const struct ares_addr *addr2)
 {
   if (addr1 == NULL && addr2 == NULL) {
-    return ARES_TRUE;
+    return ARES_TRUE; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (addr1 == NULL || addr2 == NULL) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (addr1->family != addr2->family) {
@@ -102,7 +102,7 @@ ares_bool_t ares__subnet_match(const struct ares_addr *addr,
   size_t               i;
 
   if (addr == NULL || subnet == NULL) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (addr->family != subnet->family) {
@@ -115,7 +115,7 @@ ares_bool_t ares__subnet_match(const struct ares_addr *addr,
     len        = 4;
 
     if (netmask > 32) {
-      return ARES_FALSE;
+      return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
   } else if (addr->family == AF_INET6) {
     addr_ptr   = (const unsigned char *)&addr->addr.addr6;
@@ -123,10 +123,10 @@ ares_bool_t ares__subnet_match(const struct ares_addr *addr,
     len        = 16;
 
     if (netmask > 128) {
-      return ARES_FALSE;
+      return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
   } else {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   for (i = 0; i < len && netmask > 0; i++) {
@@ -167,13 +167,13 @@ static ares_bool_t ares_server_blacklisted(const struct ares_addr *addr)
     const unsigned char netbase[16];
     unsigned char       netmask;
   } blacklist_v6[] = {
-  /* fec0::/10 was deprecated by [RFC3879] in September 2004. Formerly a
-  * Site-Local scoped address prefix.  These are never valid DNS servers,
-  * but are known to be returned at least sometimes on Windows and Android.
-  */
-    {{ 0xfe, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* fec0::/10 was deprecated by [RFC3879] in September 2004. Formerly a
+     * Site-Local scoped address prefix.  These are never valid DNS servers,
+     * but are known to be returned at least sometimes on Windows and Android.
+     */
+    { { 0xfe, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00 },
-     10}
+     10 }
   };
 
   size_t i;
@@ -380,7 +380,7 @@ ares_status_t ares__sconfig_append(ares__llist_t         **sconfig,
   ares_status_t   status;
 
   if (sconfig == NULL || addr == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Silently skip blacklisted IPv6 servers. */
@@ -390,14 +390,14 @@ ares_status_t ares__sconfig_append(ares__llist_t         **sconfig,
 
   s = ares_malloc_zero(sizeof(*s));
   if (s == NULL) {
-    return ARES_ENOMEM;
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (*sconfig == NULL) {
     *sconfig = ares__llist_create(ares_free);
     if (*sconfig == NULL) {
-      status = ARES_ENOMEM;
-      goto fail;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -405,10 +405,16 @@ ares_status_t ares__sconfig_append(ares__llist_t         **sconfig,
   s->udp_port = udp_port;
   s->tcp_port = tcp_port;
 
-  /* Handle link-local enumeration */
-  if (ares_strlen(ll_iface) && ares__addr_is_linklocal(&s->addr)) {
+  /* Handle link-local enumeration. If an interface is specified on a
+   * non-link-local address, we'll simply end up ignoring that */
+  if (ares__addr_is_linklocal(&s->addr)) {
+    if (ares_strlen(ll_iface) == 0) {
+      /* Silently ignore this entry, we require an interface */
+      status = ARES_SUCCESS;
+      goto fail;
+    }
     status = ares__sconfig_linklocal(s, ll_iface);
-    /* Silently ignore this entry */
+    /* Silently ignore this entry, we can't validate the interface */
     if (status != ARES_SUCCESS) {
       status = ARES_SUCCESS;
       goto fail;
@@ -416,8 +422,8 @@ ares_status_t ares__sconfig_append(ares__llist_t         **sconfig,
   }
 
   if (ares__llist_insert_last(*sconfig, s) == NULL) {
-    status = ARES_ENOMEM;
-    goto fail;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_SUCCESS;
@@ -485,7 +491,7 @@ ares_status_t ares__sconfig_append_fromstr(ares__llist_t **sconfig,
     status = ares__sconfig_append(sconfig, &s.addr, s.udp_port, s.tcp_port,
                                   s.ll_iface);
     if (status != ARES_SUCCESS) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -579,7 +585,7 @@ static ares_status_t ares__server_create(ares_channel_t       *channel,
   struct server_state *server = ares_malloc_zero(sizeof(*server));
 
   if (server == NULL) {
-    return ARES_ENOMEM;
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   server->idx         = idx;
@@ -587,6 +593,8 @@ static ares_status_t ares__server_create(ares_channel_t       *channel,
   server->udp_port    = ares__sconfig_get_port(channel, sconfig, ARES_FALSE);
   server->tcp_port    = ares__sconfig_get_port(channel, sconfig, ARES_TRUE);
   server->addr.family = sconfig->addr.family;
+  server->next_retry_time.sec  = 0;
+  server->next_retry_time.usec = 0;
 
   if (sconfig->addr.family == AF_INET) {
     memcpy(&server->addr.addr.addr4, &sconfig->addr.addr.addr4,
@@ -604,32 +612,32 @@ static ares_status_t ares__server_create(ares_channel_t       *channel,
 
   server->tcp_parser = ares__buf_create();
   if (server->tcp_parser == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   server->tcp_send = ares__buf_create();
   if (server->tcp_send == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   server->connections = ares__llist_create(NULL);
   if (server->connections == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (ares__slist_insert(channel->servers, server) == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ARES_SUCCESS;
 
 done:
   if (status != ARES_SUCCESS) {
-    ares__destroy_server(server);
+    ares__destroy_server(server); /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return status;
@@ -663,10 +671,11 @@ static ares_bool_t ares__server_in_newconfig(const struct server_state *server,
   return ARES_FALSE;
 }
 
-static void ares__servers_remove_stale(ares_channel_t *channel,
-                                       ares__llist_t  *srvlist)
+static ares_bool_t ares__servers_remove_stale(ares_channel_t *channel,
+                                              ares__llist_t  *srvlist)
 {
-  ares__slist_node_t *snode = ares__slist_node_first(channel->servers);
+  ares_bool_t         stale_removed = ARES_FALSE;
+  ares__slist_node_t *snode         = ares__slist_node_first(channel->servers);
 
   while (snode != NULL) {
     ares__slist_node_t        *snext  = ares__slist_node_next(snode);
@@ -675,9 +684,11 @@ static void ares__servers_remove_stale(ares_channel_t *channel,
       /* This will clean up all server state via the destruction callback and
        * move any queries to new servers */
       ares__slist_node_destroy(snode);
+      stale_removed = ARES_TRUE;
     }
     snode = snext;
   }
+  return stale_removed;
 }
 
 static void ares__servers_trim_single(ares_channel_t *channel)
@@ -694,9 +705,10 @@ ares_status_t ares__servers_update(ares_channel_t *channel,
   ares__llist_node_t *node;
   size_t              idx = 0;
   ares_status_t       status;
+  ares_bool_t         list_changed = ARES_FALSE;
 
   if (channel == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__channel_lock(channel);
@@ -711,7 +723,7 @@ ares_status_t ares__servers_update(ares_channel_t *channel,
     const ares_sconfig_t *sconfig = ares__llist_node_val(node);
     ares__slist_node_t   *snode;
 
-    /* Don't add duplicate servers! */
+    /* If a server has already appeared in the list of new servers, skip it. */
     if (ares__server_isdup(channel, node)) {
       continue;
     }
@@ -739,13 +751,17 @@ ares_status_t ares__servers_update(ares_channel_t *channel,
       if (status != ARES_SUCCESS) {
         goto done;
       }
+
+      list_changed = ARES_TRUE;
     }
 
     idx++;
   }
 
   /* Remove any servers that don't exist in the current configuration */
-  ares__servers_remove_stale(channel, server_list);
+  if (ares__servers_remove_stale(channel, server_list)) {
+    list_changed = ARES_TRUE;
+  }
 
   /* Trim to one server if ARES_FLAG_PRIMARY is set. */
   if (channel->flags & ARES_FLAG_PRIMARY) {
@@ -757,8 +773,10 @@ ares_status_t ares__servers_update(ares_channel_t *channel,
     channel->optmask |= ARES_OPT_SERVERS;
   }
 
-  /* Clear any cached query results */
-  ares__qcache_flush(channel->qcache);
+  /* Clear any cached query results only if the server list changed */
+  if (list_changed) {
+    ares__qcache_flush(channel->qcache);
+  }
 
   status = ARES_SUCCESS;
 
@@ -778,7 +796,7 @@ static ares_status_t
 
   s = ares__llist_create(ares_free);
   if (s == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (node = servers; node != NULL; node = node->next) {
@@ -791,7 +809,7 @@ static ares_status_t
 
     sconfig = ares_malloc_zero(sizeof(*sconfig));
     if (sconfig == NULL) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     sconfig->addr.family = node->family;
@@ -804,17 +822,19 @@ static ares_status_t
     }
 
     if (ares__llist_insert_last(s, sconfig) == NULL) {
-      ares_free(sconfig);
-      goto fail;
+      ares_free(sconfig); /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
   *llist = s;
   return ARES_SUCCESS;
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   ares__llist_destroy(s);
   return ARES_ENOMEM;
+/* LCOV_EXCL_STOP */
 }
 
 static ares_status_t ares_addr_port_node_to_server_config_llist(
@@ -827,7 +847,7 @@ static ares_status_t ares_addr_port_node_to_server_config_llist(
 
   s = ares__llist_create(ares_free);
   if (s == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (node = servers; node != NULL; node = node->next) {
@@ -840,7 +860,7 @@ static ares_status_t ares_addr_port_node_to_server_config_llist(
 
     sconfig = ares_malloc_zero(sizeof(*sconfig));
     if (sconfig == NULL) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     sconfig->addr.family = node->family;
@@ -856,17 +876,19 @@ static ares_status_t ares_addr_port_node_to_server_config_llist(
     sconfig->udp_port = (unsigned short)node->udp_port;
 
     if (ares__llist_insert_last(s, sconfig) == NULL) {
-      ares_free(sconfig);
-      goto fail;
+      ares_free(sconfig); /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
   *llist = s;
   return ARES_SUCCESS;
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   ares__llist_destroy(s);
   return ARES_ENOMEM;
+/* LCOV_EXCL_STOP */
 }
 
 ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
@@ -880,7 +902,7 @@ ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
 
   s = ares__llist_create(ares_free);
   if (s == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (i = 0; servers != NULL && i < nservers; i++) {
@@ -888,7 +910,7 @@ ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
 
     sconfig = ares_malloc_zero(sizeof(*sconfig));
     if (sconfig == NULL) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     sconfig->addr.family = AF_INET;
@@ -896,19 +918,78 @@ ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
            sizeof(sconfig->addr.addr.addr4));
 
     if (ares__llist_insert_last(s, sconfig) == NULL) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
   *llist = s;
   return ARES_SUCCESS;
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   ares__llist_destroy(s);
   return ARES_ENOMEM;
+/* LCOV_EXCL_STOP */
 }
 
-int ares_get_servers(ares_channel_t *channel, struct ares_addr_node **servers)
+/* Write out the details of a server to a buffer */
+ares_status_t ares_get_server_addr(const struct server_state *server,
+                                   ares__buf_t               *buf)
+{
+  ares_status_t status;
+  char          addr[INET6_ADDRSTRLEN];
+
+  /* ipv4addr or [ipv6addr] */
+  if (server->addr.family == AF_INET6) {
+    status = ares__buf_append_byte(buf, '[');
+    if (status != ARES_SUCCESS) {
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  ares_inet_ntop(server->addr.family, &server->addr.addr, addr, sizeof(addr));
+
+  status = ares__buf_append_str(buf, addr);
+  if (status != ARES_SUCCESS) {
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
+  if (server->addr.family == AF_INET6) {
+    status = ares__buf_append_byte(buf, ']');
+    if (status != ARES_SUCCESS) {
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  /* :port */
+  status = ares__buf_append_byte(buf, ':');
+  if (status != ARES_SUCCESS) {
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
+  status = ares__buf_append_num_dec(buf, server->udp_port, 0);
+  if (status != ARES_SUCCESS) {
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
+  /* %iface */
+  if (ares_strlen(server->ll_iface)) {
+    status = ares__buf_append_byte(buf, '%');
+    if (status != ARES_SUCCESS) {
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+
+    status = ares__buf_append_str(buf, server->ll_iface);
+    if (status != ARES_SUCCESS) {
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
+    }
+  }
+
+  return ARES_SUCCESS;
+}
+
+int ares_get_servers(const ares_channel_t   *channel,
+                     struct ares_addr_node **servers)
 {
   struct ares_addr_node *srvr_head = NULL;
   struct ares_addr_node *srvr_last = NULL;
@@ -962,7 +1043,7 @@ int ares_get_servers(ares_channel_t *channel, struct ares_addr_node **servers)
   return (int)status;
 }
 
-int ares_get_servers_ports(ares_channel_t              *channel,
+int ares_get_servers_ports(const ares_channel_t        *channel,
                            struct ares_addr_port_node **servers)
 {
   struct ares_addr_port_node *srvr_head = NULL;
@@ -1110,7 +1191,7 @@ int ares_set_servers_ports_csv(ares_channel_t *channel, const char *_csv)
   return (int)set_servers_csv(channel, _csv);
 }
 
-char *ares_get_servers_csv(ares_channel_t *channel)
+char *ares_get_servers_csv(const ares_channel_t *channel)
 {
   ares__buf_t        *buf = NULL;
   char               *out = NULL;
@@ -1120,66 +1201,24 @@ char *ares_get_servers_csv(ares_channel_t *channel)
 
   buf = ares__buf_create();
   if (buf == NULL) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (node = ares__slist_node_first(channel->servers); node != NULL;
        node = ares__slist_node_next(node)) {
     ares_status_t              status;
     const struct server_state *server = ares__slist_node_val(node);
-    char                       addr[64];
 
     if (ares__buf_len(buf)) {
       status = ares__buf_append_byte(buf, ',');
       if (status != ARES_SUCCESS) {
-        goto done;
+        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
 
-    /* ipv4addr or [ipv6addr] */
-    if (server->addr.family == AF_INET6) {
-      status = ares__buf_append_byte(buf, '[');
-      if (status != ARES_SUCCESS) {
-        goto done;
-      }
-    }
-
-    ares_inet_ntop(server->addr.family, &server->addr.addr, addr, sizeof(addr));
-
-    status = ares__buf_append_str(buf, addr);
+    status = ares_get_server_addr(server, buf);
     if (status != ARES_SUCCESS) {
-      goto done;
-    }
-
-    if (server->addr.family == AF_INET6) {
-      status = ares__buf_append_byte(buf, ']');
-      if (status != ARES_SUCCESS) {
-        goto done;
-      }
-    }
-
-    /* :port */
-    status = ares__buf_append_byte(buf, ':');
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
-
-    status = ares__buf_append_num_dec(buf, server->udp_port, 0);
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
-
-    /* %iface */
-    if (ares_strlen(server->ll_iface)) {
-      status = ares__buf_append_byte(buf, '%');
-      if (status != ARES_SUCCESS) {
-        goto done;
-      }
-
-      status = ares__buf_append_str(buf, server->ll_iface);
-      if (status != ARES_SUCCESS) {
-        goto done;
-      }
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -1190,4 +1229,14 @@ done:
   ares__channel_unlock(channel);
   ares__buf_destroy(buf);
   return out;
+}
+
+void ares_set_server_state_callback(ares_channel_t            *channel,
+                                    ares_server_state_callback cb, void *data)
+{
+  if (channel == NULL) {
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+  channel->server_state_cb      = cb;
+  channel->server_state_cb_data = data;
 }

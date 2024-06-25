@@ -293,12 +293,12 @@ mandatory:
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
 
-## Builtin modules
+## Built-in modules
 
-[Core modules][] provide named exports of their public API. A
+[Built-in modules][] provide named exports of their public API. A
 default export is also provided which is the value of the CommonJS exports.
 The default export can be used for, among other things, modifying the named
-exports. Named exports of builtin modules are updated only by calling
+exports. Named exports of built-in modules are updated only by calling
 [`module.syncBuiltinESMExports()`][].
 
 ```js
@@ -366,9 +366,9 @@ added:
 > Stability: 1.2 - Release candidate
 
 * {string} The full absolute path and filename of the current module, with
-* symlinks resolved.
+  symlinks resolved.
 * This is the same as the [`url.fileURLToPath()`][] of the
-* [`import.meta.url`][].
+  [`import.meta.url`][].
 
 > **Caveat** only local modules support this property. Modules not using the
 > `file:` protocol will not provide it.
@@ -1000,19 +1000,15 @@ _isImports_, _conditions_)
 
 **PATTERN\_KEY\_COMPARE**(_keyA_, _keyB_)
 
-> 1. Assert: _keyA_ ends with _"/"_ or contains only a single _"\*"_.
-> 2. Assert: _keyB_ ends with _"/"_ or contains only a single _"\*"_.
-> 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_ plus one, if _keyA_
->    contains _"\*"_, or the length of _keyA_ otherwise.
-> 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_ plus one, if _keyB_
->    contains _"\*"_, or the length of _keyB_ otherwise.
+> 1. Assert: _keyA_ contains only a single _"\*"_.
+> 2. Assert: _keyB_ contains only a single _"\*"_.
+> 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_.
+> 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_.
 > 5. If _baseLengthA_ is greater than _baseLengthB_, return -1.
 > 6. If _baseLengthB_ is greater than _baseLengthA_, return 1.
-> 7. If _keyA_ does not contain _"\*"_, return 1.
-> 8. If _keyB_ does not contain _"\*"_, return -1.
-> 9. If the length of _keyA_ is greater than the length of _keyB_, return -1.
-> 10. If the length of _keyB_ is greater than the length of _keyA_, return 1.
-> 11. Return 0.
+> 7. If the length of _keyA_ is greater than the length of _keyB_, return -1.
+> 8. If the length of _keyB_ is greater than the length of _keyA_, return 1.
+> 9. Return 0.
 
 **PACKAGE\_TARGET\_RESOLVE**(_packageURL_, _target_, _patternMatch_,
 _isImports_, _conditions_)
@@ -1145,8 +1141,8 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Addons]: addons.md
+[Built-in modules]: modules.md#built-in-modules
 [CommonJS]: modules.md
-[Core modules]: modules.md#core-modules
 [Determining module system]: packages.md#determining-module-system
 [Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration

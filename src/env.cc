@@ -87,6 +87,18 @@ void AsyncHooks::ResetPromiseHooks(Local<Function> init,
   js_promise_hooks_[3].Reset(env()->isolate(), resolve);
 }
 
+Local<Array> AsyncHooks::GetPromiseHooks(Isolate* isolate) {
+  std::vector<Local<Value>> values;
+  for (size_t i = 0; i < js_promise_hooks_.size(); ++i) {
+    if (js_promise_hooks_[i].IsEmpty()) {
+      values.push_back(Undefined(isolate));
+    } else {
+      values.push_back(js_promise_hooks_[i].Get(isolate));
+    }
+  }
+  return Array::New(isolate, values.data(), values.size());
+}
+
 void Environment::ResetPromiseHooks(Local<Function> init,
                                     Local<Function> before,
                                     Local<Function> after,
@@ -520,7 +532,7 @@ void IsolateData::CreateProperties() {
   CreateEnvProxyTemplate(this);
 }
 
-constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
+constexpr uint16_t kDefaultCppGCEmbedderID = 0x90de;
 Mutex IsolateData::isolate_data_mutex_;
 std::unordered_map<uint16_t, std::unique_ptr<PerIsolateWrapperData>>
     IsolateData::wrapper_data_map_;
@@ -540,7 +552,7 @@ IsolateData::IsolateData(Isolate* isolate,
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
   v8::CppHeap* cpp_heap = isolate->GetCppHeap();
 
-  uint16_t cppgc_id = kDefaultCppGCEmebdderID;
+  uint16_t cppgc_id = kDefaultCppGCEmbedderID;
   if (cpp_heap != nullptr) {
     // The general convention of the wrappable layout for cppgc in the
     // ecosystem is:
@@ -921,6 +933,9 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kWorkerThreads);
     }
+    if (!options_->allow_wasi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
+    }
 
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(this,
@@ -1110,6 +1125,13 @@ void Environment::InitializeCompileCache() {
 void Environment::ExitEnv(StopFlags::Flags flags) {
   // Should not access non-thread-safe methods here.
   set_stopping(true);
+
+#if HAVE_INSPECTOR
+  if (inspector_agent_) {
+    inspector_agent_->StopIfWaitingForConnect();
+  }
+#endif
+
   if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
     isolate_->TerminateExecution();
   SetImmediateThreadsafe([](Environment* env) {

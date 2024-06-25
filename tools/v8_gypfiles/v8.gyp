@@ -48,7 +48,7 @@
       'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
-        ['OS=="win"', {
+        ['OS=="win" and clang==0', {
           'direct_dependent_settings': {
             'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
             'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -289,7 +289,6 @@
       'toolsets': ['host', 'target'],
       'dependencies': [
         'torque_generated_initializers',
-        'v8_initializers_slow',
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
@@ -299,18 +298,21 @@
         '<(SHARED_INTERMEDIATE_DIR)',
         '<(generate_bytecode_output_root)',
       ],
-      # Compiled by v8_initializers_slow target.
-      'sources!': [
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
-      ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
       ],
       'conditions': [
         ['v8_enable_webassembly==1', {
+          'dependencies': [
+            'v8_initializers_slow',
+          ],
+          # Compiled by v8_initializers_slow target.
+          'sources!': [
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
+            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
+          ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
           ],
@@ -381,38 +383,6 @@
       'target_name': 'v8_snapshot',
       'type': 'static_library',
       'toolsets': ['target'],
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'conditions': [
-            ['v8_target_arch=="arm64"', {
-              'msvs_enable_marmasm': 1,
-            }]
-          ],
-          'dependencies': [
-            'generate_bytecode_builtins_list',
-            'run_torque',
-            'mksnapshot#host',
-            'v8_maybe_icu',
-            # [GYP] added explicitly, instead of inheriting from the other deps
-            'v8_base_without_compiler',
-            'v8_compiler_for_mksnapshot',
-            'v8_initializers',
-            'v8_libplatform',
-          ]
-        }, {
-          'dependencies': [
-            'generate_bytecode_builtins_list',
-            'run_torque',
-            'mksnapshot',
-            'v8_maybe_icu',
-            # [GYP] added explicitly, instead of inheriting from the other deps
-            'v8_base_without_compiler',
-            'v8_compiler_for_mksnapshot',
-            'v8_initializers',
-            'v8_libplatform',
-          ]
-        }],
-      ],
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-deserialize.cc',
       ],
@@ -487,6 +457,54 @@
             '>@(mksnapshot_flags)',
           ],
         },
+      ],
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'dependencies': [
+            'generate_bytecode_builtins_list',
+            'run_torque',
+            'mksnapshot#host',
+            'v8_maybe_icu',
+            # [GYP] added explicitly, instead of inheriting from the other deps
+            'v8_base_without_compiler',
+            'v8_compiler_for_mksnapshot',
+            'v8_initializers',
+            'v8_libplatform',
+          ]
+        }, {
+          'dependencies': [
+            'generate_bytecode_builtins_list',
+            'run_torque',
+            'mksnapshot',
+            'v8_maybe_icu',
+            # [GYP] added explicitly, instead of inheriting from the other deps
+            'v8_base_without_compiler',
+            'v8_compiler_for_mksnapshot',
+            'v8_initializers',
+            'v8_libplatform',
+          ]
+        }],
+        ['OS=="win" and clang==1', {
+          'actions': [
+            {
+              'action_name': 'asm_to_inline_asm',
+              'message': 'generating: >@(_outputs)',
+              'inputs': [
+                '<(INTERMEDIATE_DIR)/embedded.S',
+              ],
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/embedded.cc',
+              ],
+              'process_outputs_as_sources': 1,
+              'action': [
+                '<(python)',
+                '<(V8_ROOT)/tools/snapshot/asm_to_inline_asm.py',
+                '<@(_inputs)',
+                '<(INTERMEDIATE_DIR)/embedded.cc',
+              ],
+            },
+          ],
+        }],
       ],
     },  # v8_snapshot
     {
@@ -1879,7 +1897,7 @@
           ['enable_lto=="true"', {
             'cflags_cc': [ '-fno-lto' ],
           }],
-          ['clang or OS!="win"', {
+          ['clang==1 or OS!="win"', {
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
@@ -1928,16 +1946,11 @@
               }],
             ]
           }],
-          ['OS=="win"', {
+          ['OS=="win" and clang==0', {
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.asm',
                 ],
               }],
               ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
@@ -2132,12 +2145,6 @@
           ]
         }],
       ],
-      # -Wno-invalid-offsetof flag is not valid for C.
-      # The flag is initially set in `toolchain.gypi` for all targets.
-      'cflags!': [ '-Wno-invalid-offsetof' ],
-      'xcode_settings': {
-        'WARNING_CFLAGS!': ['-Wno-invalid-offsetof']
-      },
       'direct_dependent_settings': {
         'include_dirs': [
           '<(V8_ROOT)/third_party/zlib',

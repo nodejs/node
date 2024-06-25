@@ -71,6 +71,8 @@ class DebugOptions : public Options {
   bool allow_attaching_debugger = true;
   // --inspect
   bool inspector_enabled = false;
+  // --inspect-wait
+  bool inspect_wait = false;
   // --debug
   bool deprecated_debug = false;
   // --inspect-brk
@@ -93,6 +95,10 @@ class DebugOptions : public Options {
   }
 
   bool wait_for_connect() const {
+    return break_first_line || break_node_first_line || inspect_wait;
+  }
+
+  bool should_break_first_line() const {
     return break_first_line || break_node_first_line;
   }
 
@@ -109,9 +115,11 @@ class EnvironmentOptions : public Options {
   bool require_module = false;
   std::string dns_result_order;
   bool enable_source_maps = false;
+  bool experimental_eventsource = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
-  bool experimental_global_customevent = true;
+  bool experimental_webstorage = false;
+  std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
@@ -119,14 +127,12 @@ class EnvironmentOptions : public Options {
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
   std::string type;        // Value of --experimental-default-type
-  std::string experimental_policy;
-  std::string experimental_policy_integrity;
-  bool has_policy_integrity_string = false;
   bool experimental_permission = false;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
   bool allow_child_process = false;
+  bool allow_wasi = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
@@ -162,7 +168,6 @@ class EnvironmentOptions : public Options {
   bool heap_prof = false;
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
-  std::string run;
   std::string diagnostic_dir;
   std::string env_file;
   bool has_env_file_string = false;
@@ -171,6 +176,9 @@ class EnvironmentOptions : public Options {
   uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
   bool test_runner_force_exit = false;
+  bool test_runner_module_mocks = false;
+  bool test_runner_snapshots = false;
+  bool test_runner_update_snapshots = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
@@ -179,7 +187,6 @@ class EnvironmentOptions : public Options {
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
   bool throw_deprecation = false;
-  bool trace_atomics_wait = false;
   bool trace_deprecation = false;
   bool trace_exit = false;
   bool trace_sync_io = false;
@@ -282,6 +289,7 @@ class PerProcessOptions : public Options {
   bool print_v8_help = false;
   bool print_version = false;
   std::string experimental_sea_config;
+  std::string run;
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   std::string icu_data_dir;
@@ -308,6 +316,8 @@ class PerProcessOptions : public Options {
   bool openssl_legacy_provider = false;
   bool openssl_shared_config = false;
 #endif
+
+  bool disable_wasm_trap_handler = false;
 
   // Per-process because reports can be triggered outside a known V8 context.
   bool report_on_fatalerror = false;
@@ -519,7 +529,10 @@ class OptionsParser {
   template <typename OtherOptions>
   friend class OptionsParser;
 
-  friend void GetCLIOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend void GetCLIOptionsValues(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend void GetCLIOptionsInfo(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   friend std::string GetBashCompletion();
 };
 

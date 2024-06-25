@@ -179,7 +179,9 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.1.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52492
     description: The `verbatim` option is now deprecated in favor of the new `order` option.
   - version: v18.4.0
@@ -208,8 +210,9 @@ changes:
   * `family` {integer|string} The record family. Must be `4`, `6`, or `0`. For
     backward compatibility reasons,`'IPv4'` and `'IPv6'` are interpreted as `4`
     and `6` respectively. The value `0` indicates that either an IPv4 or IPv6
-    address is returned. If the value `0` is used with `{ all: true } (see below)`,
-    both IPv4 and IPv6 addresses are returned. **Default:** `0`.
+    address is returned. If the value `0` is used with `{ all: true }` (see
+    below), either one of or both IPv4 and IPv6 addresses are returned,
+    depending on the system's DNS resolver. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
@@ -238,8 +241,8 @@ changes:
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
-integer, then it must be `4` or `6` – if `options` is `0` or not provided, then
-IPv4 and IPv6 addresses are both returned if found.
+integer, then it must be `4` or `6` – if `options` is not provided, then
+either IPv4 or IPv6 addresses, or both, are returned if found.
 
 With the `all` option set to `true`, the arguments for `callback` change to
 `(err, addresses)`, with `addresses` being an array of objects with the
@@ -787,7 +790,9 @@ added:
   - v16.4.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.1.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52492
     description: The `ipv6first` value is supported now.
   - version: v17.0.0
@@ -816,7 +821,9 @@ added:
   - v20.1.0
   - v18.17.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.1.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52492
     description: The `ipv6first` value is supported now.
 -->
@@ -971,7 +978,9 @@ section if a custom port is used.
 <!-- YAML
 added: v10.6.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.1.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52492
     description: The `verbatim` option is now deprecated in favor of the new `order` option.
 -->
@@ -980,8 +989,9 @@ changes:
 * `options` {integer | Object}
   * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
     `0` indicates that either an IPv4 or IPv6 address is returned. If the
-    value `0` is used with `{ all: true }` (see below), both IPv4 and IPv6
-    addresses are returned. **Default:** `0`.
+    value `0` is used with `{ all: true }` (see below), either one of or both
+    IPv4 and IPv6 addresses are returned, depending on the system's DNS
+    resolver. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the `Promise` is resolved with all addresses in
@@ -1005,8 +1015,8 @@ changes:
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
-integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
-and IPv6 addresses are both returned if found.
+integer, then it must be `4` or `6` – if `options` is not provided, then
+either IPv4 or IPv6 addresses, or both, are returned if found.
 
 With the `all` option set to `true`, the `Promise` is resolved with `addresses`
 being an array of objects with the properties `address` and `family`.
@@ -1383,7 +1393,9 @@ added:
   - v16.4.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.1.0
+    - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52492
     description: The `ipv6first` value is supported now.
   - version: v17.0.0

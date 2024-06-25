@@ -208,10 +208,9 @@ function onHttp2SessionEnd () {
  * This is the root cause of #3011
  * We need to handle GOAWAY frames properly, and trigger the session close
  * along with the socket right away
- * Find a way to trigger the close cycle from here on.
  */
 function onHTTP2GoAway (code) {
-  const err = new InformationalError(`HTTP/2: "GOAWAY" frame received with code ${code}`)
+  const err = new RequestAbortedError(`HTTP/2: "GOAWAY" frame received with code ${code}`)
 
   // We need to trigger the close cycle right away
   // We need to destroy the session and the socket
@@ -220,8 +219,7 @@ function onHTTP2GoAway (code) {
   this[kClient][kOnError](err)
 
   this.unref()
-  // We send the GOAWAY frame response as no error
-  this.destroy()
+
   util.destroy(this[kSocket], err)
 }
 
@@ -479,80 +477,80 @@ function writeH2 (client, request) {
   function writeBodyH2 () {
     /* istanbul ignore else: assertion */
     if (!body || contentLength === 0) {
-      writeBuffer({
+      writeBuffer(
         abort,
+        stream,
+        null,
         client,
         request,
+        client[kSocket],
         contentLength,
-        expectsPayload,
-        h2stream: stream,
-        body: null,
-        socket: client[kSocket]
-      })
+        expectsPayload
+      )
     } else if (util.isBuffer(body)) {
-      writeBuffer({
+      writeBuffer(
         abort,
+        stream,
+        body,
         client,
         request,
+        client[kSocket],
         contentLength,
-        body,
-        expectsPayload,
-        h2stream: stream,
-        socket: client[kSocket]
-      })
+        expectsPayload
+      )
     } else if (util.isBlobLike(body)) {
       if (typeof body.stream === 'function') {
-        writeIterable({
+        writeIterable(
           abort,
+          stream,
+          body.stream(),
           client,
           request,
+          client[kSocket],
           contentLength,
-          expectsPayload,
-          h2stream: stream,
-          body: body.stream(),
-          socket: client[kSocket]
-        })
+          expectsPayload
+        )
       } else {
-        writeBlob({
+        writeBlob(
           abort,
+          stream,
           body,
           client,
           request,
+          client[kSocket],
           contentLength,
-          expectsPayload,
-          h2stream: stream,
-          socket: client[kSocket]
-        })
+          expectsPayload
+        )
       }
     } else if (util.isStream(body)) {
-      writeStream({
+      writeStream(
+        abort,
+        client[kSocket],
+        expectsPayload,
+        stream,
         body,
         client,
         request,
-        contentLength,
-        expectsPayload,
-        socket: client[kSocket],
-        h2stream: stream,
-        header: ''
-      })
+        contentLength
+      )
     } else if (util.isIterable(body)) {
-      writeIterable({
+      writeIterable(
+        abort,
+        stream,
         body,
         client,
         request,
+        client[kSocket],
         contentLength,
-        expectsPayload,
-        header: '',
-        h2stream: stream,
-        socket: client[kSocket]
-      })
+        expectsPayload
+      )
     } else {
       assert(false)
     }
   }
 }
 
-function writeBuffer ({ abort, h2stream, body, client, request, socket, contentLength, expectsPayload }) {
+function writeBuffer (abort, h2stream, body, client, request, socket, contentLength, expectsPayload) {
   try {
     if (body != null && util.isBuffer(body)) {
       assert(contentLength === body.byteLength, 'buffer body must have content length')
@@ -575,7 +573,7 @@ function writeBuffer ({ abort, h2stream, body, client, request, socket, contentL
   }
 }
 
-function writeStream ({ abort, socket, expectsPayload, h2stream, body, client, request, contentLength }) {
+function writeStream (abort, socket, expectsPayload, h2stream, body, client, request, contentLength) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'stream body cannot be pipelined')
 
   // For HTTP/2, is enough to pipe the stream
@@ -606,7 +604,7 @@ function writeStream ({ abort, socket, expectsPayload, h2stream, body, client, r
   }
 }
 
-async function writeBlob ({ abort, h2stream, body, client, request, socket, contentLength, expectsPayload }) {
+async function writeBlob (abort, h2stream, body, client, request, socket, contentLength, expectsPayload) {
   assert(contentLength === body.size, 'blob body must have content length')
 
   try {
@@ -634,7 +632,7 @@ async function writeBlob ({ abort, h2stream, body, client, request, socket, cont
   }
 }
 
-async function writeIterable ({ abort, h2stream, body, client, request, socket, contentLength, expectsPayload }) {
+async function writeIterable (abort, h2stream, body, client, request, socket, contentLength, expectsPayload) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'iterator body cannot be pipelined')
 
   let callback = null

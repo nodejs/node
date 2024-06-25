@@ -14,7 +14,7 @@ int ares_set_servers_csv(ares_channel_t *\fIchannel\fP, const char* \fIservers\f
 
 int ares_set_servers_ports_csv(ares_channel_t *\fIchannel\fP, const char* \fIservers\fP)
 
-char *ares_get_servers_csv(ares_channel_t *\fIchannel\fP)
+char *ares_get_servers_csv(const ares_channel_t *\fIchannel\fP)
 .fi
 .SH DESCRIPTION
 The \fBares_set_servers_csv\fP and \fBares_set_servers_ports_csv\fP functions set
@@ -81,5 +81,3 @@ returns a string representing the servers configured which must be freed with
 \fBares_set_servers_csv\fP was added in c-ares 1.7.2
 \fBares_set_servers_ports_csv\fP was added in c-ares 1.11.0.
 \fBares_get_servers_csv\fP was added in c-ares 1.24.0.
-.SH AUTHOR
-Ben Greear

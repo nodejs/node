@@ -139,7 +139,7 @@ template("node_gn_build") {
     public_deps = [
       "deps/ada",
       "deps/uv",
-      "deps/base64",
+      "deps/simdjson",
       "$node_v8_path",
     ]
     deps = [
@@ -151,8 +151,8 @@ template("node_gn_build") {
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
-      "deps/simdjson",
       "deps/simdutf",
+      "deps/sqlite",
       "deps/uvwasi",
       "//third_party/zlib",
       "$node_v8_path:v8_libplatform",
@@ -347,6 +347,7 @@ template("node_gn_build") {
     output_name = "embedtest"
     testonly = true
     deps = [ ":libnode" ]
+    include_dirs = [ "tools" ]
     sources = [
       "src/node_snapshot_stub.cc",
       "test/embedding/embedtest.cc",

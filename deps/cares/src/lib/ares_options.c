@@ -53,8 +53,8 @@ void ares_destroy_options(struct ares_options *options)
   ares_free(options->hosts_path);
 }
 
-static struct in_addr *ares_save_opt_servers(ares_channel_t *channel,
-                                             int            *nservers)
+static struct in_addr *ares_save_opt_servers(const ares_channel_t *channel,
+                                             int                  *nservers)
 {
   ares__slist_node_t *snode;
   struct in_addr     *out =
@@ -82,8 +82,8 @@ static struct in_addr *ares_save_opt_servers(ares_channel_t *channel,
 }
 
 /* Save options from initialized channel */
-int ares_save_options(ares_channel_t *channel, struct ares_options *options,
-                      int *optmask)
+int ares_save_options(const ares_channel_t *channel,
+                      struct ares_options *options, int *optmask)
 {
   size_t i;
 
@@ -229,6 +229,12 @@ int ares_save_options(ares_channel_t *channel, struct ares_options *options,
     options->evsys = channel->evsys;
   }
 
+  /* Set options for server failover behavior */
+  if (channel->optmask & ARES_OPT_SERVER_FAILOVER) {
+    options->server_failover_opts.retry_chance = channel->server_retry_chance;
+    options->server_failover_opts.retry_delay  = channel->server_retry_delay;
+  }
+
   *optmask = (int)channel->optmask;
 
   return ARES_SUCCESS;
@@ -243,7 +249,7 @@ static ares_status_t ares__init_options_servers(ares_channel_t       *channel,
 
   status = ares_in_addr_to_server_config_llist(servers, nservers, &slist);
   if (status != ARES_SUCCESS) {
-    return status;
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__servers_update(channel, slist, ARES_TRUE);
@@ -260,12 +266,12 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
   size_t i;
 
   if (channel == NULL) {
-    return ARES_ENODATA;
+    return ARES_ENODATA; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (options == NULL) {
     if (optmask != 0) {
-      return ARES_ENODATA;
+      return ARES_ENODATA; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
     return ARES_SUCCESS;
   }
@@ -383,13 +389,13 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
     channel->domains =
       ares_malloc_zero((size_t)options->ndomains * sizeof(char *));
     if (!channel->domains) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     channel->ndomains = (size_t)options->ndomains;
     for (i = 0; i < (size_t)options->ndomains; i++) {
       channel->domains[i] = ares_strdup(options->domains[i]);
       if (!channel->domains[i]) {
-        return ARES_ENOMEM;
+        return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -401,7 +407,7 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
     } else {
       channel->lookups = ares_strdup(options->lookups);
       if (!channel->lookups) {
-        return ARES_ENOMEM;
+        return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -412,7 +418,7 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
     channel->sortlist =
       ares_malloc((size_t)options->nsort * sizeof(struct apattern));
     if (!channel->sortlist) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     for (i = 0; i < (size_t)options->nsort; i++) {
       channel->sortlist[i] = options->sortlist[i];
@@ -426,7 +432,7 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
     } else {
       channel->resolvconf_path = ares_strdup(options->resolvconf_path);
       if (channel->resolvconf_path == NULL) {
-        return ARES_ENOMEM;
+        return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -438,7 +444,7 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
     } else {
       channel->hosts_path = ares_strdup(options->hosts_path);
       if (channel->hosts_path == NULL) {
-        return ARES_ENOMEM;
+        return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -451,13 +457,15 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
     }
   }
 
+  /* As of c-ares 1.31.0, the Query Cache is on by default.  The only way to
+   * disable it is to set options->qcache_max_ttl = 0 while specifying the
+   * ARES_OPT_QUERY_CACHE which will actually disable it completely. */
   if (optmask & ARES_OPT_QUERY_CACHE) {
     /* qcache_max_ttl is unsigned unlike the others */
-    if (options->qcache_max_ttl == 0) {
-      optmask &= ~(ARES_OPT_QUERY_CACHE);
-    } else {
-      channel->qcache_max_ttl = options->qcache_max_ttl;
-    }
+    channel->qcache_max_ttl = options->qcache_max_ttl;
+  } else {
+    optmask                |= ARES_OPT_QUERY_CACHE;
+    channel->qcache_max_ttl = 3600;
   }
 
   /* Initialize the ipv4 servers if provided */
@@ -469,9 +477,15 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
       status = ares__init_options_servers(channel, options->servers,
                                           (size_t)options->nservers);
       if (status != ARES_SUCCESS) {
-        return status;
+        return status; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
+  }
+
+  /* Set fields for server failover behavior */
+  if (optmask & ARES_OPT_SERVER_FAILOVER) {
+    channel->server_retry_chance = options->server_failover_opts.retry_chance;
+    channel->server_retry_delay  = options->server_failover_opts.retry_delay;
   }
 
   channel->optmask = (unsigned int)optmask;

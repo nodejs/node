@@ -2,8 +2,7 @@
 
 'use strict'
 
-const { kHeadersList, kConstruct } = require('../../core/symbols')
-const { kGuard } = require('./symbols')
+const { kConstruct } = require('../../core/symbols')
 const { kEnumerableProperty } = require('../../core/util')
 const {
   iteratorMixin,
@@ -103,19 +102,18 @@ function appendHeader (headers, name, value) {
   // 3. If headers’s guard is "immutable", then throw a TypeError.
   // 4. Otherwise, if headers’s guard is "request" and name is a
   //    forbidden header name, return.
+  // 5. Otherwise, if headers’s guard is "request-no-cors":
+  //    TODO
   // Note: undici does not implement forbidden header names
-  if (headers[kGuard] === 'immutable') {
+  if (getHeadersGuard(headers) === 'immutable') {
     throw new TypeError('immutable')
-  } else if (headers[kGuard] === 'request-no-cors') {
-    // 5. Otherwise, if headers’s guard is "request-no-cors":
-    // TODO
   }
 
   // 6. Otherwise, if headers’s guard is "response" and name is a
   //    forbidden response-header name, return.
 
   // 7. Append (name, value) to headers’s header list.
-  return headers[kHeadersList].append(name, value, false)
+  return getHeadersList(headers).append(name, value, false)
 
   // 8. If headers’s guard is "request-no-cors", then remove
   //    privileged no-CORS request headers from headers
@@ -250,9 +248,31 @@ class HeadersList {
   get entries () {
     const headers = {}
 
-    if (this[kHeadersMap].size) {
+    if (this[kHeadersMap].size !== 0) {
       for (const { name, value } of this[kHeadersMap].values()) {
         headers[name] = value
+      }
+    }
+
+    return headers
+  }
+
+  rawValues () {
+    return this[kHeadersMap].values()
+  }
+
+  get entriesList () {
+    const headers = []
+
+    if (this[kHeadersMap].size !== 0) {
+      for (const { 0: lowerName, 1: { name, value } } of this[kHeadersMap]) {
+        if (lowerName === 'set-cookie') {
+          for (const cookie of this.cookies) {
+            headers.push([name, cookie])
+          }
+        } else {
+          headers.push([name, value])
+        }
       }
     }
 
@@ -335,20 +355,24 @@ class HeadersList {
 
 // https://fetch.spec.whatwg.org/#headers-class
 class Headers {
+  #guard
+  #headersList
+
   constructor (init = undefined) {
     if (init === kConstruct) {
       return
     }
-    this[kHeadersList] = new HeadersList()
+
+    this.#headersList = new HeadersList()
 
     // The new Headers(init) constructor steps are:
 
     // 1. Set this’s guard to "none".
-    this[kGuard] = 'none'
+    this.#guard = 'none'
 
     // 2. If init is given, then fill this with init.
     if (init !== undefined) {
-      init = webidl.converters.HeadersInit(init)
+      init = webidl.converters.HeadersInit(init, 'Headers contructor', 'init')
       fill(this, init)
     }
   }
@@ -357,10 +381,11 @@ class Headers {
   append (name, value) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 2, { header: 'Headers.append' })
+    webidl.argumentLengthCheck(arguments, 2, 'Headers.append')
 
-    name = webidl.converters.ByteString(name)
-    value = webidl.converters.ByteString(value)
+    const prefix = 'Headers.append'
+    name = webidl.converters.ByteString(name, prefix, 'name')
+    value = webidl.converters.ByteString(value, prefix, 'value')
 
     return appendHeader(this, name, value)
   }
@@ -369,9 +394,10 @@ class Headers {
   delete (name) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.delete' })
+    webidl.argumentLengthCheck(arguments, 1, 'Headers.delete')
 
-    name = webidl.converters.ByteString(name)
+    const prefix = 'Headers.delete'
+    name = webidl.converters.ByteString(name, prefix, 'name')
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
@@ -392,36 +418,35 @@ class Headers {
     // 5. Otherwise, if this’s guard is "response" and name is
     //    a forbidden response-header name, return.
     // Note: undici does not implement forbidden header names
-    if (this[kGuard] === 'immutable') {
+    if (this.#guard === 'immutable') {
       throw new TypeError('immutable')
-    } else if (this[kGuard] === 'request-no-cors') {
-      // TODO
     }
 
     // 6. If this’s header list does not contain name, then
     //    return.
-    if (!this[kHeadersList].contains(name, false)) {
+    if (!this.#headersList.contains(name, false)) {
       return
     }
 
     // 7. Delete name from this’s header list.
     // 8. If this’s guard is "request-no-cors", then remove
     //    privileged no-CORS request headers from this.
-    this[kHeadersList].delete(name, false)
+    this.#headersList.delete(name, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
   get (name) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.get' })
+    webidl.argumentLengthCheck(arguments, 1, 'Headers.get')
 
-    name = webidl.converters.ByteString(name)
+    const prefix = 'Headers.get'
+    name = webidl.converters.ByteString(name, prefix, 'name')
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.get',
+        prefix,
         value: name,
         type: 'header name'
       })
@@ -429,21 +454,22 @@ class Headers {
 
     // 2. Return the result of getting name from this’s header
     //    list.
-    return this[kHeadersList].get(name, false)
+    return this.#headersList.get(name, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-has
   has (name) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.has' })
+    webidl.argumentLengthCheck(arguments, 1, 'Headers.has')
 
-    name = webidl.converters.ByteString(name)
+    const prefix = 'Headers.has'
+    name = webidl.converters.ByteString(name, prefix, 'name')
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.has',
+        prefix,
         value: name,
         type: 'header name'
       })
@@ -451,17 +477,18 @@ class Headers {
 
     // 2. Return true if this’s header list contains name;
     //    otherwise false.
-    return this[kHeadersList].contains(name, false)
+    return this.#headersList.contains(name, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-set
   set (name, value) {
     webidl.brandCheck(this, Headers)
 
-    webidl.argumentLengthCheck(arguments, 2, { header: 'Headers.set' })
+    webidl.argumentLengthCheck(arguments, 2, 'Headers.set')
 
-    name = webidl.converters.ByteString(name)
-    value = webidl.converters.ByteString(value)
+    const prefix = 'Headers.set'
+    name = webidl.converters.ByteString(name, prefix, 'name')
+    value = webidl.converters.ByteString(value, prefix, 'value')
 
     // 1. Normalize value.
     value = headerValueNormalize(value)
@@ -470,13 +497,13 @@ class Headers {
     //    header value, then throw a TypeError.
     if (!isValidHeaderName(name)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.set',
+        prefix,
         value: name,
         type: 'header name'
       })
     } else if (!isValidHeaderValue(value)) {
       throw webidl.errors.invalidArgument({
-        prefix: 'Headers.set',
+        prefix,
         value,
         type: 'header value'
       })
@@ -491,16 +518,14 @@ class Headers {
     // 6. Otherwise, if this’s guard is "response" and name is a
     //    forbidden response-header name, return.
     // Note: undici does not implement forbidden header names
-    if (this[kGuard] === 'immutable') {
+    if (this.#guard === 'immutable') {
       throw new TypeError('immutable')
-    } else if (this[kGuard] === 'request-no-cors') {
-      // TODO
     }
 
     // 7. Set (name, value) in this’s header list.
     // 8. If this’s guard is "request-no-cors", then remove
     //    privileged no-CORS request headers from this
-    this[kHeadersList].set(name, value, false)
+    this.#headersList.set(name, value, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
@@ -511,7 +536,7 @@ class Headers {
     // 2. Return the values of all headers in this’s header list whose name is
     //    a byte-case-insensitive match for `Set-Cookie`, in order.
 
-    const list = this[kHeadersList].cookies
+    const list = this.#headersList.cookies
 
     if (list) {
       return [...list]
@@ -522,8 +547,8 @@ class Headers {
 
   // https://fetch.spec.whatwg.org/#concept-header-list-sort-and-combine
   get [kHeadersSortedMap] () {
-    if (this[kHeadersList][kHeadersSortedMap]) {
-      return this[kHeadersList][kHeadersSortedMap]
+    if (this.#headersList[kHeadersSortedMap]) {
+      return this.#headersList[kHeadersSortedMap]
     }
 
     // 1. Let headers be an empty list of headers with the key being the name
@@ -532,14 +557,14 @@ class Headers {
 
     // 2. Let names be the result of convert header names to a sorted-lowercase
     //    set with all the names of the headers in list.
-    const names = this[kHeadersList].toSortedArray()
+    const names = this.#headersList.toSortedArray()
 
-    const cookies = this[kHeadersList].cookies
+    const cookies = this.#headersList.cookies
 
     // fast-path
     if (cookies === null || cookies.length === 1) {
       // Note: The non-null assertion of value has already been done by `HeadersList#toSortedArray`
-      return (this[kHeadersList][kHeadersSortedMap] = names)
+      return (this.#headersList[kHeadersSortedMap] = names)
     }
 
     // 3. For each name of names:
@@ -569,19 +594,37 @@ class Headers {
     }
 
     // 4. Return headers.
-    return (this[kHeadersList][kHeadersSortedMap] = headers)
+    return (this.#headersList[kHeadersSortedMap] = headers)
   }
 
   [util.inspect.custom] (depth, options) {
     options.depth ??= depth
 
-    return `Headers ${util.formatWithOptions(options, this[kHeadersList].entries)}`
+    return `Headers ${util.formatWithOptions(options, this.#headersList.entries)}`
+  }
+
+  static getHeadersGuard (o) {
+    return o.#guard
+  }
+
+  static setHeadersGuard (o, guard) {
+    o.#guard = guard
+  }
+
+  static getHeadersList (o) {
+    return o.#headersList
+  }
+
+  static setHeadersList (o, list) {
+    o.#headersList = list
   }
 }
 
-Object.defineProperty(Headers.prototype, util.inspect.custom, {
-  enumerable: false
-})
+const { getHeadersGuard, setHeadersGuard, getHeadersList, setHeadersList } = Headers
+Reflect.deleteProperty(Headers, 'getHeadersGuard')
+Reflect.deleteProperty(Headers, 'setHeadersGuard')
+Reflect.deleteProperty(Headers, 'getHeadersList')
+Reflect.deleteProperty(Headers, 'setHeadersList')
 
 iteratorMixin('Headers', Headers, kHeadersSortedMap, 0, 1)
 
@@ -595,18 +638,31 @@ Object.defineProperties(Headers.prototype, {
   [Symbol.toStringTag]: {
     value: 'Headers',
     configurable: true
+  },
+  [util.inspect.custom]: {
+    enumerable: false
   }
 })
 
-webidl.converters.HeadersInit = function (V) {
+webidl.converters.HeadersInit = function (V, prefix, argument) {
   if (webidl.util.Type(V) === 'Object') {
     const iterator = Reflect.get(V, Symbol.iterator)
 
-    if (typeof iterator === 'function') {
-      return webidl.converters['sequence<sequence<ByteString>>'](V, iterator.bind(V))
+    // A work-around to ensure we send the properly-cased Headers when V is a Headers object.
+    // Read https://github.com/nodejs/undici/pull/3159#issuecomment-2075537226 before touching, please.
+    if (!util.types.isProxy(V) && iterator === Headers.prototype.entries) { // Headers object
+      try {
+        return getHeadersList(V).entriesList
+      } catch {
+        // fall-through
+      }
     }
 
-    return webidl.converters['record<ByteString, ByteString>'](V)
+    if (typeof iterator === 'function') {
+      return webidl.converters['sequence<sequence<ByteString>>'](V, prefix, argument, iterator.bind(V))
+    }
+
+    return webidl.converters['record<ByteString, ByteString>'](V, prefix, argument)
   }
 
   throw webidl.errors.conversionFailed({
@@ -621,5 +677,9 @@ module.exports = {
   // for test.
   compareHeaderName,
   Headers,
-  HeadersList
+  HeadersList,
+  getHeadersGuard,
+  setHeadersGuard,
+  setHeadersList,
+  getHeadersList
 }

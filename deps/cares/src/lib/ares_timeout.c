@@ -34,62 +34,88 @@
 #include "ares.h"
 #include "ares_private.h"
 
-void ares__timeval_remaining(struct timeval       *remaining,
-                             const struct timeval *now,
-                             const struct timeval *tout)
+void ares__timeval_remaining(ares_timeval_t       *remaining,
+                             const ares_timeval_t *now,
+                             const ares_timeval_t *tout)
 {
   memset(remaining, 0, sizeof(*remaining));
 
   /* Expired! */
-  if (tout->tv_sec < now->tv_sec ||
-      (tout->tv_sec == now->tv_sec && tout->tv_usec < now->tv_usec)) {
+  if (tout->sec < now->sec ||
+      (tout->sec == now->sec && tout->usec < now->usec)) {
     return;
   }
 
-  remaining->tv_sec = tout->tv_sec - now->tv_sec;
-  if (tout->tv_usec < now->tv_usec) {
-    remaining->tv_sec  -= 1;
-    remaining->tv_usec  = (tout->tv_usec + 1000000) - now->tv_usec;
+  remaining->sec = tout->sec - now->sec;
+  if (tout->usec < now->usec) {
+    remaining->sec  -= 1;
+    remaining->usec  = (tout->usec + 1000000) - now->usec;
   } else {
-    remaining->tv_usec = tout->tv_usec - now->tv_usec;
+    remaining->usec = tout->usec - now->usec;
   }
 }
 
-struct timeval *ares_timeout(ares_channel_t *channel, struct timeval *maxtv,
-                             struct timeval *tvbuf)
+static struct timeval ares_timeval_to_struct_timeval(const ares_timeval_t *atv)
+{
+  struct timeval tv;
+
+  tv.tv_sec  = (time_t)atv->sec;
+  tv.tv_usec = (int)atv->usec;
+
+  return tv;
+}
+
+static ares_timeval_t struct_timeval_to_ares_timeval(const struct timeval *tv)
+{
+  ares_timeval_t atv;
+
+  atv.sec  = (ares_int64_t)tv->tv_sec;
+  atv.usec = (unsigned int)tv->tv_usec;
+
+  return atv;
+}
+
+struct timeval *ares_timeout(const ares_channel_t *channel,
+                             struct timeval *maxtv, struct timeval *tvbuf)
 {
   const struct query *query;
   ares__slist_node_t *node;
-  struct timeval      now;
+  ares_timeval_t      now;
+  ares_timeval_t      atvbuf;
+  ares_timeval_t      amaxtv;
 
   /* The minimum timeout of all queries is always the first entry in
    * channel->queries_by_timeout */
   node = ares__slist_node_first(channel->queries_by_timeout);
   /* no queries/timeout */
   if (node == NULL) {
-    return maxtv; /* <-- maxtv can be null though, hrm */
+    return maxtv;
   }
 
   query = ares__slist_node_val(node);
 
   now = ares__tvnow();
 
-  ares__timeval_remaining(tvbuf, &now, &query->timeout);
+  ares__timeval_remaining(&atvbuf, &now, &query->timeout);
+
+  *tvbuf = ares_timeval_to_struct_timeval(&atvbuf);
 
   if (maxtv == NULL) {
     return tvbuf;
   }
 
   /* Return the minimum time between maxtv and tvbuf */
+  amaxtv = struct_timeval_to_ares_timeval(maxtv);
 
-  if (tvbuf->tv_sec > maxtv->tv_sec) {
+  if (atvbuf.sec > amaxtv.sec) {
     return maxtv;
   }
-  if (tvbuf->tv_sec < maxtv->tv_sec) {
+
+  if (atvbuf.sec < amaxtv.sec) {
     return tvbuf;
   }
 
-  if (tvbuf->tv_usec > maxtv->tv_usec) {
+  if (atvbuf.usec > amaxtv.usec) {
     return maxtv;
   }
 

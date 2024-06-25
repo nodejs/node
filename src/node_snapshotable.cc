@@ -282,9 +282,9 @@ size_t SnapshotSerializer::Write(const PropInfo& data) {
 }
 
 // Layout of AsyncHooks::SerializeInfo
-// [ 4/8 bytes ]  snapshot index of async_ids_stack
-// [ 4/8 bytes ]  snapshot index of fields
-// [ 4/8 bytes ]  snapshot index of async_id_fields
+// [ 8 bytes ]  snapshot index of async_ids_stack
+// [ 8 bytes ]  snapshot index of fields
+// [ 8 bytes ]  snapshot index of async_id_fields
 // [ 4/8 bytes ]  snapshot index of js_execution_async_resources
 // [ 4/8 bytes ]  length of native_execution_async_resources
 // [   ...     ]  snapshot indices of each element in
@@ -387,9 +387,9 @@ size_t SnapshotSerializer::Write(const ImmediateInfo::SerializeInfo& data) {
 }
 
 // Layout of PerformanceState::SerializeInfo
-// [ 4/8 bytes ]  snapshot index of root
-// [ 4/8 bytes ]  snapshot index of milestones
-// [ 4/8 bytes ]  snapshot index of observers
+// [ 8 bytes ]  snapshot index of root
+// [ 8 bytes ]  snapshot index of milestones
+// [ 8 bytes ]  snapshot index of observers
 template <>
 performance::PerformanceState::SerializeInfo SnapshotDeserializer::Read() {
   Debug("Read<PerformanceState::SerializeInfo>()\n");
@@ -599,16 +599,17 @@ std::vector<char> SnapshotData::ToBlob() const {
   size_t written_total = 0;
 
   // Metadata
-  w.Debug("Write magic %" PRIx32 "\n", kMagic);
+  w.Debug("0x%x: Write magic %" PRIx32 "\n", w.sink.size(), kMagic);
   written_total += w.WriteArithmetic<uint32_t>(kMagic);
-  w.Debug("Write metadata\n");
+  w.Debug("0x%x: Write metadata\n", w.sink.size());
   written_total += w.Write<SnapshotMetadata>(metadata);
-
+  w.Debug("0x%x: Write snapshot blob\n", w.sink.size());
   written_total += w.Write<v8::StartupData>(v8_snapshot_blob_data);
-  w.Debug("Write isolate_data_indices\n");
+  w.Debug("0x%x: Write IsolateDataSerializeInfo\n", w.sink.size());
   written_total += w.Write<IsolateDataSerializeInfo>(isolate_data_info);
+  w.Debug("0x%x: Write EnvSerializeInfo\n", w.sink.size());
   written_total += w.Write<EnvSerializeInfo>(env_info);
-  w.Debug("Write code_cache\n");
+  w.Debug("0x%x: Write CodeCacheInfo\n", w.sink.size());
   written_total += w.WriteVector<builtins::CodeCacheInfo>(code_cache);
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
 
@@ -1155,8 +1156,11 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     CHECK_EQ(index, SnapshotData::kNodeVMContextIndex);
     index = creator->AddContext(base_context);
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
-    index = creator->AddContext(main_context,
-                                {SerializeNodeContextInternalFields, env});
+    index = creator->AddContext(
+        main_context,
+        v8::SerializeInternalFieldsCallback(SerializeNodeContextInternalFields,
+                                            env),
+        v8::SerializeContextDataCallback(SerializeNodeContextData, env));
     CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
   }
 
@@ -1252,6 +1256,59 @@ std::string SnapshotableObject::GetTypeName() const {
     SERIALIZABLE_OBJECT_TYPES(V)
 #undef V
     default: { UNREACHABLE(); }
+  }
+}
+
+void DeserializeNodeContextData(Local<Context> holder,
+                                int index,
+                                StartupData payload,
+                                void* callback_data) {
+  // We will reset all the pointers in Environment::AssignToContext()
+  // via the realm constructor.
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag: {
+      uint64_t index_64;
+      int size = sizeof(index_64);
+      CHECK_EQ(payload.raw_size, size);
+      memcpy(&index_64, payload.data, payload.raw_size);
+      CHECK_EQ(index_64, static_cast<uint64_t>(index));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+StartupData SerializeNodeContextData(Local<Context> holder,
+                                     int index,
+                                     void* callback_data) {
+  // For pointer values, we need to return some non-empty data so that V8
+  // does not serialize them verbatim, making the snapshot unreproducible.
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag: {
+      void* data = holder->GetAlignedPointerFromEmbedderData(index);
+      per_process::Debug(
+          DebugCategory::MKSNAPSHOT,
+          "Serialize context data, index=%d, holder=%p, ptr=%p\n",
+          static_cast<int>(index),
+          *holder,
+          data);
+      // We use uint64_t to avoid padding.
+      uint64_t index_64 = static_cast<uint64_t>(index);
+      // It must be allocated with new[] because V8 will call delete[] on it.
+      size_t size = sizeof(index_64);
+      char* startup_data = new char[size];
+      memcpy(startup_data, &index_64, size);
+      return {startup_data, static_cast<int>(size)};
+    }
+    default:
+      UNREACHABLE();
   }
 }
 

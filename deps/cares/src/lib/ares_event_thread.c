@@ -32,7 +32,7 @@ static void ares_event_destroy_cb(void *arg)
 {
   ares_event_t *event = arg;
   if (event == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Unregister from the event thread if it was registered with one */
@@ -89,7 +89,12 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
 {
   ares_event_t *ev = NULL;
 
-  if (e == NULL || cb == NULL) {
+  if (e == NULL) {
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
+  /* Callback must be specified if not a removal event. */
+  if (flags != ARES_EVENT_FLAG_NONE && cb == NULL) {
     return ARES_EFORMERR;
   }
 
@@ -119,12 +124,12 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
     /* Allocate a new one */
     ev = ares_malloc_zero(sizeof(*ev));
     if (ev == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     if (ares__llist_insert_last(e->ev_updates, ev) == NULL) {
-      ares_free(ev);
-      return ARES_ENOMEM;
+      ares_free(ev); /* LCOV_EXCL_LINE: OutOfMemory */
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -153,7 +158,7 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
 static void ares_event_signal(const ares_event_t *event)
 {
   if (event == NULL || event->signal_cb == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
   event->signal_cb(event);
 }
@@ -161,7 +166,7 @@ static void ares_event_signal(const ares_event_t *event)
 static void ares_event_thread_wake(const ares_event_thread_t *e)
 {
   if (e == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares_event_signal(e->ev_signal);
@@ -211,8 +216,13 @@ static void ares_event_process_updates(ares_event_thread_t *e)
    * list */
   while ((node = ares__llist_node_first(e->ev_updates)) != NULL) {
     ares_event_t *newev = ares__llist_node_claim(node);
-    ares_event_t *oldev =
-      ares__htable_asvp_get_direct(e->ev_handles, newev->fd);
+    ares_event_t *oldev;
+
+    if (newev->fd == ARES_SOCKET_BAD) {
+      oldev = ares__htable_vpvp_get_direct(e->ev_cust_handles, newev->data);
+    } else {
+      oldev = ares__htable_asvp_get_direct(e->ev_sock_handles, newev->fd);
+    }
 
     /* Adding new */
     if (oldev == NULL) {
@@ -225,7 +235,11 @@ static void ares_event_process_updates(ares_event_thread_t *e)
         newev->e = NULL;
         ares_event_destroy_cb(newev);
       } else {
-        ares__htable_asvp_insert(e->ev_handles, newev->fd, newev);
+        if (newev->fd == ARES_SOCKET_BAD) {
+          ares__htable_vpvp_insert(e->ev_cust_handles, newev->data, newev);
+        } else {
+          ares__htable_asvp_insert(e->ev_sock_handles, newev->fd, newev);
+        }
       }
       continue;
     }
@@ -234,7 +248,11 @@ static void ares_event_process_updates(ares_event_thread_t *e)
     if (newev->flags == ARES_EVENT_FLAG_NONE) {
       /* the callback for the removal will call e->ev_sys->event_del(e, event)
        */
-      ares__htable_asvp_remove(e->ev_handles, newev->fd);
+      if (newev->fd == ARES_SOCKET_BAD) {
+        ares__htable_vpvp_remove(e->ev_cust_handles, newev->data);
+      } else {
+        ares__htable_asvp_remove(e->ev_sock_handles, newev->fd);
+      }
       ares_free(newev);
       continue;
     }
@@ -306,10 +324,13 @@ static void ares_event_thread_destroy_int(ares_event_thread_t *e)
   ares__llist_destroy(e->ev_updates);
   e->ev_updates = NULL;
 
-  ares__htable_asvp_destroy(e->ev_handles);
-  e->ev_handles = NULL;
+  ares__htable_asvp_destroy(e->ev_sock_handles);
+  e->ev_sock_handles = NULL;
 
-  if (e->ev_sys->destroy) {
+  ares__htable_vpvp_destroy(e->ev_cust_handles);
+  e->ev_cust_handles = NULL;
+
+  if (e->ev_sys && e->ev_sys->destroy) {
     e->ev_sys->destroy(e);
   }
 
@@ -324,7 +345,7 @@ void ares_event_thread_destroy(ares_channel_t *channel)
   ares_event_thread_t *e = channel->sock_state_cb_data;
 
   if (e == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares_event_thread_destroy_int(e);
@@ -334,7 +355,7 @@ static const ares_event_sys_t *ares_event_fetch_sys(ares_evsys_t evsys)
 {
   switch (evsys) {
     case ARES_EVSYS_WIN32:
-#if defined(_WIN32)
+#if defined(USE_WINSOCK)
       return &ares_evsys_win32;
 #else
       return NULL;
@@ -370,7 +391,7 @@ static const ares_event_sys_t *ares_event_fetch_sys(ares_evsys_t evsys)
 
     /* case ARES_EVSYS_DEFAULT: */
     default:
-#if defined(_WIN32)
+#if defined(USE_WINSOCK)
       return &ares_evsys_win32;
 #elif defined(HAVE_KQUEUE)
       return &ares_evsys_kqueue;
@@ -394,43 +415,51 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel)
 
   e = ares_malloc_zero(sizeof(*e));
   if (e == NULL) {
-    return ARES_ENOMEM;
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->mutex = ares__thread_mutex_create();
   if (e->mutex == NULL) {
-    ares_event_thread_destroy_int(e);
-    return ARES_ENOMEM;
+    ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->ev_updates = ares__llist_create(NULL);
   if (e->ev_updates == NULL) {
-    ares_event_thread_destroy_int(e);
-    return ARES_ENOMEM;
+    ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
-  e->ev_handles = ares__htable_asvp_create(ares_event_destroy_cb);
-  if (e->ev_handles == NULL) {
-    ares_event_thread_destroy_int(e);
-    return ARES_ENOMEM;
+  e->ev_sock_handles = ares__htable_asvp_create(ares_event_destroy_cb);
+  if (e->ev_sock_handles == NULL) {
+    ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
+  e->ev_cust_handles = ares__htable_vpvp_create(NULL, ares_event_destroy_cb);
+  if (e->ev_cust_handles == NULL) {
+    ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->channel = channel;
   e->isup    = ARES_TRUE;
   e->ev_sys  = ares_event_fetch_sys(channel->evsys);
   if (e->ev_sys == NULL) {
-    ares_event_thread_destroy_int(e);
-    return ARES_ENOTIMP;
+    ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: UntestablePath */
+    return ARES_ENOTIMP; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   channel->sock_state_cb      = ares_event_thread_sockstate_cb;
   channel->sock_state_cb_data = e;
 
   if (!e->ev_sys->init(e)) {
+    /* LCOV_EXCL_START: UntestablePath */
     ares_event_thread_destroy_int(e);
     channel->sock_state_cb      = NULL;
     channel->sock_state_cb_data = NULL;
     return ARES_ESERVFAIL;
+    /* LCOV_EXCL_STOP */
   }
 
   /* Before starting the thread, process any possible events the initialization
@@ -442,10 +471,12 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel)
 
   /* Start thread */
   if (ares__thread_create(&e->thread, ares_event_thread, e) != ARES_SUCCESS) {
+    /* LCOV_EXCL_START: UntestablePath */
     ares_event_thread_destroy_int(e);
     channel->sock_state_cb      = NULL;
     channel->sock_state_cb_data = NULL;
     return ARES_ESERVFAIL;
+    /* LCOV_EXCL_STOP */
   }
 
   return ARES_SUCCESS;

@@ -123,7 +123,7 @@ This section documents our most commonly used API methods. Additional APIs are d
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`RequestOptions`](./docs/api/Dispatcher.md#parameter-requestoptions)
+* **options** [`RequestOptions`](./docs/docs/api/Dispatcher.md#parameter-requestoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **method** `String` - Default: `PUT` if `options.body`, otherwise `GET`
   * **maxRedirections** `Integer` - Default: `0`
@@ -132,14 +132,14 @@ Returns a promise with the result of the `Dispatcher.request` method.
 
 Calls `options.dispatcher.request(options)`.
 
-See [Dispatcher.request](./docs/api/Dispatcher.md#dispatcherrequestoptions-callback) for more details, and [request examples](./examples/README.md) for examples.
+See [Dispatcher.request](./docs/docs/api/Dispatcher.md#dispatcherrequestoptions-callback) for more details, and [request examples](./examples/README.md) for examples.
 
 ### `undici.stream([url, options, ]factory): Promise`
 
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`StreamOptions`](./docs/api/Dispatcher.md#parameter-streamoptions)
+* **options** [`StreamOptions`](./docs/docs/api/Dispatcher.md#parameter-streamoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **method** `String` - Default: `PUT` if `options.body`, otherwise `GET`
   * **maxRedirections** `Integer` - Default: `0`
@@ -149,14 +149,14 @@ Returns a promise with the result of the `Dispatcher.stream` method.
 
 Calls `options.dispatcher.stream(options, factory)`.
 
-See [Dispatcher.stream](./docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback) for more details.
+See [Dispatcher.stream](./docs/docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback) for more details.
 
 ### `undici.pipeline([url, options, ]handler): Duplex`
 
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`PipelineOptions`](./docs/api/Dispatcher.md#parameter-pipelineoptions)
+* **options** [`PipelineOptions`](./docs/docs/api/Dispatcher.md#parameter-pipelineoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **method** `String` - Default: `PUT` if `options.body`, otherwise `GET`
   * **maxRedirections** `Integer` - Default: `0`
@@ -166,7 +166,7 @@ Returns: `stream.Duplex`
 
 Calls `options.dispatch.pipeline(options, handler)`.
 
-See [Dispatcher.pipeline](./docs/api/Dispatcher.md#dispatcherpipelineoptions-handler) for more details.
+See [Dispatcher.pipeline](./docs/docs/api/Dispatcher.md#dispatcherpipelineoptions-handler) for more details.
 
 ### `undici.connect([url, options]): Promise`
 
@@ -175,7 +175,7 @@ Starts two-way communications with the requested resource using [HTTP CONNECT](h
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`ConnectOptions`](./docs/api/Dispatcher.md#parameter-connectoptions)
+* **options** [`ConnectOptions`](./docs/docs/api/Dispatcher.md#parameter-connectoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **maxRedirections** `Integer` - Default: `0`
 * **callback** `(err: Error | null, data: ConnectData | null) => void` (optional)
@@ -184,7 +184,7 @@ Returns a promise with the result of the `Dispatcher.connect` method.
 
 Calls `options.dispatch.connect(options)`.
 
-See [Dispatcher.connect](./docs/api/Dispatcher.md#dispatcherconnectoptions-callback) for more details.
+See [Dispatcher.connect](./docs/docs/api/Dispatcher.md#dispatcherconnectoptions-callback) for more details.
 
 ### `undici.fetch(input[, init]): Promise`
 
@@ -335,7 +335,7 @@ Upgrade to a different protocol. See [MDN - HTTP - Protocol upgrade mechanism](h
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`UpgradeOptions`](./docs/api/Dispatcher.md#parameter-upgradeoptions)
+* **options** [`UpgradeOptions`](./docs/docs/api/Dispatcher.md#parameter-upgradeoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **maxRedirections** `Integer` - Default: `0`
 * **callback** `(error: Error | null, data: UpgradeData) => void` (optional)
@@ -344,7 +344,7 @@ Returns a promise with the result of the `Dispatcher.upgrade` method.
 
 Calls `options.dispatcher.upgrade(options)`.
 
-See [Dispatcher.upgrade](./docs/api/Dispatcher.md#dispatcherupgradeoptions-callback) for more details.
+See [Dispatcher.upgrade](./docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-callback) for more details.
 
 ### `undici.setGlobalDispatcher(dispatcher)`
 

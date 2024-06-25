@@ -70,6 +70,29 @@ describe('watch mode file watcher', () => {
     assert.ok(changesCount < 5);
   });
 
+  it('should debounce changes on multiple files', async () => {
+    const files = [];
+    for (let i = 0; i < 10; i++) {
+      const file = tmpdir.resolve(`file-debounced-${i}`);
+      writeFileSync(file, 'written');
+      watcher.filterFile(file);
+      files.push(file);
+    }
+
+    files.forEach((file) => writeFileSync(file, '1'));
+    files.forEach((file) => writeFileSync(file, '2'));
+    files.forEach((file) => writeFileSync(file, '3'));
+    files.forEach((file) => writeFileSync(file, '4'));
+
+    await setTimeout(200); // debounce * 2
+    files.forEach((file) => writeFileSync(file, '5'));
+    const changed = once(watcher, 'changed');
+    files.forEach((file) => writeFileSync(file, 'after'));
+    await changed;
+    // Unfortunately testing that changesCount === 2 is flaky
+    assert.ok(changesCount < 5);
+  });
+
   it('should ignore files in watched directory if they are not filtered',
      { skip: !supportsRecursiveWatching }, async () => {
        watcher.on('changed', common.mustNotCall());

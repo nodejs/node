@@ -83,6 +83,8 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value path(env->isolate(), args[0]);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   int err = uv_chdir(*path);
   if (err) {
     // Also include the original working directory, since that will usually
@@ -584,11 +586,11 @@ void BindingData::BigIntImpl(BindingData* receiver) {
 }
 
 void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
-  BigIntImpl(FromJSObject<BindingData>(args.Holder()));
+  BigIntImpl(FromJSObject<BindingData>(args.This()));
 }
 
 void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  NumberImpl(FromJSObject<BindingData>(args.Holder()));
+  NumberImpl(FromJSObject<BindingData>(args.This()));
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,

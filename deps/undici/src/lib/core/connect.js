@@ -73,7 +73,7 @@ if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env
   }
 }
 
-function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, ...opts }) {
+function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
   if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
     throw new InvalidArgumentError('maxCachedSessions must be a positive integer or zero')
   }
@@ -91,7 +91,7 @@ function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, ...o
       servername = servername || options.servername || util.getServerName(host) || null
 
       const sessionKey = servername || hostname
-      const session = sessionCache.get(sessionKey) || null
+      const session = customSession || sessionCache.get(sessionKey) || null
 
       assert(sessionKey)
 
@@ -165,7 +165,7 @@ function setupTimeout (onConnectTimeout, timeout) {
   let s1 = null
   let s2 = null
   const timeoutId = setTimeout(() => {
-    // setImmediate is added to make sure that we priotorise socket error events over timeouts
+    // setImmediate is added to make sure that we prioritize socket error events over timeouts
     s1 = setImmediate(() => {
       if (process.platform === 'win32') {
         // Windows needs an extra setImmediate probably due to implementation differences in the socket logic

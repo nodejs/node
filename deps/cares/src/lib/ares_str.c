@@ -56,7 +56,7 @@ char *ares_strdup(const char *s1)
 
   /* Don't see how this is possible */
   if (len == SIZE_MAX) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   out = ares_malloc(len + 1);
@@ -77,7 +77,7 @@ size_t ares_strcpy(char *dest, const char *src, size_t dest_size)
   size_t len = 0;
 
   if (dest == NULL || dest_size == 0) {
-    return 0;
+    return 0; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   len = ares_strlen(src);
@@ -116,7 +116,7 @@ void ares__str_rtrim(char *str)
   size_t i;
 
   if (str == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   len = ares_strlen(str);
@@ -134,7 +134,7 @@ void ares__str_ltrim(char *str)
   size_t len;
 
   if (str == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   for (i = 0; str[i] != 0 && ares__isspace(str[i]); i++) {
@@ -260,8 +260,29 @@ ares_bool_t ares__is_hostnamech(int ch)
 ares_bool_t ares__is_hostname(const char *str)
 {
   size_t i;
+
+  if (str == NULL) {
+    return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
   for (i = 0; str[i] != 0; i++) {
     if (!ares__is_hostnamech(str[i])) {
+      return ARES_FALSE;
+    }
+  }
+  return ARES_TRUE;
+}
+
+ares_bool_t ares__str_isprint(const char *str, size_t len)
+{
+  size_t i;
+
+  if (str == NULL && len != 0) {
+    return ARES_FALSE;
+  }
+
+  for (i = 0; i < len; i++) {
+    if (!ares__isprint(str[i])) {
       return ARES_FALSE;
     }
   }

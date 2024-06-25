@@ -384,6 +384,15 @@ function bodyMixinMethods (instance) {
           'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
         )
       }, instance)
+    },
+
+    bytes () {
+      // The bytes() method steps are to return the result of running consume body
+      // with this and the following step given a byte sequence bytes: return the
+      // result of creating a Uint8Array from bytes in this’s relevant realm.
+      return consumeBody(this, (bytes) => {
+        return new Uint8Array(bytes)
+      }, instance)
     }
   }
 
@@ -406,7 +415,7 @@ async function consumeBody (object, convertBytesToJSValue, instance) {
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
   if (bodyUnusable(object[kState].body)) {
-    throw new TypeError('Body is unusable')
+    throw new TypeError('Body is unusable: Body has already been read')
   }
 
   throwIfAborted(object[kState])
@@ -432,7 +441,7 @@ async function consumeBody (object, convertBytesToJSValue, instance) {
   // 5. If object’s body is null, then run successSteps with an
   //    empty byte sequence.
   if (object[kState].body == null) {
-    successSteps(new Uint8Array())
+    successSteps(Buffer.allocUnsafe(0))
     return promise.promise
   }
 

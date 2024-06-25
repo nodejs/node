@@ -34,7 +34,7 @@
 static void ares__requeue_queries(struct server_connection *conn)
 {
   struct query  *query;
-  struct timeval now = ares__tvnow();
+  ares_timeval_t now = ares__tvnow();
 
   while ((query = ares__llist_first_val(conn->queries_to_conn)) != NULL) {
     ares__requeue_query(query, &now);
@@ -85,7 +85,7 @@ void ares__check_cleanup_conn(const ares_channel_t     *channel,
   ares_bool_t do_cleanup = ARES_FALSE;
 
   if (channel == NULL || conn == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (ares__llist_len(conn->queries_to_conn)) {
@@ -94,6 +94,14 @@ void ares__check_cleanup_conn(const ares_channel_t     *channel,
 
   /* If we are configured not to stay open, close it out */
   if (!(channel->flags & ARES_FLAG_STAYOPEN)) {
+    do_cleanup = ARES_TRUE;
+  }
+
+  /* If the associated server has failures, close it out. Resetting the
+   * connection (and specifically the source port number) can help resolve
+   * situations where packets are being dropped.
+   */
+  if (conn->server->consec_failures > 0) {
     do_cleanup = ARES_TRUE;
   }
 

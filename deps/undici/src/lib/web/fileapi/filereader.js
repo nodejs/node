@@ -39,7 +39,7 @@ class FileReader extends EventTarget {
   readAsArrayBuffer (blob) {
     webidl.brandCheck(this, FileReader)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsArrayBuffer' })
+    webidl.argumentLengthCheck(arguments, 1, 'FileReader.readAsArrayBuffer')
 
     blob = webidl.converters.Blob(blob, { strict: false })
 
@@ -55,7 +55,7 @@ class FileReader extends EventTarget {
   readAsBinaryString (blob) {
     webidl.brandCheck(this, FileReader)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsBinaryString' })
+    webidl.argumentLengthCheck(arguments, 1, 'FileReader.readAsBinaryString')
 
     blob = webidl.converters.Blob(blob, { strict: false })
 
@@ -72,12 +72,12 @@ class FileReader extends EventTarget {
   readAsText (blob, encoding = undefined) {
     webidl.brandCheck(this, FileReader)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsText' })
+    webidl.argumentLengthCheck(arguments, 1, 'FileReader.readAsText')
 
     blob = webidl.converters.Blob(blob, { strict: false })
 
     if (encoding !== undefined) {
-      encoding = webidl.converters.DOMString(encoding)
+      encoding = webidl.converters.DOMString(encoding, 'FileReader.readAsText', 'encoding')
     }
 
     // The readAsText(blob, encoding) method, when invoked,
@@ -92,7 +92,7 @@ class FileReader extends EventTarget {
   readAsDataURL (blob) {
     webidl.brandCheck(this, FileReader)
 
-    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsDataURL' })
+    webidl.argumentLengthCheck(arguments, 1, 'FileReader.readAsDataURL')
 
     blob = webidl.converters.Blob(blob, { strict: false })
 

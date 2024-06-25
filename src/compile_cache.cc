@@ -354,7 +354,7 @@ bool CompileCacheHandler::InitializeDirectory(Environment* env,
         cache_dir);
 
   if (UNLIKELY(!env->permission()->is_granted(
-          permission::PermissionScope::kFileSystemWrite, cache_dir))) {
+          env, permission::PermissionScope::kFileSystemWrite, cache_dir))) {
     Debug("[compile cache] skipping cache because write permission for %s "
           "is not granted\n",
           cache_dir);
@@ -362,7 +362,7 @@ bool CompileCacheHandler::InitializeDirectory(Environment* env,
   }
 
   if (UNLIKELY(!env->permission()->is_granted(
-          permission::PermissionScope::kFileSystemRead, cache_dir))) {
+          env, permission::PermissionScope::kFileSystemRead, cache_dir))) {
     Debug("[compile cache] skipping cache because read permission for %s "
           "is not granted\n",
           cache_dir);

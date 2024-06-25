@@ -62,7 +62,6 @@ assert.strictEqual(getNavigatorPlatform({ arch: 'arm64', platform: 'darwin' }), 
 assert.strictEqual(getNavigatorPlatform({ arch: 'ia32', platform: 'linux' }), 'Linux i686');
 assert.strictEqual(getNavigatorPlatform({ arch: 'x64', platform: 'linux' }), 'Linux x86_64');
 assert.strictEqual(getNavigatorPlatform({ arch: 'arm64', platform: 'linux' }), 'Linux arm64');
-assert.strictEqual(getNavigatorPlatform({ arch: 'ia32', platform: 'win32' }), 'Win32');
 assert.strictEqual(getNavigatorPlatform({ arch: 'x64', platform: 'win32' }), 'Win32');
 assert.strictEqual(getNavigatorPlatform({ arch: 'arm64', platform: 'win32' }), 'Win32');
 assert.strictEqual(getNavigatorPlatform({ arch: 'ia32', platform: 'freebsd' }), 'FreeBSD i386');

@@ -30,13 +30,14 @@
 #include "env-inl.h"
 #include "simdutf.h"
 #include "string_bytes.h"
-#include "string_search.h"
+
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
-#include <cstring>
 #include <climits>
+#include <cstring>
+#include "nbytes.h"
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
   THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")                      \
@@ -57,6 +58,7 @@ using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::FastApiTypedArray;
 using v8::FunctionCallbackInfo;
 using v8::Global;
 using v8::HandleScope;
@@ -665,8 +667,8 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   } else if (enc == UCS2) {
     str_length = str_obj->Length() * sizeof(uint16_t);
     node::TwoByteValue str(env->isolate(), args[1]);
-    if (IsBigEndian())
-      SwapBytes16(reinterpret_cast<char*>(&str[0]), str_length);
+    if constexpr (IsBigEndian())
+      CHECK(nbytes::SwapBytes16(reinterpret_cast<char*>(&str[0]), str_length));
 
     memcpy(ts_obj_data + start, *str, std::min(str_length, fill_length));
 
@@ -843,6 +845,23 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(val);
 }
 
+int32_t FastCompare(v8::Local<v8::Value>,
+                    const FastApiTypedArray<uint8_t>& a,
+                    const FastApiTypedArray<uint8_t>& b) {
+  uint8_t* data_a;
+  uint8_t* data_b;
+  CHECK(a.getStorageIfAligned(&data_a));
+  CHECK(b.getStorageIfAligned(&data_b));
+
+  size_t cmp_length = std::min(a.length(), b.length());
+
+  return normalizeCompareVal(
+      cmp_length > 0 ? memcmp(data_a, data_b, cmp_length) : 0,
+      a.length(),
+      b.length());
+}
+
+static v8::CFunction fast_compare(v8::CFunction::Make(FastCompare));
 
 // Computes the offset for starting an indexOf or lastIndexOf search.
 // Returns either a valid offset in [0...<length - 1>], ie inside the Buffer,
@@ -942,7 +961,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       return args.GetReturnValue().Set(-1);
     }
 
-    if (IsBigEndian()) {
+    if constexpr (IsBigEndian()) {
       StringBytes::InlineDecoder decoder;
       if (decoder.Decode(env, needle, enc).IsNothing()) return;
       const uint16_t* decoded_string =
@@ -951,19 +970,20 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       if (decoded_string == nullptr)
         return args.GetReturnValue().Set(-1);
 
-      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                            haystack_length / 2,
-                            decoded_string,
-                            decoder.size() / 2,
-                            offset / 2,
-                            is_forward);
+      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                                    haystack_length / 2,
+                                    decoded_string,
+                                    decoder.size() / 2,
+                                    offset / 2,
+                                    is_forward);
     } else {
-      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                            haystack_length / 2,
-                            reinterpret_cast<const uint16_t*>(*needle_value),
-                            needle_value.length(),
-                            offset / 2,
-                            is_forward);
+      result =
+          nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                               haystack_length / 2,
+                               reinterpret_cast<const uint16_t*>(*needle_value),
+                               needle_value.length(),
+                               offset / 2,
+                               is_forward);
     }
     result *= 2;
   } else if (enc == UTF8) {
@@ -971,12 +991,13 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     if (*needle_value == nullptr)
       return args.GetReturnValue().Set(-1);
 
-    result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                          haystack_length,
-                          reinterpret_cast<const uint8_t*>(*needle_value),
-                          needle_length,
-                          offset,
-                          is_forward);
+    result =
+        nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                             haystack_length,
+                             reinterpret_cast<const uint8_t*>(*needle_value),
+                             needle_length,
+                             offset,
+                             is_forward);
   } else if (enc == LATIN1) {
     uint8_t* needle_data = node::UncheckedMalloc<uint8_t>(needle_length);
     if (needle_data == nullptr) {
@@ -985,12 +1006,12 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     needle->WriteOneByte(
         isolate, needle_data, 0, needle_length, String::NO_NULL_TERMINATION);
 
-    result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                          haystack_length,
-                          needle_data,
-                          needle_length,
-                          offset,
-                          is_forward);
+    result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                                  haystack_length,
+                                  needle_data,
+                                  needle_length,
+                                  offset,
+                                  is_forward);
     free(needle_data);
   }
 
@@ -1049,65 +1070,83 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     if (haystack_length < 2 || needle_length < 2) {
       return args.GetReturnValue().Set(-1);
     }
-    result = SearchString(
-        reinterpret_cast<const uint16_t*>(haystack),
-        haystack_length / 2,
-        reinterpret_cast<const uint16_t*>(needle),
-        needle_length / 2,
-        offset / 2,
-        is_forward);
+    result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                                  haystack_length / 2,
+                                  reinterpret_cast<const uint16_t*>(needle),
+                                  needle_length / 2,
+                                  offset / 2,
+                                  is_forward);
     result *= 2;
   } else {
-    result = SearchString(
-        reinterpret_cast<const uint8_t*>(haystack),
-        haystack_length,
-        reinterpret_cast<const uint8_t*>(needle),
-        needle_length,
-        offset,
-        is_forward);
+    result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                                  haystack_length,
+                                  reinterpret_cast<const uint8_t*>(needle),
+                                  needle_length,
+                                  offset,
+                                  is_forward);
   }
 
   args.GetReturnValue().Set(
       result == haystack_length ? -1 : static_cast<int>(result));
 }
 
-void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
+int32_t IndexOfNumber(const uint8_t* buffer_data,
+                      size_t buffer_length,
+                      uint32_t needle,
+                      int64_t offset_i64,
+                      bool is_forward) {
+  int64_t opt_offset = IndexOfOffset(buffer_length, offset_i64, 1, is_forward);
+  if (opt_offset <= -1 || buffer_length == 0) {
+    return -1;
+  }
+  size_t offset = static_cast<size_t>(opt_offset);
+  CHECK_LT(offset, buffer_length);
+
+  const void* ptr;
+  if (is_forward) {
+    ptr = memchr(buffer_data + offset, needle, buffer_length - offset);
+  } else {
+    ptr = nbytes::stringsearch::MemrchrFill(buffer_data, needle, offset + 1);
+  }
+  const uint8_t* ptr_uint8 = static_cast<const uint8_t*>(ptr);
+  return ptr != nullptr ? static_cast<int32_t>(ptr_uint8 - buffer_data) : -1;
+}
+
+void SlowIndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsUint32());
   CHECK(args[2]->IsNumber());
   CHECK(args[3]->IsBoolean());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  ArrayBufferViewContents<char> buffer(args[0]);
+  ArrayBufferViewContents<uint8_t> buffer(args[0]);
 
   uint32_t needle = args[1].As<Uint32>()->Value();
   int64_t offset_i64 = args[2].As<Integer>()->Value();
   bool is_forward = args[3]->IsTrue();
 
-  int64_t opt_offset =
-      IndexOfOffset(buffer.length(), offset_i64, 1, is_forward);
-  if (opt_offset <= -1 || buffer.length() == 0) {
-    return args.GetReturnValue().Set(-1);
-  }
-  size_t offset = static_cast<size_t>(opt_offset);
-  CHECK_LT(offset, buffer.length());
-
-  const void* ptr;
-  if (is_forward) {
-    ptr = memchr(buffer.data() + offset, needle, buffer.length() - offset);
-  } else {
-    ptr = node::stringsearch::MemrchrFill(buffer.data(), needle, offset + 1);
-  }
-  const char* ptr_char = static_cast<const char*>(ptr);
-  args.GetReturnValue().Set(ptr ? static_cast<int>(ptr_char - buffer.data())
-                                : -1);
+  args.GetReturnValue().Set(IndexOfNumber(
+      buffer.data(), buffer.length(), needle, offset_i64, is_forward));
 }
 
+int32_t FastIndexOfNumber(v8::Local<v8::Value>,
+                          const FastApiTypedArray<uint8_t>& buffer,
+                          uint32_t needle,
+                          int64_t offset_i64,
+                          bool is_forward) {
+  uint8_t* buffer_data;
+  CHECK(buffer.getStorageIfAligned(&buffer_data));
+  return IndexOfNumber(
+      buffer_data, buffer.length(), needle, offset_i64, is_forward);
+}
+
+static v8::CFunction fast_index_of_number(
+    v8::CFunction::Make(FastIndexOfNumber));
 
 void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
-  SwapBytes16(ts_obj_data, ts_obj_length);
+  CHECK(nbytes::SwapBytes16(ts_obj_data, ts_obj_length));
   args.GetReturnValue().Set(args[0]);
 }
 
@@ -1116,7 +1155,7 @@ void Swap32(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
-  SwapBytes32(ts_obj_data, ts_obj_length);
+  CHECK(nbytes::SwapBytes32(ts_obj_data, ts_obj_length));
   args.GetReturnValue().Set(args[0]);
 }
 
@@ -1125,7 +1164,7 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
-  SwapBytes64(ts_obj_data, ts_obj_length);
+  CHECK(nbytes::SwapBytes64(ts_obj_data, ts_obj_length));
   args.GetReturnValue().Set(args[0]);
 }
 
@@ -1286,19 +1325,31 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
     auto ext = input->GetExternalOneByteStringResource();
     size_t expected_length =
         simdutf::maximal_binary_length_from_base64(ext->data(), ext->length());
-    buffer.AllocateSufficientStorage(expected_length + 1);
-    buffer.SetLengthAndZeroTerminate(expected_length);
+    buffer.AllocateSufficientStorage(expected_length);
+    buffer.SetLength(expected_length);
     result = simdutf::base64_to_binary(
         ext->data(), ext->length(), buffer.out(), simdutf::base64_default);
+  } else if (input->IsOneByte()) {
+    MaybeStackBuffer<uint8_t> stack_buf(input->Length());
+    input->WriteOneByte(args.GetIsolate(),
+                        stack_buf.out(),
+                        0,
+                        input->Length(),
+                        String::NO_NULL_TERMINATION);
+    const char* data = reinterpret_cast<const char*>(*stack_buf);
+    size_t expected_length =
+        simdutf::maximal_binary_length_from_base64(data, input->Length());
+    buffer.AllocateSufficientStorage(expected_length);
+    buffer.SetLength(expected_length);
+    result = simdutf::base64_to_binary(data, input->Length(), buffer.out());
   } else {  // 16-bit case
     String::Value value(env->isolate(), input);
     auto data = reinterpret_cast<const char16_t*>(*value);
     size_t expected_length =
         simdutf::maximal_binary_length_from_base64(data, value.length());
-    buffer.AllocateSufficientStorage(expected_length + 1);
-    buffer.SetLengthAndZeroTerminate(expected_length);
-    result = simdutf::base64_to_binary(
-        data, value.length(), buffer.out(), simdutf::base64_default);
+    buffer.AllocateSufficientStorage(expected_length);
+    buffer.SetLength(expected_length);
+    result = simdutf::base64_to_binary(data, value.length(), buffer.out());
   }
 
   if (result.error == simdutf::error_code::SUCCESS) {
@@ -1397,11 +1448,15 @@ void Initialize(Local<Object> target,
                             SlowByteLengthUtf8,
                             &fast_byte_length_utf8);
   SetMethod(context, target, "copy", Copy);
-  SetMethodNoSideEffect(context, target, "compare", Compare);
+  SetFastMethodNoSideEffect(context, target, "compare", Compare, &fast_compare);
   SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
   SetMethod(context, target, "fill", Fill);
   SetMethodNoSideEffect(context, target, "indexOfBuffer", IndexOfBuffer);
-  SetMethodNoSideEffect(context, target, "indexOfNumber", IndexOfNumber);
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "indexOfNumber",
+                            SlowIndexOfNumber,
+                            &fast_index_of_number);
   SetMethodNoSideEffect(context, target, "indexOfString", IndexOfString);
 
   SetMethod(context, target, "detachArrayBuffer", DetachArrayBuffer);
@@ -1457,10 +1512,14 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(FastByteLengthUtf8);
   registry->Register(Copy);
   registry->Register(Compare);
+  registry->Register(FastCompare);
+  registry->Register(fast_compare.GetTypeInfo());
   registry->Register(CompareOffset);
   registry->Register(Fill);
   registry->Register(IndexOfBuffer);
-  registry->Register(IndexOfNumber);
+  registry->Register(SlowIndexOfNumber);
+  registry->Register(FastIndexOfNumber);
+  registry->Register(fast_index_of_number.GetTypeInfo());
   registry->Register(IndexOfString);
 
   registry->Register(Swap16);

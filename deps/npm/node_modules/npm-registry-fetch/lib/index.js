@@ -10,7 +10,6 @@ const qs = require('querystring')
 const url = require('url')
 const zlib = require('minizlib')
 const { Minipass } = require('minipass')
-const { redact: cleanUrl } = require('@npmcli/redact')
 
 const defaultOpts = require('./default-opts.js')
 
@@ -246,7 +245,3 @@ function getHeaders (uri, auth, opts) {
 
   return headers
 }
-
-// export cleanUrl to avoid a breaking change
-// TODO: next semver major remove this. Consumers should use @npmcli/redact instead
-module.exports.cleanUrl = cleanUrl

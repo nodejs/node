@@ -248,18 +248,18 @@ static ares_status_t ares__hostent_localhost(const char *name, int family,
 
   ai = ares_malloc_zero(sizeof(*ai));
   if (ai == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__addrinfo_localhost(name, 0, &hints, ai);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__addrinfo2hostent(ai, family, host_out);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
 done:
@@ -298,7 +298,7 @@ static ares_status_t ares_gethostbyname_file_int(ares_channel_t *channel,
 
   status = ares__hosts_entry_to_hostent(entry, family, host);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
 done:

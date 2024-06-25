@@ -368,7 +368,7 @@ For example, myapp could have this:
 ```json
 {
   "bin": {
-    "myapp": "./cli.js"
+    "myapp": "bin/cli.js"
   }
 }
 ```
@@ -385,7 +385,7 @@ package, then you can just supply it as a string.  For example:
 {
   "name": "my-program",
   "version": "1.2.5",
-  "bin": "./path/to/program"
+  "bin": "path/to/program"
 }
 ```
 
@@ -396,7 +396,7 @@ would be the same as this:
   "name": "my-program",
   "version": "1.2.5",
   "bin": {
-    "my-program": "./path/to/program"
+    "my-program": "path/to/program"
   }
 }
 ```
@@ -497,7 +497,7 @@ walking the folder.
 ### repository
 
 Specify the place where your code lives. This is helpful for people who
-want to contribute.  If the git repo is on GitHub, then the `npm docs`
+want to contribute.  If the git repo is on GitHub, then the `npm repo`
 command will be able to find you.
 
 Do it like this:
@@ -818,11 +818,12 @@ to express this. If you depend on features introduced in 1.5.2, use
 
 ### peerDependenciesMeta
 
-When a user installs your package, npm will emit warnings if packages
-specified in `peerDependencies` are not already installed. The
-`peerDependenciesMeta` field serves to provide npm more information on how
+The `peerDependenciesMeta` field serves to provide npm more information on how
 your peer dependencies are to be used. Specifically, it allows peer
-dependencies to be marked as optional.
+dependencies to be marked as optional. Npm will not automatically install
+optional peer dependencies. This allows you to
+integrate and interact with a variety of host packages without requiring
+all of them to be installed.
 
 For example:
 
@@ -841,11 +842,6 @@ For example:
   }
 }
 ```
-
-Marking a peer dependency as optional ensures npm will not emit a warning
-if the `soy-milk` package is not installed on the host. This allows you to
-integrate and interact with a variety of host packages without requiring
-all of them to be installed.
 
 ### bundleDependencies
 
@@ -927,6 +923,13 @@ version of a package is used everywhere, then you may add an override.
 Overrides provide a way to replace a package in your dependency tree with
 another version, or another package entirely. These changes can be scoped as
 specific or as vague as desired.
+
+Overrides are only considered in the root `package.json` file for a project.
+Overrides in installed dependencies (including
+[workspaces](/using-npm/workspaces)) are not considered in dependency tree
+resolution. Published packages may dictate their resolutions by pinning
+dependencies or using an
+[`npm-shrinkwrap.json`](/configuring-npm/npm-shrinkwrap-json) file.
 
 To make sure the package `foo` is always installed as version `1.0.0` no matter
 what version your dependencies rely on:

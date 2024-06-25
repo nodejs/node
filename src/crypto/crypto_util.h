@@ -136,7 +136,7 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
             void (*callback)(T*, const v8::FunctionCallbackInfo<v8::Value>&,
                              const char*, size_t)) {
   T* ctx;
-  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
 
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
@@ -233,6 +233,9 @@ class ByteSource {
     // Returns the (allocated) size in bytes.
     size_t size() const { return size_; }
 
+    // Returns if (allocated) size is zero.
+    bool empty() const { return size_ == 0; }
+
     // Finalizes the Builder and returns a read-only view that is optionally
     // truncated.
     ByteSource release(std::optional<size_t> resize = std::nullopt) && {
@@ -270,6 +273,8 @@ class ByteSource {
   }
 
   size_t size() const { return size_; }
+
+  bool empty() const { return size_ == 0; }
 
   operator bool() const { return data_ != nullptr; }
 
@@ -412,7 +417,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     Environment* env = Environment::GetCurrent(args);
 
     CryptoJob<CryptoJobTraits>* job;
-    ASSIGN_OR_RETURN_UNWRAP(&job, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&job, args.This());
     if (job->mode() == kCryptoJobAsync)
       return job->ScheduleWork();
 
@@ -718,8 +723,7 @@ class ArrayBufferOrViewContents {
     // Ideally, these would return nullptr if IsEmpty() or length_ is zero,
     // but some of the openssl API react badly if given a nullptr even when
     // length is zero, so we have to return something.
-    if (size() == 0)
-      return &buf;
+    if (empty()) return &buf;
     return reinterpret_cast<T*>(data_) + offset_;
   }
 
@@ -727,12 +731,13 @@ class ArrayBufferOrViewContents {
     // Ideally, these would return nullptr if IsEmpty() or length_ is zero,
     // but some of the openssl API react badly if given a nullptr even when
     // length is zero, so we have to return something.
-    if (size() == 0)
-      return &buf;
+    if (empty()) return &buf;
     return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline size_t size() const { return length_; }
+
+  inline bool empty() const { return length_ == 0; }
 
   // In most cases, input buffer sizes passed in to openssl need to
   // be limited to <= INT_MAX. This utility method helps us check.
@@ -743,14 +748,14 @@ class ArrayBufferOrViewContents {
   }
 
   inline ByteSource ToCopy() const {
-    if (size() == 0) return ByteSource();
+    if (empty()) return ByteSource();
     ByteSource::Builder buf(size());
     memcpy(buf.data<void>(), data(), size());
     return std::move(buf).release();
   }
 
   inline ByteSource ToNullTerminatedCopy() const {
-    if (size() == 0) return ByteSource();
+    if (empty()) return ByteSource();
     ByteSource::Builder buf(size() + 1);
     memcpy(buf.data<void>(), data(), size());
     buf.data<char>()[size()] = 0;

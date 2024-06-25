@@ -322,7 +322,9 @@ class AsyncHooks : public MemoryRetainer {
                          v8::Local<v8::Function> before,
                          v8::Local<v8::Function> after,
                          v8::Local<v8::Function> resolve);
-
+  // Used for testing since V8 doesn't provide API for retrieving configured
+  // JS promise hooks.
+  v8::Local<v8::Array> GetPromiseHooks(v8::Isolate* isolate);
   inline v8::Local<v8::String> provider_string(int idx);
 
   inline void no_force_checks();
@@ -803,6 +805,7 @@ class Environment : public MemoryRetainer {
   inline bool tracks_unmanaged_fds() const;
   inline bool hide_console_windows() const;
   inline bool no_global_search_paths() const;
+  inline bool should_start_debug_signal_handler() const;
   inline bool no_browser_globals() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;

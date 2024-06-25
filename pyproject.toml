@@ -4,7 +4,7 @@ exclude = [
   "tools/cpplint.py",
   "tools/gyp",
   "tools/inspector_protocol",
-  "tools/node_modules",
+  "tools/eslint/node_modules",
 ]
 line-length = 172
 target-version = "py37"

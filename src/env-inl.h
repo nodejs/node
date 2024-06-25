@@ -691,6 +691,10 @@ inline bool Environment::no_global_search_paths() const {
          !options_->global_search_paths;
 }
 
+inline bool Environment::should_start_debug_signal_handler() const {
+  return (flags_ & EnvironmentFlags::kNoStartDebugSignalHandler) == 0;
+}
+
 inline bool Environment::no_browser_globals() const {
   // configure --no-browser-globals
 #ifdef NODE_NO_BROWSER_GLOBALS

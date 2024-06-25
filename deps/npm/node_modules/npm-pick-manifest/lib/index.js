@@ -134,7 +134,7 @@ const pickManifest = (packument, wanted, opts) => {
   const allEntries = Object.entries(versions)
     .concat(Object.entries(staged))
     .concat(Object.entries(restricted))
-    .filter(([ver, mani]) => isBefore(verTimes, ver, time))
+    .filter(([ver]) => isBefore(verTimes, ver, time))
 
   if (!allEntries.length) {
     throw Object.assign(new Error(`No versions available for ${name}`), {
@@ -148,7 +148,7 @@ const pickManifest = (packument, wanted, opts) => {
   }
 
   const sortSemverOpt = { loose: true }
-  const entries = allEntries.filter(([ver, mani]) =>
+  const entries = allEntries.filter(([ver]) =>
     semver.satisfies(ver, range, { loose: true }))
     .sort((a, b) => {
       const [vera, mania] = a

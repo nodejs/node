@@ -19,8 +19,8 @@ declare class Dispatcher extends EventEmitter {
   connect(options: Dispatcher.ConnectOptions): Promise<Dispatcher.ConnectData>;
   connect(options: Dispatcher.ConnectOptions, callback: (err: Error | null, data: Dispatcher.ConnectData) => void): void;
   /** Compose a chain of dispatchers */
-  compose(dispatchers: Dispatcher.DispatcherInterceptor[]): Dispatcher.ComposedDispatcher;
-  compose(...dispatchers: Dispatcher.DispatcherInterceptor[]): Dispatcher.ComposedDispatcher;
+  compose(dispatchers: Dispatcher.DispatcherComposeInterceptor[]): Dispatcher.ComposedDispatcher;
+  compose(...dispatchers: Dispatcher.DispatcherComposeInterceptor[]): Dispatcher.ComposedDispatcher;
   /** Performs an HTTP request. */
   request(options: Dispatcher.RequestOptions): Promise<Dispatcher.ResponseData>;
   request(options: Dispatcher.RequestOptions, callback: (err: Error | null, data: Dispatcher.ResponseData) => void): void;
@@ -97,7 +97,7 @@ declare class Dispatcher extends EventEmitter {
 
 declare namespace Dispatcher {
   export interface ComposedDispatcher extends Dispatcher {}
-  export type DispatcherInterceptor = (dispatch: Dispatcher['dispatch']) => Dispatcher['dispatch'];
+  export type DispatcherComposeInterceptor = (dispatch: Dispatcher['dispatch']) => Dispatcher['dispatch'];
   export interface DispatchOptions {
     origin?: string | URL;
     path: string;
@@ -217,7 +217,7 @@ declare namespace Dispatcher {
   export type StreamFactory = (data: StreamFactoryData) => Writable;
   export interface DispatchHandlers {
     /** Invoked before request is dispatched on socket. May be invoked multiple times when a request is retried when the request at the head of the pipeline fails. */
-    onConnect?(abort: () => void): void;
+    onConnect?(abort: (err?: Error) => void): void;
     /** Invoked when an error has occurred. */
     onError?(err: Error): void;
     /** Invoked when request is upgraded either due to a `Upgrade` header or `CONNECT` method. */

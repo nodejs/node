@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-disassembler.h"
 
+#include <iomanip>
+
 #include "src/debug/debug-interface.h"
 #include "src/numbers/conversions.h"
 #include "src/wasm/module-decoder-impl.h"

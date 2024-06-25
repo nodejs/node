@@ -93,6 +93,7 @@ ares_bool_t ares_dns_rec_type_isvalid(ares_dns_rec_type_t type,
     case ARES_REC_TYPE_HINFO:
     case ARES_REC_TYPE_MX:
     case ARES_REC_TYPE_TXT:
+    case ARES_REC_TYPE_SIG:
     case ARES_REC_TYPE_AAAA:
     case ARES_REC_TYPE_SRV:
     case ARES_REC_TYPE_NAPTR:
@@ -133,9 +134,18 @@ ares_bool_t ares_dns_rec_type_allow_name_compression(ares_dns_rec_type_t type)
   return ARES_FALSE;
 }
 
-ares_bool_t ares_dns_class_isvalid(ares_dns_class_t qclass,
-                                   ares_bool_t      is_query)
+ares_bool_t ares_dns_class_isvalid(ares_dns_class_t    qclass,
+                                   ares_dns_rec_type_t type,
+                                   ares_bool_t         is_query)
 {
+  /* If we don't understand the record type, we shouldn't validate the class
+   * as there are some instances like on RFC 2391 (SIG RR) the class is
+   * meaningless, but since we didn't support that record type, we didn't
+   * know it shouldn't be validated */
+  if (type == ARES_REC_TYPE_RAW_RR) {
+    return ARES_TRUE;
+  }
+
   switch (qclass) {
     case ARES_CLASS_IN:
     case ARES_CLASS_CHAOS:
@@ -143,7 +153,13 @@ ares_bool_t ares_dns_class_isvalid(ares_dns_class_t qclass,
     case ARES_CLASS_NONE:
       return ARES_TRUE;
     case ARES_CLASS_ANY:
-      return is_query ? ARES_TRUE : ARES_FALSE;
+      if (type == ARES_REC_TYPE_SIG) {
+        return ARES_TRUE;
+      }
+      if (is_query) {
+        return ARES_TRUE;
+      }
+      return ARES_FALSE;
   }
   return ARES_FALSE;
 }
@@ -191,6 +207,8 @@ const char *ares_dns_rec_type_tostr(ares_dns_rec_type_t type)
       return "MX";
     case ARES_REC_TYPE_TXT:
       return "TXT";
+    case ARES_REC_TYPE_SIG:
+      return "SIG";
     case ARES_REC_TYPE_AAAA:
       return "AAAA";
     case ARES_REC_TYPE_SRV:
@@ -304,6 +322,33 @@ const char *ares_dns_rr_key_tostr(ares_dns_rr_key_t key)
 
     case ARES_RR_TXT_DATA:
       return "DATA";
+
+    case ARES_RR_SIG_TYPE_COVERED:
+      return "TYPE_COVERED";
+
+    case ARES_RR_SIG_ALGORITHM:
+      return "ALGORITHM";
+
+    case ARES_RR_SIG_LABELS:
+      return "LABELS";
+
+    case ARES_RR_SIG_ORIGINAL_TTL:
+      return "ORIGINAL_TTL";
+
+    case ARES_RR_SIG_EXPIRATION:
+      return "EXPIRATION";
+
+    case ARES_RR_SIG_INCEPTION:
+      return "INCEPTION";
+
+    case ARES_RR_SIG_KEY_TAG:
+      return "KEY_TAG";
+
+    case ARES_RR_SIG_SIGNERS_NAME:
+      return "SIGNERS_NAME";
+
+    case ARES_RR_SIG_SIGNATURE:
+      return "SIGNATURE";
 
     case ARES_RR_SRV_PRIORITY:
       return "PRIORITY";
@@ -420,6 +465,7 @@ ares_dns_datatype_t ares_dns_rr_key_datatype(ares_dns_rr_key_t key)
     case ARES_RR_SOA_RNAME:
     case ARES_RR_PTR_DNAME:
     case ARES_RR_MX_EXCHANGE:
+    case ARES_RR_SIG_SIGNERS_NAME:
     case ARES_RR_SRV_TARGET:
     case ARES_RR_SVCB_TARGET:
     case ARES_RR_HTTPS_TARGET:
@@ -440,9 +486,14 @@ ares_dns_datatype_t ares_dns_rr_key_datatype(ares_dns_rr_key_t key)
     case ARES_RR_SOA_RETRY:
     case ARES_RR_SOA_EXPIRE:
     case ARES_RR_SOA_MINIMUM:
+    case ARES_RR_SIG_ORIGINAL_TTL:
+    case ARES_RR_SIG_EXPIRATION:
+    case ARES_RR_SIG_INCEPTION:
       return ARES_DATATYPE_U32;
 
     case ARES_RR_MX_PREFERENCE:
+    case ARES_RR_SIG_TYPE_COVERED:
+    case ARES_RR_SIG_KEY_TAG:
     case ARES_RR_SRV_PRIORITY:
     case ARES_RR_SRV_WEIGHT:
     case ARES_RR_SRV_PORT:
@@ -457,6 +508,8 @@ ares_dns_datatype_t ares_dns_rr_key_datatype(ares_dns_rr_key_t key)
     case ARES_RR_RAW_RR_TYPE:
       return ARES_DATATYPE_U16;
 
+    case ARES_RR_SIG_ALGORITHM:
+    case ARES_RR_SIG_LABELS:
     case ARES_RR_OPT_VERSION:
     case ARES_RR_TLSA_CERT_USAGE:
     case ARES_RR_TLSA_SELECTOR:
@@ -468,6 +521,7 @@ ares_dns_datatype_t ares_dns_rr_key_datatype(ares_dns_rr_key_t key)
     case ARES_RR_TXT_DATA:
       return ARES_DATATYPE_BINP;
 
+    case ARES_RR_SIG_SIGNATURE:
     case ARES_RR_TLSA_DATA:
     case ARES_RR_RAW_RR_DATA:
       return ARES_DATATYPE_BIN;
@@ -494,6 +548,15 @@ static const ares_dns_rr_key_t rr_hinfo_keys[] = { ARES_RR_HINFO_CPU,
                                                    ARES_RR_HINFO_OS };
 static const ares_dns_rr_key_t rr_mx_keys[]    = { ARES_RR_MX_PREFERENCE,
                                                    ARES_RR_MX_EXCHANGE };
+static const ares_dns_rr_key_t rr_sig_keys[]   = { ARES_RR_SIG_TYPE_COVERED,
+                                                   ARES_RR_SIG_ALGORITHM,
+                                                   ARES_RR_SIG_LABELS,
+                                                   ARES_RR_SIG_ORIGINAL_TTL,
+                                                   ARES_RR_SIG_EXPIRATION,
+                                                   ARES_RR_SIG_INCEPTION,
+                                                   ARES_RR_SIG_KEY_TAG,
+                                                   ARES_RR_SIG_SIGNERS_NAME,
+                                                   ARES_RR_SIG_SIGNATURE };
 static const ares_dns_rr_key_t rr_txt_keys[]   = { ARES_RR_TXT_DATA };
 static const ares_dns_rr_key_t rr_aaaa_keys[]  = { ARES_RR_AAAA_ADDR };
 static const ares_dns_rr_key_t rr_srv_keys[]   = {
@@ -560,6 +623,9 @@ const ares_dns_rr_key_t       *ares_dns_rr_get_keys(ares_dns_rec_type_t type,
     case ARES_REC_TYPE_TXT:
       *cnt = sizeof(rr_txt_keys) / sizeof(*rr_txt_keys);
       return rr_txt_keys;
+    case ARES_REC_TYPE_SIG:
+      *cnt = sizeof(rr_sig_keys) / sizeof(*rr_sig_keys);
+      return rr_sig_keys;
     case ARES_REC_TYPE_AAAA:
       *cnt = sizeof(rr_aaaa_keys) / sizeof(*rr_aaaa_keys);
       return rr_aaaa_keys;
@@ -606,12 +672,12 @@ ares_bool_t ares_dns_class_fromstr(ares_dns_class_t *qclass, const char *str)
     const char      *name;
     ares_dns_class_t qclass;
   } list[] = {
-    {"IN",    ARES_CLASS_IN    },
-    { "CH",   ARES_CLASS_CHAOS },
-    { "HS",   ARES_CLASS_HESOID},
-    { "NONE", ARES_CLASS_NONE  },
-    { "ANY",  ARES_CLASS_ANY   },
-    { NULL,   0                }
+    { "IN",   ARES_CLASS_IN     },
+    { "CH",   ARES_CLASS_CHAOS  },
+    { "HS",   ARES_CLASS_HESOID },
+    { "NONE", ARES_CLASS_NONE   },
+    { "ANY",  ARES_CLASS_ANY    },
+    { NULL,   0                 }
   };
 
   if (qclass == NULL || str == NULL) {
@@ -636,26 +702,27 @@ ares_bool_t ares_dns_rec_type_fromstr(ares_dns_rec_type_t *qtype,
     const char         *name;
     ares_dns_rec_type_t type;
   } list[] = {
-    {"A",       ARES_REC_TYPE_A     },
-    { "NS",     ARES_REC_TYPE_NS    },
-    { "CNAME",  ARES_REC_TYPE_CNAME },
-    { "SOA",    ARES_REC_TYPE_SOA   },
-    { "PTR",    ARES_REC_TYPE_PTR   },
-    { "HINFO",  ARES_REC_TYPE_HINFO },
-    { "MX",     ARES_REC_TYPE_MX    },
-    { "TXT",    ARES_REC_TYPE_TXT   },
-    { "AAAA",   ARES_REC_TYPE_AAAA  },
-    { "SRV",    ARES_REC_TYPE_SRV   },
-    { "NAPTR",  ARES_REC_TYPE_NAPTR },
-    { "OPT",    ARES_REC_TYPE_OPT   },
-    { "TLSA",   ARES_REC_TYPE_TLSA  },
-    { "SVCB",   ARES_REC_TYPE_SVCB  },
-    { "HTTPS",  ARES_REC_TYPE_HTTPS },
-    { "ANY",    ARES_REC_TYPE_ANY   },
-    { "URI",    ARES_REC_TYPE_URI   },
-    { "CAA",    ARES_REC_TYPE_CAA   },
-    { "RAW_RR", ARES_REC_TYPE_RAW_RR},
-    { NULL,     0                   }
+    { "A",      ARES_REC_TYPE_A      },
+    { "NS",     ARES_REC_TYPE_NS     },
+    { "CNAME",  ARES_REC_TYPE_CNAME  },
+    { "SOA",    ARES_REC_TYPE_SOA    },
+    { "PTR",    ARES_REC_TYPE_PTR    },
+    { "HINFO",  ARES_REC_TYPE_HINFO  },
+    { "MX",     ARES_REC_TYPE_MX     },
+    { "TXT",    ARES_REC_TYPE_TXT    },
+    { "SIG",    ARES_REC_TYPE_SIG    },
+    { "AAAA",   ARES_REC_TYPE_AAAA   },
+    { "SRV",    ARES_REC_TYPE_SRV    },
+    { "NAPTR",  ARES_REC_TYPE_NAPTR  },
+    { "OPT",    ARES_REC_TYPE_OPT    },
+    { "TLSA",   ARES_REC_TYPE_TLSA   },
+    { "SVCB",   ARES_REC_TYPE_SVCB   },
+    { "HTTPS",  ARES_REC_TYPE_HTTPS  },
+    { "ANY",    ARES_REC_TYPE_ANY    },
+    { "URI",    ARES_REC_TYPE_URI    },
+    { "CAA",    ARES_REC_TYPE_CAA    },
+    { "RAW_RR", ARES_REC_TYPE_RAW_RR },
+    { NULL,     0                    }
   };
 
   if (qtype == NULL || str == NULL) {

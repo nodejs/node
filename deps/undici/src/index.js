@@ -6,6 +6,7 @@ const Pool = require('./lib/dispatcher/pool')
 const BalancedPool = require('./lib/dispatcher/balanced-pool')
 const Agent = require('./lib/dispatcher/agent')
 const ProxyAgent = require('./lib/dispatcher/proxy-agent')
+const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
 const RetryAgent = require('./lib/dispatcher/retry-agent')
 const errors = require('./lib/core/errors')
 const util = require('./lib/core/util')
@@ -30,6 +31,7 @@ module.exports.Pool = Pool
 module.exports.BalancedPool = BalancedPool
 module.exports.Agent = Agent
 module.exports.ProxyAgent = ProxyAgent
+module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
 module.exports.RetryAgent = RetryAgent
 module.exports.RetryHandler = RetryHandler
 
@@ -38,7 +40,8 @@ module.exports.RedirectHandler = RedirectHandler
 module.exports.createRedirectInterceptor = createRedirectInterceptor
 module.exports.interceptors = {
   redirect: require('./lib/interceptor/redirect'),
-  retry: require('./lib/interceptor/retry')
+  retry: require('./lib/interceptor/retry'),
+  dump: require('./lib/interceptor/dump')
 }
 
 module.exports.buildConnector = buildConnector
@@ -106,7 +109,7 @@ module.exports.fetch = async function fetch (init, options = undefined) {
     return await fetchImpl(init, options)
   } catch (err) {
     if (err && typeof err === 'object') {
-      Error.captureStackTrace(err, this)
+      Error.captureStackTrace(err)
     }
 
     throw err
@@ -116,7 +119,7 @@ module.exports.Headers = require('./lib/web/fetch/headers').Headers
 module.exports.Response = require('./lib/web/fetch/response').Response
 module.exports.Request = require('./lib/web/fetch/request').Request
 module.exports.FormData = require('./lib/web/fetch/formdata').FormData
-module.exports.File = require('./lib/web/fetch/file').File
+module.exports.File = globalThis.File ?? require('node:buffer').File
 module.exports.FileReader = require('./lib/web/fileapi/filereader').FileReader
 
 const { setGlobalOrigin, getGlobalOrigin } = require('./lib/web/fetch/global')
