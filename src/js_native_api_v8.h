@@ -370,16 +370,6 @@ class TryCatch : public v8::TryCatch {
   napi_env _env;
 };
 
-// Ownership of a reference.
-enum class Ownership {
-  // The reference is owned by the runtime. No userland call is needed to
-  // destruct the reference.
-  kRuntime,
-  // The reference is owned by the userland. User code is responsible to delete
-  // the reference with appropriate node-api calls.
-  kUserland,
-};
-
 // Wrapper around Finalizer that can be tracked.
 class TrackedFinalizer : public Finalizer, public RefTracker {
  protected:
@@ -400,45 +390,18 @@ class TrackedFinalizer : public Finalizer, public RefTracker {
   void FinalizeCore(bool deleteMe);
 };
 
-// Wrapper around TrackedFinalizer that implements reference counting.
-class RefBase : public TrackedFinalizer {
- protected:
-  RefBase(napi_env env,
-          uint32_t initial_refcount,
-          Ownership ownership,
-          napi_finalize finalize_callback,
-          void* finalize_data,
-          void* finalize_hint);
-
- public:
-  static RefBase* New(napi_env env,
-                      uint32_t initial_refcount,
-                      Ownership ownership,
-                      napi_finalize finalize_callback,
-                      void* finalize_data,
-                      void* finalize_hint);
-
-  void* Data();
-  uint32_t Ref();
-  uint32_t Unref();
-  uint32_t RefCount();
-
-  Ownership ownership() { return ownership_; }
-
- protected:
-  void Finalize() override;
-
- private:
-  uint32_t refcount_;
-  Ownership ownership_;
+// Ownership of a reference.
+enum class Ownership : uint8_t {
+  // The reference is owned by the runtime. No userland call is needed to
+  // destruct the reference.
+  kRuntime,
+  // The reference is owned by the userland. User code is responsible to delete
+  // the reference with appropriate node-api calls.
+  kUserland,
 };
 
 // Wrapper around v8impl::Persistent.
-class Reference : public RefBase {
- protected:
-  template <typename... Args>
-  Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args);
-
+class Reference : public TrackedFinalizer {
  public:
   static Reference* New(napi_env env,
                         v8::Local<v8::Value> value,
@@ -447,21 +410,31 @@ class Reference : public RefBase {
                         napi_finalize finalize_callback = nullptr,
                         void* finalize_data = nullptr,
                         void* finalize_hint = nullptr);
+  ~Reference() override;
 
-  virtual ~Reference();
   uint32_t Ref();
   uint32_t Unref();
   v8::Local<v8::Value> Get();
 
- protected:
+  uint32_t refcount() { return refcount_; }
+  Ownership ownership() { return ownership_; }
+
+ private:
+  Reference(napi_env env,
+            v8::Local<v8::Value> value,
+            uint32_t initial_refcount,
+            Ownership ownership,
+            napi_finalize finalize_callback,
+            void* finalize_data,
+            void* finalize_hint);
+  static void WeakCallback(const v8::WeakCallbackInfo<Reference>& data);
+  void SetWeak();
   void Finalize() override;
 
  private:
-  static void WeakCallback(const v8::WeakCallbackInfo<Reference>& data);
-
-  void SetWeak();
-
   v8impl::Persistent<v8::Value> persistent_;
+  uint32_t refcount_;
+  Ownership ownership_;
   bool can_be_weak_;
 };
 
