@@ -1713,7 +1713,8 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
   Local<String> code;
   if (args[0]->IsUndefined()) {
     CHECK(!filename.IsEmpty());
-    const char* filename_str = Utf8Value(isolate, filename).out();
+    Utf8Value utf8Value(isolate, filename);
+    const char* filename_str = utf8Value.out();
     std::string contents;
     int result = ReadFileSync(&contents, filename_str);
     if (result != 0) {
