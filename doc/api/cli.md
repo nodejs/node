@@ -496,7 +496,7 @@ node -C development app.js
 added: v12.0.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -524,7 +524,7 @@ CPU.20190409.202950.15293.0.0.cpuprofile
 added: v12.0.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -543,7 +543,7 @@ The default value is controlled by the
 added: v12.2.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -559,7 +559,7 @@ by `--cpu-prof`. The default is 1000 microseconds.
 added: v12.0.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -1124,7 +1124,7 @@ Enable experimental WebAssembly module support.
 ### `--experimental-webstorage`
 
 <!-- YAML
-added: REPLACEME
+added: v22.4.0
 -->
 
 Enable experimental [`Web Storage`][] support.
@@ -1183,7 +1183,7 @@ To allow polyfills to be added,
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1211,7 +1211,7 @@ Heap.20190409.202950.15293.0.001.heapprofile
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1230,7 +1230,7 @@ The default value is controlled by the
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1246,7 +1246,7 @@ by `--heap-prof`. The default is 512 \* 1024 bytes.
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1500,7 +1500,7 @@ surface on other platforms, but the performance impact may be severe.
 ### `--localstorage-file=file`
 
 <!-- YAML
-added: REPLACEME
+added: v22.4.0
 -->
 
 The file used to store `localStorage` data. If the file does not exist, it is
