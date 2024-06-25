@@ -1718,8 +1718,8 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
     std::string contents;
     int result = ReadFileSync(&contents, filename_str);
     if (result != 0) {
-      isolate->ThrowException(
-          ERR_MODULE_NOT_FOUND(isolate, "Cannot read file %s", filename_str));
+      // error reading file and no source available => undefined
+      args.GetReturnValue().SetUndefined();
       return;
     }
     code = String::NewFromUtf8(isolate,
