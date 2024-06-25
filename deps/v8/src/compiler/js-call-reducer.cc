@@ -7552,7 +7552,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
     }
   }
 
-  if (!maybe_rab_gsab) {
+  if (!v8_flags.harmony_rab_gsab || !maybe_rab_gsab) {
     // We do not perform any change depending on this inference.
     Reduction unused_reduction = inference.NoChange();
     USE(unused_reduction);
@@ -7561,6 +7561,8 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
         node, JS_TYPED_ARRAY_TYPE,
         AccessBuilder::ForJSArrayBufferViewByteLength(),
         Builtin::kTypedArrayPrototypeByteLength);
+  } else if (!v8_flags.turbo_rab_gsab) {
+    return inference.NoChange();
   }
 
   const CallParameters& p = CallParametersOf(node->op());
@@ -7611,7 +7613,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
     if (IsRabGsabTypedArrayElementsKind(kind)) maybe_rab_gsab = true;
   }
 
-  if (!maybe_rab_gsab) {
+  if (!v8_flags.harmony_rab_gsab || !maybe_rab_gsab) {
     // We do not perform any change depending on this inference.
     Reduction unused_reduction = inference.NoChange();
     USE(unused_reduction);
@@ -7619,6 +7621,8 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
     return ReduceArrayBufferViewAccessor(node, JS_TYPED_ARRAY_TYPE,
                                          AccessBuilder::ForJSTypedArrayLength(),
                                          Builtin::kTypedArrayPrototypeLength);
+  } else if (!v8_flags.turbo_rab_gsab) {
+    return inference.NoChange();
   }
 
   if (!inference.RelyOnMapsViaStability(dependencies())) {

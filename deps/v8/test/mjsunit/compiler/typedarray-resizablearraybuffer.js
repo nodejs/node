@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --harmony-rab-gsab --allow-natives-syntax --turbofan
+// Flags: --no-always-turbofan --turbo-rab-gsab
 // Flags: --js-float16array
 
 "use strict";
