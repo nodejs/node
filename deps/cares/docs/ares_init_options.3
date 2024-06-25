@@ -291,13 +291,15 @@ or less will be considered unlimited, and is the default.
 .B ARES_OPT_QUERY_CACHE
 .B unsigned int \fIqcache_max_ttl\fP;
 .br
-Enable the built-in query cache.  Will cache queries based on the returned TTL
-in the DNS message.  Only fully successful and NXDOMAIN query results will be
-cached.  Fill in the \fIqcache_max_ttl\fP with the maximum number of seconds
-a query result may be cached which will override a larger TTL in the response
-message. This must be a non-zero value otherwise the cache will be disabled.
-Choose a reasonable value for your application such as 300 (5 minutes) or
-3600 (1 hour).
+As of c-ares 1.31.0, the query cache is enabled by default with a TTL of 1hr.
+To disable the query cache, specify this option with a TTL of 0.  The query
+cache is based on the returned TTL in the DNS message.  Only fully successful
+and NXDOMAIN query results will be cached.  Fill in the \fIqcache_max_ttl\fP
+with the maximum number of seconds a query result may be cached which will
+override a larger TTL in the response message. This must be a non-zero value
+otherwise the cache will be disabled. Choose a reasonable value for your
+application such as 300 (5 minutes) or 3600 (1 hour).  The query cache is
+automatically flushed if a server configuration change is made.
 .br
 .TP 18
 .B ARES_OPT_EVENT_THREAD

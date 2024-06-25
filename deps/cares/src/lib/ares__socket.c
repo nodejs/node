@@ -145,7 +145,7 @@ static int setsocknonblock(ares_socket_t sockfd, /* operate on this */
 #endif
 }
 
-#if defined(IPV6_V6ONLY) && defined(WIN32)
+#if defined(IPV6_V6ONLY) && defined(USE_WINSOCK)
 /* It makes support for IPv4-mapped IPv6 addresses.
  * Linux kernel, NetBSD, FreeBSD and Darwin: default is off;
  * Windows Vista and later: default is on;
@@ -191,14 +191,14 @@ static int configure_socket(ares_socket_t s, struct server_state *server)
       setsockopt(s, SOL_SOCKET, SO_SNDBUF,
                  (void *)&channel->socket_send_buffer_size,
                  sizeof(channel->socket_send_buffer_size)) == -1) {
-    return -1;
+    return -1; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   if ((channel->socket_receive_buffer_size > 0) &&
       setsockopt(s, SOL_SOCKET, SO_RCVBUF,
                  (void *)&channel->socket_receive_buffer_size,
                  sizeof(channel->socket_receive_buffer_size)) == -1) {
-    return -1;
+    return -1; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
 #ifdef SO_BINDTODEVICE
@@ -304,8 +304,8 @@ ares_status_t ares__open_connection(ares_channel_t      *channel,
     if ((!channel->sock_funcs || !channel->sock_funcs->asocket) &&
         setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *)&opt, sizeof(opt)) ==
           -1) {
-      ares__close_socket(channel, s);
-      return ARES_ECONNREFUSED;
+      ares__close_socket(channel, s); /* LCOV_EXCL_LINE: UntestablePath */
+      return ARES_ECONNREFUSED; /* LCOV_EXCL_LINE: UntestablePath */
     }
   }
 #endif
@@ -338,8 +338,8 @@ ares_status_t ares__open_connection(ares_channel_t      *channel,
 
   conn = ares_malloc(sizeof(*conn));
   if (conn == NULL) {
-    ares__close_socket(channel, s);
-    return ARES_ENOMEM;
+    ares__close_socket(channel, s); /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   memset(conn, 0, sizeof(*conn));
   conn->fd              = s;
@@ -347,9 +347,11 @@ ares_status_t ares__open_connection(ares_channel_t      *channel,
   conn->queries_to_conn = ares__llist_create(NULL);
   conn->is_tcp          = is_tcp;
   if (conn->queries_to_conn == NULL) {
+    /* LCOV_EXCL_START: OutOfMemory */
     ares__close_socket(channel, s);
     ares_free(conn);
     return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
 
   /* TCP connections are thrown to the end as we don't spawn multiple TCP
@@ -361,20 +363,24 @@ ares_status_t ares__open_connection(ares_channel_t      *channel,
     node = ares__llist_insert_first(server->connections, conn);
   }
   if (node == NULL) {
+    /* LCOV_EXCL_START: OutOfMemory */
     ares__close_socket(channel, s);
     ares__llist_destroy(conn->queries_to_conn);
     ares_free(conn);
     return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
 
   /* Register globally to quickly map event on file descriptor to connection
    * node object */
   if (!ares__htable_asvp_insert(channel->connnode_by_socket, s, node)) {
+    /* LCOV_EXCL_START: OutOfMemory */
     ares__close_socket(channel, s);
     ares__llist_destroy(conn->queries_to_conn);
     ares__llist_node_claim(node);
     ares_free(conn);
     return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
 
   SOCK_STATE_CALLBACK(channel, s, 1, 0);

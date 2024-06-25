@@ -85,7 +85,7 @@ void ares__check_cleanup_conn(const ares_channel_t     *channel,
   ares_bool_t do_cleanup = ARES_FALSE;
 
   if (channel == NULL || conn == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (ares__llist_len(conn->queries_to_conn)) {

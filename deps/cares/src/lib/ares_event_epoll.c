@@ -46,12 +46,12 @@ static void ares_evsys_epoll_destroy(ares_event_thread_t *e)
   ares_evsys_epoll_t *ep = NULL;
 
   if (e == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ep = e->ev_sys_data;
   if (ep == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (ep->epoll_fd != -1) {
@@ -68,15 +68,15 @@ static ares_bool_t ares_evsys_epoll_init(ares_event_thread_t *e)
 
   ep = ares_malloc_zero(sizeof(*ep));
   if (ep == NULL) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->ev_sys_data = ep;
 
   ep->epoll_fd = epoll_create1(0);
   if (ep->epoll_fd == -1) {
-    ares_evsys_epoll_destroy(e);
-    return ARES_FALSE;
+    ares_evsys_epoll_destroy(e); /* LCOV_EXCL_LINE: UntestablePath */
+    return ARES_FALSE; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
 #  ifdef FD_CLOEXEC
@@ -85,8 +85,8 @@ static ares_bool_t ares_evsys_epoll_init(ares_event_thread_t *e)
 
   e->ev_signal = ares_pipeevent_create(e);
   if (e->ev_signal == NULL) {
-    ares_evsys_epoll_destroy(e);
-    return ARES_FALSE;
+    ares_evsys_epoll_destroy(e); /* LCOV_EXCL_LINE: UntestablePath */
+    return ARES_FALSE; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   return ARES_TRUE;
@@ -108,7 +108,7 @@ static ares_bool_t ares_evsys_epoll_event_add(ares_event_t *event)
     epev.events |= EPOLLOUT;
   }
   if (epoll_ctl(ep->epoll_fd, EPOLL_CTL_ADD, event->fd, &epev) != 0) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: UntestablePath */
   }
   return ARES_TRUE;
 }
@@ -158,7 +158,7 @@ static size_t ares_evsys_epoll_wait(ares_event_thread_t *e,
   rv = epoll_wait(ep->epoll_fd, events, (int)nevents,
                   (timeout_ms == 0) ? -1 : (int)timeout_ms);
   if (rv < 0) {
-    return 0;
+    return 0; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   nevents = (size_t)rv;
@@ -170,7 +170,7 @@ static size_t ares_evsys_epoll_wait(ares_event_thread_t *e,
     ev = ares__htable_asvp_get_direct(e->ev_sock_handles,
                                       (ares_socket_t)events[i].data.fd);
     if (ev == NULL || ev->cb == NULL) {
-      continue;
+      continue; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     cnt++;

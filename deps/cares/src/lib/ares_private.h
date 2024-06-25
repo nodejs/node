@@ -27,14 +27,6 @@
 #ifndef __ARES_PRIVATE_H
 #define __ARES_PRIVATE_H
 
-/*
- * Define WIN32 when build target is Win32 API
- */
-
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#  define WIN32
-#endif
-
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -56,7 +48,7 @@
  */
 #define CARES_INADDR_CAST(type, var) ((type)((void *)var))
 
-#if defined(WIN32) && !defined(WATT32)
+#if defined(USE_WINSOCK)
 
 #  define WIN_NS_9X     "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
 #  define WIN_NS_NT_KEY "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
@@ -427,11 +419,6 @@ ares_status_t  ares__expand_name_validated(const unsigned char *encoded,
                                            const unsigned char *abuf,
                                            size_t alen, char **s, size_t *enclen,
                                            ares_bool_t is_hostname);
-ares_status_t  ares__expand_name_for_response(const unsigned char *encoded,
-                                              const unsigned char *abuf,
-                                              size_t alen, char **s,
-                                              size_t     *enclen,
-                                              ares_bool_t is_hostname);
 ares_status_t  ares_expand_string_ex(const unsigned char *encoded,
                                      const unsigned char *abuf, size_t alen,
                                      unsigned char **s, size_t *enclen);

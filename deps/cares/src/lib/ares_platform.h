@@ -29,7 +29,7 @@
 
 #include "ares_setup.h"
 
-#if defined(WIN32) && !defined(MSDOS)
+#if defined(_WIN32) && !defined(MSDOS)
 
 typedef enum {
   WIN_UNKNOWN,

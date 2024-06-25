@@ -55,7 +55,7 @@ static void        *default_malloc(size_t size)
   return malloc(size);
 }
 
-#if defined(WIN32)
+#if defined(_WIN32)
 /* We need indirections to handle Windows DLL rules. */
 static void *default_realloc(void *p, size_t size)
 {

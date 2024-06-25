@@ -206,7 +206,7 @@ ares__slist_node_t *ares__slist_insert(ares__slist_t *list, void *val)
   node = ares_malloc_zero(sizeof(*node));
 
   if (node == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   node->data   = val;
@@ -218,12 +218,12 @@ ares__slist_node_t *ares__slist_insert(ares__slist_t *list, void *val)
   /* Allocate array of next and prev nodes for linking each level */
   node->next = ares_malloc_zero(sizeof(*node->next) * node->levels);
   if (node->next == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   node->prev = ares_malloc_zero(sizeof(*node->prev) * node->levels);
   if (node->prev == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   /* If the number of levels is greater than we currently support in the slist,
@@ -233,7 +233,7 @@ ares__slist_node_t *ares__slist_insert(ares__slist_t *list, void *val)
       ares_realloc_zero(list->head, sizeof(*list->head) * list->levels,
                         sizeof(*list->head) * node->levels);
     if (ptr == NULL) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     list->head   = ptr;
@@ -246,6 +246,7 @@ ares__slist_node_t *ares__slist_insert(ares__slist_t *list, void *val)
 
   return node;
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   if (node) {
     ares_free(node->prev);
@@ -253,6 +254,7 @@ fail:
     ares_free(node);
   }
   return NULL;
+/* LCOV_EXCL_STOP */
 }
 
 static void ares__slist_node_pop(ares__slist_node_t *node)

@@ -37,7 +37,7 @@ static void ares__nameoffset_free(void *arg)
 {
   ares_nameoffset_t *off = arg;
   if (off == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
   ares_free(off->name);
   ares_free(off);
@@ -51,20 +51,20 @@ static ares_status_t ares__nameoffset_create(ares__llist_t **list,
 
   if (list == NULL || name == NULL || ares_strlen(name) == 0 ||
       ares_strlen(name) > 255) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (*list == NULL) {
     *list = ares__llist_create(ares__nameoffset_free);
   }
   if (*list == NULL) {
-    status = ARES_ENOMEM;
-    goto fail;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   off = ares_malloc_zero(sizeof(*off));
   if (off == NULL) {
-    return ARES_ENOMEM;
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   off->name     = ares_strdup(name);
@@ -72,15 +72,17 @@ static ares_status_t ares__nameoffset_create(ares__llist_t **list,
   off->idx      = idx;
 
   if (ares__llist_insert_last(*list, off) == NULL) {
-    status = ARES_ENOMEM;
-    goto fail;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_SUCCESS;
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   ares__nameoffset_free(off);
   return status;
+/* LCOV_EXCL_STOP */
 }
 
 static const ares_nameoffset_t *ares__nameoffset_find(ares__llist_t *list,
@@ -138,7 +140,7 @@ static void ares_dns_labels_free(ares_dns_labels_t *labels)
   size_t i;
 
   if (labels == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   for (i = 0; i < labels->num; i++) {
@@ -155,20 +157,20 @@ static ares__buf_t *ares_dns_labels_add(ares_dns_labels_t *labels)
   void *temp;
 
   if (labels == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   temp = ares_realloc_zero(labels->label, sizeof(*labels->label) * labels->num,
                            sizeof(*labels->label) * (labels->num + 1));
   if (temp == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   labels->label = temp;
 
   labels->label[labels->num] = ares__buf_create();
   if (labels->label[labels->num] == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   labels->num++;
@@ -179,7 +181,7 @@ static const ares__buf_t *
   ares_dns_labels_get_last(const ares_dns_labels_t *labels)
 {
   if (labels == NULL || labels->num == 0) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   return labels->label[labels->num - 1];
@@ -188,7 +190,7 @@ static const ares__buf_t *
 static void ares_dns_name_labels_del_last(ares_dns_labels_t *labels)
 {
   if (labels == NULL || labels->num == 0) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__buf_destroy(labels->label[labels->num - 1]);
@@ -260,29 +262,29 @@ static ares_status_t ares_split_dns_name(ares_dns_labels_t *labels,
   unsigned char c;
 
   if (name == NULL || labels == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Put name into a buffer for parsing */
   namebuf = ares__buf_create();
   if (namebuf == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (*name != '\0') {
     status =
       ares__buf_append(namebuf, (const unsigned char *)name, ares_strlen(name));
     if (status != ARES_SUCCESS) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
   /* Start with 1 label */
   label = ares_dns_labels_add(labels);
   if (label == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   while (ares__buf_fetch_bytes(namebuf, &c, 1) == ARES_SUCCESS) {
@@ -290,8 +292,8 @@ static ares_status_t ares_split_dns_name(ares_dns_labels_t *labels,
     if (c == '.') {
       label = ares_dns_labels_add(labels);
       if (label == NULL) {
-        status = ARES_ENOMEM;
-        goto done;
+        status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
       }
       continue;
     }
@@ -313,7 +315,7 @@ static ares_status_t ares_split_dns_name(ares_dns_labels_t *labels,
 
     status = ares__buf_append_byte(label, c);
     if (status != ARES_SUCCESS) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -369,7 +371,7 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
   ares_status_t            status;
 
   if (buf == NULL || name == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   memset(&labels, 0, sizeof(labels));
@@ -404,12 +406,12 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
 
       status = ares__buf_append_byte(buf, (unsigned char)(len & 0xFF));
       if (status != ARES_SUCCESS) {
-        goto done;
+        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
       }
 
       status = ares__buf_append(buf, ptr, len);
       if (status != ARES_SUCCESS) {
-        goto done;
+        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
 
@@ -417,7 +419,7 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
     if (off == NULL) {
       status = ares__buf_append_byte(buf, 0);
       if (status != ARES_SUCCESS) {
-        goto done;
+        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -428,7 +430,7 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
       (unsigned short)0xC000 | (unsigned short)(off->idx & 0x3FFF);
     status = ares__buf_append_be16(buf, u16);
     if (status != ARES_SUCCESS) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -438,7 +440,7 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
       name_len > 0) {
     status = ares__nameoffset_create(list, name /* not truncated copy! */, pos);
     if (status != ARES_SUCCESS) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -509,7 +511,7 @@ static ares_status_t ares__fetch_dnsname_into_buf(ares__buf_t *buf,
 
       status = ares__buf_append(dest, escape, sizeof(escape));
       if (status != ARES_SUCCESS) {
-        goto fail;
+        goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
       }
 
       continue;
@@ -519,13 +521,13 @@ static ares_status_t ares__fetch_dnsname_into_buf(ares__buf_t *buf,
     if (is_reservedch(c)) {
       status = ares__buf_append_byte(dest, '\\');
       if (status != ARES_SUCCESS) {
-        goto fail;
+        goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
 
     status = ares__buf_append_byte(dest, c);
     if (status != ARES_SUCCESS) {
-      return status;
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -641,7 +643,7 @@ ares_status_t ares__dns_name_parse(ares__buf_t *buf, char **name,
     if (ares__buf_len(namebuf) != 0 && name != NULL) {
       status = ares__buf_append_byte(namebuf, '.');
       if (status != ARES_SUCCESS) {
-        goto fail;
+        goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
 
@@ -660,8 +662,8 @@ ares_status_t ares__dns_name_parse(ares__buf_t *buf, char **name,
   if (name != NULL) {
     *name = ares__buf_finish_str(namebuf, NULL);
     if (*name == NULL) {
-      status = ARES_ENOMEM;
-      goto fail;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
