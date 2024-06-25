@@ -71,12 +71,7 @@
 #include "ares_platform.h"
 #include "ares_private.h"
 
-#ifdef WATT32
-#  undef WIN32 /* Redefined in MingW/MSVC headers */
-#endif
-
-
-#ifdef WIN32
+#if defined(USE_WINSOCK)
 /*
  * get_REG_SZ()
  *
@@ -1012,7 +1007,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     char **temp =
       ares__strsplit_duplicate(sysconfig->domains, sysconfig->ndomains);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     ares__strsplit_free(channel->domains, channel->ndomains);
@@ -1023,7 +1018,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
   if (sysconfig->lookups && !(channel->optmask & ARES_OPT_LOOKUPS)) {
     char *temp = ares_strdup(sysconfig->lookups);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     ares_free(channel->lookups);
@@ -1034,7 +1029,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     struct apattern *temp =
       ares_malloc(sizeof(*channel->sortlist) * sysconfig->nsortlist);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     memcpy(temp, sysconfig->sortlist,
            sizeof(*channel->sortlist) * sysconfig->nsortlist);
@@ -1044,7 +1039,7 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     channel->nsort    = sysconfig->nsortlist;
   }
 
-  if (sysconfig->ndots && !(channel->optmask & ARES_OPT_NDOTS)) {
+  if (!(channel->optmask & ARES_OPT_NDOTS)) {
     channel->ndots = sysconfig->ndots;
   }
 
@@ -1074,7 +1069,7 @@ ares_status_t ares__init_by_sysconfig(ares_channel_t *channel)
 
   memset(&sysconfig, 0, sizeof(sysconfig));
 
-#ifdef _WIN32
+#if defined(USE_WINSOCK)
   status = ares__init_sysconfig_windows(&sysconfig);
 #elif defined(__MVS__)
   status = ares__init_sysconfig_mvs(&sysconfig);

@@ -39,8 +39,6 @@
 #  include <arpa/inet.h>
 #endif
 
-#include "ares_nameser.h"
-
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
 #endif
@@ -50,8 +48,6 @@
 #endif
 
 #include "ares.h"
-#include "ares_dns.h"
-#include "ares_inet_net_pton.h"
 #include "ares_private.h"
 
 ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
@@ -67,7 +63,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   size_t                      i;
 
   if (ai == NULL || host == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Use the first node of the response as the family, since hostent can only
@@ -78,12 +74,12 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   }
 
   if (family != AF_INET && family != AF_INET6) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *host = ares_malloc(sizeof(**host));
   if (!(*host)) {
-    goto enomem;
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   memset(*host, 0, sizeof(**host));
 
@@ -105,7 +101,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
 
   aliases = ares_malloc((naliases + 1) * sizeof(char *));
   if (!aliases) {
-    goto enomem;
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   (*host)->h_aliases = aliases;
   memset(aliases, 0, (naliases + 1) * sizeof(char *));
@@ -118,7 +114,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
       }
       aliases[alias] = ares_strdup(next_cname->alias);
       if (!aliases[alias]) {
-        goto enomem;
+        goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
       }
       alias++;
     }
@@ -127,7 +123,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
 
   (*host)->h_addr_list = ares_malloc((naddrs + 1) * sizeof(char *));
   if (!(*host)->h_addr_list) {
-    goto enomem;
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   memset((*host)->h_addr_list, 0, (naddrs + 1) * sizeof(char *));
@@ -135,12 +131,12 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   if (ai->cnames) {
     (*host)->h_name = ares_strdup(ai->cnames->name);
     if ((*host)->h_name == NULL && ai->cnames->name) {
-      goto enomem;
+      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   } else {
     (*host)->h_name = ares_strdup(ai->name);
     if ((*host)->h_name == NULL && ai->name) {
-      goto enomem;
+      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -157,7 +153,7 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
   if (naddrs) {
     addrs = ares_malloc(naddrs * (size_t)(*host)->h_length);
     if (!addrs) {
-      goto enomem;
+      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     i = 0;
@@ -194,10 +190,12 @@ ares_status_t ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
 
   return ARES_SUCCESS;
 
+/* LCOV_EXCL_START: OutOfMemory */
 enomem:
   ares_free_hostent(*host);
   *host = NULL;
   return ARES_ENOMEM;
+/* LCOV_EXCL_STOP */
 }
 
 ares_status_t ares__addrinfo2addrttl(const struct ares_addrinfo *ai, int family,
@@ -211,23 +209,23 @@ ares_status_t ares__addrinfo2addrttl(const struct ares_addrinfo *ai, int family,
   int                         cname_ttl = INT_MAX;
 
   if (family != AF_INET && family != AF_INET6) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (ai == NULL || naddrttls == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (family == AF_INET && addrttls == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (family == AF_INET6 && addr6ttls == NULL) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (req_naddrttls == 0) {
-    return ARES_EBADQUERY;
+    return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *naddrttls = 0;

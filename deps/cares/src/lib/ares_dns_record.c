@@ -292,8 +292,8 @@ ares_status_t ares_dns_record_query_set_name(ares_dns_record_t *dnsrec,
   orig_name            = dnsrec->qd[idx].name;
   dnsrec->qd[idx].name = ares_strdup(name);
   if (dnsrec->qd[idx].name == NULL) {
-    dnsrec->qd[idx].name = orig_name;
-    return ARES_ENOMEM;
+    dnsrec->qd[idx].name = orig_name; /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   ares_free(orig_name);
@@ -354,7 +354,7 @@ size_t ares_dns_record_rr_cnt(const ares_dns_record_t *dnsrec,
       return dnsrec->arcount;
   }
 
-  return 0;
+  return 0; /* LCOV_EXCL_LINE: DefensiveCoding */
 }
 
 ares_status_t ares_dns_record_rr_prealloc(ares_dns_record_t *dnsrec,
@@ -365,7 +365,7 @@ ares_status_t ares_dns_record_rr_prealloc(ares_dns_record_t *dnsrec,
   ares_dns_rr_t  *temp     = NULL;
 
   if (dnsrec == NULL || cnt == 0 || !ares_dns_section_isvalid(sect)) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   switch (sect) {
@@ -440,7 +440,7 @@ ares_status_t ares_dns_record_rr_add(ares_dns_rr_t    **rr_out,
 
   status = ares_dns_record_rr_prealloc(dnsrec, sect, *rr_len + 1);
   if (status != ARES_SUCCESS) {
-    return status;
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   idx = *rr_len;
@@ -580,7 +580,7 @@ static void *ares_dns_rr_data_ptr(ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key,
                                   size_t **lenptr)
 {
   if (dns_rr == NULL || dns_rr->type != ares_dns_rr_key_to_rec_type(key)) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   switch (key) {

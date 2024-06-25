@@ -54,7 +54,7 @@ struct ares_event_configchg {
 void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
 {
   if (configchg == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Tell event system to stop monitoring for changes.  This will cause the
@@ -67,7 +67,7 @@ static void ares_event_configchg_free(void *data)
 {
   ares_event_configchg_t *configchg = data;
   if (configchg == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (configchg->inotify_fd >= 0) {
@@ -142,22 +142,22 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
 
   c = ares_malloc_zero(sizeof(*c));
   if (c == NULL) {
-    return ARES_ENOMEM;
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   c->e          = e;
   c->inotify_fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
   if (c->inotify_fd == -1) {
-    status = ARES_ESERVFAIL;
-    goto done;
+    status = ARES_ESERVFAIL; /* LCOV_EXCL_LINE: UntestablePath */
+    goto done; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   /* We need to monitor /etc/resolv.conf, /etc/nsswitch.conf */
   if (inotify_add_watch(c->inotify_fd, "/etc",
                         IN_CREATE | IN_MODIFY | IN_MOVED_TO | IN_ONLYDIR) ==
       -1) {
-    status = ARES_ESERVFAIL;
-    goto done;
+    status = ARES_ESERVFAIL; /* LCOV_EXCL_LINE: UntestablePath */
+    goto done; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   status =
@@ -173,7 +173,7 @@ done:
   return status;
 }
 
-#elif defined(_WIN32)
+#elif defined(USE_WINSOCK)
 
 #  include <winsock2.h>
 #  include <iphlpapi.h>
@@ -182,31 +182,66 @@ done:
 
 struct ares_event_configchg {
   HANDLE               ifchg_hnd;
+  HKEY                 regip4;
+  HANDLE               regip4_event;
+  HANDLE               regip4_wait;
+  HKEY                 regip6;
+  HANDLE               regip6_event;
+  HANDLE               regip6_wait;
   ares_event_thread_t *e;
 };
 
 void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
 {
-#  ifdef __WATCOMC__
-  /* Not supported */
-#  else
   if (configchg == NULL) {
     return;
   }
 
+#  ifndef __WATCOMC__
   if (configchg->ifchg_hnd != NULL) {
     CancelMibChangeNotify2(configchg->ifchg_hnd);
     configchg->ifchg_hnd = NULL;
   }
+#  endif
+
+  if (configchg->regip4_wait != NULL) {
+    UnregisterWait(configchg->regip4_wait);
+    configchg->regip4_wait = NULL;
+  }
+
+  if (configchg->regip6_wait != NULL) {
+    UnregisterWait(configchg->regip6_wait);
+    configchg->regip6_wait = NULL;
+  }
+
+  if (configchg->regip4 != NULL) {
+    RegCloseKey(configchg->regip4);
+    configchg->regip4 = NULL;
+  }
+
+  if (configchg->regip6 != NULL) {
+    RegCloseKey(configchg->regip6);
+    configchg->regip6 = NULL;
+  }
+
+  if (configchg->regip4_event != NULL) {
+    CloseHandle(configchg->regip4_event);
+    configchg->regip4_event = NULL;
+  }
+
+  if (configchg->regip6_event != NULL) {
+    CloseHandle(configchg->regip6_event);
+    configchg->regip6_event = NULL;
+  }
 
   ares_free(configchg);
-#  endif
 }
 
+
 #  ifndef __WATCOMC__
-static void ares_event_configchg_cb(PVOID                 CallerContext,
-                                    PMIB_IPINTERFACE_ROW  Row,
-                                    MIB_NOTIFICATION_TYPE NotificationType)
+static void ares_event_configchg_ip_cb(PVOID                 CallerContext,
+                                       PMIB_IPINTERFACE_ROW  Row,
+                                       MIB_NOTIFICATION_TYPE NotificationType)
 {
   ares_event_configchg_t *configchg = CallerContext;
   (void)Row;
@@ -215,43 +250,125 @@ static void ares_event_configchg_cb(PVOID                 CallerContext,
 }
 #  endif
 
+static ares_bool_t ares_event_configchg_regnotify(ares_event_configchg_t *configchg)
+{
+#  if defined(__WATCOMC__) && !defined(REG_NOTIFY_THREAD_AGNOSTIC)
+#    define REG_NOTIFY_THREAD_AGNOSTIC 0x10000000L
+#  endif
+  DWORD flags =
+    REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|REG_NOTIFY_THREAD_AGNOSTIC;
+
+  if (RegNotifyChangeKeyValue(configchg->regip4, TRUE,
+                              flags,
+                              configchg->regip4_event,
+                              TRUE) != ERROR_SUCCESS) {
+    return ARES_FALSE;
+  }
+
+  if (RegNotifyChangeKeyValue(configchg->regip6, TRUE,
+                              flags,
+                              configchg->regip6_event,
+                              TRUE) != ERROR_SUCCESS) {
+    return ARES_FALSE;
+  }
+
+  return ARES_TRUE;
+}
+
+static VOID CALLBACK ares_event_configchg_reg_cb(PVOID lpParameter,
+                                                 BOOLEAN TimerOrWaitFired)
+{
+  ares_event_configchg_t *configchg = lpParameter;
+  (void)TimerOrWaitFired;
+
+  ares_reinit(configchg->e->channel);
+
+  /* Re-arm, as its single-shot.  However, we don't know which one needs to
+   * be re-armed, so we just do both */
+  ares_event_configchg_regnotify(configchg);
+}
 
 ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
                                         ares_event_thread_t     *e)
 {
-#  ifdef __WATCOMC__
-  return ARES_ENOTIMP;
-#  else
-  ares_status_t status = ARES_SUCCESS;
+  ares_status_t           status = ARES_SUCCESS;
+  ares_event_configchg_t *c      = NULL;
 
-  *configchg = ares_malloc_zero(sizeof(**configchg));
-  if (*configchg == NULL) {
+  c = ares_malloc_zero(sizeof(**configchg));
+  if (c == NULL) {
     return ARES_ENOMEM;
   }
 
-  (*configchg)->e = e;
+  c->e = e;
 
+#ifndef __WATCOMC__
   /* NOTE: If a user goes into the control panel and changes the network
    *       adapter DNS addresses manually, this will NOT trigger a notification.
    *       We've also tried listening on NotifyUnicastIpAddressChange(), but
    *       that didn't get triggered either.
    */
-
   if (NotifyIpInterfaceChange(
-        AF_UNSPEC, (PIPINTERFACE_CHANGE_CALLBACK)ares_event_configchg_cb,
-        *configchg, FALSE, &(*configchg)->ifchg_hnd) != NO_ERROR) {
+        AF_UNSPEC, (PIPINTERFACE_CHANGE_CALLBACK)ares_event_configchg_ip_cb,
+        *configchg, FALSE, &c->ifchg_hnd) != NO_ERROR) {
+    status = ARES_ESERVFAIL;
+    goto done;
+  }
+#endif
+
+  /* Monitor HKLM\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces
+   * and HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces
+   * for changes via RegNotifyChangeKeyValue() */
+  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+        "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces",
+        0, KEY_NOTIFY, &c->regip4) != ERROR_SUCCESS) {
+    status = ARES_ESERVFAIL;
+    goto done;
+  }
+
+  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+        "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\\Interfaces",
+        0, KEY_NOTIFY, &c->regip6) != ERROR_SUCCESS) {
+    status = ARES_ESERVFAIL;
+    goto done;
+  }
+
+  c->regip4_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (c->regip4_event == NULL) {
+    status = ARES_ESERVFAIL;
+    goto done;
+  }
+
+  c->regip6_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (c->regip6_event == NULL) {
+    status = ARES_ESERVFAIL;
+    goto done;
+  }
+
+  if (!RegisterWaitForSingleObject(&c->regip4_wait, c->regip4_event,
+    ares_event_configchg_reg_cb, c, INFINITE, WT_EXECUTEDEFAULT)) {
+    status = ARES_ESERVFAIL;
+    goto done;
+  }
+
+  if (!RegisterWaitForSingleObject(&c->regip6_wait, c->regip6_event,
+    ares_event_configchg_reg_cb, c, INFINITE, WT_EXECUTEDEFAULT)) {
+    status = ARES_ESERVFAIL;
+    goto done;
+  }
+
+  if (!ares_event_configchg_regnotify(c)) {
     status = ARES_ESERVFAIL;
     goto done;
   }
 
 done:
   if (status != ARES_SUCCESS) {
-    ares_event_configchg_destroy(*configchg);
-    *configchg = NULL;
+    ares_event_configchg_destroy(c);
+  } else {
+    *configchg = c;
   }
 
   return status;
-#  endif
 }
 
 #elif defined(__APPLE__)
@@ -260,6 +377,7 @@ done:
 #  include <unistd.h>
 #  include <notify.h>
 #  include <dlfcn.h>
+#  include <fcntl.h>
 
 struct ares_event_configchg {
   int fd;
@@ -328,11 +446,17 @@ static void ares_event_configchg_cb(ares_event_thread_t *e, ares_socket_t fd,
 ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
                                         ares_event_thread_t     *e)
 {
-  ares_status_t status                               = ARES_SUCCESS;
-  void         *handle                               = NULL;
-  const char *(*pdns_configuration_notify_key)(void) = NULL;
-  const char *notify_key                             = NULL;
-  int         flags;
+  ares_status_t   status                               = ARES_SUCCESS;
+  void           *handle                               = NULL;
+  const char   *(*pdns_configuration_notify_key)(void) = NULL;
+  const char     *notify_key                           = NULL;
+  int             flags;
+  size_t          i;
+  const char     *searchlibs[]                         = {
+    "/usr/lib/libSystem.dylib",
+    "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+    NULL
+  };
 
   *configchg = ares_malloc_zero(sizeof(**configchg));
   if (*configchg == NULL) {
@@ -340,13 +464,22 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
   }
 
   /* Load symbol as it isn't normally public */
-  handle = dlopen("/usr/lib/libSystem.dylib", RTLD_LAZY | RTLD_NOLOAD);
-  if (handle == NULL) {
-    status = ARES_ESERVFAIL;
-    goto done;
-  }
+  for (i=0; searchlibs[i] != NULL; i++) {
+    handle = dlopen(searchlibs[i], RTLD_LAZY);
+    if (handle == NULL) {
+      /* Fail, loop! */
+      continue;
+    }
 
-  pdns_configuration_notify_key = dlsym(handle, "dns_configuration_notify_key");
+    pdns_configuration_notify_key = dlsym(handle, "dns_configuration_notify_key");
+    if (pdns_configuration_notify_key != NULL) {
+      break;
+    }
+
+    /* Fail, loop! */
+    dlclose(handle);
+    handle = NULL;
+  }
 
   if (pdns_configuration_notify_key == NULL) {
     status = ARES_ESERVFAIL;
@@ -388,7 +521,7 @@ done:
   return status;
 }
 
-#elif defined(HAVE_STAT)
+#elif defined(HAVE_STAT) && !defined(_WIN32)
 #  ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #  endif

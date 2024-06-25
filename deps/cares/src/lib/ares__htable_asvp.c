@@ -121,7 +121,7 @@ ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable,
   size_t         i;
 
   if (htable == NULL || num == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *num = 0;
@@ -133,8 +133,8 @@ ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable,
 
   out = ares_malloc_zero(sizeof(*out) * cnt);
   if (out == NULL) {
-    ares_free(buckets);
-    return NULL;
+    ares_free(buckets); /* LCOV_EXCL_LINE: OutOfMemory */
+    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (i = 0; i < cnt; i++) {
@@ -157,7 +157,7 @@ ares_bool_t ares__htable_asvp_insert(ares__htable_asvp_t *htable,
 
   bucket = ares_malloc(sizeof(*bucket));
   if (bucket == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   bucket->parent = htable;
@@ -165,14 +165,14 @@ ares_bool_t ares__htable_asvp_insert(ares__htable_asvp_t *htable,
   bucket->val    = val;
 
   if (!ares__htable_insert(htable->hash, bucket)) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_TRUE;
 
 fail:
   if (bucket) {
-    ares_free(bucket);
+    ares_free(bucket); /* LCOV_EXCL_LINE: OutOfMemory */
   }
   return ARES_FALSE;
 }

@@ -87,19 +87,19 @@ static void          invoke_server_state_cb(const struct server_state *server,
 
   buf = ares__buf_create();
   if (buf == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares_get_server_addr(server, buf);
   if (status != ARES_SUCCESS) {
-    ares__buf_destroy(buf);
-    return;
+    ares__buf_destroy(buf); /* LCOV_EXCL_LINE: OutOfMemory */
+    return; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   server_string = ares__buf_finish_str(buf, NULL);
   buf           = NULL;
   if (server_string == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   channel->server_state_cb(server_string, success, flags,
@@ -116,7 +116,7 @@ static void server_increment_failures(struct server_state *server,
 
   node = ares__slist_node_find(channel->servers, server);
   if (node == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   server->consec_failures++;
@@ -138,7 +138,7 @@ static void server_set_good(struct server_state *server, ares_bool_t used_tcp)
 
   node = ares__slist_node_find(channel->servers, server);
   if (node == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (server->consec_failures > 0) {
@@ -195,7 +195,7 @@ static void processfds(ares_channel_t *channel, fd_set *read_fds,
   ares_timeval_t now;
 
   if (channel == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__channel_lock(channel);
@@ -412,7 +412,7 @@ static int socket_list_append(ares_socket_t **socketlist, ares_socket_t fd,
     ares_socket_t *new_list =
       ares_realloc(socketlist, new_alloc * sizeof(*new_list));
     if (new_list == NULL) {
-      return 0;
+      return 0; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     *alloc_cnt  = new_alloc;
     *socketlist = new_list;
@@ -432,7 +432,7 @@ static ares_socket_t *channel_socket_list(const ares_channel_t *channel,
   *num = 0;
 
   if (out == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (snode = ares__slist_node_first(channel->servers); snode != NULL;
@@ -449,7 +449,7 @@ static ares_socket_t *channel_socket_list(const ares_channel_t *channel,
       }
 
       if (!socket_list_append(&out, conn->fd, &alloc_cnt, num)) {
-        goto fail;
+        goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -652,7 +652,7 @@ static ares_status_t rewrite_without_edns(ares_dns_record_t *qdnsrec,
   /* Rewrite the DNS message */
   status = ares_dns_write(qdnsrec, &msg, &msglen);
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   ares_free(query->qbuf);
@@ -893,7 +893,7 @@ static struct server_state *ares__failover_server(ares_channel_t *channel)
 
   /* Defensive code against no servers being available on the channel. */
   if (first_server == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* If no servers have failures, then prefer the first server in the list. */
@@ -939,7 +939,7 @@ static ares_status_t ares__append_tcpbuf(struct server_state *server,
 
   status = ares__buf_append_be16(server->tcp_send, (unsigned short)query->qlen);
   if (status != ARES_SUCCESS) {
-    return status;
+    return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   return ares__buf_append(server->tcp_send, query->qbuf, query->qlen);
 }
@@ -952,7 +952,7 @@ static size_t ares__calc_query_timeout(const struct query *query)
   size_t                num_servers = ares__slist_len(channel->servers);
 
   if (num_servers == 0) {
-    return 0;
+    return 0; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* For each trip through the entire server list, we want to double the
@@ -1132,6 +1132,7 @@ ares_status_t ares__send_query(struct query *query, const ares_timeval_t *now)
   query->node_queries_by_timeout =
     ares__slist_insert(channel->queries_by_timeout, query);
   if (!query->node_queries_by_timeout) {
+    /* LCOV_EXCL_START: OutOfMemory */
     end_query(channel, query, ARES_ENOMEM, NULL);
     /* Only safe to kill connection if it was new, otherwise it should be
      * cleaned up by another process later */
@@ -1139,6 +1140,7 @@ ares_status_t ares__send_query(struct query *query, const ares_timeval_t *now)
       ares__close_connection(conn);
     }
     return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
 
   /* Keep track of queries bucketed by connection, so we can process errors
@@ -1148,6 +1150,7 @@ ares_status_t ares__send_query(struct query *query, const ares_timeval_t *now)
     ares__llist_insert_last(conn->queries_to_conn, query);
 
   if (query->node_queries_to_conn == NULL) {
+    /* LCOV_EXCL_START: OutOfMemory */
     end_query(channel, query, ARES_ENOMEM, NULL);
     /* Only safe to kill connection if it was new, otherwise it should be
      * cleaned up by another process later */
@@ -1155,6 +1158,7 @@ ares_status_t ares__send_query(struct query *query, const ares_timeval_t *now)
       ares__close_connection(conn);
     }
     return ARES_ENOMEM;
+    /* LCOV_EXCL_STOP */
   }
 
   query->conn = conn;

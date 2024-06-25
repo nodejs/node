@@ -100,7 +100,7 @@ int ares_expand_string(const unsigned char *encoded, const unsigned char *abuf,
   ares_status_t status;
   size_t        temp_enclen = 0;
 
-  if (alen < 0) {
+  if (encoded == NULL || abuf == NULL || alen <= 0 || enclen == NULL) {
     return ARES_EBADRESP;
   }
 
