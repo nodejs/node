@@ -925,7 +925,7 @@ static ares_status_t ares_dns_parse_header(ares__buf_t *buf, unsigned int flags,
     status =
       ares_dns_record_rr_prealloc(*dnsrec, ARES_SECTION_ANSWER, *ancount);
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -933,7 +933,7 @@ static ares_status_t ares_dns_parse_header(ares__buf_t *buf, unsigned int flags,
     status =
       ares_dns_record_rr_prealloc(*dnsrec, ARES_SECTION_AUTHORITY, *nscount);
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -941,7 +941,7 @@ static ares_status_t ares_dns_parse_header(ares__buf_t *buf, unsigned int flags,
     status =
       ares_dns_record_rr_prealloc(*dnsrec, ARES_SECTION_ADDITIONAL, *arcount);
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -1216,7 +1216,7 @@ static ares_status_t ares_dns_parse_buf(ares__buf_t *buf, unsigned int flags,
   unsigned short i;
 
   if (buf == NULL || dnsrec == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Maximum DNS packet size is 64k, even over TCP */

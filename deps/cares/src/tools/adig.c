@@ -62,11 +62,6 @@
 
 #include "ares_getopt.h"
 
-#ifdef WATT32
-#  undef WIN32 /* Redefined in MingW headers */
-#endif
-
-
 typedef struct {
   ares_bool_t         is_help;
   struct ares_options options;

@@ -28,7 +28,7 @@
 #include "ares.h"
 #include "ares_private.h"
 
-#if defined(WIN32) && !defined(MSDOS)
+#if defined(_WIN32) && !defined(MSDOS)
 
 ares_timeval_t ares__tvnow(void)
 {
@@ -57,10 +57,12 @@ ares_timeval_t ares__tvnow(void)
     now.sec  = (ares_int64_t)tsnow.tv_sec;
     now.usec = (unsigned int)(tsnow.tv_nsec / 1000);
   } else {
+    /* LCOV_EXCL_START: FallbackCode */
     struct timeval tv;
     (void)gettimeofday(&tv, NULL);
     now.sec  = (ares_int64_t)tv.tv_sec;
     now.usec = (unsigned int)tv.tv_usec;
+    /* LCOV_EXCL_STOP */
   }
   return now;
 }

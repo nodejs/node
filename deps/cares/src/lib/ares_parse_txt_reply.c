@@ -59,8 +59,8 @@ static int ares__parse_txt_reply(const unsigned char *abuf, size_t alen,
 
     if (rr == NULL) {
       /* Shouldn't be possible */
-      status = ARES_EBADRESP;
-      goto done;
+      status = ARES_EBADRESP; /* LCOV_EXCL_LINE: DefensiveCoding */
+      goto done; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     /* XXX: Why Chaos? */
@@ -74,8 +74,8 @@ static int ares__parse_txt_reply(const unsigned char *abuf, size_t alen,
     txt_curr =
       ares_malloc_data(ex ? ARES_DATATYPE_TXT_EXT : ARES_DATATYPE_TXT_REPLY);
     if (txt_curr == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     /* Link in the record */
@@ -95,8 +95,8 @@ static int ares__parse_txt_reply(const unsigned char *abuf, size_t alen,
 
     txt_curr->txt = ares_malloc(ptr_len + 1);
     if (txt_curr->txt == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     memcpy(txt_curr->txt, ptr, ptr_len);
     txt_curr->txt[ptr_len] = 0;

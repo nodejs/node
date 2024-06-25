@@ -27,14 +27,6 @@
 #define HEADER_CARES_SETUP_H
 
 /*
- * Define WIN32 when build target is Win32 API
- */
-
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#  define WIN32
-#endif
-
-/*
  * Include configuration script results or hand-crafted
  * configuration file for platforms which lack config tool.
  */
@@ -43,7 +35,7 @@
 #  include "ares_config.h"
 #else
 
-#  ifdef WIN32
+#  ifdef _WIN32
 #    include "config-win32.h"
 #  endif
 
@@ -163,7 +155,7 @@
 #    define HAVE_UNISTD_H 1
 #  endif
 
-#  if !defined(HAVE_SYS_UIO_H) && !defined(WIN32) && !defined(MSDOS)
+#  if !defined(HAVE_SYS_UIO_H) && !defined(_WIN32) && !defined(MSDOS)
 #    define HAVE_SYS_UIO_H
 #  endif
 

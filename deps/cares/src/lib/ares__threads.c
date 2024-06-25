@@ -226,25 +226,27 @@ ares__thread_mutex_t *ares__thread_mutex_create(void)
   }
 
   if (pthread_mutexattr_init(&attr) != 0) {
-    ares_free(mut);
-    return NULL;
+    ares_free(mut); /* LCOV_EXCL_LINE: UntestablePath */
+    return NULL; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE) != 0) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   if (pthread_mutex_init(&mut->mutex, &attr) != 0) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   pthread_mutexattr_destroy(&attr);
   return mut;
 
+/* LCOV_EXCL_START: UntestablePath */
 fail:
   pthread_mutexattr_destroy(&attr);
   ares_free(mut);
   return NULL;
+/* LCOV_EXCL_STOP */
 }
 
 void ares__thread_mutex_destroy(ares__thread_mutex_t *mut)
@@ -379,11 +381,11 @@ ares_status_t ares__thread_create(ares__thread_t    **thread,
 
   thr = ares_malloc_zero(sizeof(*thr));
   if (thr == NULL) {
-    return ARES_ENOMEM;
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   if (pthread_create(&thr->thread, NULL, func, arg) != 0) {
-    ares_free(thr);
-    return ARES_ESERVFAIL;
+    ares_free(thr); /* LCOV_EXCL_LINE: UntestablePath */
+    return ARES_ESERVFAIL; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   *thread = thr;

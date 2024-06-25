@@ -103,7 +103,7 @@ static ares_bool_t sortlist_append(struct apattern **sortlist, size_t *nsort,
 
   newsort = ares_realloc(*sortlist, (*nsort + 1) * sizeof(*newsort));
   if (newsort == NULL) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   *sortlist = newsort;
@@ -223,7 +223,7 @@ ares_status_t ares__parse_sortlist(struct apattern **sortlist, size_t *nsort,
   ares__llist_node_t *node   = NULL;
 
   if (sortlist == NULL || nsort == NULL || str == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (*sortlist != NULL) {
@@ -262,8 +262,8 @@ ares_status_t ares__parse_sortlist(struct apattern **sortlist, size_t *nsort,
     }
 
     if (!sortlist_append(sortlist, nsort, &pat)) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -371,7 +371,7 @@ static ares_status_t config_lookup(ares_sysconfig_t *sysconfig,
     ares_free(sysconfig->lookups);
     sysconfig->lookups = ares_strdup(lookupstr);
     if (sysconfig->lookups == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -462,7 +462,7 @@ ares_status_t ares__sysconfig_set_options(ares_sysconfig_t *sysconfig,
     status = process_option(sysconfig, valbuf);
     /* Out of memory is the only fatal condition */
     if (status == ARES_ENOMEM) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -484,7 +484,7 @@ ares_status_t ares__init_by_environment(ares_sysconfig_t *sysconfig)
   if (localdomain) {
     char *temp = ares_strdup(localdomain);
     if (temp == NULL) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
     status = config_search(sysconfig, temp, 1);
     ares_free(temp);
