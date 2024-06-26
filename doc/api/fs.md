@@ -2736,7 +2736,7 @@ changes:
 * `callback` {Function}
   * `exists` {boolean}
 
-Test whether or not the given path exists by checking with the file system.
+Test whether or not the element at the given `path` exists by checking with the file system.
 Then call the `callback` argument with either true or false:
 
 ```mjs
@@ -2752,6 +2752,9 @@ callbacks.** Normally, the first parameter to a Node.js callback is an `err`
 parameter, optionally followed by other parameters. The `fs.exists()` callback
 has only one boolean parameter. This is one reason `fs.access()` is recommended
 instead of `fs.exists()`.
+
+If `path` is a symbolic link, it is followed. Thus, if `path` exists but points
+to a non-existent element, the callback will receive the value `false`.
 
 Using `fs.exists()` to check for the existence of a file before calling
 `fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended. Doing
