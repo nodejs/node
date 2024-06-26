@@ -1284,6 +1284,12 @@ changes:
     For each test that is executed, any corresponding test hooks, such as
     `beforeEach()`, are also run.
     **Default:** `undefined`.
+  * `testSkipPatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
+    that can be used to exclude running tests whose name matches the provided pattern.
+    Test name patterns are interpreted as JavaScript regular expressions.
+    For each test that is executed, any corresponding test hooks, such as
+    `beforeEach()`, are also run.
+    **Default:** `undefined`.
   * `timeout` {number} A number of milliseconds the test execution will
     fail after.
     If unspecified, subtests inherit this value from their parent.
