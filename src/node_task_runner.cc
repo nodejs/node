@@ -1,8 +1,6 @@
 #include "node_task_runner.h"
 #include "util.h"
 
-#include <cstdio>
-#include <iostream>
 #include <regex>  // NOLINT(build/c++11)
 
 namespace node::task_runner {
