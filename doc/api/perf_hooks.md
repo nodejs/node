@@ -685,6 +685,7 @@ The value may be one of:
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_INCREMENTAL`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_WEAKCB`
+* `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR_MARK_COMPACT`
 
 ### Garbage Collection ('gc') Details
 
@@ -696,6 +697,7 @@ When `performanceEntry.type` is equal to `'gc'`, the
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_INCREMENTAL`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_WEAKCB`
+  * `perf_hooks.constants.NODE_PERFORMANCE_GC_MINOR_MARK_COMPACT`
 * `flags` {number} One of:
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_NO`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_CONSTRUCT_RETAINED`
