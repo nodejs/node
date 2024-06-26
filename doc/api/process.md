@@ -2628,7 +2628,8 @@ The [`queueMicrotask()`][] API is an alternative to `process.nextTick()` that
 also defers execution of a function using the same microtask queue used to
 execute the then, catch, and finally handlers of resolved promises. Within
 Node.js, every time the "next tick queue" is drained, the microtask queue
-is drained immediately after.
+is drained immediately after. Note that `process.nextTick()` is scheduled
+differently depending on the module type being used.
 
 ```mjs
 import { nextTick } from 'node:process';
@@ -2637,9 +2638,9 @@ Promise.resolve().then(() => console.log(2));
 queueMicrotask(() => console.log(3));
 nextTick(() => console.log(1));
 // Output:
-// 1
 // 2
 // 3
+// 1
 ```
 
 ```cjs
