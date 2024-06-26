@@ -28,6 +28,7 @@
 
 #if !defined(_MSC_VER)
 #include <unistd.h>
+#include <sysexits.h>
 #endif
 
 #include <fcntl.h>
@@ -387,6 +388,68 @@ void DefineErrnoConstants(Local<Object> target) {
 
 #ifdef EXDEV
   NODE_DEFINE_CONSTANT(target, EXDEV);
+#endif
+}
+
+void DefineSysexitConstants(Local<Object> target) {
+#ifdef EX_USAGE
+  NODE_DEFINE_CONSTANT(target, EX_USAGE);
+#endif
+
+#ifdef EX_DATAERR
+  NODE_DEFINE_CONSTANT(target, EX_DATAERR);
+#endif
+
+#ifdef EX_NOINPUT
+  NODE_DEFINE_CONSTANT(target, EX_NOINPUT);
+#endif
+
+#ifdef EX_NOUSER
+  NODE_DEFINE_CONSTANT(target, EX_NOUSER);
+#endif
+
+#ifdef EX_NOHOST
+  NODE_DEFINE_CONSTANT(target, EX_NOHOST);
+#endif
+
+#ifdef EX_UNAVAILABLE
+  NODE_DEFINE_CONSTANT(target, EX_UNAVAILABLE);
+#endif
+
+#ifdef EX_SOFTWARE
+  NODE_DEFINE_CONSTANT(target, EX_SOFTWARE);
+#endif
+
+#ifdef EX_OSERR
+  NODE_DEFINE_CONSTANT(target, EX_OSERR);
+#endif
+
+#ifdef EX_OSFILE
+  NODE_DEFINE_CONSTANT(target, EX_OSFILE);
+#endif
+
+#ifdef EX_CANTCREAT
+  NODE_DEFINE_CONSTANT(target, EX_CANTCREAT);
+#endif
+
+#ifdef EX_IOERR
+  NODE_DEFINE_CONSTANT(target, EX_IOERR);
+#endif
+
+#ifdef EX_TEMPFAIL
+  NODE_DEFINE_CONSTANT(target, EX_TEMPFAIL);
+#endif
+
+#ifdef EX_PROTOCOL
+  NODE_DEFINE_CONSTANT(target, EX_PROTOCOL);
+#endif
+
+#ifdef EX_NOPERM
+  NODE_DEFINE_CONSTANT(target, EX_NOPERM);
+#endif
+
+#ifdef EX_CONFIG
+  NODE_DEFINE_CONSTANT(target, EX_CONFIG);
 #endif
 }
 
@@ -1295,6 +1358,10 @@ void CreatePerContextProperties(Local<Object> target,
   CHECK(err_constants->SetPrototype(env->context(),
                                     Null(env->isolate())).FromJust());
 
+  Local<Object> sysexit_constants = Object::New(isolate);
+  CHECK(sysexit_constants->SetPrototype(env->context(),
+                                    Null(env->isolate())).FromJust());
+
   Local<Object> sig_constants = Object::New(isolate);
   CHECK(sig_constants->SetPrototype(env->context(),
                                     Null(env->isolate())).FromJust());
@@ -1324,6 +1391,7 @@ void CreatePerContextProperties(Local<Object> target,
                                       Null(env->isolate())).FromJust());
 
   DefineErrnoConstants(err_constants);
+  DefineSysexitConstants(sysexit_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
   DefinePriorityConstants(priority_constants);
@@ -1342,6 +1410,9 @@ void CreatePerContextProperties(Local<Object> target,
   os_constants->Set(env->context(),
                     OneByteString(isolate, "errno"),
                     err_constants).Check();
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "sysexits"),
+                    sysexit_constants).Check();
   os_constants->Set(env->context(),
                     OneByteString(isolate, "signals"),
                     sig_constants).Check();
