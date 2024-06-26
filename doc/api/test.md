@@ -508,6 +508,9 @@ used as an in depth coverage report.
 node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
 ```
 
+* No test results are reported by this reporter.
+* This reporter should ideally be used alongside another reporter.
+
 ### Limitations
 
 The test runner's code coverage functionality does not support excluding
