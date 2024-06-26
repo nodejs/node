@@ -75,6 +75,7 @@ class SyncProcessStdioPipe {
   SyncProcessStdioPipe(SyncProcessRunner* process_handler,
                        bool readable,
                        bool writable,
+                       bool overlapped,
                        uv_buf_t input_buffer);
   ~SyncProcessStdioPipe();
 
@@ -86,6 +87,7 @@ class SyncProcessStdioPipe {
 
   inline bool readable() const;
   inline bool writable() const;
+  inline bool overlapped() const;
   inline uv_stdio_flags uv_flags() const;
 
   inline uv_pipe_t* uv_pipe() const;
@@ -118,6 +120,7 @@ class SyncProcessStdioPipe {
 
   bool readable_;
   bool writable_;
+  bool overlapped_;
   uv_buf_t input_buffer_;
 
   SyncProcessOutputBuffer* first_output_buffer_;
@@ -182,6 +185,7 @@ class SyncProcessRunner {
   inline int AddStdioPipe(uint32_t child_fd,
                           bool readable,
                           bool writable,
+                          bool overlapped,
                           uv_buf_t input_buffer);
   inline int AddStdioInheritFD(uint32_t child_fd, int inherit_fd);
 

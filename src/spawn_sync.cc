@@ -92,14 +92,15 @@ void SyncProcessOutputBuffer::set_next(SyncProcessOutputBuffer* next) {
   next_ = next;
 }
 
-
 SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
                                            bool readable,
                                            bool writable,
+                                           bool overlapped,
                                            uv_buf_t input_buffer)
     : process_handler_(process_handler),
       readable_(readable),
       writable_(writable),
+      overlapped_(overlapped),
       input_buffer_(input_buffer),
 
       first_output_buffer_(nullptr),
@@ -112,7 +113,6 @@ SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
       lifecycle_(kUninitialized) {
   CHECK(readable || writable);
 }
-
 
 SyncProcessStdioPipe::~SyncProcessStdioPipe() {
   CHECK(lifecycle_ == kUninitialized || lifecycle_ == kClosed);
@@ -202,6 +202,9 @@ bool SyncProcessStdioPipe::writable() const {
   return writable_;
 }
 
+bool SyncProcessStdioPipe::overlapped() const {
+  return overlapped_;
+}
 
 uv_stdio_flags SyncProcessStdioPipe::uv_flags() const {
   unsigned int flags;
@@ -211,6 +214,7 @@ uv_stdio_flags SyncProcessStdioPipe::uv_flags() const {
     flags |= UV_READABLE_PIPE;
   if (writable())
     flags |= UV_WRITABLE_PIPE;
+  if (overlapped()) flags |= UV_OVERLAPPED_PIPE;
 
   return static_cast<uv_stdio_flags>(flags);
 }
@@ -909,7 +913,8 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
   if (js_type->StrictEquals(env()->ignore_string())) {
     return AddStdioIgnore(child_fd);
 
-  } else if (js_type->StrictEquals(env()->pipe_string())) {
+  } else if (js_type->StrictEquals(env()->pipe_string()) ||
+             js_type->StrictEquals(env()->overlapped_string())) {
     Isolate* isolate = env()->isolate();
     Local<String> rs = env()->readable_string();
     Local<String> ws = env()->writable_string();
@@ -936,7 +941,8 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
       }
     }
 
-    return AddStdioPipe(child_fd, readable, writable, buf);
+    bool overlapped = js_type->StrictEquals(env()->overlapped_string());
+    return AddStdioPipe(child_fd, readable, writable, overlapped, buf);
 
   } else if (js_type->StrictEquals(env()->inherit_string()) ||
              js_type->StrictEquals(env()->fd_string())) {
@@ -959,16 +965,16 @@ int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
   return 0;
 }
 
-
 int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
                                     bool readable,
                                     bool writable,
+                                    bool overlapped,
                                     uv_buf_t input_buffer) {
   CHECK_LT(child_fd, stdio_count_);
   CHECK(!stdio_pipes_[child_fd]);
 
-  std::unique_ptr<SyncProcessStdioPipe> h(
-      new SyncProcessStdioPipe(this, readable, writable, input_buffer));
+  std::unique_ptr<SyncProcessStdioPipe> h(new SyncProcessStdioPipe(
+      this, readable, writable, overlapped, input_buffer));
 
   int r = h->Initialize(uv_loop_);
   if (r < 0) {
@@ -983,7 +989,6 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
 
   return 0;
 }
-
 
 int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
   CHECK_LT(child_fd, stdio_count_);
