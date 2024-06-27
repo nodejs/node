@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
 
   const timeoutId = setTimeout(() => {
     req.resume();
-  }, common.platformTimeout(1000));
+  }, 1000);
 
   req.on('data', (chunk) => {
     count += chunk.length;
