@@ -33,3 +33,4 @@ that promotes a specific company or commercial interest.
 * [security-team](https://github.com/nodejs/security-wg/issues/1006).
 * [Website team](https://github.com/nodejs/nodejs.org/issues/5602).
 * [diagnostics team](https://github.com/nodejs/diagnostics/issues/619).
+* [ambassadors](https://github.com/nodejs/nodejs-ambassadors/issues/2).
