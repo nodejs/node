@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.15.1">20.15.1</a><br/>
 <a href="#20.15.0">20.15.0</a><br/>
 <a href="#20.14.0">20.14.0</a><br/>
 <a href="#20.13.1">20.13.1</a><br/>
@@ -62,6 +63,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.15.1"></a>
+
+## 2024-07-08, Version 20.15.1 'Iron' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* CVE-2024-36138 - Bypass incomplete fix of CVE-2024-27980 (High)
+* CVE-2024-22020 - Bypass network import restriction via data URL (Medium)
+* CVE-2024-22018 - fs.lstat bypasses permission model (Low)
+* CVE-2024-36137 - fs.fchown/fchmod bypasses permission model (Low)
+* CVE-2024-37372 - Permission model improperly processes UNC paths (Low)
+
+### Commits
+
+* \[[`60e184a6e4`](https://github.com/nodejs/node/commit/60e184a6e4)] - **lib,esm**: handle bypass network-import via data: (RafaelGSS) [nodejs-private/node-private#522](https://github.com/nodejs-private/node-private/pull/522)
+* \[[`025cbd6936`](https://github.com/nodejs/node/commit/025cbd6936)] - **lib,permission**: support fs.lstat (RafaelGSS) [nodejs-private/node-private#486](https://github.com/nodejs-private/node-private/pull/486)
+* \[[`d38ea17341`](https://github.com/nodejs/node/commit/d38ea17341)] - **lib,permission**: disable fchmod/fchown when pm enabled (RafaelGSS) [nodejs-private/node-private#584](https://github.com/nodejs-private/node-private/pull/584)
+* \[[`1ba624cd3b`](https://github.com/nodejs/node/commit/1ba624cd3b)] - **src**: handle permissive extension on cmd check (RafaelGSS) [nodejs-private/node-private#596](https://github.com/nodejs-private/node-private/pull/596)
+* \[[`2524d00c3d`](https://github.com/nodejs/node/commit/2524d00c3d)] - **src,permission**: fix UNC path resolution (RafaelGSS) [nodejs-private/node-private#581](https://github.com/nodejs-private/node-private/pull/581)
+* \[[`484cb0f13c`](https://github.com/nodejs/node/commit/484cb0f13c)] - **src,permission**: resolve path on fs\_permission (Rafael Gonzaga) [#52761](https://github.com/nodejs/node/pull/52761)
 
 <a id="20.15.0"></a>
 
