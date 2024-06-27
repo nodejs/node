@@ -24,6 +24,7 @@ constexpr bool IsWindowsDeviceRoot(const char c) noexcept;
 #endif  // _WIN32
 
 void ToNamespacedPath(Environment* env, BufferValue* path);
+void FromNamespacedPath(std::string* path);
 
 }  // namespace node
 
