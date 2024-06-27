@@ -85,7 +85,6 @@ void ThrowInvalidURL(Environment* env,
 std::string FromFilePath(std::string_view file_path);
 std::optional<std::string> FileURLToPath(Environment* env,
                                          const ada::url_aggregator& file_url);
-void FromNamespacedPath(std::string* path);
 
 }  // namespace url
 

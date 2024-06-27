@@ -544,19 +544,6 @@ std::optional<std::string> FileURLToPath(Environment* env,
 #endif  // _WIN32
 }
 
-// Reverse the logic applied by path.toNamespacedPath() to create a
-// namespace-prefixed path.
-void FromNamespacedPath(std::string* path) {
-#ifdef _WIN32
-  if (path->compare(0, 8, "\\\\?\\UNC\\", 8) == 0) {
-    *path = path->substr(8);
-    path->insert(0, "\\\\");
-  } else if (path->compare(0, 4, "\\\\?\\", 4) == 0) {
-    *path = path->substr(4);
-  }
-#endif
-}
-
 }  // namespace url
 
 }  // namespace node

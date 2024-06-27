@@ -3098,7 +3098,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    node::url::FromNamespacedPath(&initial_file_path.value());
+    FromNamespacedPath(&initial_file_path.value());
 
     for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
       file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
@@ -3133,7 +3133,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  node::url::FromNamespacedPath(&initial_file_path.value());
+  FromNamespacedPath(&initial_file_path.value());
 
   for (int i = legacy_main_extensions_with_main_end;
        i < legacy_main_extensions_package_fallback_end;
