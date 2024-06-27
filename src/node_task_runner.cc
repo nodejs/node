@@ -286,15 +286,15 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
               path.string().c_str());
     } else {
       fprintf(stderr, "Can't parse %s\n", path.string().c_str());
-      result->exit_code_ = ExitCode::kGenericUserError;
-      return;
     }
+    result->exit_code_ = ExitCode::kGenericUserError;
+    return;
   }
 
   // If package_json object doesn't have "scripts" field, throw an error.
   simdjson::ondemand::object scripts_object;
   if (main_object["scripts"].get_object().get(scripts_object)) {
-    fprintf(stderr, "Can't find \"scripts\" field in %s\n", path.string().c_str());
+    fprintf(stderr, "Can't find \"scripts\" field in %s\n", path.c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }

@@ -60,7 +60,7 @@ describe('node --run [command]', () => {
   it('chdirs into package directory', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', common.isWindows ? 'cd' : 'pwd'],
+      [ '--no-warnings', '--run', `cd-${envSuffix}`],
       { cwd: fixtures.path('run-script/sub-directory') },
     );
     assert.strictEqual(child.stdout.trim(), fixtures.path('run-script'));
