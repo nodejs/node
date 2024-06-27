@@ -317,22 +317,22 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
               path.string().c_str());
       fprintf(stderr, "Available scripts are:\n");
 
-    // Reset the object to iterate over it again
-    scripts_object.reset();
-    simdjson::ondemand::value value;
-    for (auto field : scripts_object) {
-      std::string_view key_str;
-      std::string_view value_str;
-      if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
-          !value.get_string().get(value_str)) {
-        fprintf(stderr,
-                "  %.*s: %.*s\n",
-                static_cast<int>(key_str.size()),
-                key_str.data(),
-                static_cast<int>(value_str.size()),
-                value_str.data());
+      // Reset the object to iterate over it again
+      scripts_object.reset();
+      simdjson::ondemand::value value;
+      for (auto field : scripts_object) {
+        std::string_view key_str;
+        std::string_view value_str;
+        if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
+            !value.get_string().get(value_str)) {
+          fprintf(stderr,
+                  "  %.*s: %.*s\n",
+                  static_cast<int>(key_str.size()),
+                  key_str.data(),
+                  static_cast<int>(value_str.size()),
+                  value_str.data());
+        }
       }
-    }
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
