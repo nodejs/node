@@ -123,23 +123,21 @@ static void SetTraceCategoryStateUpdateHandler(
   env->set_trace_category_state_function(args[0].As<Function>());
 }
 
-static void GetCategoryEnabledBuffer(
-    const FunctionCallbackInfo<Value>& args) {
+static void GetCategoryEnabledBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Isolate* isolate = args.GetIsolate();
   node::Utf8Value category_name(isolate, args[0]);
 
-  const uint8_t* enabled_pointer = TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-    category_name.out());
-  uint8_t* enabled_pointer_cast = const_cast<uint8_t*>(
-    enabled_pointer);
+  const uint8_t* enabled_pointer =
+      TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_name.out());
+  uint8_t* enabled_pointer_cast = const_cast<uint8_t*>(enabled_pointer);
 
   std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-    enabled_pointer_cast,
-    sizeof(*enabled_pointer_cast),
-    [](void*, size_t, void*) {},
-    nullptr);
+      enabled_pointer_cast,
+      sizeof(*enabled_pointer_cast),
+      [](void*, size_t, void*) {},
+      nullptr);
   auto ab = ArrayBuffer::New(isolate, std::move(bs));
   v8::Local<Uint8Array> u8 = v8::Uint8Array::New(ab, 0, 1);
 
@@ -158,10 +156,8 @@ void NodeCategorySet::Initialize(Local<Object> target,
             target,
             "setTraceCategoryStateUpdateHandler",
             SetTraceCategoryStateUpdateHandler);
-  SetMethod(context,
-            target,
-            "getCategoryEnabledBuffer",
-            GetCategoryEnabledBuffer);
+  SetMethod(
+      context, target, "getCategoryEnabledBuffer", GetCategoryEnabledBuffer);
 
   Local<FunctionTemplate> category_set =
       NewFunctionTemplate(isolate, NodeCategorySet::New);
