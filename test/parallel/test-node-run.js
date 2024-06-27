@@ -17,8 +17,6 @@ describe('node --run [command]', () => {
       { cwd: __dirname },
     );
     assert.match(child.stderr, /ExperimentalWarning: Task runner is an experimental feature and might change at any time/);
-    assert.match(child.stderr, /Can't find package\.json[\s\S]*/);
-    assert(child.stderr.includes(__dirname));
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
@@ -30,6 +28,7 @@ describe('node --run [command]', () => {
       { cwd: __dirname },
     );
     assert.match(child.stderr, /Can't find package\.json[\s\S]*/);
+    // Ensure we show the path that starting path for the search
     assert(child.stderr.includes(__dirname));
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
