@@ -44,8 +44,6 @@ test('test to delete has ran');`,
 const fixturePaths = Object.fromEntries(Object.keys(fixtureContent)
   .map((file) => [file, tmpdir.resolve(file)]));
 
-  console.log(fixturePaths)
-
 Object.entries(fixtureContent)
   .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 
@@ -88,7 +86,7 @@ describe('test runner watch mode with more complex setup', () => {
     child.kill();
 
     assert.strictEqual(runs.length, 2);
-    
+
     const [firstRun, secondRun] = runs;
 
     assert.match(firstRun, /# tests 3/);
