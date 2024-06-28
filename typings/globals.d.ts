@@ -4,6 +4,7 @@ import {ConfigBinding} from "./internalBinding/config";
 import {ConstantsBinding} from "./internalBinding/constants";
 import {HttpParserBinding} from "./internalBinding/http_parser";
 import {FsBinding} from "./internalBinding/fs";
+import {FsDirBinding} from "./internalBinding/fs_dir";
 import {MessagingBinding} from "./internalBinding/messaging";
 import {OptionsBinding} from "./internalBinding/options";
 import {OSBinding} from "./internalBinding/os";
@@ -35,6 +36,7 @@ interface InternalBindingMap {
   config: ConfigBinding;
   constants: ConstantsBinding;
   fs: FsBinding;
+  fs_dir: FsDirBinding;
   http_parser: HttpParserBinding;
   messaging: MessagingBinding;
   modules: ModulesBinding;
