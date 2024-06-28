@@ -170,10 +170,6 @@ if (process.env.NODE_V8_COVERAGE) {
   expected.atRunTime.add('Internal Binding profiler');
 }
 
-const difference = (setA, setB) => {
-  return new Set([...setA].filter((x) => !setB.has(x)));
-};
-
 // Accumulate all the errors and print them at the end instead of throwing
 // immediately which makes it harder to update the test.
 const errorLogs = [];
@@ -187,8 +183,8 @@ function err(message) {
 }
 
 if (common.isMainThread) {
-  const missing = difference(expected.beforePreExec, actual.beforePreExec);
-  const extra = difference(actual.beforePreExec, expected.beforePreExec);
+  const missing = expected.beforePreExec.difference(actual.beforePreExec);
+  const extra = actual.beforePreExec.difference(expected.beforePreExec);
   if (missing.size !== 0) {
     err('These builtins are now no longer loaded before pre-execution.');
     err('If this is intentional, remove them from `expected.beforePreExec`.');
@@ -222,8 +218,8 @@ if (!common.isMainThread) {
 }
 
 {
-  const missing = difference(expected.atRunTime, actual.atRunTime);
-  const extra = difference(actual.atRunTime, expected.atRunTime);
+  const missing = expected.atRunTime.difference(actual.atRunTime);
+  const extra = actual.atRunTime.difference(expected.atRunTime);
   if (missing.size !== 0) {
     err('These builtins are now no longer loaded at run time.');
     err('If this is intentional, remove them from `expected.atRunTime`.');
