@@ -69,7 +69,7 @@ namespace node {
  *    new worker_threads.Worker(), it gets its own OS thread, its
  *    own node::Environment, its own v8::Isolate and its own v8::Context.
  *    The corresponding data structure is node::Worker and the Environment
- *    is created in node::NodeMainInstance::Run().
+ *    is created in node::Worker::Run().
  *    Its context snapshot in the built-in V8 startup snapshot is stored at
  *    node::SnapshotData::kNodeBaseContextIndex.
  * 4. Contextified vm context: When a contextified context is created via
