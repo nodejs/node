@@ -206,7 +206,7 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
-  auto cwd = package_json_path_.parent_path().string();
+  auto cwd = package_json_path_.parent_path();
   options_.cwd = cwd.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
