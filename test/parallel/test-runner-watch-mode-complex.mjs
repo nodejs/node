@@ -51,7 +51,7 @@ describe('test runner watch mode with more complex setup', () => {
     const ran1 = util.createDeferredPromise();
     const ran2 = util.createDeferredPromise();
     const child = spawn(process.execPath,
-                        ['--watch', '--test'].filter(Boolean),
+                        ['--watch', '--test'],
                         { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
     let stdout = '';
     let currentRun = '';
@@ -62,8 +62,11 @@ describe('test runner watch mode with more complex setup', () => {
       currentRun += data.toString();
       const testRuns = stdout.match(/# duration_ms\s\d+/g);
 
+      if (testRuns?.length >= 2) {
+        ran2.resolve();
+        return;
+      }
       if (testRuns?.length >= 1) ran1.resolve();
-      if (testRuns?.length >= 2) ran2.resolve();
     });
 
     await ran1.promise;
@@ -82,19 +85,17 @@ describe('test runner watch mode with more complex setup', () => {
     child.kill();
 
     assert.strictEqual(runs.length, 2);
+    
+    const [firstRun, secondRun] = runs;
 
-    for (let i = 0; i < runs.length; i++) {
-      if (i === 0) {
-        assert.match(runs[i], /# tests 3/);
-        assert.match(runs[i], /# pass 3/);
-        assert.match(runs[i], /# fail 0/);
-        assert.match(runs[i], /# cancelled 0/);
-      } else {
-        assert.match(runs[i], /# tests 2/);
-        assert.match(runs[i], /# pass 2/);
-        assert.match(runs[i], /# fail 0/);
-        assert.match(runs[i], /# cancelled 0/);
-      }
-    }
+    assert.match(firstRun, /# tests 3/);
+    assert.match(firstRun, /# pass 3/);
+    assert.match(firstRun, /# fail 0/);
+    assert.match(firstRun, /# cancelled 0/);
+
+    assert.match(secondRun, /# tests 2/);
+    assert.match(secondRun, /# pass 2/);
+    assert.match(secondRun, /# fail 0/);
+    assert.match(secondRun, /# cancelled 0/);
   });
 });
