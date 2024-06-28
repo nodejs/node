@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+common.requireNoPackageJSONAbove();
 
 const { it, describe } = require('node:test');
 const assert = require('node:assert');
@@ -16,6 +17,19 @@ describe('node --run [command]', () => {
       { cwd: __dirname },
     );
     assert.match(child.stderr, /ExperimentalWarning: Task runner is an experimental feature and might change at any time/);
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 1);
+  });
+
+  it('returns error on non-existent file', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--no-warnings', '--run', 'test'],
+      { cwd: __dirname },
+    );
+    assert.match(child.stderr, /Can't find package\.json[\s\S]*/);
+    // Ensure we show the path that starting path for the search
+    assert(child.stderr.includes(__dirname));
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
@@ -42,10 +56,10 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
-  it('chdirs into package directory', async () => {
+  it.only('chdirs into package directory', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', `cd-${envSuffix}`],
+      [ '--no-warnings', '--run', `pwd${envSuffix}`],
       { cwd: fixtures.path('run-script/sub-directory') },
     );
     assert.strictEqual(child.stdout.trim(), fixtures.path('run-script'));
