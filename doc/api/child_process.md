@@ -431,7 +431,7 @@ case of an error (including any error resulting in an exit code other than 0), a
 rejected promise is returned, with the same `error` object given in the
 callback, but with two additional properties `stdout` and `stderr`.
 
-```js
+```cjs
 const util = require('node:util');
 const execFile = util.promisify(require('node:child_process').execFile);
 async function getVersion() {
