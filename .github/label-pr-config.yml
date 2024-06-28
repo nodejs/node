@@ -97,6 +97,7 @@ subSystemLabels:
   /^lib\/test.js$/: test_runner
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
+  /^lib\/internal\/modules/: module
   /^lib\/internal\/webstreams/: web streams
   /^lib\/internal\/test_runner/: test_runner
 
