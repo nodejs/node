@@ -217,8 +217,6 @@ For information about the governance of the Node.js project, see
   **Shelley Vohr** <<shelley.vohr@gmail.com>> (she/her)
 * [danielleadams](https://github.com/danielleadams) -
   **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
-* [MylesBorins](https://github.com/MylesBorins) -
-  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
 * [Trott](https://github.com/Trott) -
   **Rich Trott** <<rtrott@gmail.com>> (he/him)
 
@@ -256,6 +254,8 @@ For information about the governance of the Node.js project, see
   **Mary Marchini** <<oss@mmarchini.me>> (she/her)
 * [mscdex](https://github.com/mscdex) -
   **Brian White** <<mscdex@mscdex.net>>
+* [MylesBorins](https://github.com/MylesBorins) -
+  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
 * [nebrius](https://github.com/nebrius) -
   **Bryan Hughes** <<bryan@nebri.us>>
 * [ofrobots](https://github.com/ofrobots) -
