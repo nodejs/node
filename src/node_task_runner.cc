@@ -256,7 +256,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   auto package_json = FindPackageJson(cwd);
 
   if (!package_json.has_value()) {
-    fprintf(stderr, "Can't find package.json for directory %s\n", cwd.string().c_str());
+    fprintf(stderr, "Can't find package.json for directory %s\n", cwd.c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -273,7 +273,7 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
   simdjson::error_code error = json_parser.iterate(raw_json).get(document);
 
   if (error) {
-    fprintf(stderr, "Can't parse %s\n", path.string().c_str());
+    fprintf(stderr, "Can't parse %s\n", path.c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
@@ -283,9 +283,9 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
     if (root_error == simdjson::error_code::INCORRECT_TYPE) {
       fprintf(stderr,
               "Root value unexpected not an object for %s\n\n",
-              path.string().c_str());
+              path.c_str());
     } else {
-      fprintf(stderr, "Can't parse %s\n", path.string().c_str());
+      fprintf(stderr, "Can't parse %s\n", path.c_str());
     }
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
@@ -308,13 +308,13 @@ void RunTask(std::shared_ptr<InitializationResultImpl> result,
               "Script \"%.*s\" is unexpectedly not a string for %s\n\n",
               static_cast<int>(command_id.size()),
               command_id.data(),
-              path.string().c_str());
+              path.c_str());
     } else {
       fprintf(stderr,
               "Missing script: \"%.*s\" for %s\n\n",
               static_cast<int>(command_id.size()),
               command_id.data(),
-              path.string().c_str());
+              path.c_str());
       fprintf(stderr, "Available scripts are:\n");
 
       // Reset the object to iterate over it again
