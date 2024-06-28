@@ -41,8 +41,11 @@ import 'data:text/javascript,';
 test('test to delete has ran');`,
 };
 
-const fixturePaths = Object.keys(fixtureContent)
-  .reduce((acc, file) => ({ ...acc, [file]: tmpdir.resolve(file) }), {});
+const fixturePaths = Object.fromEntries(Object.keys(fixtureContent)
+  .map((file) => [file, tmpdir.resolve(file)]));
+
+  console.log(fixturePaths)
+
 Object.entries(fixtureContent)
   .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 
