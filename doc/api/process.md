@@ -676,6 +676,10 @@ A few of the warning types that are most common include:
 * `'TimeoutOverflowWarning'` - Indicates that a numeric value that cannot fit
   within a 32-bit signed integer has been provided to either the `setTimeout()`
   or `setInterval()` functions.
+* `'TimeoutNegativeWarning'` - Indicates that a negative number has provided to
+  either the `setTimeout()` or `setInterval()` functions.
+* `'TimeoutNaNWarning'` - Indicates that a value which is not a number has
+  provided to either the `setTimeout()` or `setInterval()` functions.
 * `'UnsupportedWarning'` - Indicates use of an unsupported option or feature
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
