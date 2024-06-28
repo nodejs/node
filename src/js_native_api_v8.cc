@@ -604,10 +604,6 @@ void Finalizer::ResetFinalizer() {
   finalize_hint_ = nullptr;
 }
 
-void Finalizer::ResetData(void* data) {
-  finalize_data_ = data;
-}
-
 void Finalizer::CallFinalizer() {
   napi_finalize finalize_callback = finalize_callback_;
   void* finalize_data = finalize_data_;

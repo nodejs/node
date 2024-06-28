@@ -8,7 +8,7 @@ inline napi_status napi_clear_last_error(node_api_nogc_env env);
 
 namespace v8impl {
 
-// Base class to track references and finalizers in a double linked list.
+// Base class to track references and finalizers in a doubly linked list.
 class RefTracker {
  public:
   using RefList = RefTracker;
@@ -334,7 +334,6 @@ class Finalizer {
 
   void ResetEnv();
   void ResetFinalizer();
-  void ResetData(void* data);
   void CallFinalizer();
 
  private:
