@@ -853,18 +853,18 @@ prioritize security releases. Security release stewards manage security
 releases on a rotation basis as outlined in the
 [security release process](./doc/contributing/security-release-process.md).
 
-* Datadog
+* [Datadog](https://www.datadoghq.com/)
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
-* NodeSource
+* [NodeSource](https://nodesource.com/)
   * [juanarbol](https://github.com/juanarbol) -
     **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
   * [RafaelGSS](https://github.com/RafaelGSS) -
     **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
-* Platformatic
+* [Platformatic](https://platformatic.dev/)
   * [mcollina](https://github.com/mcollina) -
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
-* Red Hat and IBM
+* [Red Hat](https://redhat.com) / [IBM](https://ibm.com)
   * [joesepi](https://github.com/joesepi) -
     **Joe Sepi** <<joesepi@ibm.com>> (he/him)
   * [mhdawson](https://github.com/mhdawson) -
