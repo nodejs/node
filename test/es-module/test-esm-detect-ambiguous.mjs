@@ -185,7 +185,7 @@ describe('--experimental-detect-module', { concurrency: !process.env.TEST_PARALL
       ]);
 
       strictEqual(stderr, '');
-      strictEqual(stdout, 'null\nexecuted\n');
+      strictEqual(stdout, 'undefined\nexecuted\n');
       strictEqual(code, 0);
       strictEqual(signal, null);
 
