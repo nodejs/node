@@ -327,6 +327,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   console.log(msg);
 });
+port1.unref();
 
 register('./my-hooks.mjs', {
   parentURL: import.meta.url,
@@ -347,6 +348,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   console.log(msg);
 });
+port1.unref();
 
 register('./my-hooks.mjs', {
   parentURL: pathToFileURL(__filename),
@@ -439,6 +441,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
+port1.unref();
 
 register('./path-to-my-hooks.js', {
   parentURL: import.meta.url,
@@ -461,6 +464,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
+port1.unref();
 
 register('./path-to-my-hooks.js', {
   parentURL: pathToFileURL(__filename),
