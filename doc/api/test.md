@@ -3423,9 +3423,9 @@ behaves in the same fashion as the top level [`test()`][] function.
 test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
-    { only: false, skip: false, concurrency: 1, todo: false, plan: 4 },
+    { only: false, skip: false, concurrency: 1, todo: false, plan: 1 },
     (t) => {
-      assert.ok('some relevant assertion here');
+      t.assert.ok('some relevant assertion here');
     },
   );
 });
