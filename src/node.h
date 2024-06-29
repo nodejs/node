@@ -374,10 +374,6 @@ enum OptionEnvvarSettings {
   // Disallow the options to be set via the environment variable, like
   // `NODE_OPTIONS`.
   kDisallowedInEnvvar = 1,
-  // Deprecated, use kAllowedInEnvvar instead.
-  kAllowedInEnvironment = kAllowedInEnvvar,
-  // Deprecated, use kDisallowedInEnvvar instead.
-  kDisallowedInEnvironment = kDisallowedInEnvvar,
 };
 
 // Process the arguments and set up the per-process options.
