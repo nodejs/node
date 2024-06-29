@@ -1596,6 +1596,7 @@ def ArgsToTestPaths(test_root, args, suites):
   subsystem_regex = re.compile(r'^[a-zA-Z-]*$')
   check = lambda arg: subsystem_regex.match(arg) and (arg not in suites)
   mapped_args = ["*/test*-%s-*" % arg if check(arg) else arg for arg in args]
+  mapped_args += ["*/%s/test*" % arg for arg in args]
   paths = [SplitPath(NormalizePath(a)) for a in mapped_args]
   return paths
 
