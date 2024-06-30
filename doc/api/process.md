@@ -3827,6 +3827,29 @@ documentation for the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
+## `process.traceProcessWarnings`
+
+<!-- YAML
+added: v6.x
+-->
+
+* {boolean}
+
+The `process.traceProcessWarnings` property indicates whether the `--trace-warnings` flag is set on the current Node.js process. This property allows programmatic control over the tracing of warnings, enabling or disabling stack traces for warnings at runtime.
+
+Setting this property to `true` enables the tracing of warnings, akin to launching the process with the `--trace-warnings` command-line option. Conversely, setting it to `false` disables the tracing.
+
+```mjs
+// Enable trace warnings
+process.traceProcessWarnings = true;
+
+// Emit a warning with a stack trace
+process.emitWarning('Warning with stack trace');
+
+// Disable trace warnings
+process.traceProcessWarnings = false;
+```
+
 ## `process.umask()`
 
 <!-- YAML
