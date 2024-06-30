@@ -56,6 +56,7 @@
       'deps/acorn/acorn/dist/acorn.js',
       'deps/acorn/acorn-walk/dist/walk.js',
       'deps/minimatch/index.js',
+      'deps/swc/wasm.js',
       '<@(node_builtin_shareable_builtins)',
     ],
     'node_sources': [

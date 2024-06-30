@@ -40,6 +40,7 @@ on:
           - simdjson
           - simdutf
           - sqlite
+          - swc
           - undici
           - uvwasi
           - zlib
@@ -279,6 +280,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-simdutf.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: swc
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-swc.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
