@@ -171,6 +171,7 @@ function processOptions({
     extensions = null, // ← should be null by default because if it's an array then it suppresses RFC20 feature.
     fix = false,
     fixTypes = null, // ← should be null by default because if it's an array then it suppresses rules that don't have the `meta.type` property.
+    flags, /* eslint-disable-line no-unused-vars -- leaving for compatibility with ESLint#hasFlag */
     globInputPaths = true,
     ignore = true,
     ignorePath = null, // ← should be null by default because if it's a string then it may throw ENOENT.
@@ -310,6 +311,7 @@ function processOptions({
         extensions,
         fix,
         fixTypes,
+        flags: [], // LegacyESLint does not support flags, so just ignore them.
         globInputPaths,
         ignore,
         ignorePath,
@@ -557,6 +559,18 @@ class LegacyESLint {
         return createRulesMeta(resultRules);
 
     }
+
+    /* eslint-disable no-unused-vars, class-methods-use-this -- leaving for compatibility with ESLint#hasFlag */
+    /**
+     * Indicates if the given feature flag is enabled for this instance. For this
+     * class, this always returns `false` because it does not support feature flags.
+     * @param {string} flag The feature flag to check.
+     * @returns {boolean} Always false.
+     */
+    hasFlag(flag) {
+        return false;
+    }
+    /* eslint-enable no-unused-vars, class-methods-use-this -- reenable rules for the rest of the file */
 
     /**
      * Executes the current configuration on an array of file and directory names.

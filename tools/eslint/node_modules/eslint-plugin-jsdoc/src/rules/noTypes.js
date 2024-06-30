@@ -31,7 +31,11 @@ export default iterateJsdoc(({
     }
   }
 }, {
-  contextDefaults: true,
+  contextDefaults: [
+    'ArrowFunctionExpression', 'FunctionDeclaration', 'FunctionExpression', 'TSDeclareFunction',
+    // Add this to above defaults
+    'TSMethodSignature'
+  ],
   meta: {
     docs: {
       description: 'This rule reports types being used on `@param` or `@returns`.',

@@ -76,6 +76,7 @@ const { Retrier } = require("@humanwhocodes/retry");
  * @property {boolean} [errorOnUnmatchedPattern] If `false` then `ESLint#lintFiles()` doesn't throw even if no target files found. Defaults to `true`.
  * @property {boolean|Function} [fix] Execute in autofix mode. If a function, should return a boolean.
  * @property {string[]} [fixTypes] Array of rule types to apply fixes for.
+ * @property {string[]} [flags] Array of feature flags to enable.
  * @property {boolean} [globInputPaths] Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
  * @property {boolean} [ignore] False disables all ignore patterns except for the default ones.
  * @property {string[]} [ignorePatterns] Ignore file patterns to use in addition to config ignores. These patterns are relative to `cwd`.
@@ -421,7 +422,8 @@ async function calculateConfigArray(eslint, {
             relativeIgnorePatterns = ignorePatterns;
         } else {
 
-            const relativeIgnorePath = path.relative(basePath, cwd);
+            // In minimatch patterns, only `/` can be used as path separator
+            const relativeIgnorePath = path.relative(basePath, cwd).replaceAll(path.sep, "/");
 
             relativeIgnorePatterns = ignorePatterns.map(pattern => {
                 const negated = pattern.startsWith("!");
@@ -593,7 +595,8 @@ class ESLint {
         const processedOptions = processOptions(options);
         const linter = new Linter({
             cwd: processedOptions.cwd,
-            configType: "flat"
+            configType: "flat",
+            flags: processedOptions.flags
         });
 
         const cacheFilePath = getCacheFile(
@@ -764,6 +767,17 @@ class ESLint {
         }
 
         return createRulesMeta(resultRules);
+    }
+
+    /**
+     * Indicates if the given feature flag is enabled for this instance.
+     * @param {string} flag The feature flag to check.
+     * @returns {boolean} `true` if the feature flag is enabled, `false` if not.
+     */
+    hasFlag(flag) {
+
+        // note: Linter does validation of the flags
+        return privateMembers.get(this).linter.hasFlag(flag);
     }
 
     /**

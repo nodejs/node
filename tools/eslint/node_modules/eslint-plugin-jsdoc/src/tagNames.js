@@ -137,6 +137,7 @@ const typeScriptTags = {
   ...jsdocTags,
 
   // https://github.com/microsoft/TypeScript/issues/22160
+  // https://devblogs.microsoft.com/typescript/announcing-typescript-5-5/#the-jsdoc-import-tag
   import: [],
 
   // https://www.typescriptlang.org/tsconfig/#stripInternal

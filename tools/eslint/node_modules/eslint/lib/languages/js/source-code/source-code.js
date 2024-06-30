@@ -1099,7 +1099,7 @@ class SourceCode extends TokenStore {
     /**
      * Applies configuration found inside of the source code. This method is only
      * called when ESLint is running with inline configuration allowed.
-     * @returns {{problems:Array<Problem>,configs:{config:FlatConfigArray,node:ASTNode}}} Information
+     * @returns {{problems:Array<Problem>,configs:{config:FlatConfigArray,loc:Location}}} Information
      *      that ESLint needs to further process the inline configuration.
      */
     applyInlineConfig() {
@@ -1147,17 +1147,21 @@ class SourceCode extends TokenStore {
                     break;
 
                 case "eslint": {
-                    const parseResult = commentParser.parseJsonConfig(directiveValue, comment.loc);
+                    const parseResult = commentParser.parseJsonConfig(directiveValue);
 
                     if (parseResult.success) {
                         configs.push({
                             config: {
                                 rules: parseResult.config
                             },
-                            node: comment
+                            loc: comment.loc
                         });
                     } else {
-                        problems.push(parseResult.error);
+                        problems.push({
+                            ruleId: null,
+                            loc: comment.loc,
+                            message: parseResult.error.message
+                        });
                     }
 
                     break;
