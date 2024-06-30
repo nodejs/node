@@ -44,7 +44,7 @@
    block can contain. */
 #define NGTCP2_KSL_MAX_NBLK (2 * NGTCP2_KSL_DEGR - 1)
 /* NGTCP2_KSL_MIN_NBLK is the minimum number of nodes which a single
-   block other than root must contains. */
+   block other than root must contain. */
 #define NGTCP2_KSL_MIN_NBLK (NGTCP2_KSL_DEGR - 1)
 
 /*

@@ -367,7 +367,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
 int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
                               size_t left) {
   ngtcp2_stream *fr, *nfr;
-  ngtcp2_frame_chain *frc, *nfrc;
+  ngtcp2_frame_chain *frc, *nfrc, *sfrc;
   int rv;
   size_t nmerged;
   uint64_t datalen;
@@ -491,7 +491,9 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
       break;
     }
 
-    nmerged = ngtcp2_vec_merge(a, &acnt, nfr->data, &nfr->datacnt, left,
+    bcnt = nfr->datacnt;
+
+    nmerged = ngtcp2_vec_merge(a, &acnt, nfr->data, &bcnt, left,
                                NGTCP2_MAX_STREAM_DATACNT);
     if (nmerged == 0) {
       rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
@@ -507,19 +509,46 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     datalen += nmerged;
     left -= nmerged;
 
-    if (nfr->datacnt == 0) {
+    if (bcnt == 0) {
       fr->fin = nfr->fin;
       ngtcp2_frame_chain_objalloc_del(nfrc, strm->frc_objalloc, strm->mem);
       continue;
     }
 
-    nfr->offset += nmerged;
+    if (nfr->datacnt <= NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES ||
+        bcnt > NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES) {
+      nfr->offset += nmerged;
+      nfr->datacnt = bcnt;
 
-    rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
-    if (rv != 0) {
+      rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
+      if (rv != 0) {
+        ngtcp2_frame_chain_objalloc_del(nfrc, strm->frc_objalloc, strm->mem);
+        ngtcp2_frame_chain_objalloc_del(frc, strm->frc_objalloc, strm->mem);
+        return rv;
+      }
+    } else {
+      rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
+          &sfrc, bcnt, strm->frc_objalloc, strm->mem);
+      if (rv != 0) {
+        ngtcp2_frame_chain_objalloc_del(nfrc, strm->frc_objalloc, strm->mem);
+        ngtcp2_frame_chain_objalloc_del(frc, strm->frc_objalloc, strm->mem);
+        return rv;
+      }
+
+      sfrc->fr.stream = nfrc->fr.stream;
+      sfrc->fr.stream.offset += nmerged;
+      sfrc->fr.stream.datacnt = bcnt;
+      ngtcp2_vec_copy(sfrc->fr.stream.data, nfrc->fr.stream.data, bcnt);
+
       ngtcp2_frame_chain_objalloc_del(nfrc, strm->frc_objalloc, strm->mem);
-      ngtcp2_frame_chain_objalloc_del(frc, strm->frc_objalloc, strm->mem);
-      return rv;
+
+      rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &sfrc->fr.stream.offset,
+                             sfrc);
+      if (rv != 0) {
+        ngtcp2_frame_chain_objalloc_del(sfrc, strm->frc_objalloc, strm->mem);
+        ngtcp2_frame_chain_objalloc_del(frc, strm->frc_objalloc, strm->mem);
+        return rv;
+      }
     }
 
     break;
