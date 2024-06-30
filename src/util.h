@@ -56,13 +56,10 @@
 
 namespace node {
 
-// Maybe remove kPathSeparator when cpp17 is ready
 #ifdef _WIN32
-    constexpr char kPathSeparator = '\\';
 /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
 #define PATH_MAX_BYTES (MAX_PATH * 4)
 #else
-    constexpr char kPathSeparator = '/';
 #define PATH_MAX_BYTES (PATH_MAX)
 #endif
 

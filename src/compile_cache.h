@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cinttypes>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -70,7 +71,7 @@ class CompileCacheHandler {
   v8::Isolate* isolate_ = nullptr;
   bool is_debug_ = false;
 
-  std::string compile_cache_dir_;
+  std::filesystem::path compile_cache_dir_;
   // The compile cache is stored in a directory whose name is the hex string of
   // compiler_cache_key_.
   uint32_t compiler_cache_key_ = 0;
