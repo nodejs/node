@@ -60,9 +60,16 @@
 }
 
 /*--------------------- Layout and Typography ----------------------------*/
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 html {
   font-size: 1rem;
   overflow-wrap: break-word;
+  scroll-padding-top: 55px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-variant-ligatures: none;
