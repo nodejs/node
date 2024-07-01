@@ -2,8 +2,8 @@
   'variables': {
     'v8_use_siphash%': 0,
     'v8_trace_maps%': 0,
-    'v8_enable_pointer_compression%': 0,
-    'v8_enable_31bit_smis_on_64bit_arch%': 0,
+    'v8_enable_pointer_compression%': 1,
+    'v8_enable_31bit_smis_on_64bit_arch%': 1,
     'node_no_browser_globals%': 'false',
     'node_snapshot_main%': '',
     'node_use_node_snapshot%': 'false',
