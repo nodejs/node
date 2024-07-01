@@ -1306,8 +1306,8 @@ def host_arch_win():
   return matchup.get(arch, 'x64')
 
 def set_configuration_variable(configs, name, release=None, debug=None):
-  configs['Release'][name]= release
-  configs['Debug'][name]= debug
+  configs['Release'][name] = release
+  configs['Debug'][name] = debug
 
 def configure_arm(o):
   if options.arm_float_abi:
