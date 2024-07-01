@@ -1453,8 +1453,9 @@ static std::vector<std::string_view> throws_only_in_cjs_error_messages = {
     "await is only valid in async functions and "
     "the top level bodies of modules"};
 
-// If cached_data is provided, this instead of the on-disk compilation cache
-// from NODE_COMPILE_CACHE would be used.
+// If cached_data is provided, it would be used for the compilation and
+// the on-disk compilation cache from NODE_COMPILE_CACHE (if configured)
+// would be ignored.
 static MaybeLocal<Function> CompileFunctionForCJSLoader(
     Environment* env,
     Local<Context> context,
