@@ -776,6 +776,8 @@ void ContextifyContext::IndexedPropertyEnumeratorCallback(
 
   Local<Array> properties;
 
+  // By default, GetPropertyNames returns string and number property names, and
+  // doesn't convert the numbers to strings.
   if (!ctx->sandbox()->GetPropertyNames(context).ToLocal(&properties)) return;
 
   std::vector<v8::Global<Value>> properties_vec;
@@ -783,15 +785,14 @@ void ContextifyContext::IndexedPropertyEnumeratorCallback(
     return;
   }
 
-  // Filter out non-array-index property names.
+  // Filter out non-number property names.
   std::vector<Local<Value>> indices;
   for (uint32_t i = 0; i < properties->Length(); i++) {
     Local<Value> prop = properties_vec[i].Get(isolate);
-    Local<Value> index;
-    if (!prop->ToArrayIndex(context).ToLocal(&index)) {
+    if (!prop->IsNumber()) {
       continue;
     }
-    indices.push_back(index);
+    indices.push_back(prop);
   }
 
   args.GetReturnValue().Set(
