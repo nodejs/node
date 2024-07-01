@@ -32,6 +32,7 @@ const tests = {
   'resolveCname': 'dns.resolveCname("example.com", (err, res) => {});',
   'resolveMx': 'dns.resolveMx("example.com", (err, res) => {});',
   'resolveNs': 'dns.resolveNs("example.com", (err, res) => {});',
+  'resolveTlsa': 'dns.resolveTlsa("example.com", (err, res) => {});',
   'resolveTxt': 'dns.resolveTxt("example.com", (err, res) => {});',
   'resolveSrv': 'dns.resolveSrv("example.com", (err, res) => {});',
   'resolvePtr': 'dns.resolvePtr("example.com", (err, res) => {});',

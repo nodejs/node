@@ -457,6 +457,13 @@ struct NsTraits final {
       const std::unique_ptr<ResponseData>& response);
 };
 
+struct TlsaTraits final {
+  static constexpr const char* name = "resolveTlsa";
+  static int Send(QueryWrap<TlsaTraits>* wrap, const char* name);
+  static int Parse(QueryWrap<TlsaTraits>* wrap,
+                   const std::unique_ptr<ResponseData>& response);
+};
+
 struct TxtTraits final {
   static constexpr const char* name = "resolveTxt";
   static int Send(QueryWrap<TxtTraits>* wrap, const char* name);
@@ -512,6 +519,7 @@ using QueryCaaWrap = QueryWrap<CaaTraits>;
 using QueryCnameWrap = QueryWrap<CnameTraits>;
 using QueryMxWrap = QueryWrap<MxTraits>;
 using QueryNsWrap = QueryWrap<NsTraits>;
+using QueryTlsaWrap = QueryWrap<TlsaTraits>;
 using QueryTxtWrap = QueryWrap<TxtTraits>;
 using QuerySrvWrap = QueryWrap<SrvTraits>;
 using QueryPtrWrap = QueryWrap<PtrTraits>;
