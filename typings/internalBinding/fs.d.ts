@@ -57,7 +57,7 @@ declare namespace InternalFSBinding {
   }
 
   function access(path: StringOrBuffer, mode: number, req: FSReqCallback): void;
-  function access(path: StringOrBuffer, mode: number, req: undefined, ctx: FSSyncContext): void;
+  function access(path: StringOrBuffer, mode: number): void;
   function access(path: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
 
   function chmod(path: string, mode: number, req: FSReqCallback): void;
@@ -70,7 +70,7 @@ declare namespace InternalFSBinding {
   function chown(path: string, uid: number, gid: number): void;
 
   function close(fd: number, req: FSReqCallback): void;
-  function close(fd: number, req: undefined, ctx: FSSyncContext): void;
+  function close(fd: number): void;
 
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: FSReqCallback): void;
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: undefined, ctx: FSSyncContext): void;
@@ -153,7 +153,7 @@ declare namespace InternalFSBinding {
   function mkdir(path: string, mode: number, recursive: false, usePromises: typeof kUsePromises): Promise<void>;
 
   function open(path: StringOrBuffer, flags: number, mode: number, req: FSReqCallback<number>): void;
-  function open(path: StringOrBuffer, flags: number, mode: number, req: undefined, ctx: FSSyncContext): number;
+  function open(path: StringOrBuffer, flags: number, mode: number): number;
 
   function openFileHandle(path: StringOrBuffer, flags: number, mode: number, usePromises: typeof kUsePromises): Promise<FileHandle>;
 
@@ -174,6 +174,8 @@ declare namespace InternalFSBinding {
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: boolean, usePromises: typeof kUsePromises): Promise<string[] | [string[], number[]]>;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: true, usePromises: typeof kUsePromises): Promise<[string[], number[]]>;
   function readdir(path: StringOrBuffer, encoding: unknown, withFileTypes: false, usePromises: typeof kUsePromises): Promise<string[]>;
+
+  function readFileUtf8(path: StringOrBuffer, flags: number): string;
 
   function readlink(path: StringOrBuffer, encoding: unknown, req: FSReqCallback<string | Buffer>): void;
   function readlink(path: StringOrBuffer, encoding: unknown, req: undefined, ctx: FSSyncContext): string | Buffer;
@@ -272,6 +274,7 @@ export interface FsBinding {
   read: typeof InternalFSBinding.read;
   readBuffers: typeof InternalFSBinding.readBuffers;
   readdir: typeof InternalFSBinding.readdir;
+  readFileUtf8: typeof InternalFSBinding.readFileUtf8;
   readlink: typeof InternalFSBinding.readlink;
   realpath: typeof InternalFSBinding.realpath;
   rename: typeof InternalFSBinding.rename;
