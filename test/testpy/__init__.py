@@ -94,18 +94,24 @@ class SimpleTestCase(test.TestCase):
 
 
 class SimpleTestConfiguration(test.TestConfiguration):
-  def __init__(self, context, root, section, additional=None):
+  def __init__(self, context, root, section, additional=None, allow_recursion=False):
     super(SimpleTestConfiguration, self).__init__(context, root, section)
+    self.allow_recursion = allow_recursion
     if additional is not None:
       self.additional_flags = additional
     else:
       self.additional_flags = []
 
   def Ls(self, path):
-    return [f for f in os.listdir(path) if LS_RE.match(f)]
+    if self.allow_recursion:
+      return [os.path.relpath(os.path.join(dp, f), path)
+              for dp, dn, filenames in os.walk(path)
+              for f in filenames if LS_RE.match(f)]
+    else:
+      return [f for f in os.listdir(path) if LS_RE.match(f)]
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root))]
+    all_tests = [current_path + t.split(os.path.sep) for t in self.Ls(os.path.join(self.root))]
     result = []
     for tst in all_tests:
       if self.Contains(path, tst):
@@ -121,7 +127,7 @@ class SimpleTestConfiguration(test.TestConfiguration):
 class ParallelTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
     super(ParallelTestConfiguration, self).__init__(context, root, section,
-                                                    additional)
+                                                    additional, allow_recursion=True)
 
   def ListTests(self, current_path, path, arch, mode):
     result = super(ParallelTestConfiguration, self).ListTests(
