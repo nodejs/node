@@ -3085,6 +3085,16 @@ The `Worker` initialization failed.
 The `execArgv` option passed to the `Worker` constructor contains
 invalid flags.
 
+<a id="ERR_WORKER_INVALID_ID"></a>
+
+### `ERR_WORKER_INVALID_ID`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The thread ID requested in [`postMessageToWorker()`][] is invalid or has no `workerMessage` listener.
+
 <a id="ERR_WORKER_NOT_RUNNING"></a>
 
 ### `ERR_WORKER_NOT_RUNNING`
@@ -3103,6 +3113,16 @@ The `Worker` instance terminated because it reached its memory limit.
 
 The path for the main script of a worker is neither an absolute path
 nor a relative path starting with `./` or `../`.
+
+<a id="ERR_WORKER_SAME_THREAD"></a>
+
+### `ERR_WORKER_SAME_THREAD`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The thread id requested in [`postMessageToWorker()`][] is the current thread id.
 
 <a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
 
@@ -4027,6 +4047,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
+[`postMessageToWorker()`]: worker_threads.md#workerpostmessagetoworkerdestination-value-transferlist-timeout
 [`process.on('exit')`]: process.md#event-exit
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn

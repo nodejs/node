@@ -252,6 +252,111 @@ if (isMainThread) {
 }
 ```
 
+## `worker.postMessageToWorker(destination, value[, transferList][, timeout])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `destination` {number} The target thread ID.
+* `value` {any} The value to send.
+* `transferList` {Object\[]} If one or more `MessagePort`-like objects are passed in `value`,
+  a `transferList` is required for those items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
+  See [`port.postMessage()`][] for more information.
+* `timeout` {number} Time to wait for the message to be delivered in milliseconds.
+  By default it's `undefined`, which means wait forever.
+* Returns: {Promise} A promise which is fulfilled if the message was successfully sent.
+
+Sends a value to another worker, identified by its thread ID.
+
+If the target thread has no listener for the `workerMessage` event, then the operation will throw an error.
+
+This method should be used when the target thread is not the direct
+parent or child of the current thread.
+If the two threads are parent-children, use the [`require('node:worker_threads').parentPort.postMessage()`][]
+and the [`worker.postMessage()`][] to let the threads communicate.
+
+The example below shows the use of of `postMessageToWorker`: it creates 10 nested threads,
+the last one will try to communicate with the main thread.
+
+```mjs
+import { fileURLToPath } from 'node:url';
+import { once } from 'node:events';
+import process from 'node:process';
+import {
+  isMainThread,
+  postMessageToWorker,
+  threadId,
+  workerData,
+  Worker,
+} from 'node:worker_threads';
+
+const channel = new BroadcastChannel('sync');
+const level = workerData?.level ?? 0;
+
+if (level < 10) {
+  const worker = new Worker(fileURLToPath(import.meta.url), {
+    workerData: { level: level + 1 },
+  });
+}
+
+if (level === 0) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    postMessageToWorker(source, { message: 'pong' });
+  });
+} else if (level === 10) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    channel.postMessage('done');
+    channel.close();
+  });
+
+  await postMessageToWorker(0, { message: 'ping' });
+}
+
+channel.onmessage = channel.close;
+```
+
+```cjs
+const { once } = require('node:events');
+const {
+  isMainThread,
+  postMessageToWorker,
+  threadId,
+  workerData,
+  Worker,
+} = require('node:worker_threads');
+
+const channel = new BroadcastChannel('sync');
+const level = workerData?.level ?? 0;
+
+if (level < 10) {
+  const worker = new Worker(__filename, {
+    workerData: { level: level + 1 },
+  });
+}
+
+if (level === 0) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    postMessageToWorker(source, { message: 'pong' });
+  });
+} else if (level === 10) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    channel.postMessage('done');
+    channel.close();
+  });
+
+  postMessageToWorker(0, { message: 'ping' });
+}
+
+channel.onmessage = channel.close;
+```
+
 ## `worker.receiveMessageOnPort(port)`
 
 <!-- YAML
