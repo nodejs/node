@@ -8,50 +8,19 @@ const {
   throws,
 } = require('node:assert');
 
-const { internalBinding } = require('internal/test/binding');
-const quic = internalBinding('quic');
+const { Endpoint } = require('internal/quic/quic');
 
-quic.setCallbacks({
-  onEndpointClose() {},
-  onSessionNew() {},
-  onSessionClose() {},
-  onSessionDatagram() {},
-  onSessionDatagramStatus() {},
-  onSessionHandshake() {},
-  onSessionPathValidation() {},
-  onSessionTicket() {},
-  onSessionVersionNegotiation() {},
-  onStreamCreated() {},
-  onStreamBlocked() {},
-  onStreamClose() {},
-  onStreamReset() {},
-  onStreamHeaders() {},
-  onStreamTrailers() {},
-});
-
-throws(() => new quic.Endpoint(), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'options must be an object'
-});
-
-throws(() => new quic.Endpoint('a'), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'options must be an object'
-});
-
-throws(() => new quic.Endpoint(null), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'options must be an object'
-});
-
-throws(() => new quic.Endpoint(false), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'options must be an object'
+['a', null, false, NaN].forEach((i) => {
+  throws(() => new Endpoint(i), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
 });
 
 {
   // Just Works... using all defaults
-  new quic.Endpoint({});
+  new Endpoint({});
+  new Endpoint();
+  new Endpoint(undefined);
 }
 
 const cases = [
@@ -136,14 +105,12 @@ const cases = [
   {
     key: 'cc',
     valid: [
-      quic.CC_ALGO_RENO,
-      quic.CC_ALGO_CUBIC,
-      quic.CC_ALGO_BBR,
-      quic.CC_ALGO_BBR2,
-      quic.CC_ALGO_RENO_STR,
-      quic.CC_ALGO_CUBIC_STR,
-      quic.CC_ALGO_BBR_STR,
-      quic.CC_ALGO_BBR2_STR,
+      Endpoint.CC_ALGO_RENO,
+      Endpoint.CC_ALGO_CUBIC,
+      Endpoint.CC_ALGO_BBR,
+      Endpoint.CC_ALGO_RENO_STR,
+      Endpoint.CC_ALGO_CUBIC_STR,
+      Endpoint.CC_ALGO_BBR_STR,
     ],
     invalid: [-1, 4, 1n, 'a', null, false, true, {}, [], () => {}],
   },
@@ -202,13 +169,13 @@ for (const { key, valid, invalid } of cases) {
   for (const value of valid) {
     const options = {};
     options[key] = value;
-    new quic.Endpoint(options);
+    new Endpoint(options);
   }
 
   for (const value of invalid) {
     const options = {};
     options[key] = value;
-    throws(() => new quic.Endpoint(options), {
+    throws(() => new Endpoint(options), {
       code: 'ERR_INVALID_ARG_VALUE',
     });
   }
