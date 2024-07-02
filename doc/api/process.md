@@ -676,6 +676,10 @@ A few of the warning types that are most common include:
 * `'TimeoutOverflowWarning'` - Indicates that a numeric value that cannot fit
   within a 32-bit signed integer has been provided to either the `setTimeout()`
   or `setInterval()` functions.
+* `'TimeoutNegativeWarning'` - Indicates that a negative number has provided to
+  either the `setTimeout()` or `setInterval()` functions.
+* `'TimeoutNaNWarning'` - Indicates that a value which is not a number has
+  provided to either the `setTimeout()` or `setInterval()` functions.
 * `'UnsupportedWarning'` - Indicates use of an unsupported option or feature
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
@@ -1924,7 +1928,7 @@ console.log('After:', getActiveResourcesInfo());
 ## `process.getBuiltinModule(id)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 * `id` {string} ID of the built-in module being requested.
@@ -3970,6 +3974,7 @@ Will generate an object similar to:
   openssl: '3.0.13+quic',
   simdjson: '3.8.0',
   simdutf: '5.2.4',
+  sqlite: '3.46.0',
   tz: '2024a',
   undici: '6.13.0',
   unicode: '15.1',

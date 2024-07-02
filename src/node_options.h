@@ -118,6 +118,8 @@ class EnvironmentOptions : public Options {
   bool experimental_eventsource = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
+  bool experimental_webstorage = false;
+  std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;

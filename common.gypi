@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.13',
+    'v8_embedder_string': '-node.15',
 
     ##### V8 defaults for Node.js #####
 
@@ -579,6 +579,9 @@
               '-Wl,-brtl',
             ],
           }, {                                             # else it's `AIX`
+            'variables': {
+              'gcc_major': '<!(<(python) -c "import os; import subprocess; CXX=os.environ.get(\'CXX\', \'g++\'); subprocess.run([CXX, \'-dumpversion\'])")'
+            },
             # Disable the following compiler warning:
             #
             #   warning: visibility attribute not supported in this
@@ -589,7 +592,7 @@
             # out more relevant warnings.
             'cflags': [ '-Wno-attributes' ],
             'ldflags': [
-              '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread/ppc64',
+              '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/gcc/powerpc-ibm-aix7.3.0.0/>(gcc_major)/pthread/ppc64:/opt/freeware/lib/gcc/powerpc-ibm-aix7.2.0.0/>(gcc_major)/pthread/ppc64:/opt/freeware/lib/pthread/ppc64',
             ],
           }],
         ],

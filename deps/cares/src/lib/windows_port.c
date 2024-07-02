@@ -11,7 +11,7 @@
 
 /* only do the following on windows
  */
-#if (defined(WIN32) || defined(WATT32)) && !defined(MSDOS)
+#if defined(_WIN32) && !defined(MSDOS)
 
 #  ifdef __WATCOMC__
 /*

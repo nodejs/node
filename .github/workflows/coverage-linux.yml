@@ -32,6 +32,9 @@ concurrency:
 env:
   PYTHON_VERSION: '3.12'
   FLAKY_TESTS: keep_retrying
+  CC: sccache clang
+  CXX: sccache clang++
+  SCCACHE_GHA_ENABLED: 'true'
 
 permissions:
   contents: read
@@ -39,11 +42,7 @@ permissions:
 jobs:
   coverage-linux:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    env:
-      CC: sccache gcc
-      CXX: sccache g++
-      SCCACHE_GHA_ENABLED: 'true'
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
         with:

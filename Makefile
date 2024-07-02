@@ -174,7 +174,7 @@ with-code-cache test-code-cache:
 
 out/Makefile: config.gypi common.gypi node.gyp \
 	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
-	deps/simdutf/simdutf.gyp deps/ada/ada.gyp \
+	deps/simdutf/simdutf.gyp deps/ada/ada.gyp deps/nbytes/nbytes.gyp \
 	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
@@ -1151,13 +1151,14 @@ pkg: $(PKG)
 .PHONY: corepack-update
 corepack-update:
 	mkdir -p /tmp/node-corepack
-	curl -qLo /tmp/node-corepack/package.tgz "$$(npm view corepack dist.tarball)"
+	curl -qLo /tmp/node-corepack/package.tgz "$$($(call available-node,$(NPM) view corepack dist.tarball))"
 
 	rm -rf deps/corepack && mkdir deps/corepack
 	cd deps/corepack && tar xf /tmp/node-corepack/package.tgz --strip-components=1
 	chmod +x deps/corepack/shims/*
 
-	node deps/corepack/dist/corepack.js --version
+	$(call available-node,'-p' \
+			 'require(`./deps/corepack/package.json`).version')
 
 .PHONY: pkg-upload
 # Note: this is strictly for release builds on release machines only.
@@ -1188,9 +1189,10 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
 	$(RM) -r $(TARNAME)/tools/cpplint.py
+	$(RM) -r $(TARNAME)/tools/eslint
 	$(RM) -r $(TARNAME)/tools/eslint-rules
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
-	$(RM) -r $(TARNAME)/tools/node_modules
+	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
 	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
@@ -1376,7 +1378,7 @@ format-md:
 
 LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
-run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
+run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
 	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
@@ -1400,7 +1402,7 @@ lint-js lint-js-doc:
 jslint: lint-js
 	$(warning Please use lint-js instead of jslint)
 
-run-lint-js-ci = tools/node_modules/eslint/bin/eslint.js \
+run-lint-js-ci = tools/eslint/node_modules/eslint/bin/eslint.js \
   --max-warnings=0 --report-unused-disable-directives -f tap \
 	-o test-eslint.tap $(LINT_JS_TARGETS)
 
@@ -1560,7 +1562,7 @@ lint-yaml:
 
 .PHONY: lint
 .PHONY: lint-ci
-ifneq ("","$(wildcard tools/node_modules/eslint/)")
+ifneq ("","$(wildcard tools/eslint/node_modules/eslint/)")
 lint: ## Run JS, C++, MD and doc linters.
 	@EXIT_STATUS=0 ; \
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \

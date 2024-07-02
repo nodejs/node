@@ -48,7 +48,7 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
   ares_dns_flags_t flags;
 
   if (dnsrec == NULL || buf == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   /* Format is OPCODE|FLAGS[|QTYPE1|QCLASS1|QNAME1]... */
@@ -56,12 +56,12 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
   status = ares__buf_append_str(
     buf, ares_dns_opcode_tostr(ares_dns_record_get_opcode(dnsrec)));
   if (status != ARES_SUCCESS) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__buf_append_byte(buf, '|');
   if (status != ARES_SUCCESS) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   flags = ares_dns_record_get_flags(dnsrec);
@@ -69,13 +69,13 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
   if (flags & ARES_FLAG_RD) {
     status = ares__buf_append_str(buf, "rd");
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
   if (flags & ARES_FLAG_CD) {
     status = ares__buf_append_str(buf, "cd");
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -87,32 +87,32 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
 
     status = ares_dns_record_query_get(dnsrec, i, &name, &qtype, &qclass);
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     status = ares__buf_append_byte(buf, '|');
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     status = ares__buf_append_str(buf, ares_dns_rec_type_tostr(qtype));
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     status = ares__buf_append_byte(buf, '|');
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     status = ares__buf_append_str(buf, ares_dns_class_tostr(qclass));
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     status = ares__buf_append_byte(buf, '|');
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     /* On queries, a '.' may be appended to the name to indicate an explicit
@@ -125,19 +125,21 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
 
     status = ares__buf_append(buf, (const unsigned char *)name, name_len);
     if (status != ARES_SUCCESS) {
-      goto fail;
+      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
   return ares__buf_finish_str(buf, NULL);
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   ares__buf_destroy(buf);
   return NULL;
+/* LCOV_EXCL_STOP */
 }
 
 static void ares__qcache_expire(ares__qcache_t       *cache,
-                                const struct timeval *now)
+                                const ares_timeval_t *now)
 {
   ares__slist_node_t *node;
 
@@ -147,7 +149,9 @@ static void ares__qcache_expire(ares__qcache_t       *cache,
 
   while ((node = ares__slist_node_first(cache->expire)) != NULL) {
     const ares__qcache_entry_t *entry = ares__slist_node_val(node);
-    if (entry->expire_ts > now->tv_sec) {
+
+    /* If now is NULL, we're flushing everything, so don't break */
+    if (now != NULL && entry->expire_ts > now->sec) {
       break;
     }
 
@@ -158,9 +162,7 @@ static void ares__qcache_expire(ares__qcache_t       *cache,
 
 void ares__qcache_flush(ares__qcache_t *cache)
 {
-  struct timeval now;
-  memset(&now, 0, sizeof(now));
-  ares__qcache_expire(cache, &now);
+  ares__qcache_expire(cache, NULL /* flush all */);
 }
 
 void ares__qcache_destroy(ares__qcache_t *cache)
@@ -194,7 +196,7 @@ static void ares__qcache_entry_destroy_cb(void *arg)
 {
   ares__qcache_entry_t *entry = arg;
   if (entry == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares_free(entry->key);
@@ -211,21 +213,21 @@ ares_status_t ares__qcache_create(ares_rand_state *rand_state,
 
   cache = ares_malloc_zero(sizeof(*cache));
   if (cache == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   cache->cache = ares__htable_strvp_create(NULL);
   if (cache->cache == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   cache->expire = ares__slist_create(rand_state, ares__qcache_entry_sort_cb,
                                      ares__qcache_entry_destroy_cb);
   if (cache->expire == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   cache->max_ttl = max_ttl;
@@ -254,7 +256,10 @@ static unsigned int ares__qcache_calc_minttl(ares_dns_record_t *dnsrec)
         ares_dns_record_rr_get(dnsrec, (ares_dns_section_t)sect, i);
       ares_dns_rec_type_t type = ares_dns_rr_get_type(rr);
       unsigned int        ttl  = ares_dns_rr_get_ttl(rr);
-      if (type == ARES_REC_TYPE_OPT || type == ARES_REC_TYPE_SOA) {
+
+      /* TTL is meaningless on these record types */
+      if (type == ARES_REC_TYPE_OPT || type == ARES_REC_TYPE_SOA ||
+          type == ARES_REC_TYPE_SIG) {
         continue;
       }
 
@@ -319,7 +324,7 @@ done:
 static ares_status_t ares__qcache_insert(ares__qcache_t      *qcache,
                                          ares_dns_record_t   *dnsrec,
                                          const unsigned char *qbuf, size_t qlen,
-                                         const struct timeval *now)
+                                         const ares_timeval_t *now)
 {
   ares__qcache_entry_t *entry;
   unsigned int          ttl;
@@ -347,23 +352,23 @@ static ares_status_t ares__qcache_insert(ares__qcache_t      *qcache,
     ttl = ares__qcache_calc_minttl(dnsrec);
   }
 
+  if (ttl > qcache->max_ttl) {
+    ttl = qcache->max_ttl;
+  }
+
   /* Don't cache something that is already expired */
   if (ttl == 0) {
     return ARES_EREFUSED;
   }
 
-  if (ttl > qcache->max_ttl) {
-    ttl = qcache->max_ttl;
-  }
-
   entry = ares_malloc_zero(sizeof(*entry));
   if (entry == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   entry->dnsrec    = dnsrec;
-  entry->expire_ts = now->tv_sec + (time_t)ttl;
-  entry->insert_ts = now->tv_sec;
+  entry->expire_ts = now->sec + (time_t)ttl;
+  entry->insert_ts = now->sec;
 
   /* We can't guarantee the server responded with the same flags as the
    * request had, so we have to re-parse the request in order to generate the
@@ -371,19 +376,20 @@ static ares_status_t ares__qcache_insert(ares__qcache_t      *qcache,
    * want to cache it */
   entry->key = ares__qcache_calc_key_frombuf(qbuf, qlen);
   if (entry->key == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (!ares__htable_strvp_insert(qcache->cache, entry->key, entry)) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (ares__slist_insert(qcache->expire, entry) == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_SUCCESS;
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   if (entry != NULL && entry->key != NULL) {
     ares__htable_strvp_remove(qcache->cache, entry->key);
@@ -391,10 +397,11 @@ fail:
     ares_free(entry);
   }
   return ARES_ENOMEM;
+/* LCOV_EXCL_STOP */
 }
 
 ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
-                                const struct timeval     *now,
+                                const ares_timeval_t     *now,
                                 const ares_dns_record_t  *dnsrec,
                                 const ares_dns_record_t **dnsrec_resp)
 {
@@ -414,8 +421,8 @@ ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
 
   key = ares__qcache_calc_key(dnsrec);
   if (key == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   entry = ares__htable_strvp_get_direct(channel->qcache->cache, key);
@@ -425,7 +432,7 @@ ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
   }
 
   ares_dns_record_write_ttl_decrement(
-    entry->dnsrec, (unsigned int)(now->tv_sec - entry->insert_ts));
+    entry->dnsrec, (unsigned int)(now->sec - entry->insert_ts));
 
   *dnsrec_resp = entry->dnsrec;
 
@@ -435,7 +442,7 @@ done:
 }
 
 ares_status_t ares_qcache_insert(ares_channel_t       *channel,
-                                 const struct timeval *now,
+                                 const ares_timeval_t *now,
                                  const struct query   *query,
                                  ares_dns_record_t    *dnsrec)
 {

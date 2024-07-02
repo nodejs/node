@@ -9,7 +9,7 @@
 
 namespace node {
 
-typedef size_t AliasedBufferIndex;
+typedef uint64_t AliasedBufferIndex;
 
 /**
  * Do not use this class directly when creating instances of it - use the

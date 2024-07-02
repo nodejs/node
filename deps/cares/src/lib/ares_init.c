@@ -67,11 +67,6 @@
 #include "ares_private.h"
 #include "ares_event.h"
 
-#ifdef WATT32
-#  undef WIN32 /* Redefined in MingW/MSVC headers */
-#endif
-
-
 int ares_init(ares_channel_t **channelptr)
 {
   return ares_init_options(channelptr, NULL, 0);
@@ -82,17 +77,17 @@ static int ares_query_timeout_cmp_cb(const void *arg1, const void *arg2)
   const struct query *q1 = arg1;
   const struct query *q2 = arg2;
 
-  if (q1->timeout.tv_sec > q2->timeout.tv_sec) {
+  if (q1->timeout.sec > q2->timeout.sec) {
     return 1;
   }
-  if (q1->timeout.tv_sec < q2->timeout.tv_sec) {
+  if (q1->timeout.sec < q2->timeout.sec) {
     return -1;
   }
 
-  if (q1->timeout.tv_usec > q2->timeout.tv_usec) {
+  if (q1->timeout.usec > q2->timeout.usec) {
     return 1;
   }
-  if (q1->timeout.tv_usec < q2->timeout.tv_usec) {
+  if (q1->timeout.usec < q2->timeout.usec) {
     return -1;
   }
 
@@ -122,7 +117,7 @@ static int server_sort_cb(const void *data1, const void *data2)
 static void server_destroy_cb(void *data)
 {
   if (data == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
   ares__destroy_server(data);
 }
@@ -167,7 +162,7 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
 
     rc = ares__sconfig_append(&sconfig, &addr, 0, 0, NULL);
     if (rc != ARES_SUCCESS) {
-      goto error;
+      goto error; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     rc = ares__servers_update(channel, sconfig, ARES_FALSE);
@@ -201,8 +196,8 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
 
     hostname = ares_malloc(len);
     if (!hostname) {
-      rc = ARES_ENOMEM;
-      goto error;
+      rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto error; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     do {
@@ -214,8 +209,8 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
         lenv *= 2;
         p     = ares_realloc(hostname, len);
         if (!p) {
-          rc = ARES_ENOMEM;
-          goto error;
+          rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+          goto error; /* LCOV_EXCL_LINE: OutOfMemory */
         }
         hostname = p;
         continue;
@@ -233,13 +228,13 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
       /* a dot was found */
       channel->domains = ares_malloc(sizeof(char *));
       if (!channel->domains) {
-        rc = ARES_ENOMEM;
-        goto error;
+        rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error; /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->domains[0] = ares_strdup(dot + 1);
       if (!channel->domains[0]) {
-        rc = ARES_ENOMEM;
-        goto error;
+        rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error; /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->ndomains = 1;
     }
@@ -253,7 +248,7 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
   if (!channel->lookups) {
     channel->lookups = ares_strdup("fb");
     if (!channel->lookups) {
-      rc = ARES_ENOMEM;
+      rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -351,12 +346,13 @@ int ares_init_options(ares_channel_t           **channelptr,
     goto done;
   }
 
-  if (channel->qcache_max_ttl > 0) {
-    status = ares__qcache_create(channel->rand_state, channel->qcache_max_ttl,
-                                 &channel->qcache);
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
+  /* Go ahead and let it initialize the query cache even if the ttl is 0 and
+   * completely unused.  This reduces the number of different code paths that
+   * might be followed even if there is a minor performance hit. */
+  status = ares__qcache_create(channel->rand_state, channel->qcache_max_ttl,
+                               &channel->qcache);
+  if (status != ARES_SUCCESS) {
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (status == ARES_SUCCESS) {
@@ -384,7 +380,7 @@ int ares_init_options(ares_channel_t           **channelptr,
 
     status = ares_event_thread_init(channel);
     if (status != ARES_SUCCESS) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: UntestablePath */
     }
 
     /* Initialize monitor for configuration changes.  In some rare cases,
@@ -392,7 +388,7 @@ int ares_init_options(ares_channel_t           **channelptr,
     e      = channel->sock_state_cb_data;
     status = ares_event_configchg_init(&e->configchg, e);
     if (status != ARES_SUCCESS && status != ARES_ENOTIMP) {
-      goto done;
+      goto done; /* LCOV_EXCL_LINE: UntestablePath */
     }
     status = ARES_SUCCESS;
   }
@@ -464,9 +460,11 @@ ares_status_t ares_reinit(ares_channel_t *channel)
     status =
       ares__thread_create(&channel->reinit_thread, ares_reinit_thread, channel);
     if (status != ARES_SUCCESS) {
+      /* LCOV_EXCL_START: UntestablePath */
       ares__channel_lock(channel);
       channel->reinit_pending = ARES_FALSE;
       ares__channel_unlock(channel);
+      /* LCOV_EXCL_STOP */
     }
   } else {
     /* Threading support not available, call directly */
@@ -539,18 +537,22 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
   if (optmask & ARES_OPT_SERVERS) {
     char *csv = ares_get_servers_csv(src);
     if (csv == NULL) {
+      /* LCOV_EXCL_START: OutOfMemory */
       ares_destroy(*dest);
       *dest = NULL;
       rc    = ARES_ENOMEM;
       goto done;
+      /* LCOV_EXCL_STOP */
     }
 
     rc = (ares_status_t)ares_set_servers_ports_csv(*dest, csv);
     ares_free_string(csv);
     if (rc != ARES_SUCCESS) {
+      /* LCOV_EXCL_START: OutOfMemory */
       ares_destroy(*dest);
       *dest = NULL;
       goto done;
+      /* LCOV_EXCL_STOP */
     }
   }
 

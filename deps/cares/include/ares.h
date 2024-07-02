@@ -32,15 +32,6 @@
 #include "ares_build.h"   /* c-ares build definitions */
 #include "ares_rules.h"   /* c-ares rules enforcement */
 
-/*
- * Define WIN32 when build target is Win32 API
- */
-
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32) && \
-  !defined(__SYMBIAN32__)
-#  define WIN32
-#endif
-
 #include <sys/types.h>
 
 /* HP-UX systems version 9, 10 and 11 lack sys/select.h and so does oldish
@@ -56,20 +47,20 @@
 #  include <sys/bsdskt.h>
 #endif
 
+#if defined(_WIN32)
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#endif
+
 #if defined(WATT32)
 #  include <netinet/in.h>
 #  include <sys/socket.h>
 #  include <tcp.h>
 #elif defined(_WIN32_WCE)
-#  ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
-#  endif
 #  include <windows.h>
 #  include <winsock.h>
-#elif defined(WIN32)
-#  ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
-#  endif
+#elif defined(_WIN32)
 #  include <windows.h>
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
@@ -315,7 +306,7 @@ typedef enum {
  */
 
 #ifndef ares_socket_typedef
-#  ifdef WIN32
+#  if defined(_WIN32) && !defined(WATT32)
 typedef SOCKET ares_socket_t;
 #    define ARES_SOCKET_BAD INVALID_SOCKET
 #  else
@@ -883,7 +874,7 @@ CARES_EXTERN CARES_DEPRECATED_FOR(ares_get_servers_csv) int ares_get_servers(
   const ares_channel_t *channel, struct ares_addr_node **servers);
 
 CARES_EXTERN
-CARES_DEPRECATED_FOR(ares_get_servers_ports_csv)
+CARES_DEPRECATED_FOR(ares_get_servers_csv)
 int                        ares_get_servers_ports(const ares_channel_t        *channel,
                                                   struct ares_addr_port_node **servers);
 

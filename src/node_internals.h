@@ -66,9 +66,8 @@ v8::MaybeLocal<v8::Object> AddressToJS(
 template <typename T, int (*F)(const typename T::HandleType*, sockaddr*, int*)>
 void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   T* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsObject());
   sockaddr_storage storage;
   int addrlen = sizeof(storage);
@@ -123,7 +122,6 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   void* Allocate(size_t size) override;  // Defined in src/node.cc
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
-  void* Reallocate(void* data, size_t old_size, size_t size) override;
   virtual void RegisterPointer(void* data, size_t size) {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
@@ -151,7 +149,6 @@ class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
   void* Allocate(size_t size) override;
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
-  void* Reallocate(void* data, size_t old_size, size_t size) override;
   void RegisterPointer(void* data, size_t size) override;
   void UnregisterPointer(void* data, size_t size) override;
 

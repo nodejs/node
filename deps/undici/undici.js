@@ -1582,6 +1582,27 @@ var require_util = __commonJS({
     __name(errorRequest, "errorRequest");
     var kEnumerableProperty = /* @__PURE__ */ Object.create(null);
     kEnumerableProperty.enumerable = true;
+    var normalizedMethodRecordsBase = {
+      delete: "DELETE",
+      DELETE: "DELETE",
+      get: "GET",
+      GET: "GET",
+      head: "HEAD",
+      HEAD: "HEAD",
+      options: "OPTIONS",
+      OPTIONS: "OPTIONS",
+      post: "POST",
+      POST: "POST",
+      put: "PUT",
+      PUT: "PUT"
+    };
+    var normalizedMethodRecords = {
+      ...normalizedMethodRecordsBase,
+      patch: "patch",
+      PATCH: "PATCH"
+    };
+    Object.setPrototypeOf(normalizedMethodRecordsBase, null);
+    Object.setPrototypeOf(normalizedMethodRecords, null);
     module2.exports = {
       kEnumerableProperty,
       nop,
@@ -1620,6 +1641,8 @@ var require_util = __commonJS({
       isValidHeaderValue,
       isTokenCharCode,
       parseRangeHeader,
+      normalizedMethodRecordsBase,
+      normalizedMethodRecords,
       isValidPort,
       isHttpOrHttpsPrefixed,
       nodeMajor,
@@ -1835,7 +1858,8 @@ var require_request = __commonJS({
       isBlobLike,
       buildURL,
       validateHandler,
-      getServerName
+      getServerName,
+      normalizedMethodRecords
     } = require_util();
     var { channels } = require_diagnostics();
     var { headerNameLowerCasedRecord } = require_constants();
@@ -1865,12 +1889,12 @@ var require_request = __commonJS({
           throw new InvalidArgumentError("path must be a string");
         } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path) !== null) {
+        } else if (invalidPathRegex.test(path)) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
           throw new InvalidArgumentError("method must be a string");
-        } else if (!isValidHTTPToken(method)) {
+        } else if (normalizedMethodRecords[method] === void 0 && !isValidHTTPToken(method)) {
           throw new InvalidArgumentError("invalid request method");
         }
         if (upgrade && typeof upgrade !== "string") {
@@ -2206,7 +2230,7 @@ var require_connect = __commonJS({
         }
       };
     }
-    function buildConnector({ allowH2, maxCachedSessions, socketPath, timeout, ...opts }) {
+    function buildConnector({ allowH2, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
       if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
         throw new InvalidArgumentError("maxCachedSessions must be a positive integer or zero");
       }
@@ -2222,7 +2246,7 @@ var require_connect = __commonJS({
           }
           servername = servername || options.servername || util.getServerName(host) || null;
           const sessionKey = servername || hostname;
-          const session = sessionCache.get(sessionKey) || null;
+          const session = customSession || sessionCache.get(sessionKey) || null;
           assert(sessionKey);
           socket = tls.connect({
             highWaterMark: 16384,
@@ -3772,7 +3796,7 @@ var require_util2 = __commonJS({
     var { getGlobalOrigin } = require_global();
     var { collectASequenceOfCodePoints, collectAnHTTPQuotedString, removeChars, parseMIMEType } = require_data_url();
     var { performance: performance2 } = require("node:perf_hooks");
-    var { isBlobLike, ReadableStreamFrom, isValidHTTPToken } = require_util();
+    var { isBlobLike, ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require_util();
     var assert = require("node:assert");
     var { isUint8Array } = require("node:util/types");
     var { webidl } = require_webidl();
@@ -3893,7 +3917,7 @@ var require_util2 = __commonJS({
     __name(appendFetchMetadata, "appendFetchMetadata");
     function appendRequestOriginHeader(request) {
       let serializedOrigin = request.origin;
-      if (serializedOrigin === "client") {
+      if (serializedOrigin === "client" || serializedOrigin === void 0) {
         return;
       }
       if (request.responseTainting === "cors" || request.mode === "websocket") {
@@ -4198,29 +4222,8 @@ var require_util2 = __commonJS({
       return fetchParams.controller.state === "aborted" || fetchParams.controller.state === "terminated";
     }
     __name(isCancelled, "isCancelled");
-    var normalizeMethodRecordBase = {
-      delete: "DELETE",
-      DELETE: "DELETE",
-      get: "GET",
-      GET: "GET",
-      head: "HEAD",
-      HEAD: "HEAD",
-      options: "OPTIONS",
-      OPTIONS: "OPTIONS",
-      post: "POST",
-      POST: "POST",
-      put: "PUT",
-      PUT: "PUT"
-    };
-    var normalizeMethodRecord = {
-      ...normalizeMethodRecordBase,
-      patch: "patch",
-      PATCH: "PATCH"
-    };
-    Object.setPrototypeOf(normalizeMethodRecordBase, null);
-    Object.setPrototypeOf(normalizeMethodRecord, null);
     function normalizeMethod(method) {
-      return normalizeMethodRecordBase[method.toLowerCase()] ?? method;
+      return normalizedMethodRecordsBase[method.toLowerCase()] ?? method;
     }
     __name(normalizeMethod, "normalizeMethod");
     function serializeJavascriptValueToJSONString(value) {
@@ -4364,7 +4367,7 @@ var require_util2 = __commonJS({
       });
     }
     __name(iteratorMixin, "iteratorMixin");
-    async function fullyReadBody(body, processBody, processBodyError, shouldClone) {
+    async function fullyReadBody(body, processBody, processBodyError) {
       const successSteps = processBody;
       const errorSteps = processBodyError;
       let reader;
@@ -4375,7 +4378,7 @@ var require_util2 = __commonJS({
         return;
       }
       try {
-        successSteps(await readAllBytes(reader, shouldClone));
+        successSteps(await readAllBytes(reader));
       } catch (e) {
         errorSteps(e);
       }
@@ -4402,19 +4405,12 @@ var require_util2 = __commonJS({
       return input;
     }
     __name(isomorphicEncode, "isomorphicEncode");
-    async function readAllBytes(reader, shouldClone) {
+    async function readAllBytes(reader) {
       const bytes = [];
       let byteLength = 0;
       while (true) {
         const { done, value: chunk } = await reader.read();
         if (done) {
-          if (bytes.length === 1) {
-            const { buffer, byteOffset, byteLength: byteLength2 } = bytes[0];
-            if (shouldClone === false) {
-              return Buffer.from(buffer, byteOffset, byteLength2);
-            }
-            return Buffer.from(buffer.slice(byteOffset, byteOffset + byteLength2), 0, byteLength2);
-          }
           return Buffer.concat(bytes, byteLength);
         }
         if (!isUint8Array(chunk)) {
@@ -4697,7 +4693,6 @@ var require_util2 = __commonJS({
       urlHasHttpsScheme,
       urlIsHttpHttpsScheme,
       readAllBytes,
-      normalizeMethodRecord,
       simpleRangeHeaderValue,
       buildContentRange,
       parseMetadata,
@@ -5391,18 +5386,18 @@ Content-Type: ${value.type || "application/octet-stream"}\r
               mimeType = serializeAMimeType(mimeType);
             }
             return new Blob2([bytes], { type: mimeType });
-          }, instance, false);
+          }, instance);
         },
         arrayBuffer() {
           return consumeBody(this, (bytes) => {
-            return bytes.buffer;
-          }, instance, true);
+            return new Uint8Array(bytes).buffer;
+          }, instance);
         },
         text() {
-          return consumeBody(this, utf8DecodeBytes, instance, false);
+          return consumeBody(this, utf8DecodeBytes, instance);
         },
         json() {
-          return consumeBody(this, parseJSONFromBytes, instance, false);
+          return consumeBody(this, parseJSONFromBytes, instance);
         },
         formData() {
           return consumeBody(this, (value) => {
@@ -5431,12 +5426,12 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             throw new TypeError(
               'Content-Type was not one of "multipart/form-data" or "application/x-www-form-urlencoded".'
             );
-          }, instance, false);
+          }, instance);
         },
         bytes() {
           return consumeBody(this, (bytes) => {
-            return new Uint8Array(bytes.buffer, 0, bytes.byteLength);
-          }, instance, true);
+            return new Uint8Array(bytes);
+          }, instance);
         }
       };
       return methods;
@@ -5446,7 +5441,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       Object.assign(prototype.prototype, bodyMixinMethods(prototype));
     }
     __name(mixinBody, "mixinBody");
-    async function consumeBody(object, convertBytesToJSValue, instance, shouldClone) {
+    async function consumeBody(object, convertBytesToJSValue, instance) {
       webidl.brandCheck(object, instance);
       if (bodyUnusable(object[kState].body)) {
         throw new TypeError("Body is unusable: Body has already been read");
@@ -5465,7 +5460,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         successSteps(Buffer.allocUnsafe(0));
         return promise.promise;
       }
-      await fullyReadBody(object[kState].body, successSteps, errorSteps, shouldClone);
+      await fullyReadBody(object[kState].body, successSteps, errorSteps);
       return promise.promise;
     }
     __name(consumeBody, "consumeBody");
@@ -6230,26 +6225,26 @@ upgrade: ${upgrade}\r
         channels.sendHeaders.publish({ request, headers: header, socket });
       }
       if (!body || bodyLength === 0) {
-        writeBuffer({ abort, body: null, client, request, socket, contentLength, header, expectsPayload });
+        writeBuffer(abort, null, client, request, socket, contentLength, header, expectsPayload);
       } else if (util.isBuffer(body)) {
-        writeBuffer({ abort, body, client, request, socket, contentLength, header, expectsPayload });
+        writeBuffer(abort, body, client, request, socket, contentLength, header, expectsPayload);
       } else if (util.isBlobLike(body)) {
         if (typeof body.stream === "function") {
-          writeIterable({ abort, body: body.stream(), client, request, socket, contentLength, header, expectsPayload });
+          writeIterable(abort, body.stream(), client, request, socket, contentLength, header, expectsPayload);
         } else {
-          writeBlob({ abort, body, client, request, socket, contentLength, header, expectsPayload });
+          writeBlob(abort, body, client, request, socket, contentLength, header, expectsPayload);
         }
       } else if (util.isStream(body)) {
-        writeStream({ abort, body, client, request, socket, contentLength, header, expectsPayload });
+        writeStream(abort, body, client, request, socket, contentLength, header, expectsPayload);
       } else if (util.isIterable(body)) {
-        writeIterable({ abort, body, client, request, socket, contentLength, header, expectsPayload });
+        writeIterable(abort, body, client, request, socket, contentLength, header, expectsPayload);
       } else {
         assert(false);
       }
       return true;
     }
     __name(writeH1, "writeH1");
-    function writeStream({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+    function writeStream(abort, body, client, request, socket, contentLength, header, expectsPayload) {
       assert(contentLength !== 0 || client[kRunning] === 0, "stream body cannot be pipelined");
       let finished = false;
       const writer = new AsyncWriter({ abort, socket, request, contentLength, client, expectsPayload, header });
@@ -6319,7 +6314,7 @@ upgrade: ${upgrade}\r
       }
     }
     __name(writeStream, "writeStream");
-    function writeBuffer({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+    function writeBuffer(abort, body, client, request, socket, contentLength, header, expectsPayload) {
       try {
         if (!body) {
           if (contentLength === 0) {
@@ -6351,7 +6346,7 @@ upgrade: ${upgrade}\r
       }
     }
     __name(writeBuffer, "writeBuffer");
-    async function writeBlob({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+    async function writeBlob(abort, body, client, request, socket, contentLength, header, expectsPayload) {
       assert(contentLength === body.size, "blob body must have content length");
       try {
         if (contentLength != null && contentLength !== body.size) {
@@ -6375,7 +6370,7 @@ upgrade: ${upgrade}\r
       }
     }
     __name(writeBlob, "writeBlob");
-    async function writeIterable({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+    async function writeIterable(abort, body, client, request, socket, contentLength, header, expectsPayload) {
       assert(contentLength !== 0 || client[kRunning] === 0, "iterator body cannot be pipelined");
       let callback = null;
       function onDrain() {
@@ -6851,75 +6846,73 @@ var require_client_h2 = __commonJS({
       return true;
       function writeBodyH2() {
         if (!body || contentLength === 0) {
-          writeBuffer({
+          writeBuffer(
             abort,
+            stream,
+            null,
             client,
             request,
+            client[kSocket],
             contentLength,
-            expectsPayload,
-            h2stream: stream,
-            body: null,
-            socket: client[kSocket]
-          });
+            expectsPayload
+          );
         } else if (util.isBuffer(body)) {
-          writeBuffer({
+          writeBuffer(
             abort,
+            stream,
+            body,
             client,
             request,
+            client[kSocket],
             contentLength,
-            body,
-            expectsPayload,
-            h2stream: stream,
-            socket: client[kSocket]
-          });
+            expectsPayload
+          );
         } else if (util.isBlobLike(body)) {
           if (typeof body.stream === "function") {
-            writeIterable({
+            writeIterable(
               abort,
+              stream,
+              body.stream(),
               client,
               request,
+              client[kSocket],
               contentLength,
-              expectsPayload,
-              h2stream: stream,
-              body: body.stream(),
-              socket: client[kSocket]
-            });
+              expectsPayload
+            );
           } else {
-            writeBlob({
+            writeBlob(
               abort,
+              stream,
               body,
               client,
               request,
+              client[kSocket],
               contentLength,
-              expectsPayload,
-              h2stream: stream,
-              socket: client[kSocket]
-            });
+              expectsPayload
+            );
           }
         } else if (util.isStream(body)) {
-          writeStream({
+          writeStream(
             abort,
+            client[kSocket],
+            expectsPayload,
+            stream,
             body,
             client,
             request,
-            contentLength,
-            expectsPayload,
-            socket: client[kSocket],
-            h2stream: stream,
-            header: ""
-          });
+            contentLength
+          );
         } else if (util.isIterable(body)) {
-          writeIterable({
+          writeIterable(
             abort,
+            stream,
             body,
             client,
             request,
+            client[kSocket],
             contentLength,
-            expectsPayload,
-            header: "",
-            h2stream: stream,
-            socket: client[kSocket]
-          });
+            expectsPayload
+          );
         } else {
           assert(false);
         }
@@ -6927,7 +6920,7 @@ var require_client_h2 = __commonJS({
       __name(writeBodyH2, "writeBodyH2");
     }
     __name(writeH2, "writeH2");
-    function writeBuffer({ abort, h2stream, body, client, request, socket, contentLength, expectsPayload }) {
+    function writeBuffer(abort, h2stream, body, client, request, socket, contentLength, expectsPayload) {
       try {
         if (body != null && util.isBuffer(body)) {
           assert(contentLength === body.byteLength, "buffer body must have content length");
@@ -6947,7 +6940,7 @@ var require_client_h2 = __commonJS({
       }
     }
     __name(writeBuffer, "writeBuffer");
-    function writeStream({ abort, socket, expectsPayload, h2stream, body, client, request, contentLength }) {
+    function writeStream(abort, socket, expectsPayload, h2stream, body, client, request, contentLength) {
       assert(contentLength !== 0 || client[kRunning] === 0, "stream body cannot be pipelined");
       const pipe = pipeline(
         body,
@@ -6973,7 +6966,7 @@ var require_client_h2 = __commonJS({
       __name(onPipeData, "onPipeData");
     }
     __name(writeStream, "writeStream");
-    async function writeBlob({ abort, h2stream, body, client, request, socket, contentLength, expectsPayload }) {
+    async function writeBlob(abort, h2stream, body, client, request, socket, contentLength, expectsPayload) {
       assert(contentLength === body.size, "blob body must have content length");
       try {
         if (contentLength != null && contentLength !== body.size) {
@@ -6995,7 +6988,7 @@ var require_client_h2 = __commonJS({
       }
     }
     __name(writeBlob, "writeBlob");
-    async function writeIterable({ abort, h2stream, body, client, request, socket, contentLength, expectsPayload }) {
+    async function writeIterable(abort, h2stream, body, client, request, socket, contentLength, expectsPayload) {
       assert(contentLength !== 0 || client[kRunning] === 0, "iterator body cannot be pipelined");
       let callback = null;
       function onDrain() {
@@ -9201,9 +9194,7 @@ var require_request2 = __commonJS({
     var {
       isValidHTTPToken,
       sameOrigin,
-      normalizeMethod,
-      environmentSettingsObject,
-      normalizeMethodRecord
+      environmentSettingsObject
     } = require_util2();
     var {
       forbiddenMethodsSet,
@@ -9215,7 +9206,7 @@ var require_request2 = __commonJS({
       requestCache,
       requestDuplex
     } = require_constants3();
-    var { kEnumerableProperty } = util;
+    var { kEnumerableProperty, normalizedMethodRecordsBase, normalizedMethodRecords } = util;
     var { kHeaders, kSignal, kState, kDispatcher } = require_symbols2();
     var { webidl } = require_webidl();
     var { URLSerializer } = require_data_url();
@@ -9417,17 +9408,18 @@ var require_request2 = __commonJS({
         }
         if (init.method !== void 0) {
           let method = init.method;
-          const mayBeNormalized = normalizeMethodRecord[method];
+          const mayBeNormalized = normalizedMethodRecords[method];
           if (mayBeNormalized !== void 0) {
             request.method = mayBeNormalized;
           } else {
             if (!isValidHTTPToken(method)) {
               throw new TypeError(`'${method}' is not a valid HTTP method.`);
             }
-            if (forbiddenMethodsSet.has(method.toUpperCase())) {
+            const upperCase = method.toUpperCase();
+            if (forbiddenMethodsSet.has(upperCase)) {
               throw new TypeError(`'${method}' HTTP method is unsupported.`);
             }
-            method = normalizeMethod(method);
+            method = normalizedMethodRecordsBase[upperCase] ?? method;
             request.method = method;
           }
           if (!patchMethodWarning && request.method === "patch") {
@@ -12251,7 +12243,6 @@ var require_websocket = __commonJS({
     var { types } = require("node:util");
     var { ErrorEvent: ErrorEvent2, CloseEvent: CloseEvent2 } = require_events();
     var { SendQueue } = require_sender();
-    var experimentalWarned = false;
     var WebSocket = class _WebSocket extends EventTarget {
       static {
         __name(this, "WebSocket");
@@ -12275,12 +12266,6 @@ var require_websocket = __commonJS({
         super();
         const prefix = "WebSocket constructor";
         webidl.argumentLengthCheck(arguments, 1, prefix);
-        if (!experimentalWarned) {
-          experimentalWarned = true;
-          process.emitWarning("WebSockets are experimental, expect them to change at any time.", {
-            code: "UNDICI-WS"
-          });
-        }
         const options = webidl.converters["DOMString or sequence<DOMString> or WebSocketInit"](protocols, prefix, "options");
         url = webidl.converters.USVString(url, prefix, "url");
         protocols = options.protocols;

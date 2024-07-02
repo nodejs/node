@@ -56,13 +56,10 @@
 
 namespace node {
 
-// Maybe remove kPathSeparator when cpp17 is ready
 #ifdef _WIN32
-    constexpr char kPathSeparator = '\\';
 /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
 #define PATH_MAX_BYTES (MAX_PATH * 4)
 #else
-    constexpr char kPathSeparator = '/';
 #define PATH_MAX_BYTES (PATH_MAX)
 #endif
 
@@ -357,14 +354,6 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
     const std::array<char, N>& arr) {
   return OneByteString(isolate, arr.data(), N - 1);
 }
-
-
-
-// Swaps bytes in place. nbytes is the number of bytes to swap and must be a
-// multiple of the word size (checked by function).
-inline void SwapBytes16(char* data, size_t nbytes);
-inline void SwapBytes32(char* data, size_t nbytes);
-inline void SwapBytes64(char* data, size_t nbytes);
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
@@ -793,19 +782,6 @@ constexpr inline bool IsBigEndian() {
 
 static_assert(IsLittleEndian() || IsBigEndian(),
               "Node.js does not support mixed-endian systems");
-
-// Round up a to the next highest multiple of b.
-template <typename T>
-constexpr T RoundUp(T a, T b) {
-  return a % b != 0 ? a + b - (a % b) : a;
-}
-
-// Align ptr to an `alignment`-bytes boundary.
-template <typename T, typename U>
-constexpr T* AlignUp(T* ptr, U alignment) {
-  return reinterpret_cast<T*>(
-      RoundUp(reinterpret_cast<uintptr_t>(ptr), alignment));
-}
 
 class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
  public:

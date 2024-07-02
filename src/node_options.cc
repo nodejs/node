@@ -410,6 +410,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
+  AddOption("--experimental-webstorage",
+            "experimental Web Storage API",
+            &EnvironmentOptions::experimental_webstorage,
+            kAllowedInEnvvar);
+  AddOption("--localstorage-file",
+            "file used to persist localStorage data",
+            &EnvironmentOptions::localstorage_file,
+            kAllowedInEnvvar);
   AddOption("--experimental-global-navigator",
             "expose experimental Navigator API on the global scope",
             &EnvironmentOptions::experimental_global_navigator,

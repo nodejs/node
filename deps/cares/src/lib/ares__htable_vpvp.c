@@ -44,7 +44,7 @@ typedef struct {
 void ares__htable_vpvp_destroy(ares__htable_vpvp_t *htable)
 {
   if (htable == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__htable_destroy(htable->hash);
@@ -93,13 +93,13 @@ ares__htable_vpvp_t *
 {
   ares__htable_vpvp_t *htable = ares_malloc(sizeof(*htable));
   if (htable == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   htable->hash =
     ares__htable_create(hash_func, bucket_key, bucket_free, key_eq);
   if (htable->hash == NULL) {
-    goto fail;
+    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   htable->free_key = key_free;
@@ -107,12 +107,14 @@ ares__htable_vpvp_t *
 
   return htable;
 
+/* LCOV_EXCL_START: OutOfMemory */
 fail:
   if (htable) {
     ares__htable_destroy(htable->hash);
     ares_free(htable);
   }
   return NULL;
+/* LCOV_EXCL_STOP */
 }
 
 ares_bool_t ares__htable_vpvp_insert(ares__htable_vpvp_t *htable, void *key,
@@ -146,8 +148,8 @@ fail:
   return ARES_FALSE;
 }
 
-ares_bool_t ares__htable_vpvp_get(const ares__htable_vpvp_t *htable, void *key,
-                                  void **val)
+ares_bool_t ares__htable_vpvp_get(const ares__htable_vpvp_t *htable,
+                                  const void *key, void **val)
 {
   ares__htable_vpvp_bucket_t *bucket = NULL;
 
@@ -170,14 +172,16 @@ ares_bool_t ares__htable_vpvp_get(const ares__htable_vpvp_t *htable, void *key,
   return ARES_TRUE;
 }
 
-void *ares__htable_vpvp_get_direct(const ares__htable_vpvp_t *htable, void *key)
+void *ares__htable_vpvp_get_direct(const ares__htable_vpvp_t *htable,
+                                   const void                *key)
 {
   void *val = NULL;
   ares__htable_vpvp_get(htable, key, &val);
   return val;
 }
 
-ares_bool_t ares__htable_vpvp_remove(ares__htable_vpvp_t *htable, void *key)
+ares_bool_t ares__htable_vpvp_remove(ares__htable_vpvp_t *htable,
+                                     const void          *key)
 {
   if (htable == NULL) {
     return ARES_FALSE;

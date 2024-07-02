@@ -497,16 +497,11 @@ const CallableInstance =
         const proto =  (
           constr.prototype
         );
-        const func = proto[property];
+        const value = proto[property];
         const apply = function () {
-          return func.apply(apply, arguments)
+          return value.apply(apply, arguments)
         };
         Object.setPrototypeOf(apply, proto);
-        const names = Object.getOwnPropertyNames(func);
-        for (const p of names) {
-          const descriptor = Object.getOwnPropertyDescriptor(func, p);
-          if (descriptor) Object.defineProperty(apply, p, descriptor);
-        }
         return apply
       }
     )
@@ -6867,11 +6862,7 @@ function fromMarkdown(value, encoding, options) {
     options = encoding;
     encoding = undefined;
   }
-  return compiler(options)(
-    postprocess(
-      parse$2(options).document().write(preprocess()(value, encoding, true))
-    )
-  )
+  return compiler(options)(postprocess(parse$2(options).document().write(preprocess()(value, encoding, true))));
 }
 function compiler(options) {
   const config = {
@@ -6931,6 +6922,7 @@ function compiler(options) {
       characterReferenceMarkerHexadecimal: onexitcharacterreferencemarker,
       characterReferenceMarkerNumeric: onexitcharacterreferencemarker,
       characterReferenceValue: onexitcharacterreferencevalue,
+      characterReference: onexitcharacterreference,
       codeFenced: closer(onexitcodefenced),
       codeFencedFence: onexitcodefencedfence,
       codeFencedFenceInfo: onexitcodefencedfenceinfo,
@@ -6973,7 +6965,7 @@ function compiler(options) {
   };
   configure$1(config, (options || {}).mdastExtensions || []);
   const data = {};
-  return compile
+  return compile;
   function compile(events) {
     let tree = {
       type: 'root',
@@ -6992,10 +6984,7 @@ function compiler(options) {
     const listStack = [];
     let index = -1;
     while (++index < events.length) {
-      if (
-        events[index][1].type === 'listOrdered' ||
-        events[index][1].type === 'listUnordered'
-      ) {
+      if (events[index][1].type === "listOrdered" || events[index][1].type === "listUnordered") {
         if (events[index][0] === 'enter') {
           listStack.push(index);
         } else {
@@ -7008,15 +6997,9 @@ function compiler(options) {
     while (++index < events.length) {
       const handler = config[events[index][0]];
       if (own$3.call(handler, events[index][1].type)) {
-        handler[events[index][1].type].call(
-          Object.assign(
-            {
-              sliceSerialize: events[index][2].sliceSerialize
-            },
-            context
-          ),
-          events[index][1]
-        );
+        handler[events[index][1].type].call(Object.assign({
+          sliceSerialize: events[index][2].sliceSerialize
+        }, context), events[index][1]);
       }
     }
     if (context.tokenStack.length > 0) {
@@ -7025,30 +7008,22 @@ function compiler(options) {
       handler.call(context, undefined, tail[0]);
     }
     tree.position = {
-      start: point$1(
-        events.length > 0
-          ? events[0][1].start
-          : {
-              line: 1,
-              column: 1,
-              offset: 0
-            }
-      ),
-      end: point$1(
-        events.length > 0
-          ? events[events.length - 2][1].end
-          : {
-              line: 1,
-              column: 1,
-              offset: 0
-            }
-      )
+      start: point$1(events.length > 0 ? events[0][1].start : {
+        line: 1,
+        column: 1,
+        offset: 0
+      }),
+      end: point$1(events.length > 0 ? events[events.length - 2][1].end : {
+        line: 1,
+        column: 1,
+        offset: 0
+      })
     };
     index = -1;
     while (++index < config.transforms.length) {
       tree = config.transforms[index](tree) || tree;
     }
-    return tree
+    return tree;
   }
   function prepareList(events, start, length) {
     let index = start - 1;
@@ -7061,92 +7036,68 @@ function compiler(options) {
     while (++index <= length) {
       const event = events[index];
       switch (event[1].type) {
-        case 'listUnordered':
-        case 'listOrdered':
-        case 'blockQuote': {
-          if (event[0] === 'enter') {
-            containerBalance++;
-          } else {
-            containerBalance--;
-          }
-          atMarker = undefined;
-          break
-        }
-        case 'lineEndingBlank': {
-          if (event[0] === 'enter') {
-            if (
-              listItem &&
-              !atMarker &&
-              !containerBalance &&
-              !firstBlankLineIndex
-            ) {
-              firstBlankLineIndex = index;
+        case "listUnordered":
+        case "listOrdered":
+        case "blockQuote":
+          {
+            if (event[0] === 'enter') {
+              containerBalance++;
+            } else {
+              containerBalance--;
             }
             atMarker = undefined;
+            break;
           }
-          break
-        }
-        case 'linePrefix':
-        case 'listItemValue':
-        case 'listItemMarker':
-        case 'listItemPrefix':
-        case 'listItemPrefixWhitespace': {
-          break
-        }
-        default: {
-          atMarker = undefined;
-        }
+        case "lineEndingBlank":
+          {
+            if (event[0] === 'enter') {
+              if (listItem && !atMarker && !containerBalance && !firstBlankLineIndex) {
+                firstBlankLineIndex = index;
+              }
+              atMarker = undefined;
+            }
+            break;
+          }
+        case "linePrefix":
+        case "listItemValue":
+        case "listItemMarker":
+        case "listItemPrefix":
+        case "listItemPrefixWhitespace":
+          {
+            break;
+          }
+        default:
+          {
+            atMarker = undefined;
+          }
       }
-      if (
-        (!containerBalance &&
-          event[0] === 'enter' &&
-          event[1].type === 'listItemPrefix') ||
-        (containerBalance === -1 &&
-          event[0] === 'exit' &&
-          (event[1].type === 'listUnordered' ||
-            event[1].type === 'listOrdered'))
-      ) {
+      if (!containerBalance && event[0] === 'enter' && event[1].type === "listItemPrefix" || containerBalance === -1 && event[0] === 'exit' && (event[1].type === "listUnordered" || event[1].type === "listOrdered")) {
         if (listItem) {
           let tailIndex = index;
           lineIndex = undefined;
           while (tailIndex--) {
             const tailEvent = events[tailIndex];
-            if (
-              tailEvent[1].type === 'lineEnding' ||
-              tailEvent[1].type === 'lineEndingBlank'
-            ) {
-              if (tailEvent[0] === 'exit') continue
+            if (tailEvent[1].type === "lineEnding" || tailEvent[1].type === "lineEndingBlank") {
+              if (tailEvent[0] === 'exit') continue;
               if (lineIndex) {
-                events[lineIndex][1].type = 'lineEndingBlank';
+                events[lineIndex][1].type = "lineEndingBlank";
                 listSpread = true;
               }
-              tailEvent[1].type = 'lineEnding';
+              tailEvent[1].type = "lineEnding";
               lineIndex = tailIndex;
-            } else if (
-              tailEvent[1].type === 'linePrefix' ||
-              tailEvent[1].type === 'blockQuotePrefix' ||
-              tailEvent[1].type === 'blockQuotePrefixWhitespace' ||
-              tailEvent[1].type === 'blockQuoteMarker' ||
-              tailEvent[1].type === 'listItemIndent'
-            ) ; else {
-              break
+            } else if (tailEvent[1].type === "linePrefix" || tailEvent[1].type === "blockQuotePrefix" || tailEvent[1].type === "blockQuotePrefixWhitespace" || tailEvent[1].type === "blockQuoteMarker" || tailEvent[1].type === "listItemIndent") ; else {
+              break;
             }
           }
-          if (
-            firstBlankLineIndex &&
-            (!lineIndex || firstBlankLineIndex < lineIndex)
-          ) {
+          if (firstBlankLineIndex && (!lineIndex || firstBlankLineIndex < lineIndex)) {
             listItem._spread = true;
           }
-          listItem.end = Object.assign(
-            {},
-            lineIndex ? events[lineIndex][1].start : event[1].end
-          );
+          listItem.end = Object.assign({}, lineIndex ? events[lineIndex][1].start : event[1].end);
           events.splice(lineIndex || index, 0, ['exit', listItem, event[2]]);
           index++;
           length++;
         }
-        if (event[1].type === 'listItemPrefix') {
+        if (event[1].type === "listItemPrefix") {
           const item = {
             type: 'listItem',
             _spread: false,
@@ -7163,10 +7114,10 @@ function compiler(options) {
       }
     }
     events[start][1]._spread = listSpread;
-    return length
+    return length;
   }
   function opener(create, and) {
-    return open
+    return open;
     function open(token) {
       enter.call(this, create(token), token);
       if (and) and.call(this, token);
@@ -7190,7 +7141,7 @@ function compiler(options) {
     };
   }
   function closer(and) {
-    return close
+    return close;
     function close(token) {
       if (and) and.call(this, token);
       exit.call(this, token);
@@ -7200,16 +7151,10 @@ function compiler(options) {
     const node = this.stack.pop();
     const open = this.tokenStack.pop();
     if (!open) {
-      throw new Error(
-        'Cannot close `' +
-          token.type +
-          '` (' +
-          stringifyPosition({
-            start: token.start,
-            end: token.end
-          }) +
-          '): it’s not open'
-      )
+      throw new Error('Cannot close `' + token.type + '` (' + stringifyPosition({
+        start: token.start,
+        end: token.end
+      }) + '): it’s not open');
     } else if (open[0].type !== token.type) {
       if (onExitError) {
         onExitError.call(this, token, open[0]);
@@ -7221,7 +7166,7 @@ function compiler(options) {
     node.position.end = point$1(token.end);
   }
   function resume() {
-    return toString(this.stack.pop())
+    return toString(this.stack.pop());
   }
   function onenterlistordered() {
     this.data.expectingFirstListItemValue = true;
@@ -7244,7 +7189,7 @@ function compiler(options) {
     node.meta = data;
   }
   function onexitcodefencedfence() {
-    if (this.data.flowCodeInside) return
+    if (this.data.flowCodeInside) return;
     this.buffer();
     this.data.flowCodeInside = true;
   }
@@ -7263,9 +7208,7 @@ function compiler(options) {
     const label = this.resume();
     const node = this.stack[this.stack.length - 1];
     node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
+    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
   }
   function onexitdefinitiontitlestring() {
     const data = this.resume();
@@ -7319,12 +7262,9 @@ function compiler(options) {
       const tail = context.children[context.children.length - 1];
       tail.position.end = point$1(token.end);
       this.data.atHardBreak = undefined;
-      return
+      return;
     }
-    if (
-      !this.data.setextHeadingSlurpLineEnding &&
-      config.canContainEols.includes(context.type)
-    ) {
+    if (!this.data.setextHeadingSlurpLineEnding && config.canContainEols.includes(context.type)) {
       onenterdata.call(this, token);
       onexitdata.call(this, token);
     }
@@ -7413,9 +7353,7 @@ function compiler(options) {
     const label = this.resume();
     const node = this.stack[this.stack.length - 1];
     node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
+    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
     this.data.referenceType = 'full';
   }
   function onexitcharacterreferencemarker(token) {
@@ -7426,17 +7364,17 @@ function compiler(options) {
     const type = this.data.characterReferenceType;
     let value;
     if (type) {
-      value = decodeNumericCharacterReference(
-        data,
-        type === 'characterReferenceMarkerNumeric' ? 10 : 16
-      );
+      value = decodeNumericCharacterReference(data, type === "characterReferenceMarkerNumeric" ? 10 : 16);
       this.data.characterReferenceType = undefined;
     } else {
       const result = decodeNamedCharacterReference(data);
       value = result;
     }
-    const tail = this.stack.pop();
+    const tail = this.stack[this.stack.length - 1];
     tail.value += value;
+  }
+  function onexitcharacterreference(token) {
+    const tail = this.stack.pop();
     tail.position.end = point$1(token.end);
   }
   function onexitautolinkprotocol(token) {
@@ -7453,7 +7391,7 @@ function compiler(options) {
     return {
       type: 'blockquote',
       children: []
-    }
+    };
   }
   function codeFlow() {
     return {
@@ -7461,13 +7399,13 @@ function compiler(options) {
       lang: null,
       meta: null,
       value: ''
-    }
+    };
   }
   function codeText() {
     return {
       type: 'inlineCode',
       value: ''
-    }
+    };
   }
   function definition() {
     return {
@@ -7476,31 +7414,31 @@ function compiler(options) {
       label: null,
       title: null,
       url: ''
-    }
+    };
   }
   function emphasis() {
     return {
       type: 'emphasis',
       children: []
-    }
+    };
   }
   function heading() {
     return {
       type: 'heading',
       depth: 0,
       children: []
-    }
+    };
   }
   function hardBreak() {
     return {
       type: 'break'
-    }
+    };
   }
   function html() {
     return {
       type: 'html',
       value: ''
-    }
+    };
   }
   function image() {
     return {
@@ -7508,7 +7446,7 @@ function compiler(options) {
       title: null,
       url: '',
       alt: null
-    }
+    };
   }
   function link() {
     return {
@@ -7516,7 +7454,7 @@ function compiler(options) {
       title: null,
       url: '',
       children: []
-    }
+    };
   }
   function list(token) {
     return {
@@ -7525,7 +7463,7 @@ function compiler(options) {
       start: null,
       spread: token._spread,
       children: []
-    }
+    };
   }
   function listItem(token) {
     return {
@@ -7533,30 +7471,30 @@ function compiler(options) {
       spread: token._spread,
       checked: null,
       children: []
-    }
+    };
   }
   function paragraph() {
     return {
       type: 'paragraph',
       children: []
-    }
+    };
   }
   function strong() {
     return {
       type: 'strong',
       children: []
-    }
+    };
   }
   function text() {
     return {
       type: 'text',
       value: ''
-    }
+    };
   }
   function thematicBreak() {
     return {
       type: 'thematicBreak'
-    }
+    };
   }
 }
 function point$1(d) {
@@ -7564,7 +7502,7 @@ function point$1(d) {
     line: d.line,
     column: d.column,
     offset: d.offset
-  }
+  };
 }
 function configure$1(combined, extensions) {
   let index = -1;
@@ -7582,62 +7520,49 @@ function extension(combined, extension) {
   for (key in extension) {
     if (own$3.call(extension, key)) {
       switch (key) {
-        case 'canContainEols': {
-          const right = extension[key];
-          if (right) {
-            combined[key].push(...right);
+        case 'canContainEols':
+          {
+            const right = extension[key];
+            if (right) {
+              combined[key].push(...right);
+            }
+            break;
           }
-          break
-        }
-        case 'transforms': {
-          const right = extension[key];
-          if (right) {
-            combined[key].push(...right);
+        case 'transforms':
+          {
+            const right = extension[key];
+            if (right) {
+              combined[key].push(...right);
+            }
+            break;
           }
-          break
-        }
         case 'enter':
-        case 'exit': {
-          const right = extension[key];
-          if (right) {
-            Object.assign(combined[key], right);
+        case 'exit':
+          {
+            const right = extension[key];
+            if (right) {
+              Object.assign(combined[key], right);
+            }
+            break;
           }
-          break
-        }
       }
     }
   }
 }
 function defaultOnError(left, right) {
   if (left) {
-    throw new Error(
-      'Cannot close `' +
-        left.type +
-        '` (' +
-        stringifyPosition({
-          start: left.start,
-          end: left.end
-        }) +
-        '): a different token (`' +
-        right.type +
-        '`, ' +
-        stringifyPosition({
-          start: right.start,
-          end: right.end
-        }) +
-        ') is open'
-    )
+    throw new Error('Cannot close `' + left.type + '` (' + stringifyPosition({
+      start: left.start,
+      end: left.end
+    }) + '): a different token (`' + right.type + '`, ' + stringifyPosition({
+      start: right.start,
+      end: right.end
+    }) + ') is open');
   } else {
-    throw new Error(
-      'Cannot close document, a token (`' +
-        right.type +
-        '`, ' +
-        stringifyPosition({
-          start: right.start,
-          end: right.end
-        }) +
-        ') is still open'
-    )
+    throw new Error('Cannot close document, a token (`' + right.type + '`, ' + stringifyPosition({
+      start: right.start,
+      end: right.end
+    }) + ') is still open');
   }
 }
 
@@ -21477,7 +21402,7 @@ let SemVer$2 = class SemVer {
     do {
       const a = this.build[i];
       const b = other.build[i];
-      debug('prerelease compare', i, a, b);
+      debug('build compare', i, a, b);
       if (a === undefined && b === undefined) {
         return 0
       } else if (b === undefined) {

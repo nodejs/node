@@ -1288,18 +1288,24 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
       return exit_code;
     }
   } else {
+    std::optional<std::string> builder_script_content;
     // Otherwise, load and run the specified builder script.
     std::unique_ptr<SnapshotData> generated_data =
         std::make_unique<SnapshotData>();
-    std::string builder_script_content;
-    int r = ReadFileSync(&builder_script_content, builder_script.c_str());
-    if (r != 0) {
-      FPrintF(stderr,
-              "Cannot read builder script %s for building snapshot. %s: %s",
-              builder_script,
-              uv_err_name(r),
-              uv_strerror(r));
-      return ExitCode::kGenericUserError;
+    if (builder_script != "node:generate_default_snapshot") {
+      builder_script_content = std::string();
+      int r = ReadFileSync(&(builder_script_content.value()),
+                           builder_script.c_str());
+      if (r != 0) {
+        FPrintF(stderr,
+                "Cannot read builder script %s for building snapshot. %s: %s\n",
+                builder_script,
+                uv_err_name(r),
+                uv_strerror(r));
+        return ExitCode::kGenericUserError;
+      }
+    } else {
+      snapshot_config.builder_script_path = std::nullopt;
     }
 
     exit_code = node::SnapshotBuilder::Generate(generated_data.get(),

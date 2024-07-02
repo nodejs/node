@@ -17,20 +17,12 @@
 namespace {
 
 std::string WildcardIfDir(const std::string& res) noexcept {
-  uv_fs_t req;
-  int rc = uv_fs_stat(nullptr, &req, res.c_str(), nullptr);
-  if (rc == 0) {
-    const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    if ((s->st_mode & S_IFMT) == S_IFDIR) {
-      // add wildcard when directory
-      if (res.back() == node::kPathSeparator) {
-        return res + "*";
-      }
-      return res + node::kPathSeparator + "*";
-    }
+  auto path = std::filesystem::path(res);
+  auto file_status = std::filesystem::status(path);
+  if (file_status.type() == std::filesystem::file_type::directory) {
+    path /= "*";
   }
-  uv_fs_req_cleanup(&req);
-  return res;
+  return path.string();
 }
 
 void FreeRecursivelyNode(
@@ -177,7 +169,7 @@ FSPermission::RadixTree::~RadixTree() {
 bool FSPermission::RadixTree::Lookup(const std::string_view& s,
                                      bool when_empty_return) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
-  if (current_node->children.size() == 0) {
+  if (current_node->children.empty()) {
     return when_empty_return;
   }
   size_t parent_node_prefix_len = current_node->prefix.length();

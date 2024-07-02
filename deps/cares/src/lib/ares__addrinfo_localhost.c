@@ -37,11 +37,10 @@
 #  include <arpa/inet.h>
 #endif
 
-#if defined(_WIN32) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0600
-#  include <ws2ipdef.h>
-#endif
-
 #if defined(USE_WINSOCK)
+#  if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0600
+#    include <ws2ipdef.h>
+#  endif
 #  if defined(HAVE_IPHLPAPI_H)
 #    include <iphlpapi.h>
 #  endif
@@ -62,7 +61,7 @@ ares_status_t ares_append_ai_node(int aftype, unsigned short port,
 
   node = ares__append_addrinfo_node(nodes);
   if (!node) {
-    return ARES_ENOMEM;
+    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   memset(node, 0, sizeof(*node));
@@ -70,7 +69,7 @@ ares_status_t ares_append_ai_node(int aftype, unsigned short port,
   if (aftype == AF_INET) {
     struct sockaddr_in *sin = ares_malloc(sizeof(*sin));
     if (!sin) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     memset(sin, 0, sizeof(*sin));
@@ -88,7 +87,7 @@ ares_status_t ares_append_ai_node(int aftype, unsigned short port,
   if (aftype == AF_INET6) {
     struct sockaddr_in6 *sin6 = ares_malloc(sizeof(*sin6));
     if (!sin6) {
-      return ARES_ENOMEM;
+      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     memset(sin6, 0, sizeof(*sin6));
@@ -117,7 +116,7 @@ static ares_status_t
     ares_inet_pton(AF_INET6, "::1", &addr6);
     status = ares_append_ai_node(AF_INET6, port, 0, &addr6, nodes);
     if (status != ARES_SUCCESS) {
-      return status;
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -126,7 +125,7 @@ static ares_status_t
     ares_inet_pton(AF_INET, "127.0.0.1", &addr4);
     status = ares_append_ai_node(AF_INET, port, 0, &addr4, nodes);
     if (status != ARES_SUCCESS) {
-      return status;
+      return status; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -137,7 +136,7 @@ static ares_status_t
   ares__system_loopback_addrs(int aftype, unsigned short port,
                               struct ares_addrinfo_node **nodes)
 {
-#if defined(_WIN32) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0600 && \
+#if defined(USE_WINSOCK) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0600 && \
   !defined(__WATCOMC__)
   PMIB_UNICASTIPADDRESS_TABLE table;
   unsigned int                i;
@@ -209,13 +208,13 @@ ares_status_t ares__addrinfo_localhost(const char *name, unsigned short port,
     case AF_INET6:
     case AF_UNSPEC:
       break;
-    default:
-      return ARES_EBADFAMILY;
+    default: /* LCOV_EXCL_LINE: DefensiveCoding */
+      return ARES_EBADFAMILY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ai->name = ares_strdup(name);
   if (!ai->name) {
-    goto enomem;
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__system_loopback_addrs(hints->ai_family, port, &nodes);
@@ -228,9 +227,11 @@ ares_status_t ares__addrinfo_localhost(const char *name, unsigned short port,
 
   return status;
 
+/* LCOV_EXCL_START: OutOfMemory */
 enomem:
   ares__freeaddrinfo_nodes(nodes);
   ares_free(ai->name);
   ai->name = NULL;
   return ARES_ENOMEM;
+/* LCOV_EXCL_STOP */
 }

@@ -371,7 +371,7 @@ void Sign::New(const FunctionCallbackInfo<Value>& args) {
 void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Sign* sign;
-  ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sign, args.This());
 
   const node::Utf8Value sign_type(args.GetIsolate(), args[0]);
   crypto::CheckThrow(env, sign->Init(*sign_type));
@@ -414,7 +414,7 @@ Sign::SignResult Sign::SignFinal(
 void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Sign* sign;
-  ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sign, args.This());
 
   ClearErrorOnReturn clear_error_on_return;
 
@@ -492,7 +492,7 @@ void Verify::New(const FunctionCallbackInfo<Value>& args) {
 void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Verify* verify;
-  ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&verify, args.This());
 
   const node::Utf8Value verify_type(args.GetIsolate(), args[0]);
   crypto::CheckThrow(env, verify->Init(*verify_type));
@@ -545,7 +545,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   Verify* verify;
-  ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&verify, args.This());
 
   unsigned int offset = 0;
   ManagedEVPPKey pkey =

@@ -508,6 +508,9 @@ used as an in depth coverage report.
 node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
 ```
 
+* No test results are reported by this reporter.
+* This reporter should ideally be used alongside another reporter.
+
 ### Limitations
 
 The test runner's code coverage functionality does not support excluding
@@ -1284,6 +1287,12 @@ changes:
     For each test that is executed, any corresponding test hooks, such as
     `beforeEach()`, are also run.
     **Default:** `undefined`.
+  * `testSkipPatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
+    that can be used to exclude running tests whose name matches the provided pattern.
+    Test name patterns are interpreted as JavaScript regular expressions.
+    For each test that is executed, any corresponding test hooks, such as
+    `beforeEach()`, are also run.
+    **Default:** `undefined`.
   * `timeout` {number} A number of milliseconds the test execution will
     fail after.
     If unspecified, subtests inherit this value from their parent.
@@ -1680,7 +1689,7 @@ describe('tests', async () => {
 ## `snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1693,7 +1702,7 @@ placing common configuration code in a module preloaded with `--require` or
 ### `snapshot.setDefaultSnapshotSerializers(serializers)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1710,7 +1719,7 @@ more robust serialization mechanism is required, this function should be used.
 ### `snapshot.setResolveSnapshotPath(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1883,7 +1892,7 @@ mock can still be used after calling this function.
 ## Class: `MockModuleContext`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1894,7 +1903,7 @@ created via the [`MockTracker`][] APIs.
 ### `ctx.restore()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 Resets the implementation of the mock module.
@@ -2035,7 +2044,7 @@ test('spies on an object method', (t) => {
 ### `mock.module(specifier[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -2327,7 +2336,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-Alternativelly, the `.tick` function can be called many times
+Alternatively, the `.tick` function can be called many times
 
 ```mjs
 import assert from 'node:assert';
@@ -3148,7 +3157,7 @@ test('test', (t) => {
 #### `context.assert.snapshot(value[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3203,7 +3212,7 @@ test('top level test', (t) => {
 ### `context.fullName`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 The name of the test and each of its ancestors, separated by `>`.
@@ -3223,6 +3232,7 @@ The name of the test.
 <!-- YAML
 added:
   - v22.2.0
+  - v20.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -3413,9 +3423,9 @@ behaves in the same fashion as the top level [`test()`][] function.
 test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
-    { only: false, skip: false, concurrency: 1, todo: false, plan: 4 },
+    { only: false, skip: false, concurrency: 1, todo: false, plan: 1 },
     (t) => {
-      assert.ok('some relevant assertion here');
+      t.assert.ok('some relevant assertion here');
     },
   );
 });

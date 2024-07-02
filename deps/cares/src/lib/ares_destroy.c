@@ -129,7 +129,7 @@ void ares_destroy(ares_channel_t *channel)
 void ares__destroy_server(struct server_state *server)
 {
   if (server == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__close_sockets(server);

@@ -272,7 +272,7 @@ Relative paths are NOT supported through the CLI flag.
 ### `--allow-wasi`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.1 - Active development
@@ -635,7 +635,9 @@ vm.measureMemory();
 ### `--disable-wasm-trap-handler`
 
 <!-- YAML
-added: v22.2.0
+added:
+- v22.2.0
+- v20.15.0
 -->
 
 By default, Node.js enables trap-handler-based WebAssembly bound
@@ -696,7 +698,7 @@ code from strings throw an exception instead. This does not affect the Node.js
 ### `--expose-gc`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
@@ -940,7 +942,7 @@ CommonJS. This includes the following:
 ### `--experimental-eventsource`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 Enable exposition of [EventSource Web API][] on the global scope.
@@ -1019,7 +1021,7 @@ following permissions are restricted:
 added: v22.0.0
 -->
 
-> Stability: 1.1 - Active Developement
+> Stability: 1.1 - Active Development
 
 Supports loading a synchronous ES module graph in `require()`.
 
@@ -1069,7 +1071,7 @@ report is not generated. See the documentation on
 ### `--experimental-test-module-mocks`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1079,7 +1081,7 @@ Enable module mocking in the test runner.
 ### `--experimental-test-snapshots`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1122,6 +1124,14 @@ added: v12.3.0
 -->
 
 Enable experimental WebAssembly module support.
+
+### `--experimental-webstorage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental [`Web Storage`][] support.
 
 ### `--force-context-aware`
 
@@ -1462,7 +1472,9 @@ endpoint on `http://host:port/json/list`.
 ### `--inspect-wait[=[host:]port]`
 
 <!-- YAML
-added: v22.2.0
+added:
+  - v22.2.0
+  - v20.15.0
 -->
 
 Activate inspector on `host:port` and wait for debugger to be attached.
@@ -1490,6 +1502,17 @@ added: v12.0.0
 Disable [runtime allocation of executable memory][jitless]. This may be
 required on some platforms for security reasons. It can also reduce attack
 surface on other platforms, but the performance impact may be severe.
+
+### `--localstorage-file=file`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The file used to store `localStorage` data. If the file does not exist, it is
+created the first time `localStorage` is accessed. The same file may be shared
+between multiple Node.js processes concurrently. This flag is a no-op unless
+Node.js is started with the `--experimental-webstorage` flag.
 
 ### `--max-http-header-size=size`
 
@@ -1973,20 +1996,20 @@ Modules preloaded with `--require` will run before modules preloaded with `--imp
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53032
     description: NODE_RUN_SCRIPT_NAME environment variable is added.
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53058
     description: NODE_RUN_PACKAGE_JSON_PATH environment variable is added.
-  - version: REPLACEME
+  - version: v22.3.0
     pr-url: https://github.com/nodejs/node/pull/53154
     description: Traverses up to the root directory and finds
                  a `package.json` file to run the command from, and updates
                  `PATH` environment variable accordingly.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 This runs a specified command from a package.json's `"scripts"` object.
 If no `"command"` is provided, it will list the available scripts.
@@ -2253,7 +2276,7 @@ subtests inherit this value from their parent. The default value is `Infinity`.
 ### `--test-update-snapshots`
 
 <!-- YAML
-added: REPLACEME
+added: v22.3.0
 -->
 
 > Stability: 1.0 - Early development
@@ -2833,6 +2856,7 @@ one is included in the list below.
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
+* `--experimental-webstorage`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -2849,6 +2873,7 @@ one is included in the list below.
 * `--inspect-publish-uid`
 * `--inspect-wait`
 * `--inspect`
+* `--localstorage-file`
 * `--max-http-header-size`
 * `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
@@ -3009,7 +3034,7 @@ added:
  - v12.16.0
 changes:
   - version:
-     - REPLACEME
+     - v22.3.0
     pr-url: https://github.com/nodejs/node/pull/52905
     description:
       Remove the possibility to use this env var with
@@ -3376,6 +3401,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback

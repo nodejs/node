@@ -52,19 +52,19 @@ char **ares__strsplit_duplicate(char **elms, size_t num_elm)
   char **out;
 
   if (elms == NULL || num_elm == 0) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   out = ares_malloc_zero(sizeof(*elms) * num_elm);
   if (out == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (i = 0; i < num_elm; i++) {
     out[i] = ares_strdup(elms[i]);
     if (out[i] == NULL) {
-      ares__strsplit_free(out, num_elm);
-      return NULL;
+      ares__strsplit_free(out, num_elm); /* LCOV_EXCL_LINE: OutOfMemory */
+      return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -82,7 +82,7 @@ char **ares__strsplit(const char *in, const char *delms, size_t *num_elm)
   size_t              idx = 0;
 
   if (in == NULL || delms == NULL || num_elm == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *num_elm = 0;
@@ -108,8 +108,8 @@ char **ares__strsplit(const char *in, const char *delms, size_t *num_elm)
 
   out = ares_malloc_zero(cnt * sizeof(*out));
   if (out == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (node = ares__llist_node_first(llist); node != NULL;

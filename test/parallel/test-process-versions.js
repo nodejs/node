@@ -20,9 +20,10 @@ const expected_keys = [
   'acorn',
   'simdjson',
   'simdutf',
+  'sqlite',
   'ada',
   'cjs_module_lexer',
-  'base64',
+  'nbytes',
 ];
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
@@ -62,6 +63,7 @@ assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
+assert.match(process.versions.nbytes, commonTemplate);
 assert.match(process.versions.zlib, /^\d+(?:\.\d+){1,3}(?:-.*)?$/);
 
 if (hasUndici) {

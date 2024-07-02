@@ -10,13 +10,13 @@
     "remark-preset-lint-node": "^5.0.2",
     "remark-stringify": "^11.0.0",
     "to-vfile": "^8.0.0",
-    "unified": "^11.0.4",
+    "unified": "^11.0.5",
     "vfile-reporter": "^8.1.1"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-commonjs": "^26.0.1",
     "@rollup/plugin-node-resolve": "^15.2.3",
-    "rollup": "^4.17.2",
+    "rollup": "^4.18.0",
     "rollup-plugin-cleanup": "^3.2.1"
   }
 }

@@ -33,7 +33,7 @@
 #  include <limits.h>
 #endif
 
-#ifdef _WIN32
+#if defined(USE_WINSOCK)
 
 /* IMPLEMENTATION NOTES
  * ====================

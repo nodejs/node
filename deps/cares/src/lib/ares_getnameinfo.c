@@ -82,7 +82,7 @@ static char *lookup_service(unsigned short port, unsigned int flags, char *buf,
                             size_t buflen);
 #ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
 static void append_scopeid(const struct sockaddr_in6 *addr6,
-                           unsigned int scopeid, char *buf, size_t buflen);
+                           unsigned int flags, char *buf, size_t buflen);
 #endif
 static char *ares_striendstr(const char *s1, const char *s2);
 

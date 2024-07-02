@@ -77,7 +77,7 @@ static void ares__llist_attach_at(ares__llist_t            *list,
                                   ares__llist_node_t       *node)
 {
   if (list == NULL || node == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   node->parent = list;
@@ -127,7 +127,7 @@ static ares__llist_node_t *ares__llist_insert_at(ares__llist_t            *list,
   ares__llist_node_t *node = NULL;
 
   if (list == NULL || val == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   node = ares_malloc_zero(sizeof(*node));
@@ -250,7 +250,7 @@ static void ares__llist_node_detach(ares__llist_node_t *node)
   ares__llist_t *list;
 
   if (node == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   list = node->parent;
@@ -341,7 +341,7 @@ void ares__llist_node_move_parent_last(ares__llist_node_t *node,
                                        ares__llist_t      *new_parent)
 {
   if (node == NULL || new_parent == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__llist_node_detach(node);
@@ -352,7 +352,7 @@ void ares__llist_node_move_parent_first(ares__llist_node_t *node,
                                         ares__llist_t      *new_parent)
 {
   if (node == NULL || new_parent == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__llist_node_detach(node);

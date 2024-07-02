@@ -538,6 +538,29 @@ shared_optgroup.add_argument('--shared-cares-libpath',
     dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
+shared_optgroup.add_argument('--shared-sqlite',
+    action='store_true',
+    dest='shared_sqlite',
+    default=None,
+    help='link to a shared sqlite DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-sqlite-includes',
+    action='store',
+    dest='shared_sqlite_includes',
+    help='directory containing sqlite header files')
+
+shared_optgroup.add_argument('--shared-sqlite-libname',
+    action='store',
+    dest='shared_sqlite_libname',
+    default='sqlite3',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-sqlite-libpath',
+    action='store',
+    dest='shared_sqlite_libpath',
+    help='a directory to search for the shared sqlite DLL')
+
+
 for builtin in shareable_builtins:
   builtin_id = 'shared_builtin_' + builtin + '_path'
   shared_builtin_optgroup.add_argument('--shared-builtin-' + builtin + '-path',
@@ -2155,6 +2178,7 @@ configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
+configure_library('sqlite', output, pkgname='sqlite3')
 configure_library('uvwasi', output, pkgname='libuvwasi')
 configure_v8(output)
 configure_openssl(output)

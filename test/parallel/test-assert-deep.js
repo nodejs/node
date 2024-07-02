@@ -375,7 +375,11 @@ assertOnlyDeepEqual(
   new Map([[undefined, null], ['+000', 2n]]),
   new Map([[null, undefined], [false, '2']]),
 );
-
+const xarray = ['x'];
+assertDeepAndStrictEqual(
+  new Set([xarray, ['y']]),
+  new Set([xarray, ['y']])
+);
 assertOnlyDeepEqual(
   new Set([null, '', 1n, 5, 2n, false]),
   new Set([undefined, 0, 5n, true, '2', '-000'])
@@ -1299,4 +1303,36 @@ if (common.hasCrypto) {
       assertDeepAndStrictEqual(a, b);
     }
   })().then(common.mustCall());
+}
+
+// Comparing two identical WeakMap instances
+{
+  const weakMap = new WeakMap();
+  assertDeepAndStrictEqual(weakMap, weakMap);
+}
+
+// Comparing two different WeakMap instances
+{
+  const weakMap1 = new WeakMap();
+  const objA = {};
+  weakMap1.set(objA, 'ok');
+
+  const weakMap2 = new WeakMap();
+  const objB = {};
+  weakMap2.set(objB, 'ok');
+
+  assertNotDeepOrStrict(weakMap1, weakMap2);
+}
+
+// Comparing two identical WeakSet instances
+{
+  const weakSet = new WeakSet();
+  assertDeepAndStrictEqual(weakSet, weakSet);
+}
+
+// Comparing two different WeakSet instances
+{
+  const weakSet1 = new WeakSet();
+  const weakSet2 = new WeakSet();
+  assertNotDeepOrStrict(weakSet1, weakSet2);
 }

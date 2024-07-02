@@ -98,6 +98,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
+  'NativeModule diagnostics_channel',
   'Internal Binding wasm_web_api',
   'NativeModule internal/events/abort_listener',
 ]);
@@ -162,16 +163,12 @@ if (process.features.inspector) {
   expected.beforePreExec.add('Internal Binding inspector');
   expected.beforePreExec.add('NativeModule internal/util/inspector');
   expected.atRunTime.add('NativeModule internal/inspector_async_hook');
-
-  // This is loaded if the test is run with NODE_V8_COVERAGE.
-  if (process.env.NODE_V8_COVERAGE) {
-    expected.atRunTime.add('Internal Binding profiler');
-  }
 }
 
-const difference = (setA, setB) => {
-  return new Set([...setA].filter((x) => !setB.has(x)));
-};
+// This is loaded if the test is run with NODE_V8_COVERAGE.
+if (process.env.NODE_V8_COVERAGE) {
+  expected.atRunTime.add('Internal Binding profiler');
+}
 
 // Accumulate all the errors and print them at the end instead of throwing
 // immediately which makes it harder to update the test.
@@ -186,8 +183,8 @@ function err(message) {
 }
 
 if (common.isMainThread) {
-  const missing = difference(expected.beforePreExec, actual.beforePreExec);
-  const extra = difference(actual.beforePreExec, expected.beforePreExec);
+  const missing = expected.beforePreExec.difference(actual.beforePreExec);
+  const extra = actual.beforePreExec.difference(expected.beforePreExec);
   if (missing.size !== 0) {
     err('These builtins are now no longer loaded before pre-execution.');
     err('If this is intentional, remove them from `expected.beforePreExec`.');
@@ -221,8 +218,8 @@ if (!common.isMainThread) {
 }
 
 {
-  const missing = difference(expected.atRunTime, actual.atRunTime);
-  const extra = difference(actual.atRunTime, expected.atRunTime);
+  const missing = expected.atRunTime.difference(actual.atRunTime);
+  const extra = actual.atRunTime.difference(expected.atRunTime);
   if (missing.size !== 0) {
     err('These builtins are now no longer loaded at run time.');
     err('If this is intentional, remove them from `expected.atRunTime`.');

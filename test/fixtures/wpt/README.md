@@ -11,11 +11,11 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 Last update:
 
 - common: https://github.com/web-platform-tests/wpt/tree/dbd648158d/common
-- compression: https://github.com/web-platform-tests/wpt/tree/c82521cfa5/compression
+- compression: https://github.com/web-platform-tests/wpt/tree/5aa50dd415/compression
 - console: https://github.com/web-platform-tests/wpt/tree/767ae35464/console
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/d1f1ecbd52/dom/abort
 - dom/events: https://github.com/web-platform-tests/wpt/tree/ab8999891c/dom/events
-- encoding: https://github.com/web-platform-tests/wpt/tree/a58bbf6d8c/encoding
+- encoding: https://github.com/web-platform-tests/wpt/tree/5aa50dd415/encoding
 - fetch/data-urls/resources: https://github.com/web-platform-tests/wpt/tree/7c79d998ff/fetch/data-urls/resources
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/cceaf3628d/FileAPI
 - hr-time: https://github.com/web-platform-tests/wpt/tree/34cafd797e/hr-time
@@ -28,13 +28,14 @@ Last update:
 - resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
 - resources: https://github.com/web-platform-tests/wpt/tree/1e140d63ec/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/9b03282a99/streams
-- url: https://github.com/web-platform-tests/wpt/tree/0f550ab9f5/url
+- url: https://github.com/web-platform-tests/wpt/tree/7f369fef2b/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/5e042cbc4e/WebCryptoAPI
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/a370aad338/webidl/ecmascript-binding/es-exceptions
 - webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/e97fac4791/webmessaging/broadcastchannel
+- webstorage: https://github.com/web-platform-tests/wpt/tree/9dafa89214/webstorage
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-wpt
