@@ -624,6 +624,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set environment variables from supplied file",
             &EnvironmentOptions::env_file);
   Implies("--env-file", "[has_env_file_string]");
+  AddOption(
+      "--env-file-override-local",
+      "override environment variables set on machine with variables from "
+      "supplied files via --env-file flag or loadEnvFile() process function",
+      &EnvironmentOptions::env_file_override_local);
+  Implies("--env-file-override-local", "[has_env_file_string]");
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner);

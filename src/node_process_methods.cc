@@ -472,11 +472,14 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 
 static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  std::string path = ".env";
-  if (args.Length() == 1) {
-    Utf8Value path_value(args.GetIsolate(), args[0]);
-    path = path_value.ToString();
-  }
+
+  CHECK_EQ(args.Length(), 2);  // file_path, [should_override]
+  CHECK(args[0]->IsString());
+
+  Utf8Value path_value(args.GetIsolate(), args[0]);
+  std::string path = path_value.ToString();
+
+  bool env_file_override_local = args[1]->IsTrue();
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path);
@@ -485,7 +488,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   switch (dotenv.ParsePath(path)) {
     case dotenv.ParseResult::Valid: {
-      dotenv.SetEnvironment(env);
+      dotenv.SetEnvironment(env, env_file_override_local);
       break;
     }
     case dotenv.ParseResult::InvalidContent: {
