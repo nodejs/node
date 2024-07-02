@@ -101,10 +101,6 @@ test-http-pipeline-flood: SKIP
 # https://github.com/nodejs/node/issues/39655
 test-cluster-primary-error: PASS, FLAKY
 
-[$arch==s390x]
-# https://github.com/nodejs/node/issues/50222
-test-inspector-async-hook-setup-at-inspect-brk: PASS, FLAKY
-
 [$arch==loong64]
 # https://github.com/nodejs/node/issues/51662
 test-http-correct-hostname: SKIP
