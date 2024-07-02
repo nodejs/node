@@ -1,0 +1,46 @@
+name: Close stale pull requests
+on:
+  workflow_dispatch:
+  schedule:
+    # Run every day at 1:00 AM UTC.
+    - cron: 0 1 * * *
+# yamllint disable rule:empty-lines
+env:
+  CLOSE_MESSAGE: >
+    There hasn't been any activity on this issue/PR for over 8 months.
+    We appreciate your contribution, but since there hasn't been any
+    progress recently, we're closing it. If you disagree with this
+    decision, please leave a comment.
+
+  WARN_MESSAGE: >
+    There hasn't been any activity on this issue/PR for over 7 months.
+    We appreciate your contribution, but since there hasn't been any
+    progress recently, we're closing it in **30 days**. If you
+    disagree with this decision, please leave a comment.
+# yamllint enable
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e  # v9.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 240
+          days-before-close: 30
+          close-issue-message: ${{ env.CLOSE_MESSAGE }}
+          stale-issue-message: ${{ env.WARN_MESSAGE }}
+          close-pr-message: ${{ env.CLOSE_MESSAGE }}
+          stale-pr-message: ${{ env.WARN_MESSAGE }}
+          exempt-issue-labels: never-stale
+          exempt-pr-labels: never-stale
+          stale-issue-label: stale
+          stale-pr-label: stale
+          operations-per-run: 500
+          remove-stale-when-updated: true

@@ -60,5 +60,28 @@ activities, such as applying labels and closing/reopening/assigning issues.
 For more information on the roles and permissions, see ["Permission levels for
 repositories owned by an organization"](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization).
 
+## Handling stale issues
+
+Once there has been no activity on a issue for
+7 months, the following comment will be added:
+
+```markdown
+There hasn't been any activity on this issue/PR for over 7 months.
+We appreciate your contribution, but since there hasn't been any
+progress recently, we're closing it in **30 days**. If you
+disagree with this decision, please leave a comment.
+```
+
+If there is no additional activity/discussion on the
+issue in the next month (totalling to 8 months), it is
+closed, and the following comment is added:
+
+```markdown
+There hasn't been any activity on this issue/PR for over 8 months.
+We appreciate your contribution, but since there hasn't been any
+progress recently, we're closing it. If you disagree with this
+decision, please leave a comment.
+```
+
 [Node.js help repository]: https://github.com/nodejs/help/issues
 [Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues
