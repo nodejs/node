@@ -24,6 +24,7 @@
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_external_reference.h"
+#include "path.h"
 #include "permission/permission.h"
 #include "string_bytes.h"
 
@@ -147,6 +148,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, *path);
 
