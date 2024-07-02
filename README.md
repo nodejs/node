@@ -1,6 +1,18 @@
-# Node.js
+<h1 align="center">Node.js</h1><br>
 
-Node.js is an open-source, cross-platform JavaScript runtime environment.
+<p align="center">
+  Node.js<sup>®</sup> is a free, open-source, cross-platform JavaScript run-time environment—<br> that lets developers write command line tools and server-side scripts outside of a browser.
+</p>
+
+<p align="center">
+  <a href="https://nodejs.org/en/download">Get Node.js<sup>®</sup> ✨</a>
+  ·
+  <a href="https://github.com/nodejs/node/issues/new/choose">Report a bug 🐞</a>
+  ·
+  <a href="https://nodejs.org/en/get-involved">Contribute 🫶</a>
+</p>
+
+***
 
 For information on using Node.js, see the [Node.js website][].
 
