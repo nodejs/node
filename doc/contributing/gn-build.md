@@ -1,57 +1,46 @@
-# GN Build
+# Node.js GN build guide
 
-Similar to GYP, GN is a build system designed for building Chromium. The
-official builds of Node.js are built with GYP, but GN build files are also
-provided as an unofficial alternative build system.
+This document is designed to help you set up and use GN (Generate Ninja) as an alternative build system for Node.js
+projects. While GN is primarily associated with Chromium, it can also be used for Node.js, though this usage is
+unofficial. This guide will walk you through the setup process, current status, and how you can contribute to
+improving GN support for Node.js.
 
-The GN build files only support a subset of the Node.js build configurations.
-It's not required for all pull requests to Node.js to support GN builds, and the
-CI of Node.js does not currently test GN builds, though Node.js welcomes pull
-requests that improve GN support or fix breakages introduced by other pull
-requests.
+## Introduction
 
-Currently the GN build is used by:
+GN offers an unofficial alternative build system for Node.js, providing a subset of build configurations. GN builds
+are not required for Node.js pull requests, but contributions to improve GN support or address issues are highly
+encouraged. GN builds are currently used by Electron for integrating Node.js with Chromium and by V8 for Node.js
+integration testing.
 
-1. Electron for building Node.js together with Chromium.
-2. V8 for testing the integration of Node.js in CI.
+## GN support files
 
-## Files for GN support
+Node.js includes several key GN support files for configuring the build:
 
-Node.js contains following GN build files:
+* `node.gni`: Public GN arguments for configuring the build.
+* `*/BUILD.gn`: GN looks for build rules here, typically including `unofficial.gni` to prevent unintended modifications.
+* `*/unofficial.gni`: Actual build rules for each component.
 
-* `node.gni` - Public GN arguments for configuring the build.
-* `*/BUILD.gn` - This is the file where GN looks for build rules, in Node.js it
-  just includes the `unofficial.gni` file to avoid accidental modifications.
-* `*/unofficial.gni` - The actual build rules for each component.
+## Building with GN
 
-## Build with GN
+Unlike GYP, GN does not come with built-in rules for compiling projects. Projects using GN must provide their build
+configurations, including how to invoke a C++ compiler. Node.js projects can utilize build configurations from V8
+and Skia, and V8's Node.js integration testing repository can be used for building Node.js.
 
-Unlike GYP, the GN tool does not include any built-in rules for compiling a
-project, which means projects building with GN must provide their own build
-configurations for things like how to invoke a C++ compiler. Chromium related
-projects like V8 and skia choose to reuse Chromium's build configurations, and
-V8's Node.js integration testing repository
-([node-ci](https://chromium.googlesource.com/v8/node-ci/)) can be reused for
-building Node.js.
+### Step 1: Installing `depot_tools`
 
-### 1. Install `depot_tools`
-
-The `depot_tools` is a set of tools used by Chromium related projects for
-checking out code and managing dependencies, and since this guide is reusing the
-infra of V8, it needs to be installed and added to `PATH`:
+To reuse V8's infrastructure, you need to install `depot_tools`. These tools, used by Chromium projects, facilitate code
+checkout and dependency management. Follow these steps to install and add `depot_tools` to your `PATH`:
 
 ```bash
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 export PATH=/path/to/depot_tools:$PATH
 ```
 
-You can also follow the [official tutorial of
-`depot_tools`](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html).
+For detailed instructions, refer to the [official `depot_tools` tutorial](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html).
 
-### 2. Check out code of Node.js
+### Step 2: Checking out Node.js code
 
-To check out the latest main branch of Node.js for building, use the `fetch`
-tool from `depot_tools`:
+To get the latest Node.js main branch for building, use the `fetch` tool from `depot_tools`:
 
 ```bash
 mkdir node_gn
@@ -59,15 +48,15 @@ cd node_gn
 fetch node
 ```
 
-You can choose to save some time by omitting git history:
+You can speed up the process by omitting git history:
 
 ```bash
 fetch --no-history node
 ```
 
-After syncing is done, you will get a directory structure like this:
+After syncing, your directory structure will look like this:
 
-```console
+```text
 node_gn/
 ├── .gclient
 ├── .gclient_entries
@@ -80,46 +69,35 @@ node_gn/
     └── tools/
 ```
 
-The `node_gn` is a workspace directory, which only contains configurations and
-caches of the `gclient` tool from `depot_tools`, and the repository is checked
-out at `node_gn/node`.
+The `node_gn` directory serves as the workspace containing `gclient` configurations and caches,
+with the repository located at `node_gn/node`.
 
-The `node_gn/node` directory is not a checkout of Node.js, it is actually
-[node-ci](https://chromium.googlesource.com/v8/node-ci/), the repository used by
-V8 for testing integration with Node.js. The source code of Node.js is checked
-out at `node_gn/node/node`.
+### Step 3: Building
 
-### 3. Build
+GN exclusively supports [`ninja`](https://ninja-build.org) for building. To build Node.js with GN,
+first generate `ninja` build files, then invoke `ninja` to perform the actual build.
 
-GN only supports [`ninja`](https://ninja-build.org) for building, so to build
-Node.js with GN, `ninja` build files should be generated first, and then
-`ninja` can be invoked to do the building.
-
-The `node-ci` repository provides a script for calling GN:
+Run the provided script in the `node-ci` repository to call GN:
 
 ```bash
-cd node  # Enter `node_gn/node` which contains a node-ci checkout
+cd node  # Navigate to `node_gn/node` containing the node-ci checkout
 ./tools/gn-gen.py out/Release
 ```
 
-which writes `ninja` build files into the `out/Release` directory under
-`node_gn/node`.
+This generates `ninja` build files in `node_gn/node/out/Release`.
 
-And then you can execute `ninja`:
+Then, execute `ninja` to build Node.js:
 
 ```bash
 ninja -C out/Release node
 ```
 
-After the build is completed, the compiled Node.js executable can be found in
-`out/Release/node`.
+After the build completes, the compiled Node.js executable will be located in `out/Release/node`.
 
-## Status of the GN build
+## GN build status
 
-Currently the GN build of Node.js is not fully functioning. It builds for macOS
-and Linux, while the Windows build is still a work in progress. And some tests
-are still failing with the GN build.
-
-There are also efforts on making GN build work without using `depot_tools`,
-which is tracked in the issue
-[#51689](https://github.com/nodejs/node/issues/51689).
+Currently, the GN build for Node.js is partially functional, supporting macOS and Linux.
+Windows support is still under development, and some tests may fail with the GN build.
+Efforts are ongoing to enable GN builds without relying on `depot_tools`, which you can track in
+issue [#51689](https://github.com/nodejs/node/issues/51689). Your contributions to advancing the
+GN build for Node.js are highly appreciated.
