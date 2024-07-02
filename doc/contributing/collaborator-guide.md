@@ -19,6 +19,7 @@
   * [Breaking changes](#breaking-changes)
     * [Breaking changes and deprecations](#breaking-changes-and-deprecations)
     * [Breaking changes to internal elements](#breaking-changes-to-internal-elements)
+    * [Breaking changes to console APIs](#breaking-changes-to-console-apis)
     * [Unintended breaking changes](#unintended-breaking-changes)
       * [Reverting commits](#reverting-commits)
   * [Introducing new modules](#introducing-new-modules)
@@ -354,6 +355,7 @@ Examples of breaking changes include:
 * Adding or removing errors.
 * Altering expected timing of an event.
 * Changing the side effects of using a particular API.
+* Changing the output of some [console APIs](#breaking-changes-to-console-apis).
 
 #### Breaking changes and deprecations
 
@@ -377,6 +379,20 @@ an effort to determine the potential impact of the change in the ecosystem. Use
 [Canary in the Goldmine](https://github.com/nodejs/citgm) to test such changes.
 If a change will cause ecosystem breakage, then it is semver-major. Consider
 providing a Public API in such cases.
+
+### Breaking changes to console APIs
+
+Console APIs are a debugging tool, and the format of their output should generally not
+be considered stable.
+However due to the nature of the Node.js ecosystem, users rely on stability of
+the output of some of these APIs for snapshot testing, parsers, etc...
+To avoid breaking changes, some behaviors should be considered stable.
+The following changes in the output are to be considered breaking changes:
+
+* `console.table` (padding, alignment, etc...).
+* changing the color of all console methods.
+* changing the signature of all console methods.
+* changing the output for single string inputs.
 
 #### Unintended breaking changes
 
