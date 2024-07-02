@@ -282,9 +282,9 @@ size_t SnapshotSerializer::Write(const PropInfo& data) {
 }
 
 // Layout of AsyncHooks::SerializeInfo
-// [ 8 bytes ]  snapshot index of async_ids_stack
-// [ 8 bytes ]  snapshot index of fields
-// [ 8 bytes ]  snapshot index of async_id_fields
+// [ 4/8 bytes ]  snapshot index of async_ids_stack
+// [ 4/8 bytes ]  snapshot index of fields
+// [ 4/8 bytes ]  snapshot index of async_id_fields
 // [ 4/8 bytes ]  snapshot index of js_execution_async_resources
 // [ 4/8 bytes ]  length of native_execution_async_resources
 // [   ...     ]  snapshot indices of each element in
@@ -387,9 +387,9 @@ size_t SnapshotSerializer::Write(const ImmediateInfo::SerializeInfo& data) {
 }
 
 // Layout of PerformanceState::SerializeInfo
-// [ 8 bytes ]  snapshot index of root
-// [ 8 bytes ]  snapshot index of milestones
-// [ 8 bytes ]  snapshot index of observers
+// [ 4/8 bytes ]  snapshot index of root
+// [ 4/8 bytes ]  snapshot index of milestones
+// [ 4/8 bytes ]  snapshot index of observers
 template <>
 performance::PerformanceState::SerializeInfo SnapshotDeserializer::Read() {
   Debug("Read<PerformanceState::SerializeInfo>()\n");
@@ -1416,6 +1416,7 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
   if (index == BaseObject::kEmbedderType) {
     int size = sizeof(EmbedderTypeInfo);
     char* data = new char[size];
+    memset(data, 0, size);  // Make the padding reproducible.
     // We need to use placement new because V8 calls delete[] on the returned
     // data.
     // TODO(joyeecheung): support cppgc objects.
