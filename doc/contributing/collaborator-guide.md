@@ -383,7 +383,7 @@ providing a Public API in such cases.
 ### Breaking changes to console APIs
 
 Console APIs are a debugging tool, and the format of their output should generally not
-considered stable.
+be considered stable.
 However due to the nature of the Node.js ecosystem, users rely on stability of
 the output of some of these APIs for snapshot testing, parsers, etc...
 To avoid breaking changes, some behaviors should be considered stable.
