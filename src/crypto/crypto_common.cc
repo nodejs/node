@@ -503,6 +503,71 @@ MaybeLocal<Value> GetRawDERCertificate(Environment* env, X509* cert) {
   return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
 }
 
+MaybeLocal<Value> GetExtensions(Environment* env, X509* cert) {
+  Local<Object> extensions = Object::New(env->isolate());
+
+  const STACK_OF(X509_EXTENSION)* ext_list = X509_get0_extensions(cert);
+  int num_extensions = sk_X509_EXTENSION_num(ext_list);
+
+  for (int i = 0; i < num_extensions; ++i) {
+    X509_EXTENSION* ext = sk_X509_EXTENSION_value(ext_list, i);
+    const char* ext_name =
+      OBJ_nid2sn(OBJ_obj2nid(X509_EXTENSION_get_object(ext)));
+    if (ext_name == nullptr) {
+      ext_name = "UNKNOWN";
+    }
+
+    static BIO* ext_bio = nullptr;
+    if (ext_bio == nullptr) {
+      ext_bio = BIO_new(BIO_s_mem());
+    } else {
+      BIO_reset(ext_bio);
+    }
+    if (!ext_bio) {
+      CHECK(false) << "Error processing extension data for " << ext_name;
+      continue;
+    }
+
+    ASN1_OBJECT* ext_obj = X509_EXTENSION_get_object(ext);
+    int ext_nid = OBJ_obj2nid(ext_obj);
+
+    ASN1_OCTET_STRING* ext_data = X509_EXTENSION_get_data(ext);
+
+    char* ext_value = reinterpret_cast<char*>(ASN1_STRING_data(ext_data));
+
+    if (ext_value == nullptr) {
+      BIO_free(ext_bio);
+      continue;
+    }
+
+    char* ext_value_buf;
+    int64_t ext_value_len = BIO_get_mem_data(ext_bio, &ext_value_buf);
+
+    if (!ext_value_buf || ext_value_len <= 0) {
+      BIO_free(ext_bio);
+      continue;
+    }
+
+    v8::Isolate* isolate = env->isolate();
+    v8::Local<v8::String> ext_value_str = v8::String::NewExternal(
+        isolate,
+        new v8::ExternalStringResourceImpl(ext_value_buf, ext_value_len));
+
+    BIO_free(ext_bio);
+
+    v8::Local<v8::String> ext_name_str =
+        String::NewFromUtf8(env->isolate(), ext_name).ToLocalChecked();
+
+    if (your_object->Set(env->context(), ext_name_str, ext_value_str)
+            .ToLocalChecked()
+            .IsEmpty()) {
+      return env->ThrowError("Failed to set the property on the object");
+    }
+  }
+
+  return extensions;
+}
+
 MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
   if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
     BignumPointer bn(ASN1_INTEGER_to_BN(serial_number, nullptr));

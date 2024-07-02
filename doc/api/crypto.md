@@ -2882,6 +2882,16 @@ added: v15.6.0
 Verifies that this certificate was signed by the given public key.
 Does not perform any other validation checks on the certificate.
 
+### `x509.extensions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Returns: {Object}
+
+Returns an object representing the extensions of the certificate.
+
 ## `node:crypto` module methods and properties
 
 ### `crypto.constants`

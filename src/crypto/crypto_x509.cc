@@ -86,6 +86,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "serialNumber", SerialNumber);
     SetProtoMethod(isolate, tmpl, "pem", Pem);
     SetProtoMethod(isolate, tmpl, "raw", Raw);
+    SetProtoMethod(isolate, tmpl, "extensions", Extensions);
     SetProtoMethod(isolate, tmpl, "publicKey", PublicKey);
     SetProtoMethod(isolate, tmpl, "checkCA", CheckCA);
     SetProtoMethod(isolate, tmpl, "checkHost", CheckHost);
@@ -259,6 +260,10 @@ void X509Certificate::SerialNumber(const FunctionCallbackInfo<Value>& args) {
 
 void X509Certificate::Raw(const FunctionCallbackInfo<Value>& args) {
   ReturnProperty<GetRawDERCertificate>(args);
+}
+
+void X509Certificate::Extensions(const FunctionCallbackInfo<Value>& args) {
+  ReturnProperty<GetExtensions>(args);
 }
 
 void X509Certificate::PublicKey(const FunctionCallbackInfo<Value>& args) {
@@ -530,6 +535,7 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(SerialNumber);
   registry->Register(Pem);
   registry->Register(Raw);
+  registry->Register(Extensions);
   registry->Register(PublicKey);
   registry->Register(CheckCA);
   registry->Register(CheckHost);
