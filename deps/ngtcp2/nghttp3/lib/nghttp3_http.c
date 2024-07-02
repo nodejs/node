@@ -32,7 +32,7 @@
 #include "nghttp3_macro.h"
 #include "nghttp3_conv.h"
 #include "nghttp3_unreachable.h"
-#include "sfparse.h"
+#include "sfparse/sfparse.h"
 
 static uint8_t downcase(uint8_t c) {
   return 'A' <= c && c <= 'Z' ? (uint8_t)(c - 'A' + 'a') : c;

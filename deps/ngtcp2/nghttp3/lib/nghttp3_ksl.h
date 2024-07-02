@@ -45,7 +45,7 @@
    block can contain. */
 #define NGHTTP3_KSL_MAX_NBLK (2 * NGHTTP3_KSL_DEGR - 1)
 /* NGHTTP3_KSL_MIN_NBLK is the minimum number of nodes which a single
-   block other than root must contains. */
+   block other than root must contain. */
 #define NGHTTP3_KSL_MIN_NBLK (NGHTTP3_KSL_DEGR - 1)
 
 /*

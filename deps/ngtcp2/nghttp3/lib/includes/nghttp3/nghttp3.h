@@ -624,7 +624,7 @@ typedef struct nghttp3_buf {
    */
   uint8_t *end;
   /**
-   * :member:`pos` pointers to the start of data.  Typically, this
+   * :member:`pos` points to the start of data.  Typically, this
    * points to the address that next data should be read.  Initially,
    * it points to :member:`begin`.
    */
@@ -2118,9 +2118,10 @@ NGHTTP3_EXTERN int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed.
  *
- * It may return the other error codes.  In general, the negative
- * error code means that |conn| encountered a connection error, and
- * the connection should be closed.
+ * It may return the other error codes.  The negative error code means
+ * that |conn| encountered a connection error, and the connection must
+ * be closed.  Calling nghttp3 API other than `nghttp3_conn_del`
+ * causes undefined behavior.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn,
                                                       int64_t stream_id,
@@ -2152,9 +2153,10 @@ NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
  *     User callback failed.
  *
- * It may return the other error codes.  In general, the negative
- * error code means that |conn| encountered a connection error, and
- * the connection should be closed.
+ * It may return the other error codes.  The negative error code means
+ * that |conn| encountered a connection error, and the connection must
+ * be closed.  Calling nghttp3 API other than `nghttp3_conn_del`
+ * causes undefined behavior.
  */
 NGHTTP3_EXTERN nghttp3_ssize nghttp3_conn_writev_stream(nghttp3_conn *conn,
                                                         int64_t *pstream_id,
@@ -2198,6 +2200,9 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
  * If a stream denoted by |stream_id| is not found, this function
  * returns 0.
  *
+ * Alternatively, `nghttp3_conn_update_ack_offset` can be used to
+ * accomplish the same thing.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -2206,6 +2211,31 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
  */
 NGHTTP3_EXTERN int nghttp3_conn_add_ack_offset(nghttp3_conn *conn,
                                                int64_t stream_id, uint64_t n);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_update_ack_offset` tells |conn| that QUIC stack has
+ * acknowledged the stream data up to |offset| for a stream denoted by
+ * |stream_id|.
+ *
+ * If a stream denoted by |stream_id| is not found, this function
+ * returns 0.
+ *
+ * Alternatively, `nghttp3_conn_add_ack_offset` can be used to
+ * accomplish the same thing.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     |offset| is less than the number of bytes acknowledged so far.
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
+ *     User callback failed.
+ */
+NGHTTP3_EXTERN int nghttp3_conn_update_ack_offset(nghttp3_conn *conn,
+                                                  int64_t stream_id,
+                                                  uint64_t offset);
 
 /**
  * @function
@@ -2278,9 +2308,6 @@ NGHTTP3_EXTERN void nghttp3_conn_shutdown_stream_write(nghttp3_conn *conn,
  * stream, this function returns 0.  If the stream has already
  * shutdown read-side stream, this function returns 0.
  *
- * This function does not fail if a stream denoted by |stream_id| is
- * not found, although it may fail with the other reasons.
- *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -2314,9 +2341,9 @@ NGHTTP3_EXTERN int nghttp3_conn_resume_stream(nghttp3_conn *conn,
 /**
  * @function
  *
- * `nghttp3_conn_close_stream` closes stream identified by
- * |stream_id|.  QUIC application error code |app_error_code| is the
- * reason of the closure.
+ * `nghttp3_conn_close_stream` tells the library that a stream
+ * identified by |stream_id| has been closed.  QUIC application error
+ * code |app_error_code| is the reason of the closure.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
