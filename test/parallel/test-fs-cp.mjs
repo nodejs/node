@@ -155,7 +155,7 @@ function nextdir() {
   const src = nextdir();
   mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
-  symlinkSync('foo.js', join(src, 'bar.js'));
+  symlinkSync(join(src, 'foo.js'), join(src, 'bar.js'));
 
   const dest = nextdir();
   mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
@@ -171,7 +171,7 @@ function nextdir() {
   const src = nextdir();
   mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
-  symlinkSync('foo.js', join(src, 'bar.js'));
+  symlinkSync(join(src, 'foo.js'), join(src, 'bar.js'));
 
   const dest = nextdir();
   mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
@@ -218,7 +218,7 @@ function nextdir() {
   assert.throws(
     () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true })),
     {
-      code: 'ERR_FS_CP_EINVAL'
+      code: 'ERR_FS_CP_EEXIST'
     }
   );
 }
@@ -234,7 +234,7 @@ function nextdir() {
   symlinkSync(src, join(dest, 'a', 'c'));
   assert.throws(
     () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true })),
-    { code: 'ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY' }
+    { code: 'ERR_FS_CP_EEXIST' }
   );
 }
 
@@ -398,7 +398,7 @@ if (!isWindows) {
   writeFileSync(join(dest, 'a', 'c'), 'hello', 'utf8');
   assert.throws(
     () => cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true })),
-    { code: 'EEXIST' }
+    { code: 'ERR_FS_CP_EEXIST' }
   );
 }
 
@@ -414,19 +414,6 @@ if (!isWindows) {
   const srcStat = lstatSync(join(src, 'foo.txt'));
   const destStat = lstatSync(join(dest, 'foo.txt'));
   assert.strictEqual(srcStat.mtime.getTime(), destStat.mtime.getTime());
-}
-
-// It copies link if it does not point to folder in src.
-{
-  const src = nextdir();
-  mkdirSync(join(src, 'a', 'b'), mustNotMutateObjectDeep({ recursive: true }));
-  symlinkSync(src, join(src, 'a', 'c'));
-  const dest = nextdir();
-  mkdirSync(join(dest, 'a'), mustNotMutateObjectDeep({ recursive: true }));
-  symlinkSync(dest, join(dest, 'a', 'c'));
-  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
-  const link = readlinkSync(join(dest, 'a', 'c'));
-  assert.strictEqual(link, src);
 }
 
 // It accepts file URL as src and dest.

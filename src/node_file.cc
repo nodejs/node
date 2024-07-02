@@ -2100,6 +2100,175 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+// TODO(@anonrig): Implement v8 fast APi calls for `cpSync`.
+static void CpSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // src, dest, preserveTimestamps, errorOnExist, force, recursive
+  CHECK_EQ(args.Length(), 6);
+  BufferValue src(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*src);
+  ToNamespacedPath(env, &src);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
+
+  BufferValue dest(env->isolate(), args[1]);
+  CHECK_NOT_NULL(*dest);
+  ToNamespacedPath(env, &dest);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
+
+  bool preserveTimestamps = args[2]->IsTrue();
+  bool errorOnExist = args[3]->IsTrue();
+  bool force = args[4]->IsTrue();
+  bool recursive = args[5]->IsTrue();
+
+  using copy_options = std::filesystem::copy_options;
+  using file_type = std::filesystem::file_type;
+
+  std::error_code error_code{};
+  copy_options options = copy_options::copy_symlinks;
+
+  // When true timestamps from src will be preserved.
+  if (preserveTimestamps) options |= copy_options::create_hard_links;
+  // Overwrite existing file or directory.
+  if (force) {
+    options |= copy_options::overwrite_existing;
+  } else {
+    options |= copy_options::skip_existing;
+  }
+  // Copy directories recursively.
+  if (recursive) {
+    options |= copy_options::recursive;
+  }
+
+  auto src_path = std::filesystem::path(src.ToStringView());
+  auto dest_path = std::filesystem::path(dest.ToStringView());
+
+  auto resolved_src = src_path.lexically_normal();
+  auto resolved_dest = dest_path.lexically_normal();
+
+  if (resolved_src == resolved_dest) {
+    std::string message =
+        "src and dest cannot be the same " + resolved_src.string();
+    return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+  }
+
+  auto get_stat = [](const std::filesystem::path& path)
+      -> std::optional<std::filesystem::file_status> {
+    std::error_code error_code{};
+    auto file_status = std::filesystem::status(path, error_code);
+    if (error_code) {
+      return std::nullopt;
+    }
+    return file_status;
+  };
+
+  auto src_type = get_stat(src_path);
+  auto dest_type = get_stat(dest_path);
+
+  if (!src_type.has_value()) {
+    std::string message = "src path " + src_path.string() + " does not exist";
+    return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+  }
+
+  const bool src_is_dir = src_type->type() == file_type::directory;
+
+  if (dest_type.has_value()) {
+    // Check if src and dest are identical.
+    if (std::filesystem::equivalent(src_path, dest_path)) {
+      std::string message =
+          "src and dest cannot be the same " + dest_path.string();
+      return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+    }
+
+    const bool dest_is_dir = dest_type->type() == file_type::directory;
+
+    if (src_is_dir && !dest_is_dir) {
+      std::string message = "Cannot overwrite non-directory " +
+                            src_path.string() + " with directory " +
+                            dest_path.string();
+      return THROW_ERR_FS_CP_DIR_TO_NON_DIR(env, message.c_str());
+    }
+
+    if (!src_is_dir && dest_is_dir) {
+      std::string message = "Cannot overwrite directory " + dest_path.string() +
+                            " with non-directory " + src_path.string();
+      return THROW_ERR_FS_CP_NON_DIR_TO_DIR(env, message.c_str());
+    }
+  }
+
+  if (src_is_dir && dest_path.string().starts_with(src_path.string())) {
+    std::string message = "Cannot copy " + src_path.string() +
+                          " to a subdirectory of self " + dest_path.string();
+    return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+  }
+
+  auto dest_parent = dest_path.parent_path();
+  // "/" parent is itself. Therefore, we need to check if the parent is the same
+  // as itself.
+  while (src_path.parent_path() != dest_parent &&
+         dest_parent.has_parent_path() &&
+         dest_parent.parent_path() != dest_parent) {
+    if (std::filesystem::equivalent(
+            src_path, dest_path.parent_path(), error_code)) {
+      std::string message = "Cannot copy " + src_path.string() +
+                            " to a subdirectory of self " + dest_path.string();
+      return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+    }
+
+    // If equivalent fails, it's highly likely that dest_parent does not exist
+    if (error_code) {
+      break;
+    }
+
+    dest_parent = dest_parent.parent_path();
+  }
+
+  if (src_is_dir && !recursive) {
+    std::string message =
+        "Recursive option not enabled, cannot copy a directory: " +
+        src_path.string();
+    return THROW_ERR_FS_EISDIR(env, message.c_str());
+  }
+
+  switch (src_type->type()) {
+    case file_type::socket: {
+      std::string message = "Cannot copy a socket file: " + dest_path.string();
+      return THROW_ERR_FS_CP_SOCKET(env, message.c_str());
+    }
+    case file_type::fifo: {
+      std::string message = "Cannot copy a FIFO pipe: " + dest_path.string();
+      return THROW_ERR_FS_CP_FIFO_PIPE(env, message.c_str());
+    }
+    case file_type::unknown: {
+      std::string message =
+          "Cannot copy an unknown file type: " + dest_path.string();
+      return THROW_ERR_FS_CP_UNKNOWN(env, message.c_str());
+    }
+    default:
+      break;
+  }
+
+  if (dest_type.has_value() && errorOnExist) {
+    std::string message = dest_path.string() + " already exists";
+    return THROW_ERR_FS_CP_EEXIST(env, message.c_str());
+  }
+
+  std::filesystem::create_directories(dest_path.parent_path(), error_code);
+  std::filesystem::copy(src_path, dest_path, options, error_code);
+  if (error_code) {
+    if (error_code == std::errc::file_exists) {
+      std::string message = "File already exists";
+      return THROW_ERR_FS_CP_EEXIST(env, message.c_str());
+    }
+
+    std::string message = "Unhandled error " +
+                          std::to_string(error_code.value()) + ": " +
+                          error_code.message();
+    return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+  }
+}
+
 static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -3338,6 +3507,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeFileUtf8", WriteFileUtf8);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
+  SetMethod(isolate, target, "cpSync", CpSync);
 
   SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "fchmod", FChmod);
@@ -3460,6 +3630,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteFileUtf8);
   registry->Register(RealPath);
   registry->Register(CopyFile);
+  registry->Register(CpSync);
 
   registry->Register(Chmod);
   registry->Register(FChmod);
