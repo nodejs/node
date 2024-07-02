@@ -42,7 +42,9 @@ server.listen(0, () => {
 
   const clientStream = clientSession.request();
 
-  clientStream.on('close', common.mustCall());
+  clientStream.on('close', () => {
+    clientSession.close();
+  });
   clientStream.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     name: 'Error',

@@ -3,6 +3,7 @@
 const {
   mustCall,
   mustNotCall,
+  expectsError,
   hasCrypto,
   skip
 } = require('../common');
@@ -38,7 +39,7 @@ const assert = require('assert');
           // response.write() with cb returns falsy value
           assert(!response.write('muahaha', mustCall()));
 
-          client.destroy();
+          client.close();
           server.close();
         }));
       }));
@@ -65,7 +66,7 @@ const assert = require('assert');
       response.end();
       response.write('asd', mustCall((err) => {
         assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
-        client.destroy();
+        client.close();
         server.close();
       }));
     }));
@@ -78,13 +79,17 @@ const assert = require('assert');
     const port = server.address().port;
     const url = `http://localhost:${port}`;
     const client = connect(url, mustCall(() => {
-      client.request();
+      client.request().once('error', expectsError({
+        name: 'Error',
+        code: 'ERR_HTTP2_STREAM_ERROR',
+        message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+      }));
     }));
 
     server.once('request', mustCall((request, response) => {
       response.destroy();
       assert.strictEqual(response.write('asd', mustNotCall()), false);
-      client.destroy();
+      client.close();
       server.close();
     }));
   }));
