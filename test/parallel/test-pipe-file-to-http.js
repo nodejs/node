@@ -29,14 +29,14 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 const filename = tmpdir.resolve('big');
+const fileSize = 5 * 1024 * 1024;
 let count = 0;
 
 const server = http.createServer((req, res) => {
-  let timeoutId;
   assert.strictEqual(req.method, 'POST');
   req.pause();
 
-  setTimeout(() => {
+  const timeoutId = setTimeout(() => {
     req.resume();
   }, 1000);
 
@@ -55,7 +55,7 @@ const server = http.createServer((req, res) => {
 server.listen(0);
 
 server.on('listening', () => {
-  common.createZeroFilledFile(filename);
+  common.createZeroFilledFile(filename, fileSize);
   makeRequest();
 });
 
@@ -73,11 +73,8 @@ function makeRequest() {
   req.on('response', (res) => {
     res.resume();
     res.on('end', () => {
+      assert.strictEqual(count, fileSize);
       server.close();
     });
   });
 }
-
-process.on('exit', () => {
-  assert.strictEqual(count, 1024 * 10240);
-});
