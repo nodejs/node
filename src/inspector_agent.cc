@@ -2,6 +2,8 @@
 
 #include "env-inl.h"
 #include "inspector/main_thread_interface.h"
+#include "inspector/network_agent.h"
+#include "inspector/node_network_agent.h"
 #include "inspector/node_string.h"
 #include "inspector/runtime_agent.h"
 #include "inspector/tracing_agent.h"
@@ -231,6 +233,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
+    network_agent_ = std::make_unique<protocol::NetworkAgent>();
+    network_agent_->Wire(node_dispatcher_.get());
+    node_network_agent_ = std::make_unique<protocol::NodeNetworkAgent>(env);
+    node_network_agent_->Wire(node_dispatcher_.get());
   }
 
   ~ChannelImpl() override {
@@ -242,6 +248,23 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_->disable();
     runtime_agent_.reset();  // Dispose before the dispatchers
+    network_agent_.reset();  // Dispose before the dispatchers
+    node_network_agent_.reset();  // Dispose before the dispatchers
+  }
+
+  void emitNotificationFromBackend(const StringView& event,
+                                   const StringView& params) {
+    std::unique_ptr<protocol::DictionaryValue> value =
+        protocol::DictionaryValue::cast(
+            protocol::StringUtil::parseJSON(params));
+    std::string raw_event = protocol::StringUtil::StringViewToUtf8(event);
+    std::string domain_name = raw_event.substr(0, raw_event.find('.'));
+    std::string event_name = raw_event.substr(raw_event.find('.') + 1);
+    if (domain_name == "Network") {
+      network_agent_->emitNotification(event_name, std::move(value));
+    } else if (domain_name == "NodeNetwork") {
+      node_network_agent_->emitNotification(event_name, std::move(value));
+    }
   }
 
   void dispatchProtocolMessage(const StringView& message) {
@@ -335,6 +358,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
+  std::unique_ptr<protocol::NetworkAgent> network_agent_;
+  std::unique_ptr<protocol::NodeNetworkAgent> node_network_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;
@@ -629,6 +654,12 @@ class NodeInspectorClient : public V8InspectorClient {
     return retaining_context;
   }
 
+  void emitNotification(const StringView& event, const StringView& params) {
+    for (const auto& id_channel : channels_) {
+      id_channel.second->emitNotificationFromBackend(event, params);
+    }
+  }
+
   std::shared_ptr<MainThreadHandle> getThreadHandle() {
     if (!interface_) {
       interface_ = std::make_shared<MainThreadInterface>(
@@ -851,6 +882,12 @@ std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
       client_->getThreadHandle()->MakeDelegateThreadSafe(std::move(delegate));
   return parent_handle_->Connect(std::move(thread_safe_delegate),
                                  prevent_shutdown);
+}
+
+void Agent::EmitProtocolEvent(const StringView& event,
+                              const StringView& params) {
+  if (!IsListening()) return;
+  client_->emitNotification(event, params);
 }
 
 void Agent::WaitForDisconnect() {

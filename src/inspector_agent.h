@@ -68,6 +68,9 @@ class Agent {
   void ReportUncaughtException(v8::Local<v8::Value> error,
                                v8::Local<v8::Message> message);
 
+  void EmitProtocolEvent(const v8_inspector::StringView& event,
+                         const v8_inspector::StringView& params);
+
   // Async stack traces instrumentation.
   void AsyncTaskScheduled(const v8_inspector::StringView& taskName, void* task,
                           bool recurring);
