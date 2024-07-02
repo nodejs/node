@@ -48,6 +48,12 @@
 # include <io.h>
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 namespace node {
 
 namespace fs {
@@ -1597,6 +1603,92 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
     SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_rmdir, *path);
     FS_SYNC_TRACE_END(rmdir);
   }
+}
+
+static void RmSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 4);  // path, maxRetries, recursive, retryDelay
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
+  auto file_path = std::filesystem::path(path.ToStringView());
+  std::error_code error;
+  auto file_status = std::filesystem::status(file_path, error);
+
+  if (file_status.type() == std::filesystem::file_type::not_found) {
+    return;
+  }
+
+  int maxRetries = args[1].As<Int32>()->Value();
+  int recursive = args[2]->IsTrue();
+  int retryDelay = args[3].As<Int32>()->Value();
+
+  // File is a directory and recursive is false
+  if (file_status.type() == std::filesystem::file_type::directory &&
+      !recursive) {
+    return THROW_ERR_FS_EISDIR(
+        isolate, "Path is a directory: %s", file_path.c_str());
+  }
+
+  // Allowed errors are:
+  // - EBUSY: std::errc::device_or_resource_busy
+  // - EMFILE: std::errc::too_many_files_open
+  // - ENFILE: std::errc::too_many_files_open_in_system
+  // - ENOTEMPTY: std::errc::directory_not_empty
+  // - EPERM: std::errc::operation_not_permitted
+  auto can_omit_error = [](std::error_code error) -> bool {
+    return (error == std::errc::device_or_resource_busy ||
+            error == std::errc::too_many_files_open ||
+            error == std::errc::too_many_files_open_in_system ||
+            error == std::errc::directory_not_empty ||
+            error == std::errc::operation_not_permitted);
+  };
+
+  while (maxRetries >= 0) {
+    if (recursive) {
+      std::filesystem::remove_all(file_path, error);
+    } else {
+      std::filesystem::remove(file_path, error);
+    }
+
+    if (!error || error == std::errc::no_such_file_or_directory) {
+      return;
+    } else if (!can_omit_error(error)) {
+      break;
+    }
+
+    if (retryDelay != 0) {
+      sleep(retryDelay / 1000);
+    }
+    maxRetries--;
+  }
+
+  if (error == std::errc::operation_not_permitted) {
+    std::string message = "Operation not permitted: " + file_path.string();
+    return env->ThrowErrnoException(
+        EPERM, "rm", message.c_str(), file_path.c_str());
+  } else if (error == std::errc::directory_not_empty) {
+    std::string message = "Directory not empty: " + file_path.string();
+    return env->ThrowErrnoException(
+        EACCES, "rm", message.c_str(), file_path.c_str());
+  } else if (error == std::errc::not_a_directory) {
+    std::string message = "Not a directory: " + file_path.string();
+    return env->ThrowErrnoException(
+        ENOTDIR, "rm", message.c_str(), file_path.c_str());
+  } else if (error == std::errc::permission_denied) {
+    std::string message = "Permission denied: " + file_path.string();
+    return env->ThrowErrnoException(
+        EACCES, "rm", message.c_str(), file_path.c_str());
+  }
+
+  std::string message = "Unknown error: " + error.message();
+  return env->ThrowErrnoException(
+      UV_UNKNOWN, "rm", message.c_str(), file_path.c_str());
 }
 
 int MKDirpSync(uv_loop_t* loop,
@@ -3317,6 +3409,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "rename", Rename);
   SetMethod(isolate, target, "ftruncate", FTruncate);
   SetMethod(isolate, target, "rmdir", RMDir);
+  SetMethod(isolate, target, "rmSync", RmSync);
   SetMethod(isolate, target, "mkdir", MKDir);
   SetMethod(isolate, target, "readdir", ReadDir);
   SetFastMethod(isolate,
@@ -3441,6 +3534,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Rename);
   registry->Register(FTruncate);
   registry->Register(RMDir);
+  registry->Register(RmSync);
   registry->Register(MKDir);
   registry->Register(ReadDir);
   registry->Register(InternalModuleStat);
