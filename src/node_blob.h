@@ -82,6 +82,7 @@ class Blob : public BaseObject {
     static BaseObjectPtr<Reader> Create(Environment* env,
                                         BaseObjectPtr<Blob> blob);
     static void Pull(const v8::FunctionCallbackInfo<v8::Value>& args);
+    static void PullAll(const v8::FunctionCallbackInfo<v8::Value>& args);
 
     explicit Reader(Environment* env,
                     v8::Local<v8::Object> obj,

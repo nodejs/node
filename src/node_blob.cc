@@ -307,6 +307,7 @@ Local<FunctionTemplate> Blob::Reader::GetConstructorTemplate(Environment* env) {
         BaseObject::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlobReader"));
     SetProtoMethod(env->isolate(), tmpl, "pull", Pull);
+    SetProtoMethod(env->isolate(), tmpl, "pullAll", PullAll);
     env->set_blob_reader_constructor_template(tmpl);
   }
   return tmpl;
@@ -393,6 +394,98 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(reader->inner_->Pull(
       std::move(next), node::bob::OPTIONS_END, nullptr, 0));
+}
+
+void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Blob::Reader* reader;
+  ASSIGN_OR_RETURN_UNWRAP(&reader, args.Holder());
+
+  CHECK(args[0]->IsFunction());
+  Local<Function> fn = args[0].As<Function>();
+  CHECK(!fn->IsConstructor());
+
+  if (reader->eos_) {
+    Local<Value> arg = Int32::New(env->isolate(), bob::STATUS_EOS);
+    reader->MakeCallback(fn, 1, &arg);
+    return;
+  }
+
+  struct View {
+    std::shared_ptr<BackingStore> store;
+    size_t length;
+    size_t offset = 0;
+  };
+
+  struct Impl {
+    BaseObjectPtr<Blob::Reader> reader;
+    Global<Function> callback;
+    Environment* env;
+    std::function<void()> enqueue_cb;
+    std::vector<View> views;
+    size_t total_size = 0;
+  };
+
+  std::shared_ptr<Impl> impl_ptr = std::make_shared<Impl>();
+  impl_ptr->reader = BaseObjectPtr<Blob::Reader>(reader);
+  impl_ptr->callback.Reset(env->isolate(), fn);
+  impl_ptr->env = env;
+
+  auto next = [impl_ptr](int status, const DataQueue::Vec* vecs, size_t count, bob::Done doneCb) mutable {
+    Environment* env = impl_ptr->env;
+    HandleScope handleScope(env->isolate());
+    Local<Function> fn = impl_ptr->callback.Get(env->isolate());
+
+    if (status == bob::STATUS_EOS) impl_ptr->reader->eos_ = true;
+
+    if (count > 0) {
+      size_t total = 0;
+      for (size_t n = 0; n < count; n++) total += vecs[n].len;
+
+      // contructing array buffer requires a shared_ptr
+      std::shared_ptr<BackingStore> store = v8::ArrayBuffer::NewBackingStore(env->isolate(), total);
+      auto ptr = static_cast<uint8_t*>(store->Data());
+      for (size_t n = 0; n < count; n++) {
+        std::copy(vecs[n].base, vecs[n].base + vecs[n].len, ptr);
+        ptr += vecs[n].len;
+      }
+      doneCb(0);
+      impl_ptr->views.emplace_back(View{store, total});
+      impl_ptr->total_size += total;
+    }
+
+    if (status > 0) {
+      env->context()->GetMicrotaskQueue()->EnqueueMicrotask(
+          env->isolate(),
+          [](void* arg) {
+            auto impl_ptr = static_cast<Impl*>(arg);
+            if (impl_ptr->reader && impl_ptr->reader->inner_) {
+              impl_ptr->enqueue_cb();
+            }
+          },
+          impl_ptr.get());
+    } else {
+      std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(env->isolate(), impl_ptr->total_size);
+      auto ptr = static_cast<uint8_t*>(store->Data());
+      auto views = impl_ptr->views;
+      for (const auto& view : views) {
+        uint8_t* from = static_cast<uint8_t*>(view.store->Data()) + view.offset;
+        std::copy(from, from + view.length, ptr);
+        ptr += view.length;
+      }
+      Local<Value> argv[2] = {Int32::New(env->isolate(), status), ArrayBuffer::New(env->isolate(), store)};
+      impl_ptr->reader->MakeCallback(fn, arraysize(argv), argv);
+      impl_ptr->reader.reset();
+    }
+  };
+
+  impl_ptr->enqueue_cb = [next, impl_ptr]() {
+    if (impl_ptr->reader && impl_ptr->reader->inner_) {
+      impl_ptr->reader->inner_->Pull(next, node::bob::OPTIONS_END, nullptr, 0);
+    }
+  };
+
+  impl_ptr->enqueue_cb();
 }
 
 BaseObjectPtr<BaseObject>
@@ -576,6 +669,7 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::GetDataObject);
   registry->Register(Blob::RevokeObjectURL);
   registry->Register(Blob::Reader::Pull);
+  registry->Register(Blob::Reader::PullAll);
   registry->Register(Concat);
   registry->Register(BlobFromFilePath);
 }
