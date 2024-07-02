@@ -2619,8 +2619,14 @@ Use `--watch-path` to specify what paths to watch.
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the REPL.
 
+If using `--run` and `--watch` Node.js will read the `package.json` scripts
+field each restart.
+If using `--run` and `--watch` Node.js positional arguments
+will throw an error.
+
 ```bash
 node --watch index.js
+node --watch --run start
 ```
 
 ### `--watch-path`
