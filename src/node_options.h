@@ -110,7 +110,7 @@ class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
   std::vector<std::string> conditions;
-  bool detect_module = false;
+  bool detect_module = true;
   bool print_required_tla = false;
   bool require_module = false;
   std::string dns_result_order;

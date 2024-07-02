@@ -60,25 +60,22 @@ describe('extensionless Wasm modules within a "type": "module" package scope', {
 });
 
 describe('extensionless ES modules within no package scope', { concurrency: !process.env.TEST_PARALLEL }, () => {
-  // This succeeds with `--experimental-default-type=module`
-  it('should error as the entry point', async () => {
+  it('should run as the entry point', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       fixtures.path('es-modules/noext-esm'),
     ]);
 
-    match(stderr, /SyntaxError/);
-    strictEqual(stdout, '');
-    strictEqual(code, 1);
+    strictEqual(stdout, 'executed\n');
+    strictEqual(stderr, '');
+    strictEqual(code, 0);
     strictEqual(signal, null);
   });
 
-  // This succeeds with `--experimental-default-type=module`
-  it('should error on import', async () => {
+  it('should run on import', async () => {
     try {
       await import(fixtures.fileURL('es-modules/noext-esm'));
+    } catch {
       mustNotCall();
-    } catch (err) {
-      ok(err instanceof SyntaxError);
     }
   });
 });
