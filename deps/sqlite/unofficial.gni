@@ -18,5 +18,13 @@ template("sqlite_gn_build") {
     forward_variables_from(invoker, "*")
     public_configs = [ ":sqlite_config" ]
     sources = gypi_values.sqlite_sources
+    if (is_win) {
+      cflags_c = [
+        "-Wno-sign-compare",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-function",
+        "-Wno-unused-variable",
+      ]
+    }
   }
 }
