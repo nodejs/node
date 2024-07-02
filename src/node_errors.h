@@ -97,7 +97,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
   V(ERR_STRING_TOO_LONG, Error)                                                \
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                                \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                                \
+  V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, Error)                               \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
   V(ERR_VM_MODULE_LINK_FAILURE, Error)                                         \
   V(ERR_WASI_NOT_STARTED, Error)                                               \
@@ -195,7 +195,7 @@ ERRORS_WITH_CODE(V)
     "--experimental-print-required-tla.")                                      \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
+  V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, "Failed to set PSK identity hint")   \
   V(ERR_WASI_NOT_STARTED, "wasi.start() has not been called")                  \
   V(ERR_WORKER_INIT_FAILED, "Worker initialization failure")                   \
   V(ERR_PROTO_ACCESS,                                                          \

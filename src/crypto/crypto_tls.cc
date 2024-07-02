@@ -1392,7 +1392,7 @@ void TLSWrap::SetPskIdentityHint(const FunctionCallbackInfo<Value>& args) {
   Utf8Value hint(isolate, args[0].As<String>());
 
   if (!SSL_use_psk_identity_hint(p->ssl_.get(), *hint)) {
-    Local<Value> err = node::ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED(isolate);
+    Local<Value> err = node::ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED(isolate);
     p->MakeCallback(env->onerror_string(), 1, &err);
   }
 }

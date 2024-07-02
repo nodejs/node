@@ -2793,9 +2793,9 @@ event is emitted before continuing.
 Attempting to set a TLS protocol `minVersion` or `maxVersion` conflicts with an
 attempt to set the `secureProtocol` explicitly. Use one mechanism or the other.
 
-<a id="ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED"></a>
+<a id="ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED"></a>
 
-### `ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED`
+### `ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED`
 
 Failed to set PSK identity hint. Hint may be too long.
 

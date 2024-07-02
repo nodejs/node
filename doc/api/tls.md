@@ -2144,7 +2144,7 @@ changes:
   * `pskIdentityHint` {string} optional hint to send to a client to help
     with selecting the identity during TLS-PSK negotiation. Will be ignored
     in TLS 1.3. Upon failing to set pskIdentityHint `'tlsClientError'` will be
-    emitted with `'ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED'` code.
+    emitted with `'ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED'` code.
   * ...: Any [`tls.createSecureContext()`][] option can be provided. For
     servers, the identity options (`pfx`, `key`/`cert`, or `pskCallback`)
     are usually required.
