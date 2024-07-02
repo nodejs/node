@@ -148,6 +148,7 @@ template("node_gn_build") {
       "deps/cares",
       "deps/histogram",
       "deps/llhttp",
+      "deps/nbytes",
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
@@ -331,6 +332,7 @@ template("node_gn_build") {
       ":libnode",
       "deps/googletest",
       "deps/googletest:gtest_main",
+      "deps/nbytes",
       "deps/simdutf",
     ]
 
