@@ -269,7 +269,7 @@ std::string PathResolve(Environment* env,
 void ToNamespacedPath(Environment* env, BufferValue* path) {
 #ifdef _WIN32
   if (path->length() == 0) return;
-  auto resolved_path = node::PathResolve(env, {path->ToStringView()});
+  std::string resolved_path = node::PathResolve(env, {path->ToStringView()});
   if (resolved_path.size() <= 2) {
     return;
   }
@@ -282,14 +282,13 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
       if (resolved_path[2] != '?' && resolved_path[2] != '.') {
         // Matched non-long UNC root, convert the path to a long UNC path
         std::string_view unc_prefix = R"(\\?\UNC\)";
-        std::string_view resolved_path2 = resolved_path.substr(2);
-        size_t new_length = unc_prefix.size() + resolved_path2.size();
+        size_t new_length = unc_prefix.size() + resolved_path.size() - 2;
         path->AllocateSufficientStorage(new_length + 1);
         path->SetLength(new_length);
         memcpy(path->out(), unc_prefix.data(), unc_prefix.size());
         memcpy(path->out() + unc_prefix.size(),
                resolved_path.c_str() + 2,
-               resolved_path2.size() + 1);
+               resolved_path.size() - 2 + 1);
         return;
       }
     }
