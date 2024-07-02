@@ -3134,6 +3134,57 @@ overhead in creating/storing strings with this method.
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
+### `node_api_create_property_key_utf8`
+
+<!-- YAML
+added:
+  - v22.1.0
+-->
+
+#### `napi_status node_api_create_property_key_utf8(napi_env env, const char* utf8name, size_t length, napi_value* result)`
+
+* `env`: `napi_env`
+* `utf8name`: `const char*`
+* `length`: `size_t`
+* `result`: `napi_value*`
+
+This function creates a property key from a UTF-8 encoded string.
+
+```c
+napi_value key;
+napi_status status = node_api_create_property_key_utf8(env, "myKey", strlen("myKey"), &key);
+if (status != napi_ok) {
+  // Handle error
+}
+```
+
+#### `node_api_set_named_property_len`
+
+<!-- YAML
+added:
+  - v22.1.0
+-->
+
+> **Stability**: 1 - Experimental
+
+```c
+napi_status NAPI_CDECL node_api_set_named_property_len(napi_env env,
+                                                   napi_value object,
+                                                   const char* utf8name,
+                                                   size_t name_length,
+                                                   napi_value value);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] object`: The JavaScript object on which to set the named property.
+* `[in] utf8name`: Character buffer representing a UTF-8-encoded string.
+* `[in] name_length`: The length of the string in bytes, or NAPI\_AUTO\_LENGTH if it is null-terminated.
+* `[in] value`: The napi\_value representing the value to set as the named property.
+  Returns napi\_ok if the API succeeded.
+
+This API sets a named property on a JavaScript object, treating '\0'
+characters as values rather than terminators.
+
 ### Functions to convert from Node-API to C types
 
 #### `napi_get_array_length`

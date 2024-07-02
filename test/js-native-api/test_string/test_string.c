@@ -310,6 +310,93 @@ static napi_value TestPropertyKeyUtf16AutoLength(napi_env env,
                          auto_length);
 }
 
+static napi_value TestPropertyKeyUtf8(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  napi_value result;
+
+  napi_status status =
+      napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+  if (status != napi_ok) return nullptr;
+
+  if (argc != 1) return nullptr;
+
+  size_t length;
+  status = napi_get_value_string_utf8(env, args[0], nullptr, 0, &length);
+  if (status != napi_ok) return nullptr;
+
+  char* utf8name = (char*)malloc(length + 1);
+  if (utf8name == nullptr) return nullptr;
+
+  status =
+      napi_get_value_string_utf8(env, args[0], utf8name, length + 1, &length);
+  if (status != napi_ok) {
+    free(utf8name);
+    return nullptr;
+  }
+
+  status = node_api_create_property_key_utf8(env, utf8name, length, &result);
+  free(utf8name);
+
+  if (status != napi_ok) return nullptr;
+
+  return result;
+}
+
+static napi_value TestSetNamedPropertyLen(napi_env env,
+                                          napi_callback_info info) {
+  size_t argc = 0;
+  napi_get_cb_info(env, info, &argc, nullptr, nullptr, nullptr);
+
+  if (argc < 1) {
+    napi_throw_error(env, nullptr, "Invalid number of arguments");
+    return nullptr;
+  }
+
+  napi_value object;
+  napi_create_object(env, &object);
+
+  const char* key = "\0test";
+  napi_value value;
+  napi_create_int32(env, 42, &value);
+
+  napi_status status =
+      node_api_set_named_property_len(env, object, key, strlen(key), value);
+  if (status != napi_ok) {
+    napi_throw_error(env, nullptr, "Failed to set named property");
+    return nullptr;
+  }
+
+  return object;
+}
+
+static napi_value TestSetNamedPropertyLenAutoLength(napi_env env,
+                                                    napi_callback_info info) {
+  size_t argc = 0;
+  napi_get_cb_info(env, info, &argc, nullptr, nullptr, nullptr);
+
+  if (argc < 1) {
+    napi_throw_error(env, nullptr, "Invalid number of arguments");
+    return nullptr;
+  }
+
+  napi_value object;
+  napi_create_object(env, &object);
+
+  const char* key = "\0test";
+  napi_value value;
+  napi_create_int32(env, 42, &value);
+
+  napi_status status =
+      node_api_set_named_property_len(env, object, key, strlen(key), value);
+  if (status != napi_ok) {
+    napi_throw_error(env, nullptr, "Failed to set named property");
+    return nullptr;
+  }
+
+  return object;
+}
+
 static napi_value Utf16Length(napi_env env, napi_callback_info info) {
   napi_value args[1];
   NODE_API_CALL(env, validate_and_retrieve_single_string_arg(env, info, args));
@@ -429,6 +516,7 @@ napi_value Init(napi_env env, napi_value exports) {
       DECLARE_NODE_API_PROPERTY("TestPropertyKeyUtf16", TestPropertyKeyUtf16),
       DECLARE_NODE_API_PROPERTY("TestPropertyKeyUtf16AutoLength",
                                 TestPropertyKeyUtf16AutoLength),
+      DECLARE_NODE_API_PROPERTY("TestPropertyKeyUtf8", TestPropertyKeyUtf8),
   };
 
   init_test_null(env, exports);

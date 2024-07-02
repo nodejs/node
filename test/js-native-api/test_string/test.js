@@ -130,6 +130,19 @@ assert.strictEqual(test_string.TestPropertyKeyUtf16AutoLength(str6), str6);
 assert.strictEqual(test_string.Utf16Length(str6), 5);
 assert.strictEqual(test_string.Utf8Length(str6), 14);
 
+const str7 = 'propertyKey';
+assert.strictEqual(test_string.TestPropertyKeyUtf8(str7), str7);
+
+const obj1 = test_string.TestSetNamedPropertyLen();
+assert.strictEqual(typeof obj1, 'object');
+assert.strictEqual(Object.keys(obj1).length, 1);
+assert.strictEqual(obj1['\0test'], 42);
+
+const obj2 = test_string.TestSetNamedPropertyLenAutoLength();
+assert.strictEqual(typeof obj2, 'object');
+assert.strictEqual(Object.keys(obj2).length, 1);
+assert.strictEqual(obj2['\0test'], 42);
+
 assert.throws(() => {
   test_string.TestLargeUtf8();
 }, /^Error: Invalid argument$/);
