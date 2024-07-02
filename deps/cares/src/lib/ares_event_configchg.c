@@ -318,15 +318,15 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
   /* Monitor HKLM\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces
    * and HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces
    * for changes via RegNotifyChangeKeyValue() */
-  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-        "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces",
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces",
         0, KEY_NOTIFY, &c->regip4) != ERROR_SUCCESS) {
     status = ARES_ESERVFAIL;
     goto done;
   }
 
-  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-        "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\\Interfaces",
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\\Interfaces",
         0, KEY_NOTIFY, &c->regip6) != ERROR_SUCCESS) {
     status = ARES_ESERVFAIL;
     goto done;
