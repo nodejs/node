@@ -114,6 +114,10 @@ querystring.parse('w=%D6%D0%CE%C4&foo=bar', null, null,
 
 <!-- YAML
 added: v0.1.25
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52533
+    description: Maps are now accepted as a valid `obj`.
 -->
 
 * `obj` {Object} The object to serialize into a URL query string
