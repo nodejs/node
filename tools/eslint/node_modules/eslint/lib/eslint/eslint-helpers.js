@@ -723,6 +723,7 @@ function processOptions({
     errorOnUnmatchedPattern = true,
     fix = false,
     fixTypes = null, // ← should be null by default because if it's an array then it suppresses rules that don't have the `meta.type` property.
+    flags = [],
     globInputPaths = true,
     ignore = true,
     ignorePatterns = null,
@@ -810,6 +811,9 @@ function processOptions({
     if (fixTypes !== null && !isFixTypeArray(fixTypes)) {
         errors.push("'fixTypes' must be an array of any of \"directive\", \"problem\", \"suggestion\", and \"layout\".");
     }
+    if (!isEmptyArrayOrArrayOfNonEmptyString(flags)) {
+        errors.push("'flags' must be an array of non-empty strings.");
+    }
     if (typeof globInputPaths !== "boolean") {
         errors.push("'globInputPaths' must be a boolean.");
     }
@@ -863,6 +867,7 @@ function processOptions({
         errorOnUnmatchedPattern,
         fix,
         fixTypes,
+        flags: [...flags],
         globInputPaths,
         ignore,
         ignorePatterns,

@@ -378,6 +378,11 @@ export default iterateJsdoc(({
     targetTagName, allowExtraTrailingParamDocs, jsdocParameterNamesDeep, jsdoc, report,
   );
 }, {
+  contextDefaults: [
+    'ArrowFunctionExpression', 'FunctionDeclaration', 'FunctionExpression', 'TSDeclareFunction',
+    // Add this to above defaults
+    'TSMethodSignature'
+  ],
   meta: {
     docs: {
       description: 'Ensures that parameter names in JSDoc match those in the function declaration.',

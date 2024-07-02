@@ -45,6 +45,7 @@ const { RuleValidator } = require("../config/rule-validator");
 const { assertIsRuleSeverity } = require("../config/flat-config-schema");
 const { normalizeSeverityToString } = require("../shared/severity");
 const jslang = require("../languages/js");
+const { activeFlags } = require("../shared/flags");
 const debug = require("debug")("eslint:linter");
 const MAX_AUTOFIX_PASSES = 10;
 const DEFAULT_PARSER_NAME = "espree";
@@ -317,9 +318,10 @@ function createLintingProblem(options) {
  * @param {string} options.justification The justification of the directive
  * @param {ASTNode|token} options.node The Comment node/token.
  * @param {function(string): {create: Function}} ruleMapper A map from rule IDs to defined rules
+ * @param {Language} language The language to use to adjust the location information.
  * @returns {Object} Directives and problems from the comment
  */
-function createDisableDirectives({ type, value, justification, node }, ruleMapper) {
+function createDisableDirectives({ type, value, justification, node }, ruleMapper, language) {
     const ruleIds = Object.keys(commentParser.parseListConfig(value));
     const directiveRules = ruleIds.length ? ruleIds : [null];
     const result = {
@@ -333,26 +335,36 @@ function createDisableDirectives({ type, value, justification, node }, ruleMappe
         // push to directives, if the rule is defined(including null, e.g. /*eslint enable*/)
         if (ruleId === null || !!ruleMapper(ruleId)) {
             if (type === "disable-next-line") {
+                const { line, column } = updateLocationInformation(
+                    node.loc.end,
+                    language
+                );
+
                 result.directives.push({
                     parentDirective,
                     type,
-                    line: node.loc.end.line,
-                    column: node.loc.end.column + 1,
+                    line,
+                    column,
                     ruleId,
                     justification
                 });
             } else {
+                const { line, column } = updateLocationInformation(
+                    node.loc.start,
+                    language
+                );
+
                 result.directives.push({
                     parentDirective,
                     type,
-                    line: node.loc.start.line,
-                    column: node.loc.start.column + 1,
+                    line,
+                    column,
                     ruleId,
                     justification
                 });
             }
         } else {
-            result.directiveProblems.push(createLintingProblem({ ruleId, loc: node.loc }));
+            result.directiveProblems.push(createLintingProblem({ ruleId, loc: node.loc, language }));
         }
     }
     return result;
@@ -430,7 +442,7 @@ function getDirectiveComments(sourceCode, ruleMapper, warnInlineConfig, config) 
                     value: directiveValue,
                     justification: justificationPart,
                     node: comment
-                }, ruleMapper);
+                }, ruleMapper, jslang);
 
                 disableDirectives.push(...directives);
                 problems.push(...directiveProblems);
@@ -470,7 +482,7 @@ function getDirectiveComments(sourceCode, ruleMapper, warnInlineConfig, config) 
                 break;
 
             case "eslint": {
-                const parseResult = commentParser.parseJsonConfig(directiveValue, comment.loc);
+                const parseResult = commentParser.parseJsonConfig(directiveValue);
 
                 if (parseResult.success) {
                     Object.keys(parseResult.config).forEach(name => {
@@ -557,7 +569,14 @@ function getDirectiveComments(sourceCode, ruleMapper, warnInlineConfig, config) 
                         configuredRules[name] = ruleOptions;
                     });
                 } else {
-                    problems.push(parseResult.error);
+                    const problem = createLintingProblem({
+                        ruleId: null,
+                        loc: comment.loc,
+                        message: parseResult.error.message
+                    });
+
+                    problem.fatal = true;
+                    problems.push(problem);
                 }
 
                 break;
@@ -588,22 +607,24 @@ function getDirectiveCommentsForFlatConfig(sourceCode, ruleMapper, language) {
     const disableDirectives = [];
     const problems = [];
 
-    const {
-        directives: directivesSources,
-        problems: directivesProblems
-    } = sourceCode.getDisableDirectives();
+    if (sourceCode.getDisableDirectives) {
+        const {
+            directives: directivesSources,
+            problems: directivesProblems
+        } = sourceCode.getDisableDirectives();
 
-    problems.push(...directivesProblems.map(directiveProblem => createLintingProblem({
-        ...directiveProblem,
-        language
-    })));
+        problems.push(...directivesProblems.map(directiveProblem => createLintingProblem({
+            ...directiveProblem,
+            language
+        })));
 
-    directivesSources.forEach(directive => {
-        const { directives, directiveProblems } = createDisableDirectives(directive, ruleMapper);
+        directivesSources.forEach(directive => {
+            const { directives, directiveProblems } = createDisableDirectives(directive, ruleMapper, language);
 
-        disableDirectives.push(...directives);
-        problems.push(...directiveProblems);
-    });
+            disableDirectives.push(...directives);
+            problems.push(...directiveProblems);
+        });
+    }
 
     return {
         problems,
@@ -1122,9 +1143,9 @@ function runRules(
     });
 
     const eventGenerator = new NodeEventGenerator(emitter, {
-        visitorKeys: sourceCode.visitorKeys,
+        visitorKeys: sourceCode.visitorKeys ?? language.visitorKeys,
         fallback: Traverser.getKeys,
-        matchClass: language.matchesSelectorClass,
+        matchClass: language.matchesSelectorClass ?? (() => false),
         nodeTypeKey: language.nodeTypeKey
     });
 
@@ -1253,11 +1274,13 @@ class Linter {
      * Initialize the Linter.
      * @param {Object} [config] the config object
      * @param {string} [config.cwd] path to a directory that should be considered as the current working directory, can be undefined.
+     * @param {Array<string>} [config.flags] the feature flags to enable.
      * @param {"flat"|"eslintrc"} [config.configType="flat"] the type of config used.
      */
-    constructor({ cwd, configType = "flat" } = {}) {
+    constructor({ cwd, configType = "flat", flags = [] } = {}) {
         internalSlotsMap.set(this, {
             cwd: normalizeCwd(cwd),
+            flags: flags.filter(flag => activeFlags.has(flag)),
             lastConfigArray: null,
             lastSourceCode: null,
             lastSuppressedMessages: [],
@@ -1276,6 +1299,15 @@ class Linter {
      */
     static get version() {
         return pkg.version;
+    }
+
+    /**
+     * Indicates if the given feature flag is enabled for this instance.
+     * @param {string} flag The feature flag to check.
+     * @returns {boolean} `true` if the feature flag is enabled, `false` if not.
+     */
+    hasFlag(flag) {
+        return internalSlotsMap.get(this).flags.includes(flag);
     }
 
     /**
@@ -1679,8 +1711,13 @@ class Linter {
             /*
              * If the given source code object as the first argument does not have scopeManager, analyze the scope.
              * This is for backward compatibility (SourceCode is frozen so it cannot rebind).
+             *
+             * We check explicitly for `null` to ensure that this is a JS-flavored language.
+             * For non-JS languages we don't want to do this.
+             *
+             * TODO: Remove this check when we stop exporting the `SourceCode` object.
              */
-            if (!slots.lastSourceCode.scopeManager) {
+            if (slots.lastSourceCode.scopeManager === null) {
                 slots.lastSourceCode = new SourceCode({
                     text: slots.lastSourceCode.text,
                     ast: slots.lastSourceCode.ast,
@@ -1699,7 +1736,7 @@ class Linter {
          * this is primarily about adding variables into the global scope
          * to account for ecmaVersion and configured globals.
          */
-        sourceCode.applyLanguageOptions(languageOptions);
+        sourceCode.applyLanguageOptions?.(languageOptions);
 
         const mergedInlineConfig = {
             rules: {}
@@ -1716,147 +1753,151 @@ class Linter {
 
             // if inline config should warn then add the warnings
             if (options.warnInlineConfig) {
-                sourceCode.getInlineConfigNodes().forEach(node => {
-                    inlineConfigProblems.push(createLintingProblem({
-                        ruleId: null,
-                        message: `'${sourceCode.text.slice(node.range[0], node.range[1])}' has no effect because you have 'noInlineConfig' setting in ${options.warnInlineConfig}.`,
-                        loc: node.loc,
-                        severity: 1,
-                        language: config.language
-                    }));
+                if (sourceCode.getInlineConfigNodes) {
+                    sourceCode.getInlineConfigNodes().forEach(node => {
+                        inlineConfigProblems.push(createLintingProblem({
+                            ruleId: null,
+                            message: `'${sourceCode.text.slice(node.range[0], node.range[1])}' has no effect because you have 'noInlineConfig' setting in ${options.warnInlineConfig}.`,
+                            loc: node.loc,
+                            severity: 1,
+                            language: config.language
+                        }));
 
-                });
-            } else {
-                const inlineConfigResult = sourceCode.applyInlineConfig();
-
-                inlineConfigProblems.push(
-                    ...inlineConfigResult.problems
-                        .map(problem => createLintingProblem({ ...problem, language: config.language }))
-                        .map(problem => {
-                            problem.fatal = true;
-                            return problem;
-                        })
-                );
-
-                // next we need to verify information about the specified rules
-                const ruleValidator = new RuleValidator();
-
-                for (const { config: inlineConfig, node } of inlineConfigResult.configs) {
-
-                    Object.keys(inlineConfig.rules).forEach(ruleId => {
-                        const rule = getRuleFromConfig(ruleId, config);
-                        const ruleValue = inlineConfig.rules[ruleId];
-
-                        if (!rule) {
-                            inlineConfigProblems.push(createLintingProblem({
-                                ruleId,
-                                loc: node.loc,
-                                language: config.language
-                            }));
-                            return;
-                        }
-
-                        if (Object.hasOwn(mergedInlineConfig.rules, ruleId)) {
-                            inlineConfigProblems.push(createLintingProblem({
-                                message: `Rule "${ruleId}" is already configured by another configuration comment in the preceding code. This configuration is ignored.`,
-                                loc: node.loc,
-                                language: config.language
-                            }));
-                            return;
-                        }
-
-                        try {
-
-                            let ruleOptions = Array.isArray(ruleValue) ? ruleValue : [ruleValue];
-
-                            assertIsRuleSeverity(ruleId, ruleOptions[0]);
-
-                            /*
-                             * If the rule was already configured, inline rule configuration that
-                             * only has severity should retain options from the config and just override the severity.
-                             *
-                             * Example:
-                             *
-                             *   {
-                             *       rules: {
-                             *           curly: ["error", "multi"]
-                             *       }
-                             *   }
-                             *
-                             *   /* eslint curly: ["warn"] * /
-                             *
-                             *   Results in:
-                             *
-                             *   curly: ["warn", "multi"]
-                             */
-
-                            let shouldValidateOptions = true;
-
-                            if (
-
-                                /*
-                                 * If inline config for the rule has only severity
-                                 */
-                                ruleOptions.length === 1 &&
-
-                                /*
-                                 * And the rule was already configured
-                                 */
-                                config.rules && Object.hasOwn(config.rules, ruleId)
-                            ) {
-
-                                /*
-                                 * Then use severity from the inline config and options from the provided config
-                                 */
-                                ruleOptions = [
-                                    ruleOptions[0], // severity from the inline config
-                                    ...config.rules[ruleId].slice(1) // options from the provided config
-                                ];
-
-                                // if the rule was enabled, the options have already been validated
-                                if (config.rules[ruleId][0] > 0) {
-                                    shouldValidateOptions = false;
-                                }
-                            }
-
-                            if (shouldValidateOptions) {
-                                ruleValidator.validate({
-                                    plugins: config.plugins,
-                                    rules: {
-                                        [ruleId]: ruleOptions
-                                    }
-                                });
-                            }
-
-                            mergedInlineConfig.rules[ruleId] = ruleOptions;
-                        } catch (err) {
-
-                            /*
-                             * If the rule has invalid `meta.schema`, throw the error because
-                             * this is not an invalid inline configuration but an invalid rule.
-                             */
-                            if (err.code === "ESLINT_INVALID_RULE_OPTIONS_SCHEMA") {
-                                throw err;
-                            }
-
-                            let baseMessage = err.message.slice(
-                                err.message.startsWith("Key \"rules\":")
-                                    ? err.message.indexOf(":", 12) + 1
-                                    : err.message.indexOf(":") + 1
-                            ).trim();
-
-                            if (err.messageTemplate) {
-                                baseMessage += ` You passed "${ruleValue}".`;
-                            }
-
-                            inlineConfigProblems.push(createLintingProblem({
-                                ruleId,
-                                message: `Inline configuration for rule "${ruleId}" is invalid:\n\t${baseMessage}\n`,
-                                loc: node.loc,
-                                language: config.language
-                            }));
-                        }
                     });
+                }
+            } else {
+                const inlineConfigResult = sourceCode.applyInlineConfig?.();
+
+                if (inlineConfigResult) {
+                    inlineConfigProblems.push(
+                        ...inlineConfigResult.problems
+                            .map(problem => createLintingProblem({ ...problem, language: config.language }))
+                            .map(problem => {
+                                problem.fatal = true;
+                                return problem;
+                            })
+                    );
+
+                    // next we need to verify information about the specified rules
+                    const ruleValidator = new RuleValidator();
+
+                    for (const { config: inlineConfig, loc } of inlineConfigResult.configs) {
+
+                        Object.keys(inlineConfig.rules).forEach(ruleId => {
+                            const rule = getRuleFromConfig(ruleId, config);
+                            const ruleValue = inlineConfig.rules[ruleId];
+
+                            if (!rule) {
+                                inlineConfigProblems.push(createLintingProblem({
+                                    ruleId,
+                                    loc,
+                                    language: config.language
+                                }));
+                                return;
+                            }
+
+                            if (Object.hasOwn(mergedInlineConfig.rules, ruleId)) {
+                                inlineConfigProblems.push(createLintingProblem({
+                                    message: `Rule "${ruleId}" is already configured by another configuration comment in the preceding code. This configuration is ignored.`,
+                                    loc,
+                                    language: config.language
+                                }));
+                                return;
+                            }
+
+                            try {
+
+                                let ruleOptions = Array.isArray(ruleValue) ? ruleValue : [ruleValue];
+
+                                assertIsRuleSeverity(ruleId, ruleOptions[0]);
+
+                                /*
+                                 * If the rule was already configured, inline rule configuration that
+                                 * only has severity should retain options from the config and just override the severity.
+                                 *
+                                 * Example:
+                                 *
+                                 *   {
+                                 *       rules: {
+                                 *           curly: ["error", "multi"]
+                                 *       }
+                                 *   }
+                                 *
+                                 *   /* eslint curly: ["warn"] * /
+                                 *
+                                 *   Results in:
+                                 *
+                                 *   curly: ["warn", "multi"]
+                                 */
+
+                                let shouldValidateOptions = true;
+
+                                if (
+
+                                    /*
+                                     * If inline config for the rule has only severity
+                                     */
+                                    ruleOptions.length === 1 &&
+
+                                    /*
+                                     * And the rule was already configured
+                                     */
+                                    config.rules && Object.hasOwn(config.rules, ruleId)
+                                ) {
+
+                                    /*
+                                     * Then use severity from the inline config and options from the provided config
+                                     */
+                                    ruleOptions = [
+                                        ruleOptions[0], // severity from the inline config
+                                        ...config.rules[ruleId].slice(1) // options from the provided config
+                                    ];
+
+                                    // if the rule was enabled, the options have already been validated
+                                    if (config.rules[ruleId][0] > 0) {
+                                        shouldValidateOptions = false;
+                                    }
+                                }
+
+                                if (shouldValidateOptions) {
+                                    ruleValidator.validate({
+                                        plugins: config.plugins,
+                                        rules: {
+                                            [ruleId]: ruleOptions
+                                        }
+                                    });
+                                }
+
+                                mergedInlineConfig.rules[ruleId] = ruleOptions;
+                            } catch (err) {
+
+                                /*
+                                 * If the rule has invalid `meta.schema`, throw the error because
+                                 * this is not an invalid inline configuration but an invalid rule.
+                                 */
+                                if (err.code === "ESLINT_INVALID_RULE_OPTIONS_SCHEMA") {
+                                    throw err;
+                                }
+
+                                let baseMessage = err.message.slice(
+                                    err.message.startsWith("Key \"rules\":")
+                                        ? err.message.indexOf(":", 12) + 1
+                                        : err.message.indexOf(":") + 1
+                                ).trim();
+
+                                if (err.messageTemplate) {
+                                    baseMessage += ` You passed "${ruleValue}".`;
+                                }
+
+                                inlineConfigProblems.push(createLintingProblem({
+                                    ruleId,
+                                    message: `Inline configuration for rule "${ruleId}" is invalid:\n\t${baseMessage}\n`,
+                                    loc,
+                                    language: config.language
+                                }));
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -1873,7 +1914,7 @@ class Linter {
 
         let lintingProblems;
 
-        sourceCode.finalize();
+        sourceCode.finalize?.();
 
         try {
             lintingProblems = runRules(

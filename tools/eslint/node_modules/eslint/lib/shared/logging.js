@@ -11,12 +11,21 @@
 module.exports = {
 
     /**
-     * Cover for console.log
+     * Cover for console.info
      * @param {...any} args The elements to log.
      * @returns {void}
      */
     info(...args) {
         console.log(...args);
+    },
+
+    /**
+     * Cover for console.warn
+     * @param {...any} args The elements to log.
+     * @returns {void}
+     */
+    warn(...args) {
+        console.warn(...args);
     },
 
     /**
