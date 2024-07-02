@@ -1111,6 +1111,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       OPENSSL_init();
     }
 #endif
+#if NODE_OPENSSL_IS_SHARED
+    if (per_process::cli_options->enable_fips_crypto ||
+        per_process::cli_options->force_fips_crypto) {
+      result->errors_.emplace_back(
+          "Warning: FIPS options are not supported with shared OpenSSL library!"
+      );
+    }
+#endif  // NODE_OPENSSL_IS_SHARED
     if (!crypto::ProcessFipsOptions()) {
       // XXX: ERR_GET_REASON does not return something that is
       // useful as an exit code at all.
@@ -1124,7 +1132,17 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     // Ensure CSPRNG is properly seeded.
-    CHECK(crypto::CSPRNG(nullptr, 0).is_ok());
+    if (!crypto::CSPRNG(nullptr, 0).is_ok()) {
+      // XXX: ERR_GET_REASON does not return something that is
+      // useful as an exit code at all.
+      result->exit_code_ =
+        static_cast<ExitCode>(ERR_GET_REASON(ERR_peek_error()));
+      result->early_return_ = true;
+      result->errors_.emplace_back(
+          "OpenSSL error when trying to seed CSPRNG:\n" +
+          GetOpenSSLErrorString());
+      return result;
+    }
 
     V8::SetEntropySource([](unsigned char* buffer, size_t length) {
       // V8 falls back to very weak entropy when this function fails
