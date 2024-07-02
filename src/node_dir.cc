@@ -3,6 +3,7 @@
 #include "node_external_reference.h"
 #include "node_file-inl.h"
 #include "node_process-inl.h"
+#include "path.h"
 #include "permission/permission.h"
 #include "util.h"
 
@@ -367,6 +368,7 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
@@ -410,6 +412,7 @@ static void OpenDirSync(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
