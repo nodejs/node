@@ -435,6 +435,12 @@ Starts the Node.js command line test runner.
 The maximum number of test files that the test runner CLI will execute
 concurrently.
 .
+.It Fl -test-coverage-exclude
+A glob pattern that excludes matching files from the coverage report
+.
+.It Fl -test-coverage-include
+A glob pattern that only includes matching files in the coverage report
+.
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.

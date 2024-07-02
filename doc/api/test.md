@@ -511,11 +511,6 @@ node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-de
 * No test results are reported by this reporter.
 * This reporter should ideally be used alongside another reporter.
 
-### Limitations
-
-The test runner's code coverage functionality does not support excluding
-specific files or directories from the coverage report.
-
 ## Mocking
 
 The `node:test` module supports mocking during testing via a top-level `mock`
