@@ -270,6 +270,18 @@ static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
     enable_function, disable_function);
 }
 
+void EmitProtocolEvent(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());
+  Local<String> eventName = args[0].As<String>();
+  CHECK(args[1]->IsString());
+  Local<String> params = args[1].As<String>();
+
+  env->inspector_agent()->EmitProtocolEvent(
+      ToProtocolString(env->isolate(), eventName)->string(),
+      ToProtocolString(env->isolate(), params)->string());
+}
+
 void IsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(env->inspector_agent()->IsListening());
@@ -355,6 +367,8 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethod(context, target, "registerAsyncHook", RegisterAsyncHookWrapper);
   SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
 
+  SetMethod(context, target, "emitProtocolEvent", EmitProtocolEvent);
+
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
   // Grab the console from the binding object and expose those to our binding
@@ -387,6 +401,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(RegisterAsyncHookWrapper);
   registry->Register(IsEnabled);
+
+  registry->Register(EmitProtocolEvent);
 
   registry->Register(JSBindingsConnection<LocalConnection>::New);
   registry->Register(JSBindingsConnection<LocalConnection>::Dispatch);

@@ -62,6 +62,7 @@ String fromDouble(double d);
 double toDouble(const char* buffer, size_t length, bool* ok);
 
 String StringViewToUtf8(v8_inspector::StringView view);
+v8_inspector::StringView ToStringView(const std::string& str);
 
 // NOLINTNEXTLINE(runtime/references)
 void builderAppendQuotedString(StringBuilder& builder, const std::string_view);
