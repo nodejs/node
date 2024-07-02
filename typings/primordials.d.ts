@@ -145,6 +145,7 @@ declare namespace primordials {
   export const ArrayPrototypeReduceRight: UncurryThis<typeof Array.prototype.reduceRight>
   export const ArrayPrototypeToLocaleString: UncurryThis<typeof Array.prototype.toLocaleString>
   export const ArrayPrototypeToString: UncurryThis<typeof Array.prototype.toString>
+  export const ArrayPrototypeToSorted: UncurryThis<typeof Array.prototype.toSorted>
   export const ArrayPrototypeSymbolIterator: UncurryMethod<typeof Array.prototype, typeof Symbol.iterator>;
   export import ArrayBuffer = globalThis.ArrayBuffer;
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
