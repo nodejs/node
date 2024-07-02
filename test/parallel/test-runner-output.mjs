@@ -114,6 +114,7 @@ const tests = [
   { name: 'test-runner/output/no_refs.js' },
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
+  { name: 'test-runner/output/sub_tests.js' },
   { name: 'test-runner/output/dot_reporter.js', transform: specTransform },
   { name: 'test-runner/output/junit_reporter.js', transform: junitTransform },
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
