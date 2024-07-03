@@ -877,7 +877,8 @@ std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
 
 void Agent::EmitProtocolEvent(const StringView& event,
                               const StringView& params) {
-  if (!IsListening()) return;
+  if (!IsListening() || !env()->options()->experimental_network_inspection)
+    return;
   client_->emitNotification(event, params);
 }
 

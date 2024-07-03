@@ -1,4 +1,4 @@
-// Flags: --inspect=0
+// Flags: --inspect=0 --experimental-network-inspection
 
 import * as common from '../common/index.mjs';
 

@@ -441,6 +441,8 @@ added:
 * `eventName` {string}
 * `params` {Object}
 
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
 Emits a protocol event with the specified `eventName` and optional `params`. This function allows you to send
 custom events that conform to the DevTools protocol, facilitating integration with debugging and inspection tools.
 The emitted events can be captured by connected DevTools Frontend instances, such as Chrome DevTools.

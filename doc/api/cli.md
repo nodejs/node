@@ -998,6 +998,17 @@ added:
 
 Enable experimental support for the `https:` protocol in `import` specifiers.
 
+### `--experimental-network-inspection`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for the network inspection with Chrome DevTools.
+
 ### `--experimental-permission`
 
 <!-- YAML
@@ -2847,6 +2858,7 @@ one is included in the list below.
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-network-imports`
+* `--experimental-network-inspection`
 * `--experimental-permission`
 * `--experimental-print-required-tla`
 * `--experimental-require-module`
