@@ -1357,6 +1357,35 @@ added:
 
 The `suite()` function is imported from the `node:test` module.
 
+## `suite.each(args, name, fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `args` {Array\[]} A two-dimensional array containing arguments for each test.
+* `name` {string} The name assigned to each test. This name, combined with the test arguments,
+  is formatted using [`util.format(name, args)`][].
+* `fn` {Function|AsyncFunction} The function to execute. Each sub-array in `args` is supplied
+  as arguments to this function.
+
+The `suite.each(args, name, fn)` function allows you to run a series of tests with different
+data sets using a single test function, making it easier to test multiple scenarios without
+repetitive code. The `name` can include placeholders like `%d` to insert argument values,
+helping identify specific test cases. The test function (`fn`) is called with the arguments
+from each inner array and runs the test logic.
+
+```js
+suite.each([
+  [1, 1, 2],
+  [1, 2, 3],
+  [2, 1, 3],
+  [2, 2, 4],
+], '%d + %d = %d', (a, b, expected) => {
+  assert.strictEqual(a + b, expected);
+});
+```
+
 ## `suite.skip([name][, options][, fn])`
 
 <!-- YAML
@@ -1481,6 +1510,35 @@ The `timeout` option can be used to fail the test if it takes longer than
 canceling tests because a running test might block the application thread and
 thus prevent the scheduled cancellation.
 
+## `test.each(args, name, fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `args` {Array\[]} A two-dimensional array containing arguments for each test.
+* `name` {string} The name assigned to each test. This name, combined with the
+  test arguments, is formatted using [`util.format(name, args)`][].
+* `fn` {Function|AsyncFunction} The function to execute. Each sub-array in `args`
+  is supplied as arguments to this function.
+
+The `test.each(args, name, fn)` function allows you to run a series of tests with different
+data sets using a single test function, making it easier to test multiple scenarios without
+repetitive code. The `name` can include placeholders like `%d` to insert argument values,
+helping identify specific test cases. The test function (`fn`) is called with the arguments
+from each inner array and runs the test logic.
+
+```js
+test.each([
+  [1, 1, 2],
+  [1, 2, 3],
+  [2, 1, 3],
+  [2, 2, 4],
+], '%d + %d = %d', (a, b, expected) => {
+  assert.strictEqual(a + b, expected);
+});
+```
+
 ## `test.skip([name][, options][, fn])`
 
 Shorthand for skipping a test,
@@ -1540,6 +1598,14 @@ changes:
 Alias for [`test()`][].
 
 The `it()` function is imported from the `node:test` module.
+
+## `it.each(args, name, fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Alias for [`test.each(args, name, fn)`][].
 
 ## `it.skip([name][, options][, fn])`
 
@@ -3494,6 +3560,8 @@ Can be used to abort test subtasks when the test has been aborted.
 [`run()`]: #runoptions
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
+[`test.each(args, name, fn)`]: #testeachargs-name-fn
+[`util.format(name, args)`]: util.md#utilformatformat-args
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams

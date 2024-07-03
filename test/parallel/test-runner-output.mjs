@@ -97,6 +97,7 @@ const tests = [
   { name: 'test-runner/output/abort_hooks.js' },
   { name: 'test-runner/output/describe_it.js' },
   { name: 'test-runner/output/describe_nested.js' },
+  { name: 'test-runner/output/each.js' },
   { name: 'test-runner/output/eval_dot.js', transform: specTransform },
   { name: 'test-runner/output/eval_spec.js', transform: specTransform },
   { name: 'test-runner/output/eval_tap.js' },
