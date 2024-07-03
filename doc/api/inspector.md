@@ -429,6 +429,34 @@ require('node:inspector').console.log('a message');
 The inspector console does not have API parity with Node.js
 console.
 
+### `inspector.emitProtocolEvent(eventName[, params])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `eventName` {string}
+* `params` {Object}
+
+Emits a protocol event with the specified `eventName` and optional `params`. This function allows you to send
+custom events that conform to the DevTools protocol, facilitating integration with debugging and inspection tools.
+The emitted events can be captured by connected DevTools Frontend instances, such as Chrome DevTools.
+
+```js
+inspector.emitProtocolEvent('NodeNetwork.requestWillBeSent', {
+  requestId: 'request-id-1',
+  timestamp: Date.now() / 1000,
+  wallTime: Date.now(),
+  request: {
+    url: 'https://nodejs.org/en',
+    method: 'GET',
+  }
+});
+```
+
 ### `inspector.open([port[, host[, wait]]])`
 
 <!-- YAML
