@@ -13,14 +13,6 @@
       ]
     }
   },
-  "idlharness.any.js": {
-    "fail": {
-      "note": "TODO(@panva)",
-      "expected": [
-        "URL interface: operation parse(USVString, optional USVString)"
-      ]
-    }
-  },
   "url-setters-a-area.window.js": {
     "skip": "already tested in url-setters.any.js"
   },
