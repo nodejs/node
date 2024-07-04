@@ -1,9 +1,14 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
-const { CloseEvent, WebSocket, MessageEvent } = require('node:http');
+const { WebSocket: NodeHttpWebSocket, CloseEvent: NodeHttpCloseEvent, MessageEvent: NodeHttpMessageEvent } = require('node:http');
 
-assert.strictEqual(typeof WebSocket, 'function');
-assert.strictEqual(typeof CloseEvent, 'function');
-assert.strictEqual(typeof MessageEvent, 'function');
+assert.strictEqual(typeof NodeHttpWebSocket, 'function');
+assert.strictEqual(typeof NodeHttpCloseEvent, 'function');
+assert.strictEqual(typeof NodeHttpMessageEvent, 'function');
 
+// compare with global objects
+assert.strictEqual(NodeHttpWebSocket, WebSocket);
+assert.strictEqual(NodeHttpCloseEvent, CloseEvent);
+assert.strictEqual(NodeHttpMessageEvent, MessageEvent);
