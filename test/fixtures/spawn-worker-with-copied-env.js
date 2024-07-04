@@ -2,7 +2,9 @@
 
 // This test is meant to be spawned with NODE_OPTIONS=--title=foo
 const assert = require('assert');
-assert.strictEqual(process.title, 'foo');
+if (process.platform !== 'sunos') {  // --title is unsupported on SmartOS.
+  assert.strictEqual(process.title, 'foo');
+}
 
 // Spawns a worker that may copy NODE_OPTIONS if it's set by the parent.
 const { Worker } = require('worker_threads');

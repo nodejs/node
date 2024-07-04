@@ -30,6 +30,6 @@ spawnSyncAndAssert(
     }
   },
   {
-    stderr: /spawn-worker-with-trace-exit.js:17/
+    stderr: /spawn-worker-with-trace-exit\.js:17/
   }
 );
