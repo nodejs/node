@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.4.1">22.4.1</a><br/>
 <a href="#22.4.0">22.4.0</a><br/>
 <a href="#22.3.0">22.3.0</a><br/>
 <a href="#22.2.0">22.2.0</a><br/>
@@ -40,6 +41,28 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.4.1"></a>
+
+## 2024-07-08, Version 22.4.1 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* CVE-2024-36138 - Bypass incomplete fix of CVE-2024-27980 (High)
+* CVE-2024-22020 - Bypass network import restriction via data URL (Medium)
+* CVE-2024-22018 - fs.lstat bypasses permission model (Low)
+* CVE-2024-36137 - fs.fchown/fchmod bypasses permission model (Low)
+* CVE-2024-37372 - Permission model improperly processes UNC paths (Low)
+
+### Commits
+
+* \[[`110902ff5e`](https://github.com/nodejs/node/commit/110902ff5e)] - **lib,esm**: handle bypass network-import via data: (RafaelGSS) [nodejs-private/node-private#522](https://github.com/nodejs-private/node-private/pull/522)
+* \[[`0a0de3d491`](https://github.com/nodejs/node/commit/0a0de3d491)] - **lib,permission**: support fs.lstat (RafaelGSS)
+* \[[`93574335ff`](https://github.com/nodejs/node/commit/93574335ff)] - **lib,permission**: disable fchmod/fchown when pm enabled (RafaelGSS) [nodejs-private/node-private#584](https://github.com/nodejs-private/node-private/pull/584)
+* \[[`09899e6302`](https://github.com/nodejs/node/commit/09899e6302)] - **src**: handle permissive extension on cmd check (RafaelGSS) [nodejs-private/node-private#596](https://github.com/nodejs-private/node-private/pull/596)
+* \[[`5d9c811634`](https://github.com/nodejs/node/commit/5d9c811634)] - **src,permission**: fix UNC path resolution (RafaelGSS) [nodejs-private/node-private#581](https://github.com/nodejs-private/node-private/pull/581)
 
 <a id="22.4.0"></a>
 
