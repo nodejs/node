@@ -5,7 +5,6 @@
       'include/ares_dns.h',
       'include/ares_dns_record.h',
       'include/ares_nameser.h',
-      'include/ares_rules.h',
       'include/ares_version.h',
       'src/lib/ares__addrinfo2hostent.c',
       'src/lib/ares__addrinfo_localhost.c',
