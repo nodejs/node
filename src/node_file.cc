@@ -2966,8 +2966,8 @@ static void GetFormatOfExtensionlessFile(
   CHECK(args[0]->IsString());
 
   Environment* env = Environment::GetCurrent(args);
-  node::Utf8Value input(args.GetIsolate(), args[0]);
-
+  BufferValue input(args.GetIsolate(), args[0]);
+  ToNamespacedPath(env, &input);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, input.ToStringView());
 
