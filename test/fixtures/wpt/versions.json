@@ -52,7 +52,7 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "727995f0432f7ab2ea35c8679412edc28d87ec08",
+    "commit": "e90ece61d6e7ff84a0dc9c496588690e6a61cb17",
     "path": "interfaces"
   },
   "performance-timeline": {
