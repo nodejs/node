@@ -9,7 +9,6 @@ NodeNetworkAgent::NodeNetworkAgent(Environment* env) : env_(env) {
   event_notifier_map_["requestWillBeSent"] =
       &NodeNetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NodeNetworkAgent::responseReceived;
-  event_notifier_map_["dataReceived"] = &NodeNetworkAgent::dataReceived;
   event_notifier_map_["loadingFinished"] = &NodeNetworkAgent::loadingFinished;
 }
 
@@ -62,32 +61,14 @@ void NodeNetworkAgent::responseReceived(
       protocol::StringUtil::ToStringView(params->toJSONString()));
 }
 
-void NodeNetworkAgent::dataReceived(
-    std::unique_ptr<protocol::DictionaryValue> params) {
-  String request_id;
-  params->getString("requestId", &request_id);
-  double timestamp;
-  params->getDouble("timestamp", &timestamp);
-  int data_length;
-  params->getInteger("dataLength", &data_length);
-
-  frontend_->dataReceived(request_id, timestamp, data_length);
-
-  env_->inspector_agent()->EmitProtocolEvent(
-      protocol::StringUtil::ToStringView("Network.dataReceived"),
-      protocol::StringUtil::ToStringView(params->toJSONString()));
-}
-
 void NodeNetworkAgent::loadingFinished(
     std::unique_ptr<protocol::DictionaryValue> params) {
   String request_id;
   params->getString("requestId", &request_id);
   double timestamp;
   params->getDouble("timestamp", &timestamp);
-  int encoded_data_length;
-  params->getInteger("encodedDataLength", &encoded_data_length);
 
-  frontend_->loadingFinished(request_id, timestamp, encoded_data_length);
+  frontend_->loadingFinished(request_id, timestamp);
 
   env_->inspector_agent()->EmitProtocolEvent(
       protocol::StringUtil::ToStringView("Network.loadingFinished"),

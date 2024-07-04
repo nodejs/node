@@ -23,20 +23,14 @@ class NetworkAgent : public Network::Backend {
   void emitNotification(const String& event,
                         std::unique_ptr<protocol::DictionaryValue> params);
 
-  DispatchResponse getResponseBody(const String& in_requestId,
-                                   String* out_body) override;
-
   void requestWillBeSent(std::unique_ptr<protocol::DictionaryValue> params);
 
   void responseReceived(std::unique_ptr<protocol::DictionaryValue> params);
-
-  void dataReceived(std::unique_ptr<protocol::DictionaryValue> params);
 
   void loadingFinished(std::unique_ptr<protocol::DictionaryValue> params);
 
  private:
   std::shared_ptr<Network::Frontend> frontend_;
-  std::unordered_map<String, String> request_id_to_response_;
   using EventNotifier =
       void (NetworkAgent::*)(std::unique_ptr<protocol::DictionaryValue>);
   std::unordered_map<String, EventNotifier> event_notifier_map_;

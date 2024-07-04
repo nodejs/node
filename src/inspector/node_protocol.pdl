@@ -121,23 +121,12 @@ experimental domain NodeNetwork
       # Timestamp.
       Network.MonotonicTime timestamp
 
-  event dataReceived
-    parameters
-      # Request identifier.
-      Network.RequestId requestId
-      # Timestamp.
-      Network.MonotonicTime timestamp
-      # Data chunk length.
-      integer dataLength
-
   event loadingFinished
     parameters
       # Request identifier.
       Network.RequestId requestId
       # Timestamp.
       Network.MonotonicTime timestamp
-      # Total number of bytes received for this request.
-      number encodedDataLength
 
 # Partial support for Network domain of ChromeDevTools Protocol.
 # https://chromedevtools.github.io/devtools-protocol/tot/Network
@@ -156,15 +145,6 @@ experimental domain Network
     properties
       string url
       string method
-
-  # Returns content served for the given request.
-  command getResponseBody
-    parameters
-      # Identifier of the network request to get content for.
-      RequestId requestId
-    returns
-      # Response body.
-      string body
 
   # Fired when page is about to send HTTP request.
   event requestWillBeSent
@@ -186,23 +166,12 @@ experimental domain Network
       # Timestamp.
       MonotonicTime timestamp
 
-  event dataReceived
-    parameters
-      # Request identifier.
-      RequestId requestId
-      # Timestamp.
-      MonotonicTime timestamp
-      # Data chunk length.
-      integer dataLength
-
   event loadingFinished
     parameters
       # Request identifier.
       RequestId requestId
       # Timestamp.
       MonotonicTime timestamp
-      # Total number of bytes received for this request.
-      number encodedDataLength
 
 # Support for inspecting node process state.
 experimental domain NodeRuntime

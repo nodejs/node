@@ -26,8 +26,6 @@ class NodeNetworkAgent : public NodeNetwork::Backend {
 
   void responseReceived(std::unique_ptr<protocol::DictionaryValue> params);
 
-  void dataReceived(std::unique_ptr<protocol::DictionaryValue> params);
-
   void loadingFinished(std::unique_ptr<protocol::DictionaryValue> params);
 
  private:

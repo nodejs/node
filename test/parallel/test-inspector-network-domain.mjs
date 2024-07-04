@@ -62,11 +62,6 @@ const testHttpGet = () => new Promise((resolve, reject) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
   }));
-  session.on('NodeNetwork.dataReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.dataLength, 'number');
-  }));
   session.on('NodeNetwork.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
@@ -86,11 +81,6 @@ const testHttpGet = () => new Promise((resolve, reject) => {
   session.on('Network.responseReceived', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
-  }));
-  session.on('Network.dataReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.dataLength, 'number');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
@@ -123,11 +113,6 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
   }));
-  session.on('NodeNetwork.dataReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.dataLength, 'number');
-  }));
   session.on('NodeNetwork.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
@@ -147,11 +132,6 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
   session.on('Network.responseReceived', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
-  }));
-  session.on('Network.dataReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.dataLength, 'number');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));

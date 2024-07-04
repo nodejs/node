@@ -12,7 +12,6 @@ std::unique_ptr<Network::Request> Request(const String& url,
 NetworkAgent::NetworkAgent() {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
-  event_notifier_map_["dataReceived"] = &NetworkAgent::dataReceived;
   event_notifier_map_["loadingFinished"] = &NetworkAgent::loadingFinished;
 }
 
@@ -27,16 +26,6 @@ void NetworkAgent::emitNotification(
 void NetworkAgent::Wire(UberDispatcher* dispatcher) {
   frontend_ = std::make_unique<Network::Frontend>(dispatcher->channel());
   Network::Dispatcher::wire(dispatcher, this);
-}
-
-DispatchResponse NetworkAgent::getResponseBody(const String& in_requestId,
-                                               String* out_body) {
-  auto it = request_id_to_response_.find(in_requestId);
-  if (it != request_id_to_response_.end()) {
-    *out_body = it->second;
-    request_id_to_response_.erase(it);
-  }
-  return DispatchResponse::OK();
 }
 
 void NetworkAgent::requestWillBeSent(
@@ -67,31 +56,14 @@ void NetworkAgent::responseReceived(
   frontend_->responseReceived(request_id, timestamp);
 }
 
-void NetworkAgent::dataReceived(
-    std::unique_ptr<protocol::DictionaryValue> params) {
-  String request_id;
-  params->getString("requestId", &request_id);
-  double timestamp;
-  params->getDouble("timestamp", &timestamp);
-  int data_length;
-  params->getInteger("dataLength", &data_length);
-
-  frontend_->dataReceived(request_id, timestamp, data_length);
-}
-
 void NetworkAgent::loadingFinished(
     std::unique_ptr<protocol::DictionaryValue> params) {
   String request_id;
   params->getString("requestId", &request_id);
   double timestamp;
   params->getDouble("timestamp", &timestamp);
-  int encoded_data_length;
-  params->getInteger("encodedDataLength", &encoded_data_length);
-  String response;
-  params->getString("response", &response);
 
-  request_id_to_response_[request_id] = response;
-  frontend_->loadingFinished(request_id, timestamp, encoded_data_length);
+  frontend_->loadingFinished(request_id, timestamp);
 }
 
 }  // namespace protocol
