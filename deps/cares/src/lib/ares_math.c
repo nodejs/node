@@ -23,8 +23,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
+
 #include "ares_private.h"
 
 /* Uses public domain code snippets from
@@ -57,9 +56,23 @@ static ares_int64_t ares__round_up_pow2_u64(ares_int64_t n)
   return n;
 }
 
+ares_bool_t ares__is_64bit(void)
+{
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4127)
+#endif
+
+  return (sizeof(size_t) == 4) ? ARES_FALSE : ARES_TRUE;
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+}
+
 size_t ares__round_up_pow2(size_t n)
 {
-  if (sizeof(size_t) > 4) {
+  if (ares__is_64bit()) {
     return (size_t)ares__round_up_pow2_u64((ares_int64_t)n);
   }
 
@@ -79,7 +92,7 @@ size_t ares__log2(size_t n)
     56, 45, 25, 31, 35, 16, 9,  12, 44, 24, 15, 8,  23, 7,  6,  5
   };
 
-  if (sizeof(size_t) == 4) {
+  if (!ares__is_64bit()) {
     return tab32[(n * 0x077CB531) >> 27];
   }
 

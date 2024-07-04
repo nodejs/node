@@ -25,16 +25,13 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
 
 #include "ares_nameser.h"
-
-#include "ares.h"
-#include "ares_private.h" /* for the memdebug */
 
 /* Simply decodes a length-encoded character string. The first byte of the
  * input is the length of the string to be returned and the bytes thereafter
@@ -78,7 +75,7 @@ ares_status_t ares_expand_string_ex(const unsigned char *encoded,
 
   start_len = ares__buf_len(buf);
   status =
-    ares__buf_parse_dns_binstr(buf, ares__buf_len(buf), s, &len, ARES_FALSE);
+    ares__buf_parse_dns_binstr(buf, ares__buf_len(buf), s, &len);
   /* hrm, no way to pass back 'len' with the prototype */
   if (status != ARES_SUCCESS) {
     goto done;

@@ -27,9 +27,6 @@
 #ifndef __ARES_STR_H
 #define __ARES_STR_H
 
-#include "ares_setup.h"
-#include "ares.h"
-
 char         *ares_strdup(const char *s1);
 
 size_t        ares_strlen(const char *str);

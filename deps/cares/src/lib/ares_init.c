@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_SYS_PARAM_H
 #  include <sys/param.h>
@@ -61,10 +61,8 @@
 #  include <iphlpapi.h>
 #endif
 
-#include "ares.h"
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
-#include "ares_private.h"
 #include "ares_event.h"
 
 int ares_init(ares_channel_t **channelptr)
@@ -197,7 +195,7 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
     hostname = ares_malloc(len);
     if (!hostname) {
       rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     do {
@@ -210,7 +208,7 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
         p     = ares_realloc(hostname, len);
         if (!p) {
           rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-          goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+          goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
         }
         hostname = p;
         continue;
@@ -229,12 +227,12 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
       channel->domains = ares_malloc(sizeof(char *));
       if (!channel->domains) {
         rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->domains[0] = ares_strdup(dot + 1);
       if (!channel->domains[0]) {
         rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->ndomains = 1;
     }
@@ -488,7 +486,6 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
 
   *dest = NULL; /* in case of failure return NULL explicitly */
 
-  ares__channel_lock(src);
   /* First get the options supported by the old ares_save_options() function,
      which is most of them */
   rc = (ares_status_t)ares_save_options(src, &opts, &optmask);
@@ -507,6 +504,7 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
     goto done;
   }
 
+  ares__channel_lock(src);
   /* Now clone the options that ares_save_options() doesn't support, but are
    * user-provided */
   (*dest)->sock_create_cb       = src->sock_create_cb;
@@ -522,7 +520,7 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
               sizeof((*dest)->local_dev_name));
   (*dest)->local_ip4 = src->local_ip4;
   memcpy((*dest)->local_ip6, src->local_ip6, sizeof(src->local_ip6));
-
+  ares__channel_unlock(src);
 
   /* Servers are a bit unique as ares_init_options() only allows ipv4 servers
    * and not a port per server, but there are other user specified ways, that
@@ -558,7 +556,6 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
 
   rc = ARES_SUCCESS;
 done:
-  ares__channel_unlock(src);
   return (int)rc; /* everything went fine */
 }
 

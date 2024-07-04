@@ -25,9 +25,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#include "ares.h"
 #include "ares_private.h"
 
 int ares_fds(const ares_channel_t *channel, fd_set *read_fds, fd_set *write_fds)

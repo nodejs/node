@@ -24,10 +24,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-#include "ares.h"
-#include "ares_data.h"
 #include "ares_private.h"
+#include "ares_data.h"
 
 static int ares__parse_txt_reply(const unsigned char *abuf, size_t alen,
                                  ares_bool_t ex, void **txt_out)
@@ -54,13 +52,14 @@ static int ares__parse_txt_reply(const unsigned char *abuf, size_t alen,
   for (i = 0; i < ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER); i++) {
     const ares_dns_rr_t *rr =
       ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
-    const unsigned char *ptr;
-    size_t               ptr_len;
+    size_t j;
+    size_t cnt;
+
 
     if (rr == NULL) {
       /* Shouldn't be possible */
       status = ARES_EBADRESP; /* LCOV_EXCL_LINE: DefensiveCoding */
-      goto done; /* LCOV_EXCL_LINE: DefensiveCoding */
+      goto done;              /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     /* XXX: Why Chaos? */
@@ -70,37 +69,44 @@ static int ares__parse_txt_reply(const unsigned char *abuf, size_t alen,
       continue;
     }
 
-    /* Allocate storage for this TXT answer appending it to the list */
-    txt_curr =
-      ares_malloc_data(ex ? ARES_DATATYPE_TXT_EXT : ARES_DATATYPE_TXT_REPLY);
-    if (txt_curr == NULL) {
-      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
-    }
+    cnt = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
 
-    /* Link in the record */
-    if (txt_last) {
-      txt_last->next = txt_curr;
-    } else {
-      txt_head = txt_curr;
-    }
-    txt_last = txt_curr;
+    for (j=0; j<cnt; j++) {
+      const unsigned char *ptr;
+      size_t               ptr_len;
 
-    /* These days, records are joined, always tag as start */
-    if (ex) {
-      txt_curr->record_start = 1;
-    }
+      /* Allocate storage for this TXT answer appending it to the list */
+      txt_curr =
+        ares_malloc_data(ex ? ARES_DATATYPE_TXT_EXT : ARES_DATATYPE_TXT_REPLY);
+      if (txt_curr == NULL) {
+        status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
+      }
 
-    ptr = ares_dns_rr_get_bin(rr, ARES_RR_TXT_DATA, &ptr_len);
+      /* Link in the record */
+      if (txt_last) {
+        txt_last->next = txt_curr;
+      } else {
+        txt_head = txt_curr;
+      }
+      txt_last = txt_curr;
 
-    txt_curr->txt = ares_malloc(ptr_len + 1);
-    if (txt_curr->txt == NULL) {
-      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      /* Tag start on first for each TXT record */
+      if (ex && j == 0) {
+        txt_curr->record_start = 1;
+      }
+
+      ptr = ares_dns_rr_get_abin(rr, ARES_RR_TXT_DATA, j, &ptr_len);
+
+      txt_curr->txt = ares_malloc(ptr_len + 1);
+      if (txt_curr->txt == NULL) {
+        status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
+      }
+      memcpy(txt_curr->txt, ptr, ptr_len);
+      txt_curr->txt[ptr_len] = 0;
+      txt_curr->length       = ptr_len;
     }
-    memcpy(txt_curr->txt, ptr, ptr_len);
-    txt_curr->txt[ptr_len] = 0;
-    txt_curr->length       = ptr_len;
   }
 
 done:

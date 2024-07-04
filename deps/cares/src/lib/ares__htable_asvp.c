@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares__htable.h"
 #include "ares__htable_asvp.h"
@@ -134,7 +132,7 @@ ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable,
   out = ares_malloc_zero(sizeof(*out) * cnt);
   if (out == NULL) {
     ares_free(buckets); /* LCOV_EXCL_LINE: OutOfMemory */
-    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
+    return NULL;        /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (i = 0; i < cnt; i++) {

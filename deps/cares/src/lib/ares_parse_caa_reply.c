@@ -24,10 +24,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-#include "ares.h"
-#include "ares_data.h"
 #include "ares_private.h"
+#include "ares_data.h"
 
 int ares_parse_caa_reply(const unsigned char *abuf, int alen_int,
                          struct ares_caa_reply **caa_out)
@@ -67,7 +65,7 @@ int ares_parse_caa_reply(const unsigned char *abuf, int alen_int,
     if (rr == NULL) {
       /* Shouldn't be possible */
       status = ARES_EBADRESP; /* LCOV_EXCL_LINE: DefensiveCoding */
-      goto done; /* LCOV_EXCL_LINE: DefensiveCoding */
+      goto done;              /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     /* XXX: Why do we allow Chaos class? */
@@ -85,7 +83,7 @@ int ares_parse_caa_reply(const unsigned char *abuf, int alen_int,
     caa_curr = ares_malloc_data(ARES_DATATYPE_CAA_REPLY);
     if (caa_curr == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     /* Link in the record */
@@ -101,7 +99,7 @@ int ares_parse_caa_reply(const unsigned char *abuf, int alen_int,
       (unsigned char *)ares_strdup(ares_dns_rr_get_str(rr, ARES_RR_CAA_TAG));
     if (caa_curr->property == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      break; /* LCOV_EXCL_LINE: OutOfMemory */
+      break;                /* LCOV_EXCL_LINE: OutOfMemory */
     }
     /* RFC6844 says this can only be ascii, so not sure why we're recording a
      * length */
@@ -110,14 +108,14 @@ int ares_parse_caa_reply(const unsigned char *abuf, int alen_int,
     ptr = ares_dns_rr_get_bin(rr, ARES_RR_CAA_VALUE, &ptr_len);
     if (ptr == NULL) {
       status = ARES_EBADRESP; /* LCOV_EXCL_LINE: DefensiveCoding */
-      goto done; /* LCOV_EXCL_LINE: DefensiveCoding */
+      goto done;              /* LCOV_EXCL_LINE: DefensiveCoding */
     }
 
     /* Wants NULL termination for some reason */
     caa_curr->value = ares_malloc(ptr_len + 1);
     if (caa_curr->value == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
     memcpy(caa_curr->value, ptr, ptr_len);
     caa_curr->value[ptr_len] = 0;

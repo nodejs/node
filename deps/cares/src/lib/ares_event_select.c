@@ -29,8 +29,6 @@
  * anyhow */
 #define FD_SETSIZE 4096
 
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares_event.h"
 #ifdef HAVE_SYS_SELECT_H
