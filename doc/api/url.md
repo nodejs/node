@@ -705,7 +705,7 @@ added: v22.1.0
 * Returns: {URL|null}
 
 Parses a string as a URL. If `base` is provided, it will be used as the base
-URL for the purpose of resolving non-absolute `input` URLs. Returns `undefined`
+URL for the purpose of resolving non-absolute `input` URLs. Returns `null`
 if `input` is not a valid.
 
 ### Class: `URLSearchParams`
