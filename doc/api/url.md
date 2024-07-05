@@ -702,7 +702,7 @@ added: v22.1.0
   is ignored. If `input` is not a string, it is [converted to a string][] first.
 * `base` {string} The base URL to resolve against if the `input` is not
   absolute. If `base` is not a string, it is [converted to a string][] first.
-* Returns: {URL|undefined}
+* Returns: {URL|null}
 
 Parses a string as a URL. If `base` is provided, it will be used as the base
 URL for the purpose of resolving non-absolute `input` URLs. Returns `undefined`
