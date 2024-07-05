@@ -1044,7 +1044,6 @@ void ModuleWrap::CreateRequiredModuleFacade(
   Local<Context> context = isolate->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
   CHECK(args[0]->IsObject());  // original module
-  CHECK(args[1]->IsTrue());    // hasDefault
   Local<Object> wrap = args[0].As<Object>();
   ModuleWrap* original;
   ASSIGN_OR_RETURN_UNWRAP(&original, wrap);
