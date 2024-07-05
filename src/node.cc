@@ -206,13 +206,13 @@ void Environment::InitializeInspector(
   }
 
   if (should_wait_for_inspector_frontend()) {
-    WaitForInspectorFrontend();
+    WaitForInspectorFrontendByOptions();
   }
 
   profiler::StartProfilers(this);
 }
 
-void Environment::WaitForInspectorFrontend() {
+void Environment::WaitForInspectorFrontendByOptions() {
   if (!inspector_agent_->WaitForConnectByOptions()) {
     return;
   }

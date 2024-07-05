@@ -385,7 +385,7 @@ void Worker::Run() {
       Debug(this, "Created Environment for worker with id %llu", thread_id_.id);
 
 #if HAVE_INSPECTOR
-      this->env_->WaitForInspectorFrontend();
+      this->env_->WaitForInspectorFrontendByOptions();
 #endif
       if (is_stopped()) return;
       {

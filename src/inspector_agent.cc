@@ -1051,8 +1051,9 @@ bool Agent::WaitForConnectByOptions() {
       parent_env_->options()->get_debug_options()->EnableBreakFirstLine();
     }
     client_->waitForFrontend();
+    return true;
   }
-  return true;
+  return false;
 }
 
 void Agent::StopIfWaitingForConnect() {

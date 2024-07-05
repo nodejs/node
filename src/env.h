@@ -629,7 +629,7 @@ class Environment : public MemoryRetainer {
   // the ownership if transferred into the Environment.
   void InitializeInspector(
       std::unique_ptr<inspector::ParentInspectorHandle> parent_handle);
-  void WaitForInspectorFrontend();
+  void WaitForInspectorFrontendByOptions();
 #endif
 
   inline size_t async_callback_scope_depth() const;
