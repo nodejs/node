@@ -24,7 +24,7 @@ Some of the benefits we hope to achieve through these programs include:
 
 The contributor spotlight program showcases individual(s) or teams who have
 made signification contributions to the project. Anybody who is not
-a voting or regular member of the TSC and has made a
+a member of the Technical Steering Committee (TSC) and has made a
 notable contribution to the project can be nominated. They DO NOT need
 to be a collaborator, team member etc.
 
