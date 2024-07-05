@@ -1071,6 +1071,16 @@ including subdirectories and files.
 When copying a directory to another directory, globs are not supported and
 behavior is similar to `cp dir1/ dir2/`.
 
+### `fsPromises.exists(path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|URL} The filepath to check.
+
+Checks whether the given filepath exists.
+
 ### `fsPromises.glob(pattern[, options])`
 
 <!-- YAML

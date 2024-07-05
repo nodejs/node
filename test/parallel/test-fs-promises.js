@@ -9,6 +9,7 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const {
   access,
+  exists,
   chmod,
   chown,
   copyFile,
@@ -75,6 +76,11 @@ assert.strictEqual(
       code: 'ERR_INVALID_ARG_TYPE',
     }
   ).then(common.mustCall());
+}
+
+{
+  exists(__filename).then(common.mustCall((exists) => assert.strictEqual(exists, true)));
+  exists('this file does not exist').then(common.mustCall((exists) => assert.strictEqual(exists, false)));
 }
 
 function verifyStatObject(stat) {
