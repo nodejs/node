@@ -62,7 +62,7 @@ template("cares_gn_build") {
       sources += [ "config/linux/ares_config.h" ]
     }
     if (is_mac) {
-      sources += [ "config/darwin/ares_config.h" ]
+      sources += gypi_values.cares_sources_mac
     }
 
     if (is_clang || !is_win) {
