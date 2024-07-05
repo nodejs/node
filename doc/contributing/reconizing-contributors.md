@@ -23,7 +23,8 @@ Some of the benefits we hope to achieve through these programs include:
 ## Bi-monthly contributor spotlight
 
 The contributor spotlight program showcases individual(s) or teams who have
-made signification contributions to the project. Anybody who has made a
+made signification contributions to the project. Anybody who is not
+a member of the Technical Steering Committee (TSC) and has made a
 notable contribution to the project can be nominated. They DO NOT need
 to be a collaborator, team member etc.
 
