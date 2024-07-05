@@ -1453,12 +1453,17 @@ static std::vector<std::string_view> throws_only_in_cjs_error_messages = {
     "await is only valid in async functions and "
     "the top level bodies of modules"};
 
-static MaybeLocal<Function> CompileFunctionForCJSLoader(Environment* env,
-                                                        Local<Context> context,
-                                                        Local<String> code,
-                                                        Local<String> filename,
-                                                        bool* cache_rejected,
-                                                        bool is_cjs_scope) {
+// If cached_data is provided, it would be used for the compilation and
+// the on-disk compilation cache from NODE_COMPILE_CACHE (if configured)
+// would be ignored.
+static MaybeLocal<Function> CompileFunctionForCJSLoader(
+    Environment* env,
+    Local<Context> context,
+    Local<String> code,
+    Local<String> filename,
+    bool* cache_rejected,
+    bool is_cjs_scope,
+    ScriptCompiler::CachedData* cached_data) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
 
@@ -1475,25 +1480,9 @@ static MaybeLocal<Function> CompileFunctionForCJSLoader(Environment* env,
                       false,           // is WASM
                       false,           // is ES Module
                       hdo);
-  ScriptCompiler::CachedData* cached_data = nullptr;
-
-  bool used_cache_from_sea = false;
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) {
-    sea::SeaResource sea = sea::FindSingleExecutableResource();
-    if (sea.use_code_cache()) {
-      std::string_view data = sea.code_cache.value();
-      cached_data = new ScriptCompiler::CachedData(
-          reinterpret_cast<const uint8_t*>(data.data()),
-          static_cast<int>(data.size()),
-          v8::ScriptCompiler::CachedData::BufferNotOwned);
-      used_cache_from_sea = true;
-    }
-  }
-#endif
 
   CompileCacheEntry* cache_entry = nullptr;
-  if (!used_cache_from_sea && env->use_compile_cache()) {
+  if (cached_data == nullptr && env->use_compile_cache()) {
     cache_entry = env->compile_cache_handler()->GetOrInsert(
         code, filename, CachedCodeType::kCommonJS);
   }
@@ -1559,6 +1548,7 @@ static void CompileFunctionForCJSLoader(
   CHECK(args[3]->IsBoolean());
   Local<String> code = args[0].As<String>();
   Local<String> filename = args[1].As<String>();
+  bool is_sea_main = args[2].As<Boolean>()->Value();
   bool should_detect_module = args[3].As<Boolean>()->Value();
 
   Isolate* isolate = args.GetIsolate();
@@ -1571,11 +1561,31 @@ static void CompileFunctionForCJSLoader(
   Local<Value> cjs_exception;
   Local<Message> cjs_message;
 
+  ScriptCompiler::CachedData* cached_data = nullptr;
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (is_sea_main) {
+    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    // Use the "main" field in SEA config for the filename.
+    Local<Value> filename_from_sea;
+    if (!ToV8Value(context, sea.code_path).ToLocal(&filename_from_sea)) {
+      return;
+    }
+    filename = filename_from_sea.As<String>();
+    if (sea.use_code_cache()) {
+      std::string_view data = sea.code_cache.value();
+      cached_data = new ScriptCompiler::CachedData(
+          reinterpret_cast<const uint8_t*>(data.data()),
+          static_cast<int>(data.size()),
+          v8::ScriptCompiler::CachedData::BufferNotOwned);
+    }
+  }
+#endif
+
   {
     ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
     TryCatchScope try_catch(env);
     if (!CompileFunctionForCJSLoader(
-             env, context, code, filename, &cache_rejected, true)
+             env, context, code, filename, &cache_rejected, true, cached_data)
              .ToLocal(&fn)) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.HasTerminated());
@@ -1730,7 +1740,7 @@ static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
     TryCatchScope try_catch(env);
     ShouldNotAbortOnUncaughtScope no_abort_scope(env);
     if (CompileFunctionForCJSLoader(
-            env, context, code, filename, &cache_rejected, cjs_var)
+            env, context, code, filename, &cache_rejected, cjs_var, nullptr)
             .ToLocal(&fn)) {
       args.GetReturnValue().Set(false);
       return;
