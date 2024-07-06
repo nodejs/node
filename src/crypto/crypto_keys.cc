@@ -75,12 +75,11 @@ void GetKeyFormatAndTypeFromJs(
   *offset += 2;
 }
 
-ParseKeyResult TryParsePublicKey(
-    EVPKeyPointer* pkey,
-    const BIOPointer& bp,
-    const char* name,
-    // NOLINTNEXTLINE(runtime/int)
-    const std::function<EVP_PKEY*(const unsigned char** p, long l)>& parse) {
+template <typename F>
+ParseKeyResult TryParsePublicKey(EVPKeyPointer* pkey,
+                                 const BIOPointer& bp,
+                                 const char* name,
+                                 F&& parse) {
   unsigned char* der_data;
   long der_len;  // NOLINT(runtime/int)
 
