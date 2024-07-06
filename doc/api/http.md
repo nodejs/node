@@ -4246,13 +4246,14 @@ A browser-compatible implementation of [`WebSocket`][].
 [`'upgrade'`]: #event-upgrade
 [`--insecure-http-parser`]: cli.md#--insecure-http-parser
 [`--max-http-header-size`]: cli.md#--max-http-header-sizesize
-[`Agent`]: #class-httpagent
+[`Agent`]: #class-
 [`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelengthstring-encoding
 [`Duplex`]: stream.md#class-streamduplex
 [`HPE_HEADER_OVERFLOW`]: errors.md#hpe_header_overflow
 [`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
+[`WebSocket`]: #websocket
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
 [`agent.getName()`]: #agentgetnameoptions
 [`destroy()`]: #agentdestroy
@@ -4268,7 +4269,6 @@ A browser-compatible implementation of [`WebSocket`][].
 [`http.get()`]: #httpgetoptions-callback
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
-[`http.WebSocket`]: #websocket
 [`message.headers`]: #messageheaders
 [`message.socket`]: #messagesocket
 [`message.trailers`]: #messagetrailers
