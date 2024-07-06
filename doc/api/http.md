@@ -4246,7 +4246,7 @@ A browser-compatible implementation of [`WebSocket`][].
 [`'upgrade'`]: #event-upgrade
 [`--insecure-http-parser`]: cli.md#--insecure-http-parser
 [`--max-http-header-size`]: cli.md#--max-http-header-sizesize
-[`Agent`]: #class-
+[`Agent`]: #class-httpagent
 [`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelengthstring-encoding
 [`Duplex`]: stream.md#class-streamduplex
 [`HPE_HEADER_OVERFLOW`]: errors.md#hpe_header_overflow
