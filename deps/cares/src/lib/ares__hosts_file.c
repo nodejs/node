@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -316,7 +314,7 @@ static ares_status_t ares__hosts_file_add(ares_hosts_file_t  *hosts,
     status = ares__hosts_file_merge_entry(hosts, match, entry, matchtype);
     if (status != ARES_SUCCESS) {
       ares__hosts_entry_destroy(entry); /* LCOV_EXCL_LINE: DefensiveCoding */
-      return status; /* LCOV_EXCL_LINE: DefensiveCoding */
+      return status;                    /* LCOV_EXCL_LINE: DefensiveCoding */
     }
     /* entry was invalidated above by merging */
     entry = match;
@@ -617,7 +615,8 @@ static ares_bool_t ares__hosts_expired(const char              *filename,
 
   /* Expire every 60s if we can't get a time */
   if (mod_ts == 0) {
-    mod_ts = time(NULL) - 60; /* LCOV_EXCL_LINE: only on systems without stat() */
+    mod_ts =
+      time(NULL) - 60; /* LCOV_EXCL_LINE: only on systems without stat() */
   }
 
   /* If filenames are different, its expired */
@@ -779,7 +778,7 @@ ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
   *hostent = ares_malloc_zero(sizeof(**hostent));
   if (*hostent == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   (*hostent)->h_addrtype = (HOSTENT_ADDRTYPE_TYPE)family;
@@ -814,7 +813,7 @@ ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
                              (idx + 2) * sizeof(*(*hostent)->h_addr_list));
     if (temp == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     (*hostent)->h_addr_list = temp;
@@ -822,7 +821,7 @@ ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
     (*hostent)->h_addr_list[idx] = ares_malloc(ptr_len);
     if ((*hostent)->h_addr_list[idx] == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     memcpy((*hostent)->h_addr_list[idx], ptr, ptr_len);
@@ -840,7 +839,7 @@ ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
   (*hostent)->h_name = ares_strdup(ares__llist_first_val(entry->hosts));
   if ((*hostent)->h_name == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   /* Copy aliases */
@@ -856,7 +855,7 @@ ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
     ares_malloc_zero((naliases + 1) * sizeof(*(*hostent)->h_aliases));
   if ((*hostent)->h_aliases == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   /* Copy all entries to the alias except the first */
@@ -867,7 +866,7 @@ ares_status_t ares__hosts_entry_to_hostent(const ares_hosts_entry_t *entry,
     (*hostent)->h_aliases[idx] = ares_strdup(ares__llist_node_val(node));
     if ((*hostent)->h_aliases[idx] == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
     idx++;
 
@@ -885,7 +884,7 @@ fail:
   ares_free_hostent(*hostent);
   *hostent = NULL;
   return status;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }
 
 static ares_status_t
@@ -917,19 +916,19 @@ static ares_status_t
     cname = ares__append_addrinfo_cname(&cnames);
     if (cname == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     cname->alias = ares_strdup(host);
     if (cname->alias == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     cname->name = ares_strdup(primaryhost);
     if (cname->name == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     node = ares__llist_node_next(node);
@@ -940,13 +939,13 @@ static ares_status_t
     cname = ares__append_addrinfo_cname(&cnames);
     if (cname == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     cname->name = ares_strdup(primaryhost);
     if (cname->name == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
   status = ARES_SUCCESS;
@@ -954,7 +953,7 @@ static ares_status_t
 done:
   if (status != ARES_SUCCESS) {
     ares__freeaddrinfo_cnames(cnames); /* LCOV_EXCL_LINE: DefensiveCoding */
-    return status; /* LCOV_EXCL_LINE: DefensiveCoding */
+    return status;                     /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *cnames_out = cnames;
@@ -977,14 +976,14 @@ ares_status_t ares__hosts_entry_to_addrinfo(const ares_hosts_entry_t *entry,
     case AF_INET6:
     case AF_UNSPEC:
       break;
-    default: /* LCOV_EXCL_LINE: DefensiveCoding */
+    default:                  /* LCOV_EXCL_LINE: DefensiveCoding */
       return ARES_EBADFAMILY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ai->name = ares_strdup(name);
   if (ai->name == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (node = ares__llist_node_first(entry->ips); node != NULL;

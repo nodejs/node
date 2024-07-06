@@ -24,64 +24,55 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 
 #if defined(_WIN32) && !defined(MSDOS)
 
-ares_timeval_t ares__tvnow(void)
+void ares__tvnow(ares_timeval_t *now)
 {
   /* GetTickCount64() is available on Windows Vista and higher */
-  ares_timeval_t now;
   ULONGLONG      milliseconds = GetTickCount64();
 
-  now.sec  = (ares_int64_t)milliseconds / 1000;
-  now.usec = (unsigned int)(milliseconds % 1000) * 1000;
-  return now;
+  now->sec  = (ares_int64_t)milliseconds / 1000;
+  now->usec = (unsigned int)(milliseconds % 1000) * 1000;
 }
 
 #elif defined(HAVE_CLOCK_GETTIME_MONOTONIC)
 
-ares_timeval_t ares__tvnow(void)
+void ares__tvnow(ares_timeval_t *now)
 {
   /* clock_gettime() is guaranteed to be increased monotonically when the
    * monotonic clock is queried. Time starting point is unspecified, it
    * could be the system start-up time, the Epoch, or something else,
    * in any case the time starting point does not change once that the
    * system has started up. */
-  ares_timeval_t  now;
   struct timespec tsnow;
 
   if (clock_gettime(CLOCK_MONOTONIC, &tsnow) == 0) {
-    now.sec  = (ares_int64_t)tsnow.tv_sec;
-    now.usec = (unsigned int)(tsnow.tv_nsec / 1000);
+    now->sec  = (ares_int64_t)tsnow.tv_sec;
+    now->usec = (unsigned int)(tsnow.tv_nsec / 1000);
   } else {
     /* LCOV_EXCL_START: FallbackCode */
     struct timeval tv;
     (void)gettimeofday(&tv, NULL);
-    now.sec  = (ares_int64_t)tv.tv_sec;
-    now.usec = (unsigned int)tv.tv_usec;
+    now->sec  = (ares_int64_t)tv.tv_sec;
+    now->usec = (unsigned int)tv.tv_usec;
     /* LCOV_EXCL_STOP */
   }
-  return now;
 }
 
 #elif defined(HAVE_GETTIMEOFDAY)
 
-ares_timeval_t ares__tvnow(void)
+void ares__tvnow(ares_timeval_t *now)
 {
   /* gettimeofday() is not granted to be increased monotonically, due to
    * clock drifting and external source time synchronization it can jump
    * forward or backward in time. */
-  ares_timeval_t now;
   struct timeval tv;
 
   (void)gettimeofday(&tv, NULL);
-  now.sec  = (ares_int64_t)tv.tv_sec;
-  now.usec = (unsigned int)tv.tv_usec;
-
-  return now;
+  now->sec  = (ares_int64_t)tv.tv_sec;
+  now->usec = (unsigned int)tv.tv_usec;
 }
 
 #else

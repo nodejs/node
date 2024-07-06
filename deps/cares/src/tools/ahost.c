@@ -95,7 +95,7 @@ int         main(int argc, char **argv)
     return 1;
   }
 
-  ares_getopt_init(&state, argc, (const char **)argv);
+  ares_getopt_init(&state, argc, (const char * const *)argv);
   while ((c = ares_getopt(&state, "dt:h?D:s:")) != -1) {
     switch (c) {
       case 'd':
@@ -276,18 +276,22 @@ static void usage(void)
 /* Information from the man page. Formatting taken from man -h */
 static void print_help_info_ahost(void)
 {
+  /* Split due to maximum c89 string literal of 509 bytes */
   printf("ahost, version %s\n\n", ARES_VERSION_STR);
   printf(
     "usage: ahost [-h] [-d] [-D domain] [-s server] [-t a|aaaa|u] host|addr "
-    "...\n\n"
+    "...\n\n");
+  printf(
     "  -h : Display this help and exit.\n"
     "  -d : Print some extra debugging output.\n\n"
     "  -D domain : Specify the domain to search instead of using the default "
-    "values\n"
+    "values\n");
+  printf(
     "  -s server : Connect to the specified DNS server, instead of the\n"
     "              system's default one(s). Servers are tried in round-robin,\n"
     "              if the previous one failed.\n"
-    "  -t type   : If type is \"a\", print the A record.\n"
+    "  -t type   : If type is \"a\", print the A record.\n");
+  printf(
     "              If type is \"aaaa\", print the AAAA record.\n"
     "              If type is \"u\" (default), print both A and AAAA records.\n"
     "\n");

@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares_event.h"
 
@@ -128,7 +126,7 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
     }
 
     if (ares__llist_insert_last(e->ev_updates, ev) == NULL) {
-      ares_free(ev); /* LCOV_EXCL_LINE: OutOfMemory */
+      ares_free(ev);      /* LCOV_EXCL_LINE: OutOfMemory */
       return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
@@ -274,16 +272,19 @@ static void *ares_event_thread(void *arg)
     const struct timeval *tvout;
     unsigned long         timeout_ms = 0; /* 0 = unlimited */
 
+    ares_event_process_updates(e);
+
+    /* Don't hold a mutex while waiting on events or calling into anything
+     * that might require a c-ares channel lock since a callback could be
+     * triggered cross-thread */
+    ares__thread_mutex_unlock(e->mutex);
+
     tvout = ares_timeout(e->channel, NULL, &tv);
     if (tvout != NULL) {
       timeout_ms =
         (unsigned long)((tvout->tv_sec * 1000) + (tvout->tv_usec / 1000) + 1);
     }
 
-    ares_event_process_updates(e);
-
-    /* Don't hold a mutex while waiting on events */
-    ares__thread_mutex_unlock(e->mutex);
     e->ev_sys->wait(e, timeout_ms);
 
     /* Each iteration should do timeout processing */
@@ -391,22 +392,23 @@ static const ares_event_sys_t *ares_event_fetch_sys(ares_evsys_t evsys)
 
     /* case ARES_EVSYS_DEFAULT: */
     default:
-#if defined(USE_WINSOCK)
-      return &ares_evsys_win32;
-#elif defined(HAVE_KQUEUE)
-      return &ares_evsys_kqueue;
-#elif defined(HAVE_EPOLL)
-      return &ares_evsys_epoll;
-#elif defined(HAVE_POLL)
-      return &ares_evsys_poll;
-#elif defined(HAVE_PIPE)
-      return &ares_evsys_select;
-#else
       break;
-#endif
   }
 
+    /* default */
+#if defined(USE_WINSOCK)
+  return &ares_evsys_win32;
+#elif defined(HAVE_KQUEUE)
+  return &ares_evsys_kqueue;
+#elif defined(HAVE_EPOLL)
+  return &ares_evsys_epoll;
+#elif defined(HAVE_POLL)
+  return &ares_evsys_poll;
+#elif defined(HAVE_PIPE)
+  return &ares_evsys_select;
+#else
   return NULL;
+#endif
 }
 
 ares_status_t ares_event_thread_init(ares_channel_t *channel)
@@ -421,25 +423,25 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel)
   e->mutex = ares__thread_mutex_create();
   if (e->mutex == NULL) {
     ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
-    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM;               /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->ev_updates = ares__llist_create(NULL);
   if (e->ev_updates == NULL) {
     ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
-    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM;               /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->ev_sock_handles = ares__htable_asvp_create(ares_event_destroy_cb);
   if (e->ev_sock_handles == NULL) {
     ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
-    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM;               /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->ev_cust_handles = ares__htable_vpvp_create(NULL, ares_event_destroy_cb);
   if (e->ev_cust_handles == NULL) {
     ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: OutOfMemory */
-    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM;               /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   e->channel = channel;
@@ -447,7 +449,7 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel)
   e->ev_sys  = ares_event_fetch_sys(channel->evsys);
   if (e->ev_sys == NULL) {
     ares_event_thread_destroy_int(e); /* LCOV_EXCL_LINE: UntestablePath */
-    return ARES_ENOTIMP; /* LCOV_EXCL_LINE: UntestablePath */
+    return ARES_ENOTIMP;              /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   channel->sock_state_cb      = ares_event_thread_sockstate_cb;

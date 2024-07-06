@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares_event.h"
 #ifdef HAVE_UNISTD_H
@@ -69,7 +67,7 @@ static ares_pipeevent_t *ares_pipeevent_init(void)
 #  ifdef HAVE_PIPE2
   if (pipe2(p->filedes, O_NONBLOCK | O_CLOEXEC) != 0) {
     ares_pipeevent_destroy(p); /* LCOV_EXCL_LINE: UntestablePath */
-    return NULL; /* LCOV_EXCL_LINE: UntestablePath */
+    return NULL;               /* LCOV_EXCL_LINE: UntestablePath */
   }
 #  else
   if (pipe(p->filedes) != 0) {
@@ -157,7 +155,7 @@ ares_event_t *ares_pipeevent_create(ares_event_thread_t *e)
                              ares_pipeevent_signal);
   if (status != ARES_SUCCESS) {
     ares_pipeevent_destroy(p); /* LCOV_EXCL_LINE: DefensiveCoding */
-    return NULL; /* LCOV_EXCL_LINE: DefensiveCoding */
+    return NULL;               /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   return event;

@@ -25,16 +25,14 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif
 
-#include "ares.h"
 #include "ares_data.h"
 #include "ares_inet_net_pton.h"
-#include "ares_private.h"
 
 void ares_destroy_options(struct ares_options *options)
 {
@@ -464,8 +462,8 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
     /* qcache_max_ttl is unsigned unlike the others */
     channel->qcache_max_ttl = options->qcache_max_ttl;
   } else {
-    optmask                |= ARES_OPT_QUERY_CACHE;
-    channel->qcache_max_ttl = 3600;
+    optmask                 |= ARES_OPT_QUERY_CACHE;
+    channel->qcache_max_ttl  = 3600;
   }
 
   /* Initialize the ipv4 servers if provided */

@@ -27,8 +27,6 @@
 #ifndef HEADER_CARES_PLATFORM_H
 #define HEADER_CARES_PLATFORM_H
 
-#include "ares_setup.h"
-
 #if defined(_WIN32) && !defined(MSDOS)
 
 typedef enum {

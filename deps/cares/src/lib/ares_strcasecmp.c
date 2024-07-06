@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 #include "ares_strcasecmp.h"
 
 #ifndef HAVE_STRCASECMP
@@ -39,8 +39,8 @@ int ares_strcasecmp(const char *a, const char *b)
   size_t i;
 
   for (i = 0; i < (size_t)-1; i++) {
-    int c1 = ISUPPER(a[i]) ? tolower(a[i]) : a[i];
-    int c2 = ISUPPER(b[i]) ? tolower(b[i]) : b[i];
+    int c1 = ares__tolower(a[i]);
+    int c2 = ares__tolower(b[i]);
     if (c1 != c2) {
       return c1 - c2;
     }
@@ -64,8 +64,8 @@ int ares_strncasecmp(const char *a, const char *b, size_t n)
   size_t i;
 
   for (i = 0; i < n; i++) {
-    int c1 = ISUPPER(a[i]) ? tolower(a[i]) : a[i];
-    int c2 = ISUPPER(b[i]) ? tolower(b[i]) : b[i];
+    int c1 = ares__tolower(a[i]);
+    int c2 = ares__tolower(b[i]);
     if (c1 != c2) {
       return c1 - c2;
     }

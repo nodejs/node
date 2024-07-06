@@ -25,16 +25,15 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#include "ares.h"
 #include "ares_private.h"
 #include <assert.h>
 
 static void ares__requeue_queries(struct server_connection *conn)
 {
   struct query  *query;
-  ares_timeval_t now = ares__tvnow();
+  ares_timeval_t now;
+
+  ares__tvnow(&now);
 
   while ((query = ares__llist_first_val(conn->queries_to_conn)) != NULL) {
     ares__requeue_query(query, &now);

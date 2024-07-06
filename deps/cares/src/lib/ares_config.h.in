@@ -451,9 +451,6 @@
 /* recv() return value */
 #undef RECV_TYPE_RETV
 
-/* send() arg2 qualifier */
-#undef SEND_QUAL_ARG2
-
 /* send() arg1 type */
 #undef SEND_TYPE_ARG1
 

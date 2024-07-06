@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares_event.h"
 
@@ -149,7 +147,7 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
   c->inotify_fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
   if (c->inotify_fd == -1) {
     status = ARES_ESERVFAIL; /* LCOV_EXCL_LINE: UntestablePath */
-    goto done; /* LCOV_EXCL_LINE: UntestablePath */
+    goto done;               /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   /* We need to monitor /etc/resolv.conf, /etc/nsswitch.conf */
@@ -157,7 +155,7 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
                         IN_CREATE | IN_MODIFY | IN_MOVED_TO | IN_ONLYDIR) ==
       -1) {
     status = ARES_ESERVFAIL; /* LCOV_EXCL_LINE: UntestablePath */
-    goto done; /* LCOV_EXCL_LINE: UntestablePath */
+    goto done;               /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   status =
@@ -250,32 +248,29 @@ static void ares_event_configchg_ip_cb(PVOID                 CallerContext,
 }
 #  endif
 
-static ares_bool_t ares_event_configchg_regnotify(ares_event_configchg_t *configchg)
+static ares_bool_t
+  ares_event_configchg_regnotify(ares_event_configchg_t *configchg)
 {
 #  if defined(__WATCOMC__) && !defined(REG_NOTIFY_THREAD_AGNOSTIC)
 #    define REG_NOTIFY_THREAD_AGNOSTIC 0x10000000L
 #  endif
-  DWORD flags =
-    REG_NOTIFY_CHANGE_NAME|REG_NOTIFY_CHANGE_LAST_SET|REG_NOTIFY_THREAD_AGNOSTIC;
+  DWORD flags = REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET |
+                REG_NOTIFY_THREAD_AGNOSTIC;
 
-  if (RegNotifyChangeKeyValue(configchg->regip4, TRUE,
-                              flags,
-                              configchg->regip4_event,
-                              TRUE) != ERROR_SUCCESS) {
+  if (RegNotifyChangeKeyValue(configchg->regip4, TRUE, flags,
+                              configchg->regip4_event, TRUE) != ERROR_SUCCESS) {
     return ARES_FALSE;
   }
 
-  if (RegNotifyChangeKeyValue(configchg->regip6, TRUE,
-                              flags,
-                              configchg->regip6_event,
-                              TRUE) != ERROR_SUCCESS) {
+  if (RegNotifyChangeKeyValue(configchg->regip6, TRUE, flags,
+                              configchg->regip6_event, TRUE) != ERROR_SUCCESS) {
     return ARES_FALSE;
   }
 
   return ARES_TRUE;
 }
 
-static VOID CALLBACK ares_event_configchg_reg_cb(PVOID lpParameter,
+static VOID CALLBACK ares_event_configchg_reg_cb(PVOID   lpParameter,
                                                  BOOLEAN TimerOrWaitFired)
 {
   ares_event_configchg_t *configchg = lpParameter;
@@ -301,7 +296,7 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
 
   c->e = e;
 
-#ifndef __WATCOMC__
+#  ifndef __WATCOMC__
   /* NOTE: If a user goes into the control panel and changes the network
    *       adapter DNS addresses manually, this will NOT trigger a notification.
    *       We've also tried listening on NotifyUnicastIpAddressChange(), but
@@ -313,20 +308,22 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
     status = ARES_ESERVFAIL;
     goto done;
   }
-#endif
+#  endif
 
   /* Monitor HKLM\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces
    * and HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces
    * for changes via RegNotifyChangeKeyValue() */
-  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-        "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces",
-        0, KEY_NOTIFY, &c->regip4) != ERROR_SUCCESS) {
+  if (RegOpenKeyExW(
+        HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces", 0,
+        KEY_NOTIFY, &c->regip4) != ERROR_SUCCESS) {
     status = ARES_ESERVFAIL;
     goto done;
   }
 
-  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-        "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\\Interfaces",
+  if (RegOpenKeyExW(
+        HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\\Interfaces",
         0, KEY_NOTIFY, &c->regip6) != ERROR_SUCCESS) {
     status = ARES_ESERVFAIL;
     goto done;
@@ -345,13 +342,15 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
   }
 
   if (!RegisterWaitForSingleObject(&c->regip4_wait, c->regip4_event,
-    ares_event_configchg_reg_cb, c, INFINITE, WT_EXECUTEDEFAULT)) {
+                                   ares_event_configchg_reg_cb, c, INFINITE,
+                                   WT_EXECUTEDEFAULT)) {
     status = ARES_ESERVFAIL;
     goto done;
   }
 
   if (!RegisterWaitForSingleObject(&c->regip6_wait, c->regip6_event,
-    ares_event_configchg_reg_cb, c, INFINITE, WT_EXECUTEDEFAULT)) {
+                                   ares_event_configchg_reg_cb, c, INFINITE,
+                                   WT_EXECUTEDEFAULT)) {
     status = ARES_ESERVFAIL;
     goto done;
   }
@@ -446,15 +445,16 @@ static void ares_event_configchg_cb(ares_event_thread_t *e, ares_socket_t fd,
 ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
                                         ares_event_thread_t     *e)
 {
-  ares_status_t   status                               = ARES_SUCCESS;
-  void           *handle                               = NULL;
-  const char   *(*pdns_configuration_notify_key)(void) = NULL;
-  const char     *notify_key                           = NULL;
-  int             flags;
-  size_t          i;
-  const char     *searchlibs[]                         = {
+  ares_status_t status                               = ARES_SUCCESS;
+  void         *handle                               = NULL;
+  const char *(*pdns_configuration_notify_key)(void) = NULL;
+  const char *notify_key                             = NULL;
+  int         flags;
+  size_t      i;
+  const char *searchlibs[] = {
     "/usr/lib/libSystem.dylib",
-    "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+    "/System/Library/Frameworks/SystemConfiguration.framework/"
+    "SystemConfiguration",
     NULL
   };
 
@@ -464,14 +464,15 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
   }
 
   /* Load symbol as it isn't normally public */
-  for (i=0; searchlibs[i] != NULL; i++) {
+  for (i = 0; searchlibs[i] != NULL; i++) {
     handle = dlopen(searchlibs[i], RTLD_LAZY);
     if (handle == NULL) {
       /* Fail, loop! */
       continue;
     }
 
-    pdns_configuration_notify_key = dlsym(handle, "dns_configuration_notify_key");
+    pdns_configuration_notify_key = (const char *(*)(void))
+      dlsym(handle, "dns_configuration_notify_key");
     if (pdns_configuration_notify_key != NULL) {
       break;
     }
@@ -548,9 +549,14 @@ static ares_status_t config_change_check(ares__htable_strvp_t *filestat,
                                          const char           *resolvconf_path)
 {
   size_t      i;
-  const char *configfiles[] = { resolvconf_path, "/etc/nsswitch.conf",
-                                "/etc/netsvc.conf", "/etc/svc.conf", NULL };
+  const char *configfiles[5];
   ares_bool_t changed       = ARES_FALSE;
+
+  configfiles[0] = resolvconf_path;
+  configfiles[1] = "/etc/nsswitch.conf";
+  configfiles[2] = "/etc/netsvc.conf";
+  configfiles[3] = "/etc/svc.conf";
+  configfiles[4] = NULL;
 
   for (i = 0; configfiles[i] != NULL; i++) {
     fileinfo_t *fi = ares__htable_strvp_get_direct(filestat, configfiles[i]);

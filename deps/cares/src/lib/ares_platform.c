@@ -25,11 +25,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#include "ares.h"
-#include "ares_platform.h"
 #include "ares_private.h"
+#include "ares_platform.h"
 
 #if defined(_WIN32) && !defined(MSDOS)
 

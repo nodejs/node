@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 
 typedef struct {
@@ -59,7 +57,7 @@ static ares_status_t ares__nameoffset_create(ares__llist_t **list,
   }
   if (*list == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   off = ares_malloc_zero(sizeof(*off));
@@ -73,7 +71,7 @@ static ares_status_t ares__nameoffset_create(ares__llist_t **list,
 
   if (ares__llist_insert_last(*list, off) == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_SUCCESS;
@@ -82,7 +80,7 @@ static ares_status_t ares__nameoffset_create(ares__llist_t **list,
 fail:
   ares__nameoffset_free(off);
   return status;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }
 
 static const ares_nameoffset_t *ares__nameoffset_find(ares__llist_t *list,
@@ -113,7 +111,10 @@ static const ares_nameoffset_t *ares__nameoffset_find(ares__llist_t *list,
 
     prefix_len = name_len - val->name_len;
 
-    if (strcasecmp(val->name, name + prefix_len) != 0) {
+    /* Due to DNS 0x20, lets not inadvertently mangle things, use case-sensitive
+     * matching instead of case-insensitive.  This may result in slightly
+     * larger DNS queries overall. */
+    if (strcmp(val->name, name + prefix_len) != 0) {
       continue;
     }
 
@@ -269,7 +270,7 @@ static ares_status_t ares_split_dns_name(ares_dns_labels_t *labels,
   namebuf = ares__buf_create();
   if (namebuf == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (*name != '\0') {
@@ -284,7 +285,7 @@ static ares_status_t ares_split_dns_name(ares_dns_labels_t *labels,
   label = ares_dns_labels_add(labels);
   if (label == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   while (ares__buf_fetch_bytes(namebuf, &c, 1) == ARES_SUCCESS) {
@@ -293,7 +294,7 @@ static ares_status_t ares_split_dns_name(ares_dns_labels_t *labels,
       label = ares_dns_labels_add(labels);
       if (label == NULL) {
         status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
       continue;
     }
@@ -663,7 +664,7 @@ ares_status_t ares__dns_name_parse(ares__buf_t *buf, char **name,
     *name = ares__buf_finish_str(namebuf, NULL);
     if (*name == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 

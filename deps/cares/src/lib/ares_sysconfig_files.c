@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_SYS_PARAM_H
 #  include <sys/param.h>
@@ -43,8 +43,6 @@
 #  include <arpa/inet.h>
 #endif
 
-#include "ares_nameser.h"
-
 #if defined(ANDROID) || defined(__ANDROID__)
 #  include <sys/system_properties.h>
 #  include "ares_android.h"
@@ -61,10 +59,8 @@
 #  include <iphlpapi.h>
 #endif
 
-#include "ares.h"
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
-#include "ares_private.h"
 
 static unsigned char ip_natural_mask(const struct ares_addr *addr)
 {
@@ -263,7 +259,7 @@ ares_status_t ares__parse_sortlist(struct apattern **sortlist, size_t *nsort,
 
     if (!sortlist_append(sortlist, nsort, &pat)) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 

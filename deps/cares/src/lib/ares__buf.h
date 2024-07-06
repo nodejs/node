@@ -554,13 +554,31 @@ size_t               ares__buf_get_position(const ares__buf_t *buf);
  *  \param[out] name           Pointer passed by reference to be filled in with
  *                             allocated string of the parsed that must be
  *                             ares_free()'d by the caller.
- *  \param[in]  allow_multiple ARES_TRUE if it should attempt to parse multiple
- *                             strings back to back, and will concatenate in
- *                             the returned str.
  *  \return ARES_SUCCESS on success
  */
 ares_status_t ares__buf_parse_dns_str(ares__buf_t *buf, size_t remaining_len,
-                                      char **name, ares_bool_t allow_multiple);
+                                      char **name);
+
+/*! Parse an array of character strings as defined in RFC1035, as binary,
+ *  however, for convenience this does guarantee a NULL terminator (that is
+ *  not included in the length for each value).
+ *
+ *  \param[in]  buf                initialized buffer object
+ *  \param[in]  remaining_len      maximum length that should be used for
+ *                                 parsing the string, this is often less than
+ *                                 the remaining buffer and is based on the RR
+ *                                 record length.
+ *  \param[out] strs               Pointer passed by reference to be filled in
+ *                                 with
+ *                                 the array of values.
+ *  \param[out] validate_printable Validate the strings contain only printable
+ *                                 data.
+ *  \return ARES_SUCCESS on success
+ */
+ares_status_t ares__buf_parse_dns_abinstr(ares__buf_t *buf,
+                                          size_t       remaining_len,
+                                          ares__dns_multistring_t **strs,
+                                          ares_bool_t validate_printable);
 
 /*! Parse a character-string as defined in RFC1035, as binary, however for
  *  convenience this does guarantee a NULL terminator (that is not included
@@ -574,14 +592,10 @@ ares_status_t ares__buf_parse_dns_str(ares__buf_t *buf, size_t remaining_len,
  *                             allocated string of the parsed that must be
  *                             ares_free()'d by the caller.
  *  \param[out] bin_len        Length of returned string.
- *  \param[in]  allow_multiple ARES_TRUE if it should attempt to parse multiple
- *                             strings back to back, and will concatenate in
- *                             the returned str.
  *  \return ARES_SUCCESS on success
  */
 ares_status_t ares__buf_parse_dns_binstr(ares__buf_t *buf, size_t remaining_len,
-                                         unsigned char **bin, size_t *bin_len,
-                                         ares_bool_t allow_multiple);
+                                         unsigned char **bin, size_t *bin_len);
 
 /*! Load data from specified file path into provided buffer.  The entire file
  *  is loaded into memory.
