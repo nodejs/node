@@ -23,13 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-
-#if defined(__MVS__)
-#  include <strings.h>
-#endif
-
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 
 void ares__strsplit_free(char **elms, size_t num_elm)
@@ -64,7 +57,7 @@ char **ares__strsplit_duplicate(char **elms, size_t num_elm)
     out[i] = ares_strdup(elms[i]);
     if (out[i] == NULL) {
       ares__strsplit_free(out, num_elm); /* LCOV_EXCL_LINE: OutOfMemory */
-      return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
+      return NULL;                       /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -109,7 +102,7 @@ char **ares__strsplit(const char *in, const char *delms, size_t *num_elm)
   out = ares_malloc_zero(cnt * sizeof(*out));
   if (out == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   for (node = ares__llist_node_first(llist); node != NULL;

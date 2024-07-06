@@ -25,9 +25,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#include "ares.h"
 #include "ares_private.h"
 
 /* library-private global and unique instance vars */

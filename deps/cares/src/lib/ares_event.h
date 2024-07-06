@@ -26,8 +26,6 @@
 #ifndef __ARES__EVENT_H
 #define __ARES__EVENT_H
 
-#include "ares_setup.h"
-
 struct ares_event;
 typedef struct ares_event ares_event_t;
 

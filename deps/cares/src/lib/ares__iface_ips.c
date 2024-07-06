@@ -23,8 +23,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-
+#include "ares_private.h"
 
 #ifdef USE_WINSOCK
 #  include <winsock2.h>
@@ -55,9 +54,10 @@
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
 
-#include "ares.h"
-#include "ares_private.h"
 
 static ares_status_t ares__iface_ips_enumerate(ares__iface_ips_t *ips,
                                                const char        *name);
@@ -89,7 +89,7 @@ static ares__iface_ips_t *ares__iface_ips_alloc(ares__iface_ip_flags_t flags)
   ips->ips        = ares_malloc_zero(ips->alloc_size * sizeof(*ips->ips));
   if (ips->ips == NULL) {
     ares_free(ips); /* LCOV_EXCL_LINE: OutOfMemory */
-    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
+    return NULL;    /* LCOV_EXCL_LINE: OutOfMemory */
   }
   ips->enum_flags = flags;
   return ips;
@@ -215,8 +215,8 @@ static ares_status_t
   /* Add */
   idx = ips->cnt++;
 
-  ips->ips[idx].flags    = flags;
-  ips->ips[idx].netmask  = netmask;
+  ips->ips[idx].flags   = flags;
+  ips->ips[idx].netmask = netmask;
   if (flags & ARES_IFACE_IP_LINKLOCAL) {
     ips->ips[idx].ll_scope = ll_scope;
   }
@@ -526,8 +526,9 @@ static ares_status_t ares__iface_ips_enumerate(ares__iface_ips_t *ips,
 unsigned int ares__if_nametoindex(const char *name)
 {
 #ifdef HAVE_IF_NAMETOINDEX
-  if (name == NULL)
+  if (name == NULL) {
     return 0;
+  }
   return if_nametoindex(name);
 #else
   ares_status_t      status;
@@ -535,8 +536,9 @@ unsigned int ares__if_nametoindex(const char *name)
   size_t             i;
   unsigned int       index = 0;
 
-  if (name == NULL)
+  if (name == NULL) {
     return 0;
+  }
 
   status =
     ares__iface_ips(&ips, ARES_IFACE_IP_V6 | ARES_IFACE_IP_LINKLOCAL, name);

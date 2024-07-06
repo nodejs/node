@@ -41,6 +41,9 @@ ares_status_t ares_dns_rr_set_str_own(ares_dns_rr_t    *dns_rr,
 ares_status_t ares_dns_rr_set_bin_own(ares_dns_rr_t    *dns_rr,
                                       ares_dns_rr_key_t key, unsigned char *val,
                                       size_t len);
+ares_status_t ares_dns_rr_set_abin_own(ares_dns_rr_t           *dns_rr,
+                                       ares_dns_rr_key_t        key,
+                                       ares__dns_multistring_t *strs);
 ares_status_t ares_dns_rr_set_opt_own(ares_dns_rr_t    *dns_rr,
                                       ares_dns_rr_key_t key, unsigned short opt,
                                       unsigned char *val, size_t val_len);
@@ -120,8 +123,7 @@ typedef struct {
 } ares__dns_mx_t;
 
 typedef struct {
-  char  *data;
-  size_t data_len;
+  ares__dns_multistring_t *strs;
 } ares__dns_txt_t;
 
 typedef struct {

@@ -25,7 +25,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
@@ -49,10 +49,8 @@
 #  endif
 #endif
 
-#include "ares.h"
 #include "ares_data.h"
 #include "ares_inet_net_pton.h"
-#include "ares_private.h"
 
 typedef struct {
   struct ares_addr addr;
@@ -397,7 +395,7 @@ ares_status_t ares__sconfig_append(ares__llist_t         **sconfig,
     *sconfig = ares__llist_create(ares_free);
     if (*sconfig == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -423,7 +421,7 @@ ares_status_t ares__sconfig_append(ares__llist_t         **sconfig,
 
   if (ares__llist_insert_last(*sconfig, s) == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   return ARES_SUCCESS;
@@ -613,24 +611,24 @@ static ares_status_t ares__server_create(ares_channel_t       *channel,
   server->tcp_parser = ares__buf_create();
   if (server->tcp_parser == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   server->tcp_send = ares__buf_create();
   if (server->tcp_send == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   server->connections = ares__llist_create(NULL);
   if (server->connections == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (ares__slist_insert(channel->servers, server) == NULL) {
     status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ARES_SUCCESS;
@@ -711,8 +709,6 @@ ares_status_t ares__servers_update(ares_channel_t *channel,
     return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
-  ares__channel_lock(channel);
-
   /* NOTE: a NULL or zero entry server list is considered valid due to
    *       real-world people needing support for this for their test harnesses
    */
@@ -781,7 +777,6 @@ ares_status_t ares__servers_update(ares_channel_t *channel,
   status = ARES_SUCCESS;
 
 done:
-  ares__channel_unlock(channel);
   return status;
 }
 
@@ -823,7 +818,7 @@ static ares_status_t
 
     if (ares__llist_insert_last(s, sconfig) == NULL) {
       ares_free(sconfig); /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;          /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -834,7 +829,7 @@ static ares_status_t
 fail:
   ares__llist_destroy(s);
   return ARES_ENOMEM;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }
 
 static ares_status_t ares_addr_port_node_to_server_config_llist(
@@ -877,7 +872,7 @@ static ares_status_t ares_addr_port_node_to_server_config_llist(
 
     if (ares__llist_insert_last(s, sconfig) == NULL) {
       ares_free(sconfig); /* LCOV_EXCL_LINE: OutOfMemory */
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto fail;          /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -888,7 +883,7 @@ static ares_status_t ares_addr_port_node_to_server_config_llist(
 fail:
   ares__llist_destroy(s);
   return ARES_ENOMEM;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }
 
 ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
@@ -929,7 +924,7 @@ ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
 fail:
   ares__llist_destroy(s);
   return ARES_ENOMEM;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }
 
 /* Write out the details of a server to a buffer */
@@ -1115,8 +1110,9 @@ int ares_set_servers(ares_channel_t              *channel,
     return (int)status;
   }
 
-  /* NOTE: lock is in ares__servers_update() */
+  ares__channel_lock(channel);
   status = ares__servers_update(channel, slist, ARES_TRUE);
+  ares__channel_unlock(channel);
 
   ares__llist_destroy(slist);
 
@@ -1138,8 +1134,9 @@ int ares_set_servers_ports(ares_channel_t                   *channel,
     return (int)status;
   }
 
-  /* NOTE: lock is in ares__servers_update() */
+  ares__channel_lock(channel);
   status = ares__servers_update(channel, slist, ARES_TRUE);
+  ares__channel_unlock(channel);
 
   ares__llist_destroy(slist);
 
@@ -1157,11 +1154,12 @@ static ares_status_t set_servers_csv(ares_channel_t *channel, const char *_csv)
     return ARES_ENODATA;
   }
 
-  /* NOTE: lock is in ares__servers_update() */
-
   if (ares_strlen(_csv) == 0) {
     /* blank all servers */
-    return ares__servers_update(channel, NULL, ARES_TRUE);
+    ares__channel_lock(channel);
+    status = ares__servers_update(channel, NULL, ARES_TRUE);
+    ares__channel_unlock(channel);
+    return status;
   }
 
   status = ares__sconfig_append_fromstr(&slist, _csv, ARES_FALSE);
@@ -1170,8 +1168,9 @@ static ares_status_t set_servers_csv(ares_channel_t *channel, const char *_csv)
     return status;
   }
 
-  /* NOTE: lock is in ares__servers_update() */
+  ares__channel_lock(channel);
   status = ares__servers_update(channel, slist, ARES_TRUE);
+  ares__channel_unlock(channel);
 
   ares__llist_destroy(slist);
 
@@ -1181,13 +1180,11 @@ static ares_status_t set_servers_csv(ares_channel_t *channel, const char *_csv)
 /* We'll go ahead and honor ports anyhow */
 int ares_set_servers_csv(ares_channel_t *channel, const char *_csv)
 {
-  /* NOTE: lock is in ares__servers_update() */
   return (int)set_servers_csv(channel, _csv);
 }
 
 int ares_set_servers_ports_csv(ares_channel_t *channel, const char *_csv)
 {
-  /* NOTE: lock is in ares__servers_update() */
   return (int)set_servers_csv(channel, _csv);
 }
 

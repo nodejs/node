@@ -40,6 +40,10 @@ MANPAGES = ares_cancel.3		\
   ares_dns_rec_type_tostr.3		\
   ares_dns_rec_type_t.3			\
   ares_dns_rr.3				\
+  ares_dns_rr_add_abin.3		\
+  ares_dns_rr_del_abin.3		\
+  ares_dns_rr_get_abin.3		\
+  ares_dns_rr_get_abin_cnt.3		\
   ares_dns_rr_get_addr.3		\
   ares_dns_rr_get_addr6.3		\
   ares_dns_rr_get_bin.3			\

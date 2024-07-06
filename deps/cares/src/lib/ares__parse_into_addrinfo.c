@@ -24,7 +24,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -44,8 +44,6 @@
 #  include <limits.h>
 #endif
 
-#include "ares.h"
-#include "ares_private.h"
 
 ares_status_t ares__parse_into_addrinfo(const ares_dns_record_t *dnsrec,
                                         ares_bool_t    cname_only_is_enodata,
@@ -108,18 +106,18 @@ ares_status_t ares__parse_into_addrinfo(const ares_dns_record_t *dnsrec,
       cname = ares__append_addrinfo_cname(&cnames);
       if (cname == NULL) {
         status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
       cname->ttl   = (int)ares_dns_rr_get_ttl(rr);
       cname->alias = ares_strdup(ares_dns_rr_get_name(rr));
       if (cname->alias == NULL) {
         status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
       cname->name = ares_strdup(hostname);
       if (cname->name == NULL) {
         status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
       }
     } else if (rtype == ARES_REC_TYPE_A) {
       got_a = ARES_TRUE;
@@ -154,7 +152,7 @@ ares_status_t ares__parse_into_addrinfo(const ares_dns_record_t *dnsrec,
     ai->name = ares_strdup(hostname);
     if (ai->name == NULL) {
       status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 

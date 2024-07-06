@@ -24,8 +24,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 
 static int ares_create_query_int(const char *name, int dnsclass, int type,

@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares__htable.h"
 #include "ares__htable_vpvp.h"
@@ -114,7 +112,7 @@ fail:
     ares_free(htable);
   }
   return NULL;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }
 
 ares_bool_t ares__htable_vpvp_insert(ares__htable_vpvp_t *htable, void *key,

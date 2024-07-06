@@ -130,27 +130,35 @@ v1.22, this is on by default if flags are otherwise not set.
 .B ARES_FLAG_NO_DFLT_SVR
 Do not attempt to add a default local named server if there are no other
 servers available.  Instead, fail initialization with \fIARES_ENOSERVER\fP.
+.TP 23
+.B ARES_FLAG_DNS0x20
+Enable support for DNS 0x20 as per https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00
+which adds additional entropy to the request by randomizing the case of the
+query name.  Integrators need to ensure they treat DNS name responses as
+case-insensitive.  In rare circumstances this may cause the inability to lookup
+certain domains if the upstream server or the authoritative server for the
+domain is non-compliant.
 .RE
 .TP 18
 .B ARES_OPT_TIMEOUT
 .B int \fItimeout\fP;
 .br
 The number of seconds each name server is given to respond to a query on the
-first try.  (After the first try, the timeout algorithm becomes more
-complicated, but scales linearly with the value of \fItimeout\fP.)  The
-default is two seconds. This option is being deprecated by
-\fIARES_OPT_TIMEOUTMS\fP starting in c-ares 1.5.2.
+first try.  See \fIARES_OPT_TIMEOUTMS\fP which this value is converted into.
 .TP 18
 .B ARES_OPT_TIMEOUTMS
 .B int \fItimeout\fP;
 .br
 The number of milliseconds each name server is given to respond to a query on
-the first try.  (After the first try, the timeout algorithm becomes more
-complicated, but scales linearly with the value of \fItimeout\fP.)  The
-default is two seconds. Note that this option is specified with the same
-struct field as the former \fIARES_OPT_TIMEOUT\fP, it is but the option bits
-that tell c-ares how to interpret the number. This option was added in c-ares
-1.5.2.
+the first try of any given server. The default is two seconds, however any
+value below 250ms will automatically be set to 250ms (roughly the RTT half-way
+around the world). Note that this option is specified with the same struct field
+as the former \fIARES_OPT_TIMEOUT\fP, it is but the option bits that tell c-ares
+how to interpret the number. This option was added in c-ares 1.5.2.
+
+As of c-ares 1.32.0, this option is only honored on the first successful query
+to any given server, after that the timeout is automatically calculated based
+on prior query history.
 .TP 18
 .B ARES_OPT_TRIES
 .B int \fItries\fP;
@@ -227,7 +235,9 @@ The value of
 .I sock_state_cb_data
 will be passed as the
 .I data
-argument.
+argument.  The channel lock is held during this callback, if in a multithreaded
+application, care must be taken to ensure lock order is correct to be able to
+handle this and avoid deadlocks.
 
 Cannot be used with \fBARES_OPT_EVENT_THREAD\fP.
 .TP 18
