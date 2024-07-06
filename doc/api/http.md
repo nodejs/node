@@ -4235,7 +4235,7 @@ added:
   - REPLACEME
 -->
 
-A browser-compatible implementation of \[`WebSocket`]\[].
+A browser-compatible implementation of [`WebSocket`][].
 
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
