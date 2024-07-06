@@ -4268,6 +4268,7 @@ A browser-compatible implementation of [`WebSocket`][].
 [`http.get()`]: #httpgetoptions-callback
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
+[`http.WebSocket`]: #websocket
 [`message.headers`]: #messageheaders
 [`message.socket`]: #messagesocket
 [`message.trailers`]: #messagetrailers
