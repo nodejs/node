@@ -586,7 +586,8 @@ There are constraints you need to know before using this system:
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
-  not subject to the rules of the Permission Model.
+  not subject to the rules of the Permission Model. The same applies for V8
+  flags that can be set via runtime through `v8.setFlagsFromString`.
 * OpenSSL engines cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Using existing file descriptors via the `node:fs` module bypasses the
