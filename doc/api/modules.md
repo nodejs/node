@@ -235,7 +235,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
-```
+```text
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
