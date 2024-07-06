@@ -487,6 +487,8 @@ class NodeInspectorClient : public V8InspectorClient {
     }
 
     if (interface_) {
+      per_process::Debug(DebugCategory::INSPECTOR_CLIENT,
+                         "Stopping waiting for frontend events\n");
       interface_->StopWaitingForFrontendEvent();
     }
   }
@@ -668,11 +670,16 @@ class NodeInspectorClient : public V8InspectorClient {
 
     running_nested_loop_ = true;
 
+    per_process::Debug(DebugCategory::INSPECTOR_CLIENT,
+                       "Entering nested loop\n");
+
     while (shouldRunMessageLoop()) {
       if (interface_) interface_->WaitForFrontendEvent();
       env_->RunAndClearInterrupts();
     }
     running_nested_loop_ = false;
+
+    per_process::Debug(DebugCategory::INSPECTOR_CLIENT, "Exited nested loop\n");
   }
 
   double currentTimeMS() override {
@@ -759,26 +766,10 @@ bool Agent::Start(const std::string& path,
     }
   }, parent_env_);
 
-  bool wait_for_connect = options.wait_for_connect();
-  bool should_break_first_line = options.should_break_first_line();
-  if (parent_handle_) {
-    should_break_first_line = parent_handle_->WaitForConnect();
-    parent_handle_->WorkerStarted(client_->getThreadHandle(),
-                                  should_break_first_line);
-  } else if (!options.inspector_enabled || !options.allow_attaching_debugger ||
-             !StartIoThread()) {
+  if (!parent_handle_ &&
+      (!options.inspector_enabled || !options.allow_attaching_debugger ||
+       !StartIoThread())) {
     return false;
-  }
-
-  if (wait_for_connect || should_break_first_line) {
-    // Patch the debug options to implement waitForDebuggerOnStart for
-    // the NodeWorker.enable method.
-    if (should_break_first_line) {
-      CHECK(!parent_env_->has_serialized_options());
-      debug_options_.EnableBreakFirstLine();
-      parent_env_->options()->get_debug_options()->EnableBreakFirstLine();
-    }
-    client_->waitForFrontend();
   }
   return true;
 }
@@ -1036,6 +1027,33 @@ void Agent::WaitForConnect() {
 
   CHECK_NOT_NULL(client_);
   client_->waitForFrontend();
+}
+
+bool Agent::WaitForConnectByOptions() {
+  if (client_ == nullptr) {
+    return false;
+  }
+
+  bool wait_for_connect = debug_options_.wait_for_connect();
+  bool should_break_first_line = debug_options_.should_break_first_line();
+  if (parent_handle_) {
+    should_break_first_line = parent_handle_->WaitForConnect();
+    parent_handle_->WorkerStarted(client_->getThreadHandle(),
+                                  should_break_first_line);
+  }
+
+  if (wait_for_connect || should_break_first_line) {
+    // Patch the debug options to implement waitForDebuggerOnStart for
+    // the NodeWorker.enable method.
+    if (should_break_first_line) {
+      CHECK(!parent_env_->has_serialized_options());
+      debug_options_.EnableBreakFirstLine();
+      parent_env_->options()->get_debug_options()->EnableBreakFirstLine();
+    }
+    client_->waitForFrontend();
+    return true;
+  }
+  return false;
 }
 
 void Agent::StopIfWaitingForConnect() {

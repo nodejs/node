@@ -661,7 +661,11 @@ enum Flags : uint64_t {
   // Controls where or not the InspectorAgent for this Environment should
   // call StartDebugSignalHandler.  This control is needed by embedders who may
   // not want to allow other processes to start the V8 inspector.
-  kNoStartDebugSignalHandler = 1 << 10
+  kNoStartDebugSignalHandler = 1 << 10,
+  // Controls whether the InspectorAgent created for this Environment waits for
+  // Inspector frontend events during the Environment creation. It's used to
+  // call node::Stop(env) on a Worker thread that is waiting for the events.
+  kNoWaitForInspectorFrontend = 1 << 11
 };
 }  // namespace EnvironmentFlags
 
