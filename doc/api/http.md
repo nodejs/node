@@ -4232,7 +4232,7 @@ Set the maximum number of idle HTTP parsers.
 
 <!-- YAML
 added:
-  - v23.0.0
+  - REPLACEME
 -->
 
 A browser-compatible implementation of [`WebSocket`][]. 
