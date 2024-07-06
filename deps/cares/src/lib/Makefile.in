@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Tue Jun 18 05:51:32 EDT 2024
+# from AX_AM_MACROS_STATIC on Thu Jul  4 07:03:12 EDT 2024
 
 # Copyright (C) The c-ares project and its contributors
 # SPDX-License-Identifier: MIT
@@ -175,6 +175,7 @@ am__objects_1 = libcares_la-ares__addrinfo2hostent.lo \
 	libcares_la-ares__timeval.lo libcares_la-ares_android.lo \
 	libcares_la-ares_cancel.lo libcares_la-ares_data.lo \
 	libcares_la-ares_destroy.lo libcares_la-ares_dns_mapping.lo \
+	libcares_la-ares_dns_multistring.lo \
 	libcares_la-ares_dns_name.lo libcares_la-ares_dns_parse.lo \
 	libcares_la-ares_dns_record.lo libcares_la-ares_dns_write.lo \
 	libcares_la-ares_event_configchg.lo \
@@ -195,8 +196,9 @@ am__objects_1 = libcares_la-ares__addrinfo2hostent.lo \
 	libcares_la-ares_gethostbyname.lo \
 	libcares_la-ares_getnameinfo.lo libcares_la-ares_getsock.lo \
 	libcares_la-ares_init.lo libcares_la-ares_library_init.lo \
-	libcares_la-ares_math.lo libcares_la-ares_create_query.lo \
-	libcares_la-ares_options.lo libcares_la-ares_parse_a_reply.lo \
+	libcares_la-ares_math.lo libcares_la-ares_metrics.lo \
+	libcares_la-ares_create_query.lo libcares_la-ares_options.lo \
+	libcares_la-ares_parse_a_reply.lo \
 	libcares_la-ares_parse_aaaa_reply.lo \
 	libcares_la-ares_parse_caa_reply.lo \
 	libcares_la-ares_parse_mx_reply.lo \
@@ -214,7 +216,8 @@ am__objects_1 = libcares_la-ares__addrinfo2hostent.lo \
 	libcares_la-ares_str.lo libcares_la-ares_strerror.lo \
 	libcares_la-ares_strsplit.lo libcares_la-ares_sysconfig.lo \
 	libcares_la-ares_sysconfig_files.lo \
-	libcares_la-ares_sysconfig_mac.lo libcares_la-ares_timeout.lo \
+	libcares_la-ares_sysconfig_mac.lo \
+	libcares_la-ares_sysconfig_win.lo libcares_la-ares_timeout.lo \
 	libcares_la-ares_update_servers.lo libcares_la-ares_version.lo \
 	libcares_la-inet_net_pton.lo libcares_la-inet_ntop.lo \
 	libcares_la-windows_port.lo
@@ -268,6 +271,7 @@ am__depfiles_remade =  \
 	./$(DEPDIR)/libcares_la-ares_data.Plo \
 	./$(DEPDIR)/libcares_la-ares_destroy.Plo \
 	./$(DEPDIR)/libcares_la-ares_dns_mapping.Plo \
+	./$(DEPDIR)/libcares_la-ares_dns_multistring.Plo \
 	./$(DEPDIR)/libcares_la-ares_dns_name.Plo \
 	./$(DEPDIR)/libcares_la-ares_dns_parse.Plo \
 	./$(DEPDIR)/libcares_la-ares_dns_record.Plo \
@@ -295,6 +299,7 @@ am__depfiles_remade =  \
 	./$(DEPDIR)/libcares_la-ares_init.Plo \
 	./$(DEPDIR)/libcares_la-ares_library_init.Plo \
 	./$(DEPDIR)/libcares_la-ares_math.Plo \
+	./$(DEPDIR)/libcares_la-ares_metrics.Plo \
 	./$(DEPDIR)/libcares_la-ares_options.Plo \
 	./$(DEPDIR)/libcares_la-ares_parse_a_reply.Plo \
 	./$(DEPDIR)/libcares_la-ares_parse_aaaa_reply.Plo \
@@ -321,6 +326,7 @@ am__depfiles_remade =  \
 	./$(DEPDIR)/libcares_la-ares_sysconfig.Plo \
 	./$(DEPDIR)/libcares_la-ares_sysconfig_files.Plo \
 	./$(DEPDIR)/libcares_la-ares_sysconfig_mac.Plo \
+	./$(DEPDIR)/libcares_la-ares_sysconfig_win.Plo \
 	./$(DEPDIR)/libcares_la-ares_timeout.Plo \
 	./$(DEPDIR)/libcares_la-ares_update_servers.Plo \
 	./$(DEPDIR)/libcares_la-ares_version.Plo \
@@ -624,7 +630,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares__addrinfo_localhost.c		\
   ares__buf.c				\
   ares__close_sockets.c			\
-  ares__hosts_file.c		\
+  ares__hosts_file.c			\
   ares__htable.c			\
   ares__htable_asvp.c			\
   ares__htable_strvp.c			\
@@ -643,11 +649,12 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_data.c				\
   ares_destroy.c			\
   ares_dns_mapping.c			\
+  ares_dns_multistring.c	\
   ares_dns_name.c			\
   ares_dns_parse.c			\
   ares_dns_record.c			\
   ares_dns_write.c			\
-  ares_event_configchg.c	\
+  ares_event_configchg.c		\
   ares_event_epoll.c			\
   ares_event_kqueue.c			\
   ares_event_poll.c			\
@@ -669,7 +676,8 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_getsock.c			\
   ares_init.c				\
   ares_library_init.c			\
-  ares_math.c			\
+  ares_math.c				\
+  ares_metrics.c			\
   ares_create_query.c			\
   ares_options.c			\
   ares_parse_a_reply.c			\
@@ -685,7 +693,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_parse_uri_reply.c		\
   ares_platform.c			\
   ares_process.c			\
-  ares_qcache.c			\
+  ares_qcache.c				\
   ares_query.c				\
   ares_rand.c				\
   ares_search.c				\
@@ -694,11 +702,12 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_str.c				\
   ares_strerror.c			\
   ares_strsplit.c			\
-  ares_sysconfig.c		\
-  ares_sysconfig_files.c	\
-  ares_sysconfig_mac.c	\
+  ares_sysconfig.c			\
+  ares_sysconfig_files.c		\
+  ares_sysconfig_mac.c			\
+  ares_sysconfig_win.c			\
   ares_timeout.c			\
-  ares_update_servers.c	\
+  ares_update_servers.c			\
   ares_version.c			\
   inet_net_pton.c			\
   inet_ntop.c				\
@@ -716,6 +725,7 @@ HHEADERS = ares__buf.h			\
   ares__threads.h			\
   ares_android.h			\
   ares_data.h				\
+  ares_dns_multistring.h		\
   ares_dns_private.h			\
   ares_event.h				\
   ares_event_win32.h			\
@@ -728,7 +738,6 @@ HHEADERS = ares__buf.h			\
   ares_str.h				\
   ares_strsplit.h			\
   ares_setup.h				\
-  setup_once.h				\
   thirdparty/apple/dnsinfo.h
 
 
@@ -853,6 +862,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_data.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_destroy.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_dns_mapping.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_dns_multistring.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_dns_name.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_dns_parse.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_dns_record.Plo@am__quote@ # am--include-marker
@@ -880,6 +890,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_init.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_library_init.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_math.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_metrics.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_options.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_parse_a_reply.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_parse_aaaa_reply.Plo@am__quote@ # am--include-marker
@@ -906,6 +917,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_sysconfig.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_sysconfig_files.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_sysconfig_mac.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_sysconfig_win.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_timeout.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_update_servers.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcares_la-ares_version.Plo@am__quote@ # am--include-marker
@@ -1104,6 +1116,13 @@ libcares_la-ares_dns_mapping.lo: ares_dns_mapping.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_dns_mapping.lo `test -f 'ares_dns_mapping.c' || echo '$(srcdir)/'`ares_dns_mapping.c
 
+libcares_la-ares_dns_multistring.lo: ares_dns_multistring.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_dns_multistring.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_dns_multistring.Tpo -c -o libcares_la-ares_dns_multistring.lo `test -f 'ares_dns_multistring.c' || echo '$(srcdir)/'`ares_dns_multistring.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_dns_multistring.Tpo $(DEPDIR)/libcares_la-ares_dns_multistring.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_dns_multistring.c' object='libcares_la-ares_dns_multistring.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_dns_multistring.lo `test -f 'ares_dns_multistring.c' || echo '$(srcdir)/'`ares_dns_multistring.c
+
 libcares_la-ares_dns_name.lo: ares_dns_name.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_dns_name.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_dns_name.Tpo -c -o libcares_la-ares_dns_name.lo `test -f 'ares_dns_name.c' || echo '$(srcdir)/'`ares_dns_name.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_dns_name.Tpo $(DEPDIR)/libcares_la-ares_dns_name.Plo
@@ -1293,6 +1312,13 @@ libcares_la-ares_math.lo: ares_math.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_math.lo `test -f 'ares_math.c' || echo '$(srcdir)/'`ares_math.c
 
+libcares_la-ares_metrics.lo: ares_metrics.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_metrics.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_metrics.Tpo -c -o libcares_la-ares_metrics.lo `test -f 'ares_metrics.c' || echo '$(srcdir)/'`ares_metrics.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_metrics.Tpo $(DEPDIR)/libcares_la-ares_metrics.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_metrics.c' object='libcares_la-ares_metrics.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_metrics.lo `test -f 'ares_metrics.c' || echo '$(srcdir)/'`ares_metrics.c
+
 libcares_la-ares_create_query.lo: ares_create_query.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_create_query.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_create_query.Tpo -c -o libcares_la-ares_create_query.lo `test -f 'ares_create_query.c' || echo '$(srcdir)/'`ares_create_query.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_create_query.Tpo $(DEPDIR)/libcares_la-ares_create_query.Plo
@@ -1481,6 +1507,13 @@ libcares_la-ares_sysconfig_mac.lo: ares_sysconfig_mac.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_sysconfig_mac.c' object='libcares_la-ares_sysconfig_mac.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_sysconfig_mac.lo `test -f 'ares_sysconfig_mac.c' || echo '$(srcdir)/'`ares_sysconfig_mac.c
+
+libcares_la-ares_sysconfig_win.lo: ares_sysconfig_win.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_sysconfig_win.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_sysconfig_win.Tpo -c -o libcares_la-ares_sysconfig_win.lo `test -f 'ares_sysconfig_win.c' || echo '$(srcdir)/'`ares_sysconfig_win.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcares_la-ares_sysconfig_win.Tpo $(DEPDIR)/libcares_la-ares_sysconfig_win.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ares_sysconfig_win.c' object='libcares_la-ares_sysconfig_win.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -c -o libcares_la-ares_sysconfig_win.lo `test -f 'ares_sysconfig_win.c' || echo '$(srcdir)/'`ares_sysconfig_win.c
 
 libcares_la-ares_timeout.lo: ares_timeout.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcares_la_CPPFLAGS) $(CPPFLAGS) $(libcares_la_CFLAGS) $(CFLAGS) -MT libcares_la-ares_timeout.lo -MD -MP -MF $(DEPDIR)/libcares_la-ares_timeout.Tpo -c -o libcares_la-ares_timeout.lo `test -f 'ares_timeout.c' || echo '$(srcdir)/'`ares_timeout.c
@@ -1755,6 +1788,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_data.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_destroy.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_mapping.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_multistring.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_name.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_parse.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_record.Plo
@@ -1782,6 +1816,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_init.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_library_init.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_math.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_metrics.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_options.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_parse_a_reply.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_parse_aaaa_reply.Plo
@@ -1808,6 +1843,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig_files.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig_mac.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig_win.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_timeout.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_update_servers.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_version.Plo
@@ -1883,6 +1919,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_data.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_destroy.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_mapping.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_multistring.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_name.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_parse.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_dns_record.Plo
@@ -1910,6 +1947,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_init.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_library_init.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_math.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_metrics.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_options.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_parse_a_reply.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_parse_aaaa_reply.Plo
@@ -1936,6 +1974,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig_files.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig_mac.Plo
+	-rm -f ./$(DEPDIR)/libcares_la-ares_sysconfig_win.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_timeout.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_update_servers.Plo
 	-rm -f ./$(DEPDIR)/libcares_la-ares_version.Plo

@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 
 ares_bool_t ares_dns_opcode_isvalid(ares_dns_opcode_t opcode)
@@ -518,8 +516,10 @@ ares_dns_datatype_t ares_dns_rr_key_datatype(ares_dns_rr_key_t key)
       return ARES_DATATYPE_U8;
 
     case ARES_RR_CAA_VALUE:
-    case ARES_RR_TXT_DATA:
       return ARES_DATATYPE_BINP;
+
+    case ARES_RR_TXT_DATA:
+      return ARES_DATATYPE_ABINP;
 
     case ARES_RR_SIG_SIGNATURE:
     case ARES_RR_TLSA_DATA:
@@ -548,18 +548,14 @@ static const ares_dns_rr_key_t rr_hinfo_keys[] = { ARES_RR_HINFO_CPU,
                                                    ARES_RR_HINFO_OS };
 static const ares_dns_rr_key_t rr_mx_keys[]    = { ARES_RR_MX_PREFERENCE,
                                                    ARES_RR_MX_EXCHANGE };
-static const ares_dns_rr_key_t rr_sig_keys[]   = { ARES_RR_SIG_TYPE_COVERED,
-                                                   ARES_RR_SIG_ALGORITHM,
-                                                   ARES_RR_SIG_LABELS,
-                                                   ARES_RR_SIG_ORIGINAL_TTL,
-                                                   ARES_RR_SIG_EXPIRATION,
-                                                   ARES_RR_SIG_INCEPTION,
-                                                   ARES_RR_SIG_KEY_TAG,
-                                                   ARES_RR_SIG_SIGNERS_NAME,
-                                                   ARES_RR_SIG_SIGNATURE };
-static const ares_dns_rr_key_t rr_txt_keys[]   = { ARES_RR_TXT_DATA };
-static const ares_dns_rr_key_t rr_aaaa_keys[]  = { ARES_RR_AAAA_ADDR };
-static const ares_dns_rr_key_t rr_srv_keys[]   = {
+static const ares_dns_rr_key_t rr_sig_keys[]   = {
+  ARES_RR_SIG_TYPE_COVERED, ARES_RR_SIG_ALGORITHM,    ARES_RR_SIG_LABELS,
+  ARES_RR_SIG_ORIGINAL_TTL, ARES_RR_SIG_EXPIRATION,   ARES_RR_SIG_INCEPTION,
+  ARES_RR_SIG_KEY_TAG,      ARES_RR_SIG_SIGNERS_NAME, ARES_RR_SIG_SIGNATURE
+};
+static const ares_dns_rr_key_t rr_txt_keys[]  = { ARES_RR_TXT_DATA };
+static const ares_dns_rr_key_t rr_aaaa_keys[] = { ARES_RR_AAAA_ADDR };
+static const ares_dns_rr_key_t rr_srv_keys[]  = {
   ARES_RR_SRV_PRIORITY, ARES_RR_SRV_WEIGHT, ARES_RR_SRV_PORT, ARES_RR_SRV_TARGET
 };
 static const ares_dns_rr_key_t rr_naptr_keys[] = {

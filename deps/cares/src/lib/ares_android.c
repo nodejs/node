@@ -24,13 +24,8 @@
  * SPDX-License-Identifier: MIT
  */
 #if defined(ANDROID) || defined(__ANDROID__)
-
-#  include <jni.h>
-
-#  include "ares_setup.h"
-#  include "ares.h"
-#  include "ares_android.h"
 #  include "ares_private.h"
+#  include <jni.h>
 
 static JavaVM   *android_jvm                  = NULL;
 static jobject   android_connectivity_manager = NULL;

@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares__llist.h"
 
@@ -186,6 +184,26 @@ ares__llist_node_t *ares__llist_node_first(ares__llist_t *list)
   return list->head;
 }
 
+ares__llist_node_t *ares__llist_node_idx(ares__llist_t *list, size_t idx)
+{
+  ares__llist_node_t *node;
+  size_t              cnt;
+
+  if (list == NULL) {
+    return NULL;
+  }
+  if (idx >= list->cnt) {
+    return NULL;
+  }
+
+  node = list->head;
+  for (cnt = 0; node != NULL && cnt < idx; cnt++) {
+    node = node->next;
+  }
+
+  return node;
+}
+
 ares__llist_node_t *ares__llist_node_last(ares__llist_t *list)
 {
   if (list == NULL) {
@@ -323,7 +341,7 @@ void ares__llist_node_replace(ares__llist_node_t *node, void *val)
   node->data = val;
 }
 
-void ares__llist_destroy(ares__llist_t *list)
+void ares__llist_clear(ares__llist_t *list)
 {
   ares__llist_node_t *node;
 
@@ -334,6 +352,14 @@ void ares__llist_destroy(ares__llist_t *list)
   while ((node = ares__llist_node_first(list)) != NULL) {
     ares__llist_node_destroy(node);
   }
+}
+
+void ares__llist_destroy(ares__llist_t *list)
+{
+  if (list == NULL) {
+    return;
+  }
+  ares__llist_clear(list);
   ares_free(list);
 }
 

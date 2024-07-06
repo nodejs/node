@@ -25,16 +25,13 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
 
 #include "ares_nameser.h"
-
-#include "ares.h"
-#include "ares_private.h" /* for the memdebug */
 
 ares_status_t ares__expand_name_validated(const unsigned char *encoded,
                                           const unsigned char *abuf,

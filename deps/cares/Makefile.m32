@@ -64,7 +64,6 @@ install:
 	${INSTALL} -m 444 ${srcdir}/include/ares.h ${DESTDIR}${includedir}
 	${INSTALL} -m 444 ${srcdir}/include/ares_build.h ${DESTDIR}${includedir}
 	${INSTALL} -m 444 ${srcdir}/include/ares_dns_record.h ${DESTDIR}${includedir}
-	${INSTALL} -m 444 ${srcdir}/include/ares_rules.h ${DESTDIR}${includedir}
 	${INSTALL} -m 444 ${srcdir}/include/ares_version.h ${DESTDIR}${includedir}
 	(for man in $(MANPAGES); do \
 	   ${INSTALL} -m 444 ${srcdir}/$${man} ${DESTDIR}${mandir}/man3; \

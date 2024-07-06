@@ -214,7 +214,7 @@ RT_ERROR_CHECKING = /RTCsu
 
 CC_CMD_REL = cl.exe /nologo $(RTLIB) /DNDEBUG /O2
 CC_CMD_DBG = cl.exe /nologo $(RTLIBD) /D_DEBUG /Od /Zi $(RT_ERROR_CHECKING)
-CC_CFLAGS  = $(CFLAGS) /I.\src\lib /I.\include /W3 /EHsc /FD
+CC_CFLAGS  = $(CFLAGS) /D_REENTRANT /I.\src\lib /I.\include /W3 /EHsc /FD
 
 RC_CMD_REL = rc.exe /l 0x409 /d "NDEBUG"
 RC_CMD_DBG = rc.exe /l 0x409 /d "_DEBUG"
@@ -440,7 +440,6 @@ install:
     @copy /y $(CARES_OUTDIR)\*.*              "$(INSTALL_DIR_LIB)" >NUL
     @copy /y $(SRCDIR)\include\ares.h         "$(INSTALL_DIR_INC)" >NUL
     @copy /y $(SRCDIR)\include\ares_build.h   "$(INSTALL_DIR_INC)" >NUL
-    @copy /y $(SRCDIR)\include\ares_rules.h   "$(INSTALL_DIR_INC)" >NUL
     @copy /y $(SRCDIR)\include\ares_version.h "$(INSTALL_DIR_INC)" >NUL
     @copy /y $(SRCDIR)\include\ares_dns_record.h "$(INSTALL_DIR_INC)" >NUL
     @echo Installed c-ares $(CFG)

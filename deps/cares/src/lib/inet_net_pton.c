@@ -18,7 +18,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -29,11 +29,13 @@
 
 #include "ares_nameser.h"
 
-#include "ares.h"
 #include "ares_ipv6.h"
 #include "ares_inet_net_pton.h"
-#include "ares_private.h"
 
+#define ISDIGIT(x)  (isdigit((int)((unsigned char)x)))
+#define ISXDIGIT(x) (isxdigit((int)((unsigned char)x)))
+#define ISASCII(x)  (((unsigned char)x) <= 127 ? 1 : 0)
+#define ISUPPER(x)  (isupper((int)((unsigned char)x)))
 
 const struct ares_in6_addr ares_in6addr_any = { { { 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                                     0, 0, 0, 0, 0, 0, 0 } } };
@@ -82,7 +84,7 @@ static int ares_inet_net_pton_ipv4(const char *src, unsigned char *dst,
     src++; /* skip x or X. */
     while ((ch = *src++) != '\0' && ISASCII(ch) && ISXDIGIT(ch)) {
       if (ISUPPER(ch)) {
-        ch = tolower(ch);
+        ch = ares__tolower((unsigned char)ch);
       }
       n = (int)(strchr(xdigits, ch) - xdigits);
       if (dirty == 0) {

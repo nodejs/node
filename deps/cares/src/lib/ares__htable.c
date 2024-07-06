@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares__llist.h"
 #include "ares__htable.h"
@@ -207,7 +205,7 @@ static ares_bool_t ares__htable_expand(ares__htable_t *htable)
    * middle, we wouldn't be able to recover. */
   buckets = ares_malloc_zero(sizeof(*buckets) * htable->size);
   if (buckets == NULL) {
-    goto done;  /* LCOV_EXCL_LINE */
+    goto done; /* LCOV_EXCL_LINE */
   }
 
   /* The maximum number of new llists we'll need is the number of collisions
@@ -270,7 +268,7 @@ static ares_bool_t ares__htable_expand(ares__htable_t *htable)
       if (buckets[idx] == NULL) {
         /* Silence static analysis, this isn't possible but it doesn't know */
         if (prealloc_llist == NULL || prealloc_llist_len == 0) {
-          goto done;  /* LCOV_EXCL_LINE */
+          goto done; /* LCOV_EXCL_LINE */
         }
         buckets[idx] = prealloc_llist[prealloc_llist_len - 1];
         prealloc_llist_len--;
@@ -304,7 +302,7 @@ done:
 
   /* On failure, we need to restore the htable size */
   if (rv != ARES_TRUE) {
-    htable->size = old_size;  /* LCOV_EXCL_LINE */
+    htable->size = old_size; /* LCOV_EXCL_LINE */
   }
 
   return rv;
@@ -336,7 +334,7 @@ ares_bool_t ares__htable_insert(ares__htable_t *htable, void *bucket)
   if (htable->num_keys + 1 >
       (htable->size * ARES__HTABLE_EXPAND_PERCENT) / 100) {
     if (!ares__htable_expand(htable)) {
-      return ARES_FALSE;  /* LCOV_EXCL_LINE */
+      return ARES_FALSE; /* LCOV_EXCL_LINE */
     }
     /* If we expanded, need to calculate a new index */
     idx = HASH_IDX(htable, key);
