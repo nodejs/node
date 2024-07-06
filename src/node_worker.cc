@@ -359,6 +359,9 @@ void Worker::Run() {
       CHECK(!context.IsEmpty());
       Context::Scope context_scope(context);
       {
+#if HAVE_INSPECTOR
+        environment_flags_ |= EnvironmentFlags::kNoWaitForInspectorFrontend;
+#endif
         env_.reset(CreateEnvironment(
             data.isolate_data_.get(),
             context,
@@ -380,6 +383,10 @@ void Worker::Run() {
         this->env_ = env_.get();
       }
       Debug(this, "Created Environment for worker with id %llu", thread_id_.id);
+
+#if HAVE_INSPECTOR
+      this->env_->WaitForInspectorFrontendByOptions();
+#endif
       if (is_stopped()) return;
       {
         if (!CreateEnvMessagePort(env_.get())) {
