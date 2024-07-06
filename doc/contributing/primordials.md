@@ -7,6 +7,7 @@ later look these up from the global proxy, which can be mutated by users.
 For some area of the codebase, performance and code readability are deemed more
 important than reliability against prototype pollution:
 
+* `node:http`
 * `node:http2`
 
 Usage of primordials should be preferred for new code in other areas, but
