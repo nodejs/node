@@ -46,6 +46,7 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(DIAGNOSTICS)                                                               \
   V(HUGEPAGES)                                                                 \
   V(INSPECTOR_SERVER)                                                          \
+  V(INSPECTOR_CLIENT)                                                          \
   V(INSPECTOR_PROFILER)                                                        \
   V(CODE_CACHE)                                                                \
   V(NGTCP2_DEBUG)                                                              \

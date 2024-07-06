@@ -205,7 +205,17 @@ void Environment::InitializeInspector(
     return;
   }
 
+  if (should_wait_for_inspector_frontend()) {
+    WaitForInspectorFrontendByOptions();
+  }
+
   profiler::StartProfilers(this);
+}
+
+void Environment::WaitForInspectorFrontendByOptions() {
+  if (!inspector_agent_->WaitForConnectByOptions()) {
+    return;
+  }
 
   if (inspector_agent_->options().break_node_first_line) {
     inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");

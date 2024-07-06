@@ -678,6 +678,10 @@ inline bool Environment::should_create_inspector() const {
          !options_->test_runner && !options_->watch_mode;
 }
 
+inline bool Environment::should_wait_for_inspector_frontend() const {
+  return (flags_ & EnvironmentFlags::kNoWaitForInspectorFrontend) == 0;
+}
+
 inline bool Environment::tracks_unmanaged_fds() const {
   return flags_ & EnvironmentFlags::kTrackUnmanagedFds;
 }
