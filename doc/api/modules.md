@@ -235,7 +235,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
-<pre>
+```text
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
@@ -347,7 +347,7 @@ RESOLVE_ESM_MATCH(MATCH)
 2. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
    format. STOP
 3. THROW "not found"
-</pre>
+```
 
 ## Caching
 
