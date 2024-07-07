@@ -661,11 +661,14 @@ static ::std::vector<std::string> g_argvs;
 FilePath GetCurrentExecutableName() {
   FilePath result;
 
+  auto args = GetArgvs();
+  if (!args.empty()) {
 #if defined(GTEST_OS_WINDOWS) || defined(GTEST_OS_OS2)
-  result.Set(FilePath(GetArgvs()[0]).RemoveExtension("exe"));
+    result.Set(FilePath(args[0]).RemoveExtension("exe"));
 #else
-  result.Set(FilePath(GetArgvs()[0]));
+    result.Set(FilePath(args[0]));
 #endif  // GTEST_OS_WINDOWS
+  }
 
   return result.RemoveDirectoryName();
 }
