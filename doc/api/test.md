@@ -532,9 +532,9 @@ test('spies on a function', () => {
     return a + b;
   });
 
-  assert.strictEqual(sum.mock.calls.length, 0);
+  assert.strictEqual(sum.mock.callCount(), 0);
   assert.strictEqual(sum(3, 4), 7);
-  assert.strictEqual(sum.mock.calls.length, 1);
+  assert.strictEqual(sum.mock.callCount(), 1);
 
   const call = sum.mock.calls[0];
   assert.deepStrictEqual(call.arguments, [3, 4]);
@@ -556,9 +556,9 @@ test('spies on a function', () => {
     return a + b;
   });
 
-  assert.strictEqual(sum.mock.calls.length, 0);
+  assert.strictEqual(sum.mock.callCount(), 0);
   assert.strictEqual(sum(3, 4), 7);
-  assert.strictEqual(sum.mock.calls.length, 1);
+  assert.strictEqual(sum.mock.callCount(), 1);
 
   const call = sum.mock.calls[0];
   assert.deepStrictEqual(call.arguments, [3, 4]);
@@ -586,9 +586,9 @@ test('spies on an object method', (t) => {
   };
 
   t.mock.method(number, 'add');
-  assert.strictEqual(number.add.mock.calls.length, 0);
+  assert.strictEqual(number.add.mock.callCount(), 0);
   assert.strictEqual(number.add(3), 8);
-  assert.strictEqual(number.add.mock.calls.length, 1);
+  assert.strictEqual(number.add.mock.callCount(), 1);
 
   const call = number.add.mock.calls[0];
 
@@ -2027,9 +2027,9 @@ test('spies on an object method', (t) => {
   };
 
   t.mock.method(number, 'subtract');
-  assert.strictEqual(number.subtract.mock.calls.length, 0);
+  assert.strictEqual(number.subtract.mock.callCount(), 0);
   assert.strictEqual(number.subtract(3), 2);
-  assert.strictEqual(number.subtract.mock.calls.length, 1);
+  assert.strictEqual(number.subtract.mock.callCount(), 1);
 
   const call = number.subtract.mock.calls[0];
 
