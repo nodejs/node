@@ -69,6 +69,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
                                  UndefinedConstant());
   StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawByteLengthOffset,
                            UintPtrConstant(0));
+  StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawMaxByteLengthOffset,
+                           UintPtrConstant(0));
   StoreSandboxedPointerToObject(buffer, JSArrayBuffer::kBackingStoreOffset,
                                 EmptyBackingStoreBufferConstant());
 #ifdef V8_COMPRESS_POINTERS
