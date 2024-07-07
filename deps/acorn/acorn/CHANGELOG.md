@@ -1,3 +1,9 @@
+## 8.12.1 (2024-07-03)
+
+### Bug fixes
+
+Fix a regression that caused Acorn to no longer run on Node versions <8.10.
+
 ## 8.12.0 (2024-06-14)
 
 ### New features
@@ -17,7 +23,7 @@ Mark the `Parser` constructor as protected, not private, so plugins can extend i
 Fix a bug where some invalid `delete` expressions were let through when the operand was parenthesized and `preserveParens` was enabled.
 
 Properly normalize line endings in raw strings of invalid template tokens.
-    
+
 Properly track line numbers for escaped newlines in strings.
 
 Fix a bug that broke line number accounting after a template literal with invalid escape sequences.
