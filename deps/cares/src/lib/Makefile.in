@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Thu Jul  4 07:03:12 EDT 2024
+# from AX_AM_MACROS_STATIC on Sun Jul  7 10:45:53 EDT 2024
 
 # Copyright (C) The c-ares project and its contributors
 # SPDX-License-Identifier: MIT

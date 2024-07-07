@@ -1,3 +1,13 @@
+## c-ares version 1.32.1 - July 7 2024
+
+This is a bugfix release.
+
+Bugfixes:
+* Channel lock needs to be recursive to ensure calls into c-ares functions can
+  be made from callbacks otherwise deadlocks will occur.  This regression was
+  introduced in 1.32.0.
+
+
 ## c-ares version 1.32.0 - July 4 2024
 
 This is a feature and bugfix release.
