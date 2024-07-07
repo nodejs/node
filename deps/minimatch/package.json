@@ -60,7 +60,7 @@
     "@types/brace-expansion": "^1.1.0",
     "@types/node": "^18.15.11",
     "@types/tap": "^15.0.8",
-    "esbuild": "^0.21.5",
+    "esbuild": "^0.23.0",
     "eslint-config-prettier": "^8.6.0",
     "mkdirp": "1",
     "prettier": "^2.8.2",
