@@ -66,7 +66,7 @@ line.
    git checkout -b backport-123-to-vN.x vN.x-staging
    ```
 
-4. Resolve conflicts during cherry-pick:
+4. Cherry-pick the desired commit(s):
 
    ```console
    git cherry-pick <commit hash>
