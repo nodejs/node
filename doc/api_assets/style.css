@@ -40,13 +40,6 @@
   --color-text-secondary: var(--green2);
 }
 
-h2 :target,
-h3 :target,
-h4 :target,
-h5 :target {
-  scroll-margin-top: 4rem;
-}
-
 .dark-mode {
   --background-color-highlight: var(--black2);
   --color-critical: var(--red4);
@@ -67,9 +60,16 @@ h5 :target {
 }
 
 /*--------------------- Layout and Typography ----------------------------*/
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 html {
   font-size: 1rem;
   overflow-wrap: break-word;
+  scroll-padding-top: 4rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-variant-ligatures: none;
