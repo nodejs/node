@@ -34,6 +34,7 @@ The current security stewards are documented in the main Node.js
 | NodeSource   | Rafael          | 2024-Feb-14  |
 | NodeSource   | Rafael          | 2024-Apr-03  |
 | NodeSource   | Rafael          | 2024-Apr-10  |
+| NodeSource   | Rafael          | 2024-Jul-08  |
 | Datadog      | Bryan           |              |
 | IBM          | Joe             |              |
 | Platformatic | Matteo          |              |
