@@ -34,7 +34,11 @@ Use the following labels, with `N` in `vN.x` denoting the major release number:
 
 ## Submitting a backport pull request
 
-Follow these steps to backport a PR (e.g., #123) to the `vN.x` release line:
+For the following steps, let's assume that you need to backport PR `123`
+to the vN.x release line. All commands will use the `vN.x-staging` branch
+as the target branch. In order to submit a backport pull request to another
+branch, simply replace `N` with the version number for the targeted release
+line.
 
 ### Automated process
 
