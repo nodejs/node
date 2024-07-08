@@ -92,9 +92,9 @@ line.
 
 11. If conflicts arise during the review process, the following command be used to rebase:
 
-```console
-git pull --rebase upstream vN.x-staging
-```
+    ```bash
+    git pull --rebase upstream vN.x-staging
+    ```
 
 Once merged, update the original PR's label from `backport-open-vN.x` to `backported-to-vN.x`.
 
