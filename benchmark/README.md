@@ -1,80 +1,49 @@
-# Node.js Core Benchmarks
+# Node.js core benchmarks
 
-This folder contains code and data used to measure performance
-of different Node.js implementations and different ways of
-writing JavaScript run by the built-in JavaScript engine.
+This directory contains code and data used to evaluate the performance of various Node.js
+implementations and JavaScript coding techniques executed by the built-in JavaScript engine.
 
-For a detailed guide on how to write and run benchmarks in this
-directory, see [the guide on benchmarks](../doc/contributing/writing-and-running-benchmarks.md).
-
-## Table of Contents
-
-* [File tree structure](#file-tree-structure)
-* [Common API](#common-api)
+For a comprehensive guide on writing and running benchmarks in this directory, refer to
+[the guide on benchmarks][].
 
 ## File tree structure
 
 ### Directories
 
-Benchmarks testing the performance of a single node submodule are placed into a
-directory with the corresponding name, so that they can be executed by submodule
-or individually.
-Benchmarks that span multiple submodules may either be placed into the `misc`
-directory or into a directory named after the feature they benchmark.
-E.g. benchmarks for various new ECMAScript features and their pre-ES2015
-counterparts are placed in a directory named `es`.
-Fixtures that are not specific to a certain benchmark but can be reused
-throughout the benchmark suite should be placed in the `fixtures` directory.
+Benchmarks that test the performance of a single Node.js submodule are placed in a directory
+named after that submodule, allowing for execution by submodule or individually. Benchmarks
+that span multiple submodules may be placed in the `misc` directory or a directory named after
+the feature they benchmark. For example, benchmarks for various new ECMAScript features and their
+pre-ES2015 counterparts are located in the `es` directory. Fixtures that are reusable across the
+benchmark suite should be placed in the `fixtures` directory.
 
-### Other Top-level files
+### Other top-level files
 
-The top-level files include common dependencies of the benchmarks
-and the tools for launching benchmarks and visualizing their output.
-The actual benchmark scripts should be placed in their corresponding
-directories.
-
-* `_benchmark_progress.js`: implements the progress bar displayed
-  when running `compare.js`
-* `_cli.js`: parses the command line arguments passed to `compare.js`,
-  `run.js` and `scatter.js`
-* `_cli.R`: parses the command line arguments passed to `compare.R`
-* `_http-benchmarkers.js`: selects and runs external tools for benchmarking
-  the `http` subsystem.
-* `common.js`: see [Common API](#common-api).
-* `compare.js`: command line tool for comparing performance between different
-  Node.js binaries.
-* `compare.R`: R script for statistically analyzing the output of
-  `compare.js`
-* `run.js`: command line tool for running individual benchmark suite(s).
-* `scatter.js`: command line tool for comparing the performance
-  between different parameters in benchmark configurations,
-  for example to analyze the time complexity.
-* `scatter.R`: R script for visualizing the output of `scatter.js` with
-  scatter plots.
+The top-level files include common dependencies for the benchmarks and tools for launching benchmarks
+and visualizing their output. The actual benchmark scripts should be placed in their respective directories.
 
 ## Common API
 
-The common.js module is used by benchmarks for consistency across repeated
-tasks. It has a number of helpful functions and properties to help with
-writing benchmarks.
+The `common.js` module provides consistency across benchmarks through various helpful functions
+and properties.
 
 ### `createBenchmark(fn, configs[, options])`
 
-See [the guide on writing benchmarks](../doc/contributing/writing-and-running-benchmarks.md#basics-of-a-benchmark).
+Refer to [the guide on benchmarks][] for more details.
 
 ### `default_http_benchmarker`
 
-The default benchmarker used to run HTTP benchmarks.
-See [the guide on writing HTTP benchmarks](../doc/contributing/writing-and-running-benchmarks.md#creating-an-http-benchmark).
+The default benchmarker for running HTTP benchmarks. See [the guide on writing HTTP benchmarks][].
 
 ### `PORT`
 
-The default port used to run HTTP benchmarks.
-See [the guide on writing HTTP benchmarks](../doc/contributing/writing-and-running-benchmarks.md#creating-an-http-benchmark).
+The default port for running HTTP benchmarks. See [the guide on writing HTTP benchmarks][].
 
 ### `sendResult(data)`
 
-Used in special benchmarks that can't use `createBenchmark` and the object
-it returns to accomplish what they need. This function reports timing
-data to the parent process (usually created by running `compare.js`, `run.js` or
-`scatter.js`).
+Used in special benchmarks that cannot use `createBenchmark` and the object it returns.
+This function reports timing data to the parent process, typically created by running
+`compare.js`, `run.js`, or `scatter.js`.
+
+[the guide on benchmarks]: ../doc/contributing/writing-and-running-benchmarks.md#basics-of-a-benchmark
+[the guide on writing HTTP benchmarks]: ../doc/contributing/writing-and-running-benchmarks.md#creating-an-http-benchmark
