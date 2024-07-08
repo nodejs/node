@@ -4228,6 +4228,15 @@ added:
 
 Set the maximum number of idle HTTP parsers.
 
+## `WebSocket`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+A browser-compatible implementation of [`WebSocket`][].
+
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue
@@ -4244,6 +4253,7 @@ Set the maximum number of idle HTTP parsers.
 [`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
+[`WebSocket`]: #websocket
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
 [`agent.getName()`]: #agentgetnameoptions
 [`destroy()`]: #agentdestroy
