@@ -68,7 +68,7 @@ line.
 
 4. Cherry-pick the desired commit(s):
 
-   ```console
+   ```bash
    git cherry-pick <commit hash>
    ```
 
