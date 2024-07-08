@@ -9,7 +9,7 @@ For active staging branches, refer to the [Release Schedule][].
 
 ## Identifying backport needs
 
-If a cherry-pick from `main` doesn't merge cleanly with a staging branch, the pull request
+If a cherry-pick from `main` doesn't apply cleanly on a staging branch, the pull request
 will be labeled for the release line (e.g., `backport-requested-vN.x`). This indicates
 that manual backporting is required.
 
@@ -51,15 +51,15 @@ Follow these steps to backport a PR (e.g., #123) to the `vN.x` release line:
 
 ### Manual process
 
-1. Check out the `vN.x-staging` branch.
+1. Checkout the `vN.x-staging` branch.
 
-2. Update the local staging branch from the remote.
+2. Verify that the local staging branch is up to date with the remote.
 
 3. Create a new branch based on `vN.x-staging`:
 
    ```bash
-   git fetch upstream v20.x-staging:v20.x-staging -f
-   git checkout -b backport-123-to-v20.x v20.x-staging
+   git fetch upstream vN.x-staging:vN.x-staging -f
+   git checkout -b backport-123-to-vN.x vN.x-staging
    ```
 
 4. Resolve conflicts during cherry-pick:
@@ -70,25 +70,27 @@ Follow these steps to backport a PR (e.g., #123) to the `vN.x` release line:
 
 5. Resolve conflicts using `git add` and `git cherry-pick --continue`.
 
-6. Keep the commit message unchanged or modify as needed.
+6. Leave the commit message as is. If you think it should be modified, comment
+   in the pull request. The `Backport-PR-URL` metadata does need to be added to
+   the commit, but this will be done later.
 
-7. Verify with `make -j4 test`.
+7. Verify that `make -j4 test` passes.
 
-8. Push changes to your fork.
+8. Push the changes to your fork.
 
 9. Open a pull request:
 
    * Target `vN.x-staging`.
    * Title format: `[vN.x backport] <commit title>` (e.g., `[v20.x backport] process: improve performance of nextTick`).
-   * Allow maintainer access.
    * Reference the original PR in the description.
-   * Add `Backport-PR-URL:` metadata and re-push.
 
-10. Run [`node-test-pull-request`][] CI job (with default `REBASE_ONTO`).
+10. Update the `backport-requested-vN.x` label on the original pull request to `backport-open-vN.x`.
 
-11. Replace `backport-requested-vN.x` with `backport-open-vN.x` on the original PR.
+11. If conflicts arise during the review process, the following command be used to rebase:
 
-12. Resolve conflicts with `git pull --rebase upstream vN.x-staging` if needed.
+```console
+git pull --rebase upstream vN.x-staging
+```
 
 Once merged, update the original PR's label from `backport-open-vN.x` to `backported-to-vN.x`.
 
@@ -96,4 +98,3 @@ Once merged, update the original PR's label from `backport-open-vN.x` to `backpo
 [Release Schedule]: https://github.com/nodejs/Release#release-schedule
 [`@node-core/utils`]: https://github.com/nodejs/node-core-utils
 [`git node backport`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-backport
-[`node-test-pull-request`]: https://ci.nodejs.org/job/node-test-pull-request/build
