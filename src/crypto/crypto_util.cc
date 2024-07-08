@@ -29,7 +29,7 @@ using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -457,9 +457,10 @@ ByteSource ByteSource::Foreign(const void* data, size_t size) {
 }
 
 namespace error {
-Maybe<bool> Decorate(Environment* env, Local<Object> obj,
-              unsigned long err) {  // NOLINT(runtime/int)
-  if (err == 0) return Just(true);  // No decoration necessary.
+Maybe<void> Decorate(Environment* env,
+                     Local<Object> obj,
+                     unsigned long err) {  // NOLINT(runtime/int)
+  if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
   const char* fs = ERR_func_error_string(err);
@@ -471,19 +472,19 @@ Maybe<bool> Decorate(Environment* env, Local<Object> obj,
   if (ls != nullptr) {
     if (obj->Set(context, env->library_string(),
                  OneByteString(isolate, ls)).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
   if (fs != nullptr) {
     if (obj->Set(context, env->function_string(),
                  OneByteString(isolate, fs)).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
   if (rs != nullptr) {
     if (obj->Set(context, env->reason_string(),
                  OneByteString(isolate, rs)).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     // SSL has no API to recover the error name from the number, so we
@@ -556,10 +557,10 @@ Maybe<bool> Decorate(Environment* env, Local<Object> obj,
     if (obj->Set(env->isolate()->GetCurrentContext(),
              env->code_string(),
              OneByteString(env->isolate(), code)).IsNothing())
-      return Nothing<bool>();
+      return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 }  // namespace error
 
