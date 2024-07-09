@@ -410,6 +410,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
+  AddOption("--experimental-sqlite",
+            "experimental node:sqlite module",
+            &EnvironmentOptions::experimental_sqlite,
+            kAllowedInEnvvar);
   AddOption("--experimental-webstorage",
             "experimental Web Storage API",
             &EnvironmentOptions::experimental_webstorage,

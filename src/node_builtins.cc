@@ -125,8 +125,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
-        "sys",   // Deprecated.
-        "wasi",  // Experimental.
+        "sqlite",  // Experimental.
+        "sys",     // Deprecated.
+        "wasi",    // Experimental.
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
   };

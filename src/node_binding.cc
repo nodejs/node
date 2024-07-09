@@ -67,6 +67,7 @@
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
+  V(sqlite)                                                                    \
   V(stream_pipe)                                                               \
   V(stream_wrap)                                                               \
   V(string_decoder)                                                            \
