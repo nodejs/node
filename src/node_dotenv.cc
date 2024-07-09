@@ -129,6 +129,7 @@ void Dotenv::ParseContent(const std::string_view input) {
     key = content.substr(0, equal);
     content.remove_prefix(equal + 1);
     key = trim_spaces(key);
+    content = trim_spaces(content);
 
     if (key.empty()) {
       break;
