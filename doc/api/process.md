@@ -2328,30 +2328,63 @@ process.kill(process.pid, 'SIGHUP');
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
 debugger. See [Signal Events][].
 
-## `process.loadEnvFile(path)`
+## `process.loadEnvFile(path, options)`
 
 <!-- YAML
 added:
   - v21.7.0
   - v20.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52531
+    description: Add support to override local environment variables option.
 -->
 
 > Stability: 1.1 - Active development
 
 * `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
+* `options` {Object} Used to provide arguments for parsing environment variables
+  files. `options` supports the following properties:
+  * `override` {boolean} to override local environment variables of your
+    machine. **Default:** `false`.
 
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
 
-```cjs
-const { loadEnvFile } = require('node:process');
-loadEnvFile();
+```js
+process.loadEnvFile();
 ```
 
-```mjs
-import { loadEnvFile } from 'node:process';
-loadEnvFile();
+Override local environment variables using the `override` option.
+
+Example:
+
+Assume you have a local environment variable on your machine
+
+```bash
+API_KEY="local-key"
 ```
+
+Meanwhile, your `.env` file contains:
+
+```bash
+API_KEY='env-custom-key'
+```
+
+If you want to use the value from the `.env` file
+
+```js
+process.loadEnvFile('.env', { override: true });
+console.log(process.env.API_KEY); // 'env-custom-key'
+```
+
+Load environment variables with options only
+
+```js
+process.loadEnvFile({ override: true });
+```
+
+This API is available through the [`--env-file-override-local`][] flag.
 
 ## `process.mainModule`
 
@@ -4053,6 +4086,7 @@ cases:
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
+[`--env-file-override-local`]: cli.md#--env-file-override-local
 [`--experimental-permission`]: cli.md#--experimental-permission
 [`--no-deprecation`]: cli.md#--no-deprecation
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode

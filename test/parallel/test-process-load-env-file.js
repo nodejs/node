@@ -4,7 +4,7 @@ const common = require('../common');
 const fixtures = require('../../test/common/fixtures');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
-const { join } = require('node:path');
+const { join, toNamespacedPath } = require('node:path');
 
 const basicValidEnvFilePath = fixtures.path('dotenv/basic-valid.env');
 const validEnvFilePath = fixtures.path('dotenv/valid.env');
@@ -64,7 +64,7 @@ describe('process.loadEnvFile()', () => {
 
       assert.throws(() => {
         process.loadEnvFile();
-      }, { code: 'ENOENT', syscall: 'open', path: '.env' });
+      }, { code: 'ENOENT', syscall: 'open', path: toNamespacedPath('.env') });
     } finally {
       if (common.isMainThread) {
         process.chdir(originalCwd);
@@ -104,4 +104,55 @@ describe('process.loadEnvFile()', () => {
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
+});
+
+describe('process.loadEnvFile(path, options)', () => {
+
+  it('should not override the original value', async () => {
+    const code = `
+      process.loadEnvFile(${JSON.stringify(validEnvFilePath)});
+      const assert = require('assert');
+      assert.strictEqual(process.env.BASIC, 'Original value');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: __dirname, env: { ...process.env, BASIC: 'Original value' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('should override the original value', async () => {
+    const code = `
+      const assert = require('assert');
+      assert.strictEqual(process.env.BASIC, 'Original value');
+      process.loadEnvFile(${JSON.stringify(validEnvFilePath)}, {override: true});
+      assert.strictEqual(process.env.BASIC, 'basic');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: __dirname, env: { ...process.env, BASIC: 'Original value' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('supports passing options only', async () => {
+    const code = `
+      const assert = require('assert');
+      assert.strictEqual(process.env.BASIC, 'Original value');
+      process.loadEnvFile({override: true});
+      assert.strictEqual(process.env.BASIC, 'basic');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: fixtures.path('dotenv/'), env: { ...process.env, BASIC: 'Original value' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
 });
