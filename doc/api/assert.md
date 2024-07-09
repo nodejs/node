@@ -349,6 +349,7 @@ added:
 ```mjs
 import assert from 'node:assert';
 
+// Creates call tracker.
 const tracker = new assert.CallTracker();
 
 function func() {}
@@ -463,6 +464,7 @@ If no arguments are passed, all tracked functions will be reset.
 ```mjs
 import assert from 'node:assert';
 
+// Creates call tracker.
 const tracker = new assert.CallTracker();
 
 function func() {}
@@ -479,6 +481,7 @@ assert.strictEqual(tracker.getCalls(callsfunc).length, 0);
 ```cjs
 const assert = require('node:assert');
 
+// Creates call tracker.
 const tracker = new assert.CallTracker();
 
 function func() {}
