@@ -112,4 +112,9 @@ function createBase64URL(mime, body) {
     const plainESMURL = `data:text/javascript,${encodeURIComponent(`import ${JSON.stringify(fixtures.fileURL('es-module-url', 'empty.js'))}`)}`;
     await import(plainESMURL);
   }
+  {
+    const urlWithUnescapedQueryAndHash = 'data:text/javascript,export const value="?query#hash";'
+    const { value } = await import(urlWithUnescapedQueryAndHash);
+    assert.strictEqual(value, '?query#hash');
+  }
 })().then(common.mustCall());
