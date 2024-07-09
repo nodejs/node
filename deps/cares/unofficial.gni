@@ -65,11 +65,17 @@ template("cares_gn_build") {
       sources += gypi_values.cares_sources_mac
     }
 
-    if (is_clang || !is_win) {
-      cflags_c = [
-        "-Wno-implicit-fallthrough",
-        "-Wno-unreachable-code",
-      ]
+    if (is_clang) {
+      if (is_win) {
+        cflags_c = [
+          "-Wno-macro-redefined",
+        ]
+      } else {
+        cflags_c = [
+          "-Wno-implicit-fallthrough",
+          "-Wno-unreachable-code",
+        ]
+      }
     }
   }
 }
