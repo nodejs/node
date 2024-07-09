@@ -636,6 +636,7 @@ the error passed to the callback will be an `AbortError`:
 ```mjs
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import process from 'node:process';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -973,6 +974,7 @@ Example of a long-running process, by detaching and also ignoring its parent
 
 ```mjs
 import { spawn } from 'node:child_process';
+import process from 'node:process';
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
@@ -1106,6 +1108,7 @@ pipes between the parent and child. The value is one of the following:
 
 ```mjs
 import { spawn } from 'node:child_process';
+import process from 'node:process';
 
 // Child will use parent's stdios.
 spawn('prg', [], { stdio: 'inherit' });
@@ -1836,6 +1839,7 @@ to wait for the child to exit before exiting itself.
 
 ```mjs
 import { spawn } from 'node:child_process';
+import process from 'node:process';
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
@@ -2299,6 +2303,7 @@ the child and the parent.
 
 ```mjs
 import { spawn } from 'node:child_process';
+import process from 'node:process';
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
