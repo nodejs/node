@@ -142,6 +142,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
 
+  if (test_runner_timeout > 0 && !test_runner) {
+    errors->push_back("--test-timeout must be used with --test");
+  }
+
   if (test_runner) {
     if (syntax_check_only) {
       errors->push_back("either --test or --check can be used, not both");
