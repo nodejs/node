@@ -36,8 +36,8 @@ The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
 
 ```mjs
-import { SQLiteDatabaseSync } from 'node:sqlite';
-const database = new SQLiteDatabaseSync(':memory:');
+import { DatabaseSync } from 'node:sqlite';
+const database = new DatabaseSync(':memory:');
 
 // Execute SQL statements from strings.
 database.exec(`
@@ -60,8 +60,8 @@ console.log(query.all());
 
 ```cjs
 'use strict';
-const { SQLiteDatabaseSync } = require('node:sqlite');
-const database = new SQLiteDatabaseSync(':memory:');
+const { DatabaseSync } = require('node:sqlite');
+const database = new DatabaseSync(':memory:');
 
 // Execute SQL statements from strings.
 database.exec(`
@@ -82,7 +82,7 @@ console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
 ```
 
-## Class: `SQLiteDatabaseSync`
+## Class: `DatabaseSync`
 
 <!-- YAML
 added: REPLACEME
@@ -91,14 +91,14 @@ added: REPLACEME
 This class represents a single [connection][] to a SQLite database. All APIs
 exposed by this class execute synchronously.
 
-### `new SQLiteDatabaseSync(location[, options])`
+### `new DatabaseSync(location[, options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 * `location` {string} The location of the database. A SQLite database can be
-  stored in a file or completely [in memory][]. To use a file backed database,
+  stored in a file or completely [in memory][]. To use a file-backed database,
   the location should be a file path. To use an in-memory database, the location
   should be the special name `':memory:'`.
 * `options` {Object} Configuration options for the database connection. The
@@ -107,7 +107,7 @@ added: REPLACEME
     this value is `false`, the database must be opened via the `open()` method.
     **Default:** `true`.
 
-Constructs a new `SQLiteDatabaseSync` instance.
+Constructs a new `DatabaseSync` instance.
 
 ### `database.close()`
 
@@ -136,7 +136,7 @@ file. This method is a wrapper around [`sqlite3_exec()`][].
 added: REPLACEME
 -->
 
-Opens the database specified in the `location` argument of the `SQLiteDatabaseSync`
+Opens the database specified in the `location` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
@@ -147,12 +147,12 @@ added: REPLACEME
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
-* Returns: {SQLiteStatementSync} The prepared statement.
+* Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
 around [`sqlite3_prepare_v2()`][].
 
-## Class: `SQLiteStatementSync`
+## Class: `StatementSync`
 
 <!-- YAML
 added: REPLACEME
@@ -230,10 +230,20 @@ added: REPLACEME
   The keys of this object are used to configure the mapping.
 * `...anonymousParameters` {null|number|bigint|string|Buffer|Uint8Array} Zero or
   more values to bind to anonymous parameters.
+* Returns: {Object}
+  * `changes`: {number|bigint} The number of rows modified, inserted, or deleted
+    by the most recently completed `INSERT`, `UPDATE`, or `DELETE` statement.
+    This field is either a number or a `BigInt` depending on the prepared
+    statement's configuration. This property is the result of
+    [`sqlite3_changes64()`][].
+  * `lastInsertRowid`: {number|bigint} The most recently inserted rowid. This
+    field is either a number or a `BigInt` depending on the prepared statement's
+    configuration. This property is the result of
+    [`sqlite3_last_insert_rowid()`][].
 
-This method executes a prepared statement without returning any results. The
-prepared statement [parameters are bound][] using the values in
-`namedParameters` and `anonymousParameters`.
+This method executes a prepared statement and returns an object summarizing the
+resulting changes. The prepared statement [parameters are bound][] using the
+values in `namedParameters` and `anonymousParameters`.
 
 ### `statement.setAllowBareNamedParameters(enabled)`
 
@@ -244,9 +254,9 @@ added: REPLACEME
 * `enabled` {boolean} Enables or disables support for binding named parameters
   without the prefix character.
 
-The names of SQLite parameters begin with a prefix character (`'?'`, `':'`,
-`'@'`, or `'$'`). By default, `node:sqlite` requires that this prefix character
-is present when binding parameters. However, with the exception of `'$'`, these
+The names of SQLite parameters begin with a prefix character. By default,
+`node:sqlite` requires that this prefix character is present when binding
+parameters. However, with the exception of dollar sign character, these
 prefix characters also require extra quoting when used in object keys.
 
 To improve ergonomics, this method can be used to also allow bare named
@@ -256,7 +266,7 @@ are several caveats to be aware of when enabling bare named parameters:
 * The prefix character is still required in SQL.
 * The prefix character is still allowed in JavaScript. In fact, prefixed names
   will have slightly better binding performance.
-* Using ambiguous named parameters, such `$k` and `@k`, in the same prepared
+* Using ambiguous named parameters, such as `$k` and `@k`, in the same prepared
   statement will result in an exception as it cannot be determined how to bind
   a bare name.
 
@@ -304,9 +314,11 @@ exception.
 | `BLOB`    | `Uint8Array`         |
 
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
+[`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html

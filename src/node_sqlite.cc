@@ -43,7 +43,7 @@ using v8::Value;
 #define THROW_AND_RETURN_ON_BAD_STATE(env, condition, msg)                     \
   do {                                                                         \
     if ((condition)) {                                                         \
-      node::THROW_ERR_INVALID_STATE((env), msg);                               \
+      node::THROW_ERR_INVALID_STATE((env), (msg));                             \
       return;                                                                  \
     }                                                                          \
   } while (0)
@@ -75,10 +75,10 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, sqlite3* db) {
   isolate->ThrowException(CreateSQLiteError(isolate, db));
 }
 
-SQLiteDatabaseSync::SQLiteDatabaseSync(Environment* env,
-                                       Local<Object> object,
-                                       Local<String> location,
-                                       bool open)
+DatabaseSync::DatabaseSync(Environment* env,
+                           Local<Object> object,
+                           Local<String> location,
+                           bool open)
     : BaseObject(env, object) {
   MakeWeak();
   node::Utf8Value utf8_location(env->isolate(), location);
@@ -90,16 +90,16 @@ SQLiteDatabaseSync::SQLiteDatabaseSync(Environment* env,
   }
 }
 
-SQLiteDatabaseSync::~SQLiteDatabaseSync() {
+DatabaseSync::~DatabaseSync() {
   sqlite3_close_v2(connection_);
   connection_ = nullptr;
 }
 
-void SQLiteDatabaseSync::MemoryInfo(MemoryTracker* tracker) const {
+void DatabaseSync::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("location", location_);
 }
 
-bool SQLiteDatabaseSync::Open() {
+bool DatabaseSync::Open() {
   if (connection_ != nullptr) {
     node::THROW_ERR_INVALID_STATE(env(), "database is already open");
     return false;
@@ -112,7 +112,7 @@ bool SQLiteDatabaseSync::Open() {
   return true;
 }
 
-void SQLiteDatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
+void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args.IsConstructCall()) {
@@ -151,17 +151,17 @@ void SQLiteDatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  new SQLiteDatabaseSync(env, args.This(), args[0].As<String>(), open);
+  new DatabaseSync(env, args.This(), args[0].As<String>(), open);
 }
 
-void SQLiteDatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
-  SQLiteDatabaseSync* db;
+void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   db->Open();
 }
 
-void SQLiteDatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
-  SQLiteDatabaseSync* db;
+void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -171,8 +171,8 @@ void SQLiteDatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   db->connection_ = nullptr;
 }
 
-void SQLiteDatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
-  SQLiteDatabaseSync* db;
+void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -188,13 +188,13 @@ void SQLiteDatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   sqlite3_stmt* s = nullptr;
   int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
-  BaseObjectPtr<SQLiteStatementSync> stmt =
-      SQLiteStatementSync::Create(env, db->connection_, s);
+  BaseObjectPtr<StatementSync> stmt =
+      StatementSync::Create(env, db->connection_, s);
   args.GetReturnValue().Set(stmt->object());
 }
 
-void SQLiteDatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
-  SQLiteDatabaseSync* db;
+void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
@@ -211,10 +211,10 @@ void SQLiteDatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
 }
 
-SQLiteStatementSync::SQLiteStatementSync(Environment* env,
-                                         Local<Object> object,
-                                         sqlite3* db,
-                                         sqlite3_stmt* stmt)
+StatementSync::StatementSync(Environment* env,
+                             Local<Object> object,
+                             sqlite3* db,
+                             sqlite3_stmt* stmt)
     : BaseObject(env, object) {
   MakeWeak();
   db_ = db;
@@ -226,12 +226,12 @@ SQLiteStatementSync::SQLiteStatementSync(Environment* env,
   bare_named_params_ = std::nullopt;
 }
 
-SQLiteStatementSync::~SQLiteStatementSync() {
+StatementSync::~StatementSync() {
   sqlite3_finalize(statement_);
   statement_ = nullptr;
 }
 
-bool SQLiteStatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
+bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_clear_bindings(statement_);
   CHECK_ERROR_OR_THROW(env()->isolate(), db_, r, SQLITE_OK, false);
 
@@ -327,8 +327,7 @@ bool SQLiteStatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
   return true;
 }
 
-bool SQLiteStatementSync::BindValue(const Local<Value>& value,
-                                    const int index) {
+bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   // SQLite only supports a subset of JavaScript types. Some JS types such as
   // functions don't make sense to support. Other JS types such as booleans and
   // Dates could be supported by converting them to numbers. However, there
@@ -369,7 +368,7 @@ bool SQLiteStatementSync::BindValue(const Local<Value>& value,
   return true;
 }
 
-Local<Value> SQLiteStatementSync::ColumnToValue(const int column) {
+Local<Value> StatementSync::ColumnToValue(const int column) {
   switch (sqlite3_column_type(statement_, column)) {
     case SQLITE_INTEGER:
       if (use_big_ints_) {
@@ -406,7 +405,7 @@ Local<Value> SQLiteStatementSync::ColumnToValue(const int column) {
   }
 }
 
-Local<Value> SQLiteStatementSync::ColumnNameToValue(const int column) {
+Local<Value> StatementSync::ColumnNameToValue(const int column) {
   const char* col_name = sqlite3_column_name(statement_, column);
   if (col_name == nullptr) {
     node::THROW_ERR_INVALID_STATE(
@@ -421,10 +420,10 @@ Local<Value> SQLiteStatementSync::ColumnNameToValue(const int column) {
   return key;
 }
 
-void SQLiteStatementSync::MemoryInfo(MemoryTracker* tracker) const {}
+void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
 
-void SQLiteStatementSync::All(const FunctionCallbackInfo<Value>& args) {
-  SQLiteStatementSync* stmt;
+void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   int r = sqlite3_reset(stmt->statement_);
@@ -457,8 +456,8 @@ void SQLiteStatementSync::All(const FunctionCallbackInfo<Value>& args) {
       Array::New(env->isolate(), rows.data(), rows.size()));
 }
 
-void SQLiteStatementSync::Get(const FunctionCallbackInfo<Value>& args) {
-  SQLiteStatementSync* stmt;
+void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   int r = sqlite3_reset(stmt->statement_);
@@ -494,8 +493,8 @@ void SQLiteStatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void SQLiteStatementSync::Run(const FunctionCallbackInfo<Value>& args) {
-  SQLiteStatementSync* stmt;
+void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   int r = sqlite3_reset(stmt->statement_);
@@ -505,15 +504,43 @@ void SQLiteStatementSync::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   r = sqlite3_step(stmt->statement_);
   if (r != SQLITE_ROW && r != SQLITE_DONE) {
     THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_);
+    return;
   }
-  sqlite3_reset(stmt->statement_);
+
+  Local<Object> result = Object::New(env->isolate());
+  Local<String> last_insert_rowid_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "lastInsertRowid");
+  Local<String> changes_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "changes");
+  sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(stmt->db_);
+  sqlite3_int64 changes = sqlite3_changes64(stmt->db_);
+  Local<Value> last_insert_rowid_val;
+  Local<Value> changes_val;
+
+  if (stmt->use_big_ints_) {
+    last_insert_rowid_val = BigInt::New(env->isolate(), last_insert_rowid);
+    changes_val = BigInt::New(env->isolate(), changes);
+  } else {
+    last_insert_rowid_val = Number::New(env->isolate(), last_insert_rowid);
+    changes_val = Number::New(env->isolate(), changes);
+  }
+
+  if (result
+          ->Set(env->context(), last_insert_rowid_string, last_insert_rowid_val)
+          .IsNothing() ||
+      result->Set(env->context(), changes_string, changes_val).IsNothing()) {
+    return;
+  }
+
+  args.GetReturnValue().Set(result);
 }
 
-void SQLiteStatementSync::SourceSQL(const FunctionCallbackInfo<Value>& args) {
-  SQLiteStatementSync* stmt;
+void StatementSync::SourceSQL(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   Local<String> sql;
@@ -524,8 +551,8 @@ void SQLiteStatementSync::SourceSQL(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(sql);
 }
 
-void SQLiteStatementSync::ExpandedSQL(const FunctionCallbackInfo<Value>& args) {
-  SQLiteStatementSync* stmt;
+void StatementSync::ExpandedSQL(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
   char* expanded = sqlite3_expanded_sql(stmt->statement_);
@@ -538,9 +565,9 @@ void SQLiteStatementSync::ExpandedSQL(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void SQLiteStatementSync::SetAllowBareNamedParameters(
+void StatementSync::SetAllowBareNamedParameters(
     const FunctionCallbackInfo<Value>& args) {
-  SQLiteStatementSync* stmt;
+  StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
 
@@ -554,9 +581,8 @@ void SQLiteStatementSync::SetAllowBareNamedParameters(
   stmt->allow_bare_named_params_ = args[0]->IsTrue();
 }
 
-void SQLiteStatementSync::SetReadBigInts(
-    const FunctionCallbackInfo<Value>& args) {
-  SQLiteStatementSync* stmt;
+void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
   Environment* env = Environment::GetCurrent(args);
 
@@ -573,45 +599,44 @@ void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
   node::THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
 
-Local<FunctionTemplate> SQLiteStatementSync::GetConstructorTemplate(
+Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl =
       env->sqlite_statement_sync_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "SQLiteStatementSync"));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatementSync"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        SQLiteStatementSync::kInternalFieldCount);
-    SetProtoMethod(isolate, tmpl, "all", SQLiteStatementSync::All);
-    SetProtoMethod(isolate, tmpl, "get", SQLiteStatementSync::Get);
-    SetProtoMethod(isolate, tmpl, "run", SQLiteStatementSync::Run);
-    SetProtoMethod(isolate, tmpl, "sourceSQL", SQLiteStatementSync::SourceSQL);
-    SetProtoMethod(
-        isolate, tmpl, "expandedSQL", SQLiteStatementSync::ExpandedSQL);
+        StatementSync::kInternalFieldCount);
+    SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
+    SetProtoMethod(isolate, tmpl, "get", StatementSync::Get);
+    SetProtoMethod(isolate, tmpl, "run", StatementSync::Run);
+    SetProtoMethod(isolate, tmpl, "sourceSQL", StatementSync::SourceSQL);
+    SetProtoMethod(isolate, tmpl, "expandedSQL", StatementSync::ExpandedSQL);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowBareNamedParameters",
-                   SQLiteStatementSync::SetAllowBareNamedParameters);
+                   StatementSync::SetAllowBareNamedParameters);
     SetProtoMethod(
-        isolate, tmpl, "setReadBigInts", SQLiteStatementSync::SetReadBigInts);
+        isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;
 }
 
-BaseObjectPtr<SQLiteStatementSync> SQLiteStatementSync::Create(
-    Environment* env, sqlite3* db, sqlite3_stmt* stmt) {
+BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
+                                                   sqlite3* db,
+                                                   sqlite3_stmt* stmt) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
            ->NewInstance(env->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<SQLiteStatementSync>();
+    return BaseObjectPtr<StatementSync>();
   }
 
-  return MakeBaseObject<SQLiteStatementSync>(env, obj, db, stmt);
+  return MakeBaseObject<StatementSync>(env, obj, db, stmt);
 }
 
 static void Initialize(Local<Object> target,
@@ -621,19 +646,19 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   Local<FunctionTemplate> db_tmpl =
-      NewFunctionTemplate(isolate, SQLiteDatabaseSync::New);
+      NewFunctionTemplate(isolate, DatabaseSync::New);
   db_tmpl->InstanceTemplate()->SetInternalFieldCount(
-      SQLiteDatabaseSync::kInternalFieldCount);
+      DatabaseSync::kInternalFieldCount);
 
-  SetProtoMethod(isolate, db_tmpl, "open", SQLiteDatabaseSync::Open);
-  SetProtoMethod(isolate, db_tmpl, "close", SQLiteDatabaseSync::Close);
-  SetProtoMethod(isolate, db_tmpl, "prepare", SQLiteDatabaseSync::Prepare);
-  SetProtoMethod(isolate, db_tmpl, "exec", SQLiteDatabaseSync::Exec);
-  SetConstructorFunction(context, target, "SQLiteDatabaseSync", db_tmpl);
+  SetProtoMethod(isolate, db_tmpl, "open", DatabaseSync::Open);
+  SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
+  SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
+  SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
+  SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,
-                         "SQLiteStatementSync",
-                         SQLiteStatementSync::GetConstructorTemplate(env));
+                         "StatementSync",
+                         StatementSync::GetConstructorTemplate(env));
 }
 
 }  // namespace sqlite

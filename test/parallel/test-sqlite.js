@@ -4,7 +4,7 @@ const { spawnPromisified } = require('../common');
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
-const { SQLiteDatabaseSync, SQLiteStatementSync } = require('node:sqlite');
+const { DatabaseSync, StatementSync } = require('node:sqlite');
 const { suite, test } = require('node:test');
 let cnt = 0;
 
@@ -42,10 +42,10 @@ suite('accessing the node:sqlite module', () => {
   });
 });
 
-suite('SQLiteDatabaseSync() constructor', () => {
+suite('DatabaseSync() constructor', () => {
   test('throws if called without new', (t) => {
     t.assert.throws(() => {
-      SQLiteDatabaseSync();
+      DatabaseSync();
     }, {
       code: 'ERR_CONSTRUCT_CALL_REQUIRED',
       message: /Cannot call constructor without `new`/,
@@ -54,7 +54,7 @@ suite('SQLiteDatabaseSync() constructor', () => {
 
   test('throws if database path is not a string', (t) => {
     t.assert.throws(() => {
-      new SQLiteDatabaseSync();
+      new DatabaseSync();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "path" argument must be a string/,
@@ -63,7 +63,7 @@ suite('SQLiteDatabaseSync() constructor', () => {
 
   test('throws if options is provided but is not an object', (t) => {
     t.assert.throws(() => {
-      new SQLiteDatabaseSync('foo', null);
+      new DatabaseSync('foo', null);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "options" argument must be an object/,
@@ -72,7 +72,7 @@ suite('SQLiteDatabaseSync() constructor', () => {
 
   test('throws if options.open is provided but is not a boolean', (t) => {
     t.assert.throws(() => {
-      new SQLiteDatabaseSync('foo', { open: 5 });
+      new DatabaseSync('foo', { open: 5 });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "options\.open" argument must be a boolean/,
@@ -80,10 +80,10 @@ suite('SQLiteDatabaseSync() constructor', () => {
   });
 });
 
-suite('SQLiteDatabaseSync.prototype.open()', () => {
+suite('DatabaseSync.prototype.open()', () => {
   test('opens a database connection', (t) => {
     const dbPath = nextDb();
-    const db = new SQLiteDatabaseSync(dbPath, { open: false });
+    const db = new DatabaseSync(dbPath, { open: false });
 
     t.assert.strictEqual(existsSync(dbPath), false);
     t.assert.strictEqual(db.open(), undefined);
@@ -91,7 +91,7 @@ suite('SQLiteDatabaseSync.prototype.open()', () => {
   });
 
   test('throws if database is already open', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb(), { open: false });
+    const db = new DatabaseSync(nextDb(), { open: false });
 
     db.open();
     t.assert.throws(() => {
@@ -103,15 +103,15 @@ suite('SQLiteDatabaseSync.prototype.open()', () => {
   });
 });
 
-suite('SQLiteDatabaseSync.prototype.close()', () => {
+suite('DatabaseSync.prototype.close()', () => {
   test('closes an open database connection', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
 
     t.assert.strictEqual(db.close(), undefined);
   });
 
   test('throws if database is not open', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb(), { open: false });
+    const db = new DatabaseSync(nextDb(), { open: false });
 
     t.assert.throws(() => {
       db.close();
@@ -122,15 +122,15 @@ suite('SQLiteDatabaseSync.prototype.close()', () => {
   });
 });
 
-suite('SQLiteDatabaseSync.prototype.prepare()', () => {
+suite('DatabaseSync.prototype.prepare()', () => {
   test('returns a prepared statement', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const stmt = db.prepare('CREATE TABLE webstorage(key TEXT)');
-    t.assert.ok(stmt instanceof SQLiteStatementSync);
+    t.assert.ok(stmt instanceof StatementSync);
   });
 
   test('throws if database is not open', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb(), { open: false });
+    const db = new DatabaseSync(nextDb(), { open: false });
 
     t.assert.throws(() => {
       db.prepare();
@@ -141,7 +141,7 @@ suite('SQLiteDatabaseSync.prototype.prepare()', () => {
   });
 
   test('throws if sql is not a string', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
 
     t.assert.throws(() => {
       db.prepare();
@@ -152,9 +152,9 @@ suite('SQLiteDatabaseSync.prototype.prepare()', () => {
   });
 });
 
-suite('SQLiteDatabaseSync.prototype.exec()', () => {
+suite('DatabaseSync.prototype.exec()', () => {
   test('executes SQL', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const result = db.exec(`
       CREATE TABLE data(
         key INTEGER PRIMARY KEY,
@@ -172,7 +172,7 @@ suite('SQLiteDatabaseSync.prototype.exec()', () => {
   });
 
   test('reports errors from SQLite', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
 
     t.assert.throws(() => {
       db.exec('CREATE TABLEEEE');
@@ -183,7 +183,7 @@ suite('SQLiteDatabaseSync.prototype.exec()', () => {
   });
 
   test('throws if database is not open', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb(), { open: false });
+    const db = new DatabaseSync(nextDb(), { open: false });
 
     t.assert.throws(() => {
       db.exec();
@@ -194,7 +194,7 @@ suite('SQLiteDatabaseSync.prototype.exec()', () => {
   });
 
   test('throws if sql is not a string', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
 
     t.assert.throws(() => {
       db.exec();
@@ -205,10 +205,10 @@ suite('SQLiteDatabaseSync.prototype.exec()', () => {
   });
 });
 
-suite('SQLiteStatementSync() constructor', () => {
-  test('SQLiteStatementSync cannot be constructed directly', (t) => {
+suite('StatementSync() constructor', () => {
+  test('StatementSync cannot be constructed directly', (t) => {
     t.assert.throws(() => {
-      new SQLiteStatementSync();
+      new StatementSync();
     }, {
       code: 'ERR_ILLEGAL_CONSTRUCTOR',
       message: /Illegal constructor/,
@@ -216,15 +216,15 @@ suite('SQLiteStatementSync() constructor', () => {
   });
 });
 
-suite('SQLiteStatementSync.prototype.get()', () => {
+suite('StatementSync.prototype.get()', () => {
   test('executes a query and returns undefined on no results', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.strictEqual(stmt.get(), undefined);
   });
 
   test('executes a query and returns the first result', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.strictEqual(stmt.get(), undefined);
     stmt = db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
@@ -235,20 +235,26 @@ suite('SQLiteStatementSync.prototype.get()', () => {
   });
 });
 
-suite('SQLiteStatementSync.prototype.all()', () => {
+suite('StatementSync.prototype.all()', () => {
   test('executes a query and returns an empty array on no results', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.deepStrictEqual(stmt.all(), []);
   });
 
   test('executes a query and returns all results', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
-    t.assert.strictEqual(stmt.run(), undefined);
+    t.assert.deepStrictEqual(stmt.run(), { changes: 0, lastInsertRowid: 0 });
     stmt = db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
-    t.assert.strictEqual(stmt.run('key1', 'val1'), undefined);
-    t.assert.strictEqual(stmt.run('key2', 'val2'), undefined);
+    t.assert.deepStrictEqual(
+      stmt.run('key1', 'val1'),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+    t.assert.deepStrictEqual(
+      stmt.run('key2', 'val2'),
+      { changes: 1, lastInsertRowid: 2 },
+    );
     stmt = db.prepare('SELECT * FROM storage ORDER BY key');
     t.assert.deepStrictEqual(stmt.all(), [
       { key: 'key1', val: 'val1' },
@@ -257,20 +263,20 @@ suite('SQLiteStatementSync.prototype.all()', () => {
   });
 });
 
-suite('SQLiteStatementSync.prototype.run()', () => {
-  test('executes a query and returns no value', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+suite('StatementSync.prototype.run()', () => {
+  test('executes a query and returns change metadata', (t) => {
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(`
       CREATE TABLE storage(key TEXT, val TEXT);
       INSERT INTO storage (key, val) VALUES ('foo', 'bar');
     `);
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('SELECT * FROM storage');
-    t.assert.strictEqual(stmt.run(), undefined);
+    t.assert.deepStrictEqual(stmt.run(), { changes: 1, lastInsertRowid: 1 });
   });
 
   test('SQLite throws when trying to bind too many parameters', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -287,7 +293,7 @@ suite('SQLiteStatementSync.prototype.run()', () => {
   });
 
   test('SQLite defaults to NULL for unbound parameters', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
@@ -304,9 +310,9 @@ suite('SQLiteStatementSync.prototype.run()', () => {
   });
 });
 
-suite('SQLiteStatementSync.prototype.sourceSQL()', () => {
+suite('StatementSync.prototype.sourceSQL()', () => {
   test('returns input SQL', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -317,9 +323,9 @@ suite('SQLiteStatementSync.prototype.sourceSQL()', () => {
   });
 });
 
-suite('SQLiteStatementSync.prototype.expandedSQL()', () => {
+suite('StatementSync.prototype.expandedSQL()', () => {
   test('returns expanded SQL', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -327,30 +333,49 @@ suite('SQLiteStatementSync.prototype.expandedSQL()', () => {
     const sql = 'INSERT INTO types (key, val) VALUES ($k, ?)';
     const expanded = 'INSERT INTO types (key, val) VALUES (\'33\', \'42\')';
     const stmt = db.prepare(sql);
-    t.assert.strictEqual(stmt.run({ $k: '33' }, '42'), undefined);
+    t.assert.deepStrictEqual(
+      stmt.run({ $k: '33' }, '42'),
+      { changes: 1, lastInsertRowid: 33 },
+    );
     t.assert.strictEqual(stmt.expandedSQL(), expanded);
   });
 });
 
-suite('SQLiteStatementSync.prototype.setReadBigInts()', () => {
+suite('StatementSync.prototype.setReadBigInts()', () => {
   test('BigInts support can be toggled', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
       INSERT INTO data (key, val) VALUES (1, 42);
     `);
     t.assert.strictEqual(setup, undefined);
-    const sql = 'SELECT val FROM data';
-    const stmt = db.prepare(sql);
-    t.assert.deepStrictEqual(stmt.get(), { val: 42 });
-    t.assert.strictEqual(stmt.setReadBigInts(true), undefined);
-    t.assert.deepStrictEqual(stmt.get(), { val: 42n });
-    t.assert.strictEqual(stmt.setReadBigInts(false), undefined);
-    t.assert.deepStrictEqual(stmt.get(), { val: 42 });
+
+    const query = db.prepare('SELECT val FROM data');
+    t.assert.deepStrictEqual(query.get(), { val: 42 });
+    t.assert.strictEqual(query.setReadBigInts(true), undefined);
+    t.assert.deepStrictEqual(query.get(), { val: 42n });
+    t.assert.strictEqual(query.setReadBigInts(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { val: 42 });
+
+    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
+    t.assert.deepStrictEqual(
+      insert.run(10),
+      { changes: 1, lastInsertRowid: 10 },
+    );
+    t.assert.strictEqual(insert.setReadBigInts(true), undefined);
+    t.assert.deepStrictEqual(
+      insert.run(20),
+      { changes: 1n, lastInsertRowid: 20n },
+    );
+    t.assert.strictEqual(insert.setReadBigInts(false), undefined);
+    t.assert.deepStrictEqual(
+      insert.run(30),
+      { changes: 1, lastInsertRowid: 30 },
+    );
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -365,15 +390,18 @@ suite('SQLiteStatementSync.prototype.setReadBigInts()', () => {
   });
 });
 
-suite('SQLiteStatementSync.prototype.setAllowBareNamedParameters()', () => {
+suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
   test('bare named parameter support can be toggled', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
-    t.assert.strictEqual(stmt.run({ k: 1, v: 2 }), undefined);
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 1, v: 2 }),
+      { changes: 1, lastInsertRowid: 1 },
+    );
     t.assert.strictEqual(stmt.setAllowBareNamedParameters(false), undefined);
     t.assert.throws(() => {
       stmt.run({ k: 2, v: 4 });
@@ -382,11 +410,14 @@ suite('SQLiteStatementSync.prototype.setAllowBareNamedParameters()', () => {
       message: /Unknown named parameter 'k'/,
     });
     t.assert.strictEqual(stmt.setAllowBareNamedParameters(true), undefined);
-    t.assert.strictEqual(stmt.run({ k: 3, v: 6 }), undefined);
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 3, v: 6 }),
+      { changes: 1, lastInsertRowid: 3 },
+    );
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -404,7 +435,7 @@ suite('SQLiteStatementSync.prototype.setAllowBareNamedParameters()', () => {
 suite('data binding and mapping', () => {
   test('supported data types', (t) => {
     const u8a = new TextEncoder().encode('a☃b☃c');
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(`
       CREATE TABLE types(
         key INTEGER PRIMARY KEY,
@@ -417,15 +448,21 @@ suite('data binding and mapping', () => {
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('INSERT INTO types (key, int, double, text, buf) ' +
       'VALUES (?, ?, ?, ?, ?)');
-    t.assert.strictEqual(stmt.run(1, 42, 3.14159, 'foo', u8a), undefined);
-    t.assert.strictEqual(stmt.run(2, null, null, null, null), undefined);
-    t.assert.strictEqual(
-      stmt.run(3, Number(8), Number(2.718), String('bar'), Buffer.from('x☃y☃')),
-      undefined
+    t.assert.deepStrictEqual(
+      stmt.run(1, 42, 3.14159, 'foo', u8a),
+      { changes: 1, lastInsertRowid: 1 },
     );
-    t.assert.strictEqual(
+    t.assert.deepStrictEqual(
+      stmt.run(2, null, null, null, null),
+      { changes: 1, lastInsertRowid: 2 }
+    );
+    t.assert.deepStrictEqual(
+      stmt.run(3, Number(8), Number(2.718), String('bar'), Buffer.from('x☃y☃')),
+      { changes: 1, lastInsertRowid: 3 },
+    );
+    t.assert.deepStrictEqual(
       stmt.run(4, 99n, 0xf, '', new Uint8Array()),
-      undefined
+      { changes: 1, lastInsertRowid: 4 },
     );
 
     const query = db.prepare('SELECT * FROM types WHERE key = ?');
@@ -460,7 +497,7 @@ suite('data binding and mapping', () => {
   });
 
   test('unsupported data types', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -494,13 +531,16 @@ suite('data binding and mapping', () => {
 
   test('throws when binding a BigInt that is too large', (t) => {
     const max = 9223372036854775807n; // Largest 64-bit signed integer value.
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('INSERT INTO types (key, val) VALUES (?, ?)');
-    t.assert.strictEqual(stmt.run(1, max), undefined);
+    t.assert.deepStrictEqual(
+      stmt.run(1, max),
+      { changes: 1, lastInsertRowid: 1 },
+    );
     t.assert.throws(() => {
       stmt.run(1, max + 1n);
     }, {
@@ -510,14 +550,20 @@ suite('data binding and mapping', () => {
   });
 
   test('statements are unbound on each call', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
-    t.assert.strictEqual(stmt.run(1, 5), undefined);
-    t.assert.strictEqual(stmt.run(), undefined);
+    t.assert.deepStrictEqual(
+      stmt.run(1, 5),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+    t.assert.deepStrictEqual(
+      stmt.run(),
+      { changes: 1, lastInsertRowid: 2 },
+    );
     t.assert.deepStrictEqual(
       db.prepare('SELECT * FROM data ORDER BY key').all(),
       [{ key: 1, val: 5 }, { key: 2, val: null }],
@@ -527,19 +573,25 @@ suite('data binding and mapping', () => {
 
 suite('manual transactions', () => {
   test('a transaction is committed', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(`
       CREATE TABLE data(
         key INTEGER PRIMARY KEY
       ) STRICT;
     `);
     t.assert.strictEqual(setup, undefined);
-    t.assert.strictEqual(db.prepare('BEGIN').run(), undefined);
-    t.assert.strictEqual(
-      db.prepare('INSERT INTO data (key) VALUES (100)').run(),
-      undefined,
+    t.assert.deepStrictEqual(
+      db.prepare('BEGIN').run(),
+      { changes: 0, lastInsertRowid: 0 },
     );
-    t.assert.strictEqual(db.prepare('COMMIT').run(), undefined);
+    t.assert.deepStrictEqual(
+      db.prepare('INSERT INTO data (key) VALUES (100)').run(),
+      { changes: 1, lastInsertRowid: 100 },
+    );
+    t.assert.deepStrictEqual(
+      db.prepare('COMMIT').run(),
+      { changes: 1, lastInsertRowid: 100 },
+    );
     t.assert.deepStrictEqual(
       db.prepare('SELECT * FROM data').all(),
       [{ key: 100 }],
@@ -547,26 +599,32 @@ suite('manual transactions', () => {
   });
 
   test('a transaction is rolled back', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(`
       CREATE TABLE data(
         key INTEGER PRIMARY KEY
       ) STRICT;
     `);
     t.assert.strictEqual(setup, undefined);
-    t.assert.strictEqual(db.prepare('BEGIN').run(), undefined);
-    t.assert.strictEqual(
-      db.prepare('INSERT INTO data (key) VALUES (100)').run(),
-      undefined,
+    t.assert.deepStrictEqual(
+      db.prepare('BEGIN').run(),
+      { changes: 0, lastInsertRowid: 0 },
     );
-    t.assert.strictEqual(db.prepare('ROLLBACK').run(), undefined);
+    t.assert.deepStrictEqual(
+      db.prepare('INSERT INTO data (key) VALUES (100)').run(),
+      { changes: 1, lastInsertRowid: 100 },
+    );
+    t.assert.deepStrictEqual(
+      db.prepare('ROLLBACK').run(),
+      { changes: 1, lastInsertRowid: 100 },
+    );
     t.assert.deepStrictEqual(db.prepare('SELECT * FROM data').all(), []);
   });
 });
 
 suite('named parameters', () => {
   test('throws on unknown named parameters', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -582,7 +640,7 @@ suite('named parameters', () => {
   });
 
   test('bare named parameters are supported', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -596,7 +654,7 @@ suite('named parameters', () => {
   });
 
   test('duplicate bare named parameters are supported', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -610,7 +668,7 @@ suite('named parameters', () => {
   });
 
   test('bare named parameters throw on ambiguous names', (t) => {
-    const db = new SQLiteDatabaseSync(nextDb());
+    const db = new DatabaseSync(nextDb());
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -627,7 +685,7 @@ suite('named parameters', () => {
 });
 
 test('ERR_SQLITE_ERROR is thrown for errors originating from SQLite', (t) => {
-  const db = new SQLiteDatabaseSync(nextDb());
+  const db = new DatabaseSync(nextDb());
   const setup = db.exec(`
     CREATE TABLE test(
       key INTEGER PRIMARY KEY
@@ -635,7 +693,7 @@ test('ERR_SQLITE_ERROR is thrown for errors originating from SQLite', (t) => {
   `);
   t.assert.strictEqual(setup, undefined);
   const stmt = db.prepare('INSERT INTO test (key) VALUES (?)');
-  t.assert.strictEqual(stmt.run(1), undefined);
+  t.assert.deepStrictEqual(stmt.run(1), { changes: 1, lastInsertRowid: 1 });
   t.assert.throws(() => {
     stmt.run(1);
   }, {
@@ -647,8 +705,8 @@ test('ERR_SQLITE_ERROR is thrown for errors originating from SQLite', (t) => {
 });
 
 test('in-memory databases are supported', (t) => {
-  const db1 = new SQLiteDatabaseSync(':memory:');
-  const db2 = new SQLiteDatabaseSync(':memory:');
+  const db1 = new DatabaseSync(':memory:');
+  const db2 = new DatabaseSync(':memory:');
   const setup1 = db1.exec(`
     CREATE TABLE data(key INTEGER PRIMARY KEY);
     INSERT INTO data (key) VALUES (1);
@@ -670,7 +728,7 @@ test('in-memory databases are supported', (t) => {
 });
 
 test('PRAGMAs are supported', (t) => {
-  const db = new SQLiteDatabaseSync(nextDb());
+  const db = new DatabaseSync(nextDb());
   t.assert.deepStrictEqual(
     db.prepare('PRAGMA journal_mode = WAL').get(),
     { journal_mode: 'wal' },

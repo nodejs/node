@@ -53,6 +53,7 @@
 * [REPL](repl.md)
 * [Report](report.md)
 * [Single executable applications](single-executable-applications.md)
+* [SQLite](sqlite.md)
 * [Stream](stream.md)
 * [String decoder](string_decoder.md)
 * [Test runner](test.md)

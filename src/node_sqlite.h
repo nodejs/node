@@ -13,12 +13,12 @@
 namespace node {
 namespace sqlite {
 
-class SQLiteDatabaseSync : public BaseObject {
+class DatabaseSync : public BaseObject {
  public:
-  SQLiteDatabaseSync(Environment* env,
-                     v8::Local<v8::Object> object,
-                     v8::Local<v8::String> location,
-                     bool open);
+  DatabaseSync(Environment* env,
+               v8::Local<v8::Object> object,
+               v8::Local<v8::String> location,
+               bool open);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -26,29 +26,29 @@ class SQLiteDatabaseSync : public BaseObject {
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  SET_MEMORY_INFO_NAME(SQLiteDatabaseSync)
-  SET_SELF_SIZE(SQLiteDatabaseSync)
+  SET_MEMORY_INFO_NAME(DatabaseSync)
+  SET_SELF_SIZE(DatabaseSync)
 
  private:
   bool Open();
 
-  ~SQLiteDatabaseSync() override;
+  ~DatabaseSync() override;
   std::string location_;
   sqlite3* connection_;
 };
 
-class SQLiteStatementSync : public BaseObject {
+class StatementSync : public BaseObject {
  public:
-  SQLiteStatementSync(Environment* env,
-                      v8::Local<v8::Object> object,
-                      sqlite3* db,
-                      sqlite3_stmt* stmt);
+  StatementSync(Environment* env,
+                v8::Local<v8::Object> object,
+                sqlite3* db,
+                sqlite3_stmt* stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static BaseObjectPtr<SQLiteStatementSync> Create(Environment* env,
-                                                   sqlite3* db,
-                                                   sqlite3_stmt* stmt);
+  static BaseObjectPtr<StatementSync> Create(Environment* env,
+                                             sqlite3* db,
+                                             sqlite3_stmt* stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -58,11 +58,11 @@ class SQLiteStatementSync : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  SET_MEMORY_INFO_NAME(SQLiteStatementSync)
-  SET_SELF_SIZE(SQLiteStatementSync)
+  SET_MEMORY_INFO_NAME(StatementSync)
+  SET_SELF_SIZE(StatementSync)
 
  private:
-  ~SQLiteStatementSync() override;
+  ~StatementSync() override;
   sqlite3* db_;
   sqlite3_stmt* statement_;
   bool use_big_ints_;
