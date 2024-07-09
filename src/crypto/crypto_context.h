@@ -147,7 +147,7 @@ class SecureContext final : public BaseObject {
   X509Pointer issuer_;
 #ifndef OPENSSL_NO_ENGINE
   bool client_cert_engine_provided_ = false;
-  EnginePointer private_key_engine_;
+  ncrypto::EnginePointer private_key_engine_;
 #endif  // !OPENSSL_NO_ENGINE
 
   unsigned char ticket_key_name_[16];

@@ -1,10 +1,11 @@
 #include "crypto/crypto_context.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_util.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "ncrypto.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_options.h"
@@ -655,26 +656,28 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
         "experimental permission model is enabled");
   }
 
-  CryptoErrorStore errors;
+  ncrypto::CryptoErrorList errors;
   Utf8Value engine_id(env->isolate(), args[1]);
-  EnginePointer engine = LoadEngineById(*engine_id, &errors);
+  auto engine = ncrypto::EnginePointer::getEngineByName(
+      engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
-    if (errors.ToException(env).ToLocal(&exception))
+    if (errors.empty()) {
+      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
+                                          *engine_id));
+    }
+    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
       env->isolate()->ThrowException(exception);
     return;
   }
 
-  if (!ENGINE_init(engine.get())) {
+  if (!engine.init(true /* finish on exit*/)) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Failure to initialize engine");
   }
 
-  engine.finish_on_exit = true;
-
   Utf8Value key_name(env->isolate(), args[0]);
-  EVPKeyPointer key(ENGINE_load_private_key(engine.get(), *key_name,
-                                            nullptr, nullptr));
+  auto key = engine.loadPrivateKey(key_name.ToStringView());
 
   if (!key)
     return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
@@ -1143,12 +1146,17 @@ void SecureContext::SetClientCertEngine(
         "experimental permission model is enabled");
   }
 
-  CryptoErrorStore errors;
+  ncrypto::CryptoErrorList errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
-  EnginePointer engine = LoadEngineById(*engine_id, &errors);
+  auto engine = ncrypto::EnginePointer::getEngineByName(
+      engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
-    if (errors.ToException(env).ToLocal(&exception))
+    if (errors.empty()) {
+      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
+                                          *engine_id));
+    }
+    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
       env->isolate()->ThrowException(exception);
     return;
   }

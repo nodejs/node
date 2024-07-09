@@ -940,6 +940,9 @@
             '<@(node_crypto_sources)',
             '<@(node_quic_sources)',
           ],
+          'dependencies': [
+            'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
         }],
         [ 'OS in "linux freebsd mac solaris" and '
           'target_arch=="x64" and '
@@ -1201,6 +1204,9 @@
           'defines': [
             'HAVE_OPENSSL=1',
           ],
+          'dependencies': [
+            'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
           'sources': [ '<@(node_cctest_openssl_sources)' ],
         }],
         ['v8_enable_inspector==1', {
@@ -1394,6 +1400,9 @@
           'defines': [ 'NODE_MKSNAPSHOT_USE_ARRAY_LITERALS=1' ],
         }],
         [ 'node_use_openssl=="true"', {
+          'dependencies': [
+            'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
           'defines': [
             'HAVE_OPENSSL=1',
           ],
