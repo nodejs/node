@@ -1,14 +1,14 @@
 {
   'variables': {
-    'nbytes_sources': [ 'nbytes.cpp' ],
+    'nbytes_sources': [ 'src/nbytes.cpp' ],
   },
   'targets': [
     {
       'target_name': 'nbytes',
       'type': 'static_library',
-      'include_dirs': ['.'],
+      'include_dirs': ['src', 'include'],
       'direct_dependent_settings': {
-        'include_dirs': ['.'],
+        'include_dirs': ['src', 'include'],
       },
       'sources': [ '<@(nbytes_sources)' ]
     },
