@@ -3213,6 +3213,54 @@ The `Worker` instance terminated because it reached its memory limit.
 The path for the main script of a worker is neither an absolute path
 nor a relative path starting with `./` or `../`.
 
+<a id="ERR_WORKER_MESSAGING_ERRORED"></a>
+
+### `ERR_WORKER_MESSAGING_ERRORED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+The destination thread threw an error while processing a message sent via [`postMessageToThread()`][].
+
+<a id="ERR_WORKER_MESSAGING_FAILED"></a>
+
+### `ERR_WORKER_MESSAGING_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+The thread requested in [`postMessageToThread()`][] is invalid or has no `workerMessage` listener.
+
+<a id="ERR_WORKER_MESSAGING_SAME_THREAD"></a>
+
+### `ERR_WORKER_MESSAGING_SAME_THREAD`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+The thread id requested in [`postMessageToThread()`][] is the current thread id.
+
+<a id="ERR_WORKER_MESSAGING_TIMEOUT"></a>
+
+### `ERR_WORKER_MESSAGING_TIMEOUT`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Sending a message via [`postMessageToThread()`][] timed out.
+
 <a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
 
 ### `ERR_WORKER_UNSERIALIZABLE_ERROR`
@@ -3954,6 +4002,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
+[`postMessageToThread()`]: worker_threads.md#workerpostmessagetothreadthreadid-value-transferlist-timeout
 [`process.on('exit')`]: process.md#event-exit
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
