@@ -6,12 +6,14 @@ declare namespace InternalFSDirBinding {
   type StringOrBuffer = string | Buffer;
 
   class DirHandle {
-    read(encoding: string, bufferSize: number, _: unknown, ctx: ReadFileContext): string[] | undefined;
-    close(_: unknown, ctx: ReadFileContext): void;
+    read(encoding: string, bufferSize: number, callback: FSReqCallback): string[] | undefined;
+    read(encoding: string, bufferSize: number): string[] | undefined;
+    close(callback: FSReqCallback): void;
+    close(): void;
   }
 
   function opendir(path: StringOrBuffer, encoding: string, req: FSReqCallback): DirHandle;
-  function opendir(path: StringOrBuffer, encoding: string, _: undefined, ctx: ReadFileContext): DirHandle;
+  function opendir(path: StringOrBuffer, encoding: string): DirHandle;
   function opendirSync(path: StringOrBuffer): DirHandle;
 }
 
