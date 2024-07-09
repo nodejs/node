@@ -113,7 +113,7 @@ function createBase64URL(mime, body) {
     await import(plainESMURL);
   }
   {
-    const urlWithUnescapedQueryAndHash = 'data:text/javascript,export const value="?query#hash";'
+    const urlWithUnescapedQueryAndHash = 'data:text/javascript,export const value="?query#hash"';
     const { value } = await import(urlWithUnescapedQueryAndHash);
     assert.strictEqual(value, '?query#hash');
   }
