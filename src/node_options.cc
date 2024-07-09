@@ -485,7 +485,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvvar);
   AddOption(
       "--experimental-wasi-unstable-preview1", "", NoOp{}, kAllowedInEnvvar);
-  AddOption("--expose-gc", "expose gc extension", V8Option{}, kAllowedInEnvvar);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
   AddOption("--frozen-intrinsics",
             "experimental frozen intrinsics support",
@@ -565,9 +564,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "preserve symbolic links when resolving the main module",
             &EnvironmentOptions::preserve_symlinks_main,
             kAllowedInEnvvar);
-  AddOption("--prof",
-            "Generate V8 profiler output.",
-            V8Option{});
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
@@ -820,42 +816,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
   const EnvironmentOptionsParser& eop) {
+  // Generally, V8 flags are saved in per-process storage and should be added
+  // to PerProcessOptionsParser.
+
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
             &PerIsolateOptions::track_heap_objects,
             kAllowedInEnvvar);
 
-  // Explicitly add some V8 flags to mark them as allowed in NODE_OPTIONS.
-  AddOption("--abort-on-uncaught-exception",
-            "aborting instead of exiting causes a core file to be generated "
-            "for analysis",
-            V8Option{},
-            kAllowedInEnvvar);
-  AddOption("--interpreted-frames-native-stack",
-            "help system profilers to translate JavaScript interpreted frames",
-            V8Option{},
-            kAllowedInEnvvar);
-  AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--max-semi-space-size", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvvar);
-  AddOption(
-      "--perf-basic-prof-only-functions", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--perf-prof-unwinding-info", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--disallow-code-generation-from-strings",
-            "disallow eval and friends",
-            V8Option{},
-            kAllowedInEnvvar);
-  AddOption("--huge-max-old-generation-size",
-            "increase default maximum heap size on machines with 16GB memory "
-            "or more",
-            V8Option{},
-            kAllowedInEnvvar);
-  AddOption("--jitless",
-            "disable runtime allocation of executable memory",
-            V8Option{},
-            kAllowedInEnvvar);
   AddOption("--report-uncaught-exception",
             "generate diagnostic report on uncaught exceptions",
             &PerIsolateOptions::report_uncaught_exception,
@@ -870,21 +838,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             &PerIsolateOptions::report_signal,
             kAllowedInEnvvar);
   Implies("--report-signal", "--report-on-signal");
-  AddOption("--enable-etw-stack-walking",
-            "provides heap data to ETW Windows native tracing",
-            V8Option{},
-            kAllowedInEnvvar);
 
-  AddOption("--experimental-top-level-await", "", NoOp{}, kAllowedInEnvvar);
-
-  AddOption("--experimental-shadow-realm",
-            "",
-            &PerIsolateOptions::experimental_shadow_realm,
-            kAllowedInEnvvar);
-  AddOption("--harmony-shadow-realm", "", V8Option{});
-  Implies("--experimental-shadow-realm", "--harmony-shadow-realm");
-  Implies("--harmony-shadow-realm", "--experimental-shadow-realm");
-  ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
   AddOption("--build-snapshot",
             "Generate a snapshot blob when the process exits.",
             &PerIsolateOptions::build_snapshot,
@@ -1092,6 +1046,58 @@ PerProcessOptionsParser::PerProcessOptionsParser(
       "performance.",
       &PerProcessOptions::disable_wasm_trap_handler,
       kAllowedInEnvvar);
+
+  // Explicitly add some V8 flags to mark them as allowed in NODE_OPTIONS.
+  // V8 flags are be per-process options and should not be modified with
+  // NODE_OPTIONS or execArgv with a Worker constructor.
+  AddOption("--abort-on-uncaught-exception",
+            "aborting instead of exiting causes a core file to be generated "
+            "for analysis",
+            V8Option{},
+            kAllowedInEnvvar);
+  AddOption("--expose-gc", "expose gc extension", V8Option{}, kAllowedInEnvvar);
+  AddOption("--interpreted-frames-native-stack",
+            "help system profilers to translate JavaScript interpreted frames",
+            V8Option{},
+            kAllowedInEnvvar);
+  AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--max-semi-space-size", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvvar);
+  AddOption(
+      "--perf-basic-prof-only-functions", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--perf-prof", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--perf-prof-unwinding-info", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--prof", "Generate V8 profiler output.", V8Option{});
+  AddOption("--stack-trace-limit", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--disallow-code-generation-from-strings",
+            "disallow eval and friends",
+            V8Option{},
+            kAllowedInEnvvar);
+  AddOption("--huge-max-old-generation-size",
+            "increase default maximum heap size on machines with 16GB memory "
+            "or more",
+            V8Option{},
+            kAllowedInEnvvar);
+  AddOption("--jitless",
+            "disable runtime allocation of executable memory",
+            V8Option{},
+            kAllowedInEnvvar);
+  AddOption("--enable-etw-stack-walking",
+            "provides heap data to ETW Windows native tracing",
+            V8Option{},
+            kAllowedInEnvvar);
+
+  AddOption("--experimental-top-level-await", "", NoOp{}, kAllowedInEnvvar);
+
+  AddOption("--experimental-shadow-realm",
+            "",
+            &PerProcessOptions::experimental_shadow_realm,
+            kAllowedInEnvvar);
+  AddOption("--harmony-shadow-realm", "", V8Option{});
+
+  Implies("--experimental-shadow-realm", "--harmony-shadow-realm");
+  Implies("--harmony-shadow-realm", "--experimental-shadow-realm");
+  ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
 }
 
 inline std::string RemoveBrackets(const std::string& host) {
