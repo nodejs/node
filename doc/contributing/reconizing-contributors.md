@@ -23,7 +23,7 @@ Some of the benefits we hope to achieve through these programs include:
 ## Sponsorship link on nodejs/node README.md
 
 Collaborators may add a single link beside their name on the nodejs/node
-[`README.md`](../../README.md) page in the section titled `Collaborators`
+[`README.md`](../../README.md) file in the section titled `Collaborators`
 named `Support me`. This link may be:
 
 1. a direct link to one of the sponsorship platforms listed below,
