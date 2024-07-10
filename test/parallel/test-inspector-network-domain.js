@@ -150,21 +150,29 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
   }, common.mustCall());
 });
 
-const test = async () => {
-  await session.post('NodeNetwork.enable');
+const testNetworkInspection = async () => {
   await testHttpGet();
   session.removeAllListeners();
   await testHttpsGet();
   session.removeAllListeners();
-  await session.post('NodeNetwork.disable');
 };
 
 httpServer.listen(0, () => {
-  httpsServer.listen(0, () => {
-    test().then(common.mustCall()).catch((e) => {
+  httpsServer.listen(0, async () => {
+    try {
+      await session.post('NodeNetwork.enable');
+      await testNetworkInspection()
+      await session.post('NodeNetwork.disable');
+
+      // ChromeDevTools sends a 'Network.enable' command to enable network inspection.
+      // This test ensures that the 'Network.enable' command correctly enables network inspection.
+      await session.post('Network.enable');
+      await testNetworkInspection()
+      await session.post('Network.disable');
+    } catch (e) {
       assert.fail(e);
-    }).finally(() => {
+    } finally {
       terminate();
-    });
+    }
   });
 });

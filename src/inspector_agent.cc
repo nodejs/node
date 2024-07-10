@@ -288,15 +288,24 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     } else {
       node_dispatcher_->dispatch(
           call_id, method, std::move(value), raw_message);
-      // Since the `Network` domain is not directly accessible to inspector
-      // module users, this allows for them to enable/disable the `Network`
-      // domain via the `NodeNetwork` domain.
-      if (method == "NodeNetwork.enable") {
-        network_agent_->enable();
-      }
-      if (method == "NodeNetwork.disable") {
-        network_agent_->disable();
-      }
+    }
+    // Since the `Network` domain is not directly accessible to inspector
+    // module users, this allows for them to enable/disable the `Network`
+    // domain via the `NodeNetwork` domain.
+    if (method == "NodeNetwork.enable") {
+      network_agent_->enable();
+    }
+    if (method == "NodeNetwork.disable") {
+      network_agent_->disable();
+    }
+    // Since DevTools Frontend sends commands in the `Network` domain only,
+    // we need to enable/disable the `NodeNetwork` domain via the `Network`
+    // domain.
+    if (method == "Network.enable") {
+      node_network_agent_->enable();
+    }
+    if (method == "Network.disable") {
+      node_network_agent_->disable();
     }
   }
 
