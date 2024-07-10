@@ -5,7 +5,8 @@ namespace node {
 namespace inspector {
 namespace protocol {
 
-NodeNetworkAgent::NodeNetworkAgent(Environment* env) : env_(env) {
+NodeNetworkAgent::NodeNetworkAgent(Environment* env)
+    : enabled_(false), env_(env) {
   event_notifier_map_["requestWillBeSent"] =
       &NodeNetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NodeNetworkAgent::responseReceived;
@@ -23,6 +24,22 @@ void NodeNetworkAgent::emitNotification(
 void NodeNetworkAgent::Wire(UberDispatcher* dispatcher) {
   frontend_ = std::make_unique<NodeNetwork::Frontend>(dispatcher->channel());
   NodeNetwork::Dispatcher::wire(dispatcher, this);
+}
+
+DispatchResponse NodeNetworkAgent::enable() {
+  enabled_ = true;
+  if (auto agent = env_->inspector_agent()) {
+    agent->EnableNetworkTracking();
+  }
+  return DispatchResponse::OK();
+}
+
+DispatchResponse NodeNetworkAgent::disable() {
+  enabled_ = false;
+  if (auto agent = env_->inspector_agent()) {
+    agent->DisableNetworkTracking();
+  }
+  return DispatchResponse::OK();
 }
 
 void NodeNetworkAgent::requestWillBeSent(

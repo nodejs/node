@@ -9,7 +9,7 @@ std::unique_ptr<Network::Request> Request(const String& url,
   return Network::Request::create().setUrl(url).setMethod(method).build();
 }
 
-NetworkAgent::NetworkAgent() {
+NetworkAgent::NetworkAgent(Environment* env) : enabled_(false), env_(env) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFinished"] = &NetworkAgent::loadingFinished;
@@ -26,6 +26,22 @@ void NetworkAgent::emitNotification(
 void NetworkAgent::Wire(UberDispatcher* dispatcher) {
   frontend_ = std::make_unique<Network::Frontend>(dispatcher->channel());
   Network::Dispatcher::wire(dispatcher, this);
+}
+
+DispatchResponse NetworkAgent::enable() {
+  enabled_ = true;
+  if (auto agent = env_->inspector_agent()) {
+    agent->EnableNetworkTracking();
+  }
+  return DispatchResponse::OK();
+}
+
+DispatchResponse NetworkAgent::disable() {
+  enabled_ = false;
+  if (auto agent = env_->inspector_agent()) {
+    agent->DisableNetworkTracking();
+  }
+  return DispatchResponse::OK();
 }
 
 void NetworkAgent::requestWillBeSent(

@@ -233,7 +233,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
-    network_agent_ = std::make_unique<protocol::NetworkAgent>();
+    network_agent_ = std::make_unique<protocol::NetworkAgent>(env);
     network_agent_->Wire(node_dispatcher_.get());
     node_network_agent_ = std::make_unique<protocol::NodeNetworkAgent>(env);
     node_network_agent_->Wire(node_dispatcher_.get());
@@ -248,7 +248,9 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_->disable();
     runtime_agent_.reset();  // Dispose before the dispatchers
+    network_agent_->disable();
     network_agent_.reset();  // Dispose before the dispatchers
+    node_network_agent_->disable();
     node_network_agent_.reset();  // Dispose before the dispatchers
   }
 
@@ -880,6 +882,60 @@ void Agent::EmitProtocolEvent(const StringView& event,
   if (!IsListening() || !env()->options()->experimental_network_inspection)
     return;
   client_->emitNotification(event, params);
+}
+
+void Agent::SetupNetworkTracking(Local<Function> enable_function,
+                                 Local<Function> disable_function) {
+  parent_env_->set_inspector_enable_network_tracking(enable_function);
+  parent_env_->set_inspector_disable_network_tracking(disable_function);
+  if (pending_enable_network_tracking) {
+    pending_enable_network_tracking = false;
+    EnableNetworkTracking();
+  } else if (pending_disable_network_tracking) {
+    pending_disable_network_tracking = false;
+    DisableNetworkTracking();
+  }
+}
+
+void Agent::EnableNetworkTracking() {
+  if (network_tracking_enabled_) {
+    return;
+  }
+  HandleScope scope(parent_env_->isolate());
+  Local<Function> enable = parent_env_->inspector_enable_network_tracking();
+  if (enable.IsEmpty()) {
+    pending_enable_network_tracking = true;
+  } else {
+    ToggleNetworkTracking(parent_env_->isolate(), enable);
+    network_tracking_enabled_ = true;
+  }
+}
+
+void Agent::DisableNetworkTracking() {
+  if (!network_tracking_enabled_) {
+    return;
+  }
+  HandleScope scope(parent_env_->isolate());
+  Local<Function> disable = parent_env_->inspector_disable_network_tracking();
+  if (disable.IsEmpty()) {
+    pending_disable_network_tracking = true;
+  } else if (!client_->hasConnectedSessions()) {
+    ToggleNetworkTracking(parent_env_->isolate(), disable);
+    network_tracking_enabled_ = false;
+  }
+}
+
+void Agent::ToggleNetworkTracking(Isolate* isolate, Local<Function> fn) {
+  if (!parent_env_->can_call_into_js()) return;
+  auto context = parent_env_->context();
+  HandleScope scope(isolate);
+  CHECK(!fn.IsEmpty());
+  v8::TryCatch try_catch(isolate);
+  USE(fn->Call(context, Undefined(isolate), 0, nullptr));
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    PrintCaughtException(isolate, context, try_catch);
+    UNREACHABLE("Cannot toggle network tracking, please report this.");
+  }
 }
 
 void Agent::WaitForDisconnect() {

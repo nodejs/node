@@ -22,6 +22,10 @@ class NodeNetworkAgent : public NodeNetwork::Backend {
 
   void Wire(UberDispatcher* dispatcher);
 
+  DispatchResponse enable() override;
+
+  DispatchResponse disable() override;
+
   void requestWillBeSent(std::unique_ptr<protocol::DictionaryValue> params);
 
   void responseReceived(std::unique_ptr<protocol::DictionaryValue> params);
@@ -29,6 +33,7 @@ class NodeNetworkAgent : public NodeNetwork::Backend {
   void loadingFinished(std::unique_ptr<protocol::DictionaryValue> params);
 
  private:
+  bool enabled_;
   Environment* env_;
   std::shared_ptr<NodeNetwork::Frontend> frontend_;
   using EventNotifier =

@@ -101,6 +101,12 @@ experimental domain NodeWorker
 experimental domain NodeNetwork
   depends on Network
 
+  # Disables network tracking, prevents network events from being sent to the client.
+  command disable
+
+  # Enables network tracking, network events will now be delivered to the client.
+  command enable
+
   # Fired when page is about to send HTTP request.
   event requestWillBeSent
     parameters
@@ -145,6 +151,12 @@ experimental domain Network
     properties
       string url
       string method
+
+  # Disables network tracking, prevents network events from being sent to the client.
+  command disable
+
+  # Enables network tracking, network events will now be delivered to the client.
+  command enable
 
   # Fired when page is about to send HTTP request.
   event requestWillBeSent

@@ -8,7 +8,7 @@ import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 import http from 'node:http';
 import https from 'node:https';
-import inspector from 'node:inspector';
+import inspector from 'node:inspector/promises';
 
 const session = new inspector.Session();
 session.connect();
@@ -151,16 +151,18 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
 });
 
 const test = async () => {
+  await session.post('NodeNetwork.enable');
   await testHttpGet();
   session.removeAllListeners();
   await testHttpsGet();
   session.removeAllListeners();
+  await session.post('NodeNetwork.disable');
 };
 
 httpServer.listen(0, () => {
   httpsServer.listen(0, () => {
-    test().then(common.mustCall()).catch(() => {
-      assert.fail();
+    test().then(common.mustCall()).catch((e) => {
+      assert.fail(e);
     }).finally(() => {
       terminate();
     });
