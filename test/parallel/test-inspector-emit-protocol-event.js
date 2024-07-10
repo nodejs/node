@@ -1,11 +1,11 @@
 // Flags: --inspect=0 --experimental-network-inspection
-
-import * as common from '../common/index.mjs';
+'use strict';
+const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
-import inspector from 'node:inspector/promises';
-import assert from 'node:assert';
+const inspector = require('node:inspector/promises');
+const assert = require('node:assert');
 
 const EXPECTED_EVENTS = {
   NodeNetwork: [
@@ -59,21 +59,27 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
   }
 }
 
-const session = new inspector.Session();
-session.connect();
+const runAsyncTest = async () => {
+  const session = new inspector.Session();
+  session.connect();
 
-// Check that all events emit the expected parameters.
-await session.post('NodeNetwork.enable');
-for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
-  for (const event of events) {
-    session.on(`${domain}.${event.name}`, common.mustCall(({ params }) => {
-      assert.deepStrictEqual(params, event.params);
-    }));
-    inspector[domain][event.name](event.params);
+  // Check that all events emit the expected parameters.
+  await session.post('NodeNetwork.enable');
+  for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
+    for (const event of events) {
+      session.on(`${domain}.${event.name}`, common.mustCall(({ params }) => {
+        assert.deepStrictEqual(params, event.params);
+      }));
+      inspector[domain][event.name](event.params);
+    }
   }
-}
 
-// Check tht no events are emitted after disabling the domain.
-await session.post('NodeNetwork.disable');
-session.on('NodeNetwork.requestWillBeSent', common.mustNotCall());
-inspector.NodeNetwork.requestWillBeSent({});
+  // Check tht no events are emitted after disabling the domain.
+  await session.post('NodeNetwork.disable');
+  session.on('NodeNetwork.requestWillBeSent', common.mustNotCall());
+  inspector.NodeNetwork.requestWillBeSent({});
+};
+
+runAsyncTest().then(common.mustCall()).catch((e) => {
+  assert.fail(e);
+});

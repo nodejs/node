@@ -1,14 +1,14 @@
 // Flags: --inspect=0 --experimental-network-inspection
-
-import * as common from '../common/index.mjs';
+'use strict';
+const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
-import assert from 'node:assert';
-import * as fixtures from '../common/fixtures.mjs';
-import http from 'node:http';
-import https from 'node:https';
-import inspector from 'node:inspector/promises';
+const assert = require('node:assert');
+const fixtures = require('../common/fixtures');
+const http = require('node:http');
+const https = require('node:https');
+const inspector = require('node:inspector/promises');
 
 const session = new inspector.Session();
 session.connect();
