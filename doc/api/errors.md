@@ -1010,7 +1010,8 @@ An invalid message length was provided.
 added: v15.0.0
 -->
 
-Invalid scrypt algorithm parameters were provided.
+One or more [`crypto.scrypt()`][] or [`crypto.scryptSync()`][] parameters are
+outside their legal range.
 
 <a id="ERR_CRYPTO_INVALID_STATE"></a>
 
@@ -1069,13 +1070,6 @@ A crypto operation failed for an otherwise unspecified reason.
 
 The PBKDF2 algorithm failed for unspecified reasons. OpenSSL does not provide
 more details and therefore neither does Node.js.
-
-<a id="ERR_CRYPTO_SCRYPT_INVALID_PARAMETER"></a>
-
-### `ERR_CRYPTO_SCRYPT_INVALID_PARAMETER`
-
-One or more [`crypto.scrypt()`][] or [`crypto.scryptSync()`][] parameters are
-outside their legal range.
 
 <a id="ERR_CRYPTO_SCRYPT_NOT_SUPPORTED"></a>
 
@@ -3271,6 +3265,18 @@ The UTF-16 encoding was used with [`hash.digest()`][]. While the
 causing the method to return a string rather than a `Buffer`, the UTF-16
 encoding (e.g. `ucs` or `utf16le`) is not supported.
 
+<a id="ERR_CRYPTO_SCRYPT_INVALID_PARAMETER"></a>
+
+### `ERR_CRYPTO_SCRYPT_INVALID_PARAMETER`
+
+<!-- YAML
+removed: REPLACEME
+-->
+
+An incompatible combination of options was passed to [`crypto.scrypt()`][] or
+[`crypto.scryptSync()`][]. New versions of Node.js use the error code
+[`ERR_INCOMPATIBLE_OPTION_PAIR`][] instead, which is consistent with other APIs.
+
 <a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
 
 ### `ERR_FS_INVALID_SYMLINK_TYPE`
@@ -4046,6 +4052,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
+[`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #err_missing_message_port_in_transfer_list
 [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #err_missing_transferable_in_transfer_list
