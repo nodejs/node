@@ -795,7 +795,7 @@ assert.throws(
 }
 
 {
-  // dh, x25519 and x448 should not be used for signing/verifying
+  // Dh, x25519 and x448 should not be used for signing/verifying
   // https://github.com/nodejs/node/issues/53742
   const keys = [
     {
