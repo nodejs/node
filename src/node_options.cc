@@ -593,8 +593,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::cpu_prof_dir);
   AddOption("--experimental-network-inspection",
             "experimental network inspection support",
-            &EnvironmentOptions::experimental_network_inspection,
-            kAllowedInEnvvar);
+            &EnvironmentOptions::experimental_network_inspection);
   AddOption(
       "--heap-prof",
       "Start the V8 heap profiler on start up, and write the heap profile "

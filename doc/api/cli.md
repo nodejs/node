@@ -2858,7 +2858,6 @@ one is included in the list below.
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-network-imports`
-* `--experimental-network-inspection`
 * `--experimental-permission`
 * `--experimental-print-required-tla`
 * `--experimental-require-module`
