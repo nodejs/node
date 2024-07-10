@@ -429,36 +429,6 @@ require('node:inspector').console.log('a message');
 The inspector console does not have API parity with Node.js
 console.
 
-### `inspector.emitProtocolEvent(eventName[, params])`
-
-<!-- YAML
-added:
- - REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-* `eventName` {string}
-* `params` {Object}
-
-This feature is only available with the `--experimental-network-inspection` flag enabled.
-
-Emits a protocol event with the specified `eventName` and optional `params`. This function allows you to send
-custom events that conform to the DevTools protocol, facilitating integration with debugging and inspection tools.
-The emitted events can be captured by connected DevTools Frontend instances, such as Chrome DevTools.
-
-```js
-inspector.emitProtocolEvent('NodeNetwork.requestWillBeSent', {
-  requestId: 'request-id-1',
-  timestamp: Date.now() / 1000,
-  wallTime: Date.now(),
-  request: {
-    url: 'https://nodejs.org/en',
-    method: 'GET',
-  }
-});
-```
-
 ### `inspector.open([port[, host[, wait]]])`
 
 <!-- YAML
@@ -517,6 +487,74 @@ Blocks until a client (existing or connected later) has sent
 `Runtime.runIfWaitingForDebugger` command.
 
 An exception will be thrown if there is no active inspector.
+
+## Node.js-specific Protocol Events
+
+Node.js has dedicated DevTools protocols for debugging. The following methods emits a protocol
+event with optional `params`. These methods allow you to send custom events that conform to the
+DevTools protocol, facilitating integration with debugging and inspection tools. The emitted
+events can be captured by connected DevTools Frontend instances, such as Chrome DevTools.
+
+```js
+// `NodeNetwork.requestWillBeSent` event will be fired.
+inspector.NodeNetwork.requestWillBeSent({
+  requestId: 'request-id-1',
+  timestamp: Date.now() / 1000,
+  wallTime: Date.now(),
+  request: {
+    url: 'https://nodejs.org/en',
+    method: 'GET',
+  }
+});
+```
+
+### `inspector.NodeNetwork.requestWillBeSent([params])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Emits the `NodeNetwork.requestWillBeSent` event. This event indicates that the application is
+about to send an HTTP request.
+
+### `inspector.NodeNetwork.responseReceived([params])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Emits the `NodeNetwork.responseReceived` event. This event indicates that HTTP response is
+available.
+
+### `inspector.NodeNetwork.loadingFinished([params])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Emits the `NodeNetwork.loadingFinished` event. This event indicates that HTTP request has
+finished loading.
 
 ## Support of breakpoints
 

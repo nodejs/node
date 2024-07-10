@@ -15,6 +15,7 @@ NodeNetworkAgent::NodeNetworkAgent(Environment* env)
 
 void NodeNetworkAgent::emitNotification(
     const String& event, std::unique_ptr<protocol::DictionaryValue> params) {
+  if (!enabled_) return;
   auto it = event_notifier_map_.find(event);
   if (it != event_notifier_map_.end()) {
     (this->*(it->second))(std::move(params));

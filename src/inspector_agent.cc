@@ -266,6 +266,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       network_agent_->emitNotification(event_name, std::move(value));
     } else if (domain_name == "NodeNetwork") {
       node_network_agent_->emitNotification(event_name, std::move(value));
+    } else {
+      UNREACHABLE("Unknown domain for emitNotificationFromBackend");
     }
   }
 
@@ -284,8 +286,17 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
             Utf8ToStringView(method)->string())) {
       session_->dispatchProtocolMessage(message);
     } else {
-      node_dispatcher_->dispatch(call_id, method, std::move(value),
-                                 raw_message);
+      node_dispatcher_->dispatch(
+          call_id, method, std::move(value), raw_message);
+      // Since the `Network` domain is not directly accessible to inspector
+      // module users, this allows for them to enable/disable the `Network`
+      // domain via the `NodeNetwork` domain.
+      if (method == "NodeNetwork.enable") {
+        network_agent_->enable();
+      }
+      if (method == "NodeNetwork.disable") {
+        network_agent_->disable();
+      }
     }
   }
 
