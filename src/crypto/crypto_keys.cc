@@ -505,7 +505,7 @@ Maybe<bool> ExportJWKAsymmetricKey(
     case EVP_PKEY_X448: return ExportJWKEdKey(env, key, target);
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
-  return Just(false);
+  return Nothing<bool>();
 }
 
 std::shared_ptr<KeyObjectData> ImportJWKAsymmetricKey(
