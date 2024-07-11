@@ -1,6 +1,6 @@
 // Flags: --expose-internals
 
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import { it } from 'node:test';
 
 try {
