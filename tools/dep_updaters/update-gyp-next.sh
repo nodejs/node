@@ -55,6 +55,14 @@ rm -rf "$BASE_DIR/tools/gyp"
 
 mv "$WORKSPACE/gyp" "$BASE_DIR/tools/"
 
+echo "All done!"
+echo ""
+echo "Please git add gyp-next and commit the new version:"
+echo ""
+echo "$ git add -A tools/gyp"
+echo "$ git commit -m \"tools: update gyp-next to $NEW_VERSION\""
+echo ""
+
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
 echo "NEW_VERSION=$NEW_VERSION"
