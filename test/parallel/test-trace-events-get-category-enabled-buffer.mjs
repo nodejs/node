@@ -2,6 +2,13 @@
 
 import '../common/index.mjs';
 import { it } from 'node:test';
+
+try {
+  await import('node:trace_events');
+} catch {
+  common.skip('missing trace events');
+}
+
 import { createTracing, getEnabledCategories } from 'node:trace_events';
 import assert from 'node:assert';
 
