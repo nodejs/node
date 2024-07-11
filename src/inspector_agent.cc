@@ -2,8 +2,7 @@
 
 #include "env-inl.h"
 #include "inspector/main_thread_interface.h"
-#include "inspector/network_agent.h"
-#include "inspector/node_network_agent.h"
+#include "inspector/network_inspector.h"
 #include "inspector/node_string.h"
 #include "inspector/runtime_agent.h"
 #include "inspector/tracing_agent.h"
@@ -233,10 +232,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
-    network_agent_ = std::make_unique<protocol::NetworkAgent>(env);
-    network_agent_->Wire(node_dispatcher_.get());
-    node_network_agent_ = std::make_unique<protocol::NodeNetworkAgent>(env);
-    node_network_agent_->Wire(node_dispatcher_.get());
+    network_inspector_ = std::make_unique<NetworkInspector>(env);
+    network_inspector_->Wire(node_dispatcher_.get());
   }
 
   ~ChannelImpl() override {
@@ -248,10 +245,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_->disable();
     runtime_agent_.reset();  // Dispose before the dispatchers
-    network_agent_->disable();
-    network_agent_.reset();  // Dispose before the dispatchers
-    node_network_agent_->disable();
-    node_network_agent_.reset();  // Dispose before the dispatchers
+    network_inspector_->Disable();
+    network_inspector_.reset();  // Dispose before the dispatchers
   }
 
   void emitNotificationFromBackend(const StringView& event,
@@ -262,10 +257,9 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     std::string raw_event = protocol::StringUtil::StringViewToUtf8(event);
     std::string domain_name = raw_event.substr(0, raw_event.find('.'));
     std::string event_name = raw_event.substr(raw_event.find('.') + 1);
-    if (domain_name == "Network") {
-      network_agent_->emitNotification(event_name, std::move(value));
-    } else if (domain_name == "NodeNetwork") {
-      node_network_agent_->emitNotification(event_name, std::move(value));
+    if (network_inspector_->canEmit(domain_name)) {
+      network_inspector_->emitNotification(
+          domain_name, event_name, std::move(value));
     } else {
       UNREACHABLE("Unknown domain for emitNotificationFromBackend");
     }
@@ -288,24 +282,6 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     } else {
       node_dispatcher_->dispatch(
           call_id, method, std::move(value), raw_message);
-    }
-    // Since the `Network` domain is not directly accessible to inspector
-    // module users, this allows for them to enable/disable the `Network`
-    // domain via the `NodeNetwork` domain.
-    if (method == "NodeNetwork.enable") {
-      network_agent_->enable();
-    }
-    if (method == "NodeNetwork.disable") {
-      network_agent_->disable();
-    }
-    // Since DevTools Frontend sends commands in the `Network` domain only,
-    // we need to enable/disable the `NodeNetwork` domain via the `Network`
-    // domain.
-    if (method == "Network.enable") {
-      node_network_agent_->enable();
-    }
-    if (method == "Network.disable") {
-      node_network_agent_->disable();
     }
   }
 
@@ -380,8 +356,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
   std::unique_ptr<protocol::TracingAgent> tracing_agent_;
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
-  std::unique_ptr<protocol::NetworkAgent> network_agent_;
-  std::unique_ptr<protocol::NodeNetworkAgent> node_network_agent_;
+  std::unique_ptr<NetworkInspector> network_inspector_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;

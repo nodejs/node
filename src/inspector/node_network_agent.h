@@ -1,21 +1,20 @@
 #ifndef SRC_INSPECTOR_NODE_NETWORK_AGENT_H_
 #define SRC_INSPECTOR_NODE_NETWORK_AGENT_H_
 
-#include "env.h"
 #include "node/inspector/protocol/NodeNetwork.h"
-#include "v8.h"
 
 #include <unordered_map>
 
 namespace node {
-class Environment;
 
 namespace inspector {
+class NetworkInspector;
+
 namespace protocol {
 
 class NodeNetworkAgent : public NodeNetwork::Backend {
  public:
-  explicit NodeNetworkAgent(Environment* env);
+  explicit NodeNetworkAgent(NetworkInspector* inspector);
 
   void emitNotification(const String& event,
                         std::unique_ptr<protocol::DictionaryValue> params);
@@ -33,8 +32,7 @@ class NodeNetworkAgent : public NodeNetwork::Backend {
   void loadingFinished(std::unique_ptr<protocol::DictionaryValue> params);
 
  private:
-  bool enabled_;
-  Environment* env_;
+  NetworkInspector* inspector_;
   std::shared_ptr<NodeNetwork::Frontend> frontend_;
   using EventNotifier =
       void (NodeNetworkAgent::*)(std::unique_ptr<protocol::DictionaryValue>);

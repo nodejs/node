@@ -1,12 +1,13 @@
 #include "node_network_agent.h"
 #include "network_agent.h"
+#include "network_inspector.h"
 
 namespace node {
 namespace inspector {
 namespace protocol {
 
-NodeNetworkAgent::NodeNetworkAgent(Environment* env)
-    : enabled_(false), env_(env) {
+NodeNetworkAgent::NodeNetworkAgent(NetworkInspector* inspector)
+    : inspector_(inspector) {
   event_notifier_map_["requestWillBeSent"] =
       &NodeNetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NodeNetworkAgent::responseReceived;
@@ -15,7 +16,7 @@ NodeNetworkAgent::NodeNetworkAgent(Environment* env)
 
 void NodeNetworkAgent::emitNotification(
     const String& event, std::unique_ptr<protocol::DictionaryValue> params) {
-  if (!enabled_) return;
+  if (!inspector_->IsEnabled()) return;
   auto it = event_notifier_map_.find(event);
   if (it != event_notifier_map_.end()) {
     (this->*(it->second))(std::move(params));
@@ -28,18 +29,12 @@ void NodeNetworkAgent::Wire(UberDispatcher* dispatcher) {
 }
 
 DispatchResponse NodeNetworkAgent::enable() {
-  enabled_ = true;
-  if (auto agent = env_->inspector_agent()) {
-    agent->EnableNetworkTracking();
-  }
+  inspector_->Enable();
   return DispatchResponse::OK();
 }
 
 DispatchResponse NodeNetworkAgent::disable() {
-  enabled_ = false;
-  if (auto agent = env_->inspector_agent()) {
-    agent->DisableNetworkTracking();
-  }
+  inspector_->Disable();
   return DispatchResponse::OK();
 }
 
@@ -60,9 +55,8 @@ void NodeNetworkAgent::requestWillBeSent(
   frontend_->requestWillBeSent(
       request_id, Request(url, method), timestamp, wall_time);
 
-  env_->inspector_agent()->EmitProtocolEvent(
-      protocol::StringUtil::ToStringView("Network.requestWillBeSent"),
-      protocol::StringUtil::ToStringView(params->toJSONString()));
+  inspector_->emitNotification(
+      "Network", "requestWillBeSent", std::move(params));
 }
 
 void NodeNetworkAgent::responseReceived(
@@ -74,9 +68,8 @@ void NodeNetworkAgent::responseReceived(
 
   frontend_->responseReceived(request_id, timestamp);
 
-  env_->inspector_agent()->EmitProtocolEvent(
-      protocol::StringUtil::ToStringView("Network.responseReceived"),
-      protocol::StringUtil::ToStringView(params->toJSONString()));
+  inspector_->emitNotification(
+      "Network", "responseReceived", std::move(params));
 }
 
 void NodeNetworkAgent::loadingFinished(
@@ -88,9 +81,7 @@ void NodeNetworkAgent::loadingFinished(
 
   frontend_->loadingFinished(request_id, timestamp);
 
-  env_->inspector_agent()->EmitProtocolEvent(
-      protocol::StringUtil::ToStringView("Network.loadingFinished"),
-      protocol::StringUtil::ToStringView(params->toJSONString()));
+  inspector_->emitNotification("Network", "loadingFinished", std::move(params));
 }
 
 }  // namespace protocol

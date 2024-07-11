@@ -81,11 +81,6 @@ String StringViewToUtf8(v8_inspector::StringView view) {
   return String(buffer.out(), utf8_length);
 }
 
-v8_inspector::StringView ToStringView(const std::string& str) {
-  return v8_inspector::StringView(reinterpret_cast<const uint8_t*>(str.data()),
-                                  str.size());
-}
-
 String fromDouble(double d) {
   std::ostringstream stream;
   stream.imbue(std::locale::classic());  // Ignore current locale

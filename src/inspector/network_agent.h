@@ -1,16 +1,15 @@
 #ifndef SRC_INSPECTOR_NETWORK_AGENT_H_
 #define SRC_INSPECTOR_NETWORK_AGENT_H_
 
-#include "env.h"
 #include "node/inspector/protocol/Network.h"
-#include "v8.h"
 
 #include <unordered_map>
 
 namespace node {
-class Environment;
 
 namespace inspector {
+class NetworkInspector;
+
 namespace protocol {
 
 std::unique_ptr<Network::Request> Request(const String& url,
@@ -18,7 +17,7 @@ std::unique_ptr<Network::Request> Request(const String& url,
 
 class NetworkAgent : public Network::Backend {
  public:
-  explicit NetworkAgent(Environment* env);
+  explicit NetworkAgent(NetworkInspector* inspector);
 
   void Wire(UberDispatcher* dispatcher);
 
@@ -36,8 +35,7 @@ class NetworkAgent : public Network::Backend {
   void loadingFinished(std::unique_ptr<protocol::DictionaryValue> params);
 
  private:
-  bool enabled_;
-  Environment* env_;
+  NetworkInspector* inspector_;
   std::shared_ptr<Network::Frontend> frontend_;
   using EventNotifier =
       void (NetworkAgent::*)(std::unique_ptr<protocol::DictionaryValue>);

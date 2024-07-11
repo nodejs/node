@@ -23,6 +23,8 @@
       'src/inspector/tracing_agent.h',
       'src/inspector/worker_agent.cc',
       'src/inspector/worker_agent.h',
+      'src/inspector/network_inspector.cc',
+      'src/inspector/network_inspector.h',
       'src/inspector/network_agent.cc',
       'src/inspector/network_agent.h',
       'src/inspector/node_network_agent.cc',

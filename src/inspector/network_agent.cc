@@ -1,4 +1,5 @@
 #include "network_agent.h"
+#include "network_inspector.h"
 
 namespace node {
 namespace inspector {
@@ -9,7 +10,8 @@ std::unique_ptr<Network::Request> Request(const String& url,
   return Network::Request::create().setUrl(url).setMethod(method).build();
 }
 
-NetworkAgent::NetworkAgent(Environment* env) : enabled_(false), env_(env) {
+NetworkAgent::NetworkAgent(NetworkInspector* inspector)
+    : inspector_(inspector) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFinished"] = &NetworkAgent::loadingFinished;
@@ -17,7 +19,7 @@ NetworkAgent::NetworkAgent(Environment* env) : enabled_(false), env_(env) {
 
 void NetworkAgent::emitNotification(
     const String& event, std::unique_ptr<protocol::DictionaryValue> params) {
-  if (!enabled_) return;
+  if (!inspector_->IsEnabled()) return;
   auto it = event_notifier_map_.find(event);
   if (it != event_notifier_map_.end()) {
     (this->*(it->second))(std::move(params));
@@ -30,18 +32,12 @@ void NetworkAgent::Wire(UberDispatcher* dispatcher) {
 }
 
 DispatchResponse NetworkAgent::enable() {
-  enabled_ = true;
-  if (auto agent = env_->inspector_agent()) {
-    agent->EnableNetworkTracking();
-  }
+  inspector_->Enable();
   return DispatchResponse::OK();
 }
 
 DispatchResponse NetworkAgent::disable() {
-  enabled_ = false;
-  if (auto agent = env_->inspector_agent()) {
-    agent->DisableNetworkTracking();
-  }
+  inspector_->Disable();
   return DispatchResponse::OK();
 }
 
