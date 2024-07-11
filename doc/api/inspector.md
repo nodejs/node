@@ -488,15 +488,15 @@ Blocks until a client (existing or connected later) has sent
 
 An exception will be thrown if there is no active inspector.
 
-## Node.js-specific Protocol Events
+## Node.js-specific protocol events
 
-Node.js has dedicated DevTools protocols for debugging. The following methods emits a protocol
+Node.js has dedicated DevTools protocols for debugging. The following methods emit a protocol
 event with optional `params`. These methods allow you to send custom events that conform to the
 DevTools protocol, facilitating integration with debugging and inspection tools. The emitted
 events can be captured by connected DevTools Frontend instances, such as Chrome DevTools.
 
 ```js
-// `NodeNetwork.requestWillBeSent` event will be fired.
+// The `NodeNetwork.requestWillBeSent` event will be fired.
 inspector.NodeNetwork.requestWillBeSent({
   requestId: 'request-id-1',
   timestamp: Date.now() / 1000,
