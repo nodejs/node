@@ -596,7 +596,8 @@ to run it again before invoking `make -j4`.
 
 If you received the error `nodejs g++ fatal error compilation terminated cc1plus`
 during compilation, this is likely a memory issue and you should either provide
-more RAM or create swap space to accommodate toolchain requirements.
+more RAM or create swap space to accommodate toolchain requirements or reduce
+the number of parallel build tasks (`-j<n>`).
 
 ### Windows
 
