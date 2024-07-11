@@ -163,7 +163,6 @@ if (process.features.inspector) {
   expected.beforePreExec.add('Internal Binding inspector');
   expected.beforePreExec.add('NativeModule internal/util/inspector');
   expected.atRunTime.add('NativeModule internal/inspector_async_hook');
-  expected.atRunTime.add('NativeModule internal/inspector_network_tracking');
 }
 
 // This is loaded if the test is run with NODE_V8_COVERAGE.
