@@ -76,12 +76,12 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
 
 void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
+  CHECK_GE(args.Length(), 1);  // input
   CHECK(args[0]->IsString());
 
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  if (input.empty()) {
-    return args.GetReturnValue().Set(String::Empty(env->isolate()));
+  Utf8Value input(env->isolate(), args[0]);
+  if (input.ToStringView().empty()) {
+    return args.GetReturnValue().SetEmptyString();
   }
 
   // It is important to have an initial value that contains a special scheme.
@@ -89,7 +89,7 @@ void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   // spec.
   auto out = ada::parse<ada::url>("ws://x");
   DCHECK(out);
-  if (!out->set_hostname(input)) {
+  if (!out->set_hostname(input.ToStringView())) {
     return args.GetReturnValue().Set(String::Empty(env->isolate()));
   }
   std::string host = out->get_hostname();
@@ -99,12 +99,12 @@ void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
 
 void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
+  CHECK_GE(args.Length(), 1);  // input
   CHECK(args[0]->IsString());
 
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  if (input.empty()) {
-    return args.GetReturnValue().Set(String::Empty(env->isolate()));
+  Utf8Value input(env->isolate(), args[0]);
+  if (input.ToStringView().empty()) {
+    return args.GetReturnValue().SetEmptyString();
   }
 
   // It is important to have an initial value that contains a special scheme.
@@ -112,7 +112,7 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   // spec.
   auto out = ada::parse<ada::url>("ws://x");
   DCHECK(out);
-  if (!out->set_hostname(input)) {
+  if (!out->set_hostname(input.ToStringView())) {
     return args.GetReturnValue().Set(String::Empty(env->isolate()));
   }
   std::string result = ada::unicode::to_unicode(out->get_hostname());
