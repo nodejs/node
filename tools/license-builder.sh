@@ -150,4 +150,7 @@ addlicense "nghttp3" "deps/ngtcp2/nghttp3/" "$licenseText"
 licenseText="$(curl -sL https://raw.githubusercontent.com/jprichardson/node-fs-extra/b34da2762a4865b025cac06d02d6a2f1f1027b65/LICENSE)"
 addlicense "node-fs-extra" "lib/internal/fs/cp" "$licenseText"
 
+licenseText="$(curl -sL https://raw.githubusercontent.com/mcollina/on-exit-leak-free/2a01c7e66c690aca17187b10b0cecbe43e083eb2/LICENSE)"
+addlicense "on-exit-leak-free" "lib/internal/process/finalization" "$licenseText"
+
 mv "$tmplicense" "$licensefile"
