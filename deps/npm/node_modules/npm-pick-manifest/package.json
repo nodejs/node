@@ -1,6 +1,6 @@
 {
   "name": "npm-pick-manifest",
-  "version": "9.0.1",
+  "version": "9.1.0",
   "description": "Resolves a matching manifest from a package metadata document according to standard npm semver resolution rules.",
   "main": "./lib",
   "files": [
