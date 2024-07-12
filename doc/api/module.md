@@ -1054,7 +1054,6 @@ returned object contains the following keys:
 [Conditional exports]: packages.md#conditional-exports
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
-[HTTPS and HTTP imports]: esm.md#https-and-http-imports
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
