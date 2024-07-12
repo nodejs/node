@@ -153,8 +153,8 @@ class Outdated extends ArboristWorkspaceCmd {
   }
 
   async #getOutdatedInfo (edge) {
-    const alias = safeNpa(edge.spec)?.subSpec?.name
-    const spec = npa(alias ?? edge.name)
+    const alias = safeNpa(edge.spec)?.subSpec
+    const spec = npa(alias ? alias.name : edge.name)
     const node = edge.to || edge
     const { path, location, package: { version: current } = {} } = node
 
