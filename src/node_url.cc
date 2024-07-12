@@ -115,7 +115,7 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   if (!out->set_hostname(input.ToStringView())) {
     return args.GetReturnValue().Set(String::Empty(env->isolate()));
   }
-  std::string result = ada::unicode::to_unicode(out->get_hostname());
+  std::string result = ada::idna::to_unicode(out->get_hostname());
 
   args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
                                                 result.c_str(),
@@ -499,7 +499,7 @@ std::optional<std::string> FileURLToPath(Environment* env,
     // about percent encoding because the URL parser will have
     // already taken care of that for us. Note that this only
     // causes IDNs with an appropriate `xn--` prefix to be decoded.
-    return "\\\\" + ada::unicode::to_unicode(hostname) + decoded_pathname;
+    return "\\\\" + ada::idna::to_unicode(hostname) + decoded_pathname;
   }
 
   char letter = decoded_pathname[1] | 0x20;
