@@ -1,24 +1,24 @@
-#pragma once
-
+#ifndef NBYTES_H
+#define NBYTES_H
 #include <algorithm>
-#include <string>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <cmath>
+#include <string>
 
 namespace nbytes {
 
 #if NBYTES_DEVELOPMENT_CHECKS
 #define NBYTES_STR(x) #x
-#define NBYTES_REQUIRE(EXPR)                                                   \
-  {                                                                            \
+#define NBYTES_REQUIRE(EXPR) \
+  {                          \
     if (!(EXPR) { abort(); }) }
 
-#define NBYTES_FAIL(MESSAGE)                                                   \
-  do {                                                                         \
-    std::cerr << "FAIL: " << (MESSAGE) << std::endl;                           \
-    abort();                                                                   \
+#define NBYTES_FAIL(MESSAGE)                         \
+  do {                                               \
+    std::cerr << "FAIL: " << (MESSAGE) << std::endl; \
+    abort();                                         \
   } while (0);
 #define NBYTES_ASSERT_EQUAL(LHS, RHS, MESSAGE)                                 \
   do {                                                                         \
@@ -27,13 +27,13 @@ namespace nbytes {
       NBYTES_FAIL(MESSAGE);                                                    \
     }                                                                          \
   } while (0);
-#define NBYTES_ASSERT_TRUE(COND)                                               \
-  do {                                                                         \
-    if (!(COND)) {                                                             \
-      std::cerr << "Assert at line " << __LINE__ << " of file " << __FILE__    \
-                << std::endl;                                                  \
-      NBYTES_FAIL(NBYTES_STR(COND));                                           \
-    }                                                                          \
+#define NBYTES_ASSERT_TRUE(COND)                                            \
+  do {                                                                      \
+    if (!(COND)) {                                                          \
+      std::cerr << "Assert at line " << __LINE__ << " of file " << __FILE__ \
+                << std::endl;                                               \
+      NBYTES_FAIL(NBYTES_STR(COND));                                        \
+    }                                                                       \
   } while (0);
 #else
 #define NBYTES_FAIL(MESSAGE)
@@ -64,8 +64,8 @@ constexpr T RoundUp(T a, T b) {
 
 // Align ptr to an `alignment`-bytes boundary.
 template <typename T, typename U>
-constexpr T* AlignUp(T* ptr, U alignment) {
-  return reinterpret_cast<T*>(
+constexpr T *AlignUp(T *ptr, U alignment) {
+  return reinterpret_cast<T *>(
       RoundUp(reinterpret_cast<uintptr_t>(ptr), alignment));
 }
 
@@ -85,17 +85,17 @@ inline T MultiplyWithOverflowCheck(T a, T b) {
   return ret;
 }
 
-void ForceAsciiSlow(const char* src, char* dst, size_t len);
-void ForceAscii(const char* src, char* dst, size_t len);
+void ForceAsciiSlow(const char *src, char *dst, size_t len);
+void ForceAscii(const char *src, char *dst, size_t len);
 
 // ============================================================================
 // Byte Swapping
 
 // Swaps bytes in place. nbytes is the number of bytes to swap and must be a
 // multiple of the word size (checked by function).
-bool SwapBytes16(void* data, size_t nbytes);
-bool SwapBytes32(void* data, size_t nbytes);
-bool SwapBytes64(void* data, size_t nbytes);
+bool SwapBytes16(void *data, size_t nbytes);
+bool SwapBytes32(void *data, size_t nbytes);
+bool SwapBytes64(void *data, size_t nbytes);
 
 // ============================================================================
 // Base64 (legacy)
@@ -109,22 +109,22 @@ bool SwapBytes64(void* data, size_t nbytes);
 extern const int8_t unbase64_table[256];
 
 template <typename TypeName>
-bool Base64DecodeGroupSlow(char* const dst, const size_t dstlen,
-                           const TypeName* const src, const size_t srclen,
-                           size_t* const i, size_t* const k) {
+bool Base64DecodeGroupSlow(char *const dst, const size_t dstlen,
+                           const TypeName *const src, const size_t srclen,
+                           size_t *const i, size_t *const k) {
   uint8_t hi;
   uint8_t lo;
-#define V(expr)                                                                \
-  for (;;) {                                                                   \
-    const uint8_t c = static_cast<uint8_t>(src[*i]);                           \
-    lo = unbase64_table[c];                                                    \
-    *i += 1;                                                                   \
-    if (lo < 64) break;                         /* Legal character. */         \
-    if (c == '=' || *i >= srclen) return false; /* Stop decoding. */           \
-  }                                                                            \
-  expr;                                                                        \
-  if (*i >= srclen) return false;                                              \
-  if (*k >= dstlen) return false;                                              \
+#define V(expr)                                                        \
+  for (;;) {                                                           \
+    const uint8_t c = static_cast<uint8_t>(src[*i]);                   \
+    lo = unbase64_table[c];                                            \
+    *i += 1;                                                           \
+    if (lo < 64) break;                         /* Legal character. */ \
+    if (c == '=' || *i >= srclen) return false; /* Stop decoding. */   \
+  }                                                                    \
+  expr;                                                                \
+  if (*i >= srclen) return false;                                      \
+  if (*k >= dstlen) return false;                                      \
   hi = lo;
   V(/* Nothing. */);
   V(dst[(*k)++] = ((hi & 0x3F) << 2) | ((lo & 0x30) >> 4));
@@ -134,14 +134,10 @@ bool Base64DecodeGroupSlow(char* const dst, const size_t dstlen,
   return true;  // Continue decoding.
 }
 
-enum class Base64Mode {
-  NORMAL,
-  URL
-};
+enum class Base64Mode { NORMAL, URL };
 
 inline constexpr size_t Base64EncodedSize(
-    size_t size,
-    Base64Mode mode = Base64Mode::NORMAL) {
+    size_t size, Base64Mode mode = Base64Mode::NORMAL) {
   return mode == Base64Mode::NORMAL ? ((size + 2) / 3 * 4)
                                     : static_cast<size_t>(std::ceil(
                                           static_cast<double>(size * 4) / 3));
@@ -153,30 +149,27 @@ inline constexpr size_t Base64DecodedSizeFast(size_t size) {
   return size > 1 ? (size / 4) * 3 + (size % 4 + 1) / 2 : 0;
 }
 
-inline uint32_t ReadUint32BE(const unsigned char* p) {
+inline uint32_t ReadUint32BE(const unsigned char *p) {
   return static_cast<uint32_t>(p[0] << 24U) |
          static_cast<uint32_t>(p[1] << 16U) |
-         static_cast<uint32_t>(p[2] << 8U) |
-         static_cast<uint32_t>(p[3]);
+         static_cast<uint32_t>(p[2] << 8U) | static_cast<uint32_t>(p[3]);
 }
 
 template <typename TypeName>
-size_t Base64DecodedSize(const TypeName* src, size_t size) {
+size_t Base64DecodedSize(const TypeName *src, size_t size) {
   // 1-byte input cannot be decoded
-  if (size < 2)
-    return 0;
+  if (size < 2) return 0;
 
   if (src[size - 1] == '=') {
     size--;
-    if (src[size - 1] == '=')
-      size--;
+    if (src[size - 1] == '=') size--;
   }
   return Base64DecodedSizeFast(size);
 }
 
 template <typename TypeName>
-size_t Base64DecodeFast(char* const dst, const size_t dstlen,
-                        const TypeName* const src, const size_t srclen,
+size_t Base64DecodeFast(char *const dst, const size_t dstlen,
+                        const TypeName *const src, const size_t srclen,
                         const size_t decoded_size) {
   const size_t available = dstlen < decoded_size ? dstlen : decoded_size;
   const size_t max_k = available / 3 * 3;
@@ -185,22 +178,25 @@ size_t Base64DecodeFast(char* const dst, const size_t dstlen,
   size_t k = 0;
   while (i < max_i && k < max_k) {
     const unsigned char txt[] = {
-        static_cast<unsigned char>(unbase64_table[static_cast<uint8_t>(src[i + 0])]),
-        static_cast<unsigned char>(unbase64_table[static_cast<uint8_t>(src[i + 1])]),
-        static_cast<unsigned char>(unbase64_table[static_cast<uint8_t>(src[i + 2])]),
-        static_cast<unsigned char>(unbase64_table[static_cast<uint8_t>(src[i + 3])]),
+        static_cast<unsigned char>(
+            unbase64_table[static_cast<uint8_t>(src[i + 0])]),
+        static_cast<unsigned char>(
+            unbase64_table[static_cast<uint8_t>(src[i + 1])]),
+        static_cast<unsigned char>(
+            unbase64_table[static_cast<uint8_t>(src[i + 2])]),
+        static_cast<unsigned char>(
+            unbase64_table[static_cast<uint8_t>(src[i + 3])]),
     };
 
     const uint32_t v = ReadUint32BE(txt);
     // If MSB is set, input contains whitespace or is not valid base64.
     if (v & 0x80808080) {
-      if (!Base64DecodeGroupSlow(dst, dstlen, src, srclen, &i, &k))
-        return k;
+      if (!Base64DecodeGroupSlow(dst, dstlen, src, srclen, &i, &k)) return k;
       max_i = i + (srclen - i) / 4 * 4;  // Align max_i again.
     } else {
       dst[k + 0] = ((v >> 22) & 0xFC) | ((v >> 20) & 0x03);
       dst[k + 1] = ((v >> 12) & 0xF0) | ((v >> 10) & 0x0F);
-      dst[k + 2] = ((v >>  2) & 0xC0) | ((v >>  0) & 0x3F);
+      dst[k + 2] = ((v >> 2) & 0xC0) | ((v >> 0) & 0x3F);
       i += 4;
       k += 3;
     }
@@ -212,8 +208,8 @@ size_t Base64DecodeFast(char* const dst, const size_t dstlen,
 }
 
 template <typename TypeName>
-size_t Base64Decode(char* const dst, const size_t dstlen,
-                     const TypeName* const src, const size_t srclen) {
+size_t Base64Decode(char *const dst, const size_t dstlen,
+                    const TypeName *const src, const size_t srclen) {
   const size_t decoded_size = Base64DecodedSize(src, srclen);
   return Base64DecodeFast(dst, dstlen, src, srclen, decoded_size);
 }
@@ -228,29 +224,22 @@ size_t Base64Decode(char* const dst, const size_t dstlen,
 extern const int8_t unhex_table[256];
 
 template <typename TypeName>
-static size_t HexDecode(char* buf,
-                        size_t len,
-                        const TypeName* src,
+static size_t HexDecode(char *buf, size_t len, const TypeName *src,
                         const size_t srcLen) {
   size_t i;
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
     unsigned a = unhex_table[static_cast<uint8_t>(src[i * 2 + 0])];
     unsigned b = unhex_table[static_cast<uint8_t>(src[i * 2 + 1])];
-    if (!~a || !~b)
-      return i;
+    if (!~a || !~b) return i;
     buf[i] = (a << 4) | b;
   }
 
   return i;
 }
 
-size_t HexEncode(
-    const char* src,
-    size_t slen,
-    char* dst,
-    size_t dlen);
+size_t HexEncode(const char *src, size_t slen, char *dst, size_t dlen);
 
-std::string HexEncode(const char* src, size_t slen);
+std::string HexEncode(const char *src, size_t slen);
 
 // ============================================================================
 // StringSearch
@@ -260,14 +249,14 @@ namespace stringsearch {
 template <typename T>
 class Vector {
  public:
-  Vector(T* data, size_t length, bool isForward)
+  Vector(T *data, size_t length, bool isForward)
       : start_(data), length_(length), is_forward_(isForward) {
     CHECK(length > 0 && data != nullptr);
   }
 
   // Returns the start of the memory range.
   // For vector v this is NOT necessarily &v[0], see forward().
-  const T* start() const { return start_; }
+  const T *start() const { return start_; }
 
   // Returns the length of the vector, in characters.
   size_t length() const { return length_; }
@@ -277,13 +266,13 @@ class Vector {
   bool forward() const { return is_forward_; }
 
   // Access individual vector elements - checks bounds in debug mode.
-  T& operator[](size_t index) const {
+  T &operator[](size_t index) const {
     NBYTES_ASSERT_TRUE(index < length_);
     return start_[is_forward_ ? index : (length_ - index - 1)];
   }
 
  private:
-  T* start_;
+  T *start_;
   size_t length_;
   bool is_forward_;
 };
@@ -331,8 +320,7 @@ class StringSearch : private StringSearchBase {
  public:
   typedef stringsearch::Vector<const Char> Vector;
 
-  explicit StringSearch(Vector pattern)
-      : pattern_(pattern), start_(0) {
+  explicit StringSearch(Vector pattern) : pattern_(pattern), start_(0) {
     if (pattern.length() >= kBMMaxShift) {
       start_ = pattern.length() - kBMMaxShift;
     }
@@ -375,9 +363,9 @@ class StringSearch : private StringSearchBase {
       return kUC16AlphabetSize;
     }
 
-    static_assert(sizeof(Char) == sizeof(uint8_t) ||
-                  sizeof(Char) == sizeof(uint16_t),
-                  "sizeof(Char) == sizeof(uint16_t) || sizeof(uint8_t)");
+    static_assert(
+        sizeof(Char) == sizeof(uint8_t) || sizeof(Char) == sizeof(uint16_t),
+        "sizeof(Char) == sizeof(uint16_t) || sizeof(uint8_t)");
   }
 
  private:
@@ -392,8 +380,7 @@ class StringSearch : private StringSearchBase {
 
   void PopulateBoyerMooreTable();
 
-  static inline int CharOccurrence(int* bad_char_occurrence,
-                                   Char char_code) {
+  static inline int CharOccurrence(int *bad_char_occurrence, Char char_code) {
     if (sizeof(Char) == 1) {
       return bad_char_occurrence[static_cast<int>(char_code)];
     }
@@ -427,12 +414,12 @@ inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
 // Searches for a byte value in a memory buffer, back to front.
 // Uses memrchr(3) on systems which support it, for speed.
 // Falls back to a vanilla for loop on non-GNU systems such as Windows.
-inline const void* MemrchrFill(const void* haystack, uint8_t needle,
+inline const void *MemrchrFill(const void *haystack, uint8_t needle,
                                size_t haystack_len) {
 #ifdef _GNU_SOURCE
   return memrchr(haystack, needle, haystack_len);
 #else
-  const uint8_t* haystack8 = static_cast<const uint8_t*>(haystack);
+  const uint8_t *haystack8 = static_cast<const uint8_t *>(haystack);
   for (size_t i = haystack_len - 1; i != static_cast<size_t>(-1); i--) {
     if (haystack8[i] == needle) {
       return haystack8 + i;
@@ -456,7 +443,7 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
   size_t pos = index;
   do {
     const size_t bytes_to_search = (max_n - pos) * sizeof(Char);
-    const void* void_pos;
+    const void *void_pos;
     if (subject.forward()) {
       // Assert that bytes_to_search won't overflow
       NBYTES_ASSERT_TRUE(pos <= max_n);
@@ -466,12 +453,10 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
       NBYTES_ASSERT_TRUE(pos <= subject.length());
       NBYTES_ASSERT_TRUE(subject.length() - pos <= SIZE_MAX / sizeof(Char));
       void_pos = MemrchrFill(subject.start() + pattern.length() - 1,
-                             search_byte,
-                             bytes_to_search);
+                             search_byte, bytes_to_search);
     }
-    const Char* char_pos = static_cast<const Char*>(void_pos);
-    if (char_pos == nullptr)
-      return subject.length();
+    const Char *char_pos = static_cast<const Char *>(void_pos);
+    if (char_pos == nullptr) return subject.length();
 
     // Then, for each match, verify that the full two bytes match pattern[0].
     char_pos = AlignDown(char_pos, sizeof(Char));
@@ -491,21 +476,19 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
 // Does not verify that the whole pattern matches.
 template <>
 inline size_t FindFirstCharacter(Vector<const uint8_t> pattern,
-                                 Vector<const uint8_t> subject,
-                                 size_t index) {
+                                 Vector<const uint8_t> subject, size_t index) {
   const uint8_t pattern_first_char = pattern[0];
   const size_t subj_len = subject.length();
   const size_t max_n = (subject.length() - pattern.length() + 1);
 
-  const void* pos;
+  const void *pos;
   if (subject.forward()) {
     pos = memchr(subject.start() + index, pattern_first_char, max_n - index);
   } else {
     pos = MemrchrFill(subject.start() + pattern.length() - 1,
-                      pattern_first_char,
-                      max_n - index);
+                      pattern_first_char, max_n - index);
   }
-  const uint8_t* char_pos = static_cast<const uint8_t*>(pos);
+  const uint8_t *char_pos = static_cast<const uint8_t *>(pos);
   if (char_pos == nullptr) {
     return subj_len;
   }
@@ -519,9 +502,7 @@ inline size_t FindFirstCharacter(Vector<const uint8_t> pattern,
 //---------------------------------------------------------------------
 
 template <typename Char>
-size_t StringSearch<Char>::SingleCharSearch(
-    Vector subject,
-    size_t index) {
+size_t StringSearch<Char>::SingleCharSearch(Vector subject, size_t index) {
   NBYTES_ASSERT_TRUE(1 == pattern_.length());
   return FindFirstCharacter(pattern_, subject, index);
 }
@@ -532,15 +513,12 @@ size_t StringSearch<Char>::SingleCharSearch(
 
 // Simple linear search for short patterns. Never bails out.
 template <typename Char>
-size_t StringSearch<Char>::LinearSearch(
-    Vector subject,
-    size_t index) {
+size_t StringSearch<Char>::LinearSearch(Vector subject, size_t index) {
   NBYTES_ASSERT_TRUE(pattern_.length() > 1);
   const size_t n = subject.length() - pattern_.length();
   for (size_t i = index; i <= n; i++) {
     i = FindFirstCharacter(pattern_, subject, i);
-    if (i == subject.length())
-      return subject.length();
+    if (i == subject.length()) return subject.length();
     NBYTES_ASSERT_TRUE(i <= n);
 
     bool matches = true;
@@ -562,16 +540,15 @@ size_t StringSearch<Char>::LinearSearch(
 //---------------------------------------------------------------------
 
 template <typename Char>
-size_t StringSearch<Char>::BoyerMooreSearch(
-    Vector subject,
-    size_t start_index) {
+size_t StringSearch<Char>::BoyerMooreSearch(Vector subject,
+                                            size_t start_index) {
   const size_t subject_length = subject.length();
   const size_t pattern_length = pattern_.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
   size_t start = start_;
 
-  int* bad_char_occurrence = bad_char_shift_table_;
-  int* good_suffix_shift = good_suffix_shift_table_ - start_;
+  int *bad_char_occurrence = bad_char_shift_table_;
+  int *good_suffix_shift = good_suffix_shift_table_ - start_;
 
   Char last_char = pattern_[pattern_length - 1];
   size_t index = start_index;
@@ -595,8 +572,8 @@ size_t StringSearch<Char>::BoyerMooreSearch(
     if (j < start) {
       // we have matched more than our tables allow us to be smart about.
       // Fall back on BMH shift.
-      index += pattern_length - 1 -
-               CharOccurrence(bad_char_occurrence, last_char);
+      index +=
+          pattern_length - 1 - CharOccurrence(bad_char_occurrence, last_char);
     } else {
       int gs_shift = good_suffix_shift[j + 1];
       int bc_occ = CharOccurrence(bad_char_occurrence, c);
@@ -621,8 +598,8 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
 
   // Biased tables so that we can use pattern indices as table indices,
   // even if we only cover the part of the pattern from offset start.
-  int* shift_table = good_suffix_shift_table_ - start_;
-  int* suffix_table = suffix_table_ - start_;
+  int *shift_table = good_suffix_shift_table_ - start_;
+  int *suffix_table = suffix_table_ - start_;
 
   // Initialize table.
   for (size_t i = start; i < pattern_length; i++) {
@@ -681,19 +658,17 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
 //---------------------------------------------------------------------
 
 template <typename Char>
-size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
-    Vector subject,
-    size_t start_index) {
+size_t StringSearch<Char>::BoyerMooreHorspoolSearch(Vector subject,
+                                                    size_t start_index) {
   const size_t subject_length = subject.length();
   const size_t pattern_length = pattern_.length();
-  int* char_occurrences = bad_char_shift_table_;
+  int *char_occurrences = bad_char_shift_table_;
   int64_t badness = -static_cast<int64_t>(pattern_length);
 
   // How bad we are doing without a good-suffix table.
   Char last_char = pattern_[pattern_length - 1];
   int last_char_shift =
-      pattern_length - 1 -
-      CharOccurrence(char_occurrences, last_char);
+      pattern_length - 1 - CharOccurrence(char_occurrences, last_char);
 
   // Perform search
   size_t index = start_index;  // No matches found prior to this index.
@@ -735,7 +710,7 @@ template <typename Char>
 void StringSearch<Char>::PopulateBoyerMooreHorspoolTable() {
   const size_t pattern_length = pattern_.length();
 
-  int* bad_char_occurrence = bad_char_shift_table_;
+  int *bad_char_occurrence = bad_char_shift_table_;
 
   // Only preprocess at most kBMMaxShift last characters of pattern.
   const size_t start = start_;
@@ -765,9 +740,7 @@ void StringSearch<Char>::PopulateBoyerMooreHorspoolTable() {
 // Simple linear search for short patterns, which bails out if the string
 // isn't found very early in the subject. Upgrades to BoyerMooreHorspool.
 template <typename Char>
-size_t StringSearch<Char>::InitialSearch(
-    Vector subject,
-    size_t index) {
+size_t StringSearch<Char>::InitialSearch(Vector subject, size_t index) {
   const size_t pattern_length = pattern_.length();
   // Badness is a count of how much work we have done.  When we have
   // done enough work we decide it's probably worth switching to a better
@@ -780,8 +753,7 @@ size_t StringSearch<Char>::InitialSearch(
     badness++;
     if (badness <= 0) {
       i = FindFirstCharacter(pattern_, subject, i);
-      if (i == subject.length())
-        return subject.length();
+      if (i == subject.length()) return subject.length();
       NBYTES_ASSERT_TRUE(i <= n);
       size_t j = 1;
       do {
@@ -808,8 +780,7 @@ size_t StringSearch<Char>::InitialSearch(
 // object should be constructed once and the Search function then called
 // for each search.
 template <typename Char>
-size_t SearchString(Vector<const Char> subject,
-                    Vector<const Char> pattern,
+size_t SearchString(Vector<const Char> subject, Vector<const Char> pattern,
                     size_t start_index) {
   StringSearch<Char> search(pattern);
   return search.Search(subject, start_index);
@@ -817,20 +788,17 @@ size_t SearchString(Vector<const Char> subject,
 }  // namespace stringsearch
 
 template <typename Char>
-size_t SearchString(const Char* haystack,
-                    size_t haystack_length,
-                    const Char* needle,
-                    size_t needle_length,
-                    size_t start_index,
-                    bool is_forward) {
+size_t SearchString(const Char *haystack, size_t haystack_length,
+                    const Char *needle, size_t needle_length,
+                    size_t start_index, bool is_forward) {
   if (haystack_length < needle_length) return haystack_length;
   // To do a reverse search (lastIndexOf instead of indexOf) without redundant
   // code, create two vectors that are reversed views into the input strings.
   // For example, v_needle[0] would return the *last* character of the needle.
   // So we're searching for the first instance of rev(needle) in rev(haystack)
   stringsearch::Vector<const Char> v_needle(needle, needle_length, is_forward);
-  stringsearch::Vector<const Char> v_haystack(
-      haystack, haystack_length, is_forward);
+  stringsearch::Vector<const Char> v_haystack(haystack, haystack_length,
+                                              is_forward);
   size_t diff = haystack_length - needle_length;
   size_t relative_start_index;
   if (is_forward) {
@@ -840,8 +808,8 @@ size_t SearchString(const Char* haystack,
   } else {
     relative_start_index = diff - start_index;
   }
-  size_t pos = stringsearch::SearchString(
-      v_haystack, v_needle, relative_start_index);
+  size_t pos =
+      stringsearch::SearchString(v_haystack, v_needle, relative_start_index);
   if (pos == haystack_length) {
     // not found
     return pos;
@@ -850,21 +818,23 @@ size_t SearchString(const Char* haystack,
 }
 
 template <size_t N>
-size_t SearchString(const char* haystack, size_t haystack_length,
+size_t SearchString(const char *haystack, size_t haystack_length,
                     const char (&needle)[N]) {
   return SearchString(
-      reinterpret_cast<const uint8_t*>(haystack), haystack_length,
-      reinterpret_cast<const uint8_t*>(needle), N - 1, 0, true);
+      reinterpret_cast<const uint8_t *>(haystack), haystack_length,
+      reinterpret_cast<const uint8_t *>(needle), N - 1, 0, true);
 }
 
 // ============================================================================
 // Version metadata
-#define NBYTES_VERSION "0.0.1"
+#define NBYTES_VERSION "0.1.0"
 
 enum {
   NBYTES_VERSION_MAJOR = 0,
-  NBYTES_VERSION_MINOR = 0,
-  NBYTES_VERSION_REVISION = 1,
+  NBYTES_VERSION_MINOR = 1,
+  NBYTES_VERSION_REVISION = 0,
 };
 
 }  // namespace nbytes
+
+#endif  // NBYTES_H

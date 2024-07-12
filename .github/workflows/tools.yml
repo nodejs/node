@@ -31,6 +31,7 @@ on:
           - lint-md-dependencies
           - llhttp
           - minimatch
+          - nbytes
           - nghttp2
           - nghttp3
           - ngtcp2
@@ -217,6 +218,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-minimatch.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: nbytes
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-nbytes.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
