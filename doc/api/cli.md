@@ -953,18 +953,6 @@ changes:
 Specify the `module` containing exported [module customization hooks][].
 `module` may be any string accepted as an [`import` specifier][].
 
-### `--experimental-network-imports`
-
-<!-- YAML
-added:
-  - v17.6.0
-  - v16.15.0
--->
-
-> Stability: 1 - Experimental
-
-Enable experimental support for the `https:` protocol in `import` specifiers.
-
 ### `--experimental-network-inspection`
 
 <!-- YAML
@@ -2885,7 +2873,6 @@ one is included in the list below.
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
-* `--experimental-network-imports`
 * `--experimental-permission`
 * `--experimental-print-required-tla`
 * `--experimental-require-module`
