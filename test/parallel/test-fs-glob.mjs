@@ -360,7 +360,7 @@ describe('globSync - withFileTypes', function() {
       const actual = globSync(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: common.mustCall((dirent) => assert.ok(dirent instanceof Dirent)),
+        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
       const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
@@ -376,7 +376,7 @@ describe('fsPromises glob - withFileTypes', function() {
       for await (const item of asyncGlob(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: common.mustCall((dirent) => assert.ok(dirent instanceof Dirent)),
+        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       })) actual.push(item);
       assertDirents(actual);
       const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
