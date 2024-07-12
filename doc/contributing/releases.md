@@ -285,6 +285,8 @@ You can integrate the PRs into the proposal without running full CI.
 ⚠️ At this point, you can either run `git node release --prepare`:
 
 ```console
+$ # You need to have locally the tag of the latest release of the release line
+$ git fetch http://github.com/nodejs/node.git tag -n vx.b.c
 $ git node release --prepare x.y.z
 ```
 
@@ -347,7 +349,8 @@ in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
 ```bash
-changelog-maker --group --markdown --filter-release --start-ref v1.2.2
+git fetch http://github.com/nodejs/node.git tag -n v1.2.2
+changelog-maker --group --markdown --filter-release --start-ref FETCH_HEAD
 ```
 
 `--filter-release` will remove the release commit from the previous release.
