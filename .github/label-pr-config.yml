@@ -33,6 +33,7 @@ subSystemLabels:
   /^src\/quic\/*/: c++, quic
   /^src\/node_bob*/: c++, quic
   /^src\/node_sea/: single-executable
+  /^src\/node_sqlite.*/: c++, sqlite
 
   # Properly label changes to V8 inspector integration-related files
   /^src\/inspector_/: c++, inspector, needs-ci
