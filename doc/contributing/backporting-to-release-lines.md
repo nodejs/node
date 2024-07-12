@@ -7,7 +7,7 @@ The branch format is `vN.x-staging`, where `N` is the major release number.
 
 For active staging branches, refer to the [Release Schedule][].
 
-## Identifying what requires a backport
+## Identifying changes that require a backport
 
 If a cherry-pick from `main` doesn't apply cleanly on a staging branch, the pull request
 will be labeled for the release line (e.g., `backport-requested-vN.x`). This indicates
