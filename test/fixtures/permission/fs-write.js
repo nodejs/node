@@ -338,7 +338,7 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
 
 // fs.lchmod
 {
-  if (common.isOSX) {
+  if (common.isMacOS) {
     fs.lchmod(blockedFile, 0o755, common.expectsError({
       code: 'ERR_ACCESS_DENIED',
       permission: 'FileSystemWrite',

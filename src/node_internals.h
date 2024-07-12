@@ -362,7 +362,7 @@ bool HasSignalJSHandler(int signum);
 
 #ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;
-#else  // UNIX, OSX
+#else  // UNIX, macOS
 typedef struct tm TIME_TYPE;
 #endif
 
