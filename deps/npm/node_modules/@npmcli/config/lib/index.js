@@ -669,12 +669,12 @@ class Config {
       }
 
       if (this.localPrefix && hasPackageJson) {
-        const rpj = require('read-package-json-fast')
+        const pkgJson = require('@npmcli/package-json')
         // if we already set localPrefix but this dir has a package.json
         // then we need to see if `p` is a workspace root by reading its package.json
         // however, if reading it fails then we should just move on
-        const pkg = await rpj(resolve(p, 'package.json')).catch(() => false)
-        if (!pkg) {
+        const { content: pkg } = await pkgJson.normalize(p).catch(() => ({ content: {} }))
+        if (!pkg?.workspaces) {
           continue
         }
 

@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----packagejson----1081">
+<h1 id="----packagejson----1082">
     <span>package.json</span>
-    <span class="version">@10.8.1</span>
+    <span class="version">@10.8.2</span>
 </h1>
 <span class="description">Specifics of npm's package.json handling</span>
 </header>
@@ -315,21 +315,27 @@ you:</p>
 <p>npm also sets a top-level "maintainers" field with your npm user info.</p>
 <h3 id="funding">funding</h3>
 <p>You can specify an object containing a URL that provides up-to-date
-information about ways to help fund development of your package, or a
-string URL, or an array of these:</p>
+information about ways to help fund development of your package, a
+string URL, or an array of objects and string URLs:</p>
 <pre><code class="language-json">{
   "funding": {
     "type" : "individual",
     "url" : "http://example.com/donate"
-  },
-
+  }
+}
+</code></pre>
+<pre><code class="language-json">{
   "funding": {
     "type" : "patreon",
     "url" : "https://www.patreon.com/my-account"
-  },
-
-  "funding": "http://example.com/donate",
-
+  }
+}
+</code></pre>
+<pre><code class="language-json">{
+  "funding": "http://example.com/donate"
+}
+</code></pre>
+<pre><code class="language-json">{
   "funding": [
     {
       "type" : "individual",
@@ -345,7 +351,7 @@ string URL, or an array of these:</p>
 </code></pre>
 <p>Users can use the <code>npm fund</code> subcommand to list the <code>funding</code> URLs of all
 dependencies of their project, direct and indirect. A shortcut to visit
-each funding url is also available when providing the project name such as:
+each funding URL is also available when providing the project name such as:
 <code>npm fund &lt;projectname&gt;</code> (when there are multiple URLs, the first one will
 be visited)</p>
 <h3 id="files">files</h3>
@@ -535,7 +541,7 @@ command will be able to find you.</p>
 <pre><code class="language-json">{
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/cli.git"
+    "url": "git+https://github.com/npm/cli.git"
   }
 }
 </code></pre>
@@ -563,8 +569,8 @@ which it lives:</p>
 <pre><code class="language-json">{
   "repository": {
     "type": "git",
-    "url": "https://github.com/facebook/react.git",
-    "directory": "packages/react-dom"
+    "url": "git+https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmpublish"
   }
 }
 </code></pre>
