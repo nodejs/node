@@ -50,6 +50,7 @@ const versionFromTgz = require('./version-from-tgz.js')
 const npa = require('npm-package-arg')
 const pkgJson = require('@npmcli/package-json')
 const parseJSON = require('parse-conflict-json')
+const nameFromFolder = require('@npmcli/name-from-folder')
 
 const stringify = require('json-stringify-nice')
 const swKeyOrder = [
@@ -233,7 +234,8 @@ class Shrinkwrap {
     // root to help prevent churn based on the name of the directory the
     // project is in
     const pname = node.packageName
-    if (pname && (node === node.root || pname !== node.name)) {
+    // when Target package name and Target node share the same name, we include the name, target node should have name as per realpath.
+    if (pname && (node === node.root || pname !== node.name || nameFromFolder(node.realpath) !== pname)) {
       meta.name = pname
     }
 

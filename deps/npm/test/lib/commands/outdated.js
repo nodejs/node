@@ -631,3 +631,34 @@ t.test('aliases', async t => {
   t.matchSnapshot(joinedOutput(), 'should display aliased outdated dep output')
   t.equal(process.exitCode, 1)
 })
+
+t.test('aliases with version range', async t => {
+  const testDir = {
+    'package.json': JSON.stringify({
+      name: 'display-aliases',
+      version: '1.0.0',
+      dependencies: {
+        cat: 'npm:dog@^1.0.0',
+      },
+    }),
+    node_modules: {
+      cat: {
+        'package.json': JSON.stringify({
+          name: 'dog',
+          version: '1.0.0',
+        }),
+      },
+    },
+  }
+
+  const { outdated, joinedOutput } = await mockNpm(t, {
+    prefixDir: testDir,
+  })
+  await outdated.exec([])
+
+  t.matchSnapshot(
+    joinedOutput(),
+    'should display aliased outdated dep output with correct wanted values'
+  )
+  t.equal(process.exitCode, 1)
+})
