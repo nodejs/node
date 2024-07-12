@@ -345,7 +345,7 @@ describe('glob - withFileTypes', function() {
       const actual = await promisified(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: common.mustCall((dirent) => assert.ok(dirent instanceof Dirent)),
+        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
       });
       assertDirents(actual);
       const normalized = expected.filter(Boolean).map((item) => basename(item)).sort();
