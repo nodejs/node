@@ -501,7 +501,7 @@ void ArrayBufferViewContents<T, S>::ReadValue(v8::Local<v8::Value> buf) {
   }
 }
 
-// ECMA262 20.1.2.5
+// ECMA-262, 15th edition, 21.1.2.5. Number.isSafeInteger
 inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
   if (!v->IsNumber()) return false;
   double v_d = v.As<v8::Number>()->Value();
