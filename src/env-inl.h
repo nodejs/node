@@ -670,7 +670,8 @@ inline bool Environment::owns_inspector() const {
 
 inline bool Environment::should_create_inspector() const {
   return (flags_ & EnvironmentFlags::kNoCreateInspector) == 0 &&
-         !options_->test_runner && !options_->watch_mode;
+         !(options_->test_runner && options_->test_isolation == "process") &&
+         !options_->watch_mode;
 }
 
 inline bool Environment::should_wait_for_inspector_frontend() const {
