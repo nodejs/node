@@ -490,10 +490,11 @@ An exception will be thrown if there is no active inspector.
 
 ## Node.js-specific protocol events
 
-Node.js has dedicated DevTools protocols for debugging. The following methods emit a protocol
-event with optional `params`. These methods allow you to send custom events that conform to the
-DevTools protocol, facilitating integration with debugging and inspection tools. The emitted
-events can be captured by connected DevTools Frontend instances, such as Chrome DevTools.
+Node.js extends the Chrome DevTools protocol with Node.js-specific protocol events. DevTools
+frontends connected to a running Node.js instance can capture these events and display them
+accordingly to facilitate debugging.
+The following methods broadcast a Node.js-specific protocol event to all connected frontends.
+The `params` passed to the methods can be optional, depending on the protocol.
 
 ```js
 // The `NodeNetwork.requestWillBeSent` event will be fired.
@@ -521,8 +522,8 @@ added:
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
-Emits the `NodeNetwork.requestWillBeSent` event. This event indicates that the application is
-about to send an HTTP request.
+Broadcasts the `NodeNetwork.requestWillBeSent` event to connected frontends. This event indicates that
+the application is about to send an HTTP request.
 
 ### `inspector.NodeNetwork.responseReceived([params])`
 
@@ -537,8 +538,8 @@ added:
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
-Emits the `NodeNetwork.responseReceived` event. This event indicates that HTTP response is
-available.
+Broadcasts the `NodeNetwork.responseReceived` event to connected frontends. This event indicates that
+HTTP response is available.
 
 ### `inspector.NodeNetwork.loadingFinished([params])`
 
@@ -553,8 +554,8 @@ added:
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
-Emits the `NodeNetwork.loadingFinished` event. This event indicates that HTTP request has
-finished loading.
+Broadcasts the `NodeNetwork.loadingFinished` event to connected frontends. This event indicates that
+HTTP request has finished loading.
 
 ## Support of breakpoints
 
