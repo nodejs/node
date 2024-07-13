@@ -187,6 +187,44 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
 });
 
+test('coverage works with isolation=none', skipIfNoInspector, () => {
+  // There is a bug in coverage calculation. The branch % in the common.js
+  // fixture is different depending on the test isolation mode. The 'none' mode
+  // is closer to what c8 reports here, so the bug is likely in the code that
+  // merges reports from different processes.
+  let report = [
+    '# start of coverage report',
+    '# -------------------------------------------------------------------',
+    '# file           | line % | branch % | funcs % | uncovered lines',
+    '# -------------------------------------------------------------------',
+    '# common.js      |  89.86 |    68.42 |  100.00 | 8 13-14 18 34-35 53',
+    '# first.test.js  |  83.33 |   100.00 |   50.00 | 5-6',
+    '# second.test.js | 100.00 |   100.00 |  100.00 | ',
+    '# third.test.js  | 100.00 |   100.00 |  100.00 | ',
+    '# -------------------------------------------------------------------',
+    '# all files      |  92.11 |    76.00 |   88.89 |',
+    '# -------------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('v8-coverage', 'combined_coverage');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', '--experimental-test-isolation=none',
+  ];
+  const result = spawnSync(process.execPath, args, {
+    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+    cwd: fixture,
+  });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+});
+
 test('coverage reports on lines, functions, and branches', skipIfNoInspector, async (t) => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const child = spawnSync(process.execPath,
