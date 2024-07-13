@@ -143,6 +143,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   }
 
   if (test_runner) {
+    if (test_isolation != "process" && test_isolation != "none") {
+      errors->push_back("invalid value for --experimental-test-isolation");
+    }
+
     if (syntax_check_only) {
       errors->push_back("either --test or --check can be used, not both");
     }
@@ -646,6 +650,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);
+  AddOption("--experimental-test-isolation",
+            "configures the type of test isolation used in the test runner",
+            &EnvironmentOptions::test_isolation);
   AddOption("--experimental-test-module-mocks",
             "enable module mocking in the test runner",
             &EnvironmentOptions::test_runner_module_mocks);
