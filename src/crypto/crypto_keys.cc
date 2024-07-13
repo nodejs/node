@@ -26,6 +26,7 @@ using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -431,10 +432,9 @@ MaybeLocal<Value> WritePublicKey(Environment* env,
   return BIOToStringOrBuffer(env, bio.get(), config.format_);
 }
 
-Maybe<bool> ExportJWKSecretKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
+Maybe<void> ExportJWKSecretKey(Environment* env,
+                               std::shared_ptr<KeyObjectData> key,
+                               Local<Object> target) {
   CHECK_EQ(key->GetKeyType(), kKeyTypeSecret);
 
   Local<Value> error;
@@ -449,10 +449,9 @@ Maybe<bool> ExportJWKSecretKey(
   if (key_data.IsEmpty()) {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  if (!key_data.ToLocal(&raw))
-    return Nothing<bool>();
+  if (!key_data.ToLocal(&raw)) return Nothing<void>();
 
   if (target->Set(
           env->context(),
@@ -462,10 +461,10 @@ Maybe<bool> ExportJWKSecretKey(
           env->context(),
           env->jwk_k_string(),
           raw).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 std::shared_ptr<KeyObjectData> ImportJWKSecretKey(
@@ -483,19 +482,18 @@ std::shared_ptr<KeyObjectData> ImportJWKSecretKey(
   return KeyObjectData::CreateSecret(std::move(key_data));
 }
 
-Maybe<bool> ExportJWKAsymmetricKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target,
-    bool handleRsaPss) {
+Maybe<void> ExportJWKAsymmetricKey(Environment* env,
+                                   std::shared_ptr<KeyObjectData> key,
+                                   Local<Object> target,
+                                   bool handleRsaPss) {
   switch (EVP_PKEY_id(key->GetAsymmetricKey().get())) {
     case EVP_PKEY_RSA_PSS: {
       if (handleRsaPss) return ExportJWKRsaKey(env, key, target);
       break;
     }
     case EVP_PKEY_RSA: return ExportJWKRsaKey(env, key, target);
-    case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target).IsJust() ?
-                               Just(true) : Nothing<bool>();
+    case EVP_PKEY_EC:
+      return ExportJWKEcKey(env, key, target);
     case EVP_PKEY_ED25519:
       // Fall through
     case EVP_PKEY_ED448:
@@ -505,7 +503,7 @@ Maybe<bool> ExportJWKAsymmetricKey(
     case EVP_PKEY_X448: return ExportJWKEdKey(env, key, target);
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
-  return Nothing<bool>();
+  return Nothing<void>();
 }
 
 std::shared_ptr<KeyObjectData> ImportJWKAsymmetricKey(
@@ -605,12 +603,12 @@ size_t ManagedEVPPKey::size_of_public_key() const {
       pkey_.get(), nullptr, &len) == 1) ? len : 0;
 }
 
-// This maps true to Just<bool>(true) and false to Nothing<bool>().
-static inline Maybe<bool> Tristate(bool b) {
-  return b ? Just(true) : Nothing<bool>();
+// This maps true to JustVoid and false to Nothing<void>().
+static inline Maybe<void> NothingIfFalse(bool b) {
+  return b ? JustVoid() : Nothing<void>();
 }
 
-Maybe<bool> ExportJWKInner(Environment* env,
+Maybe<void> ExportJWKInner(Environment* env,
                            std::shared_ptr<KeyObjectData> key,
                            Local<Value> result,
                            bool handleRsaPss) {
@@ -627,17 +625,17 @@ Maybe<bool> ExportJWKInner(Environment* env,
   }
 }
 
-Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
+Maybe<void> ManagedEVPPKey::ToEncodedPublicKey(
     Environment* env,
     const PublicKeyEncodingConfig& config,
     Local<Value>* out) {
-  if (!*this) return Nothing<bool>();
+  if (!*this) return Nothing<void>();
   if (config.output_key_object_) {
     // Note that this has the downside of containing sensitive data of the
     // private key.
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePublic, *this);
-    return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
+    return NothingIfFalse(KeyObjectHandle::Create(env, data).ToLocal(out));
   } else if (config.format_ == kKeyFormatJWK) {
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePublic, *this);
@@ -645,18 +643,18 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
     return ExportJWKInner(env, data, *out, false);
   }
 
-  return Tristate(WritePublicKey(env, get(), config).ToLocal(out));
+  return NothingIfFalse(WritePublicKey(env, get(), config).ToLocal(out));
 }
 
-Maybe<bool> ManagedEVPPKey::ToEncodedPrivateKey(
+Maybe<void> ManagedEVPPKey::ToEncodedPrivateKey(
     Environment* env,
     const PrivateKeyEncodingConfig& config,
     Local<Value>* out) {
-  if (!*this) return Nothing<bool>();
+  if (!*this) return Nothing<void>();
   if (config.output_key_object_) {
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePrivate, *this);
-    return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
+    return NothingIfFalse(KeyObjectHandle::Create(env, data).ToLocal(out));
   } else if (config.format_ == kKeyFormatJWK) {
     std::shared_ptr<KeyObjectData> data =
         KeyObjectData::CreateAsymmetric(kKeyTypePrivate, *this);
@@ -664,7 +662,7 @@ Maybe<bool> ManagedEVPPKey::ToEncodedPrivateKey(
     return ExportJWKInner(env, data, *out, false);
   }
 
-  return Tristate(WritePrivateKey(env, get(), config).ToLocal(out));
+  return NothingIfFalse(WritePrivateKey(env, get(), config).ToLocal(out));
 }
 
 NonCopyableMaybe<PrivateKeyEncodingConfig>
