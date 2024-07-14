@@ -188,6 +188,8 @@ class EnvironmentOptions : public Options {
   bool test_udp_no_try_send = false;
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> coverage_include_pattern;
+  std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
   bool trace_atomics_wait = false;
   bool trace_deprecation = false;
