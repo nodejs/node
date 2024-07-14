@@ -176,6 +176,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/55085
     description: require() now supports loading synchronous ES modules by default.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54563
+    description: Support `'module.exports'` interop export in `require(esm)`.
 -->
 
 > Stability: 1.1 - Active Development. Enable this API with the
@@ -208,10 +211,9 @@ export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
 
 ```mjs
 // point.mjs
-class Point {
+export default class Point {
   constructor(x, y) { this.x = x; this.y = y; }
 }
-export default Point;
 ```
 
 A CommonJS module can load them with `require()`:
@@ -239,6 +241,66 @@ ES Modules. If the namespace already defines `__esModule`, this would not be add
 This property is experimental and can change in the future. It should only be used
 by tools converting ES modules into CommonJS modules, following existing ecosystem
 conventions. Code authored directly in CommonJS should avoid depending on it.
+
+When a ES Module contains both named exports and a default export, the result returned by `require()`
+is the module namespace object, which places the default export in the `.default` property, similar to
+the results returned by `import()`.
+To customize what should be returned by `require(esm)` directly, the ES Module can export the
+desired value using the string name `"module.exports"`.
+
+<!-- eslint-disable @stylistic/js/semi -->
+
+```mjs
+// point.mjs
+export default class Point {
+  constructor(x, y) { this.x = x; this.y = y; }
+}
+
+// `distance` is lost to CommonJS consumers of this module, unless it's
+// added to `Point` as a static property.
+export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
+export { Point as 'module.exports' }
+```
+
+<!-- eslint-disable node-core/no-duplicate-requires -->
+
+```cjs
+const Point = require('./point.mjs');
+console.log(Point); // [class Point]
+
+// Named exports are lost when 'module.exports' is used
+const { distance } = require('./point.mjs');
+console.log(distance); // undefined
+```
+
+Notice in the example above, when the `module.exports` export name is used, named exports
+will be lost to CommonJS consumers. To allow  CommonJS consumers to continue accessing
+named exports, the module can make sure that the default export is an object with the
+named exports attached to it as properties. For example with the example above,
+`distance` can be attached to the default export, the `Point` class, as a static method.
+
+<!-- eslint-disable @stylistic/js/semi -->
+
+```mjs
+export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
+
+export default class Point {
+  constructor(x, y) { this.x = x; this.y = y; }
+  static distance = distance;
+}
+
+export { Point as 'module.exports' }
+```
+
+<!-- eslint-disable node-core/no-duplicate-requires -->
+
+```cjs
+const Point = require('./point.mjs');
+console.log(Point); // [class Point]
+
+const { distance } = require('./point.mjs');
+console.log(distance); // [Function: distance]
+```
 
 If the module being `require()`'d contains top-level `await`, or the module
 graph it `import`s contains top-level `await`,
