@@ -64,7 +64,7 @@ module.exports = async (client, context) => {
 
     const body =
             'The following teams have been pinged to review your changes:\n\n' +
-            ownersList
+            ownersList;
 
     return client.rest.issues.createComment({
       owner: context.repo.owner,
