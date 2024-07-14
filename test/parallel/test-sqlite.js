@@ -388,6 +388,22 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
       message: /The "readBigInts" argument must be a boolean/,
     });
   });
+
+  test('BigInt is required for reading large integers', (t) => {
+    const db = new DatabaseSync(nextDb());
+    const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
+    t.assert.throws(() => {
+      bad.get();
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: /^The value of column 0 is too large.*: 9007199254740992$/,
+    });
+    const good = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
+    good.setReadBigInts(true);
+    t.assert.deepStrictEqual(good.get(), {
+      [`${Number.MAX_SAFE_INTEGER} + 1`]: 2n ** 53n,
+    });
+  });
 });
 
 suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {

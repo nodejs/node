@@ -370,12 +370,21 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
 
 Local<Value> StatementSync::ColumnToValue(const int column) {
   switch (sqlite3_column_type(statement_, column)) {
-    case SQLITE_INTEGER:
+    case SQLITE_INTEGER: {
+      sqlite3_int64 value = sqlite3_column_int64(statement_, column);
       if (use_big_ints_) {
-        return BigInt::New(env()->isolate(),
-                           sqlite3_column_int64(statement_, column));
+        return BigInt::New(env()->isolate(), value);
+      } else if (std::abs(value) <= kMaxSafeJsInteger) {
+        return Number::New(env()->isolate(), value);
+      } else {
+        THROW_ERR_OUT_OF_RANGE(env()->isolate(),
+                               "The value of column %d is too large to be "
+                               "represented as a JavaScript number: %" PRId64,
+                               column,
+                               value);
+        return Local<Value>();
       }
-      // Fall through.
+    }
     case SQLITE_FLOAT:
       return Number::New(env()->isolate(),
                          sqlite3_column_double(statement_, column));
