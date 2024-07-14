@@ -674,6 +674,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-skip-pattern",
             "run tests whose name do not match this regular expression",
             &EnvironmentOptions::test_skip_pattern);
+  AddOption("--test-coverage-include",
+            "include files in coverage report that match this glob pattern",
+            &EnvironmentOptions::coverage_include_pattern,
+            kAllowedInEnvvar);
+  AddOption("--test-coverage-exclude",
+            "exclude files from coverage report that match this glob pattern",
+            &EnvironmentOptions::coverage_exclude_pattern,
+            kAllowedInEnvvar);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);
   AddOption("--throw-deprecation",
