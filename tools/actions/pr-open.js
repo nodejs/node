@@ -63,13 +63,8 @@ module.exports = async (client, context) => {
     const ownersList = Array.from(owners).map((owner) => `- ${owner}`).join('\n');
 
     const body =
-            'Hi 👋! Thank you for submitting this pull-request!\n\n' +
-            'According to the CODEOWNERS file, the following people are responsible for' +
-            "reviewing changes to the files you've modified:\n\n" +
-            ownersList + '\n\n' +
-            'They, along with other project maintainers, will be notified of your pull request.' +
-            'Please be patient and wait for them to review your changes.\n\n' +
-            "If you have any questions, please don't hesitate to ask!";
+            'The following teams have been pinged to review your changes:\n\n' +
+            ownersList
 
     return client.rest.issues.createComment({
       owner: context.repo.owner,
