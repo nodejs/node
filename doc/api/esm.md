@@ -474,7 +474,30 @@ See [Loading ECMAScript modules using `require()`][] for details.
 
 ### CommonJS Namespaces
 
+<!-- YAML
+added: v14.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53848
+    description: Added `'module.exports'` export marker to CJS namespaces.
+-->
+
 CommonJS modules consist of a `module.exports` object which can be of any type.
+
+To support this, when importing CommonJS from an ECMAScript module, a namespace
+wrapper for the CommonJS module is constructed, which always provides a
+`default` export key pointing to the CommonJS `module.exports` value.
+
+In addition, a heuristic static analysis is performed against the source text of
+the CommonJS module to get a best-effort static list of exports to provide on
+the namespace from values on `module.exports`. This is necessary since these
+namespaces must be constructed prior to the evaluation of the CJS module.
+
+These CommonJS namespace objects also provide the `default` export as a
+`'module.exports'` named export, in order to unambiguously indicate that their
+representation in CommonJS uses this value, and not the namespace value. This
+mirrors the semantics of the handling of the `'module.exports'` export name in
+[`require(esm)`][] interop support.
 
 When importing a CommonJS module, it can be reliably imported using the ES
 module default import or its corresponding sugar syntax:
@@ -483,9 +506,7 @@ module default import or its corresponding sugar syntax:
 
 ```js
 import { default as cjs } from 'cjs';
-
-// The following import statement is "syntax sugar" (equivalent but sweeter)
-// for `{ default as cjsSugar }` in the above import statement:
+// identical to the above
 import cjsSugar from 'cjs';
 
 console.log(cjs);
@@ -494,10 +515,6 @@ console.log(cjs === cjsSugar);
 //   <module.exports>
 //   true
 ```
-
-The ECMAScript Module Namespace representation of a CommonJS module is always
-a namespace with a `default` export key pointing to the CommonJS
-`module.exports` value.
 
 This Module Namespace Exotic Object can be directly observed either when using
 `import * as m from 'cjs'` or a dynamic import:
@@ -509,7 +526,7 @@ import * as m from 'cjs';
 console.log(m);
 console.log(m === await import('cjs'));
 // Prints:
-//   [Module] { default: <module.exports> }
+//   [Module] { default: <module.exports>, 'module.exports': <module.exports> }
 //   true
 ```
 
@@ -540,7 +557,12 @@ console.log(cjs);
 
 import * as m from './cjs.cjs';
 console.log(m);
-// Prints: [Module] { default: { name: 'exported' }, name: 'exported' }
+// Prints:
+//   [Module] {
+//     default: { name: 'exported' },
+//     'module.exports': { name: 'exported' },
+//     name: 'exported'
+//   }
 ```
 
 As can be seen from the last example of the Module Namespace Exotic Object being
@@ -1103,6 +1125,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
+[`require(esm)`]: modules.md#loading-ecmascript-modules-using-require
 [`url.fileURLToPath()`]: url.md#urlfileurltopathurl-options
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
