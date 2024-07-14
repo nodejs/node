@@ -72,6 +72,10 @@ const STEP_KIND_CALL = 2;
 /** @typedef {import("../shared/types").Processor} Processor */
 /** @typedef {import("../shared/types").Rule} Rule */
 /** @typedef {import("../shared/types").Times} Times */
+/** @typedef {import("@eslint/core").Language} Language */
+/** @typedef {import("@eslint/core").RuleSeverity} RuleSeverity */
+/** @typedef {import("@eslint/core").RuleConfig} RuleConfig */
+
 
 /* eslint-disable jsdoc/valid-types -- https://github.com/jsdoc-type-pratt-parser/jsdoc-type-pratt-parser/issues/4#issuecomment-778805577 */
 /**
@@ -276,7 +280,7 @@ function updateLocationInformation({ line, column, endLine, endColumn }, languag
  * @param {string} [options.ruleId] the ruleId to report
  * @param {Object} [options.loc] the loc to report
  * @param {string} [options.message] the error message to report
- * @param {string} [options.severity] the error message to report
+ * @param {RuleSeverity} [options.severity] the error message to report
  * @param {Language} [options.language] the language to use to adjust the location information
  * @returns {LintMessage} created problem, returns a missing-rule problem if only provided ruleId.
  * @private
@@ -877,7 +881,7 @@ function storeTime(time, timeOpts, slots) {
 
 /**
  * Get the options for a rule (not including severity), if any
- * @param {Array|number} ruleConfig rule configuration
+ * @param {RuleConfig} ruleConfig rule configuration
  * @returns {Array} of rule options, empty Array if none
  */
 function getRuleOptions(ruleConfig) {
@@ -941,7 +945,7 @@ function parse(file, language, languageOptions) {
             nodeType: null,
             fatal: true,
             severity: 2,
-            message: error.message,
+            message: `Parsing error: ${error.message}`,
             line: error.line,
             column: error.column
         }))

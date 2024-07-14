@@ -29,6 +29,10 @@ const
 //------------------------------------------------------------------------------
 
 /** @typedef {import("eslint-scope").Variable} Variable */
+/** @typedef {import("eslint-scope").Scope} Scope */
+/** @typedef {import("@eslint/core").SourceCode} ISourceCode */
+/** @typedef {import("@eslint/core").Directive} IDirective */
+/** @typedef {import("@eslint/core").TraversalStep} ITraversalStep */
 
 //------------------------------------------------------------------------------
 // Private
@@ -373,6 +377,7 @@ class TraversalStep {
 
 /**
  * A class to represent a directive comment.
+ * @implements {IDirective}
  */
 class Directive {
 
@@ -429,12 +434,13 @@ const caches = Symbol("caches");
 
 /**
  * Represents parsed source code.
+ * @implements {ISourceCode}
  */
 class SourceCode extends TokenStore {
 
     /**
      * The cache of steps that were taken while traversing the source code.
-     * @type {Array<TraversalStep>}
+     * @type {Array<ITraversalStep>}
      */
     #steps;
 
@@ -838,7 +844,7 @@ class SourceCode extends TokenStore {
     /**
      * Gets the scope for the given node
      * @param {ASTNode} currentNode The node to get the scope of
-     * @returns {eslint-scope.Scope} The scope information for this node
+     * @returns {Scope} The scope information for this node
      * @throws {TypeError} If the `currentNode` argument is missing.
      */
     getScope(currentNode) {
