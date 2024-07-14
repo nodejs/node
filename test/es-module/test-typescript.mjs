@@ -164,9 +164,9 @@ test('execute CommonJS TypeScript file from node_modules with require-module', a
     fixtures.path('typescript/ts/test-import-ts-node-modules.ts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
 });
 
 test('execute a TypeScript file with CommonJS syntax but default type module', async () => {

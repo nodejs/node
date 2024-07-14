@@ -69,9 +69,9 @@ test('execute an .mts file from node_modules', async () => {
     fixtures.path('typescript/mts/test-mts-node_modules.mts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
 });
 
 test('execute a .cts file from node_modules', async () => {
@@ -80,9 +80,9 @@ test('execute a .cts file from node_modules', async () => {
     fixtures.path('typescript/mts/test-cts-node_modules.mts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
 });
 
 test('execute a .ts file from node_modules', async () => {
@@ -91,7 +91,7 @@ test('execute a .ts file from node_modules', async () => {
     fixtures.path('typescript/mts/test-ts-node_modules.mts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
 });

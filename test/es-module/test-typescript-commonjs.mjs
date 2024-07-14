@@ -120,47 +120,47 @@ test('expect failure of a .cts file with default type module', async () => {
   strictEqual(result.code, 0);
 });
 
-test('expect failure of a .cts file with default type module', async () => {
+test('expect failure of a .cts file in node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     fixtures.path('typescript/cts/test-cts-node_modules.cts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  strictEqual(result.stdout, '');
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  strictEqual(result.code, 1);
 });
 
-test('expect failure of a .cts file with default type module', async () => {
+test('expect failure of a .ts file in node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     fixtures.path('typescript/cts/test-ts-node_modules.cts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  strictEqual(result.stdout, '');
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  strictEqual(result.code, 1);
 });
 
-test('expect failure of a .cts file with default type module', async () => {
+test('expect failure of a .cts requiring esm without default type module', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     fixtures.path('typescript/cts/test-mts-node_modules.cts'),
   ]);
 
   strictEqual(result.stdout, '');
-  match(result.stderr, /Error \[ERR_REQUIRE_ESM\]: require\(\)/);
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
   strictEqual(result.code, 1);
 });
 
-test('expect failure of a .cts file with default type module', async () => {
+test('expect failure of a .cts file requiring esm in node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--experimental-require-module',
     fixtures.path('typescript/cts/test-mts-node_modules.cts'),
   ]);
 
-  match(result.stderr, /Support for loading ES Module in require\(\) is an experimental feature and might change at any time/);
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  strictEqual(result.stdout, '');
+  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  strictEqual(result.code, 1);
 });

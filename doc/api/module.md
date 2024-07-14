@@ -1140,6 +1140,14 @@ import { Type1, Type2 } from './module.ts';
 import { fn, FnParams } from './fn.ts';
 ```
 
+### Type stripping in `node_modules` directories
+
+To avoid encouraging package authors to publish TypeScript only modules,
+Node.js will by default refuse to handle TypeScript files inside `node_modules` directories.
+When attempting to resolve a `.ts`, `.cts`, or `.mts` file that is a children of a
+`node_modules` directory, `defaultResolve` will throw
+a [`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`][] error.
+
 ### Non-file forms of input
 
 Type stripping can be enabled for `--eval` and STDIN input. The module system
@@ -1167,6 +1175,7 @@ source maps support, see
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`]: errors.md#err_unsupported_node_modules_type_stripping
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`SourceMap`]: #class-modulesourcemap
