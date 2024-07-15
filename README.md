@@ -329,7 +329,7 @@ For information about the governance of the Node.js project, see
   **Deokjin Kim** <<deokjin81.kim@gmail.com>> (he/him)
 * [edsadr](https://github.com/edsadr) -
   **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
-* [erickwendel](https://github.com/erickwendel) -
+* [ErickWendel](https://github.com/ErickWendel) -
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
 * [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
   **Ethan Arrowood** <<ethan@arrowood.dev>> (he/him)
@@ -379,7 +379,7 @@ For information about the governance of the Node.js project, see
   **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
 * [lemire](https://github.com/lemire) -
   **Daniel Lemire** <<daniel@lemire.me>>
-* [linkgoron](https://github.com/linkgoron) -
+* [Linkgoron](https://github.com/Linkgoron) -
   **Nitzan Uziely** <<linkgoron@gmail.com>>
 * [LiviaMedeiros](https://github.com/LiviaMedeiros) -
   **LiviaMedeiros** <<livia@cirno.name>>
