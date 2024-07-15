@@ -3204,6 +3204,16 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.filePath`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The absolute path of the test file that created the current test. If a test file
+imports additional modules that generate tests, the imported tests will return
+the path of the root test file.
+
 ### `context.fullName`
 
 <!-- YAML
@@ -3437,6 +3447,16 @@ added:
 An instance of `SuiteContext` is passed to each suite function in order to
 interact with the test runner. However, the `SuiteContext` constructor is not
 exposed as part of the API.
+
+### `context.filePath`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The absolute path of the test file that created the current suite. If a test
+file imports additional modules that generate suites, the imported suites will
+return the path of the root test file.
 
 ### `context.name`
 
