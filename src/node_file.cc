@@ -3098,7 +3098,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
       file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
       Local<Value> local_file_path =
           Buffer::Copy(
-              env->isolate(), file_path.c_str(), strlen(file_path.c_str()))
+              env->isolate(), file_path.c_str(), file_path.size())
               .ToLocalChecked();
       BufferValue buff_file_path(isolate, local_file_path);
       ToNamespacedPath(env, &buff_file_path);
@@ -3141,7 +3141,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
     Local<Value> local_file_path =
         Buffer::Copy(
-            env->isolate(), file_path.c_str(), strlen(file_path.c_str()))
+            env->isolate(), file_path.c_str(), file_path.size())
             .ToLocalChecked();
     BufferValue buff_file_path(isolate, local_file_path);
     ToNamespacedPath(env, &buff_file_path);
