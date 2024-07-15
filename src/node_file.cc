@@ -3149,13 +3149,8 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::optional<std::string> module_path =
-      node::url::FileURLToPath(env, *package_json_url);
+  std::string module_path = *initial_file_path + ".js";
   std::optional<std::string> module_base;
-
-  if (!module_path.has_value()) {
-    return;
-  }
 
   if (args.Length() >= 3 && args[2]->IsString()) {
     Utf8Value utf8_base_path(isolate, args[2]);
@@ -3180,7 +3175,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
   THROW_ERR_MODULE_NOT_FOUND(isolate,
                              "Cannot find package '%s' imported from %s",
-                             *module_path,
+                             module_path,
                              *module_base);
 }
 

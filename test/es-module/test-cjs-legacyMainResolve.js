@@ -129,7 +129,7 @@ describe('legacyMainResolve', () => {
     );
     assert.throws(
       () => legacyMainResolve(packageJsonUrl, { main: null }, packageJsonUrl),
-      { code: 'ERR_MODULE_NOT_FOUND' },
+      { message: /index\.js/, code: 'ERR_MODULE_NOT_FOUND' },
     );
   });
 
@@ -137,7 +137,7 @@ describe('legacyMainResolve', () => {
     const packageJsonUrl = pathToFileURL('/c/file%20with%20percents/package.json');
     assert.throws(
       () => legacyMainResolve(packageJsonUrl, { main: null }, packageJsonUrl),
-      { code: 'ERR_MODULE_NOT_FOUND' },
+      { message: /index\.js/, code: 'ERR_MODULE_NOT_FOUND' },
     );
   });
 
