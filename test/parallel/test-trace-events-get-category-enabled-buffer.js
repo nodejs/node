@@ -1,18 +1,18 @@
 // Flags: --expose-internals
 
-import * as common from '../common/index.mjs';
-import { it } from 'node:test';
+const common = require('../common/index');
+const { it } = require('node:test');
 
 try {
-  await import('node:trace_events');
+  require('trace_events');
 } catch {
   common.skip('missing trace events');
 }
 
-import { createTracing, getEnabledCategories } from 'node:trace_events';
-import assert from 'node:assert';
+const { createTracing, getEnabledCategories } = require('trace_events');
+const assert = require('assert');
 
-import binding from 'internal/test/binding';
+const binding = require('internal/test/binding');
 const getCategoryEnabledBuffer = binding.internalBinding('trace_events').getCategoryEnabledBuffer;
 
 it('should track enabled/disabled categories', () => {
