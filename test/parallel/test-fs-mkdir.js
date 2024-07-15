@@ -217,7 +217,7 @@ function nextdir() {
 
 // mkdirpSync dirname loop
 // XXX: windows and smartos have issues removing a directory that you're in.
-if (common.isMainThread && (common.isLinux || common.isOSX)) {
+if (common.isMainThread && (common.isLinux || common.isMacOS)) {
   const pathname = tmpdir.resolve(nextdir());
   fs.mkdirSync(pathname);
   process.chdir(pathname);
