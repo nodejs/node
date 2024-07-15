@@ -1,6 +1,7 @@
+'use strict';
 // Flags: --expose-internals
 
-const common = require('../common/index');
+const common = require('../common');
 const { it } = require('node:test');
 
 try {
