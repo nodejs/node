@@ -356,7 +356,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "when ambiguous modules fail to evaluate because they contain "
             "ES module syntax, try again to evaluate them as ES modules",
             &EnvironmentOptions::detect_module,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            true);
   AddOption("--experimental-print-required-tla",
             "Print pending top-level await. If --experimental-require-module "
             "is true, evaluate asynchronous graphs loaded by `require()` but "
