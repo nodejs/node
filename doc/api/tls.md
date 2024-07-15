@@ -1574,6 +1574,20 @@ When running as the server, the socket will be destroyed with an error after
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
 
+### `tlsSocket.setKeyCert(context)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `context` {Object|tls.SecureContext} An object containing at least `key` and
+  `cert` properties from the [`tls.createSecureContext()`][] `options`, or a
+  TLS context object created with [`tls.createSecureContext()`][] itself.
+
+The `tlsSocket.setKeyCert()` method sets the private key and certificate to use
+for the socket. This is mainly useful if you wish to select a server certificate
+from a TLS server's `ALPNCallback`.
+
 ### `tlsSocket.setMaxSendFragment(size)`
 
 <!-- YAML

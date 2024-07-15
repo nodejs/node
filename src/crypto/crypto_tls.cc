@@ -1595,6 +1595,33 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void TLSWrap::SetKeyCert(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+
+  if (w->is_client()) return;
+
+  if (args.Length() < 1 || !args[0]->IsObject())
+    return env->ThrowTypeError("Must give a SecureContext as first argument");
+
+  Local<Value> ctx = args[0];
+  if (UNLIKELY(ctx.IsEmpty())) return;
+
+  Local<FunctionTemplate> cons = env->secure_context_constructor_template();
+  if (cons->HasInstance(ctx)) {
+    SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
+    CHECK_NOT_NULL(sc);
+    if (!UseSNIContext(w->ssl_, BaseObjectPtr<SecureContext>(sc)) ||
+        !w->SetCACerts(sc)) {
+      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+      return ThrowCryptoError(env, err, "SetKeyCert");
+    }
+  } else {
+    return env->ThrowTypeError("Must give a SecureContext as first argument");
+  }
+}
+
 void TLSWrap::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -2130,6 +2157,7 @@ void TLSWrap::Initialize(
   SetProtoMethod(isolate, t, "renegotiate", Renegotiate);
   SetProtoMethod(isolate, t, "requestOCSP", RequestOCSP);
   SetProtoMethod(isolate, t, "setALPNProtocols", SetALPNProtocols);
+  SetProtoMethod(isolate, t, "setKeyCert", SetKeyCert);
   SetProtoMethod(isolate, t, "setOCSPResponse", SetOCSPResponse);
   SetProtoMethod(isolate, t, "setServername", SetServername);
   SetProtoMethod(isolate, t, "setSession", SetSession);
