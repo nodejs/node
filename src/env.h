@@ -1027,7 +1027,7 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<v8::BackingStore> release_managed_buffer(const uv_buf_t& buf);
 
   void AddUnmanagedFd(int fd);
-  void RemoveUnmanagedFd(int fd);
+  void RemoveUnmanagedFd(int fd, bool schedule_native_immediate = false);
 
   template <typename T>
   void ForEachRealm(T&& iterator) const;
