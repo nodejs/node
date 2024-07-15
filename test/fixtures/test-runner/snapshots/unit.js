@@ -22,3 +22,7 @@ test('`${foo}`', async (t) => {
   const options = { serializers: [() => { return '***'; }]};
   t.assert.snapshot('snapshotted string', options);
 });
+
+test('escapes in `\\${foo}`\n', async (t) => {
+  t.assert.snapshot('`\\${foo}`\n');
+});
