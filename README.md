@@ -405,8 +405,6 @@ For information about the governance of the Node.js project, see
   **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [MrJithil](https://github.com/MrJithil) -
   **Jithil P Ponnan** <<jithil@outlook.com>> (he/him)
-* [MylesBorins](https://github.com/MylesBorins) -
-  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
 * [ovflowd](https://github.com/ovflowd) -
   **Claudio Wunder** <<cwunder@gnome.org>> (he/they)
 * [panva](https://github.com/panva) -
@@ -609,6 +607,8 @@ For information about the governance of the Node.js project, see
   **Chen Gang** <<gangc.cxy@foxmail.com>>
 * [mscdex](https://github.com/mscdex) -
   **Brian White** <<mscdex@mscdex.net>>
+* [MylesBorins](https://github.com/MylesBorins) -
+  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
 * [not-an-aardvark](https://github.com/not-an-aardvark) -
   **Teddy Katz** <<teddy.katz@gmail.com>> (he/him)
 * [ofrobots](https://github.com/ofrobots) -
