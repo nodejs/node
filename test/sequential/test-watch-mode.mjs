@@ -14,7 +14,7 @@ import { createInterface } from 'node:readline';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
-const supportsRecursive = common.isOSX || common.isWindows;
+const supportsRecursive = common.isMacOS || common.isWindows;
 
 function restart(file, content = readFileSync(file)) {
   // To avoid flakiness, we save the file repeatedly until test is done

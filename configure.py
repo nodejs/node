@@ -164,14 +164,14 @@ parser.add_argument("--fully-static",
     dest="fully_static",
     default=None,
     help="Generate an executable without external dynamic libraries. This "
-         "will not work on OSX when using the default compilation environment")
+         "will not work on macOS when using the default compilation environment")
 
 parser.add_argument("--partly-static",
     action="store_true",
     dest="partly_static",
     default=None,
     help="Generate an executable with libgcc and libstdc++ libraries. This "
-         "will not work on OSX when using the default compilation environment")
+         "will not work on macOS when using the default compilation environment")
 
 parser.add_argument("--enable-vtune-profiling",
     action="store_true",
@@ -1744,7 +1744,7 @@ def configure_openssl(o):
 def configure_static(o):
   if options.fully_static or options.partly_static:
     if flavor == 'mac':
-      warn("Generation of static executable will not work on OSX "
+      warn("Generation of static executable will not work on macOS "
             "when using the default compilation environment")
       return
 

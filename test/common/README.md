@@ -282,7 +282,7 @@ Platform check for Linux.
 
 Platform check for Linux on PowerPC.
 
-### `isOSX`
+### `isMacOS`
 
 * [\<boolean>][<boolean>]
 
