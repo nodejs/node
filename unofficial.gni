@@ -263,6 +263,7 @@ template("node_gn_build") {
   }
 
   action("generate_config_gypi") {
+    deps = [ "$node_v8_path:v8_generate_features_json" ]
     script = "tools/generate_config_gypi.py"
     outputs = [ "$target_gen_dir/config.gypi" ]
     depfile = "$target_gen_dir/$target_name.d"
