@@ -296,9 +296,9 @@ test('t.assert.snapshot()', async (t) => {
 
     t.assert.strictEqual(child.code, 1);
     t.assert.strictEqual(child.signal, null);
-    t.assert.match(child.stdout, /# tests 3/);
+    t.assert.match(child.stdout, /# tests 4/);
     t.assert.match(child.stdout, /# pass 0/);
-    t.assert.match(child.stdout, /# fail 3/);
+    t.assert.match(child.stdout, /# fail 4/);
     t.assert.match(child.stdout, /Missing snapshots/);
   });
 
@@ -311,8 +311,8 @@ test('t.assert.snapshot()', async (t) => {
 
     t.assert.strictEqual(child.code, 0);
     t.assert.strictEqual(child.signal, null);
-    t.assert.match(child.stdout, /tests 3/);
-    t.assert.match(child.stdout, /pass 3/);
+    t.assert.match(child.stdout, /tests 4/);
+    t.assert.match(child.stdout, /pass 4/);
     t.assert.match(child.stdout, /fail 0/);
   });
 
@@ -325,8 +325,8 @@ test('t.assert.snapshot()', async (t) => {
 
     t.assert.strictEqual(child.code, 0);
     t.assert.strictEqual(child.signal, null);
-    t.assert.match(child.stdout, /tests 3/);
-    t.assert.match(child.stdout, /pass 3/);
+    t.assert.match(child.stdout, /tests 4/);
+    t.assert.match(child.stdout, /pass 4/);
     t.assert.match(child.stdout, /fail 0/);
   });
 });
