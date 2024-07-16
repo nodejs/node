@@ -1459,7 +1459,8 @@ added: v7.6.0
 Set the `host:port` to be used when the inspector is activated.
 Useful when activating the inspector by sending the `SIGUSR1` signal.
 
-Default host is `127.0.0.1`.
+Default host is `127.0.0.1`. If port `0` is specified,
+a random available port will be used.
 
 See the [security warning][] below regarding the `host`
 parameter usage.
@@ -1480,7 +1481,8 @@ added:
 -->
 
 Activate inspector on `host:port` and wait for debugger to be attached.
-Default `host:port` is `127.0.0.1:9229`.
+Default `host:port` is `127.0.0.1:9229`. If port `0` is specified,
+a random available port will be used.
 
 See [V8 Inspector integration for Node.js][] for further explanation on Node.js debugger.
 
