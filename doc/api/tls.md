@@ -1577,7 +1577,7 @@ protocol.
 ### `tlsSocket.setKeyCert(context)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `context` {Object|tls.SecureContext} An object containing at least `key` and

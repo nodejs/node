@@ -494,7 +494,7 @@ node -C development app.js
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -511,7 +511,7 @@ files must meet **both** criteria to be included in the coverage report.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -1086,7 +1086,7 @@ Use this flag to enable [ShadowRealm][] support.
 ### `--experimental-sqlite`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 Enable the experimental [`node:sqlite`][] module.

@@ -2572,7 +2572,7 @@ A call was made and the UDP subsystem was not running.
 ### `ERR_SQLITE_ERROR`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 An error was returned from [SQLite][].
@@ -3113,7 +3113,7 @@ nor a relative path starting with `./` or `../`.
 ### `ERR_WORKER_MESSAGING_ERRORED`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -3125,7 +3125,7 @@ The destination thread threw an error while processing a message sent via [`post
 ### `ERR_WORKER_MESSAGING_FAILED`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -3137,7 +3137,7 @@ The thread requested in [`postMessageToThread()`][] is invalid or has no `worker
 ### `ERR_WORKER_MESSAGING_SAME_THREAD`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -3149,7 +3149,7 @@ The thread id requested in [`postMessageToThread()`][] is the current thread id.
 ### `ERR_WORKER_MESSAGING_TIMEOUT`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active development
