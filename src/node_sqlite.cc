@@ -441,7 +441,9 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
 
     for (int i = 0; i < num_cols; ++i) {
       Local<Value> key = stmt->ColumnNameToValue(i);
+      if (key.IsEmpty()) return;
       Local<Value> val = stmt->ColumnToValue(i);
+      if (val.IsEmpty()) return;
 
       if (row->Set(env->context(), key, val).IsNothing()) {
         return;
@@ -483,7 +485,9 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
 
   for (int i = 0; i < num_cols; ++i) {
     Local<Value> key = stmt->ColumnNameToValue(i);
+    if (key.IsEmpty()) return;
     Local<Value> val = stmt->ColumnToValue(i);
+    if (val.IsEmpty()) return;
 
     if (result->Set(env->context(), key, val).IsNothing()) {
       return;
