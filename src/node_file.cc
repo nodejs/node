@@ -438,7 +438,8 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
 
   auto maybe_resolver = Promise::Resolver::New(context);
   CHECK(!maybe_resolver.IsEmpty());
-  Local<Promise::Resolver> resolver = maybe_resolver.ToLocalChecked();
+  Local<Promise::Resolver> resolver;
+  if (!maybe_resolver.ToLocal(&resolver)) return {};
   Local<Promise> promise = resolver.As<Promise>();
 
   Local<Object> close_req_obj;
@@ -845,10 +846,12 @@ void AfterStringPath(uv_fs_t* req) {
                                req->path,
                                req_wrap->encoding(),
                                &error);
-    if (link.IsEmpty())
+    if (link.IsEmpty()) {
       req_wrap->Reject(error);
-    else
-      req_wrap->Resolve(link.ToLocalChecked());
+    } else {
+      Local<Value> val;
+      if (link.ToLocal(&val)) req_wrap->Resolve(val);
+    }
   }
 }
 
@@ -865,10 +868,12 @@ void AfterStringPtr(uv_fs_t* req) {
                                static_cast<const char*>(req->ptr),
                                req_wrap->encoding(),
                                &error);
-    if (link.IsEmpty())
+    if (link.IsEmpty()) {
       req_wrap->Reject(error);
-    else
-      req_wrap->Resolve(link.ToLocalChecked());
+    } else {
+      Local<Value> val;
+      if (link.ToLocal(&val)) req_wrap->Resolve(val);
+    }
   }
 }
 
@@ -2262,7 +2267,8 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
 
   for (uint32_t i = 0; i < iovs.length(); i++) {
-    Local<Value> chunk = chunks->Get(env->context(), i).ToLocalChecked();
+    Local<Value> chunk;
+    if (!chunks->Get(env->context(), i).ToLocal(&chunk)) return;
     CHECK(Buffer::HasInstance(chunk));
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }
@@ -2602,8 +2608,12 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
   }
   FS_SYNC_TRACE_END(read);
 
-  args.GetReturnValue().Set(
-      ToV8Value(env->context(), result, isolate).ToLocalChecked());
+  Local<Value> val;
+  if (!ToV8Value(env->context(), result, isolate).ToLocal(&val)) {
+    return;
+  }
+
+  args.GetReturnValue().Set(val);
 }
 
 // Wrapper for readv(2).
@@ -2631,7 +2641,8 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
 
   // Init uv buffers from ArrayBufferViews
   for (uint32_t i = 0; i < iovs.length(); i++) {
-    Local<Value> buffer = buffers->Get(env->context(), i).ToLocalChecked();
+    Local<Value> buffer;
+    if (!buffers->Get(env->context(), i).ToLocal(&buffer)) return;
     CHECK(Buffer::HasInstance(buffer));
     iovs[i] = uv_buf_init(Buffer::Data(buffer), Buffer::Length(buffer));
   }
