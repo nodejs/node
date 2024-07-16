@@ -141,6 +141,19 @@ describe('legacyMainResolve', () => {
     );
   });
 
+  it('should report main file on error message when not found', () => {
+    const packageJsonUrl = pathToFileURL(
+      path.resolve(
+        fixtures.path('/es-modules/legacy-main-resolver'),
+        'package.json'
+      )
+    );
+    assert.throws(
+      () => legacyMainResolve(packageJsonUrl, { main: './index.node' }, packageJsonUrl),
+      { message: /index\.node/, code: 'ERR_MODULE_NOT_FOUND' },
+    );
+  });
+
   it('should throw when cannot resolve to a file (base not defined)', () => {
     const packageJsonUrl = pathToFileURL(
       path.resolve(
