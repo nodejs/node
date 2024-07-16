@@ -4,8 +4,14 @@ import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
+import tmpdir from '../common/tmpdir.js';
 
 const testFixtures = fixtures.path('test-runner');
+
+// This is needed, because calling run() with no files will
+// load files matching from cwd, which includes all content of test/
+tmpdir.refresh();
+process.chdir(tmpdir.path);
 
 describe('require(\'node:test\').run', { concurrency: true }, () => {
   it('should run with no tests', async () => {
@@ -135,6 +141,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     })
       .compose(tap)
       .toArray();
+
     assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
     assert.strictEqual(result[4], '1..1\n');
     assert.strictEqual(result[5], '# tests 1\n');
@@ -391,6 +398,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       const executedTestFiles = [];
       stream.on('test:fail', common.mustNotCall());
       stream.on('test:pass', (passedTest) => {
+        process._rawDebug(passedTest.file);
         executedTestFiles.push(passedTest.file);
       });
       // eslint-disable-next-line no-unused-vars
@@ -488,7 +496,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
   });
 
-  it('should run with no files', async () => {
+  it.only('should run with no files', async () => {
     const stream = run({
       files: undefined
     }).compose(tap);
