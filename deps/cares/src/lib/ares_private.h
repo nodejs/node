@@ -385,6 +385,12 @@ struct ares_channeldata {
    * exit. */
   ares_bool_t                         reinit_pending;
   ares__thread_t                     *reinit_thread;
+
+  /* Whether the system is up or not.  This is mainly to prevent deadlocks
+   * and access violations during the cleanup process.  Some things like
+   * system config changes might get triggered and we need a flag to make
+   * sure we don't take action. */
+  ares_bool_t                         sys_up;
 };
 
 /* Does the domain end in ".onion" or ".onion."? Case-insensitive. */
