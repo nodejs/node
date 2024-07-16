@@ -87,6 +87,24 @@ const validateParameterNames = (
 
       return true;
     }
+    if (
+      typeof functionParameterName === 'object' &&
+        'name' in functionParameterName &&
+        Array.isArray(functionParameterName.name)
+    ) {
+      const actualName = tag.name.trim();
+      const expectedName = functionParameterName.name[index];
+      if (actualName === expectedName) {
+        thisOffset--;
+        return false;
+      }
+      report(
+        `Expected @${targetTagName} name to be "${expectedName}". Got "${actualName}".`,
+        null,
+        tag,
+      );
+      return true;
+    }
 
     if (Array.isArray(functionParameterName)) {
       if (!checkDestructured) {
@@ -236,6 +254,7 @@ const validateParameterNames = (
       ]) => {
         return name.trim();
       });
+
       const expectedNames = functionParameterNames.map((item, idx) => {
         if (/**
              * @type {[string|undefined, (import('../jsdocUtils.js').FlattendRootInfo & {
@@ -260,7 +279,15 @@ const validateParameterNames = (
       }
 
       report(
-        `Expected @${targetTagName} names to be "${expectedNames.join(', ')}". Got "${actualNames.join(', ')}".`,
+        `Expected @${targetTagName} names to be "${
+          expectedNames.map((expectedName) => {
+            return typeof expectedName === 'object' &&
+              'name' in expectedName &&
+              expectedName.restElement
+              ? '...' + expectedName.name
+              : expectedName;
+          }).join(', ')
+        }". Got "${actualNames.join(', ')}".`,
         null,
         tag,
       );
@@ -352,6 +379,7 @@ export default iterateJsdoc(({
   }
 
   const functionParameterNames = utils.getFunctionParameterNames(useDefaultObjectProperties);
+
   const targetTagName = /** @type {string} */ (utils.getPreferredTagName({
     tagName: 'param',
   }));

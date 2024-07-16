@@ -334,10 +334,8 @@ class NodeEventGenerator {
      * @returns {void}
      */
     enterNode(node) {
-        if (node.parent) {
-            this.currentAncestry.unshift(node.parent);
-        }
         this.applySelectors(node, false);
+        this.currentAncestry.unshift(node);
     }
 
     /**
@@ -346,8 +344,8 @@ class NodeEventGenerator {
      * @returns {void}
      */
     leaveNode(node) {
-        this.applySelectors(node, true);
         this.currentAncestry.shift();
+        this.applySelectors(node, true);
     }
 }
 
