@@ -1,9 +1,9 @@
 # SQLite
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v22.5.0-->
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -85,7 +85,7 @@ console.log(query.all());
 ## Class: `DatabaseSync`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 This class represents a single [connection][] to a SQLite database. All APIs
@@ -94,7 +94,7 @@ exposed by this class execute synchronously.
 ### `new DatabaseSync(location[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `location` {string} The location of the database. A SQLite database can be
@@ -112,7 +112,7 @@ Constructs a new `DatabaseSync` instance.
 ### `database.close()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 Closes the database connection. An exception is thrown if the database is not
@@ -121,7 +121,7 @@ open. This method is a wrapper around [`sqlite3_close_v2()`][].
 ### `database.exec(sql)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `sql` {string} A SQL string to execute.
@@ -133,7 +133,7 @@ file. This method is a wrapper around [`sqlite3_exec()`][].
 ### `database.open()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 Opens the database specified in the `location` argument of the `DatabaseSync`
@@ -143,7 +143,7 @@ the constructor. An exception is thrown if the database is already open.
 ### `database.prepare(sql)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
@@ -155,7 +155,7 @@ around [`sqlite3_prepare_v2()`][].
 ## Class: `StatementSync`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 This class represents a single [prepared statement][]. This class cannot be
@@ -172,7 +172,7 @@ over hand-crafted SQL strings when handling user input.
 ### `statement.all([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
@@ -191,7 +191,7 @@ the values in `namedParameters` and `anonymousParameters`.
 ### `statement.expandedSQL()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * Returns: {string} The source SQL expanded to include parameter values.
@@ -203,7 +203,7 @@ placeholders replaced by values. This method is a wrapper around
 ### `statement.get([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
@@ -223,7 +223,7 @@ values in `namedParameters` and `anonymousParameters`.
 ### `statement.run([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
@@ -248,7 +248,7 @@ values in `namedParameters` and `anonymousParameters`.
 ### `statement.setAllowBareNamedParameters(enabled)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `enabled` {boolean} Enables or disables support for binding named parameters
@@ -273,7 +273,7 @@ are several caveats to be aware of when enabling bare named parameters:
 ### `statement.setReadBigInts(enabled)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `enabled` {boolean} Enables or disables the use of `BigInt`s when reading
@@ -289,7 +289,7 @@ supported at all times.
 ### `statement.sourceSQL()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * Returns: {string} The source SQL used to create this prepared statement.

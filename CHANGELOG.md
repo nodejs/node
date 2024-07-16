@@ -38,7 +38,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V22.md#22.4.1">22.4.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V22.md#22.5.0">22.5.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.4.1">22.4.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.4.0">22.4.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.3.0">22.3.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.2.0">22.2.0</a><br/>

@@ -330,7 +330,7 @@ most convenient for scripts).
 ### Event: `'workerMessage'`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 * `value` {any} A value transmitted using [`postMessageToThread()`][].
@@ -1892,7 +1892,7 @@ previous setting of `process.exitCode`.
 ## `process.finalization.register(ref, callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -2001,7 +2001,7 @@ as it is not guaranteed that the callback will be called under all circumstances
 ## `process.finalization.registerBeforeExit(ref, callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -2022,7 +2022,7 @@ this means that there is a possibility that the callback will not be called unde
 ## `process.finalization.unregister(ref)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active Development
