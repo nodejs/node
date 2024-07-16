@@ -29,7 +29,6 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
-using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
@@ -40,7 +39,7 @@ using v8::Uint32;
 using v8::Value;
 
 #define THROW_SQLITE_ERROR(env, r)                                             \
-  node::THROW_ERR_INVALID_STATE((env), sqlite3_errstr((r)))
+  THROW_ERR_INVALID_STATE((env), sqlite3_errstr((r)))
 
 #define CHECK_ERROR_OR_THROW(env, expr, expected, ret)                         \
   do {                                                                         \
@@ -80,7 +79,7 @@ static void ThrowQuotaExceededException(Local<Context> context) {
 Storage::Storage(Environment* env, Local<Object> object, Local<String> location)
     : BaseObject(env, object) {
   MakeWeak();
-  node::Utf8Value utf8_location(env->isolate(), location);
+  Utf8Value utf8_location(env->isolate(), location);
   symbols_.Reset(env->isolate(), Map::New(env->isolate()));
   db_ = nullptr;
   location_ = utf8_location.ToString();
@@ -97,9 +96,9 @@ void Storage::MemoryInfo(MemoryTracker* tracker) const {
 
 bool Storage::Open() {
   static const int kCurrentSchemaVersion = 1;
-  static const char get_schema_version_sql[] =
+  static constexpr std::string_view get_schema_version_sql =
       "SELECT schema_version FROM nodejs_webstorage_state";
-  static const char init_sql_v0[] =
+  static constexpr std::string_view init_sql_v0 =
       "PRAGMA encoding = 'UTF-16le';"
       "PRAGMA busy_timeout = 3000;"
       "PRAGMA journal_mode = WAL;"
@@ -165,13 +164,14 @@ bool Storage::Open() {
 
   int r = sqlite3_open(location_.c_str(), &db);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
-  r = sqlite3_exec(db, init_sql_v0, 0, 0, nullptr);
+  r = sqlite3_exec(db, init_sql_v0.data(), 0, 0, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
 
   // Get the current schema version, used to determine schema migrations.
   sqlite3_stmt* s = nullptr;
-  r = sqlite3_prepare_v2(db, get_schema_version_sql, -1, &s, 0);
-  r = sqlite3_exec(db, init_sql_v0, 0, 0, nullptr);
+  r = sqlite3_prepare_v2(
+      db, get_schema_version_sql.data(), get_schema_version_sql.size(), &s, 0);
+  r = sqlite3_exec(db, init_sql_v0.data(), 0, 0, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(env(), sqlite3_step(stmt.get()), SQLITE_ROW, false);
@@ -180,7 +180,7 @@ bool Storage::Open() {
   stmt = nullptr;  // Force finalization.
 
   if (schema_version > kCurrentSchemaVersion) {
-    node::THROW_ERR_INVALID_STATE(
+    THROW_ERR_INVALID_STATE(
         env(), "localStorage was created with a newer version of Node.js");
     return false;
   }
@@ -217,10 +217,13 @@ void Storage::Clear() {
     return;
   }
 
-  static const char sql[] = "DELETE FROM nodejs_webstorage";
+  static constexpr std::string_view sql = "DELETE FROM nodejs_webstorage";
   sqlite3_stmt* s = nullptr;
   CHECK_ERROR_OR_THROW(
-      env(), sqlite3_prepare_v2(db_.get(), sql, -1, &s, 0), SQLITE_OK, void());
+      env(),
+      sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0),
+      SQLITE_OK,
+      void());
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(env(), sqlite3_step(stmt.get()), SQLITE_DONE, void());
 }
@@ -230,9 +233,9 @@ Local<Array> Storage::Enumerate() {
     return Local<Array>();
   }
 
-  static const char sql[] = "SELECT key FROM nodejs_webstorage";
+  static constexpr std::string_view sql = "SELECT key FROM nodejs_webstorage";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql, -1, &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Array>());
   auto stmt = stmt_unique_ptr(s);
   std::vector<Local<Value>> values;
@@ -253,12 +256,13 @@ Local<Array> Storage::Enumerate() {
 
 Local<Value> Storage::Length() {
   if (!Open()) {
-    return Local<Value>();
+    return {};
   }
 
-  static const char sql[] = "SELECT count(*) FROM nodejs_webstorage";
+  static constexpr std::string_view sql =
+      "SELECT count(*) FROM nodejs_webstorage";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql, -1, &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(
@@ -276,16 +280,16 @@ Local<Value> Storage::Load(Local<Name> key) {
   }
 
   if (!Open()) {
-    return Local<Value>();
+    return {};
   }
 
-  static const char sql[] =
+  static constexpr std::string_view sql =
       "SELECT value FROM nodejs_webstorage WHERE key = ? LIMIT 1";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql, -1, &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
   auto stmt = stmt_unique_ptr(s);
-  node::TwoByteValue utf16key(env()->isolate(), key);
+  TwoByteValue utf16key(env()->isolate(), key);
   auto key_size = utf16key.length() * sizeof(uint16_t);
   r = sqlite3_bind_blob(stmt.get(), 1, utf16key.out(), key_size, SQLITE_STATIC);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
@@ -312,10 +316,10 @@ Local<Value> Storage::LoadKey(const int index) {
     return Local<Value>();
   }
 
-  static const char sql[] =
+  static constexpr std::string_view sql =
       "SELECT key FROM nodejs_webstorage LIMIT 1 OFFSET ?";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql, -1, &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
   auto stmt = stmt_unique_ptr(s);
   r = sqlite3_bind_int(stmt.get(), 1, index);
@@ -350,12 +354,13 @@ bool Storage::Remove(Local<Name> key) {
     return false;
   }
 
-  static const char sql[] = "DELETE FROM nodejs_webstorage WHERE key = ?";
+  static constexpr std::string_view sql =
+      "DELETE FROM nodejs_webstorage WHERE key = ?";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql, -1, &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
   auto stmt = stmt_unique_ptr(s);
-  node::TwoByteValue utf16key(env()->isolate(), key);
+  TwoByteValue utf16key(env()->isolate(), key);
   auto key_size = utf16key.length() * sizeof(uint16_t);
   r = sqlite3_bind_blob(stmt.get(), 1, utf16key.out(), key_size, SQLITE_STATIC);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
@@ -379,14 +384,14 @@ bool Storage::Store(Local<Name> key, Local<Value> value) {
     return false;
   }
 
-  static const char sql[] =
+  static constexpr std::string_view sql =
       "INSERT INTO nodejs_webstorage (key, value) VALUES (?, ?)"
       "  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
       "  WHERE EXCLUDED.key = key";
   sqlite3_stmt* s = nullptr;
-  node::TwoByteValue utf16key(env()->isolate(), key);
-  node::TwoByteValue utf16val(env()->isolate(), val);
-  int r = sqlite3_prepare_v2(db_.get(), sql, -1, &s, 0);
+  TwoByteValue utf16key(env()->isolate(), key);
+  TwoByteValue utf16val(env()->isolate(), val);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, false);
   auto stmt = stmt_unique_ptr(s);
   auto key_size = utf16key.length() * sizeof(uint16_t);
@@ -435,7 +440,7 @@ static void GetItem(const FunctionCallbackInfo<Value>& info) {
 
   Local<Value> result = storage->Load(prop);
   if (result.IsEmpty()) {
-    info.GetReturnValue().Set(Null(env->isolate()));
+    info.GetReturnValue().SetNull();
   } else {
     info.GetReturnValue().Set(result);
   }
@@ -457,13 +462,13 @@ static void Key(const FunctionCallbackInfo<Value>& info) {
   }
 
   if (index < 0) {
-    info.GetReturnValue().Set(Null(env->isolate()));
+    info.GetReturnValue().SetNull();
     return;
   }
 
   Local<Value> result = storage->LoadKey(index);
   if (result.IsEmpty()) {
-    info.GetReturnValue().Set(Null(env->isolate()));
+    info.GetReturnValue().SetNull();
   } else {
     info.GetReturnValue().Set(result);
   }
