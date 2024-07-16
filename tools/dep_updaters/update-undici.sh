@@ -54,6 +54,11 @@ mv undici-tmp/node_modules/undici deps/undici/src
 mv deps/undici/src/undici-fetch.js deps/undici/undici.js
 cp deps/undici/src/LICENSE deps/undici/LICENSE
 
+# minify undici
+find "deps/undici/src" -type f -name "*.js" | while read -r file; do
+  npx esbuild "$file" --minify --outfile="$file" --allow-overwrite
+done
+
 rm -rf undici-tmp/
 
 # Update the version number on maintaining-dependencies.md
