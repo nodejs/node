@@ -1240,7 +1240,7 @@ added:
   - v16.19.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53866
     description: Added the `globPatterns` option.
   - version:
     - v22.0.0
