@@ -48,11 +48,11 @@ The current security stewards are documented in the main Node.js
    * This command generates a new `vulnerabilities.json` file with HackerOne
      reports chosen to be released in the `security-release/next-security-release`
      folder.
-   * It also creates the Pull Request used to manage the security release.
+   * It also creates the pull request used to manage the security release.
 
 2. **Review of Reports:**
    * Reports can be added or removed using the following commands:
-     * Use the "summary" feature in HackerOne. Example [2038134](https://hackerone.com/bugs?subject=nodejs\&report_id=2038134)
+     * Use the "summary" feature in HackerOne. Example [2038134](https://hackerone.com/reports/2038134)
      * `git node security --add-report=report_id`
      * `git node security --remove-report=report_id`
 
@@ -64,7 +64,7 @@ The current security stewards are documented in the main Node.js
 
 4. **Requesting CVEs:**
    * Request CVEs for the reports with `git node security --request-cve`.
-   * Make sure to have a green CI before running it.
+   * Make sure to have a green CI before requesting a CVE.
 
 5. **Choosing or Updating Release Date:**
    * Use `git node security --update-date=YYYY/MM/DD` to choose or update the
@@ -75,7 +75,7 @@ The current security stewards are documented in the main Node.js
    * Get volunteers for the upcoming security release on the affected release
      lines.
 
-7. **Preparing Pre and Post Release Blog Post:**
+7. **Preparing Pre and Post Release Blog Posts:**
    * Create a pre-release blog post using `git node security --pre-release`.
    * Create a post-release blog post using `git node security --post-release`.
 
@@ -87,27 +87,27 @@ The current security stewards are documented in the main Node.js
 2. **Send Pre-Release Accouncement:**
    * Notify the community about the upcoming security release:
      * `git node security --notify-pre-release`
-     * (Not supported yet)[Google Groups](https://groups.google.com/g/nodejs-sec)
+     * (Not yet supported) [Google Groups](https://groups.google.com/g/nodejs-sec)
        * Email: notify <oss-security@lists.openwall.com>
-     * (Not supported yet)[Twitter](https://twitter.com/nodejs)
+     * (Not yet supported) [Twitter / X](https://x.com/nodejs)
      * [docker-node](https://github.com/nodejs/docker-node/issues)
      * [build-wg](https://github.com/nodejs/build/issues)
        We specifically ask that collaborators other than the releasers and security
-       steward working on the security release do not tweet or publicise the release
-       until the tweet from the Node.js twitter handle goes out. We have often
-       seen tweets sent out before the release and associated announcements are
-       complete which may confuse those waiting for the release and also takes
-       away from the work the releasers have put into shipping the releases.
+       steward working on the security release do not tweet or publicize the release
+       until the tweet from Node.js goes out. We have often
+       seen tweets sent out before the release is
+       complete, which may confuse those waiting for the release and take
+       away from the work the releasers have put into shipping the release.
 
-If the security release will only contain an OpenSSL update consider
+If the security release will only contain an OpenSSL update, consider
 adding the following to the pre-release announcement:
 
 ```text
 Since this security release will only include updates for OpenSSL, if you're using
-a Node.js version which is part of a distribution which uses a system
-installed OpenSSL, this Node.js security update might not concern you. You may
-instead need to update your system OpenSSL libraries, please check the
-security announcements for the distribution.
+a Node.js version which is part of a distribution that uses a system
+installed OpenSSL, this Node.js security update may not concern you, instead,
+you may need to update your system OpenSSL libraries. Please check the
+security announcements for more information.
 ```
 
 ## Release day
@@ -116,8 +116,8 @@ security announcements for the distribution.
    * Lock down the CI to prevent public access to the CI machines, ping a member of `@nodejs/jenkins-admins`.
 
 2. **Release:**
-   * Make sure the CI on all release proposals is green (test-V8, CITGM, etc).
-   * Follow the release process documented [here](https://github.com/nodejs/node/blob/main/doc/contributing/releases.md)
+   * Verify the CI is green on all release proposals (test-V8, CITGM, etc).
+   * Follow the [release process](https://github.com/nodejs/node/blob/main/doc/contributing/releases.md).
 
 3. **Unlock the CI:**
    * Unlock the CI to allow public access to the CI machines, ping a member of `@nodejs/jenkins-admins`.
