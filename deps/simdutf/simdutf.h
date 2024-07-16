@@ -1,4 +1,4 @@
-/* auto-generated on 2024-05-07 22:33:11 -0400. Do not edit! */
+/* auto-generated on 2024-07-11 00:01:58 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -594,7 +594,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "5.2.8"
+#define SIMDUTF_VERSION "5.3.0"
 
 namespace simdutf {
 enum {
@@ -605,11 +605,11 @@ enum {
   /**
    * The minor version (major.MINOR.revision) of simdutf being used.
    */
-  SIMDUTF_VERSION_MINOR = 2,
+  SIMDUTF_VERSION_MINOR = 3,
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 8
+  SIMDUTF_VERSION_REVISION = 0
 };
 } // namespace simdutf
 
@@ -2300,9 +2300,13 @@ simdutf_warn_unused size_t trim_partial_utf16(const char16_t* input, size_t leng
 
 // base64_options are used to specify the base64 encoding options.
 using base64_options = uint64_t;
+using base64_options = uint64_t;
 enum : base64_options {
-  base64_default = 0, /* standard base64 format */
-  base64_url = 1 /* base64url format*/
+  base64_default = 0, /* standard base64 format (with padding) */
+  base64_url = 1, /* base64url format (no padding) */
+  base64_reverse_padding = 2, /* modifier for base64_default and base64_url */
+  base64_default_no_padding = base64_default | base64_reverse_padding, /* standard base64 format without padding */
+  base64_url_with_padding = base64_url | base64_reverse_padding, /* base64url with padding */
 };
 
 /**
@@ -2345,6 +2349,12 @@ simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * in
  * where the invalid character was found. When the error is BASE64_INPUT_REMAINDER, then
  * r.count contains the number of bytes decoded.
  *
+ * The default option (simdutf::base64_default) expects the characters `+` and `/` as part of its alphabet.
+ * The URL option (simdutf::base64_url) expects the characters `-` and `_` as part of its alphabet.
+ *
+ * The padding (`=`) is validated if present. There may be at most two padding characters at the end of the input.
+ * If there are any padding characters, the total number of characters (excluding spaces but including padding characters) must be divisible by four.
+ *
  * You should call this function with a buffer that is at least maximal_binary_length_from_base64(input, length) bytes long.
  * If you fail to provide that much space, the function may cause a buffer overflow.
  *
@@ -2365,8 +2375,13 @@ simdutf_warn_unused result base64_to_binary(const char * input, size_t length, c
 simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options = base64_default) noexcept;
 
 /**
- * Convert a binary input to a base64 ouput. The output is always padded with equal signs so that it is
- * a multiple of 4 bytes long.
+ * Convert a binary input to a base64 ouput.
+ *
+ * The default option (simdutf::base64_default) uses the characters `+` and `/` as part of its alphabet.
+ * Further, it adds padding (`=`) at the end of the output to ensure that the output length is a multiple of four.
+ *
+ * The URL option (simdutf::base64_url) uses the characters `-` and `_` as part of its alphabet. No padding
+ * is added at the end of the output.
  *
  * This function always succeeds.
  *
@@ -2395,6 +2410,12 @@ size_t binary_to_base64(const char * input, size_t length, char* output, base64_
  * When the error is INVALID_BASE64_CHARACTER, r.count contains the index in the input
  * where the invalid character was found. When the error is BASE64_INPUT_REMAINDER, then
  * r.count contains the number of bytes decoded.
+ *
+ * The default option (simdutf::base64_default) expects the characters `+` and `/` as part of its alphabet.
+ * The URL option (simdutf::base64_url) expects the characters `-` and `_` as part of its alphabet.
+ *
+ * The padding (`=`) is validated if present. There may be at most two padding characters at the end of the input.
+ * If there are any padding characters, the total number of characters (excluding spaces but including padding characters) must be divisible by four.
  *
  * You should call this function with a buffer that is at least maximal_binary_length_from_utf6_base64(input, length) bytes long.
  * If you fail to provide that much space, the function may cause a buffer overflow.
@@ -2428,6 +2449,12 @@ simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t lengt
  * When the error is INVALID_BASE64_CHARACTER, r.count contains the index in the input
  * where the invalid character was found. When the error is BASE64_INPUT_REMAINDER, then
  * r.count contains the number of bytes decoded.
+ *
+ * The default option (simdutf::base64_default) expects the characters `+` and `/` as part of its alphabet.
+ * The URL option (simdutf::base64_url) expects the characters `-` and `_` as part of its alphabet.
+ *
+ * The padding (`=`) is validated if present. There may be at most two padding characters at the end of the input.
+ * If there are any padding characters, the total number of characters (excluding spaces but including padding characters) must be divisible by four.
  *
  * The INVALID_BASE64_CHARACTER cases are considered fatal and you are expected to discard
  * the output.
@@ -3590,8 +3617,13 @@ public:
   simdutf_warn_unused virtual size_t base64_length_from_binary(size_t length, base64_options options = base64_default) const noexcept = 0;
 
   /**
-   * Convert a binary input to a base64 ouput. The output is always padded with equal signs so that it is
-   * a multiple of 4 bytes long.
+   * Convert a binary input to a base64 ouput.
+   *
+   * The default option (simdutf::base64_default) uses the characters `+` and `/` as part of its alphabet.
+   * Further, it adds padding (`=`) at the end of the output to ensure that the output length is a multiple of four.
+   *
+   * The URL option (simdutf::base64_url) uses the characters `-` and `_` as part of its alphabet. No padding
+   * is added at the end of the output.
    *
    * This function always succeeds.
    *
