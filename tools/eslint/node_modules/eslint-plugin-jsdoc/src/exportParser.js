@@ -248,7 +248,7 @@ const getSymbol = function (node, globals, scope, opt) {
     val.type = 'object';
     for (const prop of node.properties) {
       if ([
-        // @typescript-eslint/parser, espree, acorn, etc.
+        // typescript-eslint, espree, acorn, etc.
         'SpreadElement',
 
         // @babel/eslint-parser

@@ -72,11 +72,11 @@ module.exports = {
         schema: [],
 
         messages: {
-            nested: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}' from within that group.",
-            forward: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}' which appears later in the pattern.",
-            backward: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}' which appears before in the same lookbehind.",
-            disjunctive: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}' which is in another alternative.",
-            intoNegativeLookaround: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}' which is in a negative lookaround."
+            nested: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}'{{ otherGroups }} from within that group.",
+            forward: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}'{{ otherGroups }} which appears later in the pattern.",
+            backward: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}'{{ otherGroups }} which appears before in the same lookbehind.",
+            disjunctive: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}'{{ otherGroups }} which is in another alternative.",
+            intoNegativeLookaround: "Backreference '{{ bref }}' will be ignored. It references group '{{ group }}'{{ otherGroups }} which is in a negative lookaround."
         }
     },
 
@@ -104,16 +104,21 @@ module.exports = {
 
             visitRegExpAST(regExpAST, {
                 onBackreferenceEnter(bref) {
-                    const group = bref.resolved,
-                        brefPath = getPathToRoot(bref),
-                        groupPath = getPathToRoot(group);
-                    let messageId = null;
+                    const groups = [bref.resolved].flat(),
+                        brefPath = getPathToRoot(bref);
 
-                    if (brefPath.includes(group)) {
+                    const problems = groups.map(group => {
+                        const groupPath = getPathToRoot(group);
 
-                        // group is bref's ancestor => bref is nested ('nested reference') => group hasn't matched yet when bref starts to match.
-                        messageId = "nested";
-                    } else {
+                        if (brefPath.includes(group)) {
+
+                            // group is bref's ancestor => bref is nested ('nested reference') => group hasn't matched yet when bref starts to match.
+                            return {
+                                messageId: "nested",
+                                group
+                            };
+                        }
+
 
                         // Start from the root to find the lowest common ancestor.
                         let i = brefPath.length - 1,
@@ -130,35 +135,80 @@ module.exports = {
                             lowestCommonLookaround = commonPath.find(isLookaround),
                             isMatchingBackward = lowestCommonLookaround && lowestCommonLookaround.kind === "lookbehind";
 
+                        if (groupCut.at(-1).type === "Alternative") {
+
+                            // group's and bref's ancestor nodes below the lowest common ancestor are sibling alternatives => they're disjunctive.
+                            return {
+                                messageId: "disjunctive",
+                                group
+                            };
+                        }
                         if (!isMatchingBackward && bref.end <= group.start) {
 
                             // bref is left, group is right ('forward reference') => group hasn't matched yet when bref starts to match.
-                            messageId = "forward";
-                        } else if (isMatchingBackward && group.end <= bref.start) {
+                            return {
+                                messageId: "forward",
+                                group
+                            };
+                        }
+                        if (isMatchingBackward && group.end <= bref.start) {
 
                             // the opposite of the previous when the regex is matching backward in a lookbehind context.
-                            messageId = "backward";
-                        } else if (groupCut.at(-1).type === "Alternative") {
-
-                            // group's and bref's ancestor nodes below the lowest common ancestor are sibling alternatives => they're disjunctive.
-                            messageId = "disjunctive";
-                        } else if (groupCut.some(isNegativeLookaround)) {
+                            return {
+                                messageId: "backward",
+                                group
+                            };
+                        }
+                        if (groupCut.some(isNegativeLookaround)) {
 
                             // group is in a negative lookaround which isn't bref's ancestor => group has already failed when bref starts to match.
-                            messageId = "intoNegativeLookaround";
+                            return {
+                                messageId: "intoNegativeLookaround",
+                                group
+                            };
                         }
+
+                        return null;
+                    });
+
+                    if (problems.length === 0 || problems.some(problem => !problem)) {
+
+                        // If there are no problems or no problems with any group then do not report it.
+                        return;
                     }
 
-                    if (messageId) {
-                        context.report({
-                            node,
-                            messageId,
-                            data: {
-                                bref: bref.raw,
-                                group: group.raw
-                            }
-                        });
+                    let problemsToReport;
+
+                    // Gets problems that appear in the same disjunction.
+                    const problemsInSameDisjunction = problems.filter(problem => problem.messageId !== "disjunctive");
+
+                    if (problemsInSameDisjunction.length) {
+
+                        // Only report problems that appear in the same disjunction.
+                        problemsToReport = problemsInSameDisjunction;
+                    } else {
+
+                        // If all groups appear in different disjunctions, report it.
+                        problemsToReport = problems;
                     }
+
+                    const [{ messageId, group }, ...other] = problemsToReport;
+                    let otherGroups = "";
+
+                    if (other.length === 1) {
+                        otherGroups = " and another group";
+                    } else if (other.length > 1) {
+                        otherGroups = ` and other ${other.length} groups`;
+                    }
+                    context.report({
+                        node,
+                        messageId,
+                        data: {
+                            bref: bref.raw,
+                            group: group.raw,
+                            otherGroups
+                        }
+                    });
                 }
             });
         }

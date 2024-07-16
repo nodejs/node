@@ -340,7 +340,7 @@ module.exports = {
         /**
          * Determines if a variable has a sibling rest property
          * @param {Variable} variable eslint-scope variable object.
-         * @returns {boolean} True if the variable is exported, false if not.
+         * @returns {boolean} True if the variable has a sibling rest property, false if not.
          * @private
          */
         function hasRestSpreadSibling(variable) {

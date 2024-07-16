@@ -89,6 +89,9 @@ const arrayOfStringsOrObjectPatterns = {
                         minItems: 1,
                         uniqueItems: true
                     },
+                    regex: {
+                        type: "string"
+                    },
                     importNamePattern: {
                         type: "string"
                     },
@@ -104,7 +107,6 @@ const arrayOfStringsOrObjectPatterns = {
                     }
                 },
                 additionalProperties: false,
-                required: ["group"],
                 not: {
                     anyOf: [
                         { required: ["importNames", "allowImportNames"] },
@@ -113,7 +115,11 @@ const arrayOfStringsOrObjectPatterns = {
                         { required: ["importNamePattern", "allowImportNames"] },
                         { required: ["allowImportNames", "allowImportNamePattern"] }
                     ]
-                }
+                },
+                oneOf: [
+                    { required: ["group"] },
+                    { required: ["regex"] }
+                ]
             },
             uniqueItems: true
         }
@@ -235,9 +241,10 @@ module.exports = {
 
         // relative paths are supported for this rule
         const restrictedPatternGroups = restrictedPatterns.map(
-            ({ group, message, caseSensitive, importNames, importNamePattern, allowImportNames, allowImportNamePattern }) => (
+            ({ group, regex, message, caseSensitive, importNames, importNamePattern, allowImportNames, allowImportNamePattern }) => (
                 {
-                    matcher: ignore({ allowRelativePaths: true, ignorecase: !caseSensitive }).add(group),
+                    ...(group ? { matcher: ignore({ allowRelativePaths: true, ignorecase: !caseSensitive }).add(group) } : {}),
+                    ...(typeof regex === "string" ? { regexMatcher: new RegExp(regex, caseSensitive ? "u" : "iu") } : {}),
                     customMessage: message,
                     importNames,
                     importNamePattern,
@@ -493,7 +500,7 @@ module.exports = {
          * @private
          */
         function isRestrictedPattern(importSource, group) {
-            return group.matcher.ignores(importSource);
+            return group.regexMatcher ? group.regexMatcher.test(importSource) : group.matcher.ignores(importSource);
         }
 
         /**
