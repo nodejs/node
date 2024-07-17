@@ -81,13 +81,13 @@ function isLikeNone(x) {
 let cachedDataView = null;
 /** @returns {DataView} */
 function getDataView() {
-    if (cachedDataView === null) {
+    if (cachedDataView === null || cachedDataView.buffer !== wasm.memory.buffer) {
         cachedDataView = new DataView(wasm.memory.buffer);
     }
     return cachedDataView;
 }
 
-let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
+let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true });
 
 cachedTextDecoder.decode();
 
@@ -117,15 +117,6 @@ function takeObject(idx) {
     const ret = getObject(idx);
     dropObject(idx);
     return ret;
-}
-
-let cachedFloat64Memory0 = null;
-
-function getFloat64Memory0() {
-    if (cachedFloat64Memory0 === null || cachedFloat64Memory0.byteLength === 0) {
-        cachedFloat64Memory0 = new Float64Array(wasm.memory.buffer);
-    }
-    return cachedFloat64Memory0;
 }
 
 function debugString(val) {
@@ -449,8 +440,8 @@ module.exports.__wbindgen_debug_string = function(arg0, arg1) {
     const ret = debugString(getObject(arg1));
     const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
     const len1 = WASM_VECTOR_LEN;
-    getDataView().setInt32(arg0 + 1 * 4, len1);
-    getDataView().setInt32(arg0 + 0 * 4, ptr1);
+    getDataView().setInt32(arg0 + 1 * 4, len1, true);
+    getDataView().setInt32(arg0 + 0 * 4, ptr1, true);
 };
 
 module.exports.__wbindgen_throw = function(arg0, arg1) {
