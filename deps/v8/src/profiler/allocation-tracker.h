@@ -6,6 +6,7 @@
 #define V8_PROFILER_ALLOCATION_TRACKER_H_
 
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 #include "include/v8-persistent-handle.h"
@@ -13,7 +14,10 @@
 #include "include/v8-unwinder.h"
 #include "src/base/hashmap.h"
 #include "src/base/vector.h"
+#include "src/debug/debug-interface.h"
 #include "src/handles/handles.h"
+#include "src/objects/script.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -105,6 +109,8 @@ class AllocationTracker {
     const char* script_name;
     int script_id;
     int start_position;
+    int line;
+    int column;
   };
 
   AllocationTracker(HeapObjectsMap* ids, StringsStorage* names);
@@ -121,8 +127,12 @@ class AllocationTracker {
   AddressToTraceMap* address_to_trace() { return &address_to_trace_; }
 
  private:
-  unsigned AddFunctionInfo(Tagged<SharedFunctionInfo> info,
-                           SnapshotObjectId id);
+  unsigned AddFunctionInfo(Tagged<SharedFunctionInfo> info, SnapshotObjectId id,
+                           Isolate* isolate);
+  String::LineEndsVector& GetOrCreateLineEnds(Tagged<Script> script,
+                                              Isolate* isolate);
+  Script::PositionInfo GetScriptPositionInfo(Tagged<Script> script,
+                                             Isolate* isolate, int start);
   unsigned functionInfoIndexForVMState(StateTag state);
 
   static const int kMaxAllocationTraceLength = 64;
@@ -134,6 +144,22 @@ class AllocationTracker {
   base::HashMap id_to_function_info_index_;
   unsigned info_index_for_other_state_;
   AddressToTraceMap address_to_trace_;
+  using ScriptId = int;
+  class ScriptData {
+   public:
+    ScriptData(Tagged<Script>, Isolate*, AllocationTracker*);
+    ~ScriptData();
+    String::LineEndsVector& line_ends() { return line_ends_; }
+
+   private:
+    static void HandleWeakScript(const v8::WeakCallbackInfo<ScriptData>&);
+    Global<debug::Script> script_;
+    ScriptId script_id_;
+    String::LineEndsVector line_ends_;
+    AllocationTracker* tracker_;
+  };
+  using ScriptsDataMap = std::unordered_map<ScriptId, ScriptData>;
+  ScriptsDataMap scripts_data_map_;
 };
 
 }  // namespace internal

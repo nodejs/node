@@ -3092,7 +3092,6 @@ bool HeapSnapshotGenerator::FillReferences() {
 const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 7;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
-  DisallowHeapAllocation no_heap_allocation;
   v8::base::ElapsedTimer timer;
   timer.Start();
   DCHECK_NULL(writer_);
@@ -3452,17 +3451,10 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
     // The cast is safe because script id is a non-negative Smi.
     buffer_pos =
         utoa(static_cast<unsigned>(info->script_id), buffer, buffer_pos);
-
-    auto& line_ends = snapshot_->GetScriptLineEnds(info->script_id);
-    int line = -1;
-    int column = -1;
-    Script::GetLineColumnWithLineEnds(info->start_position, line, column,
-                                      line_ends);
-
     buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(line, buffer, buffer_pos);
+    buffer_pos = SerializePosition(info->line, buffer, buffer_pos);
     buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(column, buffer, buffer_pos);
+    buffer_pos = SerializePosition(info->column, buffer, buffer_pos);
     buffer[buffer_pos++] = '\n';
     buffer[buffer_pos++] = '\0';
     writer_->AddString(buffer.begin());

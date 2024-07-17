@@ -4,10 +4,13 @@
 
 #include "src/profiler/allocation-tracker.h"
 
+#include "src/api/api-inl.h"
+#include "src/api/api.h"
 #include "src/execution/frames-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -96,7 +99,9 @@ AllocationTracker::FunctionInfo::FunctionInfo()
       function_id(0),
       script_name(""),
       script_id(0),
-      start_position(-1) {}
+      start_position(-1),
+      line(-1),
+      column(-1) {}
 
 void AddressToTraceMap::AddRange(Address start, int size,
                                  unsigned trace_node_id) {
@@ -199,7 +204,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
     SnapshotObjectId id =
         ids_->FindOrAddEntry(shared.address(), shared->Size(),
                              HeapObjectsMap::MarkEntryAccessed::kNo);
-    allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id);
+    allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id, isolate);
     it.Advance();
   }
   if (length == 0) {
@@ -220,8 +225,60 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
   return ComputeUnseededHash(static_cast<uint32_t>(id));
 }
 
+AllocationTracker::ScriptData::ScriptData(Tagged<Script> script,
+                                          Isolate* isolate,
+                                          AllocationTracker* tracker)
+    : script_id_(script->id()),
+      line_ends_(Script::GetLineEnds(isolate, handle(script, isolate))),
+      tracker_(tracker) {
+  DirectHandle<Script> script_direct_handle(script, isolate);
+  auto local_script = ToApiHandle<debug::Script>(script_direct_handle, isolate);
+  script_.Reset(local_script->GetIsolate(), local_script);
+  script_.SetWeak(this, &HandleWeakScript, v8::WeakCallbackType::kParameter);
+}
+
+AllocationTracker::ScriptData::~ScriptData() {
+  if (!script_.IsEmpty()) {
+    script_.ClearWeak();
+  }
+}
+
+void AllocationTracker::ScriptData::HandleWeakScript(
+    const v8::WeakCallbackInfo<ScriptData>& data) {
+  ScriptData* script_data = reinterpret_cast<ScriptData*>(data.GetParameter());
+  script_data->script_.ClearWeak();
+  script_data->script_.Reset();
+  script_data->tracker_->scripts_data_map_.erase(script_data->script_id_);
+}
+
+String::LineEndsVector& AllocationTracker::GetOrCreateLineEnds(
+    Tagged<Script> script, Isolate* isolate) {
+  auto it = scripts_data_map_.find(script->id());
+  if (it == scripts_data_map_.end()) {
+    auto inserted =
+        scripts_data_map_.try_emplace(script->id(), script, isolate, this);
+    CHECK(inserted.second);
+    return inserted.first->second.line_ends();
+  } else {
+    return it->second.line_ends();
+  }
+}
+
+Script::PositionInfo AllocationTracker::GetScriptPositionInfo(
+    Tagged<Script> script, Isolate* isolate, int start) {
+  Script::PositionInfo position_info;
+  if (script->has_line_ends()) {
+    script->GetPositionInfo(start, &position_info);
+  } else {
+    script->GetPositionInfoWithLineEnds(start, &position_info,
+                                        GetOrCreateLineEnds(script, isolate));
+  }
+  return position_info;
+}
+
 unsigned AllocationTracker::AddFunctionInfo(Tagged<SharedFunctionInfo> shared,
-                                            SnapshotObjectId id) {
+                                            SnapshotObjectId id,
+                                            Isolate* isolate) {
   base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
   if (entry->value == nullptr) {
@@ -236,6 +293,10 @@ unsigned AllocationTracker::AddFunctionInfo(Tagged<SharedFunctionInfo> shared,
       }
       info->script_id = script->id();
       info->start_position = shared->StartPosition();
+      Script::PositionInfo position_info =
+          GetScriptPositionInfo(script, isolate, info->start_position);
+      info->line = position_info.line;
+      info->column = position_info.column;
     }
     entry->value = reinterpret_cast<void*>(function_info_list_.size());
     function_info_list_.push_back(info);
