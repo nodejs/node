@@ -78,6 +78,15 @@ suite('DatabaseSync() constructor', () => {
       message: /The "options\.open" argument must be a boolean/,
     });
   });
+
+  test('throws if options.allowLoadExtension is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { allowLoadExtension: 5 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.allowLoadExtension" argument must be a boolean/,
+    });
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {

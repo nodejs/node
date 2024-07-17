@@ -18,13 +18,15 @@ class DatabaseSync : public BaseObject {
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
                v8::Local<v8::String> location,
-               bool open);
+               bool open,
+               bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
@@ -34,6 +36,7 @@ class DatabaseSync : public BaseObject {
 
   ~DatabaseSync() override;
   std::string location_;
+  bool allow_load_extension_;
   sqlite3* connection_;
 };
 
