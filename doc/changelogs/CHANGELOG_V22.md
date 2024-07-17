@@ -45,7 +45,7 @@
 
 <a id="22.5.0"></a>
 
-## 2024-07-16, Version 22.5.0 (Current), @RafaelGSS prepared by @aduh95
+## 2024-07-17, Version 22.5.0 (Current), @RafaelGSS prepared by @aduh95
 
 ### Notable Changes
 
