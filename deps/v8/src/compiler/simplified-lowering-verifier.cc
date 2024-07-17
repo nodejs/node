@@ -84,7 +84,8 @@ void SimplifiedLoweringVerifier::ReportInvalidTypeCombination(
 }
 
 bool IsModuloTruncation(const Truncation& truncation) {
-  return truncation.IsUsedAsWord32() || truncation.IsUsedAsWord64() ||
+  return truncation.IsUsedAsWord32() ||
+         (Is64() && truncation.IsUsedAsWord64()) ||
          Truncation::Any().IsLessGeneralThan(truncation);
 }
 

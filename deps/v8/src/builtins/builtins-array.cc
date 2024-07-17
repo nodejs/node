@@ -141,7 +141,7 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetRelativeIndex(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, relative_index_obj,
                                      Object::ToInteger(isolate, index),
                                      Nothing<double>());
-    relative_index = Object::Number(*relative_index_obj);
+    relative_index = Object::NumberValue(*relative_index_obj);
   }
 
   if (relative_index < 0) {
@@ -156,7 +156,7 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
     Isolate* isolate, Handle<JSReceiver> receiver) {
   if (IsJSArray(*receiver)) {
     Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-    double length = Object::Number(array->length());
+    double length = Object::NumberValue(array->length());
     DCHECK(0 <= length && length <= kMaxSafeInteger);
 
     return Just(length);
@@ -166,7 +166,7 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, raw_length_number,
       Object::GetLengthFromArrayLike(isolate, receiver), Nothing<double>());
-  return Just(Object::Number(*raw_length_number));
+  return Just(Object::NumberValue(*raw_length_number));
 }
 
 // Set "length" property, has "fast-path" for JSArrays.
@@ -255,7 +255,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
   // ElementAccessor::Fill is able to grow the backing store as needed, but we
   // need to ensure the JSArray's length is correctly set in case the user
   // assigned a smaller value.
-  if (Object::Number(array->length()) < end) {
+  if (Object::NumberValue(array->length()) < end) {
     CHECK(accessor->SetLength(array, end).FromJust());
   }
 
@@ -333,7 +333,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
   int arg_count = args->length() - 1;
 
   // 5. If len + arg_count > 2^53-1, throw a TypeError exception.
-  double length = Object::Number(*raw_length_number);
+  double length = Object::NumberValue(*raw_length_number);
   if (arg_count > kMaxSafeInteger - length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kPushPastSafeLength,
@@ -394,7 +394,7 @@ BUILTIN(ArrayPush) {
 
   // Fast Elements Path
   int to_add = args.length() - 1;
-  uint32_t len = static_cast<uint32_t>(Object::Number(array->length()));
+  uint32_t len = static_cast<uint32_t>(Object::NumberValue(array->length()));
   if (to_add == 0) return *isolate->factory()->NewNumberFromUint(len);
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
@@ -421,7 +421,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPop(Isolate* isolate,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_length_number,
       Object::GetLengthFromArrayLike(isolate, receiver));
-  double length = Object::Number(*raw_length_number);
+  double length = Object::NumberValue(*raw_length_number);
 
   // 3. If len is zero, then.
   if (length == 0) {
@@ -476,7 +476,7 @@ BUILTIN(ArrayPop) {
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
-  uint32_t len = static_cast<uint32_t>(Object::Number(array->length()));
+  uint32_t len = static_cast<uint32_t>(Object::NumberValue(array->length()));
 
   if (JSArray::HasReadOnlyLength(array)) {
     return GenericArrayPop(isolate, &args);
@@ -704,9 +704,10 @@ class ArrayConcatVisitor {
     }
 
     if (!is_fixed_array()) {
-      LookupIterator it(isolate_, storage_, index, LookupIterator::OWN);
-      MAYBE_RETURN(
-          JSReceiver::CreateDataProperty(&it, elm, Just(kThrowOnError)), false);
+      MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate_, storage_,
+                                                  PropertyKey(isolate_, index),
+                                                  elm, Just(kThrowOnError)),
+                   false);
       return true;
     }
 
@@ -782,11 +783,10 @@ class ArrayConcatVisitor {
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     RETURN_ON_EXCEPTION(
-        isolate_,
-        Object::SetProperty(
-            isolate_, result, isolate_->factory()->length_string(), length,
-            StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError)),
-        JSReceiver);
+        isolate_, Object::SetProperty(isolate_, result,
+                                      isolate_->factory()->length_string(),
+                                      length, StoreOrigin::kMaybeKeyed,
+                                      Just(ShouldThrow::kThrowOnError)));
     return result;
   }
   bool has_simple_elements() const {
@@ -857,7 +857,7 @@ class ArrayConcatVisitor {
 
 uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
   DisallowGarbageCollection no_gc;
-  uint32_t length = static_cast<uint32_t>(Object::Number(array->length()));
+  uint32_t length = static_cast<uint32_t>(Object::NumberValue(array->length()));
   int element_count = 0;
   switch (array->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
@@ -984,7 +984,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
         Tagged<Object> k = dict->KeyAt(InternalIndex(j));
         if (!dict->IsKey(roots, k)) continue;
         DCHECK(IsNumber(k));
-        uint32_t index = static_cast<uint32_t>(Object::Number(k));
+        uint32_t index = static_cast<uint32_t>(Object::NumberValue(k));
         if (index < range) {
           indices->push_back(index);
         }
@@ -1073,6 +1073,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
   if (!iter.IsAtEnd()) {
     // The prototype will usually have no inherited element indices,
     // but we have to check.
+    // Casting to JSObject is safe because we ran {HasOnlySimpleElements} on
+    // the receiver before, which checks the prototype chain.
     CollectElementIndices(
         isolate, PrototypeIterator::GetCurrent<JSObject>(iter), range, indices);
   }
@@ -1110,12 +1112,12 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
   if (IsJSArray(*receiver)) {
     Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-    length = static_cast<uint32_t>(Object::Number(array->length()));
+    length = static_cast<uint32_t>(Object::NumberValue(array->length()));
   } else {
     Handle<Object> val;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val, Object::GetLengthFromArrayLike(isolate, receiver), false);
-    if (visitor->index_offset() + Object::Number(*val) > kMaxSafeInteger) {
+    if (visitor->index_offset() + Object::NumberValue(*val) > kMaxSafeInteger) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kInvalidArrayLength));
       return false;
@@ -1308,7 +1310,8 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     uint32_t element_estimate;
     if (IsJSArray(*obj)) {
       Handle<JSArray> array(Handle<JSArray>::cast(obj));
-      length_estimate = static_cast<uint32_t>(Object::Number(array->length()));
+      length_estimate =
+          static_cast<uint32_t>(Object::NumberValue(array->length()));
       if (length_estimate != 0) {
         ElementsKind array_kind =
             GetPackedElementsKind(array->GetElementsKind());
@@ -1360,13 +1363,13 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
           double_storage->set(j, Smi::ToInt(*obj));
           j++;
         } else if (IsNumber(*obj)) {
-          double_storage->set(j, Object::Number(*obj));
+          double_storage->set(j, Object::NumberValue(*obj));
           j++;
         } else {
           DisallowGarbageCollection no_gc;
           Tagged<JSArray> array = JSArray::cast(*obj);
           uint32_t length =
-              static_cast<uint32_t>(Object::Number(array->length()));
+              static_cast<uint32_t>(Object::NumberValue(array->length()));
           switch (array->GetElementsKind()) {
             case HOLEY_DOUBLE_ELEMENTS:
             case PACKED_DOUBLE_ELEMENTS: {
@@ -1543,8 +1546,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
           FixedArray::kMaxLength < result_len) {
         AllowGarbageCollection gc;
         THROW_NEW_ERROR(isolate,
-                        NewRangeError(MessageTemplate::kInvalidArrayLength),
-                        JSArray);
+                        NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
     }
   }

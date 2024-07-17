@@ -22,14 +22,16 @@ inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Foreign::cast(obj)->foreign_address());
+      v8::internal::Foreign::cast(obj)
+          ->foreign_address<internal::kGenericForeignTag>());
 }
 
 template <>
 inline v8::internal::Address ToCData(
     v8::internal::Tagged<v8::internal::Object> obj) {
   if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
-  return v8::internal::Foreign::cast(obj)->foreign_address();
+  return v8::internal::Foreign::cast(obj)
+      ->foreign_address<internal::kGenericForeignTag>();
 }
 
 template <typename T>
@@ -37,7 +39,7 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
     v8::internal::Isolate* isolate, T obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == nullptr) return handle(v8::internal::Smi::zero(), isolate);
-  return isolate->factory()->NewForeign(
+  return isolate->factory()->NewForeign<internal::kGenericForeignTag>(
       reinterpret_cast<v8::internal::Address>(obj));
 }
 
@@ -47,7 +49,7 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
   if (obj == v8::internal::kNullAddress) {
     return handle(v8::internal::Smi::zero(), isolate);
   }
-  return isolate->factory()->NewForeign(obj);
+  return isolate->factory()->NewForeign<internal::kGenericForeignTag>(obj);
 }
 
 template <class From, class To>
@@ -271,7 +273,7 @@ template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
                                   i::Tagged<i::FixedArray> elements) {
   for (uint32_t i = 0; i < length; ++i) {
-    double value = i::Object::Number(elements->get(static_cast<int>(i)));
+    double value = i::Object::NumberValue(elements->get(static_cast<int>(i)));
     // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
     // avoid int->double->int conversions to boost performance.
     dst[i] = i::ConvertDouble<T>(value);

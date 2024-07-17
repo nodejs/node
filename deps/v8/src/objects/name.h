@@ -99,7 +99,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
       Isolate* isolate, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
-      Isolate* isolate, Handle<Name> name, Handle<String> prefix);
+      Isolate* isolate, Handle<Name> name, DirectHandle<String> prefix);
 
   DECL_CAST(Name)
   DECL_VERIFIER(Name)

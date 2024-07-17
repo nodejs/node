@@ -681,7 +681,8 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     if (var == nullptr) {
       DCHECK(scope->AsClassScope()->is_anonymous_class());
       var = scope->AsClassScope()->DeclareClassVariable(
-          ast_value_factory, nullptr, kNoSourcePosition);
+          ast_value_factory, ast_value_factory->empty_string(),
+          kNoSourcePosition);
       AstNodeFactory factory(ast_value_factory, zone);
       Declaration* declaration =
           factory.NewVariableDeclaration(kNoSourcePosition);

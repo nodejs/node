@@ -212,7 +212,7 @@ Address AllocationMemento::GetAllocationSiteUnchecked() const {
 }
 
 template <AllocationSiteUpdateMode update_or_check>
-bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
+bool AllocationSite::DigestTransitionFeedback(DirectHandle<AllocationSite> site,
                                               ElementsKind to_kind) {
   Isolate* isolate = site->GetIsolate();
   bool result = false;

@@ -107,17 +107,12 @@ V8_EXPORT_PRIVATE void PropagateDeferred(Graph& graph);
 
 struct InstructionSelectionPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(InstructionSelection)
+  static constexpr bool kOutputIsTraceableGraph = false;
 
-  base::Optional<BailoutReason> Run(Zone* temp_zone,
+  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
                                     const CallDescriptor* call_descriptor,
                                     Linkage* linkage, CodeTracer* code_tracer);
 };
-
-// Disable printing a default turboshaft graph as this phase produces an
-// instruction seqeuence rather than a new graph.
-template <>
-struct produces_printable_graph<InstructionSelectionPhase>
-    : public std::false_type {};
 
 }  // namespace v8::internal::compiler::turboshaft
 

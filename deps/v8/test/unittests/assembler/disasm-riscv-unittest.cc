@@ -142,7 +142,6 @@ TEST_F(DisasmRiscvTest, Arith) {
 TEST_F(DisasmRiscvTest, RVB) {
   SET_UP();
 
-#ifdef CAN_USE_ZBS_INSTRUCTIONS
   COMPARE(sh1add(s6, t1, t5), "21e32b33       sh1add    s6, t1, t5");
   COMPARE(sh2add(s7, t1, t2), "20734bb3       sh2add    s7, t1, t2");
   COMPARE(sh3add(s4, t1, t3), "21c36a33       sh3add    s4, t1, t3");
@@ -155,9 +154,7 @@ TEST_F(DisasmRiscvTest, RVB) {
   COMPARE(sh3adduw(s4, t1, t3), "21c36a3b       sh3add.uw s4, t1, t3");
   COMPARE(slliuw(s6, t1, 10), "08a31b1b       slli.uw   s6, t1, 10");
 #endif
-#endif
 
-#ifdef CAN_USE_ZBB_INSTRUCTIONS
   COMPARE(andn(a0, s3, s4), "4149f533       andn      a0, s3, s4");
   COMPARE(orn(a0, s3, s4), "4149e533       orn       a0, s3, s4");
   COMPARE(xnor(a0, s3, s4), "4149c533       xnor      a0, s3, s4");
@@ -182,9 +179,7 @@ TEST_F(DisasmRiscvTest, RVB) {
   COMPARE(zexth(a0, s2), "08094533       zext.h    a0, s2");
   COMPARE(rev8(a0, s2), "69895513       rev8      a0, s2");
 #endif
-#endif
 
-#ifdef CAN_USE_ZBS_INSTRUCTIONS
   COMPARE(bclr(a0, s2, s1), "48991533       bclr      a0, s2, s1");
   COMPARE(bclri(a0, s1, 3), "48349513       bclri     a0, s1, 3");
   COMPARE(bext(a0, s2, s1), "48995533       bext      a0, s2, s1");
@@ -193,7 +188,6 @@ TEST_F(DisasmRiscvTest, RVB) {
   COMPARE(binvi(a0, s1, 3), "68349513       binvi     a0, s1, 3");
   COMPARE(bset(a0, s2, s1), "28991533       bset      a0, s2, s1");
   COMPARE(bseti(a0, s1, 3), "28349513       bseti     a0, s1, 3");
-#endif
   VERIFY_RUN();
 }
 

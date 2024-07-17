@@ -216,7 +216,7 @@ InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
 
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
-                                             Handle<Object> key) {
+                                             DirectHandle<Object> key) {
   return FindEntry(isolate, *key);
 }
 
@@ -511,7 +511,7 @@ bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::Add(
     IsolateT* isolate, Handle<SwissNameDictionary> original_table,
-    Handle<Name> key, Handle<Object> value, PropertyDetails details,
+    DirectHandle<Name> key, DirectHandle<Object> value, PropertyDetails details,
     InternalIndex* entry_out) {
   DCHECK(original_table->FindEntry(isolate, *key).is_not_found());
 

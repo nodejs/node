@@ -196,14 +196,29 @@ absl_cc_library(
     demangle_internal
   HDRS
     "internal/demangle.h"
+    "internal/demangle_rust.h"
   SRCS
     "internal/demangle.cc"
+    "internal/demangle_rust.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base
     absl::core_headers
   PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    demangle_rust_test
+  SRCS
+    "internal/demangle_rust_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::demangle_internal
+    absl::config
+    GTest::gmock_main
 )
 
 absl_cc_test(

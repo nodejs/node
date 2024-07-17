@@ -1063,8 +1063,7 @@ class MatchInfoBackedMatch : public String::Match {
             isolate_, capture_value,
             Object::ToString(isolate_,
                              RegExpUtils::GenericCaptureGetter(
-                                 isolate_, match_info_, capture_index)),
-            String);
+                                 isolate_, match_info_, capture_index)));
         *state = MATCHED;
         return capture_value;
       }
@@ -1137,9 +1136,9 @@ class VectorBackedMatch : public String::Match {
       }
     }
     Handle<Object> capture_obj;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
-                               Object::GetProperty(isolate_, groups_obj_, name),
-                               String);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate_, capture_obj,
+        Object::GetProperty(isolate_, groups_obj_, name));
     if (IsUndefined(*capture_obj, isolate_)) {
       *state = UNMATCHED;
       return isolate_->factory()->empty_string();
@@ -1357,7 +1356,7 @@ static Tagged<Object> SearchRegExpMultiple(
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
       Handle<FixedArray> result_fixed_array = FixedArray::RightTrimOrEmpty(
-          isolate, builder.array(), builder.length());
+          isolate, indirect_handle(builder.array(), isolate), builder.length());
       // Cache the result and copy the FixedArray into a COW array.
       Handle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1397,8 +1396,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     if (sticky) {
       Handle<Object> last_index_obj(regexp->last_index(), isolate);
       ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
-                                 Object::ToLength(isolate, last_index_obj),
-                                 String);
+                                 Object::ToLength(isolate, last_index_obj));
       last_index = PositiveNumberToUint32(*last_index_obj);
     }
 
@@ -1410,8 +1408,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     if (last_index <= static_cast<uint32_t>(string->length())) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, match_indices_obj,
-          RegExp::Exec(isolate, regexp, string, last_index, last_match_info),
-          String);
+          RegExp::Exec(isolate, regexp, string, last_index, last_match_info));
     }
 
     if (IsNull(*match_indices_obj, isolate)) {
@@ -1435,19 +1432,17 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
       MatchInfoBackedMatch m(isolate, regexp, string, match_indices);
       Handle<String> replacement;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, replacement,
-                                 String::GetSubstitution(isolate, &m, replace),
-                                 String);
+                                 String::GetSubstitution(isolate, &m, replace));
       builder.AppendString(replacement);
     }
 
     builder.AppendString(
         factory->NewSubString(string, end_index, string->length()));
-    return builder.Finish();
+    return indirect_handle(builder.Finish(), isolate);
   } else {
     // Global regexp search, string replace.
     DCHECK(global);
-    RETURN_ON_EXCEPTION(isolate, RegExpUtils::SetLastIndex(isolate, regexp, 0),
-                        String);
+    RETURN_ON_EXCEPTION(isolate, RegExpUtils::SetLastIndex(isolate, regexp, 0));
 
     // Force tier up to native code for global replaces. The global replace is
     // implemented differently for native code and bytecode execution, where the
@@ -1648,8 +1643,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
   }
 
   Handle<Object> number;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number, Object::ToNumber(isolate, object),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
+                             Object::ToNumber(isolate, object));
   *out = NumberToUint32(*number);
   return object;
 }
@@ -2032,13 +2027,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
                               JSRegExp::Initialize(regexp, source, flags));
 
   return *regexp;
-}
-
-RUNTIME_FUNCTION(Runtime_IsRegExp) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSRegExp(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {

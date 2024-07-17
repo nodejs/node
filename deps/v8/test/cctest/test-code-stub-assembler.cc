@@ -4049,7 +4049,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   Handle<Object> input = isolate->factory()->NewNumber(8);
   MaybeHandle<Object> result = ft.Call(input);
   CHECK(IsSmi(*result.ToHandleChecked()));
-  CHECK_EQ(Object::Number(*result.ToHandleChecked()), 13);
+  CHECK_EQ(Object::NumberValue(*result.ToHandleChecked()), 13);
 
   v8_flags.turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
@@ -4176,7 +4176,7 @@ TEST(WasmFloat32ToNumber) {
     CHECK(IsNumber(*result));
     Handle<Object> expected(isolate->factory()->NewNumber(test_value));
     CHECK(Object::StrictEquals(*result, *expected) ||
-          (std::isnan(test_value) && std::isnan(Object::Number(*result))));
+          (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }
@@ -4216,7 +4216,7 @@ TEST(WasmFloat64ToNumber) {
     CHECK(IsNumber(*result));
     Handle<Object> expected(isolate->factory()->NewNumber(test_value));
     CHECK(Object::StrictEquals(*result, *expected) ||
-          (std::isnan(test_value) && std::isnan(Object::Number(*result))));
+          (std::isnan(test_value) && std::isnan(Object::NumberValue(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }
@@ -4301,6 +4301,31 @@ TEST(SmiUntagLeftShiftOptimization) {
 
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+}
+
+TEST(UnsignedSmiShiftLeft) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  int shift_bits = PropertyDetails::DictionaryStorageField::kShift;
+  int base = 1 << (kSmiValueSize - shift_bits - 1);
+  int target = SmiValuesAre32Bits() ? base << shift_bits
+                                    : (base << shift_bits) | 0x80000000;
+  {
+    TNode<Smi> a = m.SmiConstant(Smi::FromInt(base));
+    TNode<Smi> enum_index = m.UnsignedSmiShl(a, shift_bits);
+
+    TNode<Int32T> raw = m.TruncateIntPtrToInt32(m.SmiUntag(enum_index));
+    TNode<Int32T> expected = m.Int32Constant(target);
+
+    CSA_CHECK(&m, m.Word32Equal(raw, expected));
+    m.Return(m.UndefinedConstant());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  ft.Call();
 }
 
 TEST(SmiUntagComparisonOptimization) {

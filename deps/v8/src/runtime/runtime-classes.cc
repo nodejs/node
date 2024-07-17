@@ -78,10 +78,10 @@ namespace {
 Tagged<Object> ThrowNotSuperConstructor(Isolate* isolate,
                                         Handle<Object> constructor,
                                         Handle<JSFunction> function) {
-  Handle<String> super_name;
+  DirectHandle<String> super_name;
   if (IsJSFunction(*constructor)) {
-    super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->Name(),
-                        isolate);
+    super_name = direct_handle(
+        Handle<JSFunction>::cast(constructor)->shared()->Name(), isolate);
   } else if (IsOddball(*constructor)) {
     DCHECK(IsNull(*constructor, isolate));
     super_name = isolate->factory()->null_string();
@@ -491,6 +491,7 @@ bool InitClassPrototype(Isolate* isolate,
   map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
   Map::SetPrototype(isolate, map, prototype_parent);
+  isolate->UpdateProtectorsOnSetPrototype(prototype, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
   map->SetConstructor(*constructor);
   Handle<FixedArray> computed_properties(
@@ -604,14 +605,12 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
-                                     isolate->factory()->prototype_string()),
-          Object);
+                                     isolate->factory()->prototype_string()));
       if (!IsNull(*prototype_parent, isolate) &&
           !IsJSReceiver(*prototype_parent)) {
         THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
-                                  prototype_parent),
-            Object);
+                                  prototype_parent));
       }
       // Create new handle to avoid |constructor_parent| corruption because of
       // |super_class| handle value overwriting via storing to
@@ -620,8 +619,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
     } else {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kExtendsValueNotConstructor,
-                                   super_class),
-                      Object);
+                                   super_class));
     }
   }
 
@@ -681,8 +679,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
                                        SuperMode mode, PropertyKey* key) {
   if (IsAccessCheckNeeded(*home_object) &&
       !isolate->MayAccess(isolate->native_context(), home_object)) {
-    RETURN_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(home_object),
-                        JSReceiver);
+    RETURN_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(home_object));
     UNREACHABLE();
   }
 
@@ -694,7 +691,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
             ? MessageTemplate::kNonObjectPropertyLoadWithProperty
             : MessageTemplate::kNonObjectPropertyStoreWithProperty;
     Handle<Name> name = key->GetName(isolate);
-    THROW_NEW_ERROR(isolate, NewTypeError(message, proto, name), JSReceiver);
+    THROW_NEW_ERROR(isolate, NewTypeError(message, proto, name));
   }
   return Handle<JSReceiver>::cast(proto);
 }
@@ -705,10 +702,10 @@ MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
-      GetSuperHolder(isolate, home_object, SuperMode::kLoad, key), Object);
+      GetSuperHolder(isolate, home_object, SuperMode::kLoad, key));
   LookupIterator it(isolate, receiver, *key, holder);
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
   return result;
 }
 
@@ -754,7 +751,7 @@ MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
-      GetSuperHolder(isolate, home_object, SuperMode::kStore, key), Object);
+      GetSuperHolder(isolate, home_object, SuperMode::kStore, key));
   LookupIterator it(isolate, receiver, *key, holder);
   MAYBE_RETURN(Object::SetSuperProperty(&it, value, store_origin),
                MaybeHandle<Object>());

@@ -22,7 +22,10 @@
 
 namespace v8 {
 
+class JobDelegate;
+class JobHandle;
 class Platform;
+class TaskRunner;
 enum class MemoryPressureLevel;
 
 namespace internal {
@@ -180,7 +183,7 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   Isolate* isolate_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* background_compile_timer_;
-  std::shared_ptr<v8::TaskRunner> taskrunner_;
+  std::shared_ptr<TaskRunner> taskrunner_;
   Platform* platform_;
   size_t max_stack_size_;
 

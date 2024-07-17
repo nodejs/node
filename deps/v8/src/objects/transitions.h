@@ -54,25 +54,41 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 
   // Insert a new transition into |map|'s transition array, extending it
   // as necessary. This can trigger GC.
-  static void Insert(Isolate* isolate, Handle<Map> map, Handle<Name> name,
-                     Handle<Map> target, TransitionKindFlag flag);
+  static void Insert(Isolate* isolate, Handle<Map> map, DirectHandle<Name> name,
+                     DirectHandle<Map> target, TransitionKindFlag flag) {
+    InsertHelper(isolate, map, name, std::optional<DirectHandle<Map>>(target),
+                 flag);
+  }
+  static void InsertNoneSentinel(Isolate* isolate, Handle<Map> map,
+                                 DirectHandle<Name> name) {
+    InsertHelper(isolate, map, name, std::optional<DirectHandle<Map>>(),
+                 TransitionKindFlag::SPECIAL_TRANSITION);
+  }
 
   Tagged<Map> SearchTransition(Tagged<Name> name, PropertyKind kind,
                                PropertyAttributes attributes);
   static inline MaybeHandle<Map> SearchTransition(
-      Isolate* isolate, Handle<Map> map, Tagged<Name> name, PropertyKind kind,
-      PropertyAttributes attributes);
+      Isolate* isolate, DirectHandle<Map> map, Tagged<Name> name,
+      PropertyKind kind, PropertyAttributes attributes);
 
-  Tagged<Map> SearchSpecial(Tagged<Symbol> name);
-  static inline MaybeHandle<Map> SearchSpecial(Isolate* isolate,
-                                               Handle<Map> map,
-                                               Tagged<Symbol> name);
+  // Searches for a transition with a special symbol. The emtpy result |{}| is
+  // used to indicate that the transition does not exist. The nullptr |{Map()}|
+  // is used to indicate that the transition exists but is a negative sentinel
+  // value inserted by |InsertNoneSentinel| (internally this is represented by
+  // the weak reference being a ClearedValue).
+  std::optional<Tagged<Map>> SearchSpecial(Tagged<Symbol> name);
+  static inline std::optional<Handle<Map>> SearchSpecial(Isolate* isolate,
+                                                         DirectHandle<Map> map,
+                                                         Tagged<Symbol> name);
 
   // Returns true for non-property transitions like elements kind, or
   // or frozen/sealed transitions.
   static bool IsSpecialTransition(ReadOnlyRoots roots, Tagged<Name> name);
+  // Additional dependencies crossing between branches of the transition tree.
+  static bool IsSpecialSidestepTransition(ReadOnlyRoots roots,
+                                          Tagged<Name> name);
 
-  MaybeHandle<Map> FindTransitionToField(Handle<String> name);
+  MaybeHandle<Map> FindTransitionToField(DirectHandle<String> name);
 
   // Find all transitions with given name and calls the callback.
   // Neither GCs nor operations requiring Isolate::full_transition_array_access
@@ -86,6 +102,31 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline Handle<String> ExpectedTransitionKey();
   inline Handle<Map> ExpectedTransitionTarget();
 
+  enum class IterationMode {
+    kDefault,
+    kIncludeSideStepTransitions,
+    kIncludeClearedSideStepTransitions,
+  };
+  template <typename Callback, typename ProtoCallback>
+  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
+                         ProtoCallback proto_transition_callback,
+                         IterationMode filter = IterationMode::kDefault) {
+    ForEachTransitionWithKey<Callback, ProtoCallback, false>(
+        no_gc, callback, proto_transition_callback, filter);
+  }
+
+  template <typename Callback>
+  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
+                         IterationMode filter = IterationMode::kDefault) {
+    ForEachTransition(no_gc, callback, callback, filter);
+  }
+
+  template <typename Callback, typename ProtoCallback, bool with_key = true>
+  void ForEachTransitionWithKey(DisallowGarbageCollection* no_gc,
+                                Callback callback,
+                                ProtoCallback proto_transition_callback,
+                                IterationMode filter = IterationMode::kDefault);
+
   int NumberOfTransitions();
   // The size of transition arrays are limited so they do not end up in large
   // object space. Otherwise ClearNonLiveReferences would leak memory while
@@ -96,7 +137,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   static inline PropertyDetails GetTargetDetails(Tagged<Name> name,
                                                  Tagged<Map> target);
 
-  static bool CanHaveMoreTransitions(Isolate* isolate, Handle<Map> map);
+  static bool CanHaveMoreTransitions(Isolate* isolate, DirectHandle<Map> map);
 
   static bool IsMatchingMap(Tagged<Map> target, Tagged<Name> name,
                             PropertyKind kind, PropertyAttributes attributes);
@@ -109,12 +150,13 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   using TraverseCallback = std::function<void(Tagged<Map>)>;
 
   // Traverse the transition tree in preorder.
-  void TraverseTransitionTree(const TraverseCallback& callback) {
+  void TraverseTransitionTree(const TraverseCallback& callback,
+                              IterationMode filter = IterationMode::kDefault) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
     base::SharedMutexGuardIf<base::kShared> scope(
         isolate_->full_transition_array_access(), concurrent_access_);
-    TraverseTransitionTreeInternal(callback, &no_gc);
+    TraverseTransitionTreeInternal(callback, &no_gc, filter);
   }
 
   // ===== PROTOTYPE TRANSITIONS =====
@@ -126,18 +168,19 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // transitions are in the form of a map where the keys are prototype objects
   // and the values are the maps they transition to.
   // PutPrototypeTransition can trigger GC.
-  static void PutPrototypeTransition(Isolate* isolate, Handle<Map>,
-                                     Handle<Object> prototype,
-                                     Handle<Map> target_map);
-  static Handle<Map> GetPrototypeTransition(Isolate* isolate, Handle<Map> map,
-                                            Handle<Object> prototype);
+  static bool PutPrototypeTransition(Isolate* isolate, Handle<Map>,
+                                     DirectHandle<Object> prototype,
+                                     DirectHandle<Map> target_map);
+  static base::Optional<Tagged<Map>> GetPrototypeTransition(
+      Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype);
+  bool HasPrototypeTransitions();
 
   // During the first-time Map::Update and Map::TryUpdate, the migration target
   // map could be cached in the raw_transitions slot of the old map that is
   // deprecated from the map transition tree. The next time old map is updated,
   // we will check this cache slot as a shortcut to get the migration target
   // map.
-  static void SetMigrationTarget(Isolate* isolate, Handle<Map> map,
+  static void SetMigrationTarget(Isolate* isolate, DirectHandle<Map> map,
                                  Tagged<Map> migration_target);
   Tagged<Map> GetMigrationTarget();
 
@@ -151,7 +194,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 #endif
 #if DEBUG
   static void CheckNewTransitionsAreConsistent(Isolate* isolate,
-                                               Handle<Map> map,
+                                               DirectHandle<Map> map,
                                                Tagged<Object> transitions);
   bool IsConsistentWithBackPointers();
   bool IsSortedNoDuplicates();
@@ -184,38 +227,45 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                                      Tagged<MaybeObject> raw_transitions);
   static inline Encoding GetEncoding(Isolate* isolate,
                                      Tagged<TransitionArray> array);
-  static inline Encoding GetEncoding(Isolate* isolate, Handle<Map> map);
+  static inline Encoding GetEncoding(Isolate* isolate, DirectHandle<Map> map);
 
   static inline Tagged<TransitionArray> GetTransitionArray(
       Isolate* isolate, Tagged<MaybeObject> raw_transitions);
-  static inline Tagged<TransitionArray> GetTransitionArray(Isolate* isolate,
-                                                           Handle<Map> map);
+  static inline Tagged<TransitionArray> GetTransitionArray(
+      Isolate* isolate, DirectHandle<Map> map);
 
   static inline Tagged<Map> GetSimpleTransition(Isolate* isolate,
-                                                Handle<Map> map);
+                                                DirectHandle<Map> map);
   static inline Tagged<Name> GetSimpleTransitionKey(Tagged<Map> transition);
   inline PropertyDetails GetSimpleTargetDetails(Tagged<Map> transition);
 
   static inline Tagged<Map> GetTargetFromRaw(Tagged<MaybeObject> raw);
 
   static void EnsureHasFullTransitionArray(Isolate* isolate, Handle<Map> map);
-  static void SetPrototypeTransitions(Isolate* isolate, Handle<Map> map,
-                                      Handle<WeakFixedArray> proto_transitions);
+  static void SetPrototypeTransitions(
+      Isolate* isolate, Handle<Map> map,
+      DirectHandle<WeakFixedArray> proto_transitions);
   static Tagged<WeakFixedArray> GetPrototypeTransitions(Isolate* isolate,
-                                                        Handle<Map> map);
+                                                        Tagged<Map> map);
 
-  static inline void ReplaceTransitions(Isolate* isolate, Handle<Map> map,
+  static void InsertHelper(Isolate* isolate, Handle<Map> map,
+                           DirectHandle<Name> name,
+                           std::optional<DirectHandle<Map>> target,
+                           TransitionKindFlag flag);
+
+  static inline void ReplaceTransitions(Isolate* isolate, DirectHandle<Map> map,
                                         Tagged<MaybeObject> new_transitions);
   static inline void ReplaceTransitions(
       Isolate* isolate, Handle<Map> map,
-      Handle<TransitionArray> new_transitions);
+      DirectHandle<TransitionArray> new_transitions);
 
   bool HasSimpleTransitionTo(Tagged<Map> map);
 
   inline Tagged<Map> GetTargetMapFromWeakRef();
 
   void TraverseTransitionTreeInternal(const TraverseCallback& callback,
-                                      DisallowGarbageCollection* no_gc);
+                                      DisallowGarbageCollection* no_gc,
+                                      IterationMode filter);
 
   Isolate* isolate_;
   Tagged<Map> map_;
@@ -364,7 +414,7 @@ class TransitionArray : public WeakFixedArray {
                                               Tagged<WeakFixedArray> array);
 
   static Handle<WeakFixedArray> GrowPrototypeTransitionArray(
-      Handle<WeakFixedArray> array, int new_capacity, Isolate* isolate);
+      DirectHandle<WeakFixedArray> array, int new_capacity, Isolate* isolate);
 
   // Compares two tuples <key, kind, attributes>, returns -1 if
   // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.

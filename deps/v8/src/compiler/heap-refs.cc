@@ -872,10 +872,14 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
   // can use the non-atomic accessors. Cons: We would be acquiring an exclusive
   // lock in more places.
   bit_field3_ = object->relaxed_bit_field3();
-  unused_property_fields_ = object->UnusedPropertyFields();
   is_abandoned_prototype_map_ = object->is_abandoned_prototype_map();
-  in_object_properties_ =
-      IsJSObjectMap(*object) ? object->GetInObjectProperties() : 0;
+  if (IsJSObjectMap(*object)) {
+    unused_property_fields_ = object->UnusedPropertyFields();
+    in_object_properties_ = object->GetInObjectProperties();
+  } else {
+    unused_property_fields_ = 0;
+    in_object_properties_ = 0;
+  }
 }
 
 class FixedArrayBaseData : public HeapObjectData {
@@ -1524,8 +1528,11 @@ int BytecodeArrayRef::length() const { return object()->length(); }
 int BytecodeArrayRef::register_count() const {
   return object()->register_count();
 }
-int BytecodeArrayRef::parameter_count() const {
+uint16_t BytecodeArrayRef::parameter_count() const {
   return object()->parameter_count();
+}
+uint16_t BytecodeArrayRef::max_arguments() const {
+  return object()->max_arguments();
 }
 interpreter::Register
 BytecodeArrayRef::incoming_new_target_or_generator_register() const {
@@ -1662,6 +1669,7 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
 HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasContext)
 HEAP_ACCESSOR_C(ScopeInfo, bool, ClassScopeHasPrivateBrand)
 HEAP_ACCESSOR_C(ScopeInfo, ScopeType, scope_type)
 

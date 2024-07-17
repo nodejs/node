@@ -11,6 +11,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/source-text-module.h"
@@ -454,6 +455,7 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
                         MaybeHandle<Name>(),   OptionalMapRef(),
                         Type::OtherInternal(), MachineType::TaggedPointer(),
                         kPointerWriteBarrier,  "JSArrayBufferViewBuffer"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -1147,16 +1149,6 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
     default:
       UNREACHABLE();
   }
-  return access;
-}
-
-// static
-ElementAccess AccessBuilder::ForStackArgument() {
-  ElementAccess access = {
-      kUntaggedBase,
-      CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize,
-      Type::NonInternal(), MachineType::Pointer(),
-      WriteBarrierKind::kNoWriteBarrier};
   return access;
 }
 

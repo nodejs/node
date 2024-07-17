@@ -625,7 +625,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(
     if (elements != ReadOnlyRoots(heap_).empty_fixed_array()) {
       size_t element_size =
           (elements->Size() - FixedArrayBase::kHeaderSize) / elements->length();
-      uint32_t length = Object::Number(JSArray::cast(object)->length());
+      uint32_t length = Object::NumberValue(JSArray::cast(object)->length());
       size_t over_allocated = (elements->length() - length) * element_size;
       RecordVirtualObjectStats(object, elements,
                                ObjectStats::ARRAY_ELEMENTS_TYPE,

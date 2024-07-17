@@ -47,7 +47,8 @@ class Tuple2 : public TorqueGeneratedTuple2<Tuple2, Struct> {
 class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
+  static Handle<AccessorPair> Copy(Isolate* isolate,
+                                   DirectHandle<AccessorPair> pair);
 
   inline Tagged<Object> get(AccessorComponent component);
   inline void set(AccessorComponent component, Tagged<Object> value);
@@ -65,7 +66,7 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
   // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Isolate* isolate,
                                      Handle<NativeContext> native_context,
-                                     Handle<AccessorPair> accessor_pair,
+                                     DirectHandle<AccessorPair> accessor_pair,
                                      AccessorComponent component);
 
   // Set both components, skipping arguments which are a JavaScript null.

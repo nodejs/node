@@ -130,6 +130,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   Register GetParameter(int parameter_index) const;
   uint32_t GetRegisterCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;
+  Register GetStarTargetRegister() const;
   std::pair<Register, Register> GetRegisterPairOperand(int operand_index) const;
   RegisterList GetRegisterListOperand(int operand_index) const;
   int GetRegisterOperandRange(int operand_index) const;

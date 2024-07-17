@@ -149,15 +149,18 @@ class MockPlatform : public TestPlatform {
  private:
   class MockTaskRunner : public v8::TaskRunner {
    public:
-    void PostTask(std::unique_ptr<v8::Task> task) override {}
+    void PostTaskImpl(std::unique_ptr<v8::Task> task,
+                      const SourceLocation&) override {}
 
-    void PostDelayedTask(std::unique_ptr<Task> task,
-                         double delay_in_seconds) override {
+    void PostDelayedTaskImpl(std::unique_ptr<Task> task,
+                             double delay_in_seconds,
+                             const SourceLocation&) override {
       task_ = std::move(task);
       delay_ = delay_in_seconds;
     }
 
-    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                          const SourceLocation&) override {
       UNREACHABLE();
     }
 

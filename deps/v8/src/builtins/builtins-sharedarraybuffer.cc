@@ -46,7 +46,7 @@ BUILTIN(AtomicsIsLockFree) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size,
                                      Object::ToNumber(isolate, size));
   return *isolate->factory()->ToBoolean(
-      AtomicIsLockFree(Object::Number(*size)));
+      AtomicIsLockFree(Object::NumberValue(*size)));
 }
 
 // https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
@@ -58,11 +58,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(
-              MessageTemplate::kDetachedOperation,
-              isolate->factory()->NewStringFromAsciiChecked(method_name)),
-          JSTypedArray);
+          isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                                isolate->factory()->NewStringFromAsciiChecked(
+                                    method_name)));
     }
 
     if (only_int32_and_big_int64) {
@@ -79,12 +77,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
   }
 
   THROW_NEW_ERROR(
-      isolate,
-      NewTypeError(only_int32_and_big_int64
-                       ? MessageTemplate::kNotInt32OrBigInt64TypedArray
-                       : MessageTemplate::kNotIntegerTypedArray,
-                   object),
-      JSTypedArray);
+      isolate, NewTypeError(only_int32_and_big_int64
+                                ? MessageTemplate::kNotInt32OrBigInt64TypedArray
+                                : MessageTemplate::kNotIntegerTypedArray,
+                            object));
 }
 
 // https://tc39.es/ecma262/#sec-validateatomicaccess
@@ -153,7 +149,7 @@ BUILTIN(AtomicsNotify) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
                                        Object::ToInteger(isolate, count));
-    double count_double = Object::Number(*count);
+    double count_double = Object::NumberValue(*count);
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > kMaxUInt32) {
@@ -219,13 +215,15 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
   if (IsUndefined(*timeout, isolate)) {
-    timeout_number = Object::Number(ReadOnlyRoots(isolate).infinity_value());
+    timeout_number =
+        Object::NumberValue(ReadOnlyRoots(isolate).infinity_value());
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
-    timeout_number = Object::Number(*timeout);
+    timeout_number = Object::NumberValue(*timeout);
     if (std::isnan(timeout_number))
-      timeout_number = Object::Number(ReadOnlyRoots(isolate).infinity_value());
+      timeout_number =
+          Object::NumberValue(ReadOnlyRoots(isolate).infinity_value());
     else if (timeout_number < 0)
       timeout_number = 0;
   }

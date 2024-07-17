@@ -93,9 +93,6 @@ ACCESSORS_RELAXED_CHECKED(ErrorStackData, call_site_infos, Tagged<FixedArray>,
                           kCallSiteInfosOrFormattedStackOffset,
                           !HasFormattedStack())
 
-NEVER_READ_ONLY_SPACE_IMPL(PromiseOnStack)
-TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseOnStack)
-
 }  // namespace internal
 }  // namespace v8
 

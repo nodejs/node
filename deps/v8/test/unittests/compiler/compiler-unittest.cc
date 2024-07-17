@@ -74,7 +74,7 @@ static double Inc(Isolate* isolate, int x) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Inc) {
@@ -92,7 +92,7 @@ static double Add(Isolate* isolate, int x, int y) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Add) {
@@ -109,7 +109,7 @@ static double Abs(Isolate* isolate, int x) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Abs) {
@@ -127,7 +127,7 @@ static double Sum(Isolate* isolate, int n) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Sum) {
@@ -182,7 +182,7 @@ TEST_F(CompilerTest, Stuff) {
   Execution::CallScript(i_isolate(), fun, global,
                         i_isolate()->factory()->empty_fixed_array())
       .Check();
-  EXPECT_EQ(511.0, Object::Number(*GetGlobalProperty("r")));
+  EXPECT_EQ(511.0, Object::NumberValue(*GetGlobalProperty("r")));
 }
 
 TEST_F(CompilerTest, UncaughtThrow) {
@@ -196,7 +196,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   EXPECT_TRUE(Execution::CallScript(isolate, fun, global,
                                     isolate->factory()->empty_fixed_array())
                   .is_null());
-  EXPECT_EQ(42.0, Object::Number(isolate->exception()));
+  EXPECT_EQ(42.0, Object::NumberValue(isolate->exception()));
 }
 
 using CompilerC2JSFramesTest = WithPrintExtensionMixin<v8::TestWithIsolate>;

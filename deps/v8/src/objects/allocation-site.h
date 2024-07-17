@@ -130,7 +130,7 @@ class AllocationSite : public Struct {
 
   template <AllocationSiteUpdateMode update_or_check =
                 AllocationSiteUpdateMode::kUpdate>
-  static bool DigestTransitionFeedback(Handle<AllocationSite> site,
+  static bool DigestTransitionFeedback(DirectHandle<AllocationSite> site,
                                        ElementsKind to_kind);
 
   DECL_PRINTER(AllocationSite)

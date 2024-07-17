@@ -592,6 +592,9 @@ TEST(HeapSnapshotSlicedString) {
   heap_profiler->DeleteAllHeapSnapshots();
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
 
 TEST(HeapSnapshotConsString) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -601,6 +604,7 @@ TEST(HeapSnapshotConsString) {
   global_template->SetInternalFieldCount(1);
   LocalContext env(nullptr, global_template);
   v8::Local<v8::Object> global_proxy = env->Global();
+  CHECK_EQ(1, global_proxy->InternalFieldCount());
   v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(1, global->InternalFieldCount());
 
@@ -610,6 +614,7 @@ TEST(HeapSnapshotConsString) {
   i::Handle<i::String> cons_string =
       factory->NewConsString(first, second).ToHandleChecked();
 
+  global_proxy->SetInternalField(0, v8::ToApiHandle<v8::String>(cons_string));
   global->SetInternalField(0, v8::ToApiHandle<v8::String>(cons_string));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
@@ -633,6 +638,9 @@ TEST(HeapSnapshotConsString) {
   heap_profiler->DeleteAllHeapSnapshots();
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 TEST(HeapSnapshotSymbol) {
   LocalContext env;
@@ -831,6 +839,10 @@ TEST(HeapSnapshotMap) {
                     "transition"));
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
+
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -855,6 +867,10 @@ TEST(HeapSnapshotInternalReferences) {
   CHECK(GetProperty(env->GetIsolate(), global_node,
                     v8::HeapGraphEdge::kInternal, "1"));
 }
+
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 TEST(HeapSnapshotEphemeron) {
   LocalContext env;
@@ -1756,7 +1772,7 @@ class EmbedderGraphBuilderForNativeSnapshotObjectId final {
     BuildParameter* parameter = reinterpret_cast<BuildParameter*>(data);
     v8::Local<v8::String> local_str =
         v8::Local<v8::String>::New(isolate, *(parameter->wrapper));
-    auto* v8_node = graph->V8Node(local_str);
+    auto* v8_node = graph->V8Node(local_str.As<v8::Value>());
     CHECK(!v8_node->IsEmbedderNode());
     auto* root_node =
         graph->AddNode(std::unique_ptr<RootNode>(new RootNode("root")));
@@ -2003,6 +2019,9 @@ TEST(NodesIteration) {
   CHECK_EQ(1, count);
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
 
 TEST(GetHeapValueForNode) {
   LocalContext env;
@@ -2203,6 +2222,9 @@ TEST(GetConstructorName) {
                                       i_isolate, *js_obj6)));
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 TEST(FastCaseAccessors) {
   LocalContext env;
@@ -2239,6 +2261,9 @@ TEST(FastCaseAccessors) {
   CHECK(!func);
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
 
 TEST(FastCaseRedefinedAccessors) {
   LocalContext env;
@@ -2283,6 +2308,9 @@ TEST(FastCaseRedefinedAccessors) {
   CHECK(func);
 }
 
+// Allow usages of v8::Object::GetPrototype() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 TEST(SlowCaseAccessors) {
   LocalContext env;
@@ -2841,8 +2869,6 @@ TEST(ArrayGrowLeftTrim) {
   AllocationTracker* tracker =
       reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
   CHECK(tracker);
-  // Resolve all function locations.
-  tracker->PrepareForSerialization();
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
@@ -2865,8 +2891,6 @@ TEST(TrackHeapAllocationsWithInlining) {
   AllocationTracker* tracker =
       reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
   CHECK(tracker);
-  // Resolve all function locations.
-  tracker->PrepareForSerialization();
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
@@ -2899,8 +2923,6 @@ TEST(TrackHeapAllocationsWithoutInlining) {
   AllocationTracker* tracker =
       reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
   CHECK(tracker);
-  // Resolve all function locations.
-  tracker->PrepareForSerialization();
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
@@ -2949,8 +2971,6 @@ TEST(TrackBumpPointerAllocations) {
     AllocationTracker* tracker =
         reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
     CHECK(tracker);
-    // Resolve all function locations.
-    tracker->PrepareForSerialization();
     // Print for better diagnostics in case of failure.
     tracker->trace_tree()->Print(tracker);
 
@@ -2975,8 +2995,6 @@ TEST(TrackBumpPointerAllocations) {
     AllocationTracker* tracker =
         reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
     CHECK(tracker);
-    // Resolve all function locations.
-    tracker->PrepareForSerialization();
     // Print for better diagnostics in case of failure.
     tracker->trace_tree()->Print(tracker);
 
@@ -3004,8 +3022,6 @@ TEST(TrackV8ApiAllocation) {
   AllocationTracker* tracker =
       reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
   CHECK(tracker);
-  // Resolve all function locations.
-  tracker->PrepareForSerialization();
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 

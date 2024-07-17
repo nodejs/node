@@ -25,7 +25,7 @@ TEST_F(RunJSObjectsTest, ArgumentsMapped) {
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
-  CHECK_EQ(4, Object::Number(*length));
+  CHECK_EQ(4, Object::NumberValue(*length));
 }
 
 TEST_F(RunJSObjectsTest, ArgumentsUnmapped) {
@@ -40,7 +40,7 @@ TEST_F(RunJSObjectsTest, ArgumentsUnmapped) {
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
-  CHECK_EQ(4, Object::Number(*length));
+  CHECK_EQ(4, Object::NumberValue(*length));
 }
 
 TEST_F(RunJSObjectsTest, ArgumentsRest) {
@@ -54,7 +54,7 @@ TEST_F(RunJSObjectsTest, ArgumentsRest) {
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
       Object::GetProperty(T.isolate, arguments, l).ToHandleChecked();
-  CHECK_EQ(3, Object::Number(*length));
+  CHECK_EQ(3, Object::NumberValue(*length));
 }
 
 }  // namespace compiler

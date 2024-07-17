@@ -5,7 +5,7 @@
 #ifndef V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
 #define V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV_INL_H_
 
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -15,14 +15,10 @@ namespace v8::internal::wasm {
 
 namespace liftoff {
 
-// fp-8 holds the stack marker, fp-16 is the instance parameter.
-constexpr int kInstanceDataOffset = 2 * kSystemPointerSize;
-constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
-
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetInstanceDataOperand() {
-  return GetStackSlot(kInstanceDataOffset);
+  return GetStackSlot(WasmLiftoffFrameConstants::kInstanceDataOffset);
 }
 
 }  // namespace liftoff
@@ -174,7 +170,7 @@ void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kFeedbackVectorOffset;
+  return WasmLiftoffFrameConstants::kFeedbackVectorOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -203,7 +199,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
                                           int offset, IndirectPointerTag tag) {
   MemOperand src{src_addr, offset};
-  LoadTrustedPointerField(dst, src, kWasmTrustedInstanceDataIndirectPointerTag);
+  LoadTrustedPointerField(dst, src, tag);
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -1474,6 +1470,7 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister lhs,
                                                         LiftoffRegister rhs,
                                                         LiftoffRegister acc) {
+  DCHECK_NE(dst, acc);
   VU.set(kScratchReg, E8, m1);
   VRegister intermediate = kSimd128ScratchReg3;
   VRegister kSimd128ScratchReg4 =
@@ -2149,16 +2146,20 @@ void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
                                             Register tmp_gp,
                                             LiftoffRegister tmp_s128,
                                             ValueKind lane_kind) {
-  DoubleRegister tmp_fp = tmp_s128.fp();
-  vfredmax_vs(kSimd128ScratchReg, src.fp().toV(), src.fp().toV());
-  vfmv_fs(tmp_fp, kSimd128ScratchReg);
+  ASM_CODE_COMMENT(this);
   if (lane_kind == kF32) {
-    feq_s(kScratchReg, tmp_fp, tmp_fp);  // scratch <- !IsNan(tmp_fp)
+    VU.set(kScratchReg, E32, m1);
+    vmfeq_vv(kSimd128ScratchReg, src.fp().toV(),
+             src.fp().toV());  // scratch <- !IsNan(tmp_fp)
   } else {
+    VU.set(kScratchReg, E64, m1);
     DCHECK_EQ(lane_kind, kF64);
-    feq_d(kScratchReg, tmp_fp, tmp_fp);  // scratch <- !IsNan(tmp_fp)
+    vmfeq_vv(kSimd128ScratchReg, src.fp().toV(),
+             src.fp().toV());  // scratch <- !IsNan(tmp_fp)
   }
+  vmv_xs(kScratchReg, kSimd128ScratchReg);
   not_(kScratchReg, kScratchReg);
+  andi(kScratchReg, kScratchReg, int32_t(lane_kind == kF32 ? 0xF : 0x3));
   Sw(kScratchReg, MemOperand(dst));
 }
 
@@ -2198,8 +2199,8 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
   vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
-                                             MemOperand oob_offset) {
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
+                                             uint64_t oob_index) {
   UNREACHABLE();
 }
 
@@ -2343,7 +2344,7 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
     DCHECK_EQ(kind, kF64);
     feq_d(scratch, src, src);  // rd <- !isNan(src)
   }
-  not_(scratch, scratch);
+  seqz(scratch, scratch);
   Sw(scratch, MemOperand(dst));
 }
 

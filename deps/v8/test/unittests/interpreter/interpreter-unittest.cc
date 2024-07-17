@@ -15,7 +15,7 @@
 #include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/heap-number-inl.h"

@@ -218,7 +218,7 @@ static void CheckObject(Isolate* isolate, Handle<Object> obj,
                         const char* string) {
   Handle<String> print_string = String::Flatten(
       isolate,
-      Handle<String>::cast(Object::NoSideEffectsToString(isolate, obj)));
+      indirect_handle(Object::NoSideEffectsToString(isolate, obj), isolate));
   CHECK(print_string->IsOneByteEqualTo(base::CStrVector(string)));
 }
 

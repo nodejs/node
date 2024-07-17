@@ -49,8 +49,8 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  V8_EXPORT_PRIVATE static void Initialize(Handle<JSArray> array, int capacity,
-                                           int length = 0);
+  V8_EXPORT_PRIVATE static void Initialize(DirectHandle<JSArray> array,
+                                           int capacity, int length = 0);
 
   // If the JSArray has fast elements, and new_length would result in
   // normalization, returns true.

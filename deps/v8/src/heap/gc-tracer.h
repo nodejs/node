@@ -19,7 +19,10 @@
 namespace v8 {
 namespace internal {
 
-enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
+enum YoungGenerationSpeedMode {
+  kUpToAndIncludingAtomicPause,
+  kOnlyAtomicPause
+};
 
 #define TRACE_GC_CATEGORIES \
   "devtools.timeline," TRACE_DISABLED_BY_DEFAULT("v8.gc")
@@ -219,6 +222,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Bytes marked incrementally for INCREMENTAL_MARK_COMPACTOR
     size_t incremental_marking_bytes = 0;
 
+    // Approximate number of threads that contributed in garbage collection.
+    size_t concurrency_estimate = 1;
+
     // Duration (in ms) of incremental marking steps for
     // INCREMENTAL_MARK_COMPACTOR.
     base::TimeDelta incremental_marking_duration;
@@ -330,6 +336,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void AddSurvivalRatio(double survival_ratio);
 
+  void SampleConcurrencyEsimate(size_t concurrency);
+
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, size_t bytes);
 
@@ -344,10 +352,14 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Returns a conservative value if no events have been recorded.
   double EmbedderSpeedInBytesPerMillisecond() const;
 
-  // Compute the average scavenge speed in bytes/millisecond.
+  // Average estimaged young generation speed in bytes/millisecond. This factors
+  // in concurrency and assumes that the level of concurrency provided by the
+  // embedder is stable. E.g., receiving lower concurrency than previously
+  // recorded events will yield in lower current speed.
+  //
   // Returns 0 if no events have been recorded.
-  double ScavengeSpeedInBytesPerMillisecond(
-      ScavengeSpeedMode mode = kForAllObjects) const;
+  double YoungGenerationSpeedInBytesPerMillisecond(
+      YoungGenerationSpeedMode mode) const;
 
   // Compute the average compaction speed in bytes/millisecond.
   // Returns 0 if not enough events have been recorded.
@@ -543,13 +555,16 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::TimeTicks previous_mark_compact_end_time_;
 
   BytesAndDurationBuffer recorded_minor_gcs_total_;
-  BytesAndDurationBuffer recorded_minor_gcs_survived_;
   BytesAndDurationBuffer recorded_compactions_;
   BytesAndDurationBuffer recorded_incremental_mark_compacts_;
   BytesAndDurationBuffer recorded_mark_compacts_;
   BytesAndDurationBuffer recorded_new_generation_allocations_;
   BytesAndDurationBuffer recorded_old_generation_allocations_;
   BytesAndDurationBuffer recorded_embedder_generation_allocations_;
+  // Estimate for young generation speed. Based on walltime and concurrency
+  // estimates.
+  BytesAndDurationBuffer recorded_minor_gc_per_thread_;
+  BytesAndDurationBuffer recorded_minor_gc_atomic_pause_;
   base::RingBuffer<double> recorded_survival_ratios_;
 
   // A full GC cycle stops only when both v8 and cppgc (if available) GCs have

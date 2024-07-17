@@ -670,6 +670,18 @@ inline void MaglevAssembler::IncrementInt32(Register reg) {
   Add(reg.W(), reg.W(), Immediate(1));
 }
 
+inline void MaglevAssembler::DecrementInt32(Register reg) {
+  Sub(reg.W(), reg.W(), Immediate(1));
+}
+
+inline void MaglevAssembler::AddInt32(Register reg, int amount) {
+  Add(reg.W(), reg.W(), Immediate(amount));
+}
+
+inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
+  Lsl(reg.W(), reg.W(), amount);
+}
+
 inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
   Add(reg.X(), reg.X(), Immediate(delta));
 }

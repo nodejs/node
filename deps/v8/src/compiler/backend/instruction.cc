@@ -288,6 +288,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
+        case MachineRepresentation::kProtectedPointer:
+          os << "|pp";
+          break;
         case MachineRepresentation::kIndirectPointer:
           os << "|ip";
           break;
@@ -481,6 +484,10 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "trap";
     case kFlags_select:
       return os << "select";
+    case kFlags_conditional_set:
+      return os << "conditional set";
+    case kFlags_conditional_branch:
+      return os << "conditional branch";
   }
   UNREACHABLE();
 }
@@ -1041,15 +1048,14 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kSandboxedPointer:
       return rep;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kIndirectPointer:
-      break;
+      UNREACHABLE();
   }
-
-  UNREACHABLE();
 }
 
 MachineRepresentation InstructionSequence::GetRepresentation(
@@ -1143,7 +1149,8 @@ namespace {
 size_t GetConservativeFrameSizeInBytes(FrameStateType type,
                                        size_t parameters_count,
                                        size_t locals_count,
-                                       BytecodeOffset bailout_id) {
+                                       BytecodeOffset bailout_id,
+                                       uint32_t wasm_liftoff_frame_size) {
   switch (type) {
     case FrameStateType::kUnoptimizedFunction: {
       auto info = UnoptimizedFrameInfo::Conservative(
@@ -1183,6 +1190,10 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
           config);
       return info.frame_size_in_bytes();
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kLiftoffFunction:
+      return wasm_liftoff_frame_size;
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
   UNREACHABLE();
 }
@@ -1191,13 +1202,14 @@ size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
                                             size_t parameters_count,
                                             size_t locals_count,
                                             BytecodeOffset bailout_id,
+                                            uint32_t wasm_liftoff_frame_size,
                                             FrameStateDescriptor* outer_state) {
   size_t outer_total_conservative_frame_size_in_bytes =
       (outer_state == nullptr)
           ? 0
           : outer_state->total_conservative_frame_size_in_bytes();
   return GetConservativeFrameSizeInBytes(type, parameters_count, locals_count,
-                                         bailout_id) +
+                                         bailout_id, wasm_liftoff_frame_size) +
          outer_total_conservative_frame_size_in_bytes;
 }
 
@@ -1205,22 +1217,26 @@ size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
 
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
-    OutputFrameStateCombine state_combine, size_t parameters_count,
-    size_t locals_count, size_t stack_count,
+    OutputFrameStateCombine state_combine, uint16_t parameters_count,
+    uint16_t max_arguments, size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
-    FrameStateDescriptor* outer_state)
+    FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
+    uint32_t wasm_function_index)
     : type_(type),
       bailout_id_(bailout_id),
       frame_state_combine_(state_combine),
       parameters_count_(parameters_count),
+      max_arguments_(max_arguments),
       locals_count_(locals_count),
       stack_count_(stack_count),
       total_conservative_frame_size_in_bytes_(
           GetTotalConservativeFrameSizeInBytes(
-              type, parameters_count, locals_count, bailout_id, outer_state)),
+              type, parameters_count, locals_count, bailout_id,
+              wasm_liftoff_frame_size, outer_state)),
       values_(zone),
       shared_info_(shared_info),
-      outer_state_(outer_state) {}
+      outer_state_(outer_state),
+      wasm_function_index_(wasm_function_index) {}
 
 size_t FrameStateDescriptor::GetHeight() const {
   switch (type()) {
@@ -1245,6 +1261,10 @@ size_t FrameStateDescriptor::GetHeight() const {
       //   CreateJavaScriptBuiltinContinuationFrameState), and
       // - does *not* include the context.
       return parameters_count();
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kLiftoffFunction:
+      return locals_count() + parameters_count();
+#endif
   }
   UNREACHABLE();
 }
@@ -1286,12 +1306,12 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
 #if V8_ENABLE_WEBASSEMBLY
 JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
-    OutputFrameStateCombine state_combine, size_t parameters_count,
+    OutputFrameStateCombine state_combine, uint16_t parameters_count,
     size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
     FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
-                           parameters_count, locals_count, stack_count,
+                           parameters_count, 0, locals_count, stack_count,
                            shared_info, outer_state),
       return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 #endif  // V8_ENABLE_WEBASSEMBLY

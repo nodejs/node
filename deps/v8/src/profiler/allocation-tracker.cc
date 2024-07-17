@@ -96,10 +96,7 @@ AllocationTracker::FunctionInfo::FunctionInfo()
       function_id(0),
       script_name(""),
       script_id(0),
-      line(-1),
-      column(-1) {
-}
-
+      start_position(-1) {}
 
 void AddressToTraceMap::AddRange(Address start, int size,
                                  unsigned trace_node_id) {
@@ -181,22 +178,9 @@ AllocationTracker::AllocationTracker(HeapObjectsMap* ids, StringsStorage* names)
   function_info_list_.push_back(info);
 }
 
-
 AllocationTracker::~AllocationTracker() {
-  for (UnresolvedLocation* location : unresolved_locations_) delete location;
   for (FunctionInfo* info : function_info_list_) delete info;
 }
-
-
-void AllocationTracker::PrepareForSerialization() {
-  for (UnresolvedLocation* location : unresolved_locations_) {
-    location->Resolve();
-    delete location;
-  }
-  unresolved_locations_.clear();
-  unresolved_locations_.shrink_to_fit();
-}
-
 
 void AllocationTracker::AllocationEvent(Address addr, int size) {
   DisallowGarbageCollection no_gc;
@@ -251,10 +235,7 @@ unsigned AllocationTracker::AddFunctionInfo(Tagged<SharedFunctionInfo> shared,
         info->script_name = names_->GetName(name);
       }
       info->script_id = script->id();
-      // Converting start offset into line and column may cause heap
-      // allocations so we postpone them until snapshot serialization.
-      unresolved_locations_.push_back(
-          new UnresolvedLocation(script, shared->StartPosition(), info));
+      info->start_position = shared->StartPosition();
     }
     entry->value = reinterpret_cast<void*>(function_info_list_.size());
     function_info_list_.push_back(info);
@@ -273,40 +254,6 @@ unsigned AllocationTracker::functionInfoIndexForVMState(StateTag state) {
   }
   return info_index_for_other_state_;
 }
-
-AllocationTracker::UnresolvedLocation::UnresolvedLocation(Tagged<Script> script,
-                                                          int start,
-                                                          FunctionInfo* info)
-    : start_position_(start), info_(info) {
-  script_ = script->GetIsolate()->global_handles()->Create(script);
-  GlobalHandles::MakeWeak(script_.location(), this, &HandleWeakScript,
-                          v8::WeakCallbackType::kParameter);
-}
-
-AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
-  if (!script_.is_null()) {
-    GlobalHandles::Destroy(script_.location());
-  }
-}
-
-
-void AllocationTracker::UnresolvedLocation::Resolve() {
-  if (script_.is_null()) return;
-  HandleScope scope(script_->GetIsolate());
-  Script::PositionInfo pos_info;
-  Script::GetPositionInfo(script_, start_position_, &pos_info);
-  info_->line = pos_info.line;
-  info_->column = pos_info.column;
-}
-
-void AllocationTracker::UnresolvedLocation::HandleWeakScript(
-    const v8::WeakCallbackInfo<void>& data) {
-  UnresolvedLocation* loc =
-      reinterpret_cast<UnresolvedLocation*>(data.GetParameter());
-  GlobalHandles::Destroy(loc->script_.location());
-  loc->script_ = Handle<Script>::null();
-}
-
 
 }  // namespace internal
 }  // namespace v8

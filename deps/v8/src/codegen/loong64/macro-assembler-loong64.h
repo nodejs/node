@@ -251,13 +251,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             const Operand& op = Operand(no_reg));
 
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
-  void DropArguments(Register count, ArgumentsCountType type,
-                     ArgumentsCountMode mode, Register scratch = no_reg);
+  void DropArguments(Register count, ArgumentsCountMode mode);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       ArgumentsCountType type,
-                                       ArgumentsCountMode mode,
-                                       Register scratch = no_reg);
+                                       ArgumentsCountMode mode);
 
   void Ld_d(Register rd, const MemOperand& rj);
   void St_d(Register rd, const MemOperand& rj);
@@ -830,6 +826,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(Register dst, const MemOperand& src);
   void DecompressTagged(Register dst, Register src);
   void DecompressTagged(Register dst, Tagged_t immediate);
+  void DecompressProtected(const Register& destination,
+                           const MemOperand& field_operand);
 
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
   void AtomicDecompressTagged(Register dst, const MemOperand& src);

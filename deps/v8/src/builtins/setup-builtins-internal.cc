@@ -138,8 +138,9 @@ V8_NOINLINE Tagged<Code> BuildWithMacroAssembler(
     HandlerTable::EmitReturnEntry(
         &masm, 0, isolate->builtins()->js_entry_handler_offset());
   }
-#if V8_ENABLE_WEBASSEMBLY && (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-                              V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM)
+#if V8_ENABLE_WEBASSEMBLY &&                                              \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64)
   if (builtin == Builtin::kWasmReturnPromiseOnSuspendAsm) {
     handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
     HandlerTable::EmitReturnEntry(

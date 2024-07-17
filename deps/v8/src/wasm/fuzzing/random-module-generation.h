@@ -24,7 +24,6 @@ namespace v8::internal::wasm::fuzzing {
 enum WasmModuleGenerationOptions : uint32_t {
   kMVP = 0u,
   kGenerateSIMD = 1u << 0,
-  // TODO(evih): Implement separation of wasmGC expression generation.
   kGenerateWasmGC = 1u << 1,
   // Useful combinations.
   kGenerateAll = kGenerateSIMD | kGenerateWasmGC
@@ -69,6 +68,12 @@ extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
     base::Vector<uint8_t> GenerateRandomWasmModule<
         WasmModuleGenerationOptions::kGenerateSIMD>(
+        Zone*, base::Vector<const uint8_t> data);
+
+// Explicit template instantiation for kGenerateWasmGC.
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    base::Vector<uint8_t> GenerateRandomWasmModule<
+        WasmModuleGenerationOptions::kGenerateWasmGC>(
         Zone*, base::Vector<const uint8_t> data);
 
 // Explicit template instantiation for kGenerateAll.

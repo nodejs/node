@@ -274,7 +274,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // for a blocklist reserved.
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> RecreateWithBlockList(
       Isolate* isolate, Handle<ScopeInfo> original,
-      Handle<StringSet> blocklist);
+      DirectHandle<StringSet> blocklist);
 
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static Tagged<ScopeInfo> Empty(Isolate* isolate);

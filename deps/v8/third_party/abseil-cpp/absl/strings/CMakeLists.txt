@@ -274,6 +274,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::dynamic_annotations
+    absl::type_traits
     GTest::gmock_main
 )
 
@@ -1074,6 +1075,7 @@ absl_cc_test(
     absl::function_ref
     absl::hash
     absl::hash_testing
+    absl::no_destructor
     absl::log
     absl::optional
     absl::random_random

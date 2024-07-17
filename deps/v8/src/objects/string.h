@@ -1053,6 +1053,7 @@ V8_OBJECT class SlicedString : public String {
   friend struct OffsetsForDebug;
   friend class V8HeapExplorer;
   friend class CodeStubAssembler;
+  friend class SandboxTesting;
   friend class ToDirectStringAssembler;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;

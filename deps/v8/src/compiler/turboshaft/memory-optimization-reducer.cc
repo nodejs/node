@@ -19,7 +19,7 @@ const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
           CallDescriptor::kCanUseRoots, Operator::kNoThrow,
           isolate != nullptr ? StubCallMode::kCallCodeObject
                              : StubCallMode::kCallBuiltinPointer),
-      CanThrow::kNo, zone);
+      CanThrow::kNo, LazyDeoptOnThrow::kNo, zone);
 }
 
 void MemoryAnalyzer::Run() {

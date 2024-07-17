@@ -106,7 +106,8 @@ template <Bytecode bytecode, OperandType operand_type, size_t i>
 void UpdateInLivenessForOutOperand(
     BytecodeLivenessState* in_liveness,
     const interpreter::BytecodeArrayIterator& iterator) {
-  if constexpr (operand_type == OperandType::kRegOut) {
+  if constexpr (operand_type == OperandType::kRegOut ||
+                operand_type == OperandType::kRegInOut) {
     Register r = iterator.GetRegisterOperand(i);
     if (!r.is_parameter()) {
       in_liveness->MarkRegisterDead(r.index());
@@ -145,7 +146,8 @@ template <Bytecode bytecode, OperandType operand_type, size_t i>
 void UpdateInLivenessForInOperand(
     BytecodeLivenessState* in_liveness,
     const interpreter::BytecodeArrayIterator& iterator) {
-  if constexpr (operand_type == OperandType::kReg) {
+  if constexpr (operand_type == OperandType::kReg ||
+                operand_type == OperandType::kRegInOut) {
     Register r = iterator.GetRegisterOperand(i);
     if (!r.is_parameter()) {
       in_liveness->MarkRegisterLive(r.index());
@@ -338,18 +340,18 @@ void UpdateOutLiveness(BytecodeLiveness& liveness,
 
   // Update from exception handler (if any).
   if (!interpreter::Bytecodes::IsWithoutExternalSideEffects(bytecode)) {
-    int handler_context;
     // TODO(leszeks): We should look up this range only once per entry.
     HandlerTable table(*bytecode_array);
-    int handler_offset =
-        table.LookupRange(iterator.current_offset(), &handler_context, nullptr);
+    int handler_index =
+        table.LookupHandlerIndexForRange(iterator.current_offset());
 
-    if (handler_offset != -1) {
+    if (handler_index != HandlerTable::kNoHandlerFound) {
       EnsureOutLivenessIsNotAlias<IsFirstUpdate>(
           liveness, next_bytecode_in_liveness, zone);
       bool was_accumulator_live = liveness.out->AccumulatorIsLive();
-      liveness.out->Union(*liveness_map.GetInLiveness(handler_offset));
-      liveness.out->MarkRegisterLive(handler_context);
+      liveness.out->Union(
+          *liveness_map.GetInLiveness(table.GetRangeHandler(handler_index)));
+      liveness.out->MarkRegisterLive(table.GetRangeData(handler_index));
       if (!was_accumulator_live) {
         // The accumulator is reset to the exception on entry into a handler,
         // and so shouldn't be considered live coming out of this bytecode just
@@ -435,6 +437,7 @@ void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments* assignments,
 
   for (int i = 0; i < num_operands; ++i) {
     switch (operand_types[i]) {
+      case OperandType::kRegInOut:
       case OperandType::kRegOut: {
         assignments->Add(iterator.GetRegisterOperand(i));
         break;

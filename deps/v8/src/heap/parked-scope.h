@@ -15,31 +15,26 @@ namespace v8 {
 namespace internal {
 
 // Scope that explicitly parks a thread, prohibiting access to the heap and the
-// creation of handles.
+// creation of handles. Do not use this directly! Use the family of
+// ExecuteWhileParked methods, instead.
 class V8_NODISCARD ParkedScope {
- public:
+ private:
   explicit ParkedScope(LocalIsolate* local_isolate)
       : ParkedScope(local_isolate->heap()) {}
   explicit ParkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
+    ++local_heap_->nested_parked_scopes_;
     local_heap_->Park();
   }
 
-  ~ParkedScope() { local_heap_->Unpark(); }
-
- private:
-  LocalHeap* const local_heap_;
-};
-
-class V8_NODISCARD ParkedScopeIfOnBackground {
- public:
-  explicit ParkedScopeIfOnBackground(LocalIsolate* local_isolate)
-      : ParkedScopeIfOnBackground(local_isolate->heap()) {}
-  explicit ParkedScopeIfOnBackground(LocalHeap* local_heap) {
-    if (!local_heap->is_main_thread()) scope_.emplace(local_heap);
+  ~ParkedScope() {
+    DCHECK_LT(0, local_heap_->nested_parked_scopes_);
+    --local_heap_->nested_parked_scopes_;
+    local_heap_->Unpark();
   }
 
- private:
-  base::Optional<ParkedScope> scope_;
+  LocalHeap* const local_heap_;
+
+  friend class LocalHeap;
 };
 
 // Scope that explicitly unparks a thread, allowing access to the heap and the
@@ -58,6 +53,8 @@ class V8_NODISCARD UnparkedScope {
   LocalHeap* const local_heap_;
 };
 
+// Scope that explicitly unparks a background thread, allowing access to the
+// heap and the creation of handles. It has no effect on the main thread.
 class V8_NODISCARD UnparkedScopeIfOnBackground {
  public:
   explicit UnparkedScopeIfOnBackground(LocalIsolate* local_isolate)

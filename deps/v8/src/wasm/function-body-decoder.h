@@ -15,11 +15,11 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8::internal {
 class AccountingAllocator;
 class BitVector;
+class Zone;
 }  // namespace v8::internal
 
 namespace v8::internal::wasm {
@@ -51,20 +51,6 @@ V8_EXPORT_PRIVATE DecodeResult ValidateFunctionBody(Zone* zone,
                                                     const WasmModule* module,
                                                     WasmFeatures* detected,
                                                     const FunctionBody& body);
-
-enum PrintLocals { kPrintLocals, kOmitLocals };
-V8_EXPORT_PRIVATE
-bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const WasmModule* module, PrintLocals print_locals);
-
-V8_EXPORT_PRIVATE
-bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const WasmModule* module, PrintLocals print_locals,
-                      std::ostream& out,
-                      std::vector<int>* line_numbers = nullptr);
-
-// A simplified form of AST printing, e.g. from a debugger.
-void PrintRawWasmCode(const uint8_t* start, const uint8_t* end);
 
 struct BodyLocalDecls {
   // The size of the encoded declarations.

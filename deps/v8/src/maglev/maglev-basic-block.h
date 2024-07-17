@@ -29,14 +29,11 @@ class BasicBlock {
       compiler::turboshaft::SnapshotTable<ValueNode*>::MaybeSnapshot;
 
   explicit BasicBlock(MergePointInterpreterFrameState* state, Zone* zone)
-      : control_node_(nullptr),
+      : type_(state ? kMerge : kOther),
+        control_node_(nullptr),
         state_(state),
         reload_hints_(0, zone),
-        spill_hints_(0, zone) {
-    if (state == nullptr) {
-      type_ = kOther;
-    }
-  }
+        spill_hints_(0, zone) {}
 
   uint32_t first_id() const {
     if (has_phi()) return phis()->first()->id();
@@ -73,12 +70,14 @@ class BasicBlock {
   bool has_phi() const { return has_state() && state_->has_phi(); }
 
   bool is_merge_block() const { return type_ == kMerge; }
-  bool is_edge_split_block() const { return type_ == kEdgeSplit; }
+  bool is_edge_split_block() const {
+    return type_ == kEdgeSplit || type_ == kEdgeSplitWithRegisterState;
+  }
 
   bool is_loop() const { return has_state() && state()->is_loop(); }
 
   MergePointRegisterState& edge_split_block_register_state() {
-    DCHECK(is_edge_split_block());
+    DCHECK_EQ(type_, kEdgeSplitWithRegisterState);
     return *edge_split_block_register_state_;
   }
 
@@ -88,14 +87,15 @@ class BasicBlock {
 
   void set_edge_split_block_register_state(
       MergePointRegisterState* register_state) {
-    DCHECK(is_edge_split_block());
+    DCHECK_EQ(type_, kEdgeSplit);
+    type_ = kEdgeSplitWithRegisterState;
     edge_split_block_register_state_ = register_state;
   }
 
   void set_edge_split_block(BasicBlock* predecessor) {
+    DCHECK_EQ(type_, kOther);
     DCHECK(nodes_.is_empty());
     DCHECK(control_node()->Is<Jump>());
-    DCHECK_NULL(state_);
     type_ = kEdgeSplit;
     predecessor_ = predecessor;
   }
@@ -167,7 +167,12 @@ class BasicBlock {
   ZonePtrList<ValueNode>& spill_hints() { return spill_hints_; }
 
  private:
-  enum : uint8_t { kMerge, kEdgeSplit, kOther } type_ = kMerge;
+  enum : uint8_t {
+    kMerge,
+    kEdgeSplit,
+    kEdgeSplitWithRegisterState,
+    kOther
+  } type_;
   bool is_start_block_of_switch_case_ = false;
   Node::List nodes_;
   ControlNode* control_node_;
@@ -175,8 +180,9 @@ class BasicBlock {
     MergePointInterpreterFrameState* state_;
     MergePointRegisterState* edge_split_block_register_state_;
     // For kEdgeSplit and kOther blocks, predecessor_ contains a pointer to
-    // the (only) predecessor of the block. This is only valid before register
-    // allocation where this field is used for edge_split_block_register_state_.
+    // the (only) predecessor of the block. After register allocation, edge
+    // split blocks transition to kEdgeSplitWithRegisterState where this field
+    // is used for edge_split_block_register_state_.
     BasicBlock* predecessor_;
   };
   Label label_;

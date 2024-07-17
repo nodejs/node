@@ -117,7 +117,8 @@ bool FunctionTemplateInfo::has_callback(IsolateT* isolate) const {
 // static
 Tagged<FunctionTemplateRareData>
 FunctionTemplateInfo::EnsureFunctionTemplateRareData(
-    Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
+    Isolate* isolate,
+    DirectHandle<FunctionTemplateInfo> function_template_info) {
   Tagged<HeapObject> extra =
       function_template_info->rare_data(isolate, kAcquireLoad);
   if (IsUndefined(extra, isolate)) {
@@ -136,8 +137,9 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
                               : FunctionTemplateRareData::cast(extra)->Name(); \
   }                                                                            \
   inline void FunctionTemplateInfo::Set##CamelName(                            \
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info,   \
-      Handle<Type> Name) {                                                     \
+      Isolate* isolate,                                                        \
+      DirectHandle<FunctionTemplateInfo> function_template_info,               \
+      DirectHandle<Type> Name) {                                               \
     Tagged<FunctionTemplateRareData> rare_data =                               \
         EnsureFunctionTemplateRareData(isolate, function_template_info);       \
     rare_data->set_##Name(*Name);                                              \
@@ -339,7 +341,7 @@ void TemplateInfo::CacheTemplateInstantiation(
   if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
     Handle<FixedArray> fast_cache =
         handle(native_context->fast_template_instantiations_cache(), isolate);
-    Handle<FixedArray> new_cache =
+    DirectHandle<FixedArray> new_cache =
         FixedArray::SetAndGrow(isolate, fast_cache, serial_number, object);
     if (*new_cache != *fast_cache) {
       native_context->set_fast_template_instantiations_cache(*new_cache);

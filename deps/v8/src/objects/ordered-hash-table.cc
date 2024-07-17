@@ -172,7 +172,7 @@ InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(
 
 MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
                                                 Handle<OrderedHashSet> table,
-                                                Handle<Object> key) {
+                                                DirectHandle<Object> key) {
   int hash;
   {
     DisallowGarbageCollection no_gc;
@@ -382,8 +382,8 @@ Address OrderedHashMap::GetHash(Isolate* isolate, Address raw_key) {
 
 MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
                                                 Handle<OrderedHashMap> table,
-                                                Handle<Object> key,
-                                                Handle<Object> value) {
+                                                DirectHandle<Object> key,
+                                                DirectHandle<Object> value) {
   int hash = Object::GetOrCreateHash(*key, isolate).value();
   if (table->NumberOfElements() > 0) {
     int raw_entry = table->HashToEntryRaw(hash);
@@ -463,8 +463,9 @@ InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate,
 }
 
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
-    Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
-    Handle<Object> value, PropertyDetails details) {
+    Isolate* isolate, Handle<OrderedNameDictionary> table,
+    DirectHandle<Name> key, DirectHandle<Object> value,
+    PropertyDetails details) {
   DCHECK(IsUniqueName(*key));
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
@@ -745,13 +746,13 @@ bool SmallOrderedHashSet::Delete(Isolate* isolate,
                                                             key);
 }
 
-bool SmallOrderedHashSet::HasKey(Isolate* isolate, Handle<Object> key) {
+bool SmallOrderedHashSet::HasKey(Isolate* isolate, DirectHandle<Object> key) {
   return SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(isolate, key);
 }
 
 MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
     Isolate* isolate, Handle<SmallOrderedHashMap> table, Handle<Object> key,
-    Handle<Object> value) {
+    DirectHandle<Object> value) {
   if (table->HasKey(isolate, key)) return table;
 
   if (table->UsedCapacity() >= table->Capacity()) {
@@ -791,7 +792,7 @@ bool SmallOrderedHashMap::Delete(Isolate* isolate,
                                                             key);
 }
 
-bool SmallOrderedHashMap::HasKey(Isolate* isolate, Handle<Object> key) {
+bool SmallOrderedHashMap::HasKey(Isolate* isolate, DirectHandle<Object> key) {
   return SmallOrderedHashTable<SmallOrderedHashMap>::HasKey(isolate, key);
 }
 
@@ -818,7 +819,8 @@ SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
 
 MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
     Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
-    Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+    DirectHandle<Name> key, DirectHandle<Object> value,
+    PropertyDetails details) {
   DCHECK(IsUniqueName(*key));
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
@@ -875,7 +877,7 @@ void SmallOrderedNameDictionary::SetEntry(InternalIndex entry,
 
 template <class Derived>
 bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
-                                            Handle<Object> key) {
+                                            DirectHandle<Object> key) {
   DisallowGarbageCollection no_gc;
   return FindEntry(isolate, *key).is_found();
 }
@@ -1036,8 +1038,8 @@ InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
 }
 
 template bool EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(Isolate* isolate,
-                                                       Handle<Object> key);
+    SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
+        Isolate* isolate, DirectHandle<Object> key);
 template V8_EXPORT_PRIVATE Handle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashSet> table, int new_capacity);
@@ -1055,7 +1057,7 @@ SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
     Isolate* isolate, Tagged<SmallOrderedHashSet> table, Tagged<Object> key);
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) bool SmallOrderedHashTable<
-    SmallOrderedHashMap>::HasKey(Isolate* isolate, Handle<Object> key);
+    SmallOrderedHashMap>::HasKey(Isolate* isolate, DirectHandle<Object> key);
 template V8_EXPORT_PRIVATE Handle<SmallOrderedHashMap>
 SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashMap> table, int new_capacity);
@@ -1104,7 +1106,7 @@ OrderedHashTableHandler<SmallOrderedNameDictionary,
 
 template <class SmallTable, class LargeTable>
 bool OrderedHashTableHandler<SmallTable, LargeTable>::Delete(
-    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key) {
+    Isolate* isolate, Handle<HeapObject> table, DirectHandle<Object> key) {
   if (SmallTable::Is(table)) {
     return SmallTable::Delete(isolate, *Handle<SmallTable>::cast(table), *key);
   }
@@ -1135,18 +1137,17 @@ OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::HasKey(
 
 template bool
 OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::Delete(
-    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+    Isolate* isolate, Handle<HeapObject> table, DirectHandle<Object> key);
 template bool
 OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::Delete(
-    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
-template bool
-OrderedHashTableHandler<SmallOrderedNameDictionary,
-                        OrderedNameDictionary>::Delete(Isolate* isolate,
-                                                       Handle<HeapObject> table,
-                                                       Handle<Object> key);
+    Isolate* isolate, Handle<HeapObject> table, DirectHandle<Object> key);
+template bool OrderedHashTableHandler<
+    SmallOrderedNameDictionary,
+    OrderedNameDictionary>::Delete(Isolate* isolate, Handle<HeapObject> table,
+                                   DirectHandle<Object> key);
 
 MaybeHandle<OrderedHashMap> OrderedHashMapHandler::AdjustRepresentation(
-    Isolate* isolate, Handle<SmallOrderedHashMap> table) {
+    Isolate* isolate, DirectHandle<SmallOrderedHashMap> table) {
   MaybeHandle<OrderedHashMap> new_table_candidate =
       OrderedHashMap::Allocate(isolate, OrderedHashTableMinSize);
   Handle<OrderedHashMap> new_table;
@@ -1158,9 +1159,9 @@ MaybeHandle<OrderedHashMap> OrderedHashMapHandler::AdjustRepresentation(
   // unhandlify this code as we preallocate the new backing store with
   // the proper capacity.
   for (InternalIndex entry : table->IterateEntries()) {
-    Handle<Object> key = handle(table->KeyAt(entry), isolate);
+    DirectHandle<Object> key(table->KeyAt(entry), isolate);
     if (IsTheHole(*key, isolate)) continue;
-    Handle<Object> value = handle(
+    DirectHandle<Object> value(
         table->GetDataEntry(entry.as_int(), SmallOrderedHashMap::kValueIndex),
         isolate);
     new_table_candidate = OrderedHashMap::Add(isolate, new_table, key, value);
@@ -1173,7 +1174,7 @@ MaybeHandle<OrderedHashMap> OrderedHashMapHandler::AdjustRepresentation(
 }
 
 MaybeHandle<OrderedHashSet> OrderedHashSetHandler::AdjustRepresentation(
-    Isolate* isolate, Handle<SmallOrderedHashSet> table) {
+    Isolate* isolate, DirectHandle<SmallOrderedHashSet> table) {
   MaybeHandle<OrderedHashSet> new_table_candidate =
       OrderedHashSet::Allocate(isolate, OrderedHashTableMinSize);
   Handle<OrderedHashSet> new_table;
@@ -1185,7 +1186,7 @@ MaybeHandle<OrderedHashSet> OrderedHashSetHandler::AdjustRepresentation(
   // unhandlify this code as we preallocate the new backing store with
   // the proper capacity.
   for (InternalIndex entry : table->IterateEntries()) {
-    Handle<Object> key = handle(table->KeyAt(entry), isolate);
+    DirectHandle<Object> key(table->KeyAt(entry), isolate);
     if (IsTheHole(*key, isolate)) continue;
     new_table_candidate = OrderedHashSet::Add(isolate, new_table, key);
     if (!new_table_candidate.ToHandle(&new_table)) {
@@ -1198,7 +1199,7 @@ MaybeHandle<OrderedHashSet> OrderedHashSetHandler::AdjustRepresentation(
 
 MaybeHandle<OrderedNameDictionary>
 OrderedNameDictionaryHandler::AdjustRepresentation(
-    Isolate* isolate, Handle<SmallOrderedNameDictionary> table) {
+    Isolate* isolate, DirectHandle<SmallOrderedNameDictionary> table) {
   MaybeHandle<OrderedNameDictionary> new_table_candidate =
       OrderedNameDictionary::Allocate(isolate, OrderedHashTableMinSize);
   Handle<OrderedNameDictionary> new_table;
@@ -1210,9 +1211,9 @@ OrderedNameDictionaryHandler::AdjustRepresentation(
   // unhandlify this code as we preallocate the new backing store with
   // the proper capacity.
   for (InternalIndex entry : table->IterateEntries()) {
-    Handle<Name> key(Name::cast(table->KeyAt(entry)), isolate);
+    DirectHandle<Name> key(Name::cast(table->KeyAt(entry)), isolate);
     if (IsTheHole(*key, isolate)) continue;
-    Handle<Object> value(table->ValueAt(entry), isolate);
+    DirectHandle<Object> value(table->ValueAt(entry), isolate);
     PropertyDetails details = table->DetailsAt(entry);
     new_table_candidate =
         OrderedNameDictionary::Add(isolate, new_table, key, value, details);
@@ -1227,7 +1228,7 @@ OrderedNameDictionaryHandler::AdjustRepresentation(
 MaybeHandle<HeapObject> OrderedHashMapHandler::Add(Isolate* isolate,
                                                    Handle<HeapObject> table,
                                                    Handle<Object> key,
-                                                   Handle<Object> value) {
+                                                   DirectHandle<Object> value) {
   if (IsSmallOrderedHashMap(*table)) {
     Handle<SmallOrderedHashMap> small_map =
         Handle<SmallOrderedHashMap>::cast(table);
@@ -1273,8 +1274,8 @@ MaybeHandle<HeapObject> OrderedHashSetHandler::Add(Isolate* isolate,
 }
 
 MaybeHandle<HeapObject> OrderedNameDictionaryHandler::Add(
-    Isolate* isolate, Handle<HeapObject> table, Handle<Name> key,
-    Handle<Object> value, PropertyDetails details) {
+    Isolate* isolate, Handle<HeapObject> table, DirectHandle<Name> key,
+    DirectHandle<Object> value, PropertyDetails details) {
   if (IsSmallOrderedNameDictionary(*table)) {
     Handle<SmallOrderedNameDictionary> small_dict =
         Handle<SmallOrderedNameDictionary>::cast(table);

@@ -46,10 +46,10 @@ class SourceTextModule
 
   Tagged<Cell> GetCell(int cell_index);
   static Handle<Object> LoadVariable(Isolate* isolate,
-                                     Handle<SourceTextModule> module,
+                                     DirectHandle<SourceTextModule> module,
                                      int cell_index);
-  static void StoreVariable(Handle<SourceTextModule> module, int cell_index,
-                            Handle<Object> value);
+  static void StoreVariable(DirectHandle<SourceTextModule> module,
+                            int cell_index, DirectHandle<Object> value);
 
   static int ImportIndex(int cell_index);
   static int ExportIndex(int cell_index);
@@ -59,14 +59,15 @@ class SourceTextModule
   // terminated.
   static Maybe<bool> AsyncModuleExecutionFulfilled(
       Isolate* isolate, Handle<SourceTextModule> module);
-  static void AsyncModuleExecutionRejected(Isolate* isolate,
-                                           Handle<SourceTextModule> module,
-                                           Handle<Object> exception);
+  static void AsyncModuleExecutionRejected(
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      Handle<Object> exception);
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
   static Handle<JSModuleNamespace> GetModuleNamespace(
-      Isolate* isolate, Handle<SourceTextModule> module, int module_request);
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      int module_request);
 
   // Get the import.meta object of [module].  If it doesn't exist yet, it is
   // created and passed to the embedder callback for initialization.
@@ -98,9 +99,9 @@ class SourceTextModule
 
   // Appends a tuple of module and generator to the async parent modules
   // ArrayList.
-  inline static void AddAsyncParentModule(Isolate* isolate,
-                                          Handle<SourceTextModule> module,
-                                          Handle<SourceTextModule> parent);
+  inline static void AddAsyncParentModule(
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      DirectHandle<SourceTextModule> parent);
 
   // Get the non-hole cycle root. Only valid when status >= kEvaluated.
   inline Handle<SourceTextModule> GetCycleRoot(Isolate* isolate) const;
@@ -148,10 +149,11 @@ class SourceTextModule
   DECL_ACCESSORS(async_parent_modules, Tagged<ArrayList>)
 
   // Helpers for Instantiate and Evaluate.
-  static void CreateExport(Isolate* isolate, Handle<SourceTextModule> module,
-                           int cell_index, Handle<FixedArray> names);
+  static void CreateExport(Isolate* isolate,
+                           DirectHandle<SourceTextModule> module,
+                           int cell_index, DirectHandle<FixedArray> names);
   static void CreateIndirectExport(Isolate* isolate,
-                                   Handle<SourceTextModule> module,
+                                   DirectHandle<SourceTextModule> module,
                                    Handle<String> name,
                                    Handle<SourceTextModuleInfoEntry> entry);
 
@@ -160,26 +162,25 @@ class SourceTextModule
       Handle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
-      Isolate* isolate, Handle<SourceTextModule> module, Handle<String> name,
-      int module_request_index, MessageLocation loc, bool must_resolve,
-      ResolveSet* resolve_set);
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      Handle<String> name, int module_request_index, MessageLocation loc,
+      bool must_resolve, ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Isolate* isolate, Handle<SourceTextModule> module,
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
       Handle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
       Isolate* isolate, Handle<SourceTextModule> module,
       v8::Local<v8::Context> context,
-      v8::Module::ResolveModuleCallback callback,
-      Module::DeprecatedResolveCallback callback_without_import_assertions);
+      v8::Module::ResolveModuleCallback callback);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
       Zone* zone);
   static V8_WARN_UNUSED_RESULT bool RunInitializationCode(
-      Isolate* isolate, Handle<SourceTextModule> module);
+      Isolate* isolate, DirectHandle<SourceTextModule> module);
 
   static void FetchStarExports(Isolate* isolate,
                                Handle<SourceTextModule> module, Zone* zone,
@@ -204,26 +205,26 @@ class SourceTextModule
       Isolate* isolate, ZoneForwardList<Handle<SourceTextModule>>* stack);
 
   static V8_WARN_UNUSED_RESULT bool MaybeTransitionComponent(
-      Isolate* isolate, Handle<SourceTextModule> module,
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status);
 
   // Implementation of spec ExecuteModule is broken up into
   // InnerExecuteAsyncModule for asynchronous modules and ExecuteModule
   // for synchronous modules.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerExecuteAsyncModule(
-      Isolate* isolate, Handle<SourceTextModule> module,
-      Handle<JSPromise> capability);
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      DirectHandle<JSPromise> capability);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> ExecuteModule(
-      Isolate* isolate, Handle<SourceTextModule> module,
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
       MaybeHandle<Object>* exception_out);
 
   // Implementation of spec ExecuteAsyncModule. Return Nothing if the execution
   // is been terminated.
   static V8_WARN_UNUSED_RESULT Maybe<bool> ExecuteAsyncModule(
-      Isolate* isolate, Handle<SourceTextModule> module);
+      Isolate* isolate, DirectHandle<SourceTextModule> module);
 
-  static void Reset(Isolate* isolate, Handle<SourceTextModule> module);
+  static void Reset(Isolate* isolate, DirectHandle<SourceTextModule> module);
 
   V8_EXPORT_PRIVATE void InnerGetStalledTopLevelAwaitModule(
       Isolate* isolate, UnorderedModuleSet* visited,
@@ -287,8 +288,9 @@ class ModuleRequest
   DECL_VERIFIER(ModuleRequest)
 
   template <typename IsolateT>
-  static Handle<ModuleRequest> New(IsolateT* isolate, Handle<String> specifier,
-                                   Handle<FixedArray> import_attributes,
+  static Handle<ModuleRequest> New(IsolateT* isolate,
+                                   DirectHandle<String> specifier,
+                                   DirectHandle<FixedArray> import_attributes,
                                    int position);
 
   // The number of entries in the import_attributes FixedArray that are used for
@@ -308,9 +310,9 @@ class SourceTextModuleInfoEntry
 
   template <typename IsolateT>
   static Handle<SourceTextModuleInfoEntry> New(
-      IsolateT* isolate, Handle<PrimitiveHeapObject> export_name,
-      Handle<PrimitiveHeapObject> local_name,
-      Handle<PrimitiveHeapObject> import_name, int module_request,
+      IsolateT* isolate, DirectHandle<PrimitiveHeapObject> export_name,
+      DirectHandle<PrimitiveHeapObject> local_name,
+      DirectHandle<PrimitiveHeapObject> import_name, int module_request,
       int cell_index, int beg_pos, int end_pos);
 
   using BodyDescriptor = StructBodyDescriptor;

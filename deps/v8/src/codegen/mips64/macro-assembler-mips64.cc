@@ -19,7 +19,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
@@ -4615,25 +4615,8 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
-                                   ArgumentsCountMode mode, Register scratch) {
-  switch (type) {
-    case kCountIsInteger: {
-      Dlsa(sp, sp, count, kPointerSizeLog2);
-      break;
-    }
-    case kCountIsSmi: {
-      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
-      DCHECK_NE(scratch, no_reg);
-      SmiScale(scratch, count, kPointerSizeLog2);
-      Daddu(sp, sp, scratch);
-      break;
-    }
-    case kCountIsBytes: {
-      Daddu(sp, sp, count);
-      break;
-    }
-  }
+void MacroAssembler::DropArguments(Register count, ArgumentsCountMode mode) {
+  Dlsa(sp, sp, count, kPointerSizeLog2);
   if (mode == kCountExcludesReceiver) {
     Daddu(sp, sp, kSystemPointerSize);
   }
@@ -4641,16 +4624,14 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver,
-                                                     ArgumentsCountType type,
-                                                     ArgumentsCountMode mode,
-                                                     Register scratch) {
+                                                     ArgumentsCountMode mode) {
   DCHECK(!AreAliased(argc, receiver));
   if (mode == kCountExcludesReceiver) {
     // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, type, kCountIncludesReceiver, scratch);
+    DropArguments(argc, kCountIncludesReceiver);
     Sd(receiver, MemOperand(sp));
   } else {
-    DropArguments(argc, type, mode, scratch);
+    DropArguments(argc, mode);
     push(receiver);
   }
 }
@@ -4723,6 +4704,17 @@ void MacroAssembler::Call(Label* target) { BranchAndLink(target); }
 void MacroAssembler::LoadAddress(Register dst, Label* target) {
   uint64_t address = jump_address(target);
   li(dst, address);
+}
+
+void MacroAssembler::LoadAddressPCRelative(Register dst, Label* target) {
+  ASM_CODE_COMMENT(this);
+  nal();
+  // daddiu could handle 16-bit pc offset.
+  int32_t offset = branch_offset_helper(target, OffsetSize::kOffset16);
+  DCHECK(is_int16(offset));
+  mov(t8, ra);
+  daddiu(dst, ra, offset);
+  mov(ra, t8);
 }
 
 void MacroAssembler::Push(Tagged<Smi> smi) {
@@ -5455,6 +5447,7 @@ void MacroAssembler::EnterExitFrame(int stack_space,
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_ACCESSOR_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
 
   // Set up the frame structure on the stack.
@@ -6033,41 +6026,49 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   PrepareCallCFunction(num_reg_arguments, 0, scratch);
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(ExternalReference function,
+                                  int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   li(t9, function);
-  CallCFunctionHelper(t9, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
+  return CallCFunctionHelper(t9, num_reg_arguments, num_double_arguments,
+                             set_isolate_data_slots, return_location);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
   ASM_CODE_COMMENT(this);
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
+  return CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
+                             set_isolate_data_slots, return_location);
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_location);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_location);
 }
 
-void MacroAssembler::CallCFunctionHelper(
+int MacroAssembler::CallCFunctionHelper(
     Register function, int num_reg_arguments, int num_double_arguments,
-    SetIsolateDataSlots set_isolate_data_slots) {
+    SetIsolateDataSlots set_isolate_data_slots, Label* return_location) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
+
+  Label get_pc;
+
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -6114,10 +6115,7 @@ void MacroAssembler::CallCFunctionHelper(
       Register scratch = t2;
       DCHECK(!AreAliased(pc_scratch, scratch, function));
 
-      mov(scratch, ra);
-      nal();
-      mov(pc_scratch, ra);
-      mov(ra, scratch);
+      LoadAddressPCRelative(pc_scratch, &get_pc);
 
       // See x64 code for reasoning about how to address the isolate data
       // fields.
@@ -6138,6 +6136,10 @@ void MacroAssembler::CallCFunctionHelper(
     }
 
     Call(function);
+    int call_pc_offset = pc_offset();
+    bind(&get_pc);
+
+    if (return_location) bind(return_location);
 
     if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
       // We don't unset the PC; the FP is the source of truth.
@@ -6163,6 +6165,8 @@ void MacroAssembler::CallCFunctionHelper(
     }
 
     set_pc_for_safepoint();
+
+    return call_pc_offset;
   }
 }
 
@@ -6564,9 +6568,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");
     __ bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback.
-    MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-        ER::api_callback_thunk_argument_address(isolate), no_reg);
-    __ Sd(thunk_arg, thunk_arg_mem_op);
+    if (thunk_arg.is_valid()) {
+      MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
+          ER::api_callback_thunk_argument_address(isolate), no_reg);
+      __ Sd(thunk_arg, thunk_arg_mem_op);
+    }
     __ li(scratch, thunk_ref);
     __ StoreReturnAddressAndCall(scratch);
     __ Branch(&done_api_call);

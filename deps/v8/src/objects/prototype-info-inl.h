@@ -57,8 +57,9 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(AcquireLoadTag tag) {
 }
 
 // static
-void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
-                                       Handle<Map> map, Isolate* isolate) {
+void PrototypeInfo::SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
+                                       DirectHandle<Map> map,
+                                       Isolate* isolate) {
   if (IsUndefined(info->derived_maps())) {
     Tagged<WeakArrayList> derived = *isolate->factory()->NewWeakArrayList(1);
     derived->Set(0, MakeWeak(*map));
@@ -73,7 +74,7 @@ void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
   }
 }
 
-Tagged<MaybeObject> PrototypeInfo::GetDerivedMap(Handle<Map> from) {
+Tagged<MaybeObject> PrototypeInfo::GetDerivedMap(DirectHandle<Map> from) {
   if (IsUndefined(derived_maps())) {
     return Tagged<MaybeObject>();
   }
@@ -94,8 +95,8 @@ Tagged<MaybeObject> PrototypeInfo::GetDerivedMap(Handle<Map> from) {
 }
 
 // static
-void PrototypeInfo::AddDerivedMap(Handle<PrototypeInfo> info, Handle<Map> to,
-                                  Isolate* isolate) {
+void PrototypeInfo::AddDerivedMap(DirectHandle<PrototypeInfo> info,
+                                  DirectHandle<Map> to, Isolate* isolate) {
   if (IsUndefined(info->derived_maps())) {
     // Index 0 is the map for object create
     Tagged<WeakArrayList> derived = *isolate->factory()->NewWeakArrayList(2);

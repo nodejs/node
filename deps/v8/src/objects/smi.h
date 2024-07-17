@@ -35,7 +35,7 @@ class Smi : public AllStatic {
   // Convert a value to a Smi object.
   static inline constexpr Tagged<Smi> FromInt(int value) {
     DCHECK(Smi::IsValid(value));
-    return Tagged<Smi>(Internals::IntToSmi(value));
+    return Tagged<Smi>(Internals::IntegralToSmi(value));
   }
 
   static inline constexpr Tagged<Smi> FromIntptr(intptr_t value) {

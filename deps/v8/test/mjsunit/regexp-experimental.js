@@ -115,3 +115,8 @@ Test(/ab(?<=a(?<!(b))b)(c)/, 'abc', ['abc', undefined, 'c'], 0);
 // Global and Sticky flags are not yet supported in combination with lookbehinds
 AssertUnsupported(/ab(?<=b)c/g);
 AssertUnsupported(/ab(?<=b)c/y);
+
+// This test allows to detect abnormal memory usage. Itself cannot check the
+// consumption or trigger an out-of-memory error, but it creates a detectable
+// anomaly.
+Test(/(((((a?)+)+)+)+)b/, ('a'.repeat(100000)), null, 0);

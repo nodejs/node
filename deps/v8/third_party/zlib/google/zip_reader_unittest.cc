@@ -72,7 +72,7 @@ class FileWrapper {
 // A mock that provides methods that can be used as callbacks in asynchronous
 // unzip functions.  Tracks the number of calls and number of bytes reported.
 // Assumes that progress callbacks will be executed in-order.
-class MockUnzipListener : public base::SupportsWeakPtr<MockUnzipListener> {
+class MockUnzipListener final {
  public:
   MockUnzipListener()
       : success_calls_(0),
@@ -98,12 +98,18 @@ class MockUnzipListener : public base::SupportsWeakPtr<MockUnzipListener> {
   int progress_calls() { return progress_calls_; }
   int current_progress() { return current_progress_; }
 
+  base::WeakPtr<MockUnzipListener> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   int success_calls_;
   int failure_calls_;
   int progress_calls_;
 
   int64_t current_progress_;
+
+  base::WeakPtrFactory<MockUnzipListener> weak_ptr_factory_{this};
 };
 
 class MockWriterDelegate : public zip::WriterDelegate {

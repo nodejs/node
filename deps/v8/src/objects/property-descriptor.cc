@@ -63,10 +63,10 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     if (raw_map->is_dictionary_map()) return false;
   }
 
-  Handle<Map> map(obj->map(isolate), isolate);
+  DirectHandle<Map> map(obj->map(isolate), isolate);
 
-  Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors(isolate), isolate);
+  DirectHandle<DescriptorArray> descs(map->instance_descriptors(isolate),
+                                      isolate);
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
@@ -121,9 +121,9 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
 
 void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
                         Handle<Object> value) {
-  LookupIterator it(object->GetIsolate(), object, name, object,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
+  Isolate* isolate = object->GetIsolate();
+  Maybe<bool> result = JSObject::CreateDataProperty(
+      isolate, object, PropertyKey(isolate, Handle<Name>::cast(name)), value);
   CHECK(result.IsJust() && result.FromJust());
 }
 

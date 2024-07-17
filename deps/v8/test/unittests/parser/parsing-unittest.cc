@@ -26,6 +26,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
+#include "test/common/flag-utils.h"
 #include "test/unittests/parser/scope-test-helper.h"
 #include "test/unittests/parser/unicode-helpers.h"
 #include "test/unittests/test-utils.h"
@@ -519,6 +520,7 @@ bool TokenIsAnyIdentifier(Token::Value token) {
     case Token::kSet:
     case Token::kUsing:
     case Token::kOf:
+    case Token::kAccessor:
     case Token::kAsync:
     case Token::kAwait:
     case Token::kYield:
@@ -547,6 +549,7 @@ bool TokenIsCallable(Token::Value token) {
     case Token::kSet:
     case Token::kUsing:
     case Token::kOf:
+    case Token::kAccessor:
     case Token::kAsync:
     case Token::kAwait:
     case Token::kYield:
@@ -575,6 +578,7 @@ bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
     case Token::kSet:
     case Token::kUsing:
     case Token::kOf:
+    case Token::kAccessor:
     case Token::kAsync:
       return true;
     case Token::kYield:
@@ -2241,6 +2245,34 @@ TEST_F(ParsingTest, NoErrorsFutureStrictReservedWords) {
   const char* statement_data[] = {
     FUTURE_STRICT_RESERVED_WORDS(FUTURE_STRICT_RESERVED_STATEMENTS)
     FUTURE_STRICT_RESERVED_WORDS_NO_LET(FUTURE_STRICT_RESERVED_LEX_BINDINGS)
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+TEST_F(ParsingTest, NoErrorAccessorAsIdentifier) {
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  // clang-format off
+  const char* statement_data[] = {
+    FUTURE_STRICT_RESERVED_STATEMENTS(accessor)
+    FUTURE_STRICT_RESERVED_LEX_BINDINGS(accessor)
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+// TODO(42202709): Remove when the decorators flag is enabled by default.
+TEST_F(ParsingTest, NoErrorAccessorAsIdentifierDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  // clang-format off
+  const char* statement_data[] = {
+    FUTURE_STRICT_RESERVED_STATEMENTS(accessor)
+    FUTURE_STRICT_RESERVED_LEX_BINDINGS(accessor)
     nullptr
   };
   // clang-format on
@@ -5525,11 +5557,36 @@ TEST_F(ParsingTest, ClassPropertyNameNoErrors) {
                                    {"class C { static *", "() {}}"},
                                    {nullptr, nullptr}};
   const char* name_data[] = {
-      "42",       "42.5",  "42e2",  "42e+2",   "42e-2",  "null",
-      "false",    "true",  "'str'", "\"str\"", "static", "get",
-      "set",      "var",   "const", "let",     "this",   "class",
-      "function", "yield", "if",    "else",    "for",    "while",
-      "do",       "try",   "catch", "finally", nullptr};
+      "42",       "42.5",  "42e2",  "42e+2",   "42e-2",    "null",
+      "false",    "true",  "'str'", "\"str\"", "static",   "get",
+      "set",      "var",   "const", "let",     "this",     "class",
+      "function", "yield", "if",    "else",    "for",      "while",
+      "do",       "try",   "catch", "finally", "accessor", nullptr};
+
+  RunParserSyncTest(context_data, name_data, kSuccess);
+}
+
+// TODO(42202709): Remove when the decorators flag is enabled by default.
+TEST_F(ParsingTest, ClassPropertyAccessorNameNoErrorsDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  const char* context_data[][2] = {{"(class {", "() {}});"},
+                                   {"(class { get ", "() {}});"},
+                                   {"(class { set ", "(v) {}});"},
+                                   {"(class { static ", "() {}});"},
+                                   {"(class { static get ", "() {}});"},
+                                   {"(class { static set ", "(v) {}});"},
+                                   {"(class { *", "() {}});"},
+                                   {"(class { static *", "() {}});"},
+                                   {"class C {", "() {}}"},
+                                   {"class C { get ", "() {}}"},
+                                   {"class C { set ", "(v) {}}"},
+                                   {"class C { static ", "() {}}"},
+                                   {"class C { static get ", "() {}}"},
+                                   {"class C { static set ", "(v) {}}"},
+                                   {"class C { *", "() {}}"},
+                                   {"class C { static *", "() {}}"},
+                                   {nullptr, nullptr}};
+  const char* name_data[] = {"accessor", nullptr};
 
   RunParserSyncTest(context_data, name_data, kSuccess);
 }
@@ -5611,6 +5668,9 @@ TEST_F(ParsingTest, StaticClassFieldsNoErrors) {
     "static await;",
     "static await = 0;",
     "static await\n a",
+    "static accessor;",
+    "static accessor = 0;"
+    "static accessor\n a",
     nullptr
   };
   // clang-format on
@@ -5695,6 +5755,33 @@ TEST_F(ParsingTest, ClassFieldsNoErrors) {
     "await;",
     "await = 0;",
     "await\n a",
+    "accessor;",
+    "accessor = 0;",
+    "accessor\n a",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+// TODO(42202709): Remove when the decorators flag is enabled by default.
+TEST_F(ParsingTest, ClassFieldsAccessorNameNoErrorsDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "accessor;",
+    "accessor = 0;",
+    "accessor\n a",
+    "static accessor;",
+    "static accessor = 0;"
+    "static accessor\n a",
     nullptr
   };
   // clang-format on
@@ -5749,6 +5836,7 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "#await() {}",
     "#async() {}",
     "#static() {}",
+    "#accessor() {}",
     "#arguments() {}",
     "get #yield() {}",
     "get #await() {}",
@@ -5756,12 +5844,14 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "get #get() {}",
     "get #static() {}",
     "get #arguments() {}",
+    "get #accessor() {}",
     "set #yield(test) {}",
     "set #async(test) {}",
     "set #await(test) {}",
     "set #set(test) {}",
     "set #static(test) {}",
     "set #arguments(test) {}",
+    "set #accessor(test) {}"
     "async #yield() {}",
     "async #async() {}",
     "async #await() {}",
@@ -5769,6 +5859,7 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "async #set() {}",
     "async #static() {}",
     "async #arguments() {}",
+    "async #accessor() {}",
     "*#async() {}",
     "*#await() {}",
     "*#yield() {}",
@@ -5776,6 +5867,7 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "*#set() {}",
     "*#static() {}",
     "*#arguments() {}",
+    "*#accessor() {}",
     "async *#yield() {}",
     "async *#async() {}",
     "async *#await() {}",
@@ -5783,6 +5875,30 @@ TEST_F(ParsingTest, PrivateMethodsNoErrors) {
     "async *#set() {}",
     "async *#static() {}",
     "async *#arguments() {}",
+    "async *#accessor() {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
+}
+
+TEST_F(ParsingTest, PrivateMethodsAccessorNameNoErrorsDecoratorsEnabled) {
+  FLAG_SCOPE(js_decorators);
+  // clang-format off
+  // Tests proposed class methods syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Accessor edge cases
+    "#accessor() {}",
+    "set #accessor(test) {}",
+    "async #accessor() {}",
+    "*#accessor() {}",
+    "async *#accessor() {}",
     nullptr
   };
   // clang-format on

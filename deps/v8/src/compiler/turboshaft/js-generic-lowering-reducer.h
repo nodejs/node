@@ -27,9 +27,9 @@ class JSGenericLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(JSGenericLowering)
 
-  OpIndex REDUCE(GenericBinop)(V<Object> left, V<Object> right,
-                               OpIndex frame_state, V<Context> context,
-                               GenericBinopOp::Kind kind) {
+  V<Object> REDUCE(GenericBinop)(V<Object> left, V<Object> right,
+                                 V<FrameState> frame_state, V<Context> context,
+                                 GenericBinopOp::Kind kind) {
     // Note that we're **not** calling the __WithFeedback variants of the
     // generic builtins, on purpose. There have been several experiments with
     // this in the past, and we always concluded that it wasn't worth it. The
@@ -44,8 +44,8 @@ class JSGenericLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(GenericUnop)(V<Object> input, OpIndex frame_state,
-                              V<Context> context, GenericUnopOp::Kind kind) {
+  V<Object> REDUCE(GenericUnop)(V<Object> input, V<FrameState> frame_state,
+                                V<Context> context, GenericUnopOp::Kind kind) {
     switch (kind) {
 #define CASE(Name)                   \
   case GenericUnopOp::Kind::k##Name: \
@@ -78,7 +78,7 @@ class JSGenericLoweringReducer : public Next {
   }
 
  private:
-  Isolate* isolate_ = PipelineData::Get().isolate();
+  Isolate* isolate_ = __ data() -> isolate();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

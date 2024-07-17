@@ -209,11 +209,44 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
 }
 
 template <typename IsolateT>
-int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
+int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
+                                                 ExternalPointerSlot dest,
                                                  Address value) {
   DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_ &&
          !next_reference_is_protected_pointer);
-  dest.init(main_thread_isolate(), value);
+
+  #ifdef V8_ENABLE_SANDBOX
+  ExternalPointerTable::ManagedResource* managed_resource = nullptr;
+  ExternalPointerTable* owning_table = nullptr;
+  ExternalPointerHandle original_handle = kNullExternalPointerHandle;
+  if (IsManagedExternalPointerType(dest.tag())) {
+    // This can currently only happen during snapshot stress mode as we cannot
+    // normally serialized managed resources. In snapshot stress mode, the new
+    // isolate will be destroyed and the old isolate (really, the old isolate's
+    // external pointer table) therefore effectively retains ownership of the
+    // resource. As such, we need to save and restore the relevant fields of
+    // the external resource. Once the external pointer table itself destroys
+    // the managed resource when freeing the corresponding table entry, this
+    // workaround can be removed again.
+    DCHECK(v8_flags.stress_snapshot);
+    managed_resource =
+        reinterpret_cast<ExternalPointerTable::ManagedResource*>(value);
+    owning_table = managed_resource->owning_table_;
+    original_handle = managed_resource->ept_entry_;
+    managed_resource->owning_table_ = nullptr;
+    managed_resource->ept_entry_ = kNullExternalPointerHandle;
+  }
+#endif  // V8_ENABLE_SANDBOX
+
+  dest.init(main_thread_isolate(), host, value);
+
+#ifdef V8_ENABLE_SANDBOX
+  if (managed_resource) {
+    managed_resource->owning_table_ = owning_table;
+    managed_resource->ept_entry_ = original_handle;
+  }
+#endif  // V8_ENABLE_SANDBOX
+
   // ExternalPointers can only be written into HeapObject fields, therefore they
   // cover (kExternalPointerSlotSize / kTaggedSize) slots.
   return (kExternalPointerSlotSize / kTaggedSize);
@@ -347,7 +380,7 @@ uint32_t ComputeRawHashField(IsolateT* isolate, Tagged<String> string) {
 }  // namespace
 
 StringTableInsertionKey::StringTableInsertionKey(
-    Isolate* isolate, Handle<String> string,
+    Isolate* isolate, DirectHandle<String> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
@@ -358,7 +391,7 @@ StringTableInsertionKey::StringTableInsertionKey(
 }
 
 StringTableInsertionKey::StringTableInsertionKey(
-    LocalIsolate* isolate, Handle<String> string,
+    LocalIsolate* isolate, DirectHandle<String> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
@@ -449,8 +482,8 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(Tagged<Map> map,
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     auto buffer = JSArrayBuffer::cast(*obj);
     uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
+    buffer->init_extension();
     if (store_index == kEmptyBackingStoreRefSentinel) {
-      buffer->set_extension(nullptr);
       buffer->set_backing_store(main_thread_isolate(),
                                 EmptyBackingStoreBuffer());
     } else {
@@ -1051,7 +1084,8 @@ int Deserializer<IsolateT>::ReadExternalReference(uint8_t data,
   if (data == kSandboxedExternalReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(tag),
                               address);
 }
 
@@ -1066,7 +1100,8 @@ int Deserializer<IsolateT>::ReadRawExternalReference(
   if (data == kSandboxedRawExternalReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(tag),
                               address);
 }
 
@@ -1192,7 +1227,8 @@ int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
   if (data == kSandboxedApiReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(tag),
                               address);
 }
 

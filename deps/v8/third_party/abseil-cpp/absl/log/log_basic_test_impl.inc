@@ -25,6 +25,10 @@
 #error ABSL_TEST_LOG must be defined for these tests to work.
 #endif
 
+#ifndef ABSL_TEST_DLOG
+#error ABSL_TEST_DLOG must be defined for these tests to work.
+#endif
+
 #include <cerrno>
 #include <sstream>
 #include <string>
@@ -34,6 +38,7 @@
 #include "absl/base/internal/sysinfo.h"
 #include "absl/base/log_severity.h"
 #include "absl/log/globals.h"
+#include "absl/log/internal/globals.h"
 #include "absl/log/internal/test_actions.h"
 #include "absl/log/internal/test_helpers.h"
 #include "absl/log/internal/test_matchers.h"
@@ -365,6 +370,27 @@ TEST_P(BasicLogDeathTest, DFatal) {
       },
       DiedOfFatal, DeathTestValidateExpectations());
 }
+#endif
+
+#ifndef NDEBUG
+TEST_P(BasicLogTest, DFatalIsCancellable) {
+  // LOG(DFATAL) does not die when DFATAL death is disabled.
+  absl::log_internal::SetExitOnDFatal(false);
+  ABSL_TEST_LOG(DFATAL) << "hello world";
+  absl::log_internal::SetExitOnDFatal(true);
+}
+
+#if GTEST_HAS_DEATH_TEST
+TEST_P(BasicLogDeathTest, DLogFatalIsNotCancellable) {
+  EXPECT_EXIT(
+      {
+        absl::log_internal::SetExitOnDFatal(false);
+        ABSL_TEST_DLOG(FATAL) << "hello world";
+        absl::log_internal::SetExitOnDFatal(true);
+      },
+      DiedOfFatal, "");
+}
+#endif
 #endif
 
 TEST_P(BasicLogTest, Level) {

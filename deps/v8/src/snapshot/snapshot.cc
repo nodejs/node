@@ -362,7 +362,8 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
     std::vector<Tagged<Context>> contexts{*default_context};
-    std::vector<SerializeEmbedderFieldsCallback> callbacks{{}};
+    std::vector<SerializeEmbedderFieldsCallback> callbacks{
+        SerializeEmbedderFieldsCallback()};
     serialized_data = Snapshot::Create(isolate, &contexts, callbacks,
                                        safepoint_scope, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
@@ -371,7 +372,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
   // The shared heap is verified on Heap teardown, which performs a global
   // safepoint. Both isolate and new_isolate are running in the same thread, so
   // park isolate before running new_isolate to avoid deadlock.
-  isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+  isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [&serialized_data]() {
         // Test deserialization.
         Isolate* new_isolate = Isolate::New();
@@ -796,7 +797,8 @@ v8::StartupData CreateSnapshotDataBlobInternal(
         !RunExtraCode(v8_isolate, context, embedded_source, "<embedded>")) {
       return {};
     }
-    creator->SetDefaultContext(Utils::OpenHandle(*context), {});
+    creator->SetDefaultContext(Utils::OpenHandle(*context),
+                               SerializeEmbedderFieldsCallback());
   }
   return creator->CreateBlob(function_code_handling, serializer_flags);
 }

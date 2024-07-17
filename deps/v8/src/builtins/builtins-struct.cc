@@ -127,7 +127,7 @@ BUILTIN(SharedStructTypeConstructor) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, raw_length_number,
         Object::GetLengthFromArrayLike(isolate, property_names_arg));
-    double num_properties_double = Object::Number(*raw_length_number);
+    double num_properties_double = Object::NumberValue(*raw_length_number);
     if (num_properties_double < 0 ||
         num_properties_double > kMaxJSStructFields) {
       THROW_NEW_ERROR_RETURN_FAILURE(

@@ -20,7 +20,7 @@ namespace internal {
 
 CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js,
                          SpreadErrorInArgsHint error_in_spread_args)
-    : builder_(new IncrementalStringBuilder(isolate)) {
+    : builder_(isolate) {
   isolate_ = isolate;
   position_ = 0;
   num_prints_ = 0;
@@ -55,7 +55,7 @@ Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
   num_prints_ = 0;
   position_ = position;
   Find(program);
-  return builder_->Finish().ToHandleChecked();
+  return indirect_handle(builder_.Finish().ToHandleChecked(), isolate_);
 }
 
 
@@ -75,19 +75,19 @@ void CallPrinter::Find(AstNode* node, bool print) {
 void CallPrinter::Print(char c) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_->AppendCharacter(c);
+  builder_.AppendCharacter(c);
 }
 
 void CallPrinter::Print(const char* str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_->AppendCString(str);
+  builder_.AppendCString(str);
 }
 
 void CallPrinter::Print(Handle<String> str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_->AppendString(str);
+  builder_.AppendString(str);
 }
 
 void CallPrinter::VisitBlock(Block* node) {

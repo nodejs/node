@@ -187,7 +187,7 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
       PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
   if (stage_ == kExoticIndices) {
     if (skip_indices_ || !IsJSTypedArray(*receiver)) return true;
-    Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
+    auto typed_array = DirectHandle<JSTypedArray>::cast(receiver);
     current_keys_length_ =
         typed_array->WasDetached() ? 0 : typed_array->GetLength();
     return true;
@@ -219,7 +219,7 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
   if (it.state() != LookupIterator::ACCESSOR) {
     return debug::NativeAccessorType::None;
   }
-  Handle<Object> structure = it.GetAccessors();
+  DirectHandle<Object> structure = it.GetAccessors();
   if (!IsAccessorInfo(*structure)) return debug::NativeAccessorType::None;
   base::Flags<debug::NativeAccessorType, int> result;
   if (*structure == *isolate->factory()->value_unavailable_accessor()) {
@@ -230,7 +230,7 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
     return debug::NativeAccessorType::None;
   ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACCESSOR, /* not used */)
 #undef IS_BUILTIN_ACCESSOR
-  Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
+  auto accessor_info = DirectHandle<AccessorInfo>::cast(structure);
   if (accessor_info->has_getter(isolate)) {
     result |= debug::NativeAccessorType::HasGetter;
   }

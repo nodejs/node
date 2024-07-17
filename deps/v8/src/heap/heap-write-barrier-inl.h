@@ -34,6 +34,25 @@ V8_EXPORT_PRIVATE void Heap_GenerationalEphemeronKeyBarrierSlow(
 inline bool IsCodeSpaceObject(Tagged<HeapObject> object);
 inline bool IsTrustedSpaceObject(Tagged<HeapObject> object);
 
+// TODO(333906585): Due to cyclic dependency, we cannot pull in marking-inl.h
+// here. Fix it and make the call inlined.
+V8_EXPORT_PRIVATE bool HeapObjectInYoungGenerationSticky(
+    MemoryChunk* chunk, Tagged<HeapObject> object);
+
+inline bool HeapObjectInYoungGeneration(MemoryChunk* chunk,
+                                        Tagged<HeapObject> object) {
+  if (v8_flags.sticky_mark_bits) {
+    return HeapObjectInYoungGenerationSticky(chunk, object);
+  } else {
+    return chunk->InYoungGeneration();
+  }
+}
+
+inline bool HeapObjectInYoungGeneration(Tagged<HeapObject> object) {
+  auto* chunk = MemoryChunk::FromHeapObject(object);
+  return HeapObjectInYoungGeneration(chunk, object);
+}
+
 // Do not use these internal details anywhere outside of this file. These
 // internals are only intended to shortcut write barrier checks.
 namespace heap_internals {
@@ -48,22 +67,31 @@ inline void CombinedWriteBarrierInternal(Tagged<HeapObject> host,
 
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
 
-  const bool pointers_from_here_are_interesting =
-      !host_chunk->IsYoungOrSharedChunk();
   const bool is_marking = host_chunk->IsMarking();
 
-  if (pointers_from_here_are_interesting &&
-      value_chunk->IsYoungOrSharedChunk()) {
-    // Generational or shared heap write barrier (old-to-new or old-to-shared).
-    Heap_CombinedGenerationalAndSharedBarrierSlow(host, slot.address(), value);
+  if (v8_flags.sticky_mark_bits) {
+    // TODO(333906585): Support shared barrier.
+    if (!HeapObjectInYoungGeneration(host_chunk, host) &&
+        HeapObjectInYoungGeneration(value_chunk, value)) {
+      // Generational or shared heap write barrier (old-to-new or
+      // old-to-shared).
+      Heap_CombinedGenerationalAndSharedBarrierSlow(host, slot.address(),
+                                                    value);
+    }
+  } else {
+    const bool pointers_from_here_are_interesting =
+        !host_chunk->IsYoungOrSharedChunk();
+    if (pointers_from_here_are_interesting &&
+        value_chunk->IsYoungOrSharedChunk()) {
+      // Generational or shared heap write barrier (old-to-new or
+      // old-to-shared).
+      Heap_CombinedGenerationalAndSharedBarrierSlow(host, slot.address(),
+                                                    value);
+    }
   }
 
   // Marking barrier: mark value & record slots when marking is on.
   if (V8_UNLIKELY(is_marking)) {
-    // CodePageHeaderModificationScope is not required because the only case
-    // when a InstructionStream value is stored somewhere is during creation of
-    // a new InstructionStream object which is then stored to
-    // Code's code field and in this case the code space is already unlocked.
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), value);
   }
 }
@@ -167,10 +195,6 @@ inline void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> host,
 
   // Marking barrier: mark value & record slots when marking is on.
   if (is_marking) {
-    // Currently InstructionStream values are never stored in EphemeronTables.
-    // If this ever changes then the CodePageHeaderModificationScope might be
-    // required here.
-    DCHECK(!IsCodeSpaceObject(heap_object_value));
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), heap_object_value);
   }
 }
@@ -188,9 +212,10 @@ inline void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
   }
 
   // Objects referenced via indirect pointers are currently never allocated in
-  // the young generation or the shared heap. If they ever are, then some of
-  // these write barriers need to be adjusted.
-  DCHECK(!MemoryChunk::FromHeapObject(value)->IsYoungOrSharedChunk());
+  // the young generation.
+  if (!v8_flags.sticky_mark_bits) {
+    DCHECK(!MemoryChunk::FromHeapObject(value)->InYoungGeneration());
+  }
 
   WriteBarrier::Marking(host, slot);
 }
@@ -214,8 +239,7 @@ inline void GenerationalBarrierForCode(Tagged<InstructionStream> host,
                                        RelocInfo* rinfo,
                                        Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  MemoryChunk* object_chunk = MemoryChunk::FromHeapObject(object);
-  if (!object_chunk->InYoungGeneration()) return;
+  if (!HeapObjectInYoungGeneration(object)) return;
   Heap_GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
@@ -225,7 +249,7 @@ inline WriteBarrierMode GetWriteBarrierModeForObject(
   DCHECK(Heap_PageFlagsAreConsistent(object));
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->IsMarking()) return UPDATE_WRITE_BARRIER;
-  if (chunk->InYoungGeneration()) return SKIP_WRITE_BARRIER;
+  if (HeapObjectInYoungGeneration(chunk, object)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
 
@@ -234,8 +258,7 @@ inline bool ObjectInYoungGeneration(Tagged<Object> object) {
   // v8_use_third_party_heap.
   if (v8_flags.single_generation) return false;
   if (object.IsSmi()) return false;
-  return MemoryChunk::FromHeapObject(HeapObject::cast(object))
-      ->InYoungGeneration();
+  return HeapObjectInYoungGeneration(HeapObject::cast(object));
 }
 
 inline bool IsReadOnlyHeapObject(Tagged<HeapObject> object) {
@@ -265,10 +288,6 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, ObjectSlot slot,
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
   Tagged<HeapObject> value_heap_object = HeapObject::cast(value);
-  // Currently this marking barrier is never used for InstructionStream values.
-  // If this ever changes then the CodePageHeaderModificationScope might be
-  // required here.
-  DCHECK(!IsCodeSpaceObject(value_heap_object));
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
 
@@ -363,6 +382,28 @@ void WriteBarrier::CombinedBarrierFromInternalFields(Tagged<JSObject> host,
 }
 
 // static
+void WriteBarrier::CombinedBarrierForCppHeapPointer(Tagged<JSObject> host,
+                                                    void* value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  if (V8_LIKELY(!IsMarking(host))) {
+#if defined(CPPGC_YOUNG_GENERATION)
+    // TODO(mlippautz): Don't reuse the internal field barrier but rather create
+    // a separate barrier for the CppHeapPointer.
+    GenerationalBarrierFromInternalFields(host, 1, &value);
+#endif
+    return;
+  }
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (marking_barrier->is_minor()) {
+    // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMS is
+    // active. Once Oilpan uses a generational GC with incremental marking and
+    // unified heap, this barrier will be needed again.
+    return;
+  }
+  MarkingSlowFromCppHeapWrappable(marking_barrier->heap(), value);
+}
+
+// static
 void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
                                                          void* value) {
   GenerationalBarrierFromInternalFields(host, 1, &value);
@@ -373,7 +414,7 @@ void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
                                                          size_t argc,
                                                          void** values) {
   auto* memory_chunk = MemoryChunk::FromHeapObject(host);
-  if (V8_LIKELY(memory_chunk->InYoungGeneration())) return;
+  if (V8_LIKELY(HeapObjectInYoungGeneration(memory_chunk, host))) return;
   auto* cpp_heap = memory_chunk->GetHeap()->cpp_heap();
   if (!cpp_heap) return;
   for (size_t i = 0; i < argc; ++i) {
@@ -387,7 +428,7 @@ void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
-  if (MemoryChunk::FromHeapObject(host)->InYoungGeneration()) return false;
+  if (HeapObjectInYoungGeneration(host)) return false;
   if (IsSmi(value)) return false;
   if (value.IsCleared()) return false;
   Tagged<HeapObject> target = value.GetHeapObject();
@@ -397,8 +438,7 @@ bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
-  if (MemoryChunk::FromAddress(host->address())->InYoungGeneration())
-    return false;
+  if (HeapObjectInYoungGeneration(host)) return false;
   if (IsSmi(value)) return false;
   if (value.IsCleared()) return false;
   Tagged<HeapObject> target = value.GetHeapObject();

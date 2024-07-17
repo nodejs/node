@@ -6,7 +6,7 @@
 #define V8_WASM_BASELINE_ARM64_LIFTOFF_ASSEMBLER_ARM64_INL_H_
 
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -43,13 +43,10 @@ namespace liftoff {
 //  -----+--------------------+  <-- stack ptr (sp)
 //
 
-constexpr int kInstanceDataOffset = 2 * kSystemPointerSize;
-constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
-
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetInstanceDataOperand() {
-  return GetStackSlot(kInstanceDataOffset);
+  return GetStackSlot(WasmLiftoffFrameConstants::kInstanceDataOffset);
 }
 
 inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueKind kind) {
@@ -293,14 +290,17 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   Register scratch = temps.AcquireX();
 
   // Shift the whole frame upwards, except for fp and lr.
+  // Adjust x16 to be the new stack pointer first, so that {str} doesn't need
+  // a temp register to materialize the offset.
+  Sub(x16, x16, stack_param_delta * 8);
   int slot_count = num_callee_stack_params;
   for (int i = slot_count - 1; i >= 0; --i) {
     ldr(scratch, MemOperand(sp, i * 8));
-    str(scratch, MemOperand(x16, (i - stack_param_delta) * 8));
+    str(scratch, MemOperand(x16, i * 8));
   }
 
   // Set the new stack pointer.
-  Sub(sp, x16, stack_param_delta * 8);
+  mov(sp, x16);
 }
 
 void LiftoffAssembler::AlignFrameSize() {
@@ -406,7 +406,7 @@ void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kFeedbackVectorOffset;
+  return WasmLiftoffFrameConstants::kFeedbackVectorOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -490,7 +490,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
                                           int offset, IndirectPointerTag tag) {
   MemOperand src{src_addr, offset};
-  LoadTrustedPointerField(dst, src, kWasmTrustedInstanceDataIndirectPointerTag);
+  LoadTrustedPointerField(dst, src, tag);
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -517,23 +517,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      int offset) {
   DCHECK_LE(0, offset);
   LoadTaggedField(dst, MemOperand{instance, offset});
-}
-
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, ExternalPointerTag tag,
-                                           Register /* scratch */) {
-  LoadExternalPointerField(dst, MemOperand{src_addr, offset}, tag,
-                           kRootRegister);
-}
-
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, Register index,
-                                           ExternalPointerTag tag,
-                                           Register /* scratch */) {
-  UseScratchRegisterScope temps(this);
-  MemOperand src_op = liftoff::GetMemOp(this, &temps, src_addr, index, offset,
-                                        false, V8_ENABLE_SANDBOX_BOOL ? 2 : 3);
-  LoadExternalPointerField(dst, src_op, tag, kRootRegister);
 }
 
 void LiftoffAssembler::SpillInstanceData(Register instance) {
@@ -1809,6 +1792,8 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   Uxtw(dst, src);
 }
+
+void LiftoffAssembler::clear_i32_upper_half(Register dst) { Uxtw(dst, dst); }
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
@@ -3128,7 +3113,13 @@ void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  I8x16BitMask(dst.gp(), src.fp());
+  VRegister temp = NoVReg;
+
+  if (CpuFeatures::IsSupported(PMULL1Q)) {
+    temp = GetUnusedRegister(kFpReg, LiftoffRegList{src}).fp();
+  }
+
+  I8x16BitMask(dst.gp(), src.fp(), temp);
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3710,15 +3701,13 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
 
 #undef EMIT_QFMOP
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
-                                             MemOperand oob_offset) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Lsr(scratch.X(), index.X(), oob_shift);
-
-  Register scratch2 = temps.AcquireX();
-  ldr(scratch2, oob_offset);
-  Csel(index.X(), scratch2, index.X(), ne);
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
+                                             uint64_t oob_index) {
+  Label done;
+  Cmp(index, oob_size);
+  B(&done, kUnsignedLessThan);
+  Mov(index, oob_index);
+  bind(&done);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

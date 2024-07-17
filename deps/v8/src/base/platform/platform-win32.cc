@@ -1205,9 +1205,11 @@ void OS::Abort() {
   fflush(stderr);
 
   switch (g_abort_mode) {
-    case AbortMode::kSoft:
+    case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
+      _exit(0);
+    case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
       _exit(-1);
-    case AbortMode::kHard:
+    case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
     case AbortMode::kDefault:
       break;
@@ -1770,11 +1772,9 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 void OS::AdjustSchedulingParams() {}
 
-std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
     size_t alignment) {
-  std::vector<OS::MemoryRange> result = {};
-
   // Search for the virtual memory (vm) ranges within the boundary.
   // If a range is free and larger than {minimum_size}, then push it to the
   // returned vector.
@@ -1798,14 +1798,14 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
           RoundDown(std::min(vm_end, boundary_end), alignment);
       if (overlap_start < overlap_end &&
           overlap_end - overlap_start >= minimum_size) {
-        result.push_back({overlap_start, overlap_end});
+        return OS::MemoryRange{overlap_start, overlap_end};
       }
     }
     // Continue to visit the next virtual memory range.
     vm_start = vm_end;
   }
 
-  return result;
+  return {};
 }
 
 // static

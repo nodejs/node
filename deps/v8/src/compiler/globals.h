@@ -44,6 +44,7 @@ inline Runtime::FunctionId GetBuiltinForStackCheckKind(StackCheckKind kind) {
 }
 
 enum class CanThrow : uint8_t { kNo, kYes };
+enum class LazyDeoptOnThrow : uint8_t { kNo, kYes };
 
 inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {
   switch (kind) {
@@ -125,6 +126,33 @@ enum class MemoryAccessKind : uint8_t {
 size_t hash_value(MemoryAccessKind);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
+
+inline ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
+  switch (kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
+  case RAB_GSAB_##TYPE##_ELEMENTS:                \
+    return kExternal##Type##Array;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+
+inline int ExternalArrayElementSize(const ExternalArrayType element_type) {
+  switch (element_type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    DCHECK_LE(sizeof(ctype), 8);                  \
+    return sizeof(ctype);
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+  }
+}
 
 }  // namespace compiler
 }  // namespace internal

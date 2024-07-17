@@ -59,7 +59,7 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
   for (int i = 0; i < kNumberOfElements; i++) {
     Handle<Object> actual(constant_array->get(i), isolate());
     Handle<Object> expected = builder.At(i, isolate()).ToHandleChecked();
-    ASSERT_EQ(Object::Number(*expected), Object::Number(*actual))
+    ASSERT_EQ(Object::NumberValue(*expected), Object::NumberValue(*actual))
         << "Failure at index " << i;
   }
 }
@@ -75,7 +75,7 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
   for (int i = 0; i < kNumberOfElements; i++) {
     Handle<Object> actual(constant_array->get(i), isolate());
     Handle<Object> expected = builder.At(i, isolate()).ToHandleChecked();
-    ASSERT_EQ(Object::Number(*expected), Object::Number(*actual))
+    ASSERT_EQ(Object::NumberValue(*expected), Object::NumberValue(*actual))
         << "Failure at index " << i;
   }
 }
@@ -94,7 +94,7 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
   for (int i = 0; i < kNumberOfElements; i++) {
     Handle<Object> actual(constant_array->get(i), isolate());
     Handle<Object> expected = builder.At(i, isolate()).ToHandleChecked();
-    ASSERT_EQ(Object::Number(*expected), Object::Number(*actual))
+    ASSERT_EQ(Object::NumberValue(*expected), Object::NumberValue(*actual))
         << "Failure at index " << i;
   }
 }

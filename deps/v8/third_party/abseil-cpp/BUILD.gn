@@ -136,7 +136,13 @@ source_set("absl_full") {
   }
 
   if (build_with_chromium) {
-    visibility = [ "//third_party/fuzztest:*" ]
+    visibility = [
+      "//third_party/fuzztest:*",
+
+      # GoogleTest doesn't actually need absl_full, but this makes gn check
+      # happier.
+      "//third_party/googletest:*",
+    ]
   }
 }
 
@@ -282,6 +288,7 @@ if (absl_build_tests) {
         "absl/crc:crc_cord_state_test",
         "absl/crc:crc_memcpy_test",
         "absl/crc:non_temporal_memcpy_test",
+        "absl/debugging:demangle_rust_test",
         "absl/debugging:stacktrace_test",
         "absl/flags:flag_test",
         "absl/functional:any_invocable_test",
@@ -311,6 +318,9 @@ if (absl_build_tests) {
         "absl/numeric:int128_test",
         "absl/profiling:exponential_biased_test",
         "absl/profiling:periodic_sampler_test",
+        "absl/random:distributions_test",
+        "absl/random:mock_distributions_test",
+        "absl/status:status_matchers_test",
         "absl/status:status_test",
         "absl/status:statusor_test",
         "absl/strings:ascii_test",
@@ -346,6 +356,7 @@ if (absl_build_tests) {
         "absl/synchronization:waiter_test",
         "absl/time:time_test",
         "absl/types:optional_test",
+        "absl/types:span_test",
         "absl/types:variant_test",
         "absl/utility:if_constexpr_test",
         "//third_party/googletest:gtest_main",

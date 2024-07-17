@@ -40,7 +40,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
 
   // ES6 section 7.1.3 ToNumber for Boolean, Null, Undefined.
   V8_WARN_UNUSED_RESULT static inline Handle<Object> ToNumber(
-      Isolate* isolate, Handle<Oddball> input);
+      Isolate* isolate, DirectHandle<Oddball> input);
 
   DECL_CAST(Oddball)
 
@@ -48,7 +48,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   DECL_VERIFIER(Oddball)
 
   // Initialize the fields.
-  static void Initialize(Isolate* isolate, Handle<Oddball> oddball,
+  static void Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
                          const char* type_of, uint8_t kind);
 

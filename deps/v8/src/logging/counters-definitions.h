@@ -29,7 +29,6 @@ namespace internal {
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
-  HR(gc_marking_sum, V8.GCMarkingSum, 0, 10000, 101)                           \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
      51)                                                                       \
@@ -63,6 +62,10 @@ namespace internal {
   /* Number of code GCs triggered per native module, collected on code GC. */  \
   HR(wasm_module_num_triggered_code_gcs,                                       \
      V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
+  /* The amount of Liftoff code flushed on emergency GCs for allocations and   \
+   * on memory pressure. */                                                    \
+  HR(wasm_flushed_liftoff_code_size_bytes, V8.WasmFlushedLiftoffCodeSizeBytes, \
+     0, GB, 101)                                                               \
   /* Number of code spaces reserved per wasm module. */                        \
   HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
   /* Number of live modules per isolate. */                                    \
@@ -93,6 +96,8 @@ namespace internal {
      101)                                                                      \
   HR(trusted_pointers_count, V8.SandboxedTrustedPointersCount, 0,              \
      kMaxTrustedPointers, 101)                                                 \
+  HR(cppheap_pointers_count, V8.SandboxedCppHeapPointersCount, 0,              \
+     kMaxCppHeapPointers, 101)                                                 \
   HR(wasm_num_lazy_compilations_5sec, V8.WasmNumLazyCompilations5Sec, 0,       \
      200000, 50)                                                               \
   HR(wasm_num_lazy_compilations_20sec, V8.WasmNumLazyCompilations20Sec, 0,     \
@@ -113,7 +118,6 @@ namespace internal {
 // HT(name, caption, max, unit)
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Garbage collection timers. */                                            \
-  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
   HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
      MILLISECOND)                                                             \

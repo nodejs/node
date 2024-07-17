@@ -96,7 +96,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                                        : AllocationType::kOld>
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
       IsolateT* isolate, Handle<Derived> dictionary, Key key,
-      Handle<Object> value, PropertyDetails details,
+      DirectHandle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
   // This method is only safe to use when it is guaranteed that the dictionary
@@ -108,7 +108,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                                        ? AllocationType::kYoung
                                        : AllocationType::kOld>
   static void UncheckedAdd(IsolateT* isolate, Handle<Derived> dictionary,
-                           Key key, Handle<Object> value,
+                           Key key, DirectHandle<Object> value,
                            PropertyDetails details);
 
   static Handle<Derived> ShallowCopy(
@@ -149,8 +149,8 @@ class BaseDictionaryShape : public BaseShape<Key> {
 
 class BaseNameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
-  static inline bool IsMatch(Handle<Name> key, Tagged<Object> other);
-  static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
+  static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
+  static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
   template <AllocationType allocation = AllocationType::kYoung>
@@ -266,7 +266,7 @@ class V8_EXPORT_PRIVATE NameDictionary
 
 class V8_EXPORT_PRIVATE GlobalDictionaryShape : public BaseNameDictionaryShape {
  public:
-  static inline bool IsMatch(Handle<Name> key, Tagged<Object> other);
+  static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
 
@@ -310,7 +310,7 @@ class V8_EXPORT_PRIVATE GlobalDictionary
 
   base::Optional<Tagged<PropertyCell>>
   TryFindPropertyCellForConcurrentLookupIterator(Isolate* isolate,
-                                                 Handle<Name> name,
+                                                 DirectHandle<Name> name,
                                                  RelaxedLoadTag tag);
 
   OBJECT_CONSTRUCTORS(

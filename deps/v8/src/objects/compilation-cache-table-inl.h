@@ -75,7 +75,8 @@ class ScriptCacheKey : public HashTableKey {
   bool IsMatch(Tagged<Object> other) override;
   bool MatchesScript(Tagged<Script> script);
 
-  Handle<Object> AsHandle(Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  Handle<Object> AsHandle(Isolate* isolate,
+                          DirectHandle<SharedFunctionInfo> shared);
 
   static base::Optional<Tagged<String>> SourceFromObject(Tagged<Object> obj) {
     DisallowGarbageCollection no_gc;
@@ -134,7 +135,8 @@ uint32_t CompilationCacheShape::EvalHash(Tagged<String> source,
 uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
                                               Tagged<Object> object) {
   // Eval: The key field contains the hash as a Number.
-  if (IsNumber(object)) return static_cast<uint32_t>(Object::Number(object));
+  if (IsNumber(object))
+    return static_cast<uint32_t>(Object::NumberValue(object));
 
   // Code: The key field contains the SFI key.
   if (IsSharedFunctionInfo(object)) {

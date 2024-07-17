@@ -115,8 +115,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
         if (IsJSObject(raw, isolate)) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                                     VisitElementOrProperty(copy, value));
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && details.representation().IsDouble()) {
           uint64_t double_value = HeapNumber::cast(raw)->value_as_bits();
@@ -133,8 +133,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(JSObject::cast(raw), isolate);
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                                     VisitElementOrProperty(copy, value));
           if (copying) dict->ValueAtPut(i, *value);
         }
       } else {
@@ -145,8 +145,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(isolate, i)));
           Handle<JSObject> value(JSObject::cast(raw), isolate);
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                                     VisitElementOrProperty(copy, value));
           if (copying) dict->ValueAtPut(i, *value);
         }
       }
@@ -181,8 +181,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           Tagged<Object> raw = elements->get(i);
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                                     VisitElementOrProperty(copy, value));
           if (copying) elements->set(i, *value);
         }
       }
@@ -195,8 +195,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
         if (!IsJSObject(raw, isolate)) continue;
         Handle<JSObject> value(JSObject::cast(raw), isolate);
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, value, VisitElementOrProperty(copy, value), JSObject);
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                                   VisitElementOrProperty(copy, value));
         if (copying) element_dictionary->ValueAtPut(i, *value);
       }
       break;
@@ -514,7 +514,7 @@ MaybeHandle<JSObject> CreateLiteralWithoutAllocationSite(
   Handle<JSObject> literal = LiteralHelper::Create(isolate, description, flags,
                                                    AllocationType::kYoung);
   DeprecationUpdateContext update_context(isolate);
-  RETURN_ON_EXCEPTION(isolate, DeepWalk(literal, &update_context), JSObject);
+  RETURN_ON_EXCEPTION(isolate, DeepWalk(literal, &update_context));
   return literal;
 }
 
@@ -555,8 +555,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     // Install AllocationSite objects.
     AllocationSiteCreationContext creation_context(isolate);
     site = creation_context.EnterNewScope();
-    RETURN_ON_EXCEPTION(isolate, DeepWalk(boilerplate, &creation_context),
-                        JSObject);
+    RETURN_ON_EXCEPTION(isolate, DeepWalk(boilerplate, &creation_context));
     creation_context.ExitScope(site, boilerplate);
 
     vector->SynchronizedSet(literals_slot, *site);

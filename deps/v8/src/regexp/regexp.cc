@@ -150,10 +150,8 @@ MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
           .ToHandleChecked();
   Handle<String> flag_string =
       JSRegExp::StringFromFlags(isolate, JSRegExp::AsJSRegExpFlags(flags));
-  THROW_NEW_ERROR(isolate,
-                  NewSyntaxError(MessageTemplate::kMalformedRegExp, pattern,
-                                 flag_string, error_text),
-                  Object);
+  THROW_NEW_ERROR(isolate, NewSyntaxError(MessageTemplate::kMalformedRegExp,
+                                          pattern, flag_string, error_text));
 }
 
 void RegExp::ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
@@ -264,7 +262,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     Handle<String> atom_string;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,
-        isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
+        isolate->factory()->NewStringFromTwoByte(atom_pattern));
     if (!IsIgnoreCase(flags) && !HasFewDifferentCharacters(atom_string)) {
       RegExpImpl::AtomCompile(isolate, re, pattern, flags, atom_string);
       has_been_compiled = true;
@@ -1213,6 +1211,15 @@ int32_t* RegExpGlobalCache::FetchNext() {
     if (num_matches_ <= 0) {
       return nullptr;
     }
+
+    // Number of matches can't exceed maximum matches.
+    // This check is enough to prevent OOB accesses to register_array_ in the
+    // else branch below, since current_match_index < num_matches_ in this
+    // branch, it follows that current_match_index < max_matches_. And since
+    // max_matches_ = register_array_size_ / registers_per_match it follows
+    // that current_match_index * registers_per_match_ < register_array_size_.
+    SBXCHECK_LE(num_matches_, max_matches_);
+
     current_match_index_ = 0;
     return register_array_;
   } else {

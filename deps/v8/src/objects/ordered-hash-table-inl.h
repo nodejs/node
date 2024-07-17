@@ -178,27 +178,27 @@ inline void SmallOrderedNameDictionary::DetailsAtPut(InternalIndex entry,
   this->SetDataEntry(entry.as_int(), kPropertyDetailsIndex, value.AsSmi());
 }
 
-inline bool OrderedHashSet::Is(Handle<HeapObject> table) {
+inline bool OrderedHashSet::Is(DirectHandle<HeapObject> table) {
   return IsOrderedHashSet(*table);
 }
 
-inline bool OrderedHashMap::Is(Handle<HeapObject> table) {
+inline bool OrderedHashMap::Is(DirectHandle<HeapObject> table) {
   return IsOrderedHashMap(*table);
 }
 
-inline bool OrderedNameDictionary::Is(Handle<HeapObject> table) {
+inline bool OrderedNameDictionary::Is(DirectHandle<HeapObject> table) {
   return IsOrderedNameDictionary(*table);
 }
 
-inline bool SmallOrderedHashSet::Is(Handle<HeapObject> table) {
+inline bool SmallOrderedHashSet::Is(DirectHandle<HeapObject> table) {
   return IsSmallOrderedHashSet(*table);
 }
 
-inline bool SmallOrderedNameDictionary::Is(Handle<HeapObject> table) {
+inline bool SmallOrderedNameDictionary::Is(DirectHandle<HeapObject> table) {
   return IsSmallOrderedNameDictionary(*table);
 }
 
-inline bool SmallOrderedHashMap::Is(Handle<HeapObject> table) {
+inline bool SmallOrderedHashMap::Is(DirectHandle<HeapObject> table) {
   return IsSmallOrderedHashMap(*table);
 }
 

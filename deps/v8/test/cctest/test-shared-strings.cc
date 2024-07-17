@@ -13,7 +13,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -47,7 +47,8 @@ struct V8_NODISCARD IsolateParkOnDisposeWrapper {
   ~IsolateParkOnDisposeWrapper() {
     auto main_isolate = reinterpret_cast<Isolate*>(isolate_to_park)
                             ->main_thread_local_isolate();
-    main_isolate->BlockMainThreadWhileParked([this]() { isolate->Dispose(); });
+    main_isolate->ExecuteMainThreadWhileParked(
+        [this]() { isolate->Dispose(); });
   }
 
   v8::Isolate* const isolate;
@@ -163,14 +164,14 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
 
   // Allocate two in-place internalizable strings in isolate1 then intern
   // them.
-  Handle<String> old_one_byte_seq1 =
+  DirectHandle<String> old_one_byte_seq1 =
       factory1->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
-  Handle<String> old_two_byte_seq1 =
+  DirectHandle<String> old_two_byte_seq1 =
       factory1->NewStringFromTwoByte(two_byte, AllocationType::kOld)
           .ToHandleChecked();
-  Handle<String> one_byte_intern1 =
+  DirectHandle<String> one_byte_intern1 =
       factory1->InternalizeString(old_one_byte_seq1);
-  Handle<String> two_byte_intern1 =
+  DirectHandle<String> two_byte_intern1 =
       factory1->InternalizeString(old_two_byte_seq1);
   CHECK(InAnySharedSpace(*old_one_byte_seq1));
   CHECK(InAnySharedSpace(*old_two_byte_seq1));
@@ -184,14 +185,14 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
   // Allocate two in-place internalizable strings with the same contents in
   // isolate2 then intern them. They should be the same as the interned strings
   // from isolate1.
-  Handle<String> old_one_byte_seq2 =
+  DirectHandle<String> old_one_byte_seq2 =
       factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
-  Handle<String> old_two_byte_seq2 =
+  DirectHandle<String> old_two_byte_seq2 =
       factory2->NewStringFromTwoByte(two_byte, AllocationType::kOld)
           .ToHandleChecked();
-  Handle<String> one_byte_intern2 =
+  DirectHandle<String> one_byte_intern2 =
       factory2->InternalizeString(old_one_byte_seq2);
-  Handle<String> two_byte_intern2 =
+  DirectHandle<String> two_byte_intern2 =
       factory2->InternalizeString(old_two_byte_seq2);
   CHECK(InAnySharedSpace(*old_one_byte_seq2));
   CHECK(InAnySharedSpace(*old_two_byte_seq2));
@@ -232,7 +233,7 @@ UNINITIALIZED_TEST(YoungInternalization) {
   Handle<String> young_two_byte_seq1;
   Handle<String> one_byte_intern1;
   Handle<String> two_byte_intern1;
-  i_isolate2->main_thread_local_isolate()->BlockMainThreadWhileParked([&]() {
+  i_isolate2->main_thread_local_isolate()->ExecuteMainThreadWhileParked([&]() {
     young_one_byte_seq1 = factory1->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     young_two_byte_seq1 =

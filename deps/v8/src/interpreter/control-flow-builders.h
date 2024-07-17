@@ -58,6 +58,9 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
   }
   void BreakIfUndefined() { EmitJumpIfUndefined(&break_labels_); }
   void BreakIfNull() { EmitJumpIfNull(&break_labels_); }
+  void BreakIfForInDone(Register index, Register cache_length) {
+    EmitJumpIfForInDone(&break_labels_, index, cache_length);
+  }
 
   BytecodeLabels* break_labels() { return &break_labels_; }
 
@@ -69,6 +72,8 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
                        BytecodeLabels* labels);
   void EmitJumpIfUndefined(BytecodeLabels* labels);
   void EmitJumpIfNull(BytecodeLabels* labels);
+  void EmitJumpIfForInDone(BytecodeLabels* labels, Register index,
+                           Register cache_length);
 
   // Called from the destructor to update sites that emit jumps for break.
   void BindBreakTarget();

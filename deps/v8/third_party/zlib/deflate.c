@@ -401,7 +401,8 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
     // for all wrapper formats (e.g. RAW, ZLIB, GZIP).
     // Feature detection is not triggered while using RAW mode (i.e. we never
     // call crc32() with a NULL buffer).
-#if defined(CRC32_ARMV8_CRC32) || defined(CRC32_SIMD_SSE42_PCLMUL)
+#if defined(CRC32_ARMV8_CRC32) || defined(CRC32_SIMD_SSE42_PCLMUL) \
+    || defined(RISCV_RVV)
     cpu_check_features();
 #endif
 

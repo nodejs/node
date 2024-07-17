@@ -40,7 +40,7 @@ namespace {
 // Adds local names from `script_context` to the hash table.
 Handle<NameToIndexHashTable> AddLocalNamesFromContext(
     Isolate* isolate, Handle<NameToIndexHashTable> names_table,
-    Handle<Context> script_context, bool ignore_duplicates,
+    DirectHandle<Context> script_context, bool ignore_duplicates,
     int script_context_index) {
   ReadOnlyRoots roots(isolate);
   Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
@@ -66,7 +66,7 @@ Handle<NameToIndexHashTable> AddLocalNamesFromContext(
 
 Handle<ScriptContextTable> ScriptContextTable::Add(
     Isolate* isolate, Handle<ScriptContextTable> table,
-    Handle<Context> script_context, bool ignore_duplicates) {
+    DirectHandle<Context> script_context, bool ignore_duplicates) {
   DCHECK(script_context->IsScriptContext());
 
   int old_length = table->length(kAcquireLoad);
@@ -221,7 +221,7 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
   DCHECK(IsSerializableVariableMode(mode));
-  return IsConstVariableMode(mode) ? READ_ONLY : NONE;
+  return IsImmutableLexicalOrPrivateVariableMode(mode) ? READ_ONLY : NONE;
 }
 
 // static
@@ -472,12 +472,12 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 }
 
 Tagged<ConstTrackingLetCell> Context::GetOrCreateConstTrackingLetCell(
-    Handle<Context> script_context, size_t index, Isolate* isolate) {
+    DirectHandle<Context> script_context, size_t index, Isolate* isolate) {
   DCHECK(v8_flags.const_tracking_let);
   DCHECK(script_context->IsScriptContext());
   int side_data_index =
       static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  Handle<FixedArray> side_data = handle(
+  DirectHandle<FixedArray> side_data(
       FixedArray::cast(script_context->get(CONST_TRACKING_LET_SIDE_DATA_INDEX)),
       isolate);
   Tagged<Object> object = side_data->get(side_data_index);
@@ -502,15 +502,14 @@ bool Context::ConstTrackingLetSideDataIsConst(size_t index) const {
   return !ConstTrackingLetCell::IsNotConst(object);
 }
 
-void Context::UpdateConstTrackingLetSideData(Handle<Context> script_context,
-                                             int index,
-                                             Handle<Object> new_value,
-                                             Isolate* isolate) {
+void Context::UpdateConstTrackingLetSideData(
+    DirectHandle<Context> script_context, int index,
+    DirectHandle<Object> new_value, Isolate* isolate) {
   DCHECK(v8_flags.const_tracking_let);
   DCHECK(script_context->IsScriptContext());
-  Handle<Object> old_value = handle(script_context->get(index), isolate);
+  DirectHandle<Object> old_value(script_context->get(index), isolate);
   const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
-  Handle<FixedArray> side_data = handle(
+  DirectHandle<FixedArray> side_data(
       FixedArray::cast(
           script_context->get(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX)),
       isolate);
@@ -565,7 +564,7 @@ Handle<Object> Context::ErrorMessageForWasmCodeGeneration() {
 #define COMPARE_NAME(index, type, name) \
   if (string->IsOneByteEqualTo(base::StaticCharVector(#name))) return index;
 
-int Context::IntrinsicIndexForName(Handle<String> string) {
+int Context::IntrinsicIndexForName(DirectHandle<String> string) {
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);
   return kNotFound;
 }

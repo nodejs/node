@@ -68,6 +68,23 @@ StartupSerializer::StartupSerializer(
       accessor_infos_(isolate->heap()),
       function_template_infos_(isolate->heap()) {
   InitializeCodeAddressMap();
+
+  // This serializes any external reference which don't encode to their own
+  // index. This is so that the deserializer can verify that any entries that
+  // were deduplicated during serialization are also deduplicated in the
+  // deserializing binary.
+  ExternalReferenceTable* table = isolate->external_reference_table();
+  for (uint32_t i = 0; i < ExternalReferenceTable::kSizeIsolateIndependent;
+       ++i) {
+    ExternalReferenceEncoder::Value encoded_reference =
+        EncodeExternalReference(table->address(i));
+    if (encoded_reference.index() != i) {
+      sink_.PutUint30(i, "expected reference index");
+      sink_.PutUint30(encoded_reference.index(), "actual reference index");
+    }
+  }
+  sink_.PutUint30(ExternalReferenceTable::kSizeIsolateIndependent,
+                  "end of deduplicated reference indices");
 }
 
 StartupSerializer::~StartupSerializer() {

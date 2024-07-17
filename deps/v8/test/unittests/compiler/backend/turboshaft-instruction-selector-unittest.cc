@@ -168,10 +168,11 @@ bool TurboshaftInstructionSelectorTest::Stream::IsUsedAtStart(
 
 const FrameStateFunctionInfo*
 TurboshaftInstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
-    int parameter_count, int local_count) {
+    uint16_t parameter_count, int local_count) {
+  const uint16_t max_arguments = 0;
   return test_->zone()->New<FrameStateFunctionInfo>(
-      FrameStateType::kUnoptimizedFunction, parameter_count, local_count,
-      Handle<SharedFunctionInfo>());
+      FrameStateType::kUnoptimizedFunction, parameter_count, max_arguments,
+      local_count, Handle<SharedFunctionInfo>());
 }
 
 // -----------------------------------------------------------------------------

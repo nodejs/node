@@ -26,7 +26,7 @@ BIT_FIELD_ACCESSORS(JSFinalizationRegistry, flags, scheduled_for_cleanup,
                     JSFinalizationRegistry::ScheduledForCleanupBit)
 
 void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
-    Handle<JSFinalizationRegistry> finalization_registry,
+    DirectHandle<JSFinalizationRegistry> finalization_registry,
     Handle<WeakCell> weak_cell, Isolate* isolate) {
   Handle<SimpleNumberDictionary> key_map;
   if (IsUndefined(finalization_registry->key_map(), isolate)) {
@@ -54,8 +54,8 @@ void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
 }
 
 bool JSFinalizationRegistry::Unregister(
-    Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<HeapObject> unregister_token, Isolate* isolate) {
+    DirectHandle<JSFinalizationRegistry> finalization_registry,
+    DirectHandle<HeapObject> unregister_token, Isolate* isolate) {
   // Iterate through the doubly linked list of WeakCells associated with the
   // key. Each WeakCell will be in the "active_cells" or "cleared_cells" list of
   // its FinalizationRegistry; remove it from there.

@@ -154,9 +154,11 @@ class RootVisitor;
   V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, external_pointer_array_map, ExternalPointerArrayMap)                  \
   V(Map, trusted_fixed_array_map, TrustedFixedArrayMap)                        \
+  V(Map, trusted_weak_fixed_array_map, TrustedWeakFixedArrayMap)               \
   V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
   V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
+  V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)       \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
   V(Map, cons_two_byte_string_map, ConsTwoByteStringMap)                       \
@@ -249,6 +251,8 @@ class RootVisitor;
 #define TRUSTED_ROOT_LIST(V)                                              \
   V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
   V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
+  V(TrustedWeakFixedArray, empty_trusted_weak_fixed_array,                \
+    EmptyTrustedWeakFixedArray)                                           \
   V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
 
 // Mutable roots that are known to be immortal immovable, for which we can
@@ -309,6 +313,9 @@ class RootVisitor;
     AsyncGeneratorReturnClosedRejectSharedFun)                                 \
   V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
     AsyncGeneratorReturnClosedResolveSharedFun)                                \
+  V(SharedFunctionInfo,                                                        \
+    async_from_sync_iterator_close_sync_and_rethrow_shared_fun,                \
+    AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun)                         \
   V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
     AsyncIteratorValueUnwrapSharedFun)                                         \
   V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
@@ -348,6 +355,12 @@ class RootVisitor;
     ArrayFromAsyncArrayLikeOnFulfilledSharedFun)                               \
   V(SharedFunctionInfo, array_from_async_array_like_on_rejected_shared_fun,    \
     ArrayFromAsyncArrayLikeOnRejectedSharedFun)                                \
+  V(SharedFunctionInfo, atomics_mutex_async_unlock_resolve_handler_sfi,        \
+    AtomicsMutexAsyncUnlockResolveHandlerSFI)                                  \
+  V(SharedFunctionInfo, atomics_mutex_async_unlock_reject_handler_sfi,         \
+    AtomicsMutexAsyncUnlockRejectHandlerSFI)                                   \
+  V(SharedFunctionInfo, atomics_condition_acquire_lock_sfi,                    \
+    AtomicsConditionAcquireLockSFI)                                            \
   TRUSTED_ROOT_LIST(V)
 
 // These root references can be updated by the mutator.
@@ -361,7 +374,6 @@ class RootVisitor;
   V(WeakArrayList, script_list, ScriptList)                                 \
   V(FixedArray, materialized_objects, MaterializedObjects)                  \
   V(WeakArrayList, detached_contexts, DetachedContexts)                     \
-  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)            \
   /* Feedback vectors that we need for code coverage or type profile */     \
   V(Object, feedback_vectors_for_profiling_tools,                           \
     FeedbackVectorsForProfilingTools)                                       \

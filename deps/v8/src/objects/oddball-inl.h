@@ -54,7 +54,8 @@ void Oddball::set_kind(uint8_t value) {
 }
 
 // static
-Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
+Handle<Object> Oddball::ToNumber(Isolate* isolate,
+                                 DirectHandle<Oddball> input) {
   return Handle<Object>(input->to_number(), isolate);
 }
 

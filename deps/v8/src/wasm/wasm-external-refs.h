@@ -114,9 +114,9 @@ int32_t memory_fill_wrapper(Address instance_addr, uint32_t mem_index,
                             uintptr_t dst, uint8_t value, uintptr_t size);
 
 // Assumes copy ranges are in-bounds and length > 0.
-void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
-                        uint32_t dst_index, Address raw_src_array,
-                        uint32_t src_index, uint32_t length);
+void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
+                        Address raw_src_array, uint32_t src_index,
+                        uint32_t length);
 
 // The initial value is passed as an int64_t on the stack. Cannot handle s128
 // other than 0.

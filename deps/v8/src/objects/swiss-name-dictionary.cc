@@ -40,7 +40,8 @@ Handle<SwissNameDictionary> SwissNameDictionary::DeleteEntry(
 // static
 template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
-    IsolateT* isolate, Handle<SwissNameDictionary> table, int new_capacity) {
+    IsolateT* isolate, DirectHandle<SwissNameDictionary> table,
+    int new_capacity) {
   DCHECK(IsValidCapacity(new_capacity));
   DCHECK_LE(table->NumberOfElements(), MaxUsableCapacity(new_capacity));
   ReadOnlyRoots roots(isolate);
@@ -303,10 +304,11 @@ template V8_EXPORT_PRIVATE void SwissNameDictionary::Initialize(
 
 template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
 SwissNameDictionary::Rehash(LocalIsolate* isolate,
-                            Handle<SwissNameDictionary> table,
+                            DirectHandle<SwissNameDictionary> table,
                             int new_capacity);
 template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
-SwissNameDictionary::Rehash(Isolate* isolate, Handle<SwissNameDictionary> table,
+SwissNameDictionary::Rehash(Isolate* isolate,
+                            DirectHandle<SwissNameDictionary> table,
                             int new_capacity);
 
 template V8_EXPORT_PRIVATE void SwissNameDictionary::Rehash(

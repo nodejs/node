@@ -27,7 +27,7 @@ struct ArrayBufferList final {
   size_t BytesSlow() const;
 
   void Append(ArrayBufferExtension* extension);
-  void Append(ArrayBufferList* list);
+  void Append(ArrayBufferList& list);
 
   V8_EXPORT_PRIVATE bool ContainsSlow(ArrayBufferExtension* extension) const;
 
@@ -70,17 +70,16 @@ class ArrayBufferSweeper final {
   // Bytes accounted in the old generation. Rebuilt during sweeping.
   size_t OldBytes() const { return old().ApproximateBytes(); }
 
-  bool sweeping_in_progress() const { return job_.get(); }
+  bool sweeping_in_progress() const { return state_.get(); }
 
   uint64_t GetTraceIdForFlowEvent(GCTracer::Scope::ScopeId scope_id) const;
 
  private:
-  struct SweepingJob;
-
-  enum class SweepingState { kInProgress, kDone };
+  class SweepingState;
 
   // Finishes sweeping if it is already done.
   void FinishIfDone();
+  void Finish();
 
   // Increments external memory counters outside of ArrayBufferSweeper.
   // Increment may trigger GC.
@@ -94,15 +93,12 @@ class ArrayBufferSweeper final {
 
   void ReleaseAll(ArrayBufferList* extension);
 
-  void DoSweep(SweepingType type, ThreadKind thread_kind, uint64_t trace_id);
+  static void FinalizeAndDelete(ArrayBufferExtension* extension);
 
   Heap* const heap_;
-  std::unique_ptr<SweepingJob> job_;
-  base::Mutex sweeping_mutex_;
-  base::ConditionVariable job_finished_;
+  std::unique_ptr<SweepingState> state_;
   ArrayBufferList young_;
   ArrayBufferList old_;
-  Sweeper::LocalSweeper local_sweeper_;
 };
 
 }  // namespace internal

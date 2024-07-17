@@ -98,8 +98,8 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
   if (IsUndefined(*exec, isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, exec,
-        Object::GetProperty(isolate, regexp, isolate->factory()->exec_string()),
-        Object);
+        Object::GetProperty(isolate, regexp,
+                            isolate->factory()->exec_string()));
   }
 
   if (IsCallable(*exec)) {
@@ -110,12 +110,11 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, exec, regexp, argc, argv.begin()), Object);
+        Execution::Call(isolate, exec, regexp, argc, argv.begin()));
 
     if (!IsJSReceiver(*result) && !IsNull(*result, isolate)) {
       THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kInvalidRegExpExecResult),
-                      Object);
+                      NewTypeError(MessageTemplate::kInvalidRegExpExecResult));
     }
     return result;
   }
@@ -125,8 +124,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      "RegExp.prototype.exec"),
-                                 regexp),
-                    Object);
+                                 regexp));
   }
 
   {
@@ -212,11 +210,10 @@ MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, last_index_obj,
       Object::GetProperty(isolate, regexp,
-                          isolate->factory()->lastIndex_string()),
-      Object);
+                          isolate->factory()->lastIndex_string()));
 
   ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
-                             Object::ToLength(isolate, last_index_obj), Object);
+                             Object::ToLength(isolate, last_index_obj));
   const uint64_t last_index = PositiveNumberToUint64(*last_index_obj);
   const uint64_t new_last_index =
       AdvanceStringIndex(string, last_index, unicode);

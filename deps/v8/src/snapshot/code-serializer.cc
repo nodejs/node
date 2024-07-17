@@ -253,7 +253,7 @@ namespace {
 void CreateInterpreterDataForDeserializedCode(
     Isolate* isolate, Handle<SharedFunctionInfo> result_sfi,
     bool log_code_creation) {
-  DCHECK_IMPLIES(isolate->NeedsSourcePositions(), log_code_creation);
+  DCHECK_IMPLIES(log_code_creation, isolate->NeedsSourcePositions());
 
   Handle<Script> script(Script::cast(result_sfi->script()), isolate);
   if (log_code_creation) Script::InitLineEnds(isolate, script);

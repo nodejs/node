@@ -57,7 +57,8 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     members.Remove(wasm::AsmJsParser::StandardMember::kInfinity);
     Handle<Name> name = isolate->factory()->Infinity_string();
     Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name);
-    if (!IsNumber(*value) || !std::isinf(Object::Number(*value))) return false;
+    if (!IsNumber(*value) || !std::isinf(Object::NumberValue(*value)))
+      return false;
   }
   if (members.contains(wasm::AsmJsParser::StandardMember::kNaN)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kNaN);
@@ -89,7 +90,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Name> name(isolate->factory()->InternalizeString(               \
         base::StaticCharVector(#cname)));                                  \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
-    if (!IsNumber(*value) || Object::Number(*value) != const_value)        \
+    if (!IsNumber(*value) || Object::NumberValue(*value) != const_value)   \
       return false;                                                        \
   }
   STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)

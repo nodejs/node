@@ -358,6 +358,7 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
 TEST_F(GlobalHandlesTest,
        TracedReferenceToUnmodifiedJSApiObjectDiesOnScavenge) {
   if (v8_flags.single_generation) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   ManualGCScope manual_gc(i_isolate());
   TracedReferenceTestWithScavenge(

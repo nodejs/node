@@ -424,6 +424,13 @@ struct DynValueDeleter {
 
 class FlagState;
 
+// These are only used as constexpr global objects.
+// They do not use a virtual destructor to simplify their implementation.
+// They are not destroyed except at program exit, so leaks do not matter.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#endif
 class FlagImpl final : public CommandLineFlag {
  public:
   constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
@@ -623,6 +630,9 @@ class FlagImpl final : public CommandLineFlag {
   // problems.
   alignas(absl::Mutex) mutable char data_guard_[sizeof(absl::Mutex)];
 };
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // The Flag object parameterized by the flag's value type. This class implements
@@ -753,8 +763,7 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
       // Round sizeof(FlagImp) to a multiple of alignof(FlagValue<T>) to get the
       // offset of the data.
       size_t round_to = alignof(FlagValue<T>);
-      size_t offset =
-          (sizeof(FlagImpl) + round_to - 1) / round_to * round_to;
+      size_t offset = (sizeof(FlagImpl) + round_to - 1) / round_to * round_to;
       return reinterpret_cast<void*>(offset);
     }
   }

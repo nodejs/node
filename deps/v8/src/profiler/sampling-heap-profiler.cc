@@ -192,6 +192,9 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       case EXTERNAL:
         name = "(EXTERNAL)";
         break;
+      case LOGGING:
+        name = "(LOGGING)";
+        break;
       case IDLE:
         name = "(IDLE)";
         break;

@@ -146,8 +146,8 @@ class AsyncCompileJob {
   AsyncCompileJob(Isolate* isolate, WasmFeatures enabled_features,
                   CompileTimeImports compile_imports,
                   base::OwnedVector<const uint8_t> bytes,
-                  Handle<Context> context,
-                  Handle<NativeContext> incumbent_context,
+                  DirectHandle<Context> context,
+                  DirectHandle<NativeContext> incumbent_context,
                   const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver,
                   int compilation_id);

@@ -53,7 +53,8 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Tagged<Map> receiver_map,
   }
 }
 
-PrototypeIterator::PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
+PrototypeIterator::PrototypeIterator(Isolate* isolate,
+                                     DirectHandle<Map> receiver_map,
                                      WhereToEnd where_to_end)
     : isolate_(isolate),
       handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),

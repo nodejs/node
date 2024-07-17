@@ -97,7 +97,7 @@ TestingModuleBuilder::TestingModuleBuilder(
           static_cast<int>(sig->parameter_count()), kNoSuspend, &cache_scope);
     }
 
-    ImportedFunctionEntry(instance_object_, maybe_import_index)
+    ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend(),
                      sig);
   }
@@ -111,7 +111,8 @@ TestingModuleBuilder::~TestingModuleBuilder() {
 }
 
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
-                                         TestingModuleMemoryType mem_type) {
+                                         TestingModuleMemoryType mem_type,
+                                         std::optional<size_t> max_size) {
   // The TestingModuleBuilder only supports one memory currently.
   CHECK_EQ(0, test_module_->memories.size());
   CHECK_NULL(mem0_start_);
@@ -119,7 +120,11 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   CHECK_EQ(0, trusted_instance_data_->memory_objects()->length());
 
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
-  uint32_t maximum_pages = initial_pages;
+  uint32_t maximum_pages =
+      max_size.has_value()
+          ? static_cast<uint32_t>(RoundUp(max_size.value(), kWasmPageSize) /
+                                  kWasmPageSize)
+          : initial_pages;
   test_module_->memories.resize(1);
   WasmMemory* memory = &test_module_->memories[0];
   memory->initial_pages = initial_pages;
@@ -139,8 +144,8 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   trusted_instance_data_->set_memory_objects(*memory_objects);
 
   // Create the memory_bases_and_sizes array.
-  Handle<FixedAddressArray> memory_bases_and_sizes =
-      FixedAddressArray::New(isolate_, 2);
+  Handle<TrustedFixedAddressArray> memory_bases_and_sizes =
+      TrustedFixedAddressArray::New(isolate_, 2);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->array_buffer()->backing_store());
   memory_bases_and_sizes->set_sandboxed_pointer(
@@ -152,7 +157,9 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   mem0_size_ = size;
   CHECK(size == 0 || mem0_start_);
 
+  // TODO(14616): Add shared_trusted_instance_data_.
   WasmMemoryObject::UseInInstance(isolate_, memory_object,
+                                  trusted_instance_data_,
                                   trusted_instance_data_, 0);
   // TODO(wasm): Delete the following line when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
@@ -217,6 +224,7 @@ void TestingModuleBuilder::InitializeWrapperCache() {
   Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
       static_cast<int>(test_module_->types.size()));
   for (uint32_t index = 0; index < test_module_->types.size(); index++) {
+    // TODO(14616): Support shared types.
     CreateMapForType(isolate_, test_module_.get(), index, instance_object_,
                      maps);
   }
@@ -227,7 +235,7 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   InitializeWrapperCache();
   Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
       isolate_, trusted_instance_data_, index);
-  Handle<WasmInternalFunction> internal{func_ref->internal(), isolate_};
+  Handle<WasmInternalFunction> internal{func_ref->internal(isolate_), isolate_};
   return WasmInternalFunction::GetOrCreateExternal(internal);
 }
 
@@ -278,7 +286,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
-      FunctionTargetAndRef entry(instance_object_, function.func_index);
+      FunctionTargetAndRef entry(isolate_, trusted_instance_data_,
+                                 function.func_index);
       trusted_instance_data_->dispatch_table(table_index)
           ->Set(i, *entry.ref(), entry.call_target(), sig_id);
       WasmTableObject::SetFunctionTablePlaceholder(
@@ -477,7 +486,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
                      static_cast<uint32_t>(bytes.size())};
 
   NativeModule* native_module =
-      builder_->instance_object()->module_object()->native_module();
+      builder_->trusted_instance_data()->native_module();
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   CompilationEnv env = CompilationEnv::ForModule(native_module);

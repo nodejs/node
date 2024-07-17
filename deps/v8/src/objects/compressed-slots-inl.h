@@ -83,6 +83,16 @@ Tagged<Object> CompressedObjectSlot::Relaxed_Load(
   return Tagged<Object>(TCompressionScheme::DecompressTagged(cage_base, value));
 }
 
+Tagged_t CompressedObjectSlot::Relaxed_Load_Raw() const {
+  return static_cast<Tagged_t>(AsAtomicTagged::Relaxed_Load(location()));
+}
+
+// static
+Tagged<Object> CompressedObjectSlot::RawToTagged(PtrComprCageBase cage_base,
+                                                 Tagged_t raw) {
+  return Tagged<Object>(TCompressionScheme::DecompressTagged(cage_base, raw));
+}
+
 void CompressedObjectSlot::Relaxed_Store(Tagged<Object> value) const {
   Tagged_t ptr = TCompressionScheme::CompressObject(value.ptr());
   AsAtomicTagged::Relaxed_Store(location(), ptr);
@@ -135,6 +145,16 @@ Tagged<MaybeObject> CompressedMaybeObjectSlot::Relaxed_Load(
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
   return Tagged<MaybeObject>(
       TCompressionScheme::DecompressTagged(cage_base, value));
+}
+
+Tagged_t CompressedMaybeObjectSlot::Relaxed_Load_Raw() const {
+  return static_cast<Tagged_t>(AsAtomicTagged::Relaxed_Load(location()));
+}
+
+// static
+Tagged<Object> CompressedMaybeObjectSlot::RawToTagged(
+    PtrComprCageBase cage_base, Tagged_t raw) {
+  return Tagged<Object>(TCompressionScheme::DecompressTagged(cage_base, raw));
 }
 
 void CompressedMaybeObjectSlot::Relaxed_Store(Tagged<MaybeObject> value) const {

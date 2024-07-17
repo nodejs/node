@@ -156,7 +156,7 @@ namespace internal {
         BigInt::Divide(isolate, Handle<BigInt>(handle->field(), isolate), \
                        BigInt::FromUint64(isolate, scale)));              \
     Handle<Object> number = BigInt::ToNumber(isolate, value);             \
-    DCHECK(std::isfinite(Object::Number(*number)));                       \
+    DCHECK(std::isfinite(Object::NumberValue(*number)));                  \
     return *number;                                                       \
   }
 

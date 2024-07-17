@@ -55,22 +55,31 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
   }
 
   if (address == RegionAllocator::kAllocationFailure) {
+    ran_out_of_reservation_ = true;
     return nullptr;
   }
 
   void* ptr = reinterpret_cast<void*>(address);
   // It's assumed that free regions are in kNoAccess/kNoAccessWillJitLater
   // state.
-  if (access != PageAllocator::kNoAccess &&
-      access != PageAllocator::kNoAccessWillJitLater) {
-    if (!page_allocator_->SetPermissions(ptr, size, access)) {
-      // This most likely means that we ran out of memory.
-      CHECK_EQ(region_allocator_.FreeRegion(address), size);
-      return nullptr;
+  if (access == PageAllocator::kNoAccess ||
+      access == PageAllocator::kNoAccessWillJitLater) {
+    return ptr;
+  }
+
+  if (page_initialization_mode_ == PageInitializationMode::kRecommitOnly) {
+    if (page_allocator_->RecommitPages(ptr, size, access)) {
+      return ptr;
+    }
+  } else {
+    if (page_allocator_->SetPermissions(ptr, size, access)) {
+      return ptr;
     }
   }
 
-  return ptr;
+  // This most likely means that we ran out of memory.
+  CHECK_EQ(region_allocator_.FreeRegion(address), size);
+  return nullptr;
 }
 
 bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
@@ -83,6 +92,7 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
     DCHECK(region_allocator_.contains(address, size));
 
     if (!region_allocator_.AllocateRegionAt(address, size)) {
+      ran_out_of_reservation_ = true;
       return false;
     }
   }
@@ -112,6 +122,7 @@ bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
     size_t region_size = RoundUp(size, allocate_page_size_);
     if (!region_allocator_.AllocateRegionAt(
             address, region_size, RegionAllocator::RegionState::kExcluded)) {
+      ran_out_of_reservation_ = true;
       return false;
     }
   }
@@ -125,6 +136,10 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
 
   Address address = reinterpret_cast<Address>(raw_address);
   CHECK_EQ(size, region_allocator_.FreeRegion(address));
+  if (ran_out_of_reservation_) {
+    // Reset the flag, since some memory may become available.
+    ran_out_of_reservation_ = false;
+  }
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
     DCHECK_NE(page_freeing_mode_, PageFreeingMode::kDiscard);
@@ -132,9 +147,9 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
     // pages here, which will cause any wired pages to be removed by the OS.
     return page_allocator_->DecommitPages(raw_address, size);
   }
-  DCHECK_EQ(page_initialization_mode_,
-            PageInitializationMode::kAllocatedPagesCanBeUninitialized);
   if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
+    DCHECK_EQ(page_initialization_mode_,
+              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
     return page_allocator_->SetPermissions(raw_address, size,
                                            PageAllocator::kNoAccess);
   }
@@ -178,9 +193,9 @@ bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
     // See comment in FreePages().
     return (page_allocator_->DecommitPages(free_address, free_size));
   }
-  DCHECK_EQ(page_initialization_mode_,
-            PageInitializationMode::kAllocatedPagesCanBeUninitialized);
   if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
+    DCHECK_EQ(page_initialization_mode_,
+              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
     return page_allocator_->SetPermissions(free_address, free_size,
                                            PageAllocator::kNoAccess);
   }

@@ -37,14 +37,14 @@ V8_INLINE Address PointerAuthentication::AuthenticatePC(
       "  mov x30, x17\n"
       "  xpaclri\n"
       "  cmp x30, x17\n"
-      // Restore LR.
+      // Restore LR, to help with unwinding in case `brk #0` is hit below.
       "  mov x30, x16\n"
       "  b.eq 1f\n"
       "  brk #0\n"
       "1:\n"
       : [pc] "+r"(pc)
       : [stack_ptr] "r"(sp)
-      : "x16", "x17", "x30");
+      : "x16", "x17", "x30", "cc");
 #endif
   return pc;
 }
@@ -102,14 +102,14 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
       "  mov x30, x17\n"
       "  xpaclri\n"
       "  cmp x30, x17\n"
-      // Restore LR.
+      // Restore LR, to help with unwinding in case `brk #0` is hit below.
       "  mov x30, x16\n"
       "  b.eq 1f\n"
       "  brk #0\n"
       "1:\n"
       : [new_pc] "+&r"(new_pc)
       : [sp] "r"(sp), [old_pc] "r"(old_pc)
-      : "x16", "x17", "x30");
+      : "x16", "x17", "x30", "cc");
 #endif
   *pc_address = new_pc;
 }

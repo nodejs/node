@@ -10,6 +10,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles-inl.h"
+#include "src/objects/casting.h"
 #include "src/objects/objects.h"
 
 #ifdef DEBUG
@@ -49,6 +50,12 @@ template <typename S>
 const Handle<T> Handle<T>::cast(Handle<S> that) {
   T::cast(*FullObjectSlot(that.location()));
   return Handle<T>(that.location_);
+}
+
+template <typename To, typename From>
+inline Handle<To> Cast(Handle<From> value) {
+  DCHECK_IMPLIES(!value.is_null(), Is<To>(*value));
+  return Handle<To>(value.location_);
 }
 
 template <typename T>
@@ -97,16 +104,6 @@ V8_INLINE Handle<T> handle(T object, LocalHeap* local_heap) {
 }
 
 template <typename T>
-V8_INLINE Handle<T> handle(DirectHandle<T> handle, Isolate* isolate) {
-  return Handle<T>(*handle, isolate);
-}
-
-template <typename T>
-V8_INLINE Handle<T> handle(DirectHandle<T> handle, LocalIsolate* isolate) {
-  return Handle<T>(*handle, isolate);
-}
-
-template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
@@ -130,6 +127,12 @@ V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(Handle<S> that) {
   DCHECK(that.location() != nullptr);
   T::cast(*FullObjectSlot(that.address()));
   return DirectHandle<T>(*that.location());
+}
+
+template <typename To, typename From>
+inline DirectHandle<To> Cast(DirectHandle<From> value) {
+  DCHECK(Is<To>(*value));
+  return DirectHandle<To>(value.location_);
 }
 
 template <typename T>
@@ -352,6 +355,25 @@ bool DirectHandleBase::is_identical_to(const DirectHandleBase& that) const {
   return Tagged<Object>(this->address()) == Tagged<Object>(that.address());
 }
 #endif  // V8_ENABLE_DIRECT_HANDLE
+
+template <typename T>
+V8_INLINE Handle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  return Handle<T>(*handle, isolate);
+#else
+  return handle;
+#endif
+}
+
+template <typename T>
+V8_INLINE Handle<T> indirect_handle(DirectHandle<T> handle,
+                                    LocalIsolate* isolate) {
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  return Handle<T>(*handle, isolate);
+#else
+  return handle;
+#endif
+}
 
 }  // namespace internal
 }  // namespace v8

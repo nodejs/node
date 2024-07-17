@@ -251,8 +251,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
                                          Object::ToLength(isolate, len_));
-      len = static_cast<int64_t>(Object::Number(*len_));
-      DCHECK_EQ(len, Object::Number(*len_));
+      len = static_cast<int64_t>(Object::NumberValue(*len_));
+      DCHECK_EQ(len, Object::NumberValue(*len_));
     }
   }
 
@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
       }
     } else {
       DCHECK(IsHeapNumber(*from_index));
-      double start_from = Object::Number(*from_index);
+      double start_from = Object::NumberValue(*from_index);
       if (start_from >= len) return ReadOnlyRoots(isolate).false_value();
       if (V8_LIKELY(std::isfinite(start_from))) {
         if (start_from < 0) {
@@ -353,8 +353,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
                                          Object::ToLength(isolate, len_));
-      len = static_cast<int64_t>(Object::Number(*len_));
-      DCHECK_EQ(len, Object::Number(*len_));
+      len = static_cast<int64_t>(Object::NumberValue(*len_));
+      DCHECK_EQ(len, Object::NumberValue(*len_));
     }
   }
 
@@ -366,7 +366,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, from_index,
                                        Object::ToInteger(isolate, from_index));
-    double fp = Object::Number(*from_index);
+    double fp = Object::NumberValue(*from_index);
     if (fp > len) return Smi::FromInt(-1);
     if (V8_LIKELY(fp >=
                   static_cast<double>(std::numeric_limits<int64_t>::min()))) {

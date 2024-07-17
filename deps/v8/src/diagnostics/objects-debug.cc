@@ -51,6 +51,7 @@
 #include "src/objects/js-display-names-inl.h"
 #include "src/objects/js-duration-format-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-iterator-helpers-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -577,6 +578,10 @@ void Map::MapVerify(Isolate* isolate) {
       Tagged<Map> parent = Map::cast(GetBackPointer());
       CHECK(!parent->is_stable());
       Tagged<DescriptorArray> descriptors = instance_descriptors(isolate);
+      if (!is_deprecated() && !parent->is_deprecated()) {
+        CHECK_EQ(IsInobjectSlackTrackingInProgress(),
+                 parent->IsInobjectSlackTrackingInProgress());
+      }
       if (descriptors == parent->instance_descriptors(isolate)) {
         if (NumberOfOwnDescriptors() == parent->NumberOfOwnDescriptors() + 1) {
           // Descriptors sharing through property transitions takes over
@@ -645,7 +650,7 @@ void Map::MapVerify(Isolate* isolate) {
 
     if (IsJSSharedStructMap(*this) || IsJSSharedArrayMap(*this) ||
         IsJSAtomicsMutex(*this) || IsJSAtomicsCondition(*this)) {
-      if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+      if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
         // TODO(v8:14089): Verify what should be checked in this configuration
         // and again merge with the else-branch below.
         // CHECK(InSharedHeap());
@@ -705,6 +710,7 @@ void Map::MapVerify(Isolate* isolate) {
   }
   CHECK_IMPLIES(has_named_interceptor(), may_have_interesting_properties());
   CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_properties());
+  CHECK_IMPLIES(is_dictionary_map(), owns_descriptors());
   CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_properties());
   CHECK_IMPLIES(
       IsJSObjectMap(*this) && !CanHaveFastTransitionableElementsKind(),
@@ -798,6 +804,13 @@ void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
 }
 
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  for (int i = 0; i < length(); i++) {
+    Object::VerifyMaybeObjectPointer(isolate, get(i));
+  }
+}
+
+void TrustedWeakFixedArray::TrustedWeakFixedArrayVerify(Isolate* isolate) {
   CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
   for (int i = 0; i < length(); i++) {
     Object::VerifyMaybeObjectPointer(isolate, get(i));
@@ -964,6 +977,23 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
 void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
   WeakFixedArrayVerify(isolate);
   CHECK_LE(LengthFor(number_of_transitions()), length());
+
+  ReadOnlyRoots roots(isolate);
+  Tagged<Map> owner;
+  for (int i = 0; i < number_of_transitions(); ++i) {
+    // Only sidestep transitions are allowed to cross between unrelated branches
+    // of the transition tree. All other transitions must originate from the
+    // same source map.
+    if (!TransitionsAccessor::IsSpecialSidestepTransition(roots, GetKey(i))) {
+      Tagged<Map> parent =
+          Tagged<Map>::cast(GetTarget(i)->constructor_or_back_pointer());
+      if (owner.is_null()) {
+        parent = owner;
+      } else {
+        CHECK_EQ(parent, owner);
+      }
+    }
+  }
 }
 
 namespace {
@@ -1186,15 +1216,6 @@ void JSWrappedFunction::JSWrappedFunctionVerify(Isolate* isolate) {
   CHECK_EQ(map()->map()->native_context_or_null(), context());
 }
 
-void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
-  // TODO(leszeks): Add a TorqueGeneratedClassVerifier for LocalIsolate.
-  SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
-}
-
-void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
-  SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
-}
-
 namespace {
 
 bool ShouldVerifySharedFunctionInfoFunctionIndex(
@@ -1213,7 +1234,9 @@ bool ShouldVerifySharedFunctionInfoFunctionIndex(
 
 }  // namespace
 
-void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
+void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
+  ReadOnlyRoots roots(isolate);
+
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(value)) {
     CHECK(!ScopeInfo::cast(value)->IsEmpty());
@@ -1244,6 +1267,11 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
     CHECK(IsFeedbackMetadata(feedback_metadata()));
   }
 
+  if (HasBytecodeArray() && !IsDontAdaptArguments()) {
+    CHECK_EQ(GetBytecodeArray(isolate)->parameter_count(),
+             internal_formal_parameter_count_with_receiver());
+  }
+
   if (ShouldVerifySharedFunctionInfoFunctionIndex(*this)) {
     int expected_map_index =
         Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
@@ -1268,6 +1296,16 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
       CHECK(!construct_as_builtin());
     }
   }
+}
+
+void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
+  // TODO(leszeks): Add a TorqueGeneratedClassVerifier for LocalIsolate.
+  SharedFunctionInfoVerify(isolate->AsLocalIsolate());
+}
+
+void SharedFunctionInfoWrapper::SharedFunctionInfoWrapperVerify(
+    Isolate* isolate) {
+  Object::VerifyPointer(isolate, shared_info());
 }
 
 void JSGlobalProxy::JSGlobalProxyVerify(Isolate* isolate) {
@@ -1379,9 +1417,23 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
-  Tagged<Object> self =
-      RawIndirectPointerField(kSelfIndirectPointerOffset, tag).load(isolate);
+  IndirectPointerSlot slot =
+      RawIndirectPointerField(kSelfIndirectPointerOffset, tag);
+  Tagged<Object> self = slot.load(isolate);
   CHECK_EQ(self, *this);
+  // If the object is in the read-only space, the self indirect pointer entry
+  // must be in the read-only segment, and vice versa.
+  if (tag == kCodeIndirectPointerTag) {
+    CodePointerTable::Space* space =
+        IsolateForSandbox(isolate).GetCodePointerTableSpaceFor(slot.address());
+    // During snapshot creation, the code pointer space of the read-only heap is
+    // not marked as an internal read-only space.
+    bool is_space_read_only =
+        space == isolate->read_only_heap()->code_pointer_space();
+    CHECK_EQ(is_space_read_only, InReadOnlySpace(*this));
+  } else {
+    CHECK(!InReadOnlySpace(*this));
+  }
 #endif
 }
 
@@ -1597,6 +1649,13 @@ void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
 }
 
+void JSDisposableStack::JSDisposableStackVerify(Isolate* isolate) {
+  CHECK(IsJSDisposableStack(*this));
+  JSObjectVerify(isolate);
+  CHECK_EQ(length() % 3, 0);
+  CHECK_GE(stack()->capacity(), length());
+}
+
 void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
   CHECK(IsJSSharedArray(*this));
   JSObjectVerify(isolate);
@@ -1614,29 +1673,29 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
 void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorMapHelperVerify(*this, isolate);
   CHECK(IsCallable(mapper()));
-  CHECK_GE(Object::Number(counter()), 0);
+  CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFilterHelperVerify(*this, isolate);
   CHECK(IsCallable(predicate()));
-  CHECK_GE(Object::Number(counter()), 0);
+  CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void JSIteratorTakeHelper::JSIteratorTakeHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorTakeHelperVerify(*this, isolate);
-  CHECK_GE(Object::Number(remaining()), 0);
+  CHECK_GE(Object::NumberValue(remaining()), 0);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorDropHelperVerify(*this, isolate);
-  CHECK_GE(Object::Number(remaining()), 0);
+  CHECK_GE(Object::NumberValue(remaining()), 0);
 }
 
 void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFlatMapHelperVerify(*this, isolate);
   CHECK(IsCallable(mapper()));
-  CHECK_GE(Object::Number(counter()), 0);
+  CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
@@ -1691,16 +1750,16 @@ void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
 void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSArrayIteratorVerify(*this, isolate);
 
-  CHECK_GE(Object::Number(next_index()), 0);
-  CHECK_LE(Object::Number(next_index()), kMaxSafeInteger);
+  CHECK_GE(Object::NumberValue(next_index()), 0);
+  CHECK_LE(Object::NumberValue(next_index()), kMaxSafeInteger);
 
   if (IsJSTypedArray(iterated_object())) {
     // JSTypedArray::length is limited to Smi range.
     CHECK(IsSmi(next_index()));
-    CHECK_LE(Object::Number(next_index()), Smi::kMaxValue);
+    CHECK_LE(Object::NumberValue(next_index()), Smi::kMaxValue);
   } else if (IsJSArray(iterated_object())) {
     // JSArray::length is limited to Uint32 range.
-    CHECK_LE(Object::Number(next_index()), kMaxUInt32);
+    CHECK_LE(Object::NumberValue(next_index()), kMaxUInt32);
   }
 }
 
@@ -2249,7 +2308,8 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
         wrapper->kind() == CodeKind::C_WASM_ENTRY ||
         (wrapper->is_builtin() &&
          (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-          wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
+          wrapper->builtin_id() == Builtin::kWasmPromising ||
+          wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2620,15 +2680,33 @@ static bool CheckOneBackPointer(Tagged<Map> current_map, Tagged<Map> target) {
 }
 
 bool TransitionsAccessor::IsConsistentWithBackPointers() {
-  int num_transitions = NumberOfTransitions();
-  for (int i = 0; i < num_transitions; i++) {
-    Tagged<Map> target = GetTarget(i);
-    // Ensure maps belong to the same NativeContext (i.e. have the same
-    // meta map).
-    DCHECK_EQ(map_->map(), target->map());
-    if (!CheckOneBackPointer(map_, target)) return false;
-  }
-  return true;
+  DisallowGarbageCollection no_gc;
+  bool success = true;
+  ReadOnlyRoots roots(isolate_);
+  auto CheckTarget =
+      [&](Tagged<Map> target) {
+#ifdef DEBUG
+        if (!map_->is_deprecated() && !target->is_deprecated()) {
+          DCHECK_EQ(map_->IsInobjectSlackTrackingInProgress(),
+                    target->IsInobjectSlackTrackingInProgress());
+          // Check prototype transitions are first.
+          DCHECK_IMPLIES(map_->prototype() != target->prototype(),
+                         IsUndefined(map_->GetBackPointer()));
+        }
+#endif  // DEBUG
+        if (!CheckOneBackPointer(map_, target)) {
+          success = false;
+        }
+      };
+  ForEachTransitionWithKey(
+      &no_gc,
+      [&](Tagged<Name> key, Tagged<Map> target) { CheckTarget(target); },
+      [&](Tagged<Map> target) {
+        if (v8_flags.move_prototype_transitions_first) {
+          CheckTarget(target);
+        }
+      });
+  return success;
 }
 
 #undef USE_TORQUE_VERIFIER

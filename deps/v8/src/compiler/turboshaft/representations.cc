@@ -57,6 +57,8 @@ std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
       return os << "TaggedPointer";
     case MemoryRepresentation::TaggedSigned():
       return os << "TaggedSigned";
+    case MemoryRepresentation::ProtectedPointer():
+      return os << "ProtectedPointer";
     case MemoryRepresentation::IndirectPointer():
       return os << "IndirectPointer";
     case MemoryRepresentation::SandboxedPointer():

@@ -1002,6 +1002,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
@@ -1043,6 +1044,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
@@ -1716,43 +1718,6 @@ void VisitShift(InstructionSelectorT<Adapter>* selector,
 }
 
 }  // namespace
-
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  using namespace turboshaft;  // NOLINT(build/namespaces)
-  const turboshaft::Graph* graph = this->turboshaft_graph();
-  // Projections are always emitted right after the operation.
-  for (OpIndex next = graph->NextIndex(node); next.valid();
-       next = graph->NextIndex(next)) {
-    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
-    if (projection == nullptr) break;
-    if (projection->index == projection_index) return next;
-  }
-
-  // If there is no Projection with index {projection_index} following the
-  // operation, then there shouldn't be any such Projection in the graph. We
-  // verify this in Debug mode.
-#ifdef DEBUG
-  for (turboshaft::OpIndex use : turboshaft_uses(node)) {
-    if (const turboshaft::ProjectionOp* projection =
-            this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
-      DCHECK_EQ(projection->input(), node);
-      if (projection->index == projection_index) {
-        UNREACHABLE();
-      }
-    }
-  }
-#endif  // DEBUG
-  return turboshaft::OpIndex::Invalid();
-}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
@@ -3171,15 +3136,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (const ComparisonOp* equal =
-             this->TryCast<Opmask::kWord32Equal>(value)) {
-    if (!CanCover(user, value)) break;
-    if (!MatchIntegralZero(equal->right())) break;
-
-    user = value;
-    value = equal->left();
-    cont->Negate();
-  }
+  ConsumeEqualZero(&user, &value, cont);
 
   if (CanCover(user, value)) {
     const Operation& value_op = Get(value);
@@ -3559,16 +3516,16 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
       opcode = kAtomicExchangeInt8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = kAtomicExchangeUint8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
       opcode = kAtomicExchangeInt16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = kAtomicExchangeUint16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-               atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+               atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = kAtomicExchangeWord32;
     } else {
       UNREACHABLE();
@@ -3616,16 +3573,16 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
       opcode = kAtomicCompareExchangeInt8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = kAtomicCompareExchangeUint8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
       opcode = kAtomicCompareExchangeInt16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = kAtomicCompareExchangeUint16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-               atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+               atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = kAtomicCompareExchangeWord32;
     } else {
       UNREACHABLE();
@@ -3672,16 +3629,16 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
       opcode = int8_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = uint8_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
       opcode = int16_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = uint16_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-               atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+               atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = word32_op;
     } else {
       UNREACHABLE();

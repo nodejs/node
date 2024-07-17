@@ -197,6 +197,17 @@ class NodeInfo {
     any_map_is_unstable_ = false;
   }
 
+  template <typename Function>
+  void ClearUnstableMapsIfAny(const Function& condition) {
+    if (!any_map_is_unstable_) return;
+    for (auto map : possible_maps_) {
+      if (condition(map)) {
+        ClearUnstableMaps();
+        return;
+      }
+    }
+  }
+
   bool possible_maps_are_known() const { return possible_maps_are_known_; }
 
   const PossibleMaps& possible_maps() const {
@@ -311,6 +322,14 @@ struct KnownNodeAspects {
     any_map_for_any_node_is_unstable = false;
   }
 
+  template <typename Function>
+  void ClearUnstableMapsIfAny(const Function& condition) {
+    if (!any_map_for_any_node_is_unstable) return;
+    for (auto& it : node_infos) {
+      it.second.ClearUnstableMapsIfAny(condition);
+    }
+  }
+
   void ClearAvailableExpressions() { available_expressions.clear(); }
 
   NodeInfos::iterator FindInfo(ValueNode* node) {
@@ -332,10 +351,13 @@ struct KnownNodeAspects {
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
   }
-  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node, compiler::JSHeapBroker* broker,
+                               LocalIsolate* isolate) {
     auto info_it = FindInfo(node);
     if (IsValid(info_it)) return &info_it->second;
-    return &node_infos.emplace(node, NodeInfo()).first->second;
+    auto res = &node_infos.emplace(node, NodeInfo()).first->second;
+    res->CombineType(StaticTypeForNode(broker, isolate, node));
+    return res;
   }
 
   NodeType NodeTypeFor(ValueNode* node) const {
@@ -419,6 +441,35 @@ struct KnownNodeAspects {
 
   // Unconditionally valid across side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;
+  enum class ContextSlotLoadsAlias : uint8_t {
+    None,
+    OnlyLoadsRelativeToCurrentContext,
+    OnlyLoadsRelativeToConstant,
+    Yes,
+  };
+  ContextSlotLoadsAlias may_have_aliasing_contexts =
+      ContextSlotLoadsAlias::None;
+  void UpdateMayHaveAliasingContexts(ValueNode* context) {
+    if (context->Is<InitialValue>()) {
+      if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
+        may_have_aliasing_contexts =
+            ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext;
+      } else if (may_have_aliasing_contexts !=
+                 ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext) {
+        may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+      }
+    } else if (context->Is<Constant>()) {
+      if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
+        may_have_aliasing_contexts =
+            ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant;
+      } else if (may_have_aliasing_contexts !=
+                 ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant) {
+        may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+      }
+    } else if (!context->Is<LoadTaggedField>()) {
+      may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+    }
+  }
   // Flushed after side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_slots;
 
@@ -443,7 +494,9 @@ class InterpreterFrameState {
  public:
   InterpreterFrameState(const MaglevCompilationUnit& info,
                         KnownNodeAspects* known_node_aspects)
-      : frame_(info), known_node_aspects_(known_node_aspects) {}
+      : frame_(info), known_node_aspects_(known_node_aspects) {
+    frame_[interpreter::Register::virtual_accumulator()] = nullptr;
+  }
 
   explicit InterpreterFrameState(const MaglevCompilationUnit& info)
       : InterpreterFrameState(
@@ -690,6 +743,7 @@ class MergePointInterpreterFrameState {
     kDefault,
     kLoopHeader,
     kExceptionHandlerStart,
+    kUnusedExceptionHandlerStart,
   };
 
   static MergePointInterpreterFrameState* New(
@@ -706,7 +760,7 @@ class MergePointInterpreterFrameState {
   static MergePointInterpreterFrameState* NewForCatchBlock(
       const MaglevCompilationUnit& unit,
       const compiler::BytecodeLivenessState* liveness, int handler_offset,
-      interpreter::Register context_register, Graph* graph);
+      bool was_used, interpreter::Register context_register, Graph* graph);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
@@ -726,11 +780,11 @@ class MergePointInterpreterFrameState {
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
 
-  // Merges an unmerged framestate with a possibly merged framestate into |this|
-  // framestate.
-  void MergeThrow(MaglevGraphBuilder* builder,
+  // Merges an unmerged framestate into a possibly merged framestate at the
+  // start of the target catchblock.
+  void MergeThrow(const MaglevGraphBuilder* handler_builder,
                   const MaglevCompilationUnit* handler_unit,
-                  InterpreterFrameState& unmerged);
+                  const KnownNodeAspects& known_node_aspects);
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).
@@ -799,8 +853,14 @@ class MergePointInterpreterFrameState {
     return basic_block_type() == BasicBlockType::kLoopHeader;
   }
 
-  bool is_exception_handler() const {
+  bool exception_handler_was_used() const {
+    DCHECK(is_exception_handler());
     return basic_block_type() == BasicBlockType::kExceptionHandlerStart;
+  }
+
+  bool is_exception_handler() const {
+    return basic_block_type() == BasicBlockType::kExceptionHandlerStart ||
+           basic_block_type() == BasicBlockType::kUnusedExceptionHandlerStart;
   }
 
   bool is_unmerged_loop() const {
@@ -879,7 +939,7 @@ class MergePointInterpreterFrameState {
       int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
       BasicBlockType type, const compiler::BytecodeLivenessState* liveness);
 
-  ValueNode* MergeValue(MaglevGraphBuilder* graph_builder,
+  ValueNode* MergeValue(const MaglevGraphBuilder* graph_builder,
                         interpreter::Register owner,
                         const KnownNodeAspects& unmerged_aspects,
                         ValueNode* merged, ValueNode* unmerged,

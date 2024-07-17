@@ -47,6 +47,7 @@ class MaglevCodeGenerator final {
   int stack_slot_count_with_fixed_frame() const {
     return stack_slot_count() + StandardFrameConstants::kFixedSlotCount;
   }
+  uint16_t parameter_count() const { return code_gen_state_.parameter_count(); }
 
   MaglevAssembler* masm() { return &masm_; }
 

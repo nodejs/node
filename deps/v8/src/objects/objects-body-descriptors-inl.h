@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include "include/v8-internal.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
 #include "src/ic/handler-configuration.h"
@@ -26,6 +27,7 @@
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/megadom-handler-inl.h"
@@ -95,6 +97,70 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Tagged<Map> map,
 #endif
   IteratePointers(obj, start_offset, end_offset, v);
 }
+
+// This is a BodyDescriptor helper for usage within JSAPIObjectWithEmbedderSlots
+// and JSSpecialObject. The class hierarchies are separate but
+// `kCppHeapWrappableOffset` is the same for both.
+class JSAPIObjectWithEmbedderSlotsOrJSSpecialObjectBodyDescriptor
+    : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateJSAPIObjectWithEmbedderSlotsHeader(
+      Tagged<Map> map, Tagged<HeapObject> obj, int object_size,
+      ObjectVisitor* v) {
+    // Visit JSObject header.
+    IteratePointers(obj, JSObject::kPropertiesOrHashOffset,
+                    JSObject::kEndOfStrongFieldsOffset, v);
+
+    // Visit JSAPIObjectWithEmbedderSlots or JSSpecialObject header.
+    static_assert(JSObject::kEndOfStrongFieldsOffset ==
+                  JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+    static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset ==
+                  JSSpecialObject::kCppHeapWrappableOffset);
+    static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffsetEnd +
+                      1 ==
+                  JSAPIObjectWithEmbedderSlots::kHeaderSize);
+    v->VisitCppHeapPointer(
+        obj, obj->RawCppHeapPointerField(
+                 JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset));
+  }
+
+  template <typename ConcreteType, typename ObjectVisitor>
+  static inline void IterateJSAPIObjectWithEmbedderSlotsTail(
+      Tagged<Map> map, Tagged<HeapObject> obj, int object_size,
+      ObjectVisitor* v) {
+    // Visit the tail of JSObject with possible embedder fields and in-object
+    // properties. Note that embedder fields are processed in the JSObject base
+    // class as there's other object hierarchies that contain embedder fields as
+    // well.
+    IterateJSObjectBodyImpl(map, obj, ConcreteType::kHeaderSize, object_size,
+                            v);
+  }
+
+  static constexpr int kHeaderSize = JSSpecialObject::kHeaderSize;
+
+  static_assert(JSAPIObjectWithEmbedderSlots::kHeaderSize ==
+                JSSpecialObject::kHeaderSize);
+  static_assert(Internals::kJSAPIObjectWithEmbedderSlotsHeaderSize ==
+                JSSpecialObject::kHeaderSize);
+};
+
+class JSAPIObjectWithEmbedderSlots::BodyDescriptor
+    : public JSAPIObjectWithEmbedderSlotsOrJSSpecialObjectBodyDescriptor {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateJSAPIObjectWithEmbedderSlotsHeader(map, obj, object_size, v);
+    IterateJSAPIObjectWithEmbedderSlotsTail<
+        JSAPIObjectWithEmbedderSlotsOrJSSpecialObjectBodyDescriptor>(
+        map, obj, object_size, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return map->instance_size();
+  }
+};
 
 template <typename ObjectVisitor>
 DISABLE_CFI_PERF void BodyDescriptorBase::IteratePointers(
@@ -357,17 +423,25 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
+class JSArrayBuffer::BodyDescriptor final
+    : public JSAPIObjectWithEmbedderSlots::BodyDescriptor {
  public:
+  using Base = JSAPIObjectWithEmbedderSlots::BodyDescriptor;
+
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // JSArrayBuffer instances contain raw data that the GC does not know about.
-    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
+    // JSObject with wrapper field.
+    IterateJSAPIObjectWithEmbedderSlotsHeader(map, obj, object_size, v);
+    // JSArrayBuffer.
+    IteratePointers(obj, JSArrayBuffer::kStartOfStrongFieldsOffset,
+                    JSArrayBuffer::kEndOfStrongFieldsOffset, v);
     v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kExtensionOffset,
+        obj, obj->RawExternalPointerField(JSArrayBuffer::kExtensionOffset,
                                           kArrayBufferExtensionTag));
+    // JSObject tail: embedder fields + in-object properties.
+    IterateJSAPIObjectWithEmbedderSlotsTail<JSArrayBuffer>(map, obj,
+                                                           object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -375,16 +449,37 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSTypedArray::BodyDescriptor final : public BodyDescriptorBase {
+class JSArrayBufferView::BodyDescriptor
+    : public JSAPIObjectWithEmbedderSlots::BodyDescriptor {
  public:
+  using Base = JSAPIObjectWithEmbedderSlots::BodyDescriptor;
+
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // JSTypedArray contains raw data that the GC does not know about.
-    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    // TODO(v8:4153): Remove this.
-    IteratePointer(obj, kBasePointerOffset, v);
-    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
+    // JSObject with wrapper field.
+    IterateJSAPIObjectWithEmbedderSlotsHeader(map, obj, object_size, v);
+    // JSArrayBufferView.
+    IteratePointers(obj, JSArrayBufferView::kStartOfStrongFieldsOffset,
+                    JSArrayBufferView::kEndOfStrongFieldsOffset, v);
+  }
+};
+
+class JSTypedArray::BodyDescriptor : public JSArrayBufferView::BodyDescriptor {
+ public:
+  using Base = JSArrayBufferView::BodyDescriptor;
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    // JSArrayBufferView (including JSObject).
+    Base::IterateBody(map, obj, object_size, v);
+    // JSTypedArray.
+    IteratePointers(obj, JSTypedArray::kStartOfStrongFieldsOffset,
+                    JSTypedArray::kEndOfStrongFieldsOffset, v);
+    // JSObject tail: embedder fields + in-object properties.
+    IterateJSAPIObjectWithEmbedderSlotsTail<JSTypedArray>(map, obj, object_size,
+                                                          v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -393,15 +488,22 @@ class JSTypedArray::BodyDescriptor final : public BodyDescriptorBase {
 };
 
 class JSDataViewOrRabGsabDataView::BodyDescriptor final
-    : public BodyDescriptorBase {
+    : public JSArrayBufferView::BodyDescriptor {
  public:
+  using Base = JSArrayBufferView::BodyDescriptor;
+
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // JSDataViewOrRabGsabDataView contains raw data that the GC does not know
-    // about.
-    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
+    // JSArrayBufferView (including JSObject).
+    Base::IterateBody(map, obj, object_size, v);
+    // JSDataViewOrRabGsabDataView.
+    IteratePointers(obj,
+                    JSDataViewOrRabGsabDataView::kStartOfStrongFieldsOffset,
+                    JSDataViewOrRabGsabDataView::kEndOfStrongFieldsOffset, v);
+    // JSObject tail: embedder fields + in-object properties.
+    IterateJSAPIObjectWithEmbedderSlotsTail<JSDataViewOrRabGsabDataView>(
+        map, obj, object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -414,6 +516,7 @@ class JSExternalObject::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    DCHECK_EQ(0, map->GetInObjectProperties());
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
     v->VisitExternalPointer(obj, obj->RawExternalPointerField(
                                      kValueOffset, kExternalObjectValueTag));
@@ -613,6 +716,20 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class SharedFunctionInfoWrapper::BodyDescriptor final
+    : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointer(obj, kSharedInfoOffset, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return kSize;
+  }
+};
+
 class DebugInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -645,21 +762,6 @@ class CallSiteInfo::BodyDescriptor final : public BodyDescriptorBase {
                           kUnknownIndirectPointerTag);
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return obj->SizeFromMap(map);
-  }
-};
-
-class PromiseOnStack::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    IteratePointers(obj, Struct::kHeaderSize, kPromiseOffset, v);
-    IterateMaybeWeakPointer(obj, kPromiseOffset, v);
-    static_assert(kPromiseOffset + kTaggedSize == kHeaderSize);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
@@ -717,9 +819,8 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kForeignAddressOffset,
-                                          kForeignForeignAddressTag));
+    v->VisitExternalPointer(obj, obj->RawExternalPointerField(
+                                     kForeignAddressOffset, kAnyForeignTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -747,77 +848,6 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kWasmApiFunctionRefIndirectPointerTag, v);
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
-  }
-};
-
-class WasmExportedFunctionData::BodyDescriptor final
-    : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    WasmFunctionData::BodyDescriptor::IterateBody<ObjectVisitor>(
-        map, obj, object_size, v);
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(
-                 kSigOffset, kWasmExportedFunctionDataSignatureTag));
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
-  }
-};
-
-class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
-    IterateTrustedPointer(obj, kIndirectRefOffset, v,
-                          IndirectPointerMode::kStrong,
-                          kUnknownIndirectPointerTag);
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kCallTargetOffset,
-                                          kWasmInternalFunctionCallTargetTag));
-    IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kStrong);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
-  }
-};
-
-class WasmFuncRef::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    // TODO(14564): This will be a trusted pointer when the WasmInternaFunction
-    // moves to the trusted space.
-    IteratePointer(obj, kInternalOffset, v);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
-  }
-};
-
 class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -828,6 +858,7 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
                           IndirectPointerMode::kStrong,
                           kWasmTrustedInstanceDataIndirectPointerTag);
     IteratePointer(obj, kModuleObjectOffset, v);
+    IteratePointer(obj, kSharedPartOffset, v);
     IteratePointer(obj, kExportsObjectOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
@@ -892,23 +923,6 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WasmContinuationObject::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kJmpbufOffset,
-                                          kWasmContinuationJmpbufTag));
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
-  }
-};
-
 class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
@@ -930,12 +944,18 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WasmNull::BodyDescriptor final : public DataOnlyBodyDescriptor {
+class WasmNull::BodyDescriptor : public DataOnlyBodyDescriptor {
  public:
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return WasmNull::kSize;
+  static_assert(WasmNull::kStartOfStrongFieldsOffset ==
+                WasmNull::kEndOfStrongFieldsOffset);
+
+  static constexpr int kSize = WasmNull::kSize;
+
+  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
   }
 };
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
@@ -988,9 +1008,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  ObjectVisitor* v) {
     IterateProtectedPointer(obj, kCodeOffset, v);
-    // GC does not visit data/code in the header and in the body directly.
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
+    IterateProtectedPointer(obj, kRelocationInfoOffset, v);
 
     Tagged<InstructionStream> istream = InstructionStream::unchecked_cast(obj);
     if (istream->IsFullyInitialized()) {
@@ -1159,7 +1177,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     UNREACHABLE();
   }
   if (InstanceTypeChecker::IsJSApiObject(type)) {
-    return CALL_APPLY(JSObject);
+    return CALL_APPLY(JSAPIObjectWithEmbedderSlots);
   }
 
   switch (type) {
@@ -1210,18 +1228,10 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
       return CALL_APPLY(WasmArray);
-    case WASM_CAPI_FUNCTION_DATA_TYPE:
-      return CALL_APPLY(WasmCapiFunctionData);
     case WASM_EXCEPTION_PACKAGE_TYPE:
       return CALL_APPLY(WasmExceptionPackage);
-    case WASM_EXPORTED_FUNCTION_DATA_TYPE:
-      return CALL_APPLY(WasmExportedFunctionData);
-    case WASM_INTERNAL_FUNCTION_TYPE:
-      return CALL_APPLY(WasmInternalFunction);
     case WASM_FUNC_REF_TYPE:
       return CALL_APPLY(WasmFuncRef);
-    case WASM_JS_FUNCTION_DATA_TYPE:
-      return CALL_APPLY(WasmJSFunctionData);
     case WASM_RESUME_DATA_TYPE:
       return CALL_APPLY(WasmResumeData);
     case WASM_CONTINUATION_OBJECT_TYPE:
@@ -1232,8 +1242,9 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmTypeInfo);
     case WASM_SUSPENDER_OBJECT_TYPE:
       return CALL_APPLY(WasmSuspenderObject);
+    case WASM_SUSPENDING_OBJECT_TYPE:
+      return CALL_APPLY(WasmSuspendingObject);
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case JS_API_OBJECT_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
@@ -1244,11 +1255,10 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_BOUND_FUNCTION_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATE_TYPE:
+    case JS_DISPOSABLE_STACK_TYPE:
     case JS_ERROR_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
     case JS_ITERATOR_FILTER_HELPER_TYPE:
     case JS_ITERATOR_MAP_HELPER_TYPE:
     case JS_ITERATOR_TAKE_HELPER_TYPE:
@@ -1275,7 +1285,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_SET_PROTOTYPE_TYPE:
     case JS_SET_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
-    case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_SHADOW_REALM_TYPE:
     case JS_SHARED_ARRAY_TYPE:
     case JS_SHARED_STRUCT_TYPE:
@@ -1319,6 +1328,14 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return CALL_APPLY(JSObject);
+
+    case JS_API_OBJECT_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
+    case JS_GLOBAL_PROXY_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+      return Op::template apply<JSAPIObjectWithEmbedderSlots::BodyDescriptor,
+                                false>(std::forward<Args>(args)...);
+
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -1650,6 +1667,14 @@ class WeakFixedArray::BodyDescriptor final
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return WeakFixedArray::unchecked_cast(raw_object)->AllocatedSize();
+  }
+};
+
+class TrustedWeakFixedArray::BodyDescriptor final
+    : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return TrustedWeakFixedArray::unchecked_cast(raw_object)->AllocatedSize();
   }
 };
 

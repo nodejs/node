@@ -120,6 +120,21 @@ void MaglevAssembler::JumpIfUndetectable(Register object, Register scratch,
   bind(&detectable);
 }
 
+void MaglevAssembler::JumpIfNotCallable(Register object, Register scratch,
+                                        CheckType check_type, Label* target,
+                                        Label::Distance distance) {
+  if (check_type == CheckType::kCheckHeapObject) {
+    JumpIfSmi(object, target, distance);
+  } else if (v8_flags.debug_code) {
+    AssertNotSmi(object);
+  }
+  LoadMap(scratch, object);
+  static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
+  LoadUnsignedField(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset), 1);
+  TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsCallableBit::kMask, target,
+                             distance);
+}
+
 void MaglevAssembler::EnsureWritableFastElements(
     RegisterSnapshot register_snapshot, Register elements, Register object,
     Register scratch) {

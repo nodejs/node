@@ -39,7 +39,7 @@ Tagged<FieldType> FieldType::Class(Tagged<Map> map) {
 }
 
 // static
-Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
+Handle<FieldType> FieldType::Class(DirectHandle<Map> map, Isolate* isolate) {
   return handle(Class(*map), isolate);
 }
 
@@ -91,7 +91,7 @@ bool FieldType::Equals(Tagged<FieldType> type, Tagged<FieldType> other) {
 }
 
 // static
-bool FieldType::NowIs(Tagged<FieldType> type, Handle<FieldType> other) {
+bool FieldType::NowIs(Tagged<FieldType> type, DirectHandle<FieldType> other) {
   return NowIs(type, *other);
 }
 

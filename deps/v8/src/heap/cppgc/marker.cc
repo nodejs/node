@@ -13,6 +13,7 @@
 #include "src/base/platform/time.h"
 #include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
@@ -304,6 +305,21 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
       concurrent_marker_->Start();
     }
   }
+}
+
+void MarkerBase::ReEnableConcurrentMarking() {
+  CHECK(is_marking_);
+
+  if (config_.marking_type == MarkingConfig::MarkingType::kAtomic) {
+    return;
+  }
+
+  CHECK_EQ(config_.marking_type, MarkingConfig::MarkingType::kIncremental);
+  config_.marking_type = MarkingConfig::MarkingType::kIncrementalAndConcurrent;
+  mutator_marking_state_.Publish();
+  CHECK(!concurrent_marker_->IsActive());
+  concurrent_marker_->Start();
+  CHECK(concurrent_marker_->IsActive());
 }
 
 void MarkerBase::LeaveAtomicPause() {

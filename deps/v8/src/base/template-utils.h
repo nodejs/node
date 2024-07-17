@@ -143,10 +143,11 @@ constexpr void tuple_for_each_with_index(Tuple&& tpl, Function&& function) {
 #ifdef __clang__
 
 template <size_t N, typename... Ts>
-using nth_type = __type_pack_element<N, Ts...>;
+using nth_type_t = __type_pack_element<N, Ts...>;
 
 #else
 
+namespace detail {
 template <size_t N, typename... Ts>
 struct nth_type;
 
@@ -157,11 +158,12 @@ struct nth_type<0, T, Ts...> {
 
 template <size_t N, typename T, typename... Ts>
 struct nth_type<N, T, Ts...> : public nth_type<N - 1, Ts...> {};
-
-#endif
+}  // namespace detail
 
 template <size_t N, typename... T>
-using nth_type_t = typename nth_type<N, T...>::type;
+using nth_type_t = typename detail::nth_type<N, T...>::type;
+
+#endif
 
 // Find SearchT in Ts. SearchT must be present at most once in Ts, and returns
 // sizeof...(Ts) if not found.

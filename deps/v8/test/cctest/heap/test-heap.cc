@@ -50,13 +50,14 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-reducer.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
@@ -265,17 +266,17 @@ TEST(HeapObjects) {
   Handle<Object> value = factory->NewNumber(1.000123);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1.000123, Object::Number(*value));
+  CHECK_EQ(1.000123, Object::NumberValue(*value));
 
   value = factory->NewNumber(1.0);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1.0, Object::Number(*value));
+  CHECK_EQ(1.0, Object::NumberValue(*value));
 
   value = factory->NewNumberFromInt(1024);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1024.0, Object::Number(*value));
+  CHECK_EQ(1024.0, Object::NumberValue(*value));
 
   value = factory->NewNumberFromInt(Smi::kMinValue);
   CHECK(IsSmi(*value));
@@ -292,24 +293,25 @@ TEST(HeapObjects) {
   value = factory->NewNumberFromInt(Smi::kMinValue - 1);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), Object::Number(*value));
+  CHECK_EQ(static_cast<double>(Smi::kMinValue - 1),
+           Object::NumberValue(*value));
 #endif
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
-           Object::Number(*value));
+           Object::NumberValue(*value));
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(1) << 31);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(1) << 31),
-           Object::Number(*value));
+           Object::NumberValue(*value));
 
   // nan oddball checks
   CHECK(IsNumber(*factory->nan_value()));
-  CHECK(std::isnan(Object::Number(*factory->nan_value())));
+  CHECK(std::isnan(Object::NumberValue(*factory->nan_value())));
 
   Handle<String> s = factory->NewStringFromStaticChars("fisk hest ");
   CHECK(IsString(*s));
@@ -624,7 +626,8 @@ TEST(BytecodeArray) {
   static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int32_t kFrameSize = 32;
-  static const int32_t kParameterCount = 2;
+  static const uint16_t kParameterCount = 2;
+  static const uint16_t kMaxArguments = 0;
 
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
@@ -645,9 +648,9 @@ TEST(BytecodeArray) {
   Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(3);
 
   // Allocate and initialize BytecodeArray
-  Handle<BytecodeArray> array =
-      factory->NewBytecodeArray(kRawBytesSize, kRawBytes, kFrameSize,
-                                kParameterCount, constant_pool, handler_table);
+  Handle<BytecodeArray> array = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
+      constant_pool, handler_table);
 
   CHECK(IsBytecodeArray(*array));
   CHECK_EQ(array->length(), (int)sizeof(kRawBytes));
@@ -2753,36 +2756,6 @@ HEAP_TEST(Regress845060) {
   // stale raw pointers to crash.
   CompileRun("while (%InYoungGeneration(str)) { str.split(''); }");
   CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
-}
-
-TEST(IdleNotificationFinishMarking) {
-  if (!v8_flags.incremental_marking) return;
-  ManualGCScope manual_gc_scope;
-  v8_flags.allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  const int initial_gc_count = CcTest::heap()->gc_count();
-  heap::SimulateFullSpace(CcTest::heap()->old_space());
-  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Stop();
-  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                          i::GarbageCollectionReason::kTesting);
-
-  CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count);
-
-  const auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
-  while (!marking->IsMajorMarkingComplete()) {
-    marking->AdvanceForTesting(kStepSize);
-  }
-
-  // The next idle notification has to finish incremental marking.
-  const double kLongIdleTime = 1000.0;
-  START_ALLOW_USE_DEPRECATED();
-  CcTest::isolate()->IdleNotificationDeadline(
-      (v8::base::TimeTicks::Now().ToInternalValue() /
-       static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
-      kLongIdleTime);
-  END_ALLOW_USE_DEPRECATED();
-  CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count + 1);
 }
 
 TEST(OptimizedPretenuringAllocationFolding) {
@@ -5332,6 +5305,8 @@ TEST(Regress3877) {
   }
   // The map of a.x keeps prototype alive
   CHECK(!weak_prototype_holder->get(0).IsCleared());
+  // Detach the map (by promoting it to a prototype).
+  CompileRun("var b = {}; b.__proto__ = a.x");
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
   for (int i = 0; i < 4; i++) {
@@ -6978,6 +6953,7 @@ void HeapTester::UncommitUnusedMemory(Heap* heap) {
 
 class DeleteNative {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
   static void Deleter(void* arg) {
     delete reinterpret_cast<DeleteNative*>(arg);
   }
@@ -7173,8 +7149,7 @@ TEST(GarbageCollectionWithLocalHeap) {
   LocalHeap* local_heap = CcTest::i_isolate()->main_thread_local_heap();
 
   heap::InvokeMajorGC(CcTest::heap());
-
-  { ParkedScope parked_scope(local_heap); }
+  local_heap->ExecuteWhileParked([]() { /* nothing */ });
   heap::InvokeMajorGC(CcTest::heap());
 }
 

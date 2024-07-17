@@ -20,7 +20,7 @@ class FieldType : public AllStatic {
   V8_EXPORT_PRIVATE static Handle<FieldType> None(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<FieldType> Any(Isolate* isolate);
   V8_EXPORT_PRIVATE static Tagged<FieldType> Class(Tagged<Map> map);
-  V8_EXPORT_PRIVATE static Handle<FieldType> Class(Handle<Map> map,
+  V8_EXPORT_PRIVATE static Handle<FieldType> Class(DirectHandle<Map> map,
                                                    Isolate* isolate);
   V8_EXPORT_PRIVATE static Tagged<FieldType> cast(Tagged<Object> object);
   static constexpr Tagged<FieldType> unchecked_cast(Tagged<Object> object) {
@@ -29,7 +29,7 @@ class FieldType : public AllStatic {
 
   static bool NowContains(Tagged<FieldType> type, Tagged<Object> value);
 
-  static bool NowContains(Tagged<FieldType> type, Handle<Object> value) {
+  static bool NowContains(Tagged<FieldType> type, DirectHandle<Object> value) {
     return NowContains(type, *value);
   }
 
@@ -37,7 +37,7 @@ class FieldType : public AllStatic {
   static Handle<Map> AsClass(Handle<FieldType> type);
   static bool NowStable(Tagged<FieldType> type);
   static bool NowIs(Tagged<FieldType> type, Tagged<FieldType> other);
-  static bool NowIs(Tagged<FieldType> type, Handle<FieldType> other);
+  static bool NowIs(Tagged<FieldType> type, DirectHandle<FieldType> other);
 
   V8_EXPORT_PRIVATE static bool Equals(Tagged<FieldType> type,
                                        Tagged<FieldType> other);

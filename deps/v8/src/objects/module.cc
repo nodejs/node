@@ -102,7 +102,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
     return;
   }
 
-  Handle<FixedArray> requested_modules =
+  DirectHandle<FixedArray> requested_modules =
       IsSourceTextModule(*module)
           ? Handle<FixedArray>(
                 SourceTextModule::cast(*module)->requested_modules(), isolate)
@@ -134,7 +134,8 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
       IsSourceTextModule(*module)
           ? SourceTextModule::cast(*module)->regular_exports()->length()
           : SyntheticModule::cast(*module)->export_names()->length();
-  Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate, export_count);
+  DirectHandle<ObjectHashTable> exports =
+      ObjectHashTable::New(isolate, export_count);
 
   if (IsSourceTextModule(*module)) {
     SourceTextModule::Reset(isolate, Handle<SourceTextModule>::cast(module));
@@ -170,16 +171,14 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
   }
 }
 
-bool Module::Instantiate(
-    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback callback,
-    DeprecatedResolveCallback callback_without_import_assertions) {
+bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
+                         v8::Local<v8::Context> context,
+                         v8::Module::ResolveModuleCallback callback) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Instantiating module ");
 #endif  // DEBUG
 
-  if (!PrepareInstantiate(isolate, module, context, callback,
-                          callback_without_import_assertions)) {
+  if (!PrepareInstantiate(isolate, module, context, callback)) {
     ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUnlinked);
     return false;
@@ -198,10 +197,9 @@ bool Module::Instantiate(
   return true;
 }
 
-bool Module::PrepareInstantiate(
-    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback callback,
-    DeprecatedResolveCallback callback_without_import_assertions) {
+bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
+                                v8::Local<v8::Context> context,
+                                v8::Module::ResolveModuleCallback callback) {
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kLinking);
   if (module->status() >= kPreLinking) return true;
@@ -210,8 +208,7 @@ bool Module::PrepareInstantiate(
 
   if (IsSourceTextModule(*module)) {
     return SourceTextModule::PrepareInstantiate(
-        isolate, Handle<SourceTextModule>::cast(module), context, callback,
-        callback_without_import_assertions);
+        isolate, Handle<SourceTextModule>::cast(module), context, callback);
   } else {
     return SyntheticModule::PrepareInstantiate(
         isolate, Handle<SyntheticModule>::cast(module), context);
@@ -304,7 +301,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
         isolate, Handle<SourceTextModule>::cast(module), &zone, &visited);
   }
 
-  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  DirectHandle<ObjectHashTable> exports(module->exports(), isolate);
   ZoneVector<Handle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
   for (InternalIndex i : exports->IterateEntries()) {
@@ -355,20 +352,20 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   //   Turbofan can use this for inlining the access.
   JSObject::OptimizeAsPrototype(ns);
 
-  Handle<PrototypeInfo> proto_info =
-      Map::GetOrCreatePrototypeInfo(Handle<JSObject>::cast(ns), isolate);
+  DirectHandle<PrototypeInfo> proto_info =
+      Map::GetOrCreatePrototypeInfo(ns, isolate);
   proto_info->set_module_namespace(*ns);
   return ns;
 }
 
 bool JSModuleNamespace::HasExport(Isolate* isolate, Handle<String> name) {
-  Handle<Object> object(module()->exports()->Lookup(name), isolate);
+  DirectHandle<Object> object(module()->exports()->Lookup(name), isolate);
   return !IsTheHole(*object, isolate);
 }
 
 MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
                                                  Handle<String> name) {
-  Handle<Object> object(module()->exports()->Lookup(name), isolate);
+  DirectHandle<Object> object(module()->exports()->Lookup(name), isolate);
   if (IsTheHole(*object, isolate)) {
     return isolate->factory()->undefined_value();
   }
@@ -383,8 +380,7 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
     // here accessing uninitialized variable error should be throwed.
     THROW_NEW_ERROR(isolate,
                     NewReferenceError(
-                        MessageTemplate::kAccessedUninitializedVariable, name),
-                    Object);
+                        MessageTemplate::kAccessedUninitializedVariable, name));
   }
 
   return value;
@@ -392,16 +388,18 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
 
 Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
     LookupIterator* it) {
-  Handle<JSModuleNamespace> object = it->GetHolder<JSModuleNamespace>();
+  DirectHandle<JSModuleNamespace> object = it->GetHolder<JSModuleNamespace>();
   Handle<String> name = Handle<String>::cast(it->GetName());
   DCHECK_EQ(it->state(), LookupIterator::ACCESSOR);
 
   Isolate* isolate = it->isolate();
 
-  Handle<Object> lookup(object->module()->exports()->Lookup(name), isolate);
+  DirectHandle<Object> lookup(object->module()->exports()->Lookup(name),
+                              isolate);
   if (IsTheHole(*lookup, isolate)) return Just(ABSENT);
 
-  Handle<Object> value(Handle<Cell>::cast(lookup)->value(), isolate);
+  DirectHandle<Object> value(DirectHandle<Cell>::cast(lookup)->value(),
+                             isolate);
   if (IsTheHole(*value, isolate)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kNotDefined, name));

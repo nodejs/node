@@ -9,17 +9,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_BigIntCompareToBigInt) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(3, args.length());
-  int mode = args.smi_value_at(0);
-  Handle<BigInt> lhs = args.at<BigInt>(1);
-  Handle<BigInt> rhs = args.at<BigInt>(2);
-  bool result = ComparisonResultToBool(static_cast<Operation>(mode),
-                                       BigInt::CompareToBigInt(lhs, rhs));
-  return *isolate->factory()->ToBoolean(result);
-}
-
 RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
@@ -73,13 +62,6 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
   return *isolate->factory()->ToBoolean(maybe_result.FromJust());
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntToBoolean) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<BigInt> bigint = args.at<BigInt>(0);
-  return *isolate->factory()->ToBoolean(bigint->ToBoolean());
-}
-
 RUNTIME_FUNCTION(Runtime_BigIntToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -113,13 +95,11 @@ RUNTIME_FUNCTION(Runtime_ToBigIntConvertNumber) {
   }
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
+RUNTIME_FUNCTION(Runtime_BigIntExponentiate) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   Handle<Object> left_obj = args.at(0);
   Handle<Object> right_obj = args.at(1);
-  int opcode = args.smi_value_at(2);
-  Operation op = static_cast<Operation>(opcode);
 
   if (!IsBigInt(*left_obj) || !IsBigInt(*right_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -127,48 +107,7 @@ RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   }
   Handle<BigInt> left(Handle<BigInt>::cast(left_obj));
   Handle<BigInt> right(Handle<BigInt>::cast(right_obj));
-  MaybeHandle<BigInt> result;
-  switch (op) {
-    case Operation::kAdd:
-      result = BigInt::Add(isolate, left, right);
-      break;
-    case Operation::kSubtract:
-      result = BigInt::Subtract(isolate, left, right);
-      break;
-    case Operation::kMultiply:
-      result = BigInt::Multiply(isolate, left, right);
-      break;
-    case Operation::kDivide:
-      result = BigInt::Divide(isolate, left, right);
-      break;
-    case Operation::kModulus:
-      result = BigInt::Remainder(isolate, left, right);
-      break;
-    case Operation::kExponentiate:
-      result = BigInt::Exponentiate(isolate, left, right);
-      break;
-    case Operation::kBitwiseAnd:
-      result = BigInt::BitwiseAnd(isolate, left, right);
-      break;
-    case Operation::kBitwiseOr:
-      result = BigInt::BitwiseOr(isolate, left, right);
-      break;
-    case Operation::kBitwiseXor:
-      result = BigInt::BitwiseXor(isolate, left, right);
-      break;
-    case Operation::kShiftLeft:
-      result = BigInt::LeftShift(isolate, left, right);
-      break;
-    case Operation::kShiftRight:
-      result = BigInt::SignedRightShift(isolate, left, right);
-      break;
-    case Operation::kShiftRightLogical:
-      result = BigInt::UnsignedRightShift(isolate, left, right);
-      break;
-    default:
-      UNREACHABLE();
-  }
-  RETURN_RESULT_OR_FAILURE(isolate, result);
+  RETURN_RESULT_OR_FAILURE(isolate, BigInt::Exponentiate(isolate, left, right));
 }
 
 RUNTIME_FUNCTION(Runtime_BigIntUnaryOp) {

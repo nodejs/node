@@ -46,9 +46,9 @@ bool CachedTemplateMatches(Isolate* isolate,
 
 // static
 Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
-    Isolate* isolate, Handle<NativeContext> native_context,
-    Handle<TemplateObjectDescription> description,
-    Handle<SharedFunctionInfo> shared_info, int slot_id) {
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
+    DirectHandle<TemplateObjectDescription> description,
+    DirectHandle<SharedFunctionInfo> shared_info, int slot_id) {
   int function_literal_id = shared_info->function_literal_id();
 
   // Check the template weakmap to see if the template object already exists.
@@ -87,8 +87,9 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   }
 
   // Create the raw object from the {raw_strings}.
-  Handle<FixedArray> raw_strings(description->raw_strings(), isolate);
-  Handle<FixedArray> cooked_strings(description->cooked_strings(), isolate);
+  DirectHandle<FixedArray> raw_strings(description->raw_strings(), isolate);
+  DirectHandle<FixedArray> cooked_strings(description->cooked_strings(),
+                                          isolate);
   Handle<JSArray> template_object =
       isolate->factory()->NewJSArrayForTemplateLiteralArray(
           cooked_strings, raw_strings, function_literal_id, slot_id);

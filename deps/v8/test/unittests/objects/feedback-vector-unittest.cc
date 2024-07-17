@@ -513,15 +513,23 @@ TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorHelper helper(feedback_vector);
-  CHECK_EQ(2, helper.slot_count());
+  CHECK_EQ(4, helper.slot_count());
   CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
   CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kLoadGlobalInsideTypeof);
+  CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kTypeOf);
+  CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kTypeOf);
   FeedbackSlot slot1 = helper.slot(0);
   FeedbackSlot slot2 = helper.slot(1);
+  FeedbackSlot slot3 = helper.slot(2);
+  FeedbackSlot slot4 = helper.slot(3);
   CHECK_EQ(InlineCacheState::MONOMORPHIC,
            FeedbackNexus(feedback_vector, slot1).ic_state());
   CHECK_EQ(InlineCacheState::MONOMORPHIC,
            FeedbackNexus(feedback_vector, slot2).ic_state());
+  CHECK_EQ(InlineCacheState::MONOMORPHIC,
+           FeedbackNexus(feedback_vector, slot3).ic_state());
+  CHECK_EQ(InlineCacheState::MONOMORPHIC,
+           FeedbackNexus(feedback_vector, slot4).ic_state());
 }
 
 TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {

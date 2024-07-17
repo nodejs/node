@@ -214,6 +214,7 @@ class ConstructFrameConstants : public TypedFrameConstants {
   static constexpr int kNewTargetOrImplicitReceiverOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
   DEFINE_TYPED_FRAME_SIZES(5);
+  static constexpr int kLastObjectOffset = kContextOffset;
 };
 
 class FastConstructFrameConstants : public TypedFrameConstants {
@@ -283,7 +284,8 @@ class JSToWasmWrapperFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
   static constexpr int kResultArrayParamOffset = 2 * kSystemPointerSize;
-  static constexpr int kInstanceDataParamOffset = 3 * kSystemPointerSize;
+  // A WasmTrustedInstanceData or WasmApiFunctionRef depending on the callee.
+  static constexpr int kRefParamOffset = 3 * kSystemPointerSize;
 
   // Contains RawPtr to stack-allocated buffer.
   static constexpr int kWrapperBufferOffset =
@@ -341,8 +343,8 @@ class StackSwitchFrameConstants : public JSToWasmWrapperFrameConstants {
   // be scanned by the GC.
   static constexpr int kGCScanSlotCountOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  // Tagged pointer to wasm instance.
-  static constexpr int kInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  // Tagged pointer to WasmTrustedInstanceData or WasmApiFunctionRef.
+  static constexpr int kRefOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   // Tagged pointer to a JS Array for result values.
   static constexpr int kResultArrayOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
 
@@ -414,8 +416,8 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
 // passed to the JS function (receiver and etc.).
 class ApiCallbackExitFrameConstants : public ExitFrameConstants {
  public:
-  // The following two constants must be in sync with v8::FunctionCallbackInfo's
-  // layout.
+  // The following constants must be in sync with v8::FunctionCallbackInfo's
+  // layout. This is guaraneed by static_asserts elsewhere.
   static constexpr int kFunctionCallbackInfoNewTargetIndex = 5;
   static constexpr int kFunctionCallbackInfoArgsLength = 6;
 
@@ -435,7 +437,7 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
   static constexpr int kAdditionalParametersCount = 3;
 #endif  // V8_TARGET_ARCH_ARM64
 
-  // FunctionCallbackInfo.
+  // v8::FunctionCallbackInfo.
   static constexpr int kFunctionCallbackInfoOffset =
       kOptionalPaddingOffset + kOptionalPaddingSize;
   static constexpr int kNewTargetOffset =
@@ -445,6 +447,31 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
   static constexpr int kFirstArgumentOffset =
       kFunctionCallbackInfoOffset +
       kFunctionCallbackInfoArgsLength * kSystemPointerSize;
+};
+
+// Behaves like an exit frame but with v8::PropertyCallbackInfo's arguments
+// allocated in GC-ed area of the exit frame.
+class ApiAccessorExitFrameConstants : public ExitFrameConstants {
+ public:
+  // The following constants must be in sync with v8::PropertyCallbackInfo's
+  // layout. This is guaraneed by static_asserts elsewhere.
+  static constexpr int kPropertyCallbackInfoReceiverIndex = 6;
+  static constexpr int kPropertyCallbackInfoHolderIndex = 1;
+  static constexpr int kPropertyCallbackInfoArgsLength = 7;
+
+  // Storage for v8::Local<Name> parameter.
+  static constexpr int kPropertyNameOffset =
+      kCallerPCOffset + 1 * kSystemPointerSize;
+
+  // v8::PropertyCallbackInfo.
+  static constexpr int kPropertyCallbackInfoOffset =
+      kPropertyNameOffset + 1 * kSystemPointerSize;
+  static constexpr int kReceiverOffset =
+      kPropertyCallbackInfoOffset +
+      kPropertyCallbackInfoReceiverIndex * kSystemPointerSize;
+  static constexpr int kHolderOffset =
+      kPropertyCallbackInfoOffset +
+      kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript

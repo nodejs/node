@@ -79,13 +79,14 @@ bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
 #endif
 
 struct ModuleHandleHash {
-  V8_INLINE size_t operator()(Handle<Module> module) const {
+  V8_INLINE size_t operator()(DirectHandle<Module> module) const {
     return module->hash();
   }
 };
 
 struct ModuleHandleEqual {
-  V8_INLINE bool operator()(Handle<Module> lhs, Handle<Module> rhs) const {
+  V8_INLINE bool operator()(DirectHandle<Module> lhs,
+                            DirectHandle<Module> rhs) const {
     return *lhs == *rhs;
   }
 };
@@ -110,12 +111,12 @@ Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
   return root;
 }
 
-void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
-                                            Handle<SourceTextModule> module,
-                                            Handle<SourceTextModule> parent) {
+void SourceTextModule::AddAsyncParentModule(
+    Isolate* isolate, DirectHandle<SourceTextModule> module,
+    DirectHandle<SourceTextModule> parent) {
   Handle<ArrayList> async_parent_modules(module->async_parent_modules(),
                                          isolate);
-  Handle<ArrayList> new_array_list =
+  DirectHandle<ArrayList> new_array_list =
       ArrayList::Add(isolate, async_parent_modules, parent);
   module->set_async_parent_modules(*new_array_list);
 }

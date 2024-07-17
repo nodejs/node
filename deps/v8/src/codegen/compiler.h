@@ -27,6 +27,11 @@
 #include "src/zone/zone.h"
 
 namespace v8 {
+
+namespace tracing {
+class TracedValue;
+}  // namespace tracing
+
 namespace internal {
 
 // Forward declarations.
@@ -267,6 +272,12 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static void InstallInterpreterTrampolineCopy(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
       LogEventListener::CodeTag log_tag);
+
+ private:
+  static std::unique_ptr<v8::tracing::TracedValue> AddScriptCompiledTrace(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  static std::unique_ptr<v8::tracing::TracedValue> AddScriptSourceTextTrace(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared);
 };
 
 // A base class for compilation jobs intended to run concurrent to the main

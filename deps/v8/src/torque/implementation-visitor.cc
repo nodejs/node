@@ -1238,6 +1238,9 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
                            {}});
     return TypeOracle::GetVoidType();
   }
+  // When the sandbox is off, sbxchecks become dchecks.
+  DCHECK_IMPLIES(stmt->kind == AssertStatement::AssertKind::kSbxCheck,
+                 V8_ENABLE_SANDBOX_BOOL);
   bool do_check = stmt->kind != AssertStatement::AssertKind::kDcheck ||
                   GlobalContext::force_assert_statements();
 #if defined(DEBUG)
@@ -5252,6 +5255,8 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) &&
       !field_type->StructSupertype())
     return;
+  // Protected pointer fields cannot be read or verified from torque yet.
+  if (field_type->IsSubtypeOf(TypeOracle::GetProtectedPointerType())) return;
   if (field_type == TypeOracle::GetFloat64OrHoleType()) return;
   // Do not verify if the field may be uninitialized.
   if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;

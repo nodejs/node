@@ -67,6 +67,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kInstanceOf:
+    case FeedbackSlotKind::kTypeOf:
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
@@ -116,8 +117,8 @@ void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
-UINT8_ACCESSORS(FeedbackVector, invocation_count_before_stable,
-                kInvocationCountBeforeStableOffset)
+RELAXED_UINT8_ACCESSORS(FeedbackVector, invocation_count_before_stable,
+                        kInvocationCountBeforeStableOffset)
 
 int FeedbackVector::osr_urgency() const {
   return OsrUrgencyBits::decode(osr_state());

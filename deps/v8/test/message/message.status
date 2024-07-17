@@ -134,16 +134,15 @@
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ##############################################################################
+['arch != x64', {
+  # TODO(42204618): Missing support for wasm deopts on other platforms.
+  'wasm-trace-deopt': [SKIP],
+}],
+
+##############################################################################
 ['verify_predictable', {
   # https://crbug.com/v8/14397
   'wasm-finish-compilation': [PASS, FAIL],
 }],  # 'verify_predictable'
-
-##############################################################################
-['variant == future', {
-  # Turboshaft and Turbofan outputs do not match.
-  # TODO(14108): Update output and reenable test.
-  'wasm-recognize-imports': [FAIL],
-}],  # variant == future
 
 ]

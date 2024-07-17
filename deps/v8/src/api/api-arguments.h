@@ -78,7 +78,7 @@ class PropertyCallbackArguments final
   static constexpr int kArgsLength = T::kArgsLength;
   static constexpr int kThisIndex = T::kThisIndex;
   static constexpr int kDataIndex = T::kDataIndex;
-  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kHolderV2Index = T::kHolderV2Index;
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
@@ -97,11 +97,11 @@ class PropertyCallbackArguments final
   // -------------------------------------------------------------------------
   // Accessor Callbacks
   // Also used for AccessorSetterCallback.
-  inline Handle<Object> CallAccessorSetter(Handle<AccessorInfo> info,
+  inline Handle<Object> CallAccessorSetter(DirectHandle<AccessorInfo> info,
                                            Handle<Name> name,
                                            Handle<Object> value);
   // Also used for AccessorGetterCallback, AccessorNameGetterCallback.
-  inline Handle<Object> CallAccessorGetter(Handle<AccessorInfo> info,
+  inline Handle<Object> CallAccessorGetter(DirectHandle<AccessorInfo> info,
                                            Handle<Name> name);
 
   // -------------------------------------------------------------------------
@@ -110,14 +110,14 @@ class PropertyCallbackArguments final
                                        Handle<Name> name);
   inline Handle<Object> CallNamedGetter(Handle<InterceptorInfo> interceptor,
                                         Handle<Name> name);
-  inline Handle<Object> CallNamedSetter(Handle<InterceptorInfo> interceptor,
-                                        Handle<Name> name,
-                                        Handle<Object> value);
-  inline Handle<Object> CallNamedDefiner(Handle<InterceptorInfo> interceptor,
-                                         Handle<Name> name,
-                                         const v8::PropertyDescriptor& desc);
-  inline Handle<Object> CallNamedDeleter(Handle<InterceptorInfo> interceptor,
-                                         Handle<Name> name);
+  inline Handle<Object> CallNamedSetter(
+      DirectHandle<InterceptorInfo> interceptor, Handle<Name> name,
+      Handle<Object> value);
+  inline Handle<Object> CallNamedDefiner(
+      DirectHandle<InterceptorInfo> interceptor, Handle<Name> name,
+      const v8::PropertyDescriptor& desc);
+  inline Handle<Object> CallNamedDeleter(
+      DirectHandle<InterceptorInfo> interceptor, Handle<Name> name);
   inline Handle<Object> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
                                             Handle<Name> name);
   inline Handle<JSObject> CallNamedEnumerator(
@@ -129,11 +129,12 @@ class PropertyCallbackArguments final
                                          uint32_t index);
   inline Handle<Object> CallIndexedGetter(Handle<InterceptorInfo> interceptor,
                                           uint32_t index);
-  inline Handle<Object> CallIndexedSetter(Handle<InterceptorInfo> interceptor,
-                                          uint32_t index, Handle<Object> value);
-  inline Handle<Object> CallIndexedDefiner(Handle<InterceptorInfo> interceptor,
-                                           uint32_t index,
-                                           const v8::PropertyDescriptor& desc);
+  inline Handle<Object> CallIndexedSetter(
+      DirectHandle<InterceptorInfo> interceptor, uint32_t index,
+      Handle<Object> value);
+  inline Handle<Object> CallIndexedDefiner(
+      DirectHandle<InterceptorInfo> interceptor, uint32_t index,
+      const v8::PropertyDescriptor& desc);
   inline Handle<Object> CallIndexedDeleter(Handle<InterceptorInfo> interceptor,
                                            uint32_t index);
   inline Handle<Object> CallIndexedDescriptor(
@@ -141,7 +142,7 @@ class PropertyCallbackArguments final
   inline Handle<JSObject> CallIndexedEnumerator(
       Handle<InterceptorInfo> interceptor);
 
-  // Accept potential JavaScript side effects that might occurr during life
+  // Accept potential JavaScript side effects that might occur during life
   // time of this object.
   inline void AcceptSideEffects() {
 #ifdef DEBUG
@@ -183,7 +184,7 @@ class FunctionCallbackArguments
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kUnusedIndex = T::kUnusedIndex;
-  static constexpr int kDataIndex = T::kDataIndex;
+  static constexpr int kTargetIndex = T::kTargetIndex;
   static constexpr int kNewTargetIndex = T::kNewTargetIndex;
 
   static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);
@@ -199,7 +200,8 @@ class FunctionCallbackArguments
   static_assert(T::kValuesOffset == offsetof(T, values_));
   static_assert(T::kLengthOffset == offsetof(T, length_));
 
-  FunctionCallbackArguments(Isolate* isolate, Tagged<Object> data,
+  FunctionCallbackArguments(Isolate* isolate,
+                            Tagged<FunctionTemplateInfo> target,
                             Tagged<Object> holder,
                             Tagged<HeapObject> new_target, Address* argv,
                             int argc);
@@ -214,10 +216,17 @@ class FunctionCallbackArguments
    */
   inline Handle<Object> Call(Tagged<FunctionTemplateInfo> function);
 
+  // Unofficial way of getting target FunctionTemplateInfo from
+  // v8::FunctionCallbackInfo<T>.
+  template <typename T>
+  static Tagged<Object> GetTarget(const FunctionCallbackInfo<T>& info) {
+    return Tagged<Object>(info.implicit_args_[kTargetIndex]);
+  }
+
  private:
   inline Tagged<JSReceiver> holder() const;
 
-  internal::Address* argv_;
+  Address* argv_;
   int const argc_;
 };
 

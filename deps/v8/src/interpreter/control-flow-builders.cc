@@ -45,6 +45,12 @@ void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
   builder()->JumpIfNull(sites->New());
 }
 
+void BreakableControlFlowBuilder::EmitJumpIfForInDone(BytecodeLabels* sites,
+                                                      Register index,
+                                                      Register cache_length) {
+  builder()->JumpIfForInDone(sites->New(), index, cache_length);
+}
+
 LoopBuilder::~LoopBuilder() {
   DCHECK(continue_labels_.empty() || continue_labels_.is_bound());
   DCHECK(end_labels_.empty() || end_labels_.is_bound());

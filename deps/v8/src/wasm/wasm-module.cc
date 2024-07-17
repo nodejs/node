@@ -252,9 +252,9 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<NativeContext> context) {
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
 }
 
-Handle<String> ErrorStringForCodegen(Isolate* isolate,
-                                     Handle<Context> context) {
-  Handle<Object> error = context->ErrorMessageForWasmCodeGeneration();
+DirectHandle<String> ErrorStringForCodegen(Isolate* isolate,
+                                           DirectHandle<Context> context) {
+  DirectHandle<Object> error = context->ErrorMessageForWasmCodeGeneration();
   DCHECK(!error.is_null());
   return Object::NoSideEffectsToString(isolate, error);
 }
@@ -275,9 +275,9 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
   // Extract values for the {ValueType[]} arrays.
   int param_index = 0;
   int param_count = static_cast<int>(sig->parameter_count());
-  Handle<FixedArray> param_values = factory->NewFixedArray(param_count);
+  DirectHandle<FixedArray> param_values = factory->NewFixedArray(param_count);
   for (ValueType type : sig->parameters()) {
-    Handle<String> type_value = ToValueTypeString(isolate, type);
+    DirectHandle<String> type_value = ToValueTypeString(isolate, type);
     param_values->set(param_index++, *type_value);
   }
 
@@ -295,9 +295,10 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
   } else {
     int result_index = 0;
     int result_count = static_cast<int>(sig->return_count());
-    Handle<FixedArray> result_values = factory->NewFixedArray(result_count);
+    DirectHandle<FixedArray> result_values =
+        factory->NewFixedArray(result_count);
     for (ValueType type : sig->returns()) {
-      Handle<String> type_value = ToValueTypeString(isolate, type);
+      DirectHandle<String> type_value = ToValueTypeString(isolate, type);
       result_values->set(result_index++, *type_value);
     }
     Handle<JSArray> results = factory->NewJSArrayWithElements(result_values);
@@ -375,7 +376,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
 }
 
 Handle<JSArray> GetImports(Isolate* isolate,
-                           Handle<WasmModuleObject> module_object) {
+                           DirectHandle<WasmModuleObject> module_object) {
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
@@ -403,6 +404,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
   // Populate the result array.
   const WellKnownImportsList& well_known_imports =
       module->type_feedback.well_known_imports;
+  const bool has_magic_string_constants =
+      module->type_feedback.has_magic_string_constants;
   int cursor = 0;
   for (int index = 0; index < num_imports; ++index) {
     const WasmImport& import = module->import_table[index];
@@ -446,6 +449,12 @@ Handle<JSArray> GetImports(Isolate* isolate,
         import_kind = memory_string;
         break;
       case kExternalGlobal:
+        if (has_magic_string_constants && import.module_name.length() == 1 &&
+            module_object->native_module()
+                    ->wire_bytes()[import.module_name.offset()] ==
+                kMagicStringConstantsModuleName) {
+          continue;
+        }
         if (enabled_features.has_type_reflection()) {
           auto& global = module->globals[import.index];
           type_value =
@@ -482,7 +491,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
 }
 
 Handle<JSArray> GetExports(Isolate* isolate,
-                           Handle<WasmModuleObject> module_object) {
+                           DirectHandle<WasmModuleObject> module_object) {
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
@@ -578,8 +587,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
 }
 
 Handle<JSArray> GetCustomSections(Isolate* isolate,
-                                  Handle<WasmModuleObject> module_object,
-                                  Handle<String> name, ErrorThrower* thrower) {
+                                  DirectHandle<WasmModuleObject> module_object,
+                                  DirectHandle<String> name,
+                                  ErrorThrower* thrower) {
   Factory* factory = isolate->factory();
 
   base::Vector<const uint8_t> wire_bytes =
@@ -591,7 +601,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 
   // Gather matching sections.
   for (auto& section : custom_sections) {
-    Handle<String> section_name =
+    DirectHandle<String> section_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, section.name, kNoInternalize);
 
@@ -646,12 +656,11 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 }
 
 size_t WasmModule::EstimateStoredSize() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 856);
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 824);
   return sizeof(WasmModule) +                            // --
          signature_zone.allocation_size_for_tracing() +  // --
          ContentSize(types) +                            // --
          ContentSize(isorecursive_canonical_type_ids) +  // --
-         ContentSize(explicit_recursive_type_groups) +   // --
          ContentSize(functions) +                        // --
          ContentSize(globals) +                          // --
          ContentSize(data_segments) +                    // --
@@ -701,7 +710,7 @@ size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 160);
+  UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 168);
   UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 48);
   // Not including sizeof(TFS) because that's contained in sizeof(WasmModule).
   base::SharedMutexGuard<base::kShared> lock(&mutex);
@@ -719,7 +728,7 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 856);
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 824);
   size_t result = EstimateStoredSize();
 
   result += type_feedback.EstimateCurrentMemoryConsumption();

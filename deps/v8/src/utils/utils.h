@@ -387,9 +387,13 @@ V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
 
 #elif defined(V8_OPTIMIZE_WITH_NEON)
 
+// We intentionally use misaligned read/writes for NEON intrinsics, disable
+// alignment sanitization explicitly.
 template <typename Char>
-V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
-                            size_t order) {
+V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const Char* lhs,
+                                                              const Char* rhs,
+                                                              size_t count,
+                                                              size_t order) {
   static_assert(sizeof(Char) == 1);
   DCHECK_GE(order, 5);
 

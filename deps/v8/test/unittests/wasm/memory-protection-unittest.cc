@@ -59,7 +59,8 @@ class MemoryProtectionTest : public TestWithNativeContext {
   WasmCode* code() const { return code_; }
 
   bool code_is_protected() {
-    return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || uses_pku();
+    return V8_HAS_PTHREAD_JIT_WRITE_PROTECT ||
+           V8_HAS_BECORE_JIT_WRITE_PROTECT || uses_pku();
   }
 
   void WriteToCode() { code_->instructions()[0] = 0; }
@@ -80,7 +81,9 @@ class MemoryProtectionTest : public TestWithNativeContext {
 
   bool uses_pku() {
     // M1 always uses MAP_JIT.
-    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) return false;
+    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_BECORE_JIT_WRITE_PROTECT) {
+      return false;
+    }
     bool param_has_pku = mode_ == kPku;
     return param_has_pku && WasmCodeManager::HasMemoryProtectionKeySupport();
   }
@@ -267,7 +270,9 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
   // An exception is M1, where an open scope still has an effect in the signal
   // handler.
   bool expect_crash = write_in_signal_handler && code_is_protected() &&
-                      (!V8_HAS_PTHREAD_JIT_WRITE_PROTECT || !open_write_scope);
+                      ((!V8_HAS_PTHREAD_JIT_WRITE_PROTECT &&
+                        !V8_HAS_BECORE_JIT_WRITE_PROTECT) ||
+                       !open_write_scope);
   if (expect_crash) {
     // Avoid {ASSERT_DEATH_IF_SUPPORTED}, because it only accepts a regex as
     // second parameter, and not a matcher as {ASSERT_DEATH}.

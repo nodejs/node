@@ -36,12 +36,12 @@
 #define ABSL_CONTAINER_NODE_HASH_SET_H_
 
 #include <cstddef>
+#include <memory>
 #include <type_traits>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/macros.h"
+#include "absl/container/hash_container_defaults.h"
 #include "absl/container/internal/container_memory.h"
-#include "absl/container/internal/hash_function_defaults.h"  // IWYU pragma: export
 #include "absl/container/internal/node_slot_policy.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
 #include "absl/memory/memory.h"
@@ -109,9 +109,8 @@ struct NodeHashSetPolicy;
 //  if (ducks.contains("dewey")) {
 //    std::cout << "We found dewey!" << std::endl;
 //  }
-template <class T, class Hash = absl::container_internal::hash_default_hash<T>,
-          class Eq = absl::container_internal::hash_default_eq<T>,
-          class Alloc = std::allocator<T>>
+template <class T, class Hash = DefaultHashContainerHash<T>,
+          class Eq = DefaultHashContainerEq<T>, class Alloc = std::allocator<T>>
 class node_hash_set
     : public absl::container_internal::raw_hash_set<
           absl::container_internal::NodeHashSetPolicy<T>, Hash, Eq, Alloc> {

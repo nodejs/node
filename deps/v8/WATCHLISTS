@@ -104,9 +104,6 @@
     'trap-handler': {
       'filepath': 'src/trap-handler/',
     },
-    'tests': {
-      'filepath': 'test/',
-    },
   },
 
   'WATCHLISTS': {
@@ -179,9 +176,6 @@
       'clemensb@chromium.org',
       'mark@chromium.org',
       'mseaborn@chromium.org',
-    ],
-    'tests': [
-      'almuthanna+watch@chromium.org',
     ],
   },
 }

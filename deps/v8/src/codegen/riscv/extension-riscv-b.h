@@ -14,7 +14,6 @@ class AssemblerRISCVB : public AssemblerRiscvBase {
   // RV32B Extension
  public:
   // Zba Extension
-#ifdef CAN_USE_ZBA_INSTRUCTIONS
   void sh1add(Register rd, Register rs1, Register rs2);
   void sh2add(Register rd, Register rs1, Register rs2);
   void sh3add(Register rd, Register rs1, Register rs2);
@@ -26,9 +25,7 @@ class AssemblerRISCVB : public AssemblerRiscvBase {
   void sh3adduw(Register rd, Register rs1, Register rs2);
   void slliuw(Register rd, Register rs1, uint8_t shamt);
 #endif
-#endif
 
-#ifdef CAN_USE_ZBB_INSTRUCTIONS
   // Zbb Extension
   void andn(Register rd, Register rs1, Register rs2);
   void orn(Register rd, Register rs1, Register rs2);
@@ -53,9 +50,7 @@ class AssemblerRISCVB : public AssemblerRiscvBase {
   void zexth(Register rd, Register rs);
 
   void rev8(Register rd, Register rs);
-#endif
 
-#ifdef CAN_USE_ZBS_INSTRUCTIONS
   // Zbs
   void bclr(Register rd, Register rs1, Register rs2);
   void bclri(Register rd, Register rs1, uint8_t shamt);
@@ -65,7 +60,6 @@ class AssemblerRISCVB : public AssemblerRiscvBase {
   void binvi(Register rd, Register rs1, uint8_t shamt);
   void bset(Register rd, Register rs1, Register rs2);
   void bseti(Register rd, Register rs1, uint8_t shamt);
-#endif
 };
 }  // namespace internal
 }  // namespace v8

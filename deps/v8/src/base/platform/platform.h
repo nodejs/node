@@ -64,13 +64,11 @@ extern "C" unsigned long __readfsdword(unsigned long);  // NOLINT(runtime/int)
 #endif                                       // V8_CC_MSVC && V8_HOST_ARCH_IA32
 #endif                                       // V8_NO_FAST_TLS
 
-namespace v8 {
-
-namespace internal {
-class HandleHelper;
+namespace heap::base {
+class Stack;
 }
 
-namespace base {
+namespace v8::base {
 
 // ----------------------------------------------------------------------------
 // Fast TLS support
@@ -313,9 +311,10 @@ class V8_BASE_EXPORT OS {
     uintptr_t end = 0;
   };
 
-  // Find gaps between existing virtual memory ranges that have enough space
-  // to place a region with minimum_size within (boundary_start, boundary_end)
-  static std::vector<MemoryRange> GetFreeMemoryRangesWithin(
+  // Find the first gap between existing virtual memory ranges that has enough
+  // space to place a region with minimum_size within (boundary_start,
+  // boundary_end)
+  static std::optional<MemoryRange> GetFirstFreeMemoryRangeWithin(
       Address boundary_start, Address boundary_end, size_t minimum_size,
       size_t alignment);
 
@@ -684,14 +683,13 @@ class V8_BASE_EXPORT Stack {
   static StackSlot GetStackStartUnchecked();
   static Stack::StackSlot ObtainCurrentThreadStackStart();
 
-  friend v8::internal::HandleHelper;
+  friend class heap::base::Stack;
 };
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 V8_BASE_EXPORT void SetJitWriteProtected(int enable);
 #endif
 
-}  // namespace base
-}  // namespace v8
+}  // namespace v8::base
 
 #endif  // V8_BASE_PLATFORM_PLATFORM_H_

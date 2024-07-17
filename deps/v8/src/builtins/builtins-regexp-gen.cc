@@ -1042,6 +1042,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
     CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
     CASE_FOR_FLAG("sticky", JSRegExp::kSticky);
+    CASE_FOR_FLAG("unicodeSets", JSRegExp::kUnicodeSets);
 #undef CASE_FOR_FLAG
 
 #define CASE_FOR_FLAG(NAME, V8_FLAG_EXTERN_REF, FLAG)                      \
@@ -1067,10 +1068,6 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
         "linear",
         ExternalReference::address_of_enable_experimental_regexp_engine(),
         JSRegExp::kLinear);
-    CASE_FOR_FLAG(
-        "unicodeSets",
-        ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets(),
-        JSRegExp::kUnicodeSets);
 #undef CASE_FOR_FLAG
   }
 

@@ -464,9 +464,8 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
          << StoreHandler::FieldIndexBits::decode(raw_handler);
       break;
     }
-    case StoreHandler::Kind::kAccessor:
-      os << "kAccessor, descriptor = "
-         << StoreHandler::DescriptorBits::decode(raw_handler);
+    case StoreHandler::Kind::kAccessorFromPrototype:
+      os << "kAccessorFromPrototype";
       break;
     case StoreHandler::Kind::kNativeDataProperty:
       os << "kNativeDataProperty, descriptor = "

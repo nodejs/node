@@ -102,6 +102,10 @@ Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
   return value;
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+START_ALLOW_USE_DEPRECATED()
+
 //
 // Accessors::ReconfigureToDataProperty
 //
@@ -183,7 +187,7 @@ void Accessors::ArrayLengthSetter(
     // its property descriptor. Don't perform this check if "length" was
     // previously readonly, as this may have been called during
     // DefineOwnPropertyIgnoreAttributes().
-    if (length == Object::Number(array->length())) {
+    if (length == Object::NumberValue(array->length())) {
       info.GetReturnValue().Set(true);
     } else if (info.ShouldThrowOnError()) {
       Factory* factory = isolate->factory();
@@ -832,6 +836,10 @@ Handle<AccessorInfo> Accessors::MakeWrappedFunctionNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
                       &WrappedFunctionNameGetter, &ReconfigureToDataProperty);
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
+// TODO(https://crbug.com/333672197): remove.
+END_ALLOW_USE_DEPRECATED()
 
 //
 // Accessors::ErrorStack

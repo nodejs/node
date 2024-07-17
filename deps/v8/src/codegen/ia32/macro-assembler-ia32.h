@@ -257,18 +257,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Prologue();
 
   // Helpers for argument handling
-  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
-  void DropArguments(Register count, Register scratch, ArgumentsCountType type,
-                     ArgumentsCountMode mode);
+  void DropArguments(Register count, Register scratch);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
-                                       Register scratch,
-                                       ArgumentsCountType type,
-                                       ArgumentsCountMode mode);
+                                       Register scratch);
   void DropArgumentsAndPushNewReceiver(Register argc, Operand receiver,
-                                       Register scratch,
-                                       ArgumentsCountType type,
-                                       ArgumentsCountMode mode);
+                                       Register scratch);
 
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, Operand src);
@@ -680,8 +673,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
  protected:
   // Drops arguments assuming that the return address was already popped.
-  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
-                     ArgumentsCountMode mode = kCountExcludesReceiver);
+  void DropArguments(Register count);
 
  private:
   // Helper functions for generating invokes.

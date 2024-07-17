@@ -15,11 +15,13 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/minor-mark-sweep.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -534,6 +536,58 @@ TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
   EXPECT_TRUE(allocation.IsFailure());
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+TEST_F(HeapTest, Regress341769455) {
+#ifdef V8_COMPRESS_POINTERS
+  if (!v8_flags.incremental_marking) return;
+  if (!v8_flags.minor_ms) return;
+  Isolate* iso = isolate();
+  Heap* heap = iso->heap();
+  HandleScope outer(iso);
+  Handle<JSArrayBuffer> ab;
+  {
+    ManualGCScope manual_gc_scope(isolate());
+    // Make sure new space is empty
+    InvokeAtomicMajorGC();
+    ab = iso->factory()
+             ->NewJSArrayBufferAndBackingStore(
+                 1, InitializedFlag::kZeroInitialized, AllocationType::kYoung)
+             .ToHandleChecked();
+    // Reset the EPT handle to null.
+    ab->init_extension();
+    // MinorMS promotes pages that haven't been allocated on since the last GC.
+    // Force a minor GC to reset the counter of bytes allocated on the page.
+    InvokeAtomicMinorGC();
+    // Set up a global to make sure the JSArrayBuffer is visited before the
+    // atomic pause.
+    Global<JSArrayBuffer> global(
+        v8_isolate(), Utils::Convert<JSArrayBuffer, JSArrayBuffer>(ab));
+    CHECK_EQ(Heap::HeapState::NOT_IN_GC, heap->gc_state());
+    CHECK(heap->incremental_marking()->IsStopped());
+    // Start incremental marking such that setting an extension (via
+    // `EnsureExtension`) triggers a write barrier.
+    v8_flags.incremental_marking = true;
+    heap->StartIncrementalMarking(GCFlag::kNoFlags,
+                                  GarbageCollectionReason::kTesting,
+                                  GCCallbackFlags::kNoGCCallbackFlags,
+                                  GarbageCollector::MINOR_MARK_SWEEPER);
+    CHECK(heap->incremental_marking()->IsMinorMarking());
+    heap->minor_mark_sweep_collector()->DrainMarkingWorklistForTesting();
+    ab->EnsureExtension();
+    heap->AppendArrayBufferExtension(*ab, ab->extension());
+  }
+  // Trigger a 2nd minor GC to promote the JSArrayBuffer to old space.
+  CHECK(Heap::InYoungGeneration(*ab));
+  InvokeAtomicMinorGC();
+  CHECK(!Heap::InYoungGeneration(*ab));
+  // If the EPT entry for the JSArrayBuffer wasn't promoted to the old table, a
+  // 3rd minor GC will observe it as unmarked (since the owning object is old)
+  // and free it. The major GC after it will then crash when trying to access
+  // the extension of the JSArrayBuffer although the entry has been freed.
+  InvokeAtomicMinorGC();
+  InvokeAtomicMajorGC();
+#endif  // V8_COMPRESS_POINTERS
+}
 
 }  // namespace internal
 }  // namespace v8

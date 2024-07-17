@@ -15,6 +15,8 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/keys.h"
@@ -39,6 +41,7 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSReceiver)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObjectWithEmbedderSlots)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSAPIObjectWithEmbedderSlots)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSCustomElementsObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSpecialObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator)
@@ -233,8 +236,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   if (object->GetElementsKind() == HOLEY_SMI_ELEMENTS) {
     TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
   } else if (object->GetElementsKind() == PACKED_SMI_ELEMENTS) {
-    Handle<FixedDoubleArray> double_array =
-        Handle<FixedDoubleArray>::cast(elements);
+    auto double_array = DirectHandle<FixedDoubleArray>::cast(elements);
     for (uint32_t i = 0; i < length; ++i) {
       if (double_array->is_the_hole(i)) {
         TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
@@ -245,8 +247,9 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   }
 }
 
-void JSObject::SetMapAndElements(Handle<JSObject> object, Handle<Map> new_map,
-                                 Handle<FixedArrayBase> value) {
+void JSObject::SetMapAndElements(DirectHandle<JSObject> object,
+                                 Handle<Map> new_map,
+                                 DirectHandle<FixedArrayBase> value) {
   Isolate* isolate = object->GetIsolate();
   JSObject::MigrateToMap(isolate, object, new_map);
   DCHECK((object->map()->has_fast_smi_or_object_elements() ||
@@ -298,9 +301,10 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 bool JSObject::MayHaveEmbedderFields(Tagged<Map> map) {
   InstanceType instance_type = map->instance_type();
   // TODO(v8) It'd be nice if all objects with embedder data slots inherited
-  // from JSObjectWithEmbedderSlots, but this is currently not possible due to
-  // instance_type constraints.
+  // from JSObjectJSAPIObjectWithEmbedderSlotsWithEmbedderSlots, but this is
+  // currently not possible due to instance_type constraints.
   return InstanceTypeChecker::IsJSObjectWithEmbedderSlots(instance_type) ||
+         InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(instance_type) ||
          InstanceTypeChecker::IsJSSpecialObject(instance_type);
 }
 
@@ -617,13 +621,53 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
 
+JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
+  DCHECK(IsJSApiWrapperObject(object));
+}
+
+template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
+void* JSApiWrapper::GetCppHeapWrappable(
+    IsolateForPointerCompression isolate) const {
+  return reinterpret_cast<void*>(
+      object_->ReadCppHeapPointerField<lower_bound, upper_bound>(
+          kCppHeapWrappableOffset, isolate));
+}
+
+void* JSApiWrapper::GetCppHeapWrappable(
+    IsolateForPointerCompression isolate,
+    CppHeapPointerTagRange tag_range) const {
+  return reinterpret_cast<void*>(object_->ReadCppHeapPointerField(
+      kCppHeapWrappableOffset, isolate, tag_range));
+}
+
+template <CppHeapPointerTag tag>
+void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
+                                       void* instance) {
+  object_->WriteLazilyInitializedCppHeapPointerField<tag>(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
+      reinterpret_cast<Address>(instance));
+  if (instance) {
+    WriteBarrier::CombinedBarrierForCppHeapPointer(object_, instance);
+  }
+}
+
+void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
+                                       void* instance, CppHeapPointerTag tag) {
+  object_->WriteLazilyInitializedCppHeapPointerField(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
+      reinterpret_cast<Address>(instance), tag);
+  if (instance) {
+    WriteBarrier::CombinedBarrierForCppHeapPointer(object_, instance);
+  }
+}
+
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();
 }
 
 // static
 void JSMessageObject::EnsureSourcePositionsAvailable(
-    Isolate* isolate, Handle<JSMessageObject> message) {
+    Isolate* isolate, DirectHandle<JSMessageObject> message) {
   if (message->DidEnsureSourcePositionsAvailable()) {
     DCHECK(message->script()->has_line_ends());
   } else {

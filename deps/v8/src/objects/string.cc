@@ -13,7 +13,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/instance-type.h"
@@ -107,7 +107,7 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
   // Do not recursively call Share, so directly compute the sharing strategy for
   // the flat string, which could already be a copy or an existing string from
   // e.g. a shortcut ConsString.
-  MaybeHandle<Map> new_map;
+  MaybeDirectHandle<Map> new_map;
   switch (isolate->factory()->ComputeSharingStrategyForString(flat, &new_map)) {
     case StringTransitionStrategy::kCopy:
       break;
@@ -178,11 +178,11 @@ void MigrateExternalString(Isolate* isolate, Tagged<String> string,
 
 void ExternalString::InitExternalPointerFieldsDuringExternalization(
     Tagged<Map> new_map, Isolate* isolate) {
-  resource_.Init(isolate, kNullAddress);
+  resource_.Init(address(), isolate, kNullAddress);
   bool is_uncached = (new_map->instance_type() & kUncachedExternalStringMask) ==
                      kUncachedExternalStringTag;
   if (!is_uncached) {
-    resource_data_.Init(isolate, kNullAddress);
+    resource_data_.Init(address(), isolate, kNullAddress);
   }
 }
 
@@ -1382,7 +1382,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
     const int peek_ix = next_dollar_ix + 1;
     if (peek_ix >= replacement_length) {
       builder.AppendCharacter('$');
-      return builder.Finish();
+      return indirect_handle(builder.Finish(), isolate);
     }
 
     int continue_from_ix = -1;
@@ -1438,8 +1438,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         bool capture_exists;
         Handle<String> capture;
         ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, capture, match->GetCapture(scaled_index, &capture_exists),
-            String);
+            isolate, capture, match->GetCapture(scaled_index, &capture_exists));
         if (capture_exists) builder.AppendString(capture);
         continue_from_ix = peek_ix + advance;
         break;
@@ -1471,7 +1470,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         CaptureState capture_state;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, capture,
-            match->GetNamedCapture(capture_name, &capture_state), String);
+            match->GetNamedCapture(capture_name, &capture_state));
 
         if (capture_state == CaptureState::MATCHED) {
           builder.AppendString(capture);
@@ -1499,7 +1498,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         builder.AppendString(factory->NewSubString(
             replacement, continue_from_ix, replacement_length));
       }
-      return builder.Finish();
+      return indirect_handle(builder.Finish(), isolate);
     }
 
     // Append substring between the previous and the next $ character.

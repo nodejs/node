@@ -153,14 +153,14 @@ void JSFunction::set_tiering_state(IsolateForSandbox isolate,
   feedback_vector()->set_tiering_state(state);
 }
 
-TieringState JSFunction::osr_tiering_state() {
+bool JSFunction::osr_tiering_in_progress() {
   DCHECK(has_feedback_vector());
-  return feedback_vector()->osr_tiering_state();
+  return feedback_vector()->osr_tiering_in_progress();
 }
 
-void JSFunction::set_osr_tiering_state(TieringState marker) {
+void JSFunction::set_osr_tiering_in_progress(bool osr_in_progress) {
   DCHECK(has_feedback_vector());
-  feedback_vector()->set_osr_tiering_state(marker);
+  feedback_vector()->set_osr_tiering_in_progress(osr_in_progress);
 }
 
 DEF_GETTER(JSFunction, has_feedback_vector, bool) {

@@ -1443,13 +1443,8 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
   Add(sp, sp, size);
 }
 
-void MacroAssembler::DropArguments(const Register& count,
-                                   ArgumentsCountMode mode) {
+void MacroAssembler::DropArguments(const Register& count) {
   int extra_slots = 1;  // Padding slot.
-  if (mode == kCountExcludesReceiver) {
-    // Add a slot for the receiver.
-    ++extra_slots;
-  }
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
   Add(tmp, count, extra_slots);
@@ -1457,11 +1452,7 @@ void MacroAssembler::DropArguments(const Register& count,
   Drop(tmp, kXRegSize);
 }
 
-void MacroAssembler::DropArguments(int64_t count, ArgumentsCountMode mode) {
-  if (mode == kCountExcludesReceiver) {
-    // Add a slot for the receiver.
-    ++count;
-  }
+void MacroAssembler::DropArguments(int64_t count) {
   Drop(RoundUp(count, 2), kXRegSize);
 }
 

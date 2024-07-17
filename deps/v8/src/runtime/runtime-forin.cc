@@ -31,8 +31,7 @@ MaybeHandle<HeapObject> Enumerate(Isolate* isolate,
         isolate, keys,
         accumulator.GetKeys(accumulator.may_have_elements()
                                 ? GetKeysConversion::kConvertToString
-                                : GetKeysConversion::kNoNumbers),
-        HeapObject);
+                                : GetKeysConversion::kNoNumbers));
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;
   }
@@ -63,7 +62,7 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
           Handle<JSProxy> proxy = it.GetHolder<JSProxy>();
           Handle<Object> prototype;
           ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
-                                     JSProxy::GetPrototype(proxy), Object);
+                                     JSProxy::GetPrototype(proxy));
           if (IsNull(*prototype, isolate)) {
             return isolate->factory()->undefined_value();
           }
@@ -78,8 +77,7 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
       }
       case LookupIterator::WASM_OBJECT:
         THROW_NEW_ERROR(isolate,
-                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
-                        Object);
+                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
         if (result.IsNothing()) return MaybeHandle<Object>();

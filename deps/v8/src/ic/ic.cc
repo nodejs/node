@@ -305,13 +305,13 @@ void IC::UpdateState(Handle<Object> lookup_start_object, Handle<Object> name) {
 MaybeHandle<Object> IC::TypeError(MessageTemplate index, Handle<Object> object,
                                   Handle<Object> key) {
   HandleScope scope(isolate());
-  THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object), Object);
+  THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object));
 }
 
 MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
   HandleScope scope(isolate());
-  THROW_NEW_ERROR(
-      isolate(), NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+  THROW_NEW_ERROR(isolate(),
+                  NewReferenceError(MessageTemplate::kNotDefined, name));
 }
 
 void IC::OnFeedbackChanged(const char* reason) {
@@ -374,7 +374,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   OnFeedbackChanged(IsLoadGlobalIC() ? "LoadGlobal" : "Monomorphic");
 }
 
-void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
+void IC::ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
                               MaybeObjectHandles* handlers) {
   DCHECK(!IsGlobalIC());
   std::vector<MapAndHandler> maps_and_handlers;
@@ -417,8 +417,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
     }
 
     if (*name == ReadOnlyRoots(isolate()).iterator_symbol()) {
-      return isolate()->Throw<Object>(
-          ErrorUtils::NewIteratorError(isolate(), object));
+      isolate()->Throw(*ErrorUtils::NewIteratorError(isolate(), object));
+      return MaybeHandle<Object>();
     }
 
     if (IsAnyHas()) {
@@ -467,8 +467,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
     // Get the property.
     Handle<Object> result;
 
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result, Object::GetProperty(&it, IsLoadGlobalIC()), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
+                               Object::GetProperty(&it, IsLoadGlobalIC()));
     if (it.IsFound()) {
       return result;
     } else if (!ShouldThrowReferenceError()) {
@@ -501,8 +501,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
         THROW_NEW_ERROR(
             isolate(),
             NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
-                              name),
-            Object);
+                              name));
       }
 
       bool use_ic =
@@ -512,7 +511,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
         // compiler inlining for all 'const' variables declared in REPL mode.
         if (nexus()->ConfigureLexicalVarMode(
                 lookup_result.context_index, lookup_result.slot_index,
-                (lookup_result.mode == VariableMode::kConst &&
+                (IsImmutableLexicalVariableMode(lookup_result.mode) &&
                  !lookup_result.is_repl_mode))) {
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_LoadScriptContextField);
         } else {
@@ -740,10 +739,9 @@ bool IC::IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
       source_map->elements_kind(), target_elements_kind);
   Tagged<Map> transitioned_map;
   if (more_general_transition) {
-    MapHandles map_list;
-    map_list.push_back(handle(target_map, isolate_));
+    Handle<Map> single_map[1] = {handle(target_map, isolate_)};
     transitioned_map = source_map->FindElementsKindTransitionedMap(
-        isolate(), map_list, ConcurrencyMode::kSynchronous);
+        isolate(), single_map, ConcurrencyMode::kSynchronous);
   }
   return transitioned_map == target_map;
 }
@@ -960,7 +958,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         Handle<Object> getter(accessor_pair->getter(), isolate());
-        if (!IsJSFunction(*getter) && !IsFunctionTemplateInfo(*getter)) {
+        if (!IsCallableJSFunction(*getter) &&
+            !IsFunctionTemplateInfo(*getter)) {
           // TODO(jgruber): Update counter name.
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
@@ -1006,9 +1005,11 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         if (holder->HasFastProperties()) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorDH);
-          if (holder_is_lookup_start_object)
+          DCHECK(IsCallableJSFunction(*getter));
+          if (holder_is_lookup_start_object) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorDH);
             return MaybeObjectHandle::Weak(accessor_pair);
+          }
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorFromPrototypeDH);
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder,
@@ -1242,7 +1243,10 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
   } else {
-    ConfigureVectorState(Handle<Name>(), target_receiver_maps, &handlers);
+    ConfigureVectorState(Handle<Name>(),
+                         MapHandlesSpan(target_receiver_maps.begin(),
+                                        target_receiver_maps.end()),
+                         &handlers);
   }
 }
 
@@ -1282,7 +1286,7 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
 bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
   size_t length;
   if (IsJSArray(*receiver)) {
-    length = Object::Number(JSArray::cast(*receiver)->length());
+    length = Object::NumberValue(JSArray::cast(*receiver)->length());
   } else if (IsJSTypedArray(*receiver)) {
     length = JSTypedArray::cast(*receiver)->GetLength();
   } else if (IsJSObject(*receiver)) {
@@ -1439,7 +1443,9 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
       Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-          isolate(), *receiver_maps, ConcurrencyMode::kSynchronous);
+          isolate(),
+          MapHandlesSpan(receiver_maps->begin(), receiver_maps->end()),
+          ConcurrencyMode::kSynchronous);
       if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
@@ -1535,13 +1541,11 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
         Runtime::GetObjectProperty(isolate(), object, key, Handle<Object>(),
-                                   is_found),
-        Object);
+                                   is_found));
   } else {
     DCHECK(IsKeyedHasIC());
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                               Runtime::HasProperty(isolate(), object, key),
-                               Object);
+                               Runtime::HasProperty(isolate(), object, key));
   }
   return result;
 }
@@ -1550,8 +1554,8 @@ MaybeHandle<Object> KeyedLoadIC::LoadName(Handle<Object> object,
                                           Handle<Object> key,
                                           Handle<Name> name) {
   Handle<Object> load_handle;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle, LoadIC::Load(object, name),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
+                             LoadIC::Load(object, name));
 
   if (vector_needs_update()) {
     ConfigureVectorState(MEGAMORPHIC, key);
@@ -1711,15 +1715,9 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     DisableGCMole no_gcmole;
     Tagged<Context> script_context =
         script_contexts->get(lookup_result.context_index);
-    if (lookup_result.mode == VariableMode::kConst) {
+    if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       AllowGarbageCollection yes_gc;
       return TypeError(MessageTemplate::kConstAssign, global, name);
-    }
-    if (lookup_result.mode == VariableMode::kLet &&
-        v8_flags.const_tracking_let) {
-      Context::UpdateConstTrackingLetSideData(handle(script_context, isolate()),
-                                              lookup_result.slot_index, value,
-                                              isolate());
     }
 
     Tagged<Object> previous_value =
@@ -1732,15 +1730,21 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       THROW_NEW_ERROR(
           isolate(),
           NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
-                            name),
-          Object);
+                            name));
+    }
+
+    if (lookup_result.mode == VariableMode::kLet &&
+        v8_flags.const_tracking_let) {
+      Context::UpdateConstTrackingLetSideData(handle(script_context, isolate()),
+                                              lookup_result.slot_index, value,
+                                              isolate());
     }
 
     bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic;
     if (use_ic) {
       if (nexus()->ConfigureLexicalVarMode(
               lookup_result.context_index, lookup_result.slot_index,
-              lookup_result.mode == VariableMode::kConst)) {
+              IsImmutableLexicalVariableMode(lookup_result.mode))) {
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_StoreScriptContextField);
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
@@ -1838,15 +1842,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     DCHECK(!name->IsPrivateName());
 
     PropertyKey key(isolate(), name);
-    LookupIterator it(
-        isolate(), object, key,
-        IsDefineNamedOwnIC() ? LookupIterator::OWN : LookupIterator::DEFAULT);
-    // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
-    // of StoreIC so their logic doesn't get mixed here.
     if (IsDefineNamedOwnIC()) {
-      MAYBE_RETURN_NULL(
-          JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
+      MAYBE_RETURN_NULL(JSReceiver::CreateDataProperty(
+          isolate(), object, key, value, Nothing<ShouldThrow>()));
     } else {
+      LookupIterator it(isolate(), object, key, LookupIterator::DEFAULT);
       MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
     }
     return value;
@@ -1900,7 +1900,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // present. We can also skip this for private names since they are not
   // bound by configurability or extensibility checks, and errors would've
   // been thrown if the private field already exists in the object.
-  if (IsAnyDefineOwn() && !name->IsPrivateName() && !IsJSProxy(*object) &&
+  if (IsAnyDefineOwn() && !name->IsPrivateName() && IsJSObject(*object) &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSObject::CheckIfCanDefineAsConfigurable(
         isolate(), &it, value, Nothing<ShouldThrow>());
@@ -2046,6 +2046,11 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());
 
+      if (IsAnyDefineOwn()) {
+        set_slow_stub_reason("define own with existing accessor");
+        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+      }
       if (!holder->HasFastProperties()) {
         set_slow_stub_reason("accessor on slow map");
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
@@ -2080,9 +2085,11 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
             isolate(), lookup_start_object_map(), holder, *smi_handler));
 
       } else if (IsAccessorPair(*accessors)) {
-        Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
-                              isolate());
-        if (!IsJSFunction(*setter) && !IsFunctionTemplateInfo(*setter)) {
+        Handle<AccessorPair> accessor_pair =
+            Handle<AccessorPair>::cast(accessors);
+        Handle<Object> setter(accessor_pair->setter(), isolate());
+        if (!IsCallableJSFunction(*setter) &&
+            !IsFunctionTemplateInfo(*setter)) {
           set_slow_stub_reason("setter not a function");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
@@ -2127,17 +2134,17 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
         }
 
-        Handle<Smi> smi_handler =
-            StoreHandler::StoreAccessor(isolate(), lookup->GetAccessorIndex());
-
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorDH);
+        DCHECK(IsCallableJSFunction(*setter));
         if (receiver.is_identical_to(holder)) {
-          return MaybeObjectHandle(smi_handler);
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorDH);
+          return MaybeObjectHandle::Weak(accessor_pair);
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorOnPrototypeDH);
 
         return MaybeObjectHandle(StoreHandler::StoreThroughPrototype(
-            isolate(), lookup_start_object_map(), holder, *smi_handler));
+            isolate(), lookup_start_object_map(), holder,
+            *StoreHandler::StoreAccessorFromPrototype(isolate()),
+            MaybeObjectHandle::Weak(setter)));
       }
       TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
       return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
@@ -2467,7 +2474,9 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     } else {
       {
         Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-            isolate(), receiver_maps, ConcurrencyMode::kSynchronous);
+            isolate(),
+            MapHandlesSpan(receiver_maps.begin(), receiver_maps.end()),
+            ConcurrencyMode::kSynchronous);
         if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());
@@ -2553,8 +2562,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
             ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
                                                StoreOrigin::kMaybeKeyed)
             : Runtime::SetObjectProperty(isolate(), object, key, value,
-                                         StoreOrigin::kMaybeKeyed),
-        Object);
+                                         StoreOrigin::kMaybeKeyed));
     return result;
   }
 
@@ -2567,8 +2575,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   if (key_type == kName) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), store_handle,
-        StoreIC::Store(object, maybe_name, value, StoreOrigin::kMaybeKeyed),
-        Object);
+        StoreIC::Store(object, maybe_name, value, StoreOrigin::kMaybeKeyed));
     if (vector_needs_update()) {
       if (ConfigureVectorState(MEGAMORPHIC, key)) {
         set_slow_stub_reason("unhandled internalized string key");
@@ -2609,14 +2616,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
     is_arguments = IsJSArgumentsObject(*receiver);
-    bool is_proxy = IsJSProxy(*receiver);
+    bool is_jsobject = IsJSObject(*receiver);
     size_t index;
     key_is_valid_index = IntPtrKeyToSize(maybe_index, receiver, &index);
-    if (!is_arguments && !is_proxy) {
-      if (key_is_valid_index) {
-        Handle<JSObject> receiver_object = Handle<JSObject>::cast(object);
-        store_mode = GetStoreMode(receiver_object, index);
-      }
+    if (is_jsobject && !is_arguments && key_is_valid_index) {
+      Handle<JSObject> receiver_object = Handle<JSObject>::cast(object);
+      store_mode = GetStoreMode(receiver_object, index);
     }
   }
 
@@ -2965,11 +2970,9 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   DCHECK(!IsSymbol(*key) || !Symbol::cast(*key)->is_private_name());
 
   PropertyKey lookup_key(isolate, key);
-  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
-
-  MAYBE_RETURN(
-      JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()),
-      ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate, object, lookup_key,
+                                              value, Nothing<ShouldThrow>()),
+               ReadOnlyRoots(isolate).exception());
   return *value;
 }
 
@@ -3033,7 +3036,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   if (script_contexts->Lookup(name, &lookup_result)) {
     Handle<Context> script_context =
         handle(script_contexts->get(lookup_result.context_index), isolate);
-    if (lookup_result.mode == VariableMode::kConst) {
+    if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }
@@ -3240,10 +3243,9 @@ enum class FastCloneObjectMode {
   kNotSupported,
 };
 
-FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
+FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, bool null_proto_literal,
                                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  bool null_proto_literal = flags & ObjectLiteral::kHasNullPrototype;
   if (!IsJSObjectMap(*map)) {
     // Everything that produces the empty object literal can be supported since
     // we have a special case for that.
@@ -3253,8 +3255,12 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
                ? FastCloneObjectMode::kEmptyObject
                : FastCloneObjectMode::kNotSupported;
   }
-  if (!IsSmiOrObjectElementsKind(map->elements_kind()) ||
-      !map->OnlyHasSimpleProperties()) {
+  ElementsKind elements_kind = map->elements_kind();
+  if (!IsSmiOrObjectElementsKind(elements_kind) &&
+      !IsAnyNonextensibleElementsKind(elements_kind)) {
+    return FastCloneObjectMode::kNotSupported;
+  }
+  if (!map->OnlyHasSimpleProperties()) {
     return FastCloneObjectMode::kNotSupported;
   }
 
@@ -3264,6 +3270,7 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
   // directly use it as the target map.
   FastCloneObjectMode mode =
       map->instance_type() == JS_OBJECT_TYPE &&
+              !IsAnyNonextensibleElementsKind(elements_kind) &&
               map->GetConstructor() == *isolate->object_function() &&
               map->prototype() == *isolate->object_function_prototype() &&
               !map->is_prototype_map()
@@ -3293,19 +3300,57 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
   return mode;
 }
 
+bool CanCacheCloneTargetMapTransition(Handle<Map> source_map,
+                                      std::optional<Handle<Map>> target_map,
+                                      bool null_proto_literal,
+                                      Isolate* isolate) {
+  if (!v8_flags.clone_object_sidestep_transitions || null_proto_literal) {
+    return false;
+  }
+  // As of now any R/O source object should end up in the kEmptyObject case, but
+  // there is not really a way of ensuring it. Thus, we also check it below.
+  // This is a performance dcheck. If it fails, the clone IC does not handle a
+  // case it probably could.
+  // TODO(olivf): Either remove that dcheck or move it to GetCloneModeForMap.
+  DCHECK(!InReadOnlySpace(*source_map));
+  if (InReadOnlySpace(*source_map) || source_map->is_deprecated() ||
+      source_map->is_prototype_map() ||
+      !TransitionsAccessor::CanHaveMoreTransitions(isolate, source_map)) {
+    return false;
+  }
+  if (!target_map) {
+    return true;
+  }
+  CHECK(!InReadOnlySpace(**target_map));
+  return !(*target_map)->is_deprecated();
+}
+
 bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
                                          Handle<Map> target_map,
+                                         bool null_proto_literal,
                                          Isolate* isolate) {
   DisallowGarbageCollection no_gc;
+  DCHECK(source_map->OnlyHasSimpleProperties());
   // Ensure source and target have identical binary represenation of properties
   // and elements as the IC relies on copying the raw bytes. This also excludes
   // cases with non-enumerable properties or accessors on the source object.
   if (source_map->instance_type() != JS_OBJECT_TYPE ||
       target_map->instance_type() != JS_OBJECT_TYPE ||
-      !source_map->OnlyHasSimpleProperties() ||
       !target_map->OnlyHasSimpleProperties() ||
-      source_map->elements_kind() != target_map->elements_kind() ||
-      !source_map->has_fast_elements()) {
+      !target_map->has_fast_elements()) {
+    return false;
+  }
+#ifdef DEBUG
+  ElementsKind source_elements_kind = source_map->elements_kind();
+  ElementsKind target_elements_kind = target_map->elements_kind();
+  DCHECK(IsSmiOrObjectElementsKind(source_elements_kind) ||
+         IsAnyNonextensibleElementsKind(source_elements_kind));
+  DCHECK(IsSmiOrObjectElementsKind(target_elements_kind));
+  DCHECK_IMPLIES(IsHoleyElementsKindForRead(source_elements_kind),
+                 IsHoleyElementsKind(target_elements_kind));
+#endif  // DEBUG
+  // There are no transitions between prototype maps.
+  if (source_map->is_prototype_map() || target_map->is_prototype_map()) {
     return false;
   }
   // Check that the source inobject properties are big enough to initialize all
@@ -3342,6 +3387,8 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
       target_map->IsInobjectSlackTrackingInProgress()) {
     // Only if they belong to the same root map we can ensure that they end
     // slack tracking at the same time.
+    // TODO(olivf) Potentially this could be relieved by letting
+    // MapUpdater::CompleteInobjectSlackTracking follow side-step transitions.
     if (source_map->FindRootMap(isolate) != target_map->FindRootMap(isolate)) {
       return false;
     }
@@ -3350,13 +3397,39 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
   Tagged<DescriptorArray> target_descriptors =
       target_map->instance_descriptors();
   for (InternalIndex i : target_map->IterateOwnDescriptors()) {
+    if (descriptors->GetKey(i) != target_descriptors->GetKey(i)) {
+      return false;
+    }
     PropertyDetails details = descriptors->GetDetails(i);
     PropertyDetails target_details = target_descriptors->GetDetails(i);
     DCHECK_EQ(details.kind(), PropertyKind::kData);
     DCHECK_EQ(target_details.kind(), PropertyKind::kData);
-    if (!details.representation().MostGenericInPlaceChange().Equals(
-            target_details.representation())) {
-      return false;
+    // In the case the clone also involves a proto transition, we do not cache
+    // the target and thus cannot keep track of representation dependencies. We
+    // can only allow the most generic target representation.
+    // The same goes for field types.
+    Tagged<FieldType> type = descriptors->GetFieldType(i);
+    Tagged<FieldType> target_type = target_descriptors->GetFieldType(i);
+    if (CanCacheCloneTargetMapTransition(source_map, target_map,
+                                         null_proto_literal, isolate)) {
+      if (!details.representation().fits_into(
+              target_details.representation()) ||
+          (target_details.representation().IsDouble() &&
+           details.representation().IsSmi())) {
+        return false;
+      }
+      if (IsNone(target_type) ||
+          (IsClass(type) && IsClass(target_type) &&
+           !FieldType::Equals(type, target_type)) ||
+          (IsAny(type) && IsClass(target_type))) {
+        return false;
+      }
+    } else {
+      if (!details.representation().MostGenericInPlaceChange().Equals(
+              target_details.representation()) ||
+          !IsAny(target_type)) {
+        return false;
+      }
     }
   }
   return true;
@@ -3408,6 +3481,89 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Slow) {
                            CloneObjectSlowPath(isolate, source, flags));
 }
 
+namespace {
+
+std::optional<Tagged<Map>> GetCloneTargetMap(Isolate* isolate,
+                                             Handle<Map> source_map) {
+  if (!v8_flags.clone_object_sidestep_transitions) return {};
+  ReadOnlyRoots roots(isolate);
+  auto maybe_target =
+      TransitionsAccessor(isolate, *source_map)
+          .SearchSpecial(roots.object_clone_transition_symbol());
+#ifdef DEBUG
+  FastCloneObjectMode clone_mode =
+      GetCloneModeForMap(source_map, false, isolate);
+  if (maybe_target) {
+    if (maybe_target->is_null()) {
+      switch (clone_mode) {
+        case FastCloneObjectMode::kNotSupported:
+        case FastCloneObjectMode::kDifferentMap:
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      switch (clone_mode) {
+        case FastCloneObjectMode::kIdenticalMap:
+          DCHECK_EQ(*source_map, *maybe_target);
+          break;
+        case FastCloneObjectMode::kDifferentMap:
+          if ((*maybe_target)->is_deprecated()) break;
+          DCHECK(CanFastCloneObjectWithDifferentMaps(
+              source_map, handle(*maybe_target, isolate), false, isolate));
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+#endif  // DEBUG
+  return maybe_target;
+}
+
+void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
+                       Handle<Map> new_target_map) {
+  if (!v8_flags.clone_object_sidestep_transitions) return;
+  DCHECK(CanCacheCloneTargetMapTransition(source_map, new_target_map, false,
+                                          isolate));
+  // Adding this transition also ensures that when the source map field
+  // generalizes, we also generalize the target map.
+#ifdef DEBUG
+  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(!cur || (*cur)->is_deprecated());
+#endif  // DEBUG
+  DCHECK(IsSmiOrObjectElementsKind(new_target_map->elements_kind()));
+  TransitionsAccessor::Insert(
+      isolate, source_map,
+      ReadOnlyRoots(isolate).object_clone_transition_symbol_handle(),
+      new_target_map, TransitionKindFlag::SPECIAL_TRANSITION);
+#ifdef DEBUG
+  cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(cur);
+  DCHECK_EQ(*cur, *new_target_map);
+#endif  // DEBUG
+}
+
+void SetCloneTargetMapUnsupported(Isolate* isolate, Handle<Map> source_map) {
+  if (!v8_flags.clone_object_sidestep_transitions) return;
+  DCHECK(CanCacheCloneTargetMapTransition(source_map, {}, false, isolate));
+  // Adding this transition also ensures that when the source map field
+  // generalizes, we also generalize the target map.
+#ifdef DEBUG
+  std::optional<Tagged<Map>> cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(!cur || (*cur)->is_deprecated());
+#endif  // DEBUG
+  TransitionsAccessor::InsertNoneSentinel(
+      isolate, source_map,
+      ReadOnlyRoots(isolate).object_clone_transition_symbol_handle());
+#ifdef DEBUG
+  cur = GetCloneTargetMap(isolate, source_map);
+  DCHECK(cur && cur->is_null());
+#endif  // DEBUG
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -3423,23 +3579,44 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
       nexus.emplace(Handle<FeedbackVector>::cast(maybe_vector), slot);
     }
     if (!IsSmi(*source) && (!nexus || !nexus->IsMegamorphic())) {
+      bool null_proto_literal = flags & ObjectLiteral::kHasNullPrototype;
       Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(), isolate);
+      auto UpdateNexus = [&](Handle<Object> target_map) {
+        if (!nexus) return;
+        nexus->ConfigureCloneObject(source_map, MaybeObjectHandle(target_map));
+      };
+      ReadOnlyRoots roots(isolate);
+      bool unsupported = false;
+      if (!null_proto_literal) {
+        if (auto maybe_target = GetCloneTargetMap(isolate, source_map)) {
+          if (maybe_target->is_null()) {
+            unsupported = true;
+          } else if (!(*maybe_target)->is_deprecated()) {
+            UpdateNexus(handle(*maybe_target, isolate));
+            return *maybe_target;
+          }
+        }
+      }
+
       FastCloneObjectMode clone_mode =
-          GetCloneModeForMap(source_map, flags, isolate);
+          unsupported
+              ? FastCloneObjectMode::kNotSupported
+              : GetCloneModeForMap(source_map, null_proto_literal, isolate);
+      auto UpdateState = [&](Handle<Map> target_map) {
+        UpdateNexus(target_map);
+        if (CanCacheCloneTargetMapTransition(source_map, target_map,
+                                             null_proto_literal, isolate)) {
+          SetCloneTargetMap(isolate, source_map, target_map);
+        }
+      };
       switch (clone_mode) {
         case FastCloneObjectMode::kIdenticalMap: {
-          if (nexus) {
-            nexus->ConfigureCloneObject(source_map,
-                                        MaybeObjectHandle(source_map));
-          }
+          UpdateState(source_map);
           // When returning a map the IC miss handler re-starts from the top.
           return *source_map;
         }
         case FastCloneObjectMode::kEmptyObject: {
-          if (nexus) {
-            nexus->ConfigureCloneObject(
-                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
-          }
+          UpdateNexus(handle(Smi::zero(), isolate));
           RETURN_RESULT_OR_FAILURE(isolate,
                                    CloneObjectSlowPath(isolate, source, flags));
         }
@@ -3448,19 +3625,20 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
           ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
               isolate, res, CloneObjectSlowPath(isolate, source, flags));
           Handle<Map> result_map(Handle<HeapObject>::cast(res)->map(), isolate);
-          if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
-                                                  isolate)) {
+          if (CanFastCloneObjectWithDifferentMaps(
+                  source_map, result_map, null_proto_literal, isolate)) {
             DCHECK(result_map->OnlyHasSimpleProperties());
             DCHECK_LE(source_map->GetInObjectProperties() -
                           source_map->UnusedInObjectProperties(),
                       result_map->GetInObjectProperties());
             DCHECK_GE(source_map->GetInObjectProperties(),
                       result_map->GetInObjectProperties());
-            if (nexus) {
-              nexus->ConfigureCloneObject(source_map,
-                                          MaybeObjectHandle(result_map));
-            }
+            UpdateState(result_map);
           } else {
+            if (CanCacheCloneTargetMapTransition(source_map, {},
+                                                 null_proto_literal, isolate)) {
+              SetCloneTargetMapUnsupported(isolate, source_map);
+            }
             if (nexus) {
               nexus->ConfigureMegamorphic();
             }

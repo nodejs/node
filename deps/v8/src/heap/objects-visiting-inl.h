@@ -5,14 +5,17 @@
 #ifndef V8_HEAP_OBJECTS_VISITING_INL_H_
 #define V8_HEAP_OBJECTS_VISITING_INL_H_
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/object-lock.h"
+#include "src/heap/object-lock-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
@@ -245,14 +248,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
   int size = map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitDataObject>(
       object);
-#ifdef V8_ENABLE_SANDBOX
-  // The following types have external pointers, which must be visited.
-  // TODO(v8:10391) Consider adding custom visitor IDs for these and making
-  // this block not depend on V8_ENABLE_SANDBOX.
-  if (IsForeign(object, cage_base())) {
-    Foreign::BodyDescriptor::IterateBody(map, object, size, visitor);
-  }
-#endif  // V8_ENABLE_SANDBOX
   return static_cast<ResultType>(size);
 }
 
@@ -266,7 +261,9 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectFast(
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
     Tagged<Map> map, Tagged<JSObject> object) {
-  return VisitJSObjectSubclass<JSObject, JSObject::BodyDescriptor>(map, object);
+  return VisitJSObjectSubclass<JSObject,
+                               JSAPIObjectWithEmbedderSlots::BodyDescriptor>(
+      map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -303,6 +300,20 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
   // used fields.
   TBodyDescriptor::IterateBody(map, object, used_size, visitor);
   return size;
+}
+
+template <typename ResultType, typename ConcreteVisitor>
+template <typename TSlot>
+std::optional<Tagged<Object>>
+HeapVisitor<ResultType, ConcreteVisitor>::GetObjectFilterReadOnlyAndSmiFast(
+    TSlot slot) const {
+  auto raw = slot.Relaxed_Load_Raw();
+  // raw is either Tagged_t or Address depending on the slot type. Both can be
+  // cast to Tagged_t for the fast check.
+  if (FastInReadOnlySpaceOrSmallSmi(static_cast<Tagged_t>(raw))) {
+    return std::nullopt;
+  }
+  return TSlot::RawToTagged(ObjectVisitorWithCageBases::cage_base(), raw);
 }
 
 template <typename ResultType, typename ConcreteVisitor>

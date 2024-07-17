@@ -4,6 +4,7 @@
 
 #include "src/objects/dependent-code.h"
 
+#include "src/base/bits.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/dependent-code-inl.h"
@@ -27,15 +28,15 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
 }
 
 void DependentCode::SetDependentCode(Handle<HeapObject> object,
-                                     Handle<DependentCode> dep) {
+                                     DirectHandle<DependentCode> dep) {
   if (IsMap(*object)) {
-    Handle<Map>::cast(object)->set_dependent_code(*dep);
+    DirectHandle<Map>::cast(object)->set_dependent_code(*dep);
   } else if (IsPropertyCell(*object)) {
-    Handle<PropertyCell>::cast(object)->set_dependent_code(*dep);
+    DirectHandle<PropertyCell>::cast(object)->set_dependent_code(*dep);
   } else if (IsAllocationSite(*object)) {
-    Handle<AllocationSite>::cast(object)->set_dependent_code(*dep);
+    DirectHandle<AllocationSite>::cast(object)->set_dependent_code(*dep);
   } else if (IsConstTrackingLetCell(*object)) {
-    Handle<ConstTrackingLetCell>::cast(object)->set_dependent_code(*dep);
+    DirectHandle<ConstTrackingLetCell>::cast(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();
   }
@@ -77,7 +78,7 @@ void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
 
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Isolate* isolate, Handle<DependentCode> entries, DependencyGroups groups,
-    Handle<Code> code) {
+    DirectHandle<Code> code) {
   if (entries->length() == entries->capacity()) {
     // We'd have to grow - try to compact first.
     entries->IterateAndCompact(
@@ -135,7 +136,13 @@ bool DependentCode::MarkCodeForDeoptimization(
     if ((groups & deopt_groups) == 0) return false;
 
     if (!code->marked_for_deoptimization()) {
-      code->SetMarkedForDeoptimization(isolate, "code dependencies");
+      // Pick a single group out of the applicable deopt groups, to use as the
+      // deopt reason. Only one group is reported to avoid string concatenation.
+      DependencyGroup first_group = static_cast<DependencyGroup>(
+          1 << base::bits::CountTrailingZeros32(groups & deopt_groups));
+      const char* reason = DependentCode::DependencyGroupName(first_group);
+
+      code->SetMarkedForDeoptimization(isolate, reason);
       marked_something = true;
     }
 

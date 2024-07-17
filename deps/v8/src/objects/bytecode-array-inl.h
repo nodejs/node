@@ -56,12 +56,24 @@ int BytecodeArray::register_count() const {
   return static_cast<int>(frame_size()) / kSystemPointerSize;
 }
 
-void BytecodeArray::set_parameter_count(int32_t number_of_parameters) {
-  DCHECK_GE(number_of_parameters, 0);
-  // Parameter count is stored as the size on stack of the parameters to allow
-  // it to be used directly by generated code.
-  WriteField<int32_t>(kParameterSizeOffset,
-                      (number_of_parameters << kSystemPointerSizeLog2));
+uint16_t BytecodeArray::parameter_count() const {
+  return ReadField<uint16_t>(kParameterSizeOffset);
+}
+
+void BytecodeArray::set_parameter_count(uint16_t number_of_parameters) {
+  WriteField<uint16_t>(kParameterSizeOffset, number_of_parameters);
+}
+
+uint16_t BytecodeArray::max_arguments() const {
+  return ReadField<uint16_t>(kMaxArgumentsOffset);
+}
+
+void BytecodeArray::set_max_arguments(uint16_t max_arguments) {
+  WriteField<uint16_t>(kMaxArgumentsOffset, max_arguments);
+}
+
+int32_t BytecodeArray::max_frame_size() const {
+  return frame_size() + (max_arguments() << kSystemPointerSizeLog2);
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
@@ -86,12 +98,6 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
     WriteField<int32_t>(kIncomingNewTargetOrGeneratorRegisterOffset,
                         incoming_new_target_or_generator_register.ToOperand());
   }
-}
-
-int32_t BytecodeArray::parameter_count() const {
-  // Parameter count is stored as the size on stack of the parameters to allow
-  // it to be used directly by generated code.
-  return ReadField<int32_t>(kParameterSizeOffset) >> kSystemPointerSizeLog2;
 }
 
 void BytecodeArray::clear_padding() {

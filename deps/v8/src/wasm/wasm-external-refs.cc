@@ -515,11 +515,9 @@ inline void* ArrayElementAddress(Tagged<WasmArray> array, uint32_t index,
 }
 }  // namespace
 
-void array_copy_wrapper(Address raw_trusted_data, Address raw_dst_array,
-                        uint32_t dst_index, Address raw_src_array,
-                        uint32_t src_index, uint32_t length) {
-  // TODO(clemensb): Remove the raw_trusted_data argument.
-  USE(raw_trusted_data);
+void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
+                        Address raw_src_array, uint32_t src_index,
+                        uint32_t length) {
   DCHECK_GT(length, 0);
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;

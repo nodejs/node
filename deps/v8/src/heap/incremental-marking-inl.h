@@ -17,11 +17,9 @@ namespace internal {
 
 void IncrementalMarking::TransferColor(Tagged<HeapObject> from,
                                        Tagged<HeapObject> to) {
-  if (marking_state()->IsMarked(to)) {
-    DCHECK(black_allocation());
-    return;
-  }
   DCHECK(marking_state()->IsUnmarked(to));
+  DCHECK(!black_allocation());
+
   if (marking_state()->IsMarked(from)) {
     bool success = marking_state()->TryMark(to);
     DCHECK(success);

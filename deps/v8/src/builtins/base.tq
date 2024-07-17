@@ -13,6 +13,7 @@
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
 #include 'src/objects/js-atomics-synchronization.h'
+#include 'src/objects/js-disposable-stack.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-iterator-helpers.h'
@@ -240,6 +241,8 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
+type CppHeapPointer
+    generates 'TNode<CppHeapPointerT>' constexpr 'CppHeapPointer_t';
 type IndirectPointer
     generates 'TNode<IndirectPointerHandleT>'
     constexpr 'IndirectPointerHandle';
@@ -558,6 +561,7 @@ type NumberOrUndefined = Number|Undefined;
 
 extern macro ConstructorStringConstant(): String;
 extern macro DefaultStringConstant(): String;
+extern macro DisposeSymbolConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro ErrorStringConstant(): String;
 extern macro ErrorsStringConstant(): String;
@@ -636,7 +640,7 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // Like JSObject, but created from API function.
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
-extern class JSApiObject extends JSObjectWithEmbedderSlots
+extern class JSApiObject extends JSAPIObjectWithEmbedderSlots
     generates 'TNode<JSObject>';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
@@ -1406,6 +1410,7 @@ extern macro IsPrototypeTypedArrayPrototype(
     implicit context: Context)(Map): bool;
 extern macro IsSetIteratorProtectorCellInvalid(): bool;
 extern macro IsMapIteratorProtectorCellInvalid(): bool;
+extern macro InvalidateStringWrapperToPrimitiveProtector(): void;
 
 extern operator '.data_ptr' macro LoadJSTypedArrayDataPtr(JSTypedArray): RawPtr;
 

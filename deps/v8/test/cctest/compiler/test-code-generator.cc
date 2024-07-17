@@ -279,12 +279,12 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       if (IsSmi(*value)) {
         os << Smi::cast(*value).value();
       } else {
-        os << Object::Number(*value);
+        os << Object::NumberValue(*value);
       }
       break;
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
-      os << Object::Number(*value);
+      os << Object::NumberValue(*value);
       break;
     case MachineRepresentation::kSimd128: {
       Tagged<FixedArray> vector = FixedArray::cast(*value);

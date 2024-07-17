@@ -149,7 +149,15 @@ class V8_EXPORT_PRIVATE CppHeap final
   void FinishMarkingAndStartSweeping();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
+
+  // This method is used to re-enable concurrent marking when the isolate is
+  // moved into the foreground. This method expects that concurrent marking was
+  // not started initially because the isolate was in the background but is
+  // still generally supported.
+  void ReEnableConcurrentMarking();
+
   void WriteBarrier(Tagged<JSObject>);
+  void WriteBarrier(void*);
 
   bool ShouldFinalizeIncrementalMarking() const;
 

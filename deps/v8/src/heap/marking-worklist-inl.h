@@ -45,7 +45,8 @@ bool MarkingWorklists::Local::PopOnHold(Tagged<HeapObject>* object) {
 }
 
 bool MarkingWorklists::Local::SupportsExtractWrapper() {
-  return cpp_marking_state_.get();
+  return cpp_marking_state_ &&
+         cpp_marking_state_->SupportsWrappableExtraction();
 }
 
 bool MarkingWorklists::Local::ExtractWrapper(Tagged<Map> map,

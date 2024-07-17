@@ -104,8 +104,7 @@ class AllocationTracker {
     SnapshotObjectId function_id;
     const char* script_name;
     int script_id;
-    int line;
-    int column;
+    int start_position;
   };
 
   AllocationTracker(HeapObjectsMap* ids, StringsStorage* names);
@@ -113,7 +112,6 @@ class AllocationTracker {
   AllocationTracker(const AllocationTracker&) = delete;
   AllocationTracker& operator=(const AllocationTracker&) = delete;
 
-  V8_EXPORT_PRIVATE void PrepareForSerialization();
   void AllocationEvent(Address addr, int size);
 
   AllocationTraceTree* trace_tree() { return &trace_tree_; }
@@ -127,20 +125,6 @@ class AllocationTracker {
                            SnapshotObjectId id);
   unsigned functionInfoIndexForVMState(StateTag state);
 
-  class UnresolvedLocation {
-   public:
-    UnresolvedLocation(Tagged<Script> script, int start, FunctionInfo* info);
-    ~UnresolvedLocation();
-    void Resolve();
-
-   private:
-    static void HandleWeakScript(const v8::WeakCallbackInfo<void>& data);
-
-    Handle<Script> script_;
-    int start_position_;
-    FunctionInfo* info_;
-  };
-
   static const int kMaxAllocationTraceLength = 64;
   HeapObjectsMap* ids_;
   StringsStorage* names_;
@@ -148,7 +132,6 @@ class AllocationTracker {
   unsigned allocation_trace_buffer_[kMaxAllocationTraceLength];
   std::vector<FunctionInfo*> function_info_list_;
   base::HashMap id_to_function_info_index_;
-  std::vector<UnresolvedLocation*> unresolved_locations_;
   unsigned info_index_for_other_state_;
   AddressToTraceMap address_to_trace_;
 };

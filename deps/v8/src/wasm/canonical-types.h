@@ -164,6 +164,8 @@ class TypeCanonicalizer {
   ValueType CanonicalizeValueType(const WasmModule* module, ValueType type,
                                   uint32_t recursive_group_start) const;
 
+  void CheckMaxCanonicalIndex() const;
+
   std::vector<uint32_t> canonical_supertypes_;
   // Maps groups of size >=2 to the canonical id of the first type.
   std::unordered_map<CanonicalGroup, uint32_t, base::hash<CanonicalGroup>>

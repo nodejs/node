@@ -35,12 +35,12 @@ BUILTIN(NumberPrototypeToExponential) {
                                   "Number.prototype.toExponential"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = Object::Number(*value);
+  double const value_number = Object::NumberValue(*value);
 
   // Convert the {fraction_digits} to an integer first.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fraction_digits, Object::ToInteger(isolate, fraction_digits));
-  double const fraction_digits_number = Object::Number(*fraction_digits);
+  double const fraction_digits_number = Object::NumberValue(*fraction_digits);
 
   if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
@@ -80,12 +80,12 @@ BUILTIN(NumberPrototypeToFixed) {
                                   "Number.prototype.toFixed"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = Object::Number(*value);
+  double const value_number = Object::NumberValue(*value);
 
   // Convert the {fraction_digits} to an integer first.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fraction_digits, Object::ToInteger(isolate, fraction_digits));
-  double const fraction_digits_number = Object::Number(*fraction_digits);
+  double const fraction_digits_number = Object::NumberValue(*fraction_digits);
 
   // Check if the {fraction_digits} are in the supported range.
   if (fraction_digits_number < 0.0 ||
@@ -158,7 +158,7 @@ BUILTIN(NumberPrototypeToPrecision) {
                                   "Number.prototype.toPrecision"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = Object::Number(*value);
+  double const value_number = Object::NumberValue(*value);
 
   // If no {precision} was specified, just return ToString of {value}.
   if (IsUndefined(*precision, isolate)) {
@@ -168,7 +168,7 @@ BUILTIN(NumberPrototypeToPrecision) {
   // Convert the {precision} to an integer first.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, precision,
                                      Object::ToInteger(isolate, precision));
-  double const precision_number = Object::Number(*precision);
+  double const precision_number = Object::NumberValue(*precision);
 
   if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {

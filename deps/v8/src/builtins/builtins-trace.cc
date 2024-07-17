@@ -146,7 +146,8 @@ BUILTIN(Trace) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kTraceEventPhaseError));
   }
-  char phase = static_cast<char>(DoubleToInt32(Object::Number(*phase_arg)));
+  char phase =
+      static_cast<char>(DoubleToInt32(Object::NumberValue(*phase_arg)));
   if (!IsString(*category)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kTraceEventCategoryError));
@@ -164,7 +165,7 @@ BUILTIN(Trace) {
           isolate, NewTypeError(MessageTemplate::kTraceEventIDError));
     }
     flags |= TRACE_EVENT_FLAG_HAS_ID;
-    id = DoubleToInt32(Object::Number(*id_arg));
+    id = DoubleToInt32(Object::NumberValue(*id_arg));
   }
 
   Handle<String> name_str = Handle<String>::cast(name_arg);

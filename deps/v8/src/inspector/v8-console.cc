@@ -9,6 +9,7 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
@@ -839,8 +840,8 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> commandLineAPI = v8::Object::New(isolate);
-  bool success =
-      commandLineAPI->SetPrototype(context, v8::Null(isolate)).FromMaybe(false);
+  bool success = commandLineAPI->SetPrototypeV2(context, v8::Null(isolate))
+                     .FromMaybe(false);
   DCHECK(success);
   USE(success);
 
@@ -924,7 +925,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (scope == nullptr) {
-    USE(info.Holder()->Delete(context, name).FromMaybe(false));
+    USE(info.HolderV2()->Delete(context, name).FromMaybe(false));
     return;
   }
 
@@ -951,8 +952,10 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   if (scope == nullptr) return;
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
-  if (!info.Holder()->CreateDataProperty(context, name, value).FromMaybe(false))
+  if (!info.HolderV2()->Delete(context, name).FromMaybe(false)) return;
+  if (!info.HolderV2()
+           ->CreateDataProperty(context, name, value)
+           .FromMaybe(false))
     return;
 
   v8::Local<v8::PrimitiveArray> methods = scope->installedMethods();
@@ -964,6 +967,24 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
     break;
   }
 }
+
+namespace {
+
+// "get"-ting these functions from the global proxy is considered a side-effect.
+// Otherwise, malicious sites could stash references to these functions through
+// previews / ValueMirror and use them across origin isolation.
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::set<std::string_view>,
+                                UnsafeCommandLineAPIFns,
+                                std::initializer_list<std::string_view>{
+                                    "debug", "undebug", "monitor", "unmonitor",
+                                    "inspect", "copy", "queryObjects"})
+
+bool IsUnsafeCommandLineAPIFn(v8::Local<v8::Value> name, v8::Isolate* isolate) {
+  std::string nameStr = toProtocolStringWithTypeCheck(isolate, name).utf8();
+  return UnsafeCommandLineAPIFns()->count(nameStr) > 0;
+}
+
+}  // namespace
 
 V8Console::CommandLineAPIScope::CommandLineAPIScope(
     v8::Local<v8::Context> context, v8::Local<v8::Object> commandLineAPI,
@@ -991,10 +1012,9 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     if (global->Has(context, name).FromMaybe(true)) continue;
 
     const v8::SideEffectType get_accessor_side_effect_type =
-        isCommandLineAPIGetter(
-            toProtocolStringWithTypeCheck(context->GetIsolate(), name))
-            ? v8::SideEffectType::kHasNoSideEffect
-            : v8::SideEffectType::kHasSideEffect;
+        IsUnsafeCommandLineAPIFn(name, context->GetIsolate())
+            ? v8::SideEffectType::kHasSideEffect
+            : v8::SideEffectType::kHasNoSideEffect;
     if (!global
              ->SetNativeDataProperty(
                  context, name.As<v8::Name>(),

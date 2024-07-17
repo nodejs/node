@@ -139,10 +139,7 @@ class PersistentHandlesThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    {
-      ParkedScope parked_scope(&local_heap);
-      sema_gc_finished_->Wait();
-    }
+    local_heap.ExecuteWhileParked([this]() { sema_gc_finished_->Wait(); });
 
     for (Handle<HeapNumber> handle : handles_) {
       CHECK_EQ(42.0, handle->value());

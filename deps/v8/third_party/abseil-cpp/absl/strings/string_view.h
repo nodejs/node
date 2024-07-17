@@ -173,6 +173,7 @@ class string_view {
   using reverse_iterator = const_reverse_iterator;
   using size_type = size_t;
   using difference_type = std::ptrdiff_t;
+  using absl_internal_is_view = std::true_type;
 
   static constexpr size_type npos = static_cast<size_type>(-1);
 

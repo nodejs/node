@@ -190,12 +190,12 @@ bool Script::CanHaveLineEnds() const {
 }
 
 // static
-void Script::InitLineEnds(Isolate* isolate, Handle<Script> script) {
+void Script::InitLineEnds(Isolate* isolate, DirectHandle<Script> script) {
   if (script->has_line_ends()) return;
   Script::InitLineEndsInternal(isolate, script);
 }
 // static
-void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
+void Script::InitLineEnds(LocalIsolate* isolate, DirectHandle<Script> script) {
   if (script->has_line_ends()) return;
   Script::InitLineEndsInternal(isolate, script);
 }

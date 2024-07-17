@@ -309,7 +309,7 @@ std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() const {
 
 // static
 Handle<String> SharedFunctionInfo::DebugName(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
 #if V8_ENABLE_WEBASSEMBLY
   if (shared->HasWasmExportedFunctionData()) {
     return isolate->factory()
@@ -383,11 +383,10 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
 
 // static
 void SharedFunctionInfo::DiscardCompiled(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
   DCHECK(shared_info->CanDiscardCompiled());
 
-  Handle<String> inferred_name_val =
-      handle(shared_info->inferred_name(), isolate);
+  Handle<String> inferred_name_val(shared_info->inferred_name(), isolate);
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
 
@@ -420,7 +419,7 @@ void SharedFunctionInfo::DiscardCompiled(
 
 // static
 Handle<Object> SharedFunctionInfo::GetSourceCode(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
   Handle<String> source(String::cast(Script::cast(shared->script())->source()),
                         isolate);
@@ -430,7 +429,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCode(
 
 // static
 Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
   Handle<String> script_source(
       String::cast(Script::cast(shared->script())->source()), isolate);
@@ -445,8 +444,8 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCStringLiteral("function ");
   builder.AppendString(Handle<String>(shared->Name(), isolate));
   builder.AppendCharacter('(');
-  Handle<FixedArray> args(Script::cast(shared->script())->wrapped_arguments(),
-                          isolate);
+  DirectHandle<FixedArray> args(
+      Script::cast(shared->script())->wrapped_arguments(), isolate);
   int argc = args->length();
   for (int i = 0; i < argc; i++) {
     if (i > 0) builder.AppendCStringLiteral(", ");
@@ -455,7 +454,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCStringLiteral(") {\n");
   builder.AppendString(source);
   builder.AppendCStringLiteral("\n}");
-  return builder.Finish().ToHandleChecked();
+  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
@@ -583,7 +582,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
 template <typename IsolateT>
 void SharedFunctionInfo::CreateAndSetUncompiledData(
-    IsolateT* isolate, Handle<SharedFunctionInfo> shared_info,
+    IsolateT* isolate, DirectHandle<SharedFunctionInfo> shared_info,
     FunctionLiteral* lit) {
   DCHECK(!shared_info->HasUncompiledData());
   Handle<UncompiledData> data;
@@ -625,12 +624,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
         FunctionLiteral* lit, bool is_toplevel);
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
-    CreateAndSetUncompiledData<Isolate>(Isolate* isolate,
-                                        Handle<SharedFunctionInfo> shared_info,
-                                        FunctionLiteral* lit);
+    CreateAndSetUncompiledData<Isolate>(
+        Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
+        FunctionLiteral* lit);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
     CreateAndSetUncompiledData<LocalIsolate>(
-        LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+        LocalIsolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
         FunctionLiteral* lit);
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
@@ -707,10 +706,10 @@ int SharedFunctionInfo::StartPosition() const {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
-    Tagged<WasmInstanceObject> instance =
-        wasm_exported_function_data()->instance();
+    Tagged<WasmTrustedInstanceData> instance_data =
+        wasm_exported_function_data()->instance_data();
     int func_index = wasm_exported_function_data()->function_index();
-    auto& function = instance->module()->functions[func_index];
+    auto& function = instance_data->module()->functions[func_index];
     return static_cast<int>(function.code.offset());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -735,10 +734,10 @@ int SharedFunctionInfo::EndPosition() const {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
-    Tagged<WasmInstanceObject> instance =
-        wasm_exported_function_data()->instance();
+    Tagged<WasmTrustedInstanceData> instance_data =
+        wasm_exported_function_data()->instance_data();
     int func_index = wasm_exported_function_data()->function_index();
-    auto& function = instance->module()->functions[func_index];
+    auto& function = instance_data->module()->functions[func_index];
     return static_cast<int>(function.code.end_offset());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -813,12 +812,12 @@ void SharedFunctionInfo::EnsureSourcePositionsAvailable(
 }
 
 // static
-void SharedFunctionInfo::InstallDebugBytecode(Handle<SharedFunctionInfo> shared,
-                                              Isolate* isolate) {
+void SharedFunctionInfo::InstallDebugBytecode(
+    DirectHandle<SharedFunctionInfo> shared, Isolate* isolate) {
   DCHECK(shared->HasBytecodeArray());
-  Handle<BytecodeArray> original_bytecode_array(
+  DirectHandle<BytecodeArray> original_bytecode_array(
       shared->GetBytecodeArray(isolate), isolate);
-  Handle<BytecodeArray> debug_bytecode_array =
+  DirectHandle<BytecodeArray> debug_bytecode_array =
       isolate->factory()->CopyBytecodeArray(original_bytecode_array);
 
   {

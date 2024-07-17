@@ -107,16 +107,16 @@ namespace internal {
 #define DECOMPRESS_POINTER_BY_ADDRESSING_MODE false
 #endif
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-#define COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL true
-#else
-#define COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL false
-#endif
-
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 #define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL true
 #else
 #define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL false
+#endif
+
+#if COMPRESS_POINTERS_BOOL && !COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#define COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL true
+#else
+#define COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL false
 #endif
 
 #if defined(V8_SHARED_RO_HEAP) &&                     \
@@ -177,7 +177,7 @@ namespace internal {
 // Helper macros to enable handling of direct C calls in the simulator.
 #if defined(USE_SIMULATOR) &&                                           \
     (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64) || \
-     defined(V8_TARGET_ARCH_LOONG64))
+     defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV64))
 #define V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 #define V8_IF_USE_SIMULATOR(V) , V
 #else
@@ -253,11 +253,6 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 //    OS::DiscardSystemPages() instead of using OS::DecommitPages() or setting
 //    permissions to kNoAccess because the latter two are not allowed by the
 //    MacOS (see (2)).
-// 5) since code space page headers are allocated as RWX pages it's also
-//   necessary to switch between W^X modes when updating the data in the
-//   page headers (i.e. when marking, updating stats, wiring pages in
-//   lists, etc.). The new CodePageHeaderModificationScope class is used
-//   in the respective places. On unrelated configurations it's a no-op.
 //
 // This is applicable only to MacOS on ARM64 ("Apple M1"/Apple Silicon) which
 // has a APRR/MAP_JIT machinery for fast W^X permission switching (see
@@ -276,6 +271,14 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT true
 #else
 #define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT false
+#endif
+
+// Protect the JavaScript heap with BrowserEngineKit APIs.
+#if V8_HAS_BECORE_JIT_WRITE_PROTECT && \
+    !(defined(V8_COMPRESS_POINTERS) && !defined(V8_EXTERNAL_CODE_SPACE))
+#define V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT true
+#else
+#define V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT false
 #endif
 
 // Protect the JavaScript heap with memory protection keys.
@@ -310,8 +313,9 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 // It's currently enabled only for the platforms listed below. We don't plan
 // to add support for IA32, because it has a totally different approach
 // (using FP stack).
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||      \
+    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_RISCV64)
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE 1
 #endif
 
@@ -355,6 +359,7 @@ constexpr int kInt32Size = sizeof(int32_t);
 constexpr int kInt64Size = sizeof(int64_t);
 constexpr int kUInt32Size = sizeof(uint32_t);
 constexpr int kSizetSize = sizeof(size_t);
+constexpr int kFloat16Size = sizeof(uint16_t);
 constexpr int kFloatSize = sizeof(float);
 constexpr int kDoubleSize = sizeof(double);
 constexpr int kIntptrSize = sizeof(intptr_t);
@@ -535,6 +540,15 @@ static_assert(kExternalPointerSlotSize == kTaggedSize);
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
 #endif
 
+// The storage type for pointers referring to CppHeap objects stored on the V8
+// heap.
+constexpr int kCppHeapPointerSlotSize = sizeof(CppHeapPointer_t);
+#ifdef V8_COMPRESS_POINTERS
+static_assert(kCppHeapPointerSlotSize == sizeof(uint32_t));
+#else
+static_assert(kCppHeapPointerSlotSize == kSystemPointerSize);
+#endif
+
 constexpr int kIndirectPointerSize = sizeof(IndirectPointerHandle);
 // When the sandbox is enabled, trusted pointers are implemented as indirect
 // pointers (indices into the trusted pointer table). Otherwise they are regular
@@ -545,6 +559,11 @@ constexpr int kTrustedPointerSize = kIndirectPointerSize;
 constexpr int kTrustedPointerSize = kTaggedSize;
 #endif
 constexpr int kCodePointerSize = kTrustedPointerSize;
+
+// Pointers between trusted objects use compressed pointers with the trusted
+// space base when the sandbox is enabled. Otherwise, they are regular tagged
+// pointers. Either way, they are always kTaggedSize fields.
+constexpr int kProtectedPointerSize = kTaggedSize;
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
@@ -873,6 +892,14 @@ constexpr uint64_t kClearedFreeMemoryValue = 0;
 constexpr uint64_t kZapValue = uint64_t{0xdeadbeedbeadbeef};
 constexpr uint64_t kHandleZapValue = uint64_t{0x1baddead0baddeaf};
 constexpr uint64_t kGlobalHandleZapValue = uint64_t{0x1baffed00baffedf};
+constexpr uint64_t kTracedHandleEagerResetZapValue =
+    uint64_t{0x1beffedaabaffedf};
+constexpr uint64_t kTracedHandleMinorGCResetZapValue =
+    uint64_t{0x1beffedeebaffedf};
+constexpr uint64_t kTracedHandleMinorGCWeakResetZapValue =
+    uint64_t{0x1beffed11baffedf};
+constexpr uint64_t kTracedHandleFullGCResetZapValue =
+    uint64_t{0x1beffed77baffedf};
 constexpr uint64_t kFromSpaceZapValue = uint64_t{0x1beefdad0beefdaf};
 constexpr uint64_t kDebugZapValue = uint64_t{0xbadbaddbbadbaddb};
 constexpr uint64_t kSlotsZapValue = uint64_t{0xbeefdeadbeefdeef};
@@ -882,6 +909,10 @@ constexpr uint32_t kClearedFreeMemoryValue = 0;
 constexpr uint32_t kZapValue = 0xdeadbeef;
 constexpr uint32_t kHandleZapValue = 0xbaddeaf;
 constexpr uint32_t kGlobalHandleZapValue = 0xbaffedf;
+constexpr uint32_t kTracedHandleEagerResetZapValue = 0xbeffedf;
+constexpr uint32_t kTracedHandleMinorGCResetZapValue = 0xbeffadf;
+constexpr uint32_t kTracedHandleMinorGCWeakResetZapValue = 0xbe11adf;
+constexpr uint32_t kTracedHandleFullGCResetZapValue = 0xbe77adf;
 constexpr uint32_t kFromSpaceZapValue = 0xbeefdaf;
 constexpr uint32_t kSlotsZapValue = 0xbeefdeef;
 constexpr uint32_t kDebugZapValue = 0xbadbaddb;
@@ -932,6 +963,8 @@ class DescriptorArray;
 #ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 class DirectHandle;
+template <typename T>
+class DirectHandleVector;
 #endif
 class TransitionArray;
 class ExternalReference;
@@ -1131,11 +1164,13 @@ enum AllocationSpace {
   TRUSTED_SPACE,  // Space for trusted objects. When the sandbox is enabled,
                   // this space will be located outside of it so that objects in
                   // it cannot directly be corrupted by an attacker.
-  NEW_LO_SPACE,   // Young generation large object space.
-  LO_SPACE,       // Old generation large object space.
-  CODE_LO_SPACE,  // Old generation large code object space.
-  SHARED_LO_SPACE,   // Space shared between multiple isolates. Optional.
-  TRUSTED_LO_SPACE,  // Like TRUSTED_SPACE but for large objects.
+  SHARED_TRUSTED_SPACE,     // Trusted space but for shared objects. Optional.
+  NEW_LO_SPACE,             // Young generation large object space.
+  LO_SPACE,                 // Old generation large object space.
+  CODE_LO_SPACE,            // Old generation large code object space.
+  SHARED_LO_SPACE,          // Space shared between multiple isolates. Optional.
+  SHARED_TRUSTED_LO_SPACE,  // Like TRUSTED_SPACE but for shared large objects.
+  TRUSTED_LO_SPACE,         // Like TRUSTED_SPACE but for large objects.
 
   FIRST_SPACE = RO_SPACE,
   LAST_SPACE = TRUSTED_LO_SPACE,
@@ -1153,7 +1188,12 @@ constexpr bool IsAnyCodeSpace(AllocationSpace space) {
   return space == CODE_SPACE || space == CODE_LO_SPACE;
 }
 constexpr bool IsAnyTrustedSpace(AllocationSpace space) {
-  return space == TRUSTED_SPACE || space == TRUSTED_LO_SPACE;
+  return space == TRUSTED_SPACE || space == TRUSTED_LO_SPACE ||
+         space == SHARED_TRUSTED_SPACE || space == SHARED_TRUSTED_LO_SPACE;
+}
+constexpr bool IsAnySharedSpace(AllocationSpace space) {
+  return space == SHARED_SPACE || space == SHARED_LO_SPACE ||
+         space == SHARED_TRUSTED_SPACE || space == SHARED_TRUSTED_LO_SPACE;
 }
 
 constexpr const char* ToString(AllocationSpace space) {
@@ -1170,6 +1210,8 @@ constexpr const char* ToString(AllocationSpace space) {
       return "shared_space";
     case AllocationSpace::TRUSTED_SPACE:
       return "trusted_space";
+    case AllocationSpace::SHARED_TRUSTED_SPACE:
+      return "shared_trusted_space";
     case AllocationSpace::NEW_LO_SPACE:
       return "new_large_object_space";
     case AllocationSpace::LO_SPACE:
@@ -1178,6 +1220,8 @@ constexpr const char* ToString(AllocationSpace space) {
       return "code_large_object_space";
     case AllocationSpace::SHARED_LO_SPACE:
       return "shared_large_object_space";
+    case AllocationSpace::SHARED_TRUSTED_LO_SPACE:
+      return "shared_trusted_large_object_space";
     case AllocationSpace::TRUSTED_LO_SPACE:
       return "trusted_large_object_space";
   }
@@ -1192,10 +1236,11 @@ enum class AllocationType : uint8_t {
   kOld,    // Regular object allocated in OLD_SPACE or LO_SPACE.
   kCode,   // InstructionStream object allocated in CODE_SPACE or CODE_LO_SPACE.
   kMap,    // Map object allocated in OLD_SPACE.
-  kReadOnly,   // Object allocated in RO_SPACE.
-  kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap.
-  kSharedMap,  // Map object in OLD_SPACE in the shared heap.
-  kTrusted,    // Object allocated in TRUSTED_SPACE or TRUSTED_LO_SPACE.
+  kReadOnly,       // Object allocated in RO_SPACE.
+  kSharedOld,      // Regular object allocated in OLD_SPACE in the shared heap.
+  kSharedMap,      // Map object in OLD_SPACE in the shared heap.
+  kSharedTrusted,  // Trusted objects in TRUSTED_SPACE in the shared heap.
+  kTrusted,        // Object allocated in TRUSTED_SPACE or TRUSTED_LO_SPACE.
 };
 
 constexpr const char* ToString(AllocationType kind) {
@@ -1216,6 +1261,8 @@ constexpr const char* ToString(AllocationType kind) {
       return "SharedMap";
     case AllocationType::kTrusted:
       return "Trusted";
+    case AllocationType::kSharedTrusted:
+      return "SharedTrusted";
   }
 }
 
@@ -1403,6 +1450,11 @@ enum class ExternalBackingStoreType {
   kArrayBuffer,
   kExternalString,
   kNumValues
+};
+
+enum class NewJSObjectType : uint8_t {
+  kNoAPIWrapper,
+  kAPIWrapper,
 };
 
 bool inline IsBaselineCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
@@ -1742,8 +1794,11 @@ enum class VariableMode : uint8_t {
 
   kConst,  // declared via 'const' declarations
 
-  kUsing,  // declared via 'using' declaration for explicit memory management
-           // (last lexical)
+  kUsing,  // declared via 'using' declaration for explicit resource management
+
+  kAwaitUsing,  // declared via 'await using' declaration for explicit resource
+                // management
+                // (last lexical)
 
   kVar,  // declared via 'var', and 'function' declarations
 
@@ -1782,7 +1837,7 @@ enum class VariableMode : uint8_t {
   kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
                             // same name in the same scope.
 
-  kLastLexicalVariableMode = kUsing,
+  kLastLexicalVariableMode = kAwaitUsing,
 };
 
 // Printing support
@@ -1813,6 +1868,8 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "TEMPORARY";
     case VariableMode::kUsing:
       return "USING";
+    case VariableMode::kAwaitUsing:
+      return "AWAIT_USING";
   }
   UNREACHABLE();
 }
@@ -1855,8 +1912,13 @@ inline bool IsSerializableVariableMode(VariableMode mode) {
          IsPrivateMethodOrAccessorVariableMode(mode);
 }
 
-inline bool IsConstVariableMode(VariableMode mode) {
-  return mode == VariableMode::kConst ||
+inline bool IsImmutableLexicalVariableMode(VariableMode mode) {
+  return mode == VariableMode::kConst || mode == VariableMode::kUsing ||
+         mode == VariableMode::kAwaitUsing;
+}
+
+inline bool IsImmutableLexicalOrPrivateVariableMode(VariableMode mode) {
+  return IsImmutableLexicalVariableMode(mode) ||
          IsPrivateMethodOrAccessorVariableMode(mode);
 }
 
@@ -2041,6 +2103,23 @@ class CompareOperationFeedback {
     kSymbol = kSymbolFlag,
 
     kAny = kAnyMask,
+  };
+};
+
+class TypeOfFeedback {
+  enum {
+    kNumberFlag = 1,
+    kFunctionFlag = 1 << 1,
+    kStringFlag = 1 << 2,
+  };
+
+ public:
+  enum Result {
+    kNone = 0,
+    kNumber = kNumberFlag,
+    kFunction = kFunctionFlag,
+    kString = kStringFlag,
+    kAny = kNumberFlag | kFunctionFlag | kStringFlag,
   };
 };
 
@@ -2474,8 +2553,6 @@ enum class ExceptionStatus : bool { kException = false, kSuccess = true };
 V8_INLINE bool operator!(ExceptionStatus status) {
   return !static_cast<bool>(status);
 }
-
-enum class TraceRetainingPathMode { kEnabled, kDisabled };
 
 // Used in the ScopeInfo flags fields for the function name variable for named
 // function expressions, and for the receiver. Must be declared here so that it

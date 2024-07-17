@@ -45,7 +45,7 @@ constexpr AccessorComponent ToAccessorComponent(
 
 template <typename IsolateT>
 void AddToDescriptorArrayTemplate(
-    IsolateT* isolate, Handle<DescriptorArray> descriptor_array_template,
+    IsolateT* isolate, DirectHandle<DescriptorArray> descriptor_array_template,
     Handle<Name> name, ClassBoilerplate::ValueKind value_kind,
     Handle<Object> value) {
   InternalIndex entry = descriptor_array_template->Search(
@@ -125,13 +125,13 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 
 template <typename Dictionary>
 void DictionaryUpdateMaxNumberKey(Handle<Dictionary> dictionary,
-                                  Handle<Name> name) {
+                                  DirectHandle<Name> name) {
   static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   // No-op for (ordered) name dictionaries.
 }
 
-void DictionaryUpdateMaxNumberKey(Handle<NumberDictionary> dictionary,
+void DictionaryUpdateMaxNumberKey(DirectHandle<NumberDictionary> dictionary,
                                   uint32_t element) {
   dictionary->UpdateMaxNumberKey(element, Handle<JSObject>());
   dictionary->set_requires_slow_elements();
@@ -340,7 +340,8 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         if (!IsSmi(existing_value) || Smi::ToInt(existing_value) < key_index) {
           // Overwrite the existing data property because it was defined before
           // the computed accessor property.
-          Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
+          DirectHandle<AccessorPair> pair(
+              isolate->factory()->NewAccessorPair());
           pair->set(component, value);
           PropertyDetails details(
               PropertyKind::kAccessor, DONT_ENUM,

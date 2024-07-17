@@ -71,11 +71,6 @@ inline StackHandler* StackFrame::top_handler() const {
   return iterator_->handler();
 }
 
-inline Address StackFrame::callee_pc() const {
-  return state_.callee_pc_address ? ReadPC(state_.callee_pc_address)
-                                  : kNullAddress;
-}
-
 inline Address StackFrame::pc() const { return ReadPC(pc_address()); }
 
 inline Address StackFrame::unauthenticated_pc() const {
@@ -88,12 +83,13 @@ inline Address StackFrame::unauthenticated_pc(Address* pc_address) {
 }
 
 inline Address StackFrame::maybe_unauthenticated_pc() const {
-  if (!InFastCCall()) {
+  if (!InFastCCall() && !is_profiler_entry_frame()) {
     // Here the pc_address() is on the stack and properly authenticated.
     return pc();
   } else {
     // For fast C calls pc_address() points into IsolateData and the pc in there
-    // is unauthenticated.
+    // is unauthenticated. For the profiler, the pc_address of the first visited
+    // frame is also not written by a call instruction.
     return unauthenticated_pc(pc_address());
   }
 }
@@ -192,6 +188,33 @@ inline FullObjectSlot ApiCallbackExitFrame::target_slot() const {
 inline FullObjectSlot ApiCallbackExitFrame::new_target_slot() const {
   return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kNewTargetOffset);
 }
+
+inline ApiAccessorExitFrame::ApiAccessorExitFrame(
+    StackFrameIteratorBase* iterator)
+    : ExitFrame(iterator) {}
+
+inline FullObjectSlot ApiAccessorExitFrame::property_name_slot() const {
+  return FullObjectSlot(fp() +
+                        ApiAccessorExitFrameConstants::kPropertyNameOffset);
+}
+
+inline FullObjectSlot ApiAccessorExitFrame::receiver_slot() const {
+  return FullObjectSlot(fp() + ApiAccessorExitFrameConstants::kReceiverOffset);
+}
+
+inline FullObjectSlot ApiAccessorExitFrame::holder_slot() const {
+  return FullObjectSlot(fp() + ApiAccessorExitFrameConstants::kHolderOffset);
+}
+
+Tagged<Name> ApiAccessorExitFrame::property_name() const {
+  return Tagged<Name>::cast(*property_name_slot());
+}
+
+Tagged<Object> ApiAccessorExitFrame::receiver() const {
+  return *receiver_slot();
+}
+
+Tagged<Object> ApiAccessorExitFrame::holder() const { return *holder_slot(); }
 
 inline CommonFrame::CommonFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {}
@@ -369,6 +392,7 @@ inline bool StackFrameIteratorForProfiler::IsValidFrameType(
     StackFrame::Type type) {
   return StackFrame::IsJavaScript(type) || type == StackFrame::EXIT ||
          type == StackFrame::BUILTIN_EXIT ||
+         type == StackFrame::API_ACCESSOR_EXIT ||
          type == StackFrame::API_CALLBACK_EXIT ||
 #if V8_ENABLE_WEBASSEMBLY
          type == StackFrame::WASM || type == StackFrame::WASM_TO_JS ||

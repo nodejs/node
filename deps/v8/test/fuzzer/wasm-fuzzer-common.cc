@@ -4,8 +4,6 @@
 
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
-#include <ctime>
-
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
@@ -19,6 +17,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/string-builder-multiline.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -30,6 +29,7 @@
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
+#include "tools/wasm/mjsunit-module-disassembler-impl.h"
 
 namespace v8::internal::wasm::fuzzing {
 
@@ -229,355 +229,20 @@ void ExecuteAgainstReference(Isolate* isolate,
   }
 }
 
-namespace {
-
-struct PrintSig {
-  const size_t num;
-  const std::function<ValueType(size_t)> getter;
-};
-
-PrintSig PrintParameters(const FunctionSig* sig) {
-  return {sig->parameter_count(), [=](size_t i) { return sig->GetParam(i); }};
-}
-
-PrintSig PrintReturns(const FunctionSig* sig) {
-  return {sig->return_count(), [=](size_t i) { return sig->GetReturn(i); }};
-}
-
-std::string index_raw(uint32_t arg) {
-  return arg < 128 ? std::to_string(arg)
-                   : "wasmUnsignedLeb(" + std::to_string(arg) + ")";
-}
-
-std::string index(uint32_t arg) { return index_raw(arg) + ", "; }
-
-std::string HeapTypeToJSByteEncoding(HeapType heap_type) {
-  switch (heap_type.representation()) {
-    case HeapType::kFunc:
-      return "kFuncRefCode";
-    case HeapType::kEq:
-      return "kEqRefCode";
-    case HeapType::kI31:
-      return "kI31RefCode";
-    case HeapType::kStruct:
-      return "kStructRefCode";
-    case HeapType::kArray:
-      return "kArrayRefCode";
-    case HeapType::kAny:
-      return "kAnyRefCode";
-    case HeapType::kExtern:
-      return "kExternRefCode";
-    case HeapType::kNone:
-      return "kNullRefCode";
-    case HeapType::kNoFunc:
-      return "kNullFuncRefCode";
-    case HeapType::kNoExtern:
-      return "kNullExternRefCode";
-    case HeapType::kBottom:
-      UNREACHABLE();
-    default:
-      return index_raw(heap_type.ref_index());
-  }
-}
-
-std::string HeapTypeToConstantName(HeapType heap_type) {
-  switch (heap_type.representation()) {
-    case HeapType::kFunc:
-      return "kWasmFuncRef";
-    case HeapType::kEq:
-      return "kWasmEqRef";
-    case HeapType::kI31:
-      return "kWasmI31Ref";
-    case HeapType::kStruct:
-      return "kWasmStructRef";
-    case HeapType::kArray:
-      return "kWasmArrayRef";
-    case HeapType::kExtern:
-      return "kWasmExternRef";
-    case HeapType::kAny:
-      return "kWasmAnyRef";
-    case HeapType::kNone:
-      return "kWasmNullRef";
-    case HeapType::kNoFunc:
-      return "kWasmNullFuncRef";
-    case HeapType::kNoExtern:
-      return "kWasmNullExternRef";
-    case HeapType::kExn:
-      return "kWasmExnRef";
-    case HeapType::kNoExn:
-      return "kWasmNullExnRef";
-    case HeapType::kBottom:
-      UNREACHABLE();
-    default:
-      return std::to_string(heap_type.ref_index());
-  }
-}
-
-std::string ValueTypeToConstantName(ValueType type) {
-  switch (type.kind()) {
-    case kI8:
-      return "kWasmI8";
-    case kI16:
-      return "kWasmI16";
-    case kI32:
-      return "kWasmI32";
-    case kI64:
-      return "kWasmI64";
-    case kF32:
-      return "kWasmF32";
-    case kF64:
-      return "kWasmF64";
-    case kS128:
-      return "kWasmS128";
-    case kRefNull:
-      switch (type.heap_representation()) {
-        case HeapType::kFunc:
-          return "kWasmFuncRef";
-        case HeapType::kEq:
-          return "kWasmEqRef";
-        case HeapType::kExtern:
-          return "kWasmExternRef";
-        case HeapType::kAny:
-          return "kWasmAnyRef";
-        case HeapType::kBottom:
-          UNREACHABLE();
-        case HeapType::kStruct:
-        case HeapType::kArray:
-        case HeapType::kI31:
-        default:
-          return "wasmRefNullType(" + HeapTypeToConstantName(type.heap_type()) +
-                 ")";
-      }
-    case kRef:
-      return "wasmRefType(" + HeapTypeToConstantName(type.heap_type()) + ")";
-    case kRtt:
-    case kVoid:
-    case kBottom:
-      UNREACHABLE();
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, const PrintSig& print) {
-  os << "[";
-  for (size_t i = 0; i < print.num; ++i) {
-    os << (i == 0 ? "" : ", ") << ValueTypeToConstantName(print.getter(i));
-  }
-  return os << "]";
-}
-
-struct PrintName {
-  WasmName name;
-  PrintName(ModuleWireBytes wire_bytes, WireBytesRef ref)
-      : name(wire_bytes.GetNameOrNull(ref)) {}
-};
-std::ostream& operator<<(std::ostream& os, const PrintName& name) {
-  return os.put('\'').write(name.name.begin(), name.name.size()).put('\'');
-}
-
-// An interface for WasmFullDecoder which appends to a stream a textual
-// representation of the expression, compatible with wasm-module-builder.js.
-class InitExprInterface {
- public:
-  using ValidationTag = Decoder::FullValidationTag;
-  static constexpr DecodingMode decoding_mode = kConstantExpression;
-  static constexpr bool kUsesPoppedArgs = false;
-
-  struct Value : public ValueBase<ValidationTag> {
-    template <typename... Args>
-    explicit Value(Args&&... args) V8_NOEXCEPT
-        : ValueBase(std::forward<Args>(args)...) {}
-  };
-
-  using Control = ControlBase<Value, ValidationTag>;
-  using FullDecoder =
-      WasmFullDecoder<ValidationTag, InitExprInterface, decoding_mode>;
-
-  explicit InitExprInterface(StdoutStream& os) : os_(os) { os_ << "["; }
-
-#define EMPTY_INTERFACE_FUNCTION(name, ...) \
-  V8_INLINE void name(FullDecoder* decoder, ##__VA_ARGS__) {}
-  INTERFACE_META_FUNCTIONS(EMPTY_INTERFACE_FUNCTION)
-#undef EMPTY_INTERFACE_FUNCTION
-#define UNREACHABLE_INTERFACE_FUNCTION(name, ...) \
-  V8_INLINE void name(FullDecoder* decoder, ##__VA_ARGS__) { UNREACHABLE(); }
-  INTERFACE_NON_CONSTANT_FUNCTIONS(UNREACHABLE_INTERFACE_FUNCTION)
-#undef UNREACHABLE_INTERFACE_FUNCTION
-
-  void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
-    os_ << "...wasmI32Const(" << value << "), ";
-  }
-
-  void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
-    os_ << "...wasmI64Const(" << value << "), ";
-  }
-
-  void F32Const(FullDecoder* decoder, Value* result, float value) {
-    os_ << "...wasmF32Const(" << value << "), ";
-  }
-
-  void F64Const(FullDecoder* decoder, Value* result, double value) {
-    os_ << "...wasmF64Const(" << value << "), ";
-  }
-
-  void S128Const(FullDecoder* decoder, Simd128Immediate& imm, Value* result) {
-    os_ << "kSimdPrefix, kExprS128Const, " << std::hex;
-    for (int i = 0; i < kSimd128Size; i++) {
-      os_ << "0x" << static_cast<int>(imm.value[i]) << ", ";
-    }
-    os_ << std::dec;
-  }
-
-  void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
-             const Value& rhs, Value* result) {
-    switch (opcode) {
-      case kExprI32Add:
-        os_ << "kExprI32Add, ";
-        break;
-      case kExprI32Sub:
-        os_ << "kExprI32Sub, ";
-        break;
-      case kExprI32Mul:
-        os_ << "kExprI32Mul, ";
-        break;
-      case kExprI64Add:
-        os_ << "kExprI64Add, ";
-        break;
-      case kExprI64Sub:
-        os_ << "kExprI64Sub, ";
-        break;
-      case kExprI64Mul:
-        os_ << "kExprI64Mul, ";
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
-            Value* result) {
-    switch (opcode) {
-      case kExprAnyConvertExtern:
-        os_ << "kGCPrefix, kExprAnyConvertExtern, ";
-        break;
-      case kExprExternConvertAny:
-        os_ << "kGCPrefix, kExprExternConvertAny, ";
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
-    os_ << "kExprRefNull, " << HeapTypeToJSByteEncoding(type.heap_type())
-        << ", ";
-  }
-
-  void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    os_ << "kExprRefFunc, " << index(function_index);
-  }
-
-  void GlobalGet(FullDecoder* decoder, Value* result,
-                 const GlobalIndexImmediate& imm) {
-    os_ << "kWasmGlobalGet, " << index(imm.index);
-  }
-
-  // The following operations assume non-rtt versions of the instructions.
-  void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value args[], Value* result) {
-    os_ << "kGCPrefix, kExprStructNew, " << index(imm.index);
-  }
-
-  void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        Value* result) {
-    os_ << "kGCPrefix, kExprStructNewDefault, " << index(imm.index);
-  }
-
-  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                const Value& length, const Value& initial_value,
-                Value* result) {
-    os_ << "kGCPrefix, kExprArrayNew, " << index(imm.index);
-  }
-
-  void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                       const Value& length, Value* result) {
-    os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
-  }
-
-  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
-                     const IndexImmediate& length_imm, const Value elements[],
-                     Value* result) {
-    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(array_imm.index)
-        << index(length_imm.index);
-  }
-
-  void ArrayNewSegment(FullDecoder* decoder,
-                       const ArrayIndexImmediate& array_imm,
-                       const IndexImmediate& data_segment_imm,
-                       const Value& offset_value, const Value& length_value,
-                       Value* result) {
-    // TODO(14034): Implement when/if array.new_data/element becomes const.
-    UNIMPLEMENTED();
-  }
-
-  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
-    os_ << "kGCPrefix, kExprRefI31, ";
-  }
-
-  // Since we treat all instructions as rtt-less, we should not print rtts.
-  void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {}
-
-  void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
-                   Value* result) {
-    os_ << "...GCInstr(kExprStringConst), " << index(imm.index);
-  }
-
-  void DoReturn(FullDecoder* decoder, uint32_t /*drop_values*/) { os_ << "]"; }
-
- private:
-  StdoutStream& os_;
-};
-
-void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
-                             const WasmModule* module,
-                             ModuleWireBytes module_bytes,
-                             ConstantExpression init, ValueType expected) {
-  switch (init.kind()) {
-    case ConstantExpression::kEmpty:
-      UNREACHABLE();
-    case ConstantExpression::kI32Const:
-      os << "wasmI32Const(" << init.i32_value() << ")";
-      break;
-    case ConstantExpression::kRefNull:
-      os << "[kExprRefNull, " << HeapTypeToJSByteEncoding(HeapType(init.repr()))
-         << "]";
-      break;
-    case ConstantExpression::kRefFunc:
-      os << "[kExprRefFunc, " << index(init.index()) << "]";
-      break;
-    case ConstantExpression::kWireBytesRef: {
-      WireBytesRef ref = init.wire_bytes_ref();
-      auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-      constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-      FunctionBody body(&sig, ref.offset(), module_bytes.start() + ref.offset(),
-                        module_bytes.start() + ref.end_offset(), kIsShared);
-      WasmFeatures detected;
-      WasmFullDecoder<Decoder::FullValidationTag, InitExprInterface,
-                      kConstantExpression>
-          decoder(zone, module, WasmFeatures::All(), &detected, body, os);
-      decoder.DecodeFunctionBody();
-      break;
-    }
-  }
-}
-}  // namespace
-
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
+  // Libfuzzer sometimes runs a test twice (for detecting memory leaks), and in
+  // this case we do not want multiple outputs by this function.
+  // Similarly if we explicitly execute the same test multiple times (via
+  // `-runs=N`).
+  static std::atomic<bool> did_output_before{false};
+  if (did_output_before.exchange(true)) return;
+
   constexpr bool kVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.module_bytes(), kVerifyFunctions,
-      ModuleOrigin::kWasmOrigin, kPopulateExplicitRecGroups);
+  ModuleResult module_res =
+      DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
+                       kVerifyFunctions, ModuleOrigin::kWasmOrigin);
   CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
@@ -585,260 +250,14 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   AccountingAllocator allocator;
   Zone zone(&allocator, "constant expression zone");
 
+  MultiLineStringBuilder out;
+  NamesProvider names(module, wire_bytes.module_bytes());
+  MjsunitModuleDis disassembler(out, module, &names, wire_bytes, &allocator,
+                                !compiles);
+  disassembler.PrintModule();
+  const bool offsets = false;  // Not supported by MjsunitModuleDis.
   StdoutStream os;
-
-  tzset();
-  time_t current_time = time(nullptr);
-  struct tm current_localtime;
-#ifdef V8_OS_WIN
-  localtime_s(&current_localtime, &current_time);
-#else
-  localtime_r(&current_time, &current_localtime);
-#endif
-  int year = 1900 + current_localtime.tm_year;
-
-  os << "// Copyright " << year
-     << " the V8 project authors. All rights reserved.\n"
-        "// Use of this source code is governed by a BSD-style license that "
-        "can be\n"
-        "// found in the LICENSE file.\n"
-        "\n"
-        "// Flags: --wasm-staging\n"
-        "\n"
-        "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
-        "\n"
-        "const builder = new WasmModuleBuilder();\n";
-
-  int recursive_group_end = -1;
-  for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
-    auto rec_group = module->explicit_recursive_type_groups.find(i);
-    if (rec_group != module->explicit_recursive_type_groups.end()) {
-      os << "builder.startRecGroup();\n";
-      recursive_group_end = rec_group->first + rec_group->second - 1;
-    }
-    if (module->has_struct(i)) {
-      const StructType* struct_type = module->types[i].struct_type;
-      os << "builder.addStruct([";
-      int field_count = struct_type->field_count();
-      for (int index = 0; index < field_count; index++) {
-        os << "makeField(" << ValueTypeToConstantName(struct_type->field(index))
-           << ", " << (struct_type->mutability(index) ? "true" : "false")
-           << ")";
-        if (index + 1 < field_count) os << ", ";
-      }
-      os << "], ";
-      if (module->types[i].supertype != kNoSuperType) {
-        os << module->types[i].supertype;
-      } else {
-        os << "kNoSuperType";
-      }
-      os << ", " << (module->types[i].is_final ? "true" : "false") << ");\n";
-    } else if (module->has_array(i)) {
-      const ArrayType* array_type = module->types[i].array_type;
-      os << "builder.addArray("
-         << ValueTypeToConstantName(array_type->element_type()) << ", "
-         << (array_type->mutability() ? "true" : "false") << ", ";
-      if (module->types[i].supertype != kNoSuperType) {
-        os << module->types[i].supertype;
-      } else {
-        os << "kNoSuperType";
-      }
-      os << ", " << (module->types[i].is_final ? "true" : "false") << ");\n";
-    } else {
-      DCHECK(module->has_signature(i));
-      const FunctionSig* sig = module->types[i].function_sig;
-      os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
-         << PrintReturns(sig) << "));\n";
-    }
-
-    if (i == recursive_group_end) {
-      os << "builder.endRecGroup();\n";
-    }
-  }
-
-  for (WasmImport imported : module->import_table) {
-    // TODO(wasm): Support other imports when needed.
-    CHECK_EQ(kExternalFunction, imported.kind);
-    auto module_name = PrintName(wire_bytes, imported.module_name);
-    auto field_name = PrintName(wire_bytes, imported.field_name);
-    int sig_index = module->functions[imported.index].sig_index;
-    os << "builder.addImport(" << module_name << ", " << field_name << ", "
-       << sig_index << " /* sig */);\n";
-  }
-
-  for (const WasmMemory& memory : module->memories) {
-    os << "builder.addMemory(" << memory.initial_pages;
-    if (memory.has_maximum_pages) {
-      os << ", " << memory.maximum_pages;
-    } else {
-      os << ", undefined";
-    }
-    if (memory.is_shared) {
-      os << ", true";
-    }
-    os << ");\n";
-  }
-
-  for (WasmDataSegment segment : module->data_segments) {
-    base::Vector<const uint8_t> data = wire_bytes.module_bytes().SubVector(
-        segment.source.offset(), segment.source.end_offset());
-    if (segment.active) {
-      // TODO(wasm): Add other expressions when needed.
-      CHECK_EQ(ConstantExpression::kI32Const, segment.dest_addr.kind());
-      os << "builder.addActiveDataSegment(0, ";
-      DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, segment.dest_addr,
-                              kWasmI32);
-      os << ", ";
-    } else {
-      os << "builder.addPassiveDataSegment(";
-    }
-    os << "[";
-    if (!data.empty()) {
-      os << unsigned{data[0]};
-      for (unsigned byte : data + 1) os << ", " << byte;
-    }
-    os << "]";
-    if (segment.shared) os << ", true";
-    os << ");\n";
-  }
-
-  for (WasmGlobal& global : module->globals) {
-    os << "builder.addGlobal(" << ValueTypeToConstantName(global.type) << ", "
-       << global.mutability << ", " << global.shared << ", ";
-    DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, global.init,
-                            global.type);
-    os << ");\n";
-  }
-
-  Zone tmp_zone(isolate->allocator(), ZONE_NAME);
-
-  for (const WasmTable& table : module->tables) {
-    os << "builder.addTable(" << ValueTypeToConstantName(table.type) << ", "
-       << table.initial_size << ", "
-       << (table.has_maximum_size ? std::to_string(table.maximum_size)
-                                  : "undefined")
-       << ", ";
-    if (table.initial_value.is_set()) {
-      DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
-                              table.initial_value, table.type);
-    } else {
-      os << "undefined";
-    }
-    if (table.shared) os << ", true";
-    os << ");\n";
-  }
-  for (const WasmElemSegment& elem_segment : module->elem_segments) {
-    const char* status_str =
-        elem_segment.status == WasmElemSegment::kStatusActive
-            ? "Active"
-            : elem_segment.status == WasmElemSegment::kStatusPassive
-                  ? "Passive"
-                  : "Declarative";
-    os << "builder.add" << status_str << "ElementSegment(";
-    if (elem_segment.status == WasmElemSegment::kStatusActive) {
-      os << elem_segment.table_index << ", ";
-      DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
-                              elem_segment.offset, kWasmI32);
-      os << ", ";
-    }
-    os << "[";
-    ModuleDecoderImpl decoder(WasmFeatures::All(),
-                              wire_bytes.module_bytes().SubVectorFrom(
-                                  elem_segment.elements_wire_bytes_offset),
-                              ModuleOrigin::kWasmOrigin);
-    for (uint32_t i = 0; i < elem_segment.element_count; i++) {
-      ConstantExpression expr =
-          decoder.consume_element_segment_entry(module, elem_segment);
-      if (elem_segment.element_type == WasmElemSegment::kExpressionElements) {
-        DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, expr,
-                                elem_segment.type);
-      } else {
-        os << expr.index();
-      }
-      if (i < elem_segment.element_count - 1) os << ", ";
-    }
-    os << "], "
-       << (elem_segment.element_type == WasmElemSegment::kExpressionElements
-               ? ValueTypeToConstantName(elem_segment.type)
-               : "undefined");
-    if (elem_segment.shared) os << ", true";
-    os << ");\n";
-  }
-
-  for (const WasmTag& tag : module->tags) {
-    os << "builder.addTag(makeSig(" << PrintParameters(tag.ToFunctionSig())
-       << ", []));\n";
-  }
-
-  for (const WasmFunction& func : module->functions) {
-    if (func.imported) continue;
-
-    base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
-    os << "// Generate function " << (func.func_index + 1) << " (out of "
-       << module->functions.size() << ").\n";
-
-    // Add function.
-    os << "builder.addFunction(undefined, " << func.sig_index
-       << " /* sig */)\n";
-
-    // Add locals.
-    BodyLocalDecls decls;
-    DecodeLocalDecls(enabled_features, &decls, func_code.begin(),
-                     func_code.end(), &tmp_zone);
-    if (decls.num_locals) {
-      os << "  ";
-      for (size_t pos = 0, count = 1, locals = decls.num_locals; pos < locals;
-           pos += count, count = 1) {
-        ValueType type = decls.local_types[pos];
-        while (pos + count < locals && decls.local_types[pos + count] == type) {
-          ++count;
-        }
-        os << ".addLocals(" << ValueTypeToConstantName(type) << ", " << count
-           << ")";
-      }
-      os << "\n";
-    }
-
-    // Add body.
-    os << "  .addBodyWithEnd([\n";
-
-    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-    FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end(), kIsShared);
-    PrintRawWasmCode(isolate->allocator(), func_body, module, kOmitLocals);
-    os << "]);\n";
-  }
-
-  for (WasmExport& exp : module->export_table) {
-    switch (exp.kind) {
-      case kExternalFunction:
-        os << "builder.addExport(" << PrintName(wire_bytes, exp.name) << ", "
-           << exp.index << ");\n";
-        break;
-      case kExternalMemory:
-        os << "builder.exportMemoryAs(" << PrintName(wire_bytes, exp.name)
-           << ", " << exp.index << ");\n";
-        break;
-      default:
-        os << "// Unsupported export of '" << PrintName(wire_bytes, exp.name)
-           << "'.\n";
-        break;
-    }
-  }
-
-  if (compiles) {
-    os << "let kBuiltins = { builtins: ['js-string', 'text-decoder', "
-          "'text-encoder'] };\n"
-          "const instance = builder.instantiate({}, kBuiltins);\n"
-          "try {\n"
-          "  print(instance.exports.main(1, 2, 3));\n"
-          "} catch (e) {\n"
-          "  print('caught exception', e);\n"
-          "}\n";
-  } else {
-    os << "assertThrows(function() { builder.instantiate(); }, "
-          "WebAssembly.CompileError);\n";
-  }
+  out.WriteTo(os, offsets);
 }
 
 void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
@@ -850,8 +269,10 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
 
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
       // Enable non-staged experimental features that we also want to fuzz.
-      // <currently none>
+      v8_flags.wasm_memory64_trap_handling = true;
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
       // Note: If you add something here, you will also have to add the
       // respective flag(s) to the mjsunit/wasm/generate-random-module test.
 

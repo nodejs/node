@@ -18,20 +18,20 @@ const fast_c_api = new d8.test.FastCAPI();
 
 // ----------- add_all_sequence -----------
 // `add_all_sequence` has the following signature:
-// double add_all_sequence(bool /*should_fallback*/, Local<Array>)
+// double add_all_sequence(Local<Array>)
 
 // Smi only test - regular call hits the fast path.
 (function () {
   function add_all_sequence() {
     const arr = [-42, 45];
-    return fast_c_api.add_all_sequence(false /* should_fallback */, arr);
+    return fast_c_api.add_all_sequence(arr);
   }
   ExpectFastCall(add_all_sequence, 3);
 })();
 
 (function () {
   function add_all_sequence_mismatch(arg) {
-    return fast_c_api.add_all_sequence(false /*should_fallback*/, arg);
+    return fast_c_api.add_all_sequence(arg);
   }
 
   %PrepareFunctionForOptimization(add_all_sequence_mismatch);
@@ -39,7 +39,6 @@ const fast_c_api = new d8.test.FastCAPI();
   %OptimizeFunctionOnNextCall(add_all_sequence_mismatch);
 
   // Test that passing non-array arguments falls down the slow path.
-  assert_throws_and_optimized(add_all_sequence_mismatch, 42);
   assert_throws_and_optimized(add_all_sequence_mismatch, {});
   assert_throws_and_optimized(add_all_sequence_mismatch, 'string');
   assert_throws_and_optimized(add_all_sequence_mismatch, Symbol());
@@ -52,8 +51,7 @@ const fast_c_api = new d8.test.FastCAPI();
 (function () {
   function overloaded_test() {
     let typed_array = new Uint32Array([1,2,3]);
-    return fast_c_api.add_all_overload(false /* should_fallback */,
-        typed_array);
+    return fast_c_api.add_all_overload(typed_array);
   }
   ExpectFastCall(overloaded_test, 6);
 })();
@@ -67,7 +65,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function overloaded_test() {
     let typed_array = new Uint32Array(large_array);
-    return fast_c_api.add_all_overload(false /* should_fallback */,
+    return fast_c_api.add_all_overload(
       typed_array);
   }
   ExpectFastCall(overloaded_test, 4950);
@@ -77,7 +75,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function overloaded_test() {
     let typed_array = new Float32Array([1.1, 2.2, 3.3]);
-    return fast_c_api.add_all_overload(false /* should_fallback */,
+    return fast_c_api.add_all_overload(
         typed_array);
   }
   ExpectSlowCall(overloaded_test, 6.6);
@@ -87,7 +85,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function overloaded_test() {
     let js_array = [26, -6, 42];
-    return fast_c_api.add_all_overload(false /* should_fallback */, js_array);
+    return fast_c_api.add_all_overload(js_array);
   }
   ExpectFastCall(overloaded_test, 62);
 })();
@@ -95,7 +93,7 @@ for (let i = 0; i < 100; i++) {
 // Test function overloads with undefined.
 (function () {
   function overloaded_test() {
-    return fast_c_api.add_all_overload(false /* should_fallback */, undefined);
+    return fast_c_api.add_all_overload(undefined);
   }
   ExpectSlowCall(overloaded_test, 0);
 })();
@@ -103,7 +101,7 @@ for (let i = 0; i < 100; i++) {
 // Test function with invalid overloads.
 (function () {
   function overloaded_test() {
-    return fast_c_api.add_all_invalid_overload(false /* should_fallback */,
+    return fast_c_api.add_all_invalid_overload(
       [26, -6, 42]);
   }
 
@@ -132,7 +130,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function uint8_test() {
     let typed_array = new Uint8Array([1, 2, 3]);
-    return fast_c_api.add_all_uint8_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_uint8_typed_array(
       typed_array);
   }
   ExpectFastCall(uint8_test, 6);
@@ -141,7 +139,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function int32_test() {
     let typed_array = new Int32Array([-42, 1, 2, 3]);
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       typed_array);
   }
   ExpectFastCall(int32_test, -36);
@@ -150,7 +148,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function uint32_test() {
     let typed_array = new Uint32Array([1, 2, 3]);
-    return fast_c_api.add_all_uint32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_uint32_typed_array(
       typed_array);
   }
   ExpectFastCall(uint32_test, 6);
@@ -159,7 +157,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function float32_test() {
     let typed_array = new Float32Array([1.3, 2.4, 3.5]);
-    return fast_c_api.add_all_float32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_float32_typed_array(
       typed_array);
   }
   if (fast_c_api.supports_fp_params) {
@@ -172,7 +170,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function float64_test() {
     let typed_array = new Float64Array([1.3, 2.4, 3.5]);
-    return fast_c_api.add_all_float64_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_float64_typed_array(
       typed_array);
   }
   if (fast_c_api.supports_fp_params) {
@@ -188,7 +186,7 @@ for (let i = 0; i < 100; i++) {
   function detached_typed_array_test() {
     let typed_array = new Int32Array([-42, 1, 2, 3]);
     %ArrayBufferDetach(typed_array.buffer);
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       typed_array);
   }
   ExpectSlowCall(detached_typed_array_test, 0);
@@ -199,7 +197,7 @@ for (let i = 0; i < 100; i++) {
   function detached_non_ext_typed_array_test() {
     let typed_array = new Int32Array(large_array);
     %ArrayBufferDetach(typed_array.buffer);
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       typed_array);
   }
   ExpectSlowCall(detached_non_ext_typed_array_test, 0);
@@ -210,7 +208,7 @@ for (let i = 0; i < 100; i++) {
   let typed_array = new Int32Array([-42, 1, 2, 3]);
   let expected = -36;
   function detached_later_typed_array_test() {
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       typed_array);
   }
 
@@ -243,7 +241,7 @@ for (let i = 0; i < 100; i++) {
     let sab = new SharedArrayBuffer(16);
     let typed_array = new Int32Array(sab);
     typed_array.set([-42, 1, 2, 3]);
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       typed_array);
   }
   ExpectSlowCall(shared_array_buffer_ta_test, -36);
@@ -255,7 +253,7 @@ for (let i = 0; i < 100; i++) {
     let sab = new SharedArrayBuffer(400);
     let typed_array = new Int32Array(sab);
     typed_array.set(large_array);
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       typed_array);
   }
   ExpectSlowCall(shared_array_buffer_ext_ta_test, 4950);
@@ -265,7 +263,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function int32_test() {
     let typed_array = new Int32Array(0);
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       typed_array);
   }
   ExpectFastCall(int32_test, 0);
@@ -274,7 +272,7 @@ for (let i = 0; i < 100; i++) {
 (function () {
   function uint8_test() {
     let typed_array = new Uint8Array(0);
-    return fast_c_api.add_all_uint8_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_uint8_typed_array(
       typed_array);
   }
   ExpectFastCall(uint8_test, 0);
@@ -284,7 +282,7 @@ for (let i = 0; i < 100; i++) {
 (function() {
   function uint8_test() {
     let typed_array = new Uint8Array([0, 256, -1]);
-    return fast_c_api.add_all_uint8_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_uint8_typed_array(
       typed_array);
   }
   ExpectFastCall(uint8_test, 255);
@@ -293,7 +291,7 @@ for (let i = 0; i < 100; i++) {
 // Invalid argument types instead of a TypedArray.
 (function () {
   function invalid_test(arg) {
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       arg);
   }
   %PrepareFunctionForOptimization(invalid_test);
@@ -309,7 +307,7 @@ for (let i = 0; i < 100; i++) {
 // Passing `null` instead of a TypedArray in a non-overloaded function.
 (function () {
   function null_test(arg) {
-    return fast_c_api.add_all_int32_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int32_typed_array(
       arg);
   }
   %PrepareFunctionForOptimization(null_test);
@@ -329,7 +327,7 @@ for (let i = 0; i < 100; i++) {
       }
     });
 
-    fast_c_api.add_all_sequence(false /* should_fallback */, arr);
+    fast_c_api.add_all_sequence(arr);
   }
   assertThrows(() => invalid_value());
 })();

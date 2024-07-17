@@ -32,18 +32,17 @@ PropertyCallbackArguments::PropertyCallbackArguments(
   // It cannot escape into js as it's removed in Call below.
   Tagged<HeapObject> the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueIndex).store(the_hole_value);
-  slot_at(T::kUnusedIndex).store(Smi::zero());
+  slot_at(T::kHolderV2Index).store(Smi::zero());
   DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }
 
 FunctionCallbackArguments::FunctionCallbackArguments(
-    internal::Isolate* isolate, internal::Tagged<internal::Object> data,
-    internal::Tagged<internal::Object> holder,
-    internal::Tagged<internal::HeapObject> new_target, internal::Address* argv,
+    Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+    Tagged<Object> holder, Tagged<HeapObject> new_target, Address* argv,
     int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
-  slot_at(T::kDataIndex).store(data);
+  slot_at(T::kTargetIndex).store(target);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kNewTargetIndex).store(new_target);
   slot_at(T::kIsolateIndex)

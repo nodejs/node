@@ -133,6 +133,7 @@ let kWasmI31Ref = -0x14;
 let kWasmStructRef = -0x15;
 let kWasmArrayRef = -0x16;
 let kWasmExnRef = -0x17;
+let kWasmNullExnRef = -0x0c;
 let kWasmStringRef = -0x19;
 let kWasmStringViewWtf8 = -0x1a;
 let kWasmStringViewWtf16 = -0x1e;
@@ -151,6 +152,7 @@ let kNullFuncRefCode = kWasmNullFuncRef & kLeb128Mask;
 let kStructRefCode = kWasmStructRef & kLeb128Mask;
 let kArrayRefCode = kWasmArrayRef & kLeb128Mask;
 let kExnRefCode = kWasmExnRef & kLeb128Mask;
+let kNullExnRefCode = kWasmNullExnRef & kLeb128Mask;
 let kNullRefCode = kWasmNullRef & kLeb128Mask;
 let kStringRefCode = kWasmStringRef & kLeb128Mask;
 let kStringViewWtf8Code = kWasmStringViewWtf8 & kLeb128Mask;
@@ -1410,6 +1412,8 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
+  nextTypeIndex() { return this.types.length; }
+
   static defaultFor(type) {
     switch (type) {
       case kWasmI32:
@@ -1422,6 +1426,10 @@ class WasmModuleBuilder {
         return wasmF64Const(0.0);
       case kWasmS128:
         return [kSimdPrefix, kExprS128Const, ...(new Array(16).fill(0))];
+      case kWasmStringViewIter:
+      case kWasmStringViewWtf8:
+      case kWasmStringViewWtf16:
+        throw new Error("String views are non-defaultable");
       default:
         if ((typeof type) != 'number' && type.opcode != kWasmRefNull) {
           throw new Error("Non-defaultable type");
@@ -2305,4 +2313,12 @@ function ToPromising(wasm_export) {
   return new WebAssembly.Function(
       wrapper_sig, wasm_export, {promising: 'first'});
 
+}
+
+function wasmF32ConstSignalingNaN() {
+  return [kExprF32Const, 0xb9, 0xa1, 0xa7, 0x7f];
+}
+
+function wasmF64ConstSignalingNaN() {
+  return [kExprF64Const, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf4, 0x7f];
 }

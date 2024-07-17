@@ -297,18 +297,19 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
       .is_found();
 }
 
-bool ObjectHashTableShape::IsMatch(Handle<Object> key, Tagged<Object> other) {
+bool ObjectHashTableShape::IsMatch(DirectHandle<Object> key,
+                                   Tagged<Object> other) {
   return Object::SameValue(*key, other);
 }
 
-bool RegisteredSymbolTableShape::IsMatch(Handle<String> key,
+bool RegisteredSymbolTableShape::IsMatch(DirectHandle<String> key,
                                          Tagged<Object> value) {
   DCHECK(IsString(value));
   return key->Equals(String::cast(value));
 }
 
 uint32_t RegisteredSymbolTableShape::Hash(ReadOnlyRoots roots,
-                                          Handle<String> key) {
+                                          DirectHandle<String> key) {
   return key->EnsureHash();
 }
 
@@ -317,7 +318,7 @@ uint32_t RegisteredSymbolTableShape::HashForObject(ReadOnlyRoots roots,
   return String::cast(object)->EnsureHash();
 }
 
-bool NameToIndexShape::IsMatch(Handle<Name> key, Tagged<Object> other) {
+bool NameToIndexShape::IsMatch(DirectHandle<Name> key, Tagged<Object> other) {
   return *key == other;
 }
 
@@ -326,11 +327,12 @@ uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots,
   return Name::cast(other)->hash();
 }
 
-uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
+uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, DirectHandle<Name> key) {
   return key->hash();
 }
 
-uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots, Handle<Object> key) {
+uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots,
+                                    DirectHandle<Object> key) {
   return Smi::ToInt(Object::GetHash(*key));
 }
 
@@ -341,8 +343,8 @@ uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
 
 template <typename IsolateT>
 Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
-    IsolateT* isolate, Handle<NameToIndexHashTable> table, Handle<Name> key,
-    int32_t index) {
+    IsolateT* isolate, Handle<NameToIndexHashTable> table,
+    IndirectHandle<Name> key, int32_t index) {
   DCHECK_GE(index, 0);
   // Validate that the key is absent.
   SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());

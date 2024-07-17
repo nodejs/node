@@ -75,8 +75,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
         ApiNatives::InstantiateObject(isolate, instance_template,
-                                      Handle<JSReceiver>::cast(new_target)),
-        Object);
+                                      Handle<JSReceiver>::cast(new_target)));
     argv[BuiltinArguments::kReceiverArgsOffset] = js_receiver->ptr();
     raw_holder = *js_receiver;
   } else {
@@ -88,8 +87,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       DCHECK(IsJSObject(*js_receiver));
       Handle<JSObject> js_object = Handle<JSObject>::cast(js_receiver);
       if (!isolate->MayAccess(isolate->native_context(), js_object)) {
-        RETURN_ON_EXCEPTION(
-            isolate, isolate->ReportFailedAccessCheck(js_object), Object);
+        RETURN_ON_EXCEPTION(isolate,
+                            isolate->ReportFailedAccessCheck(js_object));
         UNREACHABLE();
       }
     }
@@ -98,18 +97,17 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
     if (raw_holder.is_null()) {
       // This function cannot be called with the given receiver.  Abort!
-      THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kIllegalInvocation), Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kIllegalInvocation));
     }
   }
 
   if (fun_data->has_callback(isolate)) {
-    Tagged<Object> data_obj = fun_data->callback_data(kAcquireLoad);
-    FunctionCallbackArguments custom(isolate, data_obj, raw_holder, *new_target,
-                                     argv, argc);
+    FunctionCallbackArguments custom(isolate, *fun_data, raw_holder,
+                                     *new_target, argv, argc);
     Handle<Object> result = custom.Call(*fun_data);
 
-    RETURN_EXCEPTION_IF_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     if (result.is_null()) {
       if (is_construct) return js_receiver;
       return isolate->factory()->undefined_value();
@@ -176,8 +174,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!is_construct && !IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, receiver, Object::ConvertReceiver(isolate, receiver), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
 
   // We assume that all lazy accessor pairs have been instantiated when setting
@@ -240,9 +238,9 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   Tagged<Object> result;
   {
     HandleScope scope(isolate);
-    FunctionCallbackArguments custom(
-        isolate, templ->callback_data(kAcquireLoad), obj, new_target,
-        args.address_of_first_argument(), args.length() - 1);
+    FunctionCallbackArguments custom(isolate, templ, obj, new_target,
+                                     args.address_of_first_argument(),
+                                     args.length() - 1);
     Handle<Object> result_handle = custom.Call(templ);
     if (result_handle.is_null()) {
       result = ReadOnlyRoots(isolate).undefined_value();
@@ -258,12 +256,15 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a normal function call.
 BUILTIN(HandleApiCallAsFunctionDelegate) {
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDocumentAllLegacyCall);
   return HandleApiCallAsFunctionOrConstructorDelegate(isolate, false, args);
 }
 
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a construct call.
 BUILTIN(HandleApiCallAsConstructorDelegate) {
+  isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kDocumentAllLegacyConstruct);
   return HandleApiCallAsFunctionOrConstructorDelegate(isolate, true, args);
 }
 

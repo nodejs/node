@@ -792,7 +792,8 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
   // old space.
   InvokeMajorGC();
   i::MemoryChunk::FromHeapObject(*two_byte_string)
-      ->SetFlag(i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      ->SetFlagNonExecutable(
+          i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   InvokeMajorGC();
   // GC moved the string.
   CHECK_NE(raw, *two_byte_string);
@@ -836,7 +837,8 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
   // old space.
   InvokeMajorGC();
   i::MemoryChunk::FromHeapObject(*two_byte_string)
-      ->SetFlag(i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      ->SetFlagNonExecutable(
+          i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   InvokeMajorGC();
   // GC moved the string and buffer was updated to the correct location.
   CHECK_NE(raw, *two_byte_string);

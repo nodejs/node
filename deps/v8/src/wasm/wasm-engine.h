@@ -49,6 +49,7 @@ class ErrorThrower;
 struct ModuleWireBytes;
 class StreamingDecoder;
 class WasmFeatures;
+class WasmOrphanedGlobalHandle;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -167,10 +168,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
       Handle<Script> script,
       base::Vector<const uint8_t> asm_js_offset_table_bytes,
-      Handle<HeapNumber> uses_bitset, LanguageMode language_mode);
+      DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode);
   Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
-      Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
-      Handle<Script> script);
+      Isolate* isolate, DirectHandle<AsmWasmData> asm_wasm_data,
+      DirectHandle<Script> script);
 
   // Synchronously compiles the given bytes that represent an encoded Wasm
   // module.
@@ -220,11 +221,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   void LeaveDebuggingForIsolate(Isolate* isolate);
 
-  // Exports the sharable parts of the given module object so that they can be
-  // transferred to a different Context/Isolate using the same engine.
-  std::shared_ptr<NativeModule> ExportNativeModule(
-      Handle<WasmModuleObject> module_object);
-
   // Imports the shared part of a module from a different Context/Isolate using
   // the the same engine, recreating a full module object in the given Isolate.
   Handle<WasmModuleObject> ImportNativeModule(
@@ -232,6 +228,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
       base::Vector<const char> source_url);
 
   void FlushCode();
+
+  // Returns the code size of all Liftoff compiled functions in all modules.
+  size_t GetLiftoffCodeSize();
 
   AccountingAllocator* allocator() { return &allocator_; }
 
@@ -393,6 +392,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
 
+  static WasmOrphanedGlobalHandle* NewOrphanedGlobalHandle(
+      WasmOrphanedGlobalHandle** pointer);
+  static void FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start);
+
  private:
   struct CurrentGCInfo;
   struct IsolateInfo;
@@ -401,7 +404,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, WasmFeatures enabled,
       CompileTimeImports compile_imports,
-      base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
+      base::OwnedVector<const uint8_t> bytes, DirectHandle<Context> context,
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 

@@ -193,9 +193,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   /* PROPERTY */
   inline bool ExtendingNonExtensible(Handle<JSReceiver> receiver);
-  void PrepareForDataProperty(Handle<Object> value);
+  void PrepareForDataProperty(DirectHandle<Object> value);
   void PrepareTransitionToDataProperty(Handle<JSReceiver> receiver,
-                                       Handle<Object> value,
+                                       DirectHandle<Object> value,
                                        PropertyAttributes attributes,
                                        StoreOrigin store_origin);
   inline bool IsCacheableTransition();
@@ -203,8 +203,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   void ReconfigureDataProperty(Handle<Object> value,
                                PropertyAttributes attributes);
   void Delete();
-  void TransitionToAccessorProperty(Handle<Object> getter,
-                                    Handle<Object> setter,
+  void TransitionToAccessorProperty(DirectHandle<Object> getter,
+                                    DirectHandle<Object> setter,
                                     PropertyAttributes attributes);
   void TransitionToAccessorPair(Handle<Object> pair,
                                 PropertyAttributes attributes);
@@ -232,20 +232,20 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<InterceptorInfo> GetInterceptorForFailedAccessCheck() const;
   Handle<Object> GetDataValue(AllocationPolicy allocation_policy =
                                   AllocationPolicy::kAllocationAllowed) const;
-  void WriteDataValue(Handle<Object> value, bool initializing_store);
+  void WriteDataValue(DirectHandle<Object> value, bool initializing_store);
   Handle<Object> GetDataValue(SeqCstAccessTag tag) const;
-  void WriteDataValue(Handle<Object> value, SeqCstAccessTag tag);
-  Handle<Object> SwapDataValue(Handle<Object> value, SeqCstAccessTag tag);
-  Handle<Object> CompareAndSwapDataValue(Handle<Object> expected,
-                                         Handle<Object> value,
+  void WriteDataValue(DirectHandle<Object> value, SeqCstAccessTag tag);
+  Handle<Object> SwapDataValue(DirectHandle<Object> value, SeqCstAccessTag tag);
+  Handle<Object> CompareAndSwapDataValue(DirectHandle<Object> expected,
+                                         DirectHandle<Object> value,
                                          SeqCstAccessTag tag);
   inline void UpdateProtector();
   static inline void UpdateProtector(Isolate* isolate, Handle<Object> receiver,
-                                     Handle<Name> name);
+                                     DirectHandle<Name> name);
 
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
-  bool TryLookupCachedProperty(Handle<AccessorPair> accessor);
+  bool TryLookupCachedProperty(DirectHandle<AccessorPair> accessor);
   bool TryLookupCachedProperty();
 
   // Test whether the object has an internal marker property.
@@ -258,20 +258,20 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
 
-  bool LookupCachedProperty(Handle<AccessorPair> accessor);
+  bool LookupCachedProperty(DirectHandle<AccessorPair> accessor);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name, size_t index,
                         Handle<Object> lookup_start_object,
                         Configuration configuration);
 
   // Lookup private symbol on the prototype chain. Currently used only for
-  // error_stack_symbol.
+  // error_stack_symbol and error_message_symbol.
   inline LookupIterator(Isolate* isolate, Configuration configuration,
                         Handle<Object> receiver, Handle<Symbol> name,
                         Handle<Object> lookup_start_object);
 
   static void InternalUpdateProtector(Isolate* isolate, Handle<Object> receiver,
-                                      Handle<Name> name);
+                                      DirectHandle<Name> name);
 
   enum class InterceptorState {
     kUninitialized,
@@ -334,7 +334,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                                    Handle<Name> name);
 
   static MaybeHandle<JSReceiver> GetRootForNonJSReceiver(
-      Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+      Isolate* isolate, DirectHandle<Object> lookup_start_object, size_t index,
       Configuration configuration);
   static inline MaybeHandle<JSReceiver> GetRoot(
       Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
@@ -414,7 +414,8 @@ class ConcurrentLookupIterator final : public AllStatic {
   // if (it.state() == LookupIterator::DATA) it.GetPropertyCell();
   V8_EXPORT_PRIVATE static base::Optional<Tagged<PropertyCell>>
   TryGetPropertyCell(Isolate* isolate, LocalIsolate* local_isolate,
-                     Handle<JSGlobalObject> holder, Handle<Name> name);
+                     DirectHandle<JSGlobalObject> holder,
+                     DirectHandle<Name> name);
 };
 
 }  // namespace internal

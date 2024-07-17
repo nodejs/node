@@ -578,6 +578,13 @@ template void LogMessage::CopyToEncodedBuffer<LogMessage::StringType::kLiteral>(
 template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kNotLiteral>(char ch, size_t num);
 
+// We intentionally don't return from these destructors. Disable MSVC's warning
+// about the destructor never returning as we do so intentionally here.
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4722)
+#endif
+
 LogMessageFatal::LogMessageFatal(const char* file, int line)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {}
 
@@ -587,19 +594,29 @@ LogMessageFatal::LogMessageFatal(const char* file, int line,
   *this << "Check failed: " << failure_msg << " ";
 }
 
-// ABSL_ATTRIBUTE_NORETURN doesn't seem to work on destructors with msvc, so
-// disable msvc's warning about the d'tor never returning.
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4722)
-#endif
 LogMessageFatal::~LogMessageFatal() {
   Flush();
   FailWithoutStackTrace();
 }
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
-#endif
+
+LogMessageDebugFatal::LogMessageDebugFatal(const char* file, int line)
+    : LogMessage(file, line, absl::LogSeverity::kFatal) {}
+
+LogMessageDebugFatal::~LogMessageDebugFatal() {
+  Flush();
+  FailWithoutStackTrace();
+}
+
+LogMessageQuietlyDebugFatal::LogMessageQuietlyDebugFatal(const char* file,
+                                                         int line)
+    : LogMessage(file, line, absl::LogSeverity::kFatal) {
+  SetFailQuietly();
+}
+
+LogMessageQuietlyDebugFatal::~LogMessageQuietlyDebugFatal() {
+  Flush();
+  FailQuietly();
+}
 
 LogMessageQuietlyFatal::LogMessageQuietlyFatal(const char* file, int line)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {
@@ -608,17 +625,10 @@ LogMessageQuietlyFatal::LogMessageQuietlyFatal(const char* file, int line)
 
 LogMessageQuietlyFatal::LogMessageQuietlyFatal(const char* file, int line,
                                                absl::string_view failure_msg)
-    : LogMessage(file, line, absl::LogSeverity::kFatal) {
-  SetFailQuietly();
-  *this << "Check failed: " << failure_msg << " ";
+    : LogMessageQuietlyFatal(file, line) {
+    *this << "Check failed: " << failure_msg << " ";
 }
 
-// ABSL_ATTRIBUTE_NORETURN doesn't seem to work on destructors with msvc, so
-// disable msvc's warning about the d'tor never returning.
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable : 4722)
-#endif
 LogMessageQuietlyFatal::~LogMessageQuietlyFatal() {
   Flush();
   FailQuietly();

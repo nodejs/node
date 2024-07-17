@@ -48,6 +48,8 @@ GCSAFE_CODE_FWD_ACCESSOR(bool, has_tagged_outgoing_params)
 GCSAFE_CODE_FWD_ACCESSOR(bool, marked_for_deoptimization)
 GCSAFE_CODE_FWD_ACCESSOR(Tagged<Object>, raw_instruction_stream)
 GCSAFE_CODE_FWD_ACCESSOR(int, stack_slots)
+GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_tagged_parameter_count)
+GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_first_tagged_parameter)
 GCSAFE_CODE_FWD_ACCESSOR(Address, constant_pool)
 GCSAFE_CODE_FWD_ACCESSOR(Address, safepoint_table_address)
 #undef GCSAFE_CODE_FWD_ACCESSOR
@@ -91,14 +93,18 @@ INT_ACCESSORS(Code, metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
+UINT16_ACCESSORS(Code, parameter_count, kParameterCountOffset)
+inline uint16_t Code::parameter_count_without_receiver() const {
+  return parameter_count() - 1;
+}
 
-inline Tagged<TrustedFixedArray> Code::deoptimization_data() const {
+inline Tagged<ProtectedFixedArray> Code::deoptimization_data() const {
   DCHECK(uses_deoptimization_data());
-  return TrustedFixedArray::cast(
+  return ProtectedFixedArray::cast(
       ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 
-inline void Code::set_deoptimization_data(Tagged<TrustedFixedArray> value,
+inline void Code::set_deoptimization_data(Tagged<ProtectedFixedArray> value,
                                           WriteBarrierMode mode) {
   DCHECK(uses_deoptimization_data());
   DCHECK(!ObjectInYoungGeneration(value));
@@ -280,8 +286,8 @@ int Code::constant_pool_size() const {
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
-Tagged<TrustedFixedArray> Code::unchecked_deoptimization_data() const {
-  return TrustedFixedArray::unchecked_cast(
+Tagged<ProtectedFixedArray> Code::unchecked_deoptimization_data() const {
+  return ProtectedFixedArray::unchecked_cast(
       ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 
@@ -426,6 +432,31 @@ unsigned Code::inlined_bytecode_size() const {
 void Code::set_inlined_bytecode_size(unsigned size) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
   RELAXED_WRITE_UINT_FIELD(*this, kInlinedBytecodeSizeOffset, size);
+}
+
+// For optimized on-heap wasm-js wrappers, we repurpose the (otherwise unused)
+// 32-bit InlinedBytecodeSize field to encode two 16 values needed for scanning
+// the frame: the count and starting offset of incoming tagged parameters.
+// TODO(wasm): Eventually the wrappers should be managed off-heap by the wasm
+// engine. Remove these accessors when that is the case.
+void Code::set_wasm_js_tagged_parameter_count(uint16_t count) {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  RELAXED_WRITE_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset, count);
+}
+
+uint16_t Code::wasm_js_tagged_parameter_count() const {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  return RELAXED_READ_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset);
+}
+
+void Code::set_wasm_js_first_tagged_parameter(uint16_t count) {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  RELAXED_WRITE_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset + 2, count);
+}
+
+uint16_t Code::wasm_js_first_tagged_parameter() const {
+  DCHECK_EQ(kind(), CodeKind::WASM_TO_JS_FUNCTION);
+  return RELAXED_READ_UINT16_FIELD(*this, kInlinedBytecodeSizeOffset + 2);
 }
 
 BytecodeOffset Code::osr_offset() const {

@@ -156,7 +156,15 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
       result = TryAllocateLargeObject(page_backend_, large_space,
                                       stats_collector_, size, gcinfo);
       if (!result) {
+#if defined(CPPGC_CAGED_HEAP)
+        const std::string suffix =
+            CagedHeap::Instance().page_allocator().ran_out_of_reservation()
+                ? "Ran out of cage reservation."
+                : "";
+        oom_handler_("Oilpan: Large allocation." + suffix);
+#else
         oom_handler_("Oilpan: Large allocation.");
+#endif
       }
     }
     return result;
@@ -176,7 +184,15 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
         GCConfig::FreeMemoryHandling::kDiscardWherePossible;
     garbage_collector_.CollectGarbage(config);
     if (!TryRefillLinearAllocationBuffer(space, request_size)) {
+#if defined(CPPGC_CAGED_HEAP)
+      const std::string suffix =
+          CagedHeap::Instance().page_allocator().ran_out_of_reservation()
+              ? "Ran out of cage reservation."
+              : "";
+      oom_handler_("Oilpan: Normal allocation." + suffix);
+#else
       oom_handler_("Oilpan: Normal allocation.");
+#endif
     }
   }
 

@@ -46,10 +46,14 @@ struct WrapperDescriptor final {
 
   /**
    * Unknown embedder id. The value is reserved for internal usages and must not
-   * be used with `CppHeap`.
+   * be used with `CppHeap`. The value is considered as not traceable.
    */
   static constexpr uint16_t kUnknownEmbedderId = UINT16_MAX;
 
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
+  constexpr WrapperDescriptor() = default;
+
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
   constexpr WrapperDescriptor(InternalFieldIndex wrappable_type_index,
                               InternalFieldIndex wrappable_instance_index,
                               uint16_t embedder_id_for_garbage_collected)
@@ -60,12 +64,12 @@ struct WrapperDescriptor final {
   /**
    * Index of the wrappable type.
    */
-  InternalFieldIndex wrappable_type_index;
+  InternalFieldIndex wrappable_type_index = -1;
 
   /**
    * Index of the wrappable instance.
    */
-  InternalFieldIndex wrappable_instance_index;
+  InternalFieldIndex wrappable_instance_index = -1;
 
   /**
    * Embedder id identifying instances of garbage-collected objects. It is
@@ -73,10 +77,17 @@ struct WrapperDescriptor final {
    * the id. Only references to instances of wrappables types with an id of
    * `embedder_id_for_garbage_collected` will be considered by CppHeap.
    */
-  uint16_t embedder_id_for_garbage_collected;
+  uint16_t embedder_id_for_garbage_collected = kUnknownEmbedderId;
 };
 
 struct V8_EXPORT CppHeapCreateParams {
+  START_ALLOW_USE_DEPRECATED()
+  explicit CppHeapCreateParams(
+      std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces)
+      : custom_spaces(std::move(custom_spaces)) {}
+  END_ALLOW_USE_DEPRECATED()
+
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
   CppHeapCreateParams(
       std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces,
       WrapperDescriptor wrapper_descriptor)
@@ -180,6 +191,7 @@ class V8_EXPORT CppHeap {
   /**
    * \returns the wrapper descriptor of this CppHeap.
    */
+  V8_DEPRECATED("WrapperDescriptor is deprecated, see crbug.com/338411141.")
   v8::WrapperDescriptor wrapper_descriptor() const;
 
  private:

@@ -65,6 +65,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "cleanup/internal/cleanup.h"
   "container/btree_map.h"
   "container/btree_set.h"
+  "container/hash_container_defaults.h"
   "container/fixed_array.h"
   "container/flat_hash_map.h"
   "container/flat_hash_set.h"
@@ -122,6 +123,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/internal/address_is_readable.h"
   "debugging/internal/demangle.cc"
   "debugging/internal/demangle.h"
+  "debugging/internal/demangle_rust.cc"
+  "debugging/internal/demangle_rust.h"
   "debugging/internal/elf_mem_image.cc"
   "debugging/internal/elf_mem_image.h"
   "debugging/internal/examine_stack.cc"
@@ -436,6 +439,43 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/leak_check.cc"
 )
 
+if(NOT MSVC)
+  list(APPEND ABSL_INTERNAL_DLL_FILES
+    "flags/commandlineflag.cc"
+    "flags/commandlineflag.h"
+    "flags/config.h"
+    "flags/declare.h"
+    "flags/flag.h"
+    "flags/internal/commandlineflag.cc"
+    "flags/internal/commandlineflag.h"
+    "flags/internal/flag.cc"
+    "flags/internal/flag.h"
+    "flags/internal/parse.h"
+    "flags/internal/path_util.h"
+    "flags/internal/private_handle_accessor.cc"
+    "flags/internal/private_handle_accessor.h"
+    "flags/internal/program_name.cc"
+    "flags/internal/program_name.h"
+    "flags/internal/registry.h"
+    "flags/internal/sequence_lock.h"
+    "flags/internal/usage.cc"
+    "flags/internal/usage.h"
+    "flags/marshalling.cc"
+    "flags/marshalling.h"
+    "flags/parse.cc"
+    "flags/parse.h"
+    "flags/reflection.cc"
+    "flags/reflection.h"
+    "flags/usage.cc"
+    "flags/usage.h"
+    "flags/usage_config.cc"
+    "flags/usage_config.h"
+    "log/flags.cc"
+    "log/flags.h"
+    "log/internal/flags.h"
+  )
+endif()
+
 set(ABSL_INTERNAL_DLL_TARGETS
   "absl_check"
   "absl_log"
@@ -504,6 +544,7 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "log_internal_check_op"
   "log_internal_conditions"
   "log_internal_config"
+  "log_internal_fnmatch"
   "log_internal_format"
   "log_internal_globals"
   "log_internal_log_impl"
@@ -583,6 +624,7 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "strerror"
   "strings"
   "strings_internal"
+  "string_view"
   "symbolize"
   "synchronization"
   "thread_pool"
@@ -593,7 +635,28 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "type_traits"
   "utility"
   "variant"
+  "vlog_config_internal"
 )
+
+if(NOT MSVC)
+  list(APPEND ABSL_INTERNAL_DLL_TARGETS
+    "flags"
+    "flags_commandlineflag"
+    "flags_commandlineflag_internal"
+    "flags_config"
+    "flags_internal"
+    "flags_marshalling"
+    "flags_parse"
+    "flags_path_util"
+    "flags_private_handle_accessor"
+    "flags_program_name"
+    "flags_reflection"
+    "flags_usage"
+    "flags_usage_internal"
+    "log_internal_flags"
+    "log_flags"
+  )
+endif()
 
 set(ABSL_INTERNAL_TEST_DLL_FILES
   "hash/hash_testing.h"
@@ -607,6 +670,9 @@ set(ABSL_INTERNAL_TEST_DLL_FILES
   "random/internal/mock_overload_set.h"
   "random/mocking_bit_gen.h"
   "random/mock_distributions.h"
+  "status/status_matchers.h"
+  "status/internal/status_matchers.cc"
+  "status/internal/status_matchers.h"
   "strings/cordz_test_helpers.h"
   "strings/cord_test_helpers.h"
 )
@@ -619,6 +685,7 @@ set(ABSL_INTERNAL_TEST_DLL_TARGETS
   "random_internal_distribution_test_util"
   "random_internal_mock_overload_set"
   "scoped_mock_log"
+  "status_matchers"
 )
 
 include(CheckCXXSourceCompiles)
@@ -667,12 +734,7 @@ function(absl_internal_dll_contains)
 
   STRING(REGEX REPLACE "^absl::" "" _target ${ABSL_INTERNAL_DLL_TARGET})
 
-  list(FIND
-    ABSL_INTERNAL_DLL_TARGETS
-    "${_target}"
-    _index)
-
-  if (${_index} GREATER -1)
+  if (_target IN_LIST ABSL_INTERNAL_DLL_TARGETS)
     set(${ABSL_INTERNAL_DLL_OUTPUT} 1 PARENT_SCOPE)
   else()
     set(${ABSL_INTERNAL_DLL_OUTPUT} 0 PARENT_SCOPE)
@@ -689,12 +751,7 @@ function(absl_internal_test_dll_contains)
 
   STRING(REGEX REPLACE "^absl::" "" _target ${ABSL_INTERNAL_TEST_DLL_TARGET})
 
-  list(FIND
-    ABSL_INTERNAL_TEST_DLL_TARGETS
-    "${_target}"
-    _index)
-
-  if (${_index} GREATER -1)
+  if (_target IN_LIST ABSL_INTERNAL_TEST_DLL_TARGETS)
     set(${ABSL_INTERNAL_TEST_DLL_OUTPUT} 1 PARENT_SCOPE)
   else()
     set(${ABSL_INTERNAL_TEST_DLL_OUTPUT} 0 PARENT_SCOPE)
@@ -746,7 +803,12 @@ function(absl_make_dll)
   else()
     set(_dll "abseil_dll")
     set(_dll_files ${ABSL_INTERNAL_DLL_FILES})
-    set(_dll_libs "")
+    set(_dll_libs
+      Threads::Threads
+      # TODO(#1495): Use $<LINK_LIBRARY:FRAMEWORK,CoreFoundation> once our
+      # minimum CMake version >= 3.24
+      $<$<PLATFORM_ID:Darwin>:-Wl,-framework,CoreFoundation>
+    )
     set(_dll_compile_definitions "")
     set(_dll_includes "")
     set(_dll_consume "ABSL_CONSUME_DLL")
@@ -764,7 +826,10 @@ function(absl_make_dll)
       ${_dll_libs}
       ${ABSL_DEFAULT_LINKOPTS}
   )
-  set_property(TARGET ${_dll} PROPERTY LINKER_LANGUAGE "CXX")
+  set_target_properties(${_dll} PROPERTIES
+    LINKER_LANGUAGE "CXX"
+    SOVERSION ${ABSL_SOVERSION}
+  )
   target_include_directories(
     ${_dll}
     PUBLIC

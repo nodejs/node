@@ -94,11 +94,12 @@ class FunctionTemplateInfo
     : public TorqueGeneratedFunctionTemplateInfo<FunctionTemplateInfo,
                                                  TemplateInfo> {
  public:
-#define DECL_RARE_ACCESSORS(Name, CamelName, Type)                           \
-  DECL_GETTER(Get##CamelName, Tagged<Type>)                                  \
-  static inline void Set##CamelName(                                         \
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info, \
-      Handle<Type> Name);
+#define DECL_RARE_ACCESSORS(Name, CamelName, Type)               \
+  DECL_GETTER(Get##CamelName, Tagged<Type>)                      \
+  static inline void Set##CamelName(                             \
+      Isolate* isolate,                                          \
+      DirectHandle<FunctionTemplateInfo> function_template_info, \
+      DirectHandle<Type> Name);
 
   // ObjectTemplateInfo or Undefined, used for the prototype property of the
   // resulting JSFunction instance of this FunctionTemplate.
@@ -183,12 +184,12 @@ class FunctionTemplateInfo
                                                   int api_instance_type_end);
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
-      Isolate* isolate, Handle<FunctionTemplateInfo> info,
-      MaybeHandle<Name> maybe_name);
+      Isolate* isolate, DirectHandle<FunctionTemplateInfo> info,
+      MaybeDirectHandle<Name> maybe_name);
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
-      LocalIsolate* isolate, Handle<FunctionTemplateInfo> info,
-      Handle<Name> maybe_name) {
+      LocalIsolate* isolate, DirectHandle<FunctionTemplateInfo> info,
+      DirectHandle<Name> maybe_name) {
     // We don't support streaming compilation of scripts with natives, so we
     // don't need an off-thread implementation of this.
     UNREACHABLE();
@@ -262,10 +263,12 @@ class FunctionTemplateInfo
 
   static constexpr int kNoJSApiObjectType = 0;
   static inline Tagged<FunctionTemplateRareData> EnsureFunctionTemplateRareData(
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
+      Isolate* isolate,
+      DirectHandle<FunctionTemplateInfo> function_template_info);
 
   static Tagged<FunctionTemplateRareData> AllocateFunctionTemplateRareData(
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info);
+      Isolate* isolate,
+      DirectHandle<FunctionTemplateInfo> function_template_info);
 
   TQ_OBJECT_CONSTRUCTORS(FunctionTemplateInfo)
 };

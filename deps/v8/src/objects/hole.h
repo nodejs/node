@@ -25,8 +25,8 @@ class Hole : public HeapObject {
 
   DECL_VERIFIER(Hole)
 
-  static inline void Initialize(Isolate* isolate, Handle<Hole> hole,
-                                Handle<HeapNumber> numeric_value);
+  static inline void Initialize(Isolate* isolate, DirectHandle<Hole> hole,
+                                DirectHandle<HeapNumber> numeric_value);
 
   // Currently, we allow optimized code to treat holes as HeapNumbers to avoid
   // conditional branching. This works by making Hole::kRawNumericValueOffset

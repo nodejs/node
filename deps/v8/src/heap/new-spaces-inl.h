@@ -76,6 +76,20 @@ Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
   }
 }
 
+void SemiSpaceNewSpace::IncrementAllocationTop(Address new_top) {
+  DCHECK_LE(allocation_top_, new_top);
+  DCHECK_EQ(PageMetadata::FromAllocationAreaAddress(allocation_top_),
+            PageMetadata::FromAllocationAreaAddress(new_top));
+  allocation_top_ = new_top;
+}
+
+void SemiSpaceNewSpace::DecrementAllocationTop(Address new_top) {
+  DCHECK_LE(new_top, allocation_top_);
+  DCHECK_EQ(PageMetadata::FromAllocationAreaAddress(allocation_top_),
+            PageMetadata::FromAllocationAreaAddress(new_top));
+  allocation_top_ = new_top;
+}
+
 }  // namespace internal
 }  // namespace v8
 

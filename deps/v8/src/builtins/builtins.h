@@ -177,7 +177,7 @@ class Builtins {
                                                 Builtin builtin);
   static bool HasJSLinkage(Builtin builtin);
 
-  static int GetStackParameterCount(Builtin builtin);
+  V8_EXPORT_PRIVATE static int GetStackParameterCount(Builtin builtin);
 
   V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
   V8_EXPORT_PRIVATE static const char* NameForStackTrace(Isolate* isolate,
@@ -191,7 +191,11 @@ class Builtins {
   // Address otherwise.
   static Address CppEntryOf(Builtin builtin);
 
-  static Kind KindOf(Builtin builtin);
+  // Loads the builtin's entry (start of instruction stream) from the isolate's
+  // builtin_entry_table, initialized earlier via {InitializeIsolateDataTables}.
+  static inline Address EntryOf(Builtin builtin, Isolate* isolate);
+
+  V8_EXPORT_PRIVATE static Kind KindOf(Builtin builtin);
   static const char* KindNameOf(Builtin builtin);
 
   // The tag for the builtins entrypoint.

@@ -45,7 +45,7 @@ int Arguments<T>::tagged_index_value_at(int index) const {
 
 template <ArgumentsType T>
 double Arguments<T>::number_value_at(int index) const {
-  return Object::Number((*this)[index]);
+  return Object::NumberValue((*this)[index]);
 }
 
 template <ArgumentsType T>

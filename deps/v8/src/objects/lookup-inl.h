@@ -123,7 +123,8 @@ LookupIterator::LookupIterator(Isolate* isolate, Configuration configuration,
   // This is the only lookup configuration allowed by this constructor because
   // it's special case allowing lookup of the private symbols on the prototype
   // chain. Usually private symbols are limited to OWN_SKIP_INTERCEPTOR lookups.
-  DCHECK_EQ(*name_, *isolate->factory()->error_stack_symbol());
+  DCHECK(*name_ == *isolate->factory()->error_stack_symbol() ||
+         *name_ == *isolate->factory()->error_message_symbol());
   DCHECK_EQ(configuration, PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Start<false>();
 }
@@ -271,7 +272,7 @@ bool LookupIterator::IsCacheableTransition() {
 
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
-                                     Handle<Name> name) {
+                                     DirectHandle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
   DCHECK(IsInternalizedString(*name) || IsSymbol(*name));
 

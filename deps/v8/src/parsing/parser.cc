@@ -700,7 +700,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     // conflicting var declarations with outer scope-info-backed scopes.
     if (flags().is_eval()) {
       DCHECK(parsing_on_main_thread_);
-      DCHECK(!overall_parse_is_parked_);
+      DCHECK(!isolate->main_thread_local_heap()->IsParked());
       info->ast_value_factory()->Internalize(isolate);
     }
     CheckConflictingVarDeclarations(scope);
@@ -1137,7 +1137,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   // Reparse the whole class body to build member initializer functions.
   Expression* expr;
   {
-    bool is_anonymous = IsNull(class_name);
+    bool is_anonymous = IsEmptyIdentifier(class_name);
     ClassScope* class_scope = NewClassScope(original_scope_, is_anonymous);
     BlockState block_state(&scope_, class_scope);
     RaiseLanguageMode(LanguageMode::kStrict);
@@ -2887,10 +2887,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     bool uses_super_property;
     if (stack_overflow()) return true;
     {
-      base::Optional<UnparkedScope> unparked_scope;
-      if (overall_parse_is_parked_) {
-        unparked_scope.emplace(local_isolate_);
-      }
+      UnparkedScopeIfOnBackground unparked_scope(local_isolate_);
       *produced_preparse_data =
           consumed_preparse_data_->GetDataForSkippableFunction(
               main_zone(), function_scope->start_position(), &end_position,
@@ -3157,7 +3154,7 @@ void Parser::DeclareClassVariable(ClassScope* scope, const AstRawString* name,
   scope->SetScopeName(name);
 #endif
 
-  DCHECK_IMPLIES(name == nullptr, class_info->is_anonymous);
+  DCHECK_IMPLIES(IsEmptyIdentifier(name), class_info->is_anonymous);
   // Declare a special class variable for anonymous classes with the dot
   // if we need to save it for static private method access.
   Variable* class_variable =
@@ -3185,7 +3182,7 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   int begin = position();
   int end = end_position();
   bool was_added = false;
-  DCHECK(IsConstVariableMode(mode));
+  DCHECK(IsImmutableLexicalOrPrivateVariableMode(mode));
   Variable* var =
       scope->DeclarePrivateName(name, mode, is_static_flag, &was_added);
   if (!was_added) {
@@ -3315,7 +3312,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
         DefaultConstructor(name, has_extends, pos, end_pos);
   }
 
-  if (name != nullptr) {
+  if (!IsEmptyIdentifier(name)) {
     DCHECK_NOT_NULL(block_scope->class_variable());
     block_scope->class_variable()->set_initializer_position(end_pos);
   }
@@ -3342,7 +3339,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   if (class_info->requires_brand) {
     class_info->constructor->set_class_scope_has_private_brand(true);
   }
-  if (class_info->has_static_private_methods) {
+  if (class_info->has_static_private_methods_or_accessors) {
     class_info->constructor->set_has_static_private_methods_or_accessors(true);
   }
   ClassLiteral* class_literal = factory()->NewClassLiteral(
@@ -3350,7 +3347,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
       class_info->public_members, class_info->private_members,
       static_initializer, instance_members_initializer_function, pos, end_pos,
       class_info->has_static_computed_names, class_info->is_anonymous,
-      class_info->has_private_methods, class_info->home_object_variable,
+      class_info->home_object_variable,
       class_info->static_home_object_variable);
 
   AddFunctionForNameInference(class_info->constructor);
@@ -3493,12 +3490,11 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
 
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
-  {
-    // We can park the isolate while parsing, it doesn't need to allocate or
-    // access the main thread.
-    ParkedScope parked_scope(isolate);
-    overall_parse_is_parked_ = true;
 
+  // We can park the isolate while parsing, it doesn't need to allocate or
+  // access the main thread.
+  isolate->ParkIfOnBackgroundAndExecute([this, start_position, end_position,
+                                         function_literal_id, info, &result]() {
     scanner_.Initialize();
 
     DCHECK(original_scope_);
@@ -3529,7 +3525,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
                                info->function_name());
     }
     MaybeProcessSourceRanges(info, result, stack_limit_);
-  }
+  });
   // We need to unpark by now though, to be able to internalize.
   PostProcessParseResult(isolate, info, result);
   if (flags().is_toplevel()) {
@@ -3584,22 +3580,6 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     call_args.AddAll(expressions->ToConstVector());
     return factory()->NewTaggedTemplate(tag, call_args, pos);
   }
-}
-
-ArrayLiteral* Parser::ArrayLiteralFromListWithSpread(
-    const ScopedPtrList<Expression>& list) {
-  // If there's only a single spread argument, a fast path using CallWithSpread
-  // is taken.
-  DCHECK_LT(1, list.length());
-
-  // The arguments of the spread call become a single ArrayLiteral.
-  int first_spread = 0;
-  for (; first_spread < list.length() && !list.at(first_spread)->IsSpread();
-       ++first_spread) {
-  }
-
-  DCHECK_LT(first_spread, list.length());
-  return factory()->NewArrayLiteral(list, first_spread, kNoSourcePosition);
 }
 
 void Parser::SetLanguageMode(Scope* scope, LanguageMode mode) {
@@ -3730,25 +3710,6 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name,
     }
     function->set_raw_name(cons_name);
   }
-}
-
-Statement* Parser::CheckCallable(Variable* var, Expression* error, int pos) {
-  const int nopos = kNoSourcePosition;
-  Statement* validate_var;
-  {
-    Expression* type_of = factory()->NewUnaryOperation(
-        Token::kTypeOf, factory()->NewVariableProxy(var), nopos);
-    Expression* function_literal = factory()->NewStringLiteral(
-        ast_value_factory()->function_string(), nopos);
-    Expression* condition = factory()->NewCompareOperation(
-        Token::kEqStrict, type_of, function_literal, nopos);
-
-    Statement* throw_call = factory()->NewExpressionStatement(error, pos);
-
-    validate_var = factory()->NewIfStatement(
-        condition, factory()->EmptyStatement(), throw_call, nopos);
-  }
-  return validate_var;
 }
 
 }  // namespace internal

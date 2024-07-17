@@ -512,7 +512,7 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
       // Feedback vectors are already listed to prevent losing them to GC.
       DCHECK(IsArrayList(
           *isolate->factory()->feedback_vectors_for_profiling_tools()));
-      Handle<ArrayList> list = Handle<ArrayList>::cast(
+      auto list = DirectHandle<ArrayList>::cast(
           isolate->factory()->feedback_vectors_for_profiling_tools());
       for (int i = 0; i < list->length(); i++) {
         Tagged<FeedbackVector> vector = FeedbackVector::cast(list->get(i));
@@ -660,7 +660,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
 
     // Use sorted list to reconstruct function nesting.
     for (const SharedFunctionInfoAndCount& v : sorted) {
-      Handle<SharedFunctionInfo> info = v.info;
+      DirectHandle<SharedFunctionInfo> info = v.info;
       int start = v.start;
       int end = v.end;
       uint32_t count = v.count;

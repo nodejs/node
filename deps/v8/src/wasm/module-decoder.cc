@@ -112,14 +112,12 @@ ModuleResult DecodeWasmModule(
   return result;
 }
 
-ModuleResult DecodeWasmModule(
-    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
-    bool validate_functions, ModuleOrigin origin,
-    PopulateExplicitRecGroups populate_explicit_rec_groups) {
+ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
+                              base::Vector<const uint8_t> wire_bytes,
+                              bool validate_functions, ModuleOrigin origin) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.DecodeWasmModule");
-  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin,
-                            populate_explicit_rec_groups};
+  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
   return decoder.DecodeModule(validate_functions);
 }
 
@@ -127,7 +125,7 @@ ModuleResult DecodeWasmModuleForDisassembler(
     base::Vector<const uint8_t> wire_bytes, ITracer* tracer) {
   constexpr bool kNoValidateFunctions = false;
   ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
-                            kDoNotPopulateExplicitRecGroups, tracer};
+                            tracer};
   return decoder.DecodeModule(kNoValidateFunctions);
 }
 

@@ -189,7 +189,7 @@ class TypeInferenceAnalysis {
           ProcessProjection(index, op.Cast<ProjectionOp>());
           break;
         case Opcode::kWordBinop:
-          ProcessWordBinop(index, op.Cast<WordBinopOp>());
+          ProcessWordBinop(V<Word>::Cast(index), op.Cast<WordBinopOp>());
           break;
         case Opcode::kWord32PairBinop:
         case Opcode::kAtomicWord32Pair:
@@ -368,7 +368,7 @@ class TypeInferenceAnalysis {
     SetType(index, result_type);
   }
 
-  void ProcessWordBinop(OpIndex index, const WordBinopOp& binop) {
+  void ProcessWordBinop(V<Word> index, const WordBinopOp& binop) {
     Type left_type = GetType(binop.left());
     Type right_type = GetType(binop.right());
 

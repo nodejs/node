@@ -25,19 +25,21 @@
 
 #define OFFSET_OF(type, field) offsetof(type, field)
 
+// A comma, to be used in macro arguments where it would otherwise be
+// interpreted as separator of arguments.
+#define LITERAL_COMMA ,
+
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
 // used in defining new arrays, for example.  If you use arraysize on
 // a pointer by mistake, you will get a compile-time error.
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
-
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
 // use its type.
 template <typename T, size_t N>
 char (&ArraySizeHelper(T (&array)[N]))[N];
-
 
 #if !V8_CC_MSVC
 // That gcc wants both of these prototypes seems mysterious. VC, for
@@ -129,6 +131,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define V8_USE_ADDRESS_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
 #endif
 #endif
 
@@ -368,9 +377,9 @@ bool is_inbounds(float_t v) {
 // Setup for Windows shared library export.
 #define V8_EXPORT_ENUM
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
 #elif USING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define V8_EXPORT_PRIVATE
 #endif  // BUILDING_V8_SHARED
@@ -380,8 +389,8 @@ bool is_inbounds(float_t v) {
 // Setup for Linux shared library export.
 #if V8_HAS_ATTRIBUTE_VISIBILITY
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define V8_EXPORT_ENUM V8_EXPORT_PRIVATE
 #else
 #define V8_EXPORT_PRIVATE
 #define V8_EXPORT_ENUM

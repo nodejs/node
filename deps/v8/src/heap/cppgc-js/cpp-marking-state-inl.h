@@ -18,6 +18,8 @@ bool CppMarkingState::ExtractEmbedderDataSnapshot(
     Tagged<Map> map, Tagged<JSObject> object, EmbedderDataSnapshot& snapshot) {
   if (JSObject::GetEmbedderFieldCount(map) < 2) return false;
 
+  DCHECK(SupportsWrappableExtraction());
+
   EmbedderDataSlot::PopulateEmbedderDataSnapshot(
       map, object, wrapper_descriptor_.wrappable_type_index, snapshot.first);
   EmbedderDataSlot::PopulateEmbedderDataSnapshot(
@@ -34,12 +36,18 @@ void CppMarkingState::MarkAndPush(const EmbedderDataSnapshot& snapshot) {
 
 void CppMarkingState::MarkAndPush(const EmbedderDataSlot type_slot,
                                   const EmbedderDataSlot instance_slot) {
+  DCHECK(SupportsWrappableExtraction());
   const auto maybe_info = WrappableInfo::From(
       isolate_, type_slot, instance_slot, wrapper_descriptor_);
   if (maybe_info.has_value()) {
     marking_state_.MarkAndPush(
         cppgc::internal::HeapObjectHeader::FromObject(maybe_info->instance));
   }
+}
+
+void CppMarkingState::MarkAndPush(void* instance) {
+  marking_state_.MarkAndPush(
+      cppgc::internal::HeapObjectHeader::FromObject(instance));
 }
 
 }  // namespace internal

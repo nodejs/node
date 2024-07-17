@@ -316,7 +316,7 @@ void GlobalDictionary::ValueAtPut(InternalIndex entry, Tagged<Object> value) {
 
 bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Tagged<Object> other) {
   DCHECK(IsNumber(other));
-  return key == static_cast<uint32_t>(Object::Number(other));
+  return key == static_cast<uint32_t>(Object::NumberValue(other));
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
@@ -326,7 +326,7 @@ uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
 uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
                                                   Tagged<Object> other) {
   DCHECK(IsNumber(other));
-  return ComputeSeededHash(static_cast<uint32_t>(Object::Number(other)),
+  return ComputeSeededHash(static_cast<uint32_t>(Object::NumberValue(other)),
                            HashSeed(roots));
 }
 
@@ -350,13 +350,15 @@ Handle<Map> SimpleNumberDictionary::GetMap(ReadOnlyRoots roots) {
   return roots.simple_number_dictionary_map_handle();
 }
 
-bool BaseNameDictionaryShape::IsMatch(Handle<Name> key, Tagged<Object> other) {
+bool BaseNameDictionaryShape::IsMatch(DirectHandle<Name> key,
+                                      Tagged<Object> other) {
   DCHECK(IsTheHole(other) || IsUniqueName(Name::cast(other)));
   DCHECK(IsUniqueName(*key));
   return *key == other;
 }
 
-uint32_t BaseNameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
+uint32_t BaseNameDictionaryShape::Hash(ReadOnlyRoots roots,
+                                       DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));
   return key->hash();
 }
@@ -367,7 +369,8 @@ uint32_t BaseNameDictionaryShape::HashForObject(ReadOnlyRoots roots,
   return Name::cast(other)->hash();
 }
 
-bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Tagged<Object> other) {
+bool GlobalDictionaryShape::IsMatch(DirectHandle<Name> key,
+                                    Tagged<Object> other) {
   DCHECK(IsUniqueName(*key));
   DCHECK(IsUniqueName(PropertyCell::cast(other)->name()));
   return *key == PropertyCell::cast(other)->name();

@@ -73,7 +73,7 @@ bool CallSiteInfo::IsToplevel() const {
 }
 
 // static
-int CallSiteInfo::GetLineNumber(Handle<CallSiteInfo> info) {
+int CallSiteInfo::GetLineNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
@@ -93,7 +93,7 @@ int CallSiteInfo::GetLineNumber(Handle<CallSiteInfo> info) {
 }
 
 // static
-int CallSiteInfo::GetColumnNumber(Handle<CallSiteInfo> info) {
+int CallSiteInfo::GetColumnNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   int position = GetSourcePosition(info);
 #if V8_ENABLE_WEBASSEMBLY
@@ -115,7 +115,7 @@ int CallSiteInfo::GetColumnNumber(Handle<CallSiteInfo> info) {
 }
 
 // static
-int CallSiteInfo::GetEnclosingLineNumber(Handle<CallSiteInfo> info) {
+int CallSiteInfo::GetEnclosingLineNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
@@ -140,7 +140,7 @@ int CallSiteInfo::GetEnclosingLineNumber(Handle<CallSiteInfo> info) {
 }
 
 // static
-int CallSiteInfo::GetEnclosingColumnNumber(Handle<CallSiteInfo> info) {
+int CallSiteInfo::GetEnclosingColumnNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
@@ -204,7 +204,7 @@ Tagged<Object> CallSiteInfo::GetScriptSourceMappingURL() const {
 }
 
 // static
-Handle<String> CallSiteInfo::GetScriptHash(Handle<CallSiteInfo> info) {
+Handle<String> CallSiteInfo::GetScriptHash(DirectHandle<CallSiteInfo> info) {
   Handle<Script> script;
   Isolate* isolate = info->GetIsolate();
   if (!GetScript(isolate, info).ToHandle(&script)) {
@@ -218,14 +218,16 @@ Handle<String> CallSiteInfo::GetScriptHash(Handle<CallSiteInfo> info) {
 
 namespace {
 
-MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
+MaybeHandle<String> FormatEvalOrigin(Isolate* isolate,
+                                     DirectHandle<Script> script) {
   Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
   if (IsString(*sourceURL)) return Handle<String>::cast(sourceURL);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("eval at ");
   if (script->has_eval_from_shared()) {
-    Handle<SharedFunctionInfo> eval_shared(script->eval_from_shared(), isolate);
+    DirectHandle<SharedFunctionInfo> eval_shared(script->eval_from_shared(),
+                                                 isolate);
     auto eval_name = SharedFunctionInfo::DebugName(isolate, eval_shared);
     if (eval_name->length() != 0) {
       builder.AppendString(eval_name);
@@ -233,19 +235,20 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
       builder.AppendCStringLiteral("<anonymous>");
     }
     if (IsScript(eval_shared->script())) {
-      Handle<Script> eval_script(Script::cast(eval_shared->script()), isolate);
+      DirectHandle<Script> eval_script(Script::cast(eval_shared->script()),
+                                       isolate);
       builder.AppendCStringLiteral(" (");
       if (eval_script->compilation_type() == Script::CompilationType::kEval) {
         // Eval script originated from another eval.
         Handle<String> str;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, str, FormatEvalOrigin(isolate, eval_script), String);
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, str,
+                                   FormatEvalOrigin(isolate, eval_script));
         builder.AppendString(str);
       } else {
         // eval script originated from "real" source.
-        Handle<Object> eval_script_name(eval_script->name(), isolate);
+        DirectHandle<Object> eval_script_name(eval_script->name(), isolate);
         if (IsString(*eval_script_name)) {
-          builder.AppendString(Handle<String>::cast(eval_script_name));
+          builder.AppendString(DirectHandle<String>::cast(eval_script_name));
           Script::PositionInfo info;
           if (Script::GetPositionInfo(eval_script,
                                       Script::GetEvalPosition(isolate, script),
@@ -264,14 +267,14 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   } else {
     builder.AppendCStringLiteral("<anonymous>");
   }
-  return builder.Finish().ToHandleChecked();
+  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
 }  // namespace
 
 // static
 Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
-    Handle<CallSiteInfo> info) {
+    DirectHandle<CallSiteInfo> info) {
   auto isolate = info->GetIsolate();
   Handle<Script> script;
   if (!GetScript(isolate, info).ToHandle(&script) ||
@@ -283,11 +286,11 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
 
 // static
 Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
-    Handle<CallSiteInfo> info) {
+    DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
-    Handle<WasmModuleObject> module_object(
+    DirectHandle<WasmModuleObject> module_object(
         info->GetWasmInstance()->module_object(), isolate);
     uint32_t func_index = info->GetWasmFunctionIndex();
     Handle<String> name;
@@ -323,13 +326,15 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
 }
 
 // static
-Handle<String> CallSiteInfo::GetFunctionDebugName(Handle<CallSiteInfo> info) {
+Handle<String> CallSiteInfo::GetFunctionDebugName(
+    DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
-    return GetWasmFunctionDebugName(isolate,
-                                    handle(info->GetWasmInstance(), isolate),
-                                    info->GetWasmFunctionIndex());
+    return GetWasmFunctionDebugName(
+        isolate,
+        handle(info->GetWasmInstance()->trusted_data(isolate), isolate),
+        info->GetWasmFunctionIndex());
   }
   if (info->IsBuiltin()) {
     return Handle<String>::cast(GetFunctionName(info));
@@ -439,7 +444,7 @@ Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
 }  // namespace
 
 // static
-Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
+Handle<Object> CallSiteInfo::GetMethodName(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   Handle<Object> receiver_or_instance(info->receiver_or_instance(), isolate);
 #if V8_ENABLE_WEBASSEMBLY
@@ -492,7 +497,7 @@ Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
     } else if (it.state() == LookupIterator::ACCESSOR) {
       Handle<Object> accessors = it.GetAccessors();
       if (IsAccessorPair(*accessors)) {
-        Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
+        auto pair = DirectHandle<AccessorPair>::cast(accessors);
         if (pair->getter() == *function || pair->setter() == *function) {
           return name;
         }
@@ -504,7 +509,7 @@ Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
 }
 
 // static
-Handle<Object> CallSiteInfo::GetTypeName(Handle<CallSiteInfo> info) {
+Handle<Object> CallSiteInfo::GetTypeName(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   if (!info->IsMethodCall()) {
     return isolate->factory()->null_value();
@@ -530,12 +535,13 @@ Tagged<WasmInstanceObject> CallSiteInfo::GetWasmInstance() const {
 }
 
 // static
-Handle<Object> CallSiteInfo::GetWasmModuleName(Handle<CallSiteInfo> info) {
+Handle<Object> CallSiteInfo::GetWasmModuleName(
+    DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   if (info->IsWasm()) {
     Handle<String> name;
     auto module_object =
-        handle(info->GetWasmInstance()->module_object(), isolate);
+        direct_handle(info->GetWasmInstance()->module_object(), isolate);
     if (WasmModuleObject::GetModuleNameOrNull(isolate, module_object)
             .ToHandle(&name)) {
       return name;
@@ -546,7 +552,7 @@ Handle<Object> CallSiteInfo::GetWasmModuleName(Handle<CallSiteInfo> info) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // static
-int CallSiteInfo::GetSourcePosition(Handle<CallSiteInfo> info) {
+int CallSiteInfo::GetSourcePosition(DirectHandle<CallSiteInfo> info) {
   if (info->flags() & kIsSourcePositionComputed) {
     return info->code_offset_or_source_position();
   }
@@ -561,7 +567,7 @@ int CallSiteInfo::GetSourcePosition(Handle<CallSiteInfo> info) {
 }
 
 // static
-bool CallSiteInfo::ComputeLocation(Handle<CallSiteInfo> info,
+bool CallSiteInfo::ComputeLocation(DirectHandle<CallSiteInfo> info,
                                    MessageLocation* location) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
@@ -594,7 +600,8 @@ bool CallSiteInfo::ComputeLocation(Handle<CallSiteInfo> info,
 }
 
 // static
-int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
+int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
+                                        int offset) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
@@ -641,7 +648,7 @@ Tagged<SharedFunctionInfo> CallSiteInfo::GetSharedFunctionInfo() const {
 
 // static
 MaybeHandle<Script> CallSiteInfo::GetScript(Isolate* isolate,
-                                            Handle<CallSiteInfo> info) {
+                                            DirectHandle<CallSiteInfo> info) {
   if (auto script = info->GetScript()) {
     return handle(*script, isolate);
   }
@@ -650,7 +657,7 @@ MaybeHandle<Script> CallSiteInfo::GetScript(Isolate* isolate,
 
 namespace {
 
-bool IsNonEmptyString(Handle<Object> object) {
+bool IsNonEmptyString(DirectHandle<Object> object) {
   return (IsString(*object) && String::cast(*object)->length() > 0);
 }
 
@@ -718,7 +725,7 @@ bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
   return true;
 }
 
-void AppendMethodCall(Isolate* isolate, Handle<CallSiteInfo> frame,
+void AppendMethodCall(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                       IncrementalStringBuilder* builder) {
   Handle<Object> type_name = CallSiteInfo::GetTypeName(frame);
   Handle<Object> method_name = CallSiteInfo::GetMethodName(frame);
@@ -840,7 +847,8 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
   if (has_name) builder->AppendCharacter(')');
 }
 
-void SerializeBuiltinStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
+void SerializeBuiltinStackFrame(Isolate* isolate,
+                                DirectHandle<CallSiteInfo> frame,
                                 IncrementalStringBuilder* builder) {
   builder->AppendString(
       Handle<String>::cast(CallSiteInfo::GetFunctionName(frame)));
@@ -869,7 +877,7 @@ MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
                                           Handle<CallSiteInfo> frame) {
   IncrementalStringBuilder builder(isolate);
   SerializeCallSiteInfo(isolate, frame, &builder);
-  return builder.Finish();
+  return indirect_handle(builder.Finish(), isolate);
 }
 
 }  // namespace internal

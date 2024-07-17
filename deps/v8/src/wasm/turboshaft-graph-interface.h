@@ -28,6 +28,7 @@ namespace compiler {
 class NodeOriginTable;
 namespace turboshaft {
 class Graph;
+class PipelineData;
 }
 }  // namespace compiler
 
@@ -41,12 +42,14 @@ class TurboshaftGraphBuildingInterface;
 struct CompilationEnv;
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
-    AccountingAllocator* allocator, CompilationEnv* env, WasmFeatures* detected,
+    compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
+    CompilationEnv* env, WasmFeatures* detected,
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
     const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);
 
-void BuildWasmWrapper(AccountingAllocator* allocator,
+void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
+                      AccountingAllocator* allocator,
                       compiler::turboshaft::Graph& graph,
                       const wasm::FunctionSig* sig, WrapperCompilationInfo,
                       const WasmModule* module);
@@ -80,6 +83,7 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   using Word32 = compiler::turboshaft::Word32;
   using Word64 = compiler::turboshaft::Word64;
   using WordPtr = compiler::turboshaft::WordPtr;
+  using Any = compiler::turboshaft::Any;
 
   template <typename T>
   using V = compiler::turboshaft::V<T>;
@@ -105,6 +109,8 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
       V<HeapObject> instance_object);
 
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
+                std::initializer_list<OpIndex> args);
+  OpIndex CallC(const MachineSignature* sig, OpIndex function,
                 std::initializer_list<OpIndex> args);
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 OpIndex arg) {

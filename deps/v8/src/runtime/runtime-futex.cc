@@ -31,11 +31,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
       FutexEmulation::NumWaitersForTesting(*array_buffer, addr));
 }
 
-RUNTIME_FUNCTION(Runtime_AtomicsNumAsyncWaitersForTesting) {
-  DCHECK_EQ(0, args.length());
-  return Smi::FromInt(FutexEmulation::NumAsyncWaitersForTesting(isolate));
-}
-
 RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

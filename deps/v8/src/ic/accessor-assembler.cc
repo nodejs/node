@@ -203,7 +203,7 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
     ExitPoint* exit_point) {
   if (!p->IsEnumeratedKeyedLoad()) return;
   Label no_enum_cache(this);
-  // p->cache_type() comes from the outer loop's ForIn state.
+  // |p->cache_type()| comes from the outer loop's ForIn state.
   GotoIf(TaggedNotEqual(p->cache_type(), lookup_start_object_map),
          &no_enum_cache);
 
@@ -214,12 +214,12 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
       descriptors, DescriptorArray::kEnumCacheOffset);
   TNode<FixedArray> enum_keys =
       LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
-  // p->enum_index() comes from the outer loop's ForIn state.
+  // |p->enum_index()| comes from the outer loop's ForIn state.
   TNode<Object> key =
       LoadFixedArrayElement(enum_keys, TaggedIndexToSmi(p->enum_index()));
-  // Check if the key in parameters match the one in enum cache. Debugger might
-  // change the value in key register, in this case we should not use the field
-  // index in enum cache.
+  // Check if |p->name()| matches the key in enum cache. |p->name()| is the
+  // "each" variable of a for-in loop, but it can be modified by debugger or
+  // other bytecodes.
   GotoIf(TaggedNotEqual(key, p->name()), &no_enum_cache);
   TNode<FixedArray> enum_indices =
       LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
@@ -368,8 +368,17 @@ void AccessorAssembler::HandleLoadICHandlerCase(
       exit_point->Return(TrueConstant());
     } else {
       TNode<HeapObject> strong_handler = GetHeapObjectAssumeWeak(handler, miss);
-      TNode<Object> getter = LoadAccessorPairGetter(CAST(strong_handler));
-      exit_point->Return(Call(p->context(), getter, p->receiver()));
+      TNode<JSFunction> getter =
+          CAST(LoadAccessorPairGetter(CAST(strong_handler)));
+
+      ConvertReceiverMode mode =
+          p->lookup_start_object() == p->receiver()
+              // LoadIC case: the receiver is definitely not null or undefined.
+              ? ConvertReceiverMode::kNotNullOrUndefined
+              // LoadSuperIC case: the receiver might be anything.
+              : ConvertReceiverMode::kAny;
+      exit_point->Return(
+          CallFunction(p->context(), getter, mode, p->receiver()));
     }
   }
 
@@ -1355,7 +1364,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     ICMode ic_mode, ElementSupport support_elements) {
   Label if_smi_handler(this), if_nonsmi_handler(this);
   Label if_proto_handler(this), call_handler(this),
-      store_transition_or_global(this);
+      store_transition_or_global_or_accessor(this);
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
 
@@ -1428,16 +1437,11 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
     BIND(&if_fast_smi);
     {
-      Label data(this), accessor(this), shared_struct_field(this),
-          native_data_property(this);
-      GotoIf(Word32Equal(handler_kind, STORE_KIND(kAccessor)), &accessor);
+      Label data(this), shared_struct_field(this), native_data_property(this);
       GotoIf(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
              &native_data_property);
       Branch(Word32Equal(handler_kind, STORE_KIND(kSharedStructField)),
              &shared_struct_field, &data);
-
-      BIND(&accessor);
-      HandleStoreAccessor(p, CAST(holder), handler_word);
 
       BIND(&native_data_property);
       HandleStoreICNativeDataProperty(p, CAST(holder), handler_word);
@@ -1490,7 +1494,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   BIND(&if_nonsmi_handler);
   {
     TNode<HeapObjectReference> ref_handler = CAST(handler);
-    GotoIf(IsWeakOrCleared(ref_handler), &store_transition_or_global);
+    GotoIf(IsWeakOrCleared(ref_handler),
+           &store_transition_or_global_or_accessor);
     TNode<HeapObject> strong_handler = CAST(handler);
     TNode<Map> handler_map = LoadMap(strong_handler);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
@@ -1515,15 +1520,17 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
   }
 
-  BIND(&store_transition_or_global);
+  BIND(&store_transition_or_global_or_accessor);
   {
     // Load value or miss if the {handler} weak cell is cleared.
     CSA_DCHECK(this, IsWeakOrCleared(handler));
-    TNode<HeapObject> map_or_property_cell =
-        GetHeapObjectAssumeWeak(handler, miss);
+    TNode<HeapObject> strong_handler = GetHeapObjectAssumeWeak(handler, miss);
 
-    Label store_global(this), store_transition(this);
-    Branch(IsMap(map_or_property_cell), &store_transition, &store_global);
+    Label store_global(this), store_transition(this), store_accessor(this);
+    TNode<Map> strong_handler_map = LoadMap(strong_handler);
+    GotoIf(IsPropertyCellMap(strong_handler_map), &store_global);
+    Branch(IsAccessorPairMap(strong_handler_map), &store_accessor,
+           &store_transition);
 
     BIND(&store_global);
     {
@@ -1536,14 +1543,24 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         BIND(&proceed_defining);
       }
 
-      TNode<PropertyCell> property_cell = CAST(map_or_property_cell);
+      TNode<PropertyCell> property_cell = CAST(strong_handler);
       ExitPoint direct_exit(this);
       StoreGlobalIC_PropertyCellCase(property_cell, p->value(), &direct_exit,
                                      miss);
     }
+    BIND(&store_accessor);
+    {
+      TNode<AccessorPair> pair = CAST(strong_handler);
+      TNode<JSFunction> setter = CAST(LoadAccessorPairSetter(pair));
+      // As long as this code path is not used for StoreSuperIC the receiver
+      // is known to be neither undefined nor null.
+      ConvertReceiverMode mode = ConvertReceiverMode::kNotNullOrUndefined;
+      Return(
+          CallFunction(p->context(), setter, mode, p->receiver(), p->value()));
+    }
     BIND(&store_transition);
     {
-      TNode<Map> map = CAST(map_or_property_cell);
+      TNode<Map> map = CAST(strong_handler);
       HandleStoreICTransitionMapHandlerCase(p, map, miss,
                                             p->IsAnyDefineOwn()
                                                 ? kDontCheckPrototypeValidity
@@ -1908,22 +1925,6 @@ void AccessorAssembler::CheckPrototypeValidityCell(
   BIND(&done);
 }
 
-void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
-                                            TNode<HeapObject> holder,
-                                            TNode<Word32T> handler_word) {
-  Comment("accessor_store");
-  TNode<IntPtrT> descriptor =
-      Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
-  TNode<HeapObject> accessor_pair =
-      CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
-  CSA_DCHECK(this, IsAccessorPair(accessor_pair));
-  TNode<Object> setter =
-      LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
-  CSA_DCHECK(this, Word32BinaryNot(IsTheHole(setter)));
-
-  Return(Call(p->context(), setter, p->receiver(), p->value()));
-}
-
 void AccessorAssembler::HandleStoreICProtoHandler(
     const StoreICParameters* p, TNode<StoreHandler> handler, Label* slow,
     Label* miss, ICMode ic_mode, ElementSupport support_elements) {
@@ -1998,7 +1999,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kGlobalProxy)),
            &if_store_global_proxy);
 
-    GotoIf(Word32Equal(handler_kind, STORE_KIND(kAccessor)), &if_accessor);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kAccessorFromPrototype)),
+           &if_accessor);
 
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
            &if_native_data_property);
@@ -2034,7 +2036,18 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     }
 
     BIND(&if_accessor);
-    HandleStoreAccessor(p, holder, handler_word);
+    {
+      Comment("accessor_store");
+      // The "holder" slot (data1) in the from-prototype StoreHandler is
+      // instead directly the setter function.
+      TNode<JSFunction> setter = CAST(holder);
+
+      // As long as this code path is not used for StoreSuperIC the receiver
+      // is known to be neither undefined nor null.
+      ConvertReceiverMode mode = ConvertReceiverMode::kNotNullOrUndefined;
+      Return(
+          CallFunction(p->context(), setter, mode, p->receiver(), p->value()));
+    }
 
     BIND(&if_native_data_property);
     HandleStoreICNativeDataProperty(p, holder, handler_word);
@@ -5111,8 +5124,8 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   // similar here?
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
-      [=](TNode<Name> key, TNode<Object> value) {
-        CreateDataProperty(context, result, key, value);
+      [=](TNode<Name> key, LazyNode<Object> value) {
+        CreateDataProperty(context, result, key, value());
       },
       &runtime_copy);
   Return(result);

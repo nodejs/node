@@ -135,8 +135,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
     Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
     Handle<String> cons1;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, cons1, isolate->factory()->NewConsString(first, replace),
-        String);
+        isolate, cons1, isolate->factory()->NewConsString(first, replace));
     Handle<String> second =
         isolate->factory()->NewSubString(subject, index + 1, subject->length());
     return isolate->factory()->NewConsString(cons1, second);
@@ -496,7 +495,9 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
     builder.AddSubjectSlice(prev_index + 1, string_length);
   }
 
-  return *builder.ToString().ToHandleChecked();
+  DirectHandle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.ToString());
+  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_StringIsWellFormed) {

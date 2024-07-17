@@ -28,7 +28,8 @@ struct RuntimeCallDescriptor {
       CanThrow can_throw = (Derived::kProperties & Operator::kNoThrow)
                                ? CanThrow::kNo
                                : CanThrow::kYes;
-      return TSCallDescriptor::Create(descriptor, can_throw, zone);
+      return TSCallDescriptor::Create(descriptor, can_throw,
+                                      LazyDeoptOnThrow::kNo, zone);
     }
 
 #ifdef DEBUG
@@ -101,6 +102,25 @@ struct RuntimeCallDescriptor {
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
+  struct HandleNoHeapWritesInterrupts
+      : public Descriptor<HandleNoHeapWritesInterrupts> {
+    static constexpr auto kFunction = Runtime::kHandleNoHeapWritesInterrupts;
+    using arguments_t = std::tuple<>;
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoWrite;
+  };
+
+  struct PropagateException : public Descriptor<PropagateException> {
+    static constexpr auto kFunction = Runtime::kPropagateException;
+    using arguments_t = std::tuple<>;
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto kFunction = Runtime::kStringCharCodeAt;
     using arguments_t = std::tuple<V<String>, V<Number>>;
@@ -122,6 +142,15 @@ struct RuntimeCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 #endif  // V8_INTL_SUPPORT
+
+  struct SymbolDescriptiveString : public Descriptor<SymbolDescriptiveString> {
+    static constexpr auto kFunction = Runtime::kSymbolDescriptiveString;
+    using arguments_t = std::tuple<V<Symbol>>;
+    using result_t = V<String>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
+  };
 
   struct TerminateExecution : public Descriptor<TerminateExecution> {
     static constexpr auto kFunction = Runtime::kTerminateExecution;
@@ -150,6 +179,105 @@ struct RuntimeCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct ThrowAccessedUninitializedVariable
+      : public Descriptor<ThrowAccessedUninitializedVariable> {
+    static constexpr auto kFunction =
+        Runtime::kThrowAccessedUninitializedVariable;
+    using arguments_t = std::tuple<V<Object>>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowConstructorReturnedNonObject
+      : public Descriptor<ThrowConstructorReturnedNonObject> {
+    static constexpr auto kFunction =
+        Runtime::kThrowConstructorReturnedNonObject;
+    using arguments_t = std::tuple<>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowNotSuperConstructor
+      : public Descriptor<ThrowNotSuperConstructor> {
+    static constexpr auto kFunction = Runtime::kThrowNotSuperConstructor;
+    using arguments_t = std::tuple<V<Object>, V<Object>>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowSuperAlreadyCalledError
+      : public Descriptor<ThrowSuperAlreadyCalledError> {
+    static constexpr auto kFunction = Runtime::kThrowSuperAlreadyCalledError;
+    using arguments_t = std::tuple<>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowSuperNotCalled : public Descriptor<ThrowSuperNotCalled> {
+    static constexpr auto kFunction = Runtime::kThrowSuperNotCalled;
+    using arguments_t = std::tuple<>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct ThrowCalledNonCallable : public Descriptor<ThrowCalledNonCallable> {
+    static constexpr auto kFunction = Runtime::kThrowCalledNonCallable;
+    using arguments_t = std::tuple<V<Object>>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
+  struct NewClosure : public Descriptor<NewClosure> {
+    static constexpr auto kFunction = Runtime::kNewClosure;
+    using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;
+    using result_t = V<JSFunction>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoThrow;
+  };
+
+  struct NewClosure_Tenured : public Descriptor<NewClosure_Tenured> {
+    static constexpr auto kFunction = Runtime::kNewClosure_Tenured;
+    using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;
+    using result_t = V<JSFunction>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoThrow;
+  };
+
+  struct HasInPrototypeChain : public Descriptor<HasInPrototypeChain> {
+    static constexpr auto kFunction = Runtime::kHasInPrototypeChain;
+    using arguments_t = std::tuple<V<Object>, V<HeapObject>>;
+    using result_t = V<Boolean>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 };
 

@@ -19,7 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/runtime/runtime.h"
@@ -2020,7 +2020,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference::Create(f));
 
-  bool switch_to_central = this->options().is_wasm;
+  bool switch_to_central = options().is_wasm;
   CallBuiltin(Builtins::RuntimeCEntry(f->result_size, switch_to_central));
 }
 
@@ -2114,14 +2114,6 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
       static_assert(IsolateData::fast_c_call_caller_pc_offset() ==
                     fp_offset + 8);
       Stp(fp, pc_scratch, MemOperand(kRootRegister, fp_offset));
-
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      static_assert(Context::kNoContext == 0);
-      StoreRootRelative(IsolateData::context_offset(), xzr);
-#endif
     } else {
       Register addr_scratch = temps.AcquireX();
       DCHECK_NOT_NULL(isolate());
@@ -2131,15 +2123,6 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
       Mov(addr_scratch,
           ExternalReference::fast_c_call_caller_fp_address(isolate()));
       Str(fp, MemOperand(addr_scratch));
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      static_assert(Context::kNoContext == 0);
-      Str(xzr,
-          ExternalReferenceAsOperand(
-              ExternalReference::context_address(isolate()), addr_scratch));
-#endif
     }
   }
 
@@ -3047,6 +3030,7 @@ void MacroAssembler::EnterExitFrame(const Register& scratch, int extra_space,
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_ACCESSOR_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
 
   // Set up the new stack frame.
@@ -3485,6 +3469,21 @@ void MacroAssembler::DecompressTagged(const Register& destination,
   }
 }
 
+void MacroAssembler::DecompressProtected(const Register& destination,
+                                         const MemOperand& field_operand) {
+#if V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldr(destination.W(), field_operand);
+  Ldr(scratch,
+      MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
+  Orr(destination, destination, scratch);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
 void MacroAssembler::AtomicDecompressTaggedSigned(const Register& destination,
                                                   const Register& base,
                                                   const Register& index,
@@ -3522,6 +3521,24 @@ void MacroAssembler::CheckPageFlag(const Register& object, int mask,
     DCHECK_EQ(cc, eq);
     TestAndBranchIfAllClear(scratch, mask, condition_met);
   }
+}
+
+void MacroAssembler::JumpIfMarking(Label* is_marking,
+                                   Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldrb(scratch,
+       MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Cbnz(scratch, is_marking);
+}
+
+void MacroAssembler::JumpIfNotMarking(Label* not_marking,
+                                      Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldrb(scratch,
+       MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Cbz(scratch, not_marking);
 }
 
 void MacroAssembler::RecordWriteField(Register object, int offset,
@@ -3765,13 +3782,7 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
                                                MemOperand field_operand) {
   DCHECK(root_array_available());
 #ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Ldr(destination.W(), field_operand);
-  Ldr(scratch,
-      MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
-  Orr(destination, destination, scratch);
+  DecompressProtected(destination, field_operand);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -3942,11 +3953,17 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     DCHECK_EQ(0, kSmiTag);
     JumpIfSmi(value, &done);
   }
-  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &done);
 
-  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
-                &done);
+  if (slot.contains_indirect_pointer()) {
+    // The indirect pointer write barrier is only enabled during marking.
+    JumpIfNotMarking(&done);
+  } else {
+    CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                  &done);
+
+    CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+                  &done);
+  }
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {
@@ -4391,20 +4408,36 @@ void MacroAssembler::PopcntHelper(Register dst, Register src) {
   Fmov(dst, tmp);
 }
 
-void MacroAssembler::I8x16BitMask(Register dst, VRegister src) {
+void MacroAssembler::I8x16BitMask(Register dst, VRegister src, VRegister temp) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   VRegister tmp = temps.AcquireQ();
   VRegister mask = temps.AcquireQ();
-  // Set i-th bit of each lane i. When AND with tmp, the lanes that
-  // are signed will have i-th bit set, unsigned will be 0.
-  Sshr(tmp.V16B(), src.V16B(), 7);
-  Movi(mask.V2D(), 0x8040'2010'0804'0201);
-  And(tmp.V16B(), mask.V16B(), tmp.V16B());
-  Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
-  Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
-  Addv(tmp.H(), tmp.V8H());
-  Mov(dst.W(), tmp.V8H(), 0);
+
+  if (CpuFeatures::IsSupported(PMULL1Q) && temp.is_valid()) {
+    CpuFeatureScope scope(this, PMULL1Q);
+
+    Movi(mask.V2D(), 0x0102'0408'1020'4080);
+    // Normalize the input - at most 1 bit per vector element should be set.
+    Ushr(tmp.V16B(), src.V16B(), 7);
+    // Collect the input bits into a byte of the output - once for each
+    // half of the input.
+    Pmull2(temp.V1Q(), mask.V2D(), tmp.V2D());
+    Pmull(tmp.V1Q(), mask.V1D(), tmp.V1D());
+    // Combine the bits from both input halves.
+    Trn2(tmp.V8B(), tmp.V8B(), temp.V8B());
+    Mov(dst.W(), tmp.V8H(), 3);
+  } else {
+    // Set i-th bit of each lane i. When AND with tmp, the lanes that
+    // are signed will have i-th bit set, unsigned will be 0.
+    Sshr(tmp.V16B(), src.V16B(), 7);
+    Movi(mask.V2D(), 0x8040'2010'0804'0201);
+    And(tmp.V16B(), mask.V16B(), tmp.V16B());
+    Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
+    Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
+    Addv(tmp.H(), tmp.V8H());
+    Mov(dst.W(), tmp.V8H(), 0);
+  }
 }
 
 void MacroAssembler::I16x8BitMask(Register dst, VRegister src) {
@@ -4412,13 +4445,28 @@ void MacroAssembler::I16x8BitMask(Register dst, VRegister src) {
   UseScratchRegisterScope temps(this);
   VRegister tmp = temps.AcquireQ();
   VRegister mask = temps.AcquireQ();
-  Sshr(tmp.V8H(), src.V8H(), 15);
-  // Set i-th bit of each lane i. When AND with tmp, the lanes that
-  // are signed will have i-th bit set, unsigned will be 0.
-  Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
-  And(tmp.V16B(), mask.V16B(), tmp.V16B());
-  Addv(tmp.H(), tmp.V8H());
-  Mov(dst.W(), tmp.V8H(), 0);
+
+  if (CpuFeatures::IsSupported(PMULL1Q)) {
+    CpuFeatureScope scope(this, PMULL1Q);
+
+    // Normalize the input - at most 1 bit per vector element should be set.
+    Ushr(tmp.V8H(), src.V8H(), 15);
+    Movi(mask.V1D(), 0x0102'0408'1020'4080);
+    // Trim some of the redundant 0 bits, so that we can operate on
+    // only 64 bits.
+    Xtn(tmp.V8B(), tmp.V8H());
+    // Collect the input bits into a byte of the output.
+    Pmull(tmp.V1Q(), tmp.V1D(), mask.V1D());
+    Mov(dst.W(), tmp.V16B(), 7);
+  } else {
+    Sshr(tmp.V8H(), src.V8H(), 15);
+    // Set i-th bit of each lane i. When AND with tmp, the lanes that
+    // are signed will have i-th bit set, unsigned will be 0.
+    Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
+    And(tmp.V16B(), mask.V16B(), tmp.V16B());
+    Addv(tmp.H(), tmp.V8H());
+    Mov(dst.W(), tmp.V8H(), 0);
+  }
 }
 
 void MacroAssembler::I32x4BitMask(Register dst, VRegister src) {
@@ -4607,9 +4655,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");
     __ Bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback function.
-    MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-        ER::api_callback_thunk_argument_address(isolate), no_reg);
-    __ Str(thunk_arg, thunk_arg_mem_op);
+    if (thunk_arg.is_valid()) {
+      MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
+          ER::api_callback_thunk_argument_address(isolate), no_reg);
+      __ Str(thunk_arg, thunk_arg_mem_op);
+    }
     __ Mov(scratch, thunk_ref);
     __ StoreReturnAddressAndCall(scratch);
     __ B(&done_api_call);

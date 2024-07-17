@@ -465,7 +465,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
-  if (V8_UNLIKELY(isolate->UseEfficiencyModeForTiering() &&
+  if (V8_UNLIKELY(isolate->EfficiencyModeEnabledForTiering() &&
                   min_opt_level == CodeKind::MAGLEV)) {
     mode = ConcurrencyMode::kSynchronous;
   }
@@ -551,8 +551,8 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
     return function->code(isolate);
   }
 
-  if (V8_UNLIKELY(isolate->UseEfficiencyModeForTiering() ||
-                  isolate->UseBatterySaverMode())) {
+  if (V8_UNLIKELY(isolate->EfficiencyModeEnabledForTiering() ||
+                  isolate->BatterySaverModeEnabled())) {
     function->feedback_vector()->reset_osr_urgency();
     function->SetInterruptBudget(isolate);
     return Smi::zero();

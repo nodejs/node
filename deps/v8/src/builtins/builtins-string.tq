@@ -227,6 +227,12 @@ transitioning javascript builtin StringConstructor(
   if (newTarget == Undefined) {
     return s;
   }
+
+  // We might be creating a string wrapper with a custom @@toPrimitive.
+  if (target != newTarget) {
+    InvalidateStringWrapperToPrimitiveProtector();
+  }
+
   // 4. Return ! StringCreate(s, ? GetPrototypeFromConstructor(NewTarget,
   // "%String.prototype%")).
   const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));

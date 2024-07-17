@@ -67,6 +67,10 @@ inline bool IsAnyStore(AccessMode mode) {
          mode == AccessMode::kDefine;
 }
 
+inline bool IsDefiningStore(AccessMode mode) {
+  return mode == AccessMode::kStoreInLiteral || mode == AccessMode::kDefine;
+}
+
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
@@ -973,7 +977,8 @@ class BytecodeArrayRef : public HeapObjectRef {
   int length() const;
 
   int register_count() const;
-  int parameter_count() const;
+  uint16_t parameter_count() const;
+  uint16_t max_arguments() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 
   Handle<TrustedByteArray> SourcePositionTable(JSHeapBroker* broker) const;
@@ -1032,6 +1037,7 @@ class ScopeInfoRef : public HeapObjectRef {
   Handle<ScopeInfo> object() const;
 
   int ContextLength() const;
+  bool HasContext() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool ClassScopeHasPrivateBrand() const;

@@ -201,7 +201,8 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
           *factory->NewError(isolate->syntax_error_function(), message));
     }
     // 21. If result.[[Type]] is not normal, throw a TypeError exception.
-    Handle<String> string = Object::NoSideEffectsToString(isolate, exception);
+    DirectHandle<String> string =
+        Object::NoSideEffectsToString(isolate, exception);
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kCallShadowRealmEvaluateThrew, string));

@@ -53,7 +53,7 @@ struct InvokeParams {
 
   bool IsScript() const {
     if (!IsJSFunction(*target)) return false;
-    Handle<JSFunction> function = Handle<JSFunction>::cast(target);
+    auto function = DirectHandle<JSFunction>::cast(target);
     return function->shared()->is_script();
   }
 
@@ -178,9 +178,9 @@ Handle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
   UNREACHABLE();
 }
 
-MaybeHandle<Context> NewScriptContext(Isolate* isolate,
-                                      Handle<JSFunction> function,
-                                      Handle<FixedArray> host_defined_options) {
+MaybeHandle<Context> NewScriptContext(
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    DirectHandle<FixedArray> host_defined_options) {
   // TODO(cbruni, 1244145): Use passed in host_defined_options.
   // Creating a script context is a side effect, so abort if that's not
   // allowed.
@@ -193,8 +193,8 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   Tagged<SharedFunctionInfo> sfi = function->shared();
   Handle<Script> script(Script::cast(sfi->script()), isolate);
   Handle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
-  Handle<NativeContext> native_context(NativeContext::cast(function->context()),
-                                       isolate);
+  DirectHandle<NativeContext> native_context(
+      NativeContext::cast(function->context()), isolate);
   Handle<JSGlobalObject> global_object(native_context->global_object(),
                                        isolate);
   Handle<ScriptContextTable> script_context(
@@ -207,10 +207,11 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
     VariableLookupResult lookup;
     if (script_context->Lookup(name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
-        Handle<Context> context(script_context->get(lookup.context_index),
-                                isolate);
+        DirectHandle<Context> context(script_context->get(lookup.context_index),
+                                      isolate);
         // If we are trying to re-declare a REPL-mode let as a let or REPL-mode
         // const as a const, allow it.
+        // TODO(rezvan): Add check and related tests for VariableMode::kUsing.
         if (!(((mode == VariableMode::kLet &&
                 lookup.mode == VariableMode::kLet) ||
                (mode == VariableMode::kConst &&
@@ -221,10 +222,10 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
           // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
           // exception.
           MessageLocation location(script, 0, 1);
-          return isolate->ThrowAt<Context>(
-              isolate->factory()->NewSyntaxError(
-                  MessageTemplate::kVarRedeclaration, name),
-              &location);
+          isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                               MessageTemplate::kVarRedeclaration, name),
+                           &location);
+          return MaybeHandle<Context>();
         }
       }
     }
@@ -243,10 +244,10 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
         // ES#sec-globaldeclarationinstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         MessageLocation location(script, 0, 1);
-        return isolate->ThrowAt<Context>(
-            isolate->factory()->NewSyntaxError(
-                MessageTemplate::kVarRedeclaration, name),
-            &location);
+        isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                             MessageTemplate::kVarRedeclaration, name),
+                         &location);
+        return MaybeHandle<Context>();
       }
 
       JSGlobalObject::InvalidatePropertyCell(global_object, name);
@@ -260,8 +261,9 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   // In REPL mode, we are allowed to add/modify let/const variables.
   // We use the previous defined script context for those.
   const bool ignore_duplicates = scope_info->IsReplModeScope();
-  Handle<ScriptContextTable> new_script_context_table = ScriptContextTable::Add(
-      isolate, script_context, result, ignore_duplicates);
+  DirectHandle<ScriptContextTable> new_script_context_table =
+      ScriptContextTable::Add(isolate, script_context, result,
+                              ignore_duplicates);
   native_context->synchronized_set_script_context_table(
       *new_script_context_table);
   return result;
@@ -298,7 +300,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   // api callbacks can be called directly, unless we want to take the detour
   // through JS to set up a frame for break-at-entry.
   if (IsJSFunction(*params.target)) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(params.target);
+    auto function = DirectHandle<JSFunction>::cast(params.target);
     if ((!params.is_construct || IsConstructor(*function)) &&
         function->shared()->IsApiFunction() &&
         !function->shared()->BreakAtEntry(isolate)) {
@@ -337,7 +339,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     // Set up a ScriptContext when running scripts that need it.
     if (function->shared()->needs_script_context()) {
       Handle<Context> context;
-      Handle<FixedArray> host_defined_options =
+      DirectHandle<FixedArray> host_defined_options =
           const_cast<InvokeParams&>(params).GetAndResetHostDefinedOptions();
       if (!NewScriptContext(isolate, function, host_defined_options)
                .ToHandle(&context)) {
@@ -388,7 +390,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   // Placeholder for return value.
   Tagged<Object> value;
-  Handle<Code> code =
+  DirectHandle<Code> code =
       JSEntry(isolate, params.execution_target, params.is_construct);
   {
     // Save and restore context around invocation and block the
@@ -588,9 +590,9 @@ static_assert(offsetof(StackHandlerMarker, padding) ==
 static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
 #if V8_ENABLE_WEBASSEMBLY
-void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
-                         Address wasm_call_target, Handle<Object> object_ref,
-                         Address packed_args) {
+void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
+                         Address wasm_call_target,
+                         DirectHandle<Object> object_ref, Address packed_args) {
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;
   WasmEntryStub stub_entry =

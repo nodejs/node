@@ -84,14 +84,16 @@ inline const AllocateOp* UnwrapAllocate(const Graph* graph,
 struct MemoryAnalyzer {
   enum class AllocationFolding { kDoAllocationFolding, kDontAllocationFolding };
 
+  PipelineData* data;
   Zone* phase_zone;
   const Graph& input_graph;
-  Isolate* isolate_ = PipelineData::Get().isolate();
+  Isolate* isolate_ = data->isolate();
   AllocationFolding allocation_folding;
   bool is_wasm;
-  MemoryAnalyzer(Zone* phase_zone, const Graph& input_graph,
+  MemoryAnalyzer(PipelineData* data, Zone* phase_zone, const Graph& input_graph,
                  AllocationFolding allocation_folding, bool is_wasm)
-      : phase_zone(phase_zone),
+      : data(data),
+        phase_zone(phase_zone),
         input_graph(input_graph),
         allocation_folding(allocation_folding),
         is_wasm(is_wasm) {}
@@ -113,7 +115,7 @@ struct MemoryAnalyzer {
   ZoneAbslFlatHashMap<const AllocateOp*, uint32_t> reserved_size{phase_zone};
   BlockIndex current_block = BlockIndex(0);
   BlockState state;
-  TurboshaftPipelineKind pipeline_kind = PipelineData::Get().pipeline_kind();
+  TurboshaftPipelineKind pipeline_kind = data->pipeline_kind();
 
   bool IsPartOfLastAllocation(const Operation* op) {
     const AllocateOp* allocation = UnwrapAllocate(&input_graph, op);
@@ -180,14 +182,14 @@ class MemoryOptimizationReducer : public Next {
   // CopyingPhase.
 
   void Analyze() {
-    auto* info = PipelineData::Get().info();
+    auto* info = __ data() -> info();
 #if V8_ENABLE_WEBASSEMBLY
     bool is_wasm = info->IsWasm() || info->IsWasmBuiltin();
 #else
     bool is_wasm = false;
 #endif
     analyzer_.emplace(
-        __ phase_zone(), __ input_graph(),
+        __ data(), __ phase_zone(), __ input_graph(),
         info->allocation_folding()
             ? MemoryAnalyzer::AllocationFolding::kDoAllocationFolding
             : MemoryAnalyzer::AllocationFolding::kDontAllocationFolding,
@@ -444,7 +446,7 @@ class MemoryOptimizationReducer : public Next {
 
  private:
   base::Optional<MemoryAnalyzer> analyzer_;
-  Isolate* isolate_ = PipelineData::Get().isolate();
+  Isolate* isolate_ = __ data() -> isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
   base::Optional<Variable> top_[2];
 

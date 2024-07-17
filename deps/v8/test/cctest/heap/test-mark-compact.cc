@@ -205,7 +205,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*handles.front());
 
   CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
-  chunk->SetFlag(MemoryChunk::PINNED);
+  chunk->SetFlagNonExecutable(MemoryChunk::PINNED);
 
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -215,7 +215,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
     CHECK_EQ(chunk, MemoryChunk::FromHeapObject(*object));
   }
 
-  chunk->ClearFlag(MemoryChunk::PINNED);
+  chunk->ClearFlagNonExecutable(MemoryChunk::PINNED);
 
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);

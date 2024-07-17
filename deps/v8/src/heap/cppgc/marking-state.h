@@ -10,6 +10,8 @@
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/cppgc/compaction-worklists.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -120,7 +122,13 @@ class BasicMarkingState : public MarkingStateBase {
   inline void RegisterWeakCustomCallback(WeakCallback, const void*);
 
   void RegisterMovableReference(const void** slot) {
-    if (!movable_slots_worklist_) return;
+    if (V8_LIKELY(!movable_slots_worklist_)) return;
+#if defined(CPPGC_CAGED_HEAP)
+    if (V8_UNLIKELY(!CagedHeapBase::IsWithinCage(slot))) return;
+#else   // !defined(CPPGC_CAGED_HEAP)
+    if (V8_UNLIKELY(heap::base::Stack::IsOnStack(slot))) return;
+#endif  // !defined(CPPGC_CAGED_HEAP)
+
     movable_slots_worklist_->Push(slot);
   }
 

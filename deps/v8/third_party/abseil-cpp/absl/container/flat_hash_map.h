@@ -31,16 +31,15 @@
 #define ABSL_CONTAINER_FLAT_HASH_MAP_H_
 
 #include <cstddef>
-#include <new>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
+#include "absl/container/hash_container_defaults.h"
 #include "absl/container/internal/container_memory.h"
-#include "absl/container/internal/hash_function_defaults.h"  // IWYU pragma: export
 #include "absl/container/internal/raw_hash_map.h"  // IWYU pragma: export
-#include "absl/memory/memory.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -119,9 +118,8 @@ struct FlatHashMapPolicy;
 //  if (result != ducks.end()) {
 //    std::cout << "Result: " << result->second << std::endl;
 //  }
-template <class K, class V,
-          class Hash = absl::container_internal::hash_default_hash<K>,
-          class Eq = absl::container_internal::hash_default_eq<K>,
+template <class K, class V, class Hash = DefaultHashContainerHash<K>,
+          class Eq = DefaultHashContainerEq<K>,
           class Allocator = std::allocator<std::pair<const K, V>>>
 class flat_hash_map : public absl::container_internal::raw_hash_map<
                           absl::container_internal::FlatHashMapPolicy<K, V>,

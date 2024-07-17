@@ -825,13 +825,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Drop 'count' arguments from the stack, rounded up to a multiple of two,
   // without actually accessing memory.
   // We assume the size of the arguments is the pointer size.
-  // An optional mode argument is passed, which can indicate we need to
-  // explicitly add the receiver to the count.
-  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
-  inline void DropArguments(const Register& count,
-                            ArgumentsCountMode mode = kCountIncludesReceiver);
-  inline void DropArguments(int64_t count,
-                            ArgumentsCountMode mode = kCountIncludesReceiver);
+  inline void DropArguments(const Register& count);
+  inline void DropArguments(int64_t count);
 
   // Drop 'count' slots from stack, rounded up to a multiple of two, without
   // actually accessing memory.
@@ -1000,6 +995,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   inline void JumpIfEqual(Register x, int32_t y, Label* dest);
   inline void JumpIfLessThan(Register x, int32_t y, Label* dest);
+
+  void JumpIfMarking(Label* is_marking,
+                     Label::Distance condition_met_distance = Label::kFar);
+  void JumpIfNotMarking(Label* not_marking,
+                        Label::Distance condition_met_distance = Label::kFar);
 
   void LoadMap(Register dst, Register object);
   void LoadCompressedMap(Register dst, Register object);
@@ -1542,6 +1542,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                         const MemOperand& field_operand);
   void DecompressTagged(const Register& destination, const Register& source);
   void DecompressTagged(const Register& destination, Tagged_t immediate);
+  void DecompressProtected(const Register& destination,
+                           const MemOperand& field_operand);
 
   void AtomicDecompressTaggedSigned(const Register& destination,
                                     const Register& base, const Register& index,
@@ -1561,7 +1563,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // to native instructions. These helpers allow us to define the optimal code
   // sequence, and be used in both TurboFan and Liftoff.
   void PopcntHelper(Register dst, Register src);
-  void I8x16BitMask(Register dst, VRegister src);
+  void I8x16BitMask(Register dst, VRegister src, VRegister temp = NoVReg);
   void I16x8BitMask(Register dst, VRegister src);
   void I32x4BitMask(Register dst, VRegister src);
   void I64x2BitMask(Register dst, VRegister src);

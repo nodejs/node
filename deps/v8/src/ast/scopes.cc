@@ -372,6 +372,9 @@ void Scope::SetDefaults() {
   needs_home_object_ = false;
   is_block_scope_for_object_literal_ = false;
 
+  has_using_declaration_ = false;
+  has_await_using_declaration_ = false;
+
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
 
@@ -957,15 +960,6 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   }
 }
 
-void Scope::ReplaceOuterScope(Scope* outer) {
-  DCHECK_NOT_NULL(outer);
-  DCHECK_NOT_NULL(outer_scope_);
-  DCHECK(!already_resolved_);
-  outer_scope_->RemoveInnerScope(this);
-  outer->AddInnerScope(this);
-  outer_scope_ = outer;
-}
-
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
@@ -1081,14 +1075,16 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // Private methods should be declared with ClassScope::DeclarePrivateName()
   DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   // This function handles VariableMode::kVar, VariableMode::kLet,
-  // VariableMode::kConst, and VariableMode::kUsing modes.
-  // VariableMode::kDynamic variables are introduced during variable allocation,
-  // and VariableMode::kTemporary variables are allocated via NewTemporary().
+  // VariableMode::kConst, VariableMode::kUsing, and VariableMode::kAwaitUsing
+  // modes. VariableMode::kDynamic variables are introduced during variable
+  // allocation, and VariableMode::kTemporary variables are allocated via
+  // NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK_IMPLIES(GetDeclarationScope()->is_being_lazily_parsed(),
                  mode == VariableMode::kVar || mode == VariableMode::kLet ||
                      mode == VariableMode::kConst ||
-                     mode == VariableMode::kUsing);
+                     mode == VariableMode::kUsing ||
+                     mode == VariableMode::kAwaitUsing);
   DCHECK(!GetDeclarationScope()->was_lazily_parsed());
   Variable* var =
       Declare(zone(), name, mode, kind, init_flag, kNotAssigned, was_added);
@@ -2930,7 +2926,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
     return nullptr;
   }
 
-  DCHECK(IsConstVariableMode(lookup_result.mode));
+  DCHECK(IsImmutableLexicalOrPrivateVariableMode(lookup_result.mode));
   DCHECK_EQ(lookup_result.init_flag, InitializationFlag::kNeedsInitialization);
   DCHECK_EQ(lookup_result.maybe_assigned_flag, MaybeAssignedFlag::kNotAssigned);
 
@@ -3076,9 +3072,10 @@ Variable* ClassScope::DeclareClassVariable(AstValueFactory* ast_value_factory,
                                            const AstRawString* name,
                                            int class_token_pos) {
   DCHECK_NULL(class_variable_);
+  DCHECK_NOT_NULL(name);
   bool was_added;
   class_variable_ =
-      Declare(zone(), name == nullptr ? ast_value_factory->dot_string() : name,
+      Declare(zone(), name->IsEmpty() ? ast_value_factory->dot_string() : name,
               VariableMode::kConst, NORMAL_VARIABLE,
               InitializationFlag::kNeedsInitialization,
               MaybeAssignedFlag::kMaybeAssigned, &was_added);

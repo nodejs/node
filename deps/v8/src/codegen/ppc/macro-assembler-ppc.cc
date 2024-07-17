@@ -20,7 +20,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/runtime/runtime.h"
@@ -343,7 +343,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
              cond, cr);
       } else {
         Label skip;
-        LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+        LoadU64(ip, EntryFromBuiltinAsOperand(builtin), r0);
         if (cond != al) b(NegateCondition(cond), &skip, cr);
         Jump(ip);
         bind(&skip);
@@ -1544,45 +1544,16 @@ void MacroAssembler::Prologue() {
   }
 }
 
-void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
-                                   ArgumentsCountMode mode) {
-  int receiver_bytes =
-      (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
-  switch (type) {
-    case kCountIsInteger: {
-      ShiftLeftU64(ip, count, Operand(kSystemPointerSizeLog2));
-      add(sp, sp, ip);
-      break;
-    }
-    case kCountIsSmi: {
-      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
-      SmiToPtrArrayOffset(count, count);
-      add(sp, sp, count);
-      break;
-    }
-    case kCountIsBytes: {
-      add(sp, sp, count);
-      break;
-    }
-  }
-  if (receiver_bytes != 0) {
-    addi(sp, sp, Operand(receiver_bytes));
-  }
+void MacroAssembler::DropArguments(Register count) {
+  ShiftLeftU64(ip, count, Operand(kSystemPointerSizeLog2));
+  add(sp, sp, ip);
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
-                                                     Register receiver,
-                                                     ArgumentsCountType type,
-                                                     ArgumentsCountMode mode) {
+                                                     Register receiver) {
   DCHECK(!AreAliased(argc, receiver));
-  if (mode == kCountExcludesReceiver) {
-    // Drop arguments without receiver and override old receiver.
-    DropArguments(argc, type, kCountIncludesReceiver);
-    StoreU64(receiver, MemOperand(sp));
-  } else {
-    DropArguments(argc, type, mode);
-    push(receiver);
-  }
+  DropArguments(argc);
+  push(receiver);
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,
@@ -1648,11 +1619,15 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 // in the fp register (r31)
 // Then - we buy a new frame
 
-void MacroAssembler::EnterExitFrame(int stack_space,
+void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
                                     StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_ACCESSOR_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
+
+  using ER = ExternalReference;
+
   // Set up the frame structure on the stack.
   DCHECK_EQ(2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kSystemPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -1678,12 +1653,12 @@ void MacroAssembler::EnterExitFrame(int stack_space,
   }
 
   // Save the frame pointer and the context in top.
-  Move(r8, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                     isolate()));
-  StoreU64(fp, MemOperand(r8));
-  Move(r8,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  StoreU64(cp, MemOperand(r8));
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  StoreU64(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  StoreU64(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   AddS64(sp, sp, Operand(-stack_space * kSystemPointerSize));
 
@@ -1722,38 +1697,28 @@ int MacroAssembler::ActivationFrameAlignment() {
 #endif
 }
 
-void MacroAssembler::LeaveExitFrame(Register argument_count,
-                                    bool argument_count_is_length) {
+void MacroAssembler::LeaveExitFrame(Register scratch) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
 
-  // Clear top frame.
-  li(r6, Operand::Zero());
-  Move(ip, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                     isolate()));
-  StoreU64(r6, MemOperand(ip));
+  using ER = ExternalReference;
 
   // Restore current context from top and clear it in debug mode.
-  Move(ip,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  LoadU64(cp, MemOperand(ip));
+  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
+  LoadU64(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
 #ifdef DEBUG
-  mov(r6, Operand(Context::kInvalidContext));
-  Move(ip,
-       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  StoreU64(r6, MemOperand(ip));
+  mov(scratch, Operand(Context::kInvalidContext));
+  StoreU64(scratch, ExternalReferenceAsOperand(context_address, no_reg));
 #endif
+
+  // Clear the top frame.
+  ER c_entry_fp_address =
+      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
+  mov(scratch, Operand::Zero());
+  StoreU64(scratch, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
 
   // Tear down the exit frame, pop the arguments, and return.
   LeaveFrame(StackFrame::EXIT);
-
-  if (argument_count.is_valid()) {
-    if (!argument_count_is_length) {
-      ShiftLeftU64(argument_count, argument_count,
-                   Operand(kSystemPointerSizeLog2));
-    }
-    add(sp, sp, argument_count);
-  }
 }
 
 void MacroAssembler::MovFromFloatResult(const DoubleRegister dst) {
@@ -2957,13 +2922,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                           IsolateData::fast_c_call_caller_pc_offset()));
       StoreU64(fp, MemOperand(kRootRegister,
                               IsolateData::fast_c_call_caller_fp_offset()));
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      mov(pc_scratch, Operand(Context::kNoContext));
-      StoreRootRelative(IsolateData::context_offset(), pc_scratch);
-#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       Register addr_scratch = r7;
@@ -2975,15 +2933,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       StoreU64(fp, MemOperand(addr_scratch));
-#if DEBUG
-      // Reset Isolate::context field right before the fast C call such that the
-      // GC can visit this field unconditionally. This is necessary because
-      // CEntry sets it to kInvalidContext in debug build only.
-      mov(pc_scratch, Operand(Context::kNoContext));
-      StoreU64(pc_scratch, ExternalReferenceAsOperand(
-                               ExternalReference::context_address(isolate()),
-                               addr_scratch));
-#endif
       Pop(addr_scratch);
     }
     mtlr(scratch);
@@ -3012,9 +2961,8 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
   // Here we are going to patch the `addi` instruction above to use the
   // correct offset.
-  // LoadPC emits two instructions and pc is the address of its
-  // second emitted instruction therefore there is one more instruction to
-  // count.
+  // LoadPC emits two instructions and pc is the address of its second emitted
+  // instruction. Add one more to the offset to point to after the Call.
   offset_since_start_call += kInstrSize;
   patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
 
@@ -5909,14 +5857,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   __ RecordComment("Leave the API exit frame.");
   __ bind(&leave_exit_frame);
-  // LeaveExitFrame expects unwind space to be in a register.
   Register stack_space_reg = prev_limit_reg;
   if (stack_space_operand != nullptr) {
+    // Load the number of stack slots to drop before LeaveExitFrame modifies sp.
     __ LoadU64(stack_space_reg, *stack_space_operand);
-  } else {
-    __ mov(stack_space_reg, Operand(stack_space));
   }
-  __ LeaveExitFrame(stack_space_reg, stack_space_operand != nullptr);
+  __ LeaveExitFrame(scratch);
 
   {
     ASM_CODE_COMMENT_STRING(masm,
@@ -5940,15 +5886,27 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ AssertJSAny(return_value, scratch, scratch2,
                  AbortReason::kAPICallReturnedInvalidObject);
 
+  if (stack_space_operand == nullptr) {
+    DCHECK_NE(stack_space, 0);
+    __ AddS64(sp, sp, Operand(stack_space * kSystemPointerSize));
+
+  } else {
+    DCHECK_EQ(stack_space, 0);
+    // {stack_space_operand} was loaded into {stack_space_reg} above.
+    __ AddS64(sp, sp, stack_space_reg);
+  }
+
   __ blr();
 
   if (with_profiling) {
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via the thunk.");
     __ bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback function.
-    MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-        ER::api_callback_thunk_argument_address(isolate), no_reg);
-    __ StoreU64(thunk_arg, thunk_arg_mem_op);
+    if (thunk_arg.is_valid()) {
+      MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
+          ER::api_callback_thunk_argument_address(isolate), no_reg);
+      __ StoreU64(thunk_arg, thunk_arg_mem_op);
+    }
     __ Move(scratch, thunk_ref);
     __ StoreReturnAddressAndCall(scratch);
     __ b(&done_api_call);

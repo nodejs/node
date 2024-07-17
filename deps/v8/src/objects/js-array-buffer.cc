@@ -35,7 +35,8 @@ bool CanonicalNumericIndexString(Isolate* isolate,
     *is_minus_zero = true;
   } else {
     // 4. If SameValue(! ToString(n), argument) is false, return undefined.
-    Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
+    DirectHandle<String> str =
+        Object::ToString(isolate, result).ToHandleChecked();
     // Avoid treating strings like "2E1" and "20" as the same key.
     if (!Object::SameValue(*str, *key)) return false;
   }
@@ -52,10 +53,12 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   set_is_shared(shared == SharedFlag::kShared);
   set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
   set_is_detachable(shared != SharedFlag::kShared);
+  init_extension();
+  SetupLazilyInitializedCppHeapPointerField(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
   }
-  set_extension(nullptr);
   if (!backing_store) {
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
@@ -114,12 +117,12 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   isolate->heap()->AppendArrayBufferExtension(*this, extension);
 }
 
-Maybe<bool> JSArrayBuffer::Detach(Handle<JSArrayBuffer> buffer,
+Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
                                   bool force_for_wasm_memory,
                                   Handle<Object> maybe_key) {
   Isolate* const isolate = buffer->GetIsolate();
 
-  Handle<Object> detach_key = handle(buffer->detach_key(), isolate);
+  DirectHandle<Object> detach_key(buffer->detach_key(), isolate);
 
   bool key_mismatch = false;
 
@@ -258,7 +261,7 @@ void JSArrayBuffer::YoungMarkExtensionPromoted() {
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   Isolate* isolate = GetIsolate();
-  Handle<JSTypedArray> self(*this, isolate);
+  DirectHandle<JSTypedArray> self(*this, isolate);
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));
   Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(self->buffer()),
                                      isolate);

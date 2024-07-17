@@ -8,8 +8,10 @@
 #include <vector>
 
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/const-tracking-let-helpers.h"
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-ir.h"
 
 namespace v8 {
 namespace internal {
@@ -37,10 +39,12 @@ class Graph final : public ZoneObject {
         float_(zone),
         external_references_(zone),
         parameters_(zone),
+        allocations_(zone),
         register_inputs_(),
         constants_(zone),
         inlined_functions_(zone),
-        is_osr_(is_osr) {}
+        is_osr_(is_osr),
+        scope_infos_(zone) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -99,6 +103,12 @@ class Graph final : public ZoneObject {
     return external_references_;
   }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
+  // Running JS2, 99.99% of the cases, we have less than 2 dependencies.
+  using AllocationDependencies = SmallZoneVector<InlinedAllocation*, 2>;
+  ZoneMap<InlinedAllocation*, AllocationDependencies>& allocations() {
+    return allocations_;
+  }
+
   RegList& register_inputs() { return register_inputs_; }
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
     return constants_;
@@ -121,6 +131,62 @@ class Graph final : public ZoneObject {
 
   int NewObjectId() { return object_ids_++; }
 
+  // Resolve the scope info of a context value.
+  // An empty result means we don't statically know the context's scope.
+  compiler::OptionalScopeInfoRef TryGetScopeInfo(
+      ValueNode* context, compiler::JSHeapBroker* broker) {
+    auto it = scope_infos_.find(context);
+    if (it != scope_infos_.end()) {
+      return it->second;
+    }
+    compiler::OptionalScopeInfoRef res;
+    if (auto context_const = context->TryCast<Constant>()) {
+      res = context_const->object().AsContext().scope_info(broker);
+      DCHECK(res->HasContext());
+    } else if (auto load = context->TryCast<LoadTaggedField>()) {
+      compiler::OptionalScopeInfoRef cur =
+          TryGetScopeInfo(load->input(0).node(), broker);
+      DCHECK(load->offset() ==
+                 Context::OffsetOfElementAt(Context::EXTENSION_INDEX) ||
+             load->offset() ==
+                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+      if (load->offset() ==
+          Context::OffsetOfElementAt(Context::EXTENSION_INDEX)) {
+        res = cur;
+      } else if (load->offset() ==
+                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX)) {
+        if (cur.has_value()) {
+          cur = (*cur).OuterScopeInfo(broker);
+          while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
+            cur = cur->OuterScopeInfo(broker);
+          }
+          if (cur->HasContext()) {
+            res = cur;
+          }
+        }
+      }
+    } else if (context->Is<InitialValue>()) {
+      // We should only fail to keep track of initial contexts originating from
+      // the OSR prequel.
+      // TODO(olivf): Keep track of contexts when analyzing OSR Prequel.
+      DCHECK(is_osr());
+    } else {
+      // Any context created within a function must be registered in
+      // graph()->scope_infos(). Initial contexts must be registered before
+      // BuildBody. We don't track context in generators (yet) and around eval
+      // the bytecode compiler creates contexts by calling
+      // Runtime::kNewFunctionInfo directly.
+      DCHECK(context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
+             context->Is<RegisterInput>() || context->Is<CallRuntime>());
+    }
+    return scope_infos_[context] = res;
+  }
+
+  void record_scope_info(ValueNode* context,
+                         compiler::OptionalScopeInfoRef scope_info) {
+    scope_infos_[context] = scope_info;
+  }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
@@ -137,6 +203,7 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
+  ZoneMap<InlinedAllocation*, AllocationDependencies> allocations_;
   RegList register_inputs_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
@@ -145,6 +212,7 @@ class Graph final : public ZoneObject {
   int total_inlined_bytecode_size_ = 0;
   bool is_osr_ = false;
   int object_ids_ = 0;
+  ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
 };
 
 }  // namespace maglev

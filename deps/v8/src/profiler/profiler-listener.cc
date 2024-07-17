@@ -363,6 +363,10 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
   // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.
   base::OwnedVector<char> null_terminated =
       base::OwnedVector<char>::New(name.size() + 1);
+#if defined(__GNUC__) && !defined(__clang__)
+  // Work around a spurious GCC-12 warning (-Werror=array-bounds).
+  if (name.end() < name.begin()) return nullptr;
+#endif
   std::copy(name.begin(), name.end(), null_terminated.begin());
   null_terminated[name.size()] = '\0';
   return GetName(null_terminated.begin());

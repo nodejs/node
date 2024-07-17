@@ -39,7 +39,7 @@ Address InstructionStream::constant_pool() const { return kNullAddress; }
 // static
 Tagged<InstructionStream> InstructionStream::Initialize(
     Tagged<HeapObject> self, Tagged<Map> map, uint32_t body_size,
-    int constant_pool_offset, Tagged<ByteArray> reloc_info) {
+    int constant_pool_offset, Tagged<TrustedByteArray> reloc_info) {
   {
     WritableJitAllocation writable_allocation =
         ThreadIsolation::RegisterInstructionStreamAllocation(
@@ -62,7 +62,8 @@ Tagged<InstructionStream> InstructionStream::Initialize(
                                                           kReleaseStore);
 
     DCHECK(!ObjectInYoungGeneration(reloc_info));
-    writable_allocation.WriteHeaderSlot<ByteArray, kRelocationInfoOffset>(
+    writable_allocation.WriteProtectedPointerHeaderSlot<TrustedByteArray,
+                                                        kRelocationInfoOffset>(
         reloc_info, kRelaxedStore);
 
     // Clear header padding
@@ -73,14 +74,16 @@ Tagged<InstructionStream> InstructionStream::Initialize(
                                    TrailingPaddingSizeFor(body_size));
   }
 
+  Tagged<InstructionStream> istream = InstructionStream::cast(self);
+
   // We want to keep the code minimal that runs with write access to a JIT
   // allocation, so trigger the write barriers after the WritableJitAllocation
   // went out of scope.
-  SLOW_DCHECK(!WriteBarrier::IsRequired(self, map));
-  CONDITIONAL_WRITE_BARRIER(self, kRelocationInfoOffset, reloc_info,
-                            UPDATE_WRITE_BARRIER);
+  SLOW_DCHECK(!WriteBarrier::IsRequired(istream, map));
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*istream, kRelocationInfoOffset,
+                                              reloc_info, UPDATE_WRITE_BARRIER);
 
-  return InstructionStream::cast(self);
+  return istream;
 }
 
 // Copy from compilation artifacts stored in CodeDesc to the target on-heap
@@ -114,8 +117,8 @@ Tagged<InstructionStream> InstructionStream::Initialize(
 // InstructionStream contains all instructions and inline metadata, and a
 // pointer to the relocation info byte array.
 void InstructionStream::Finalize(Tagged<Code> code,
-                                 Tagged<ByteArray> reloc_info, CodeDesc desc,
-                                 Heap* heap) {
+                                 Tagged<TrustedByteArray> reloc_info,
+                                 CodeDesc desc, Heap* heap) {
   DisallowGarbageCollection no_gc;
   base::Optional<WriteBarrierPromise> promise;
 
@@ -204,23 +207,19 @@ bool InstructionStream::TryGetCodeUnchecked(Tagged<Code>* code_out,
   return true;
 }
 
-Tagged<ByteArray> InstructionStream::relocation_info() const {
-  PtrComprCageBase cage_base = main_cage_base();
-  Tagged<ByteArray> value =
-      TaggedField<ByteArray, kRelocationInfoOffset>::load(cage_base, *this);
-  DCHECK(!ObjectInYoungGeneration(value));
-  return value;
+Tagged<TrustedByteArray> InstructionStream::relocation_info() const {
+  return TrustedByteArray::cast(
+      ReadProtectedPointerField(kRelocationInfoOffset));
 }
 
 Address InstructionStream::instruction_start() const {
   return field_address(kHeaderSize);
 }
 
-Tagged<ByteArray> InstructionStream::unchecked_relocation_info() const {
-  PtrComprCageBase cage_base = main_cage_base();
-  return ByteArray::unchecked_cast(
-      TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
-                                                                   *this));
+Tagged<TrustedByteArray> InstructionStream::unchecked_relocation_info() const {
+  Tagged<Object> value =
+      RawProtectedPointerField(kRelocationInfoOffset).Acquire_Load();
+  return TrustedByteArray::unchecked_cast(value);
 }
 
 uint8_t* InstructionStream::relocation_start() const {

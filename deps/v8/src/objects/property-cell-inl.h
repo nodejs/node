@@ -57,7 +57,7 @@ void PropertyCell::UpdatePropertyDetailsExceptCellType(
 }
 
 void PropertyCell::Transition(PropertyDetails new_details,
-                              Handle<Object> new_value) {
+                              DirectHandle<Object> new_value) {
   DCHECK(CanTransitionTo(new_details, *new_value));
   // This code must be in sync with its counterpart in
   // PropertyCellData::Serialize.

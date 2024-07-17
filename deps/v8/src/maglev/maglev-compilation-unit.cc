@@ -34,6 +34,7 @@ MaglevCompilationUnit::MaglevCompilationUnit(
       feedback_(feedback_vector),
       register_count_(bytecode_->register_count()),
       parameter_count_(bytecode_->parameter_count()),
+      max_arguments_(bytecode_->max_arguments()),
       inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {
   // Check that the parameter count in the bytecode and in the shared function
   // info are consistent.
@@ -44,11 +45,12 @@ MaglevCompilationUnit::MaglevCompilationUnit(
 
 MaglevCompilationUnit::MaglevCompilationUnit(
     MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
-    int register_count, int parameter_count)
+    int register_count, uint16_t parameter_count, uint16_t max_arguments)
     : info_(info),
       caller_(caller),
       register_count_(register_count),
       parameter_count_(parameter_count),
+      max_arguments_(max_arguments),
       inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}
 
 compiler::JSHeapBroker* MaglevCompilationUnit::broker() const {

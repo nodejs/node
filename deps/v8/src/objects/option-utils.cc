@@ -25,8 +25,7 @@ MaybeHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
     return Handle<JSReceiver>::cast(options);
   }
   // 3. Throw a TypeError exception.
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument),
-                  JSReceiver);
+  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument));
 }
 
 // ecma402/#sec-coerceoptionstoobject
@@ -40,8 +39,7 @@ MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
   }
   // 2. Return ? ToObject(options).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             Object::ToObject(isolate, options, method_name),
-                             JSReceiver);
+                             Object::ToObject(isolate, options, method_name));
   return Handle<JSReceiver>::cast(options);
 }
 
@@ -138,8 +136,8 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
 
   // b. If value is NaN or less than minimum or greater than maximum, throw a
   // RangeError exception.
-  if (IsNaN(*value_num) || Object::Number(*value_num) < min ||
-      Object::Number(*value_num) > max) {
+  if (IsNaN(*value_num) || Object::NumberValue(*value_num) < min ||
+      Object::NumberValue(*value_num) > max) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
@@ -151,7 +149,7 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
   // int conversion safe.
   //
   // c. Return floor(value).
-  return Just(FastD2I(floor(Object::Number(*value_num))));
+  return Just(FastD2I(floor(Object::NumberValue(*value_num))));
 }
 
 // ecma402/#sec-getnumberoption
@@ -196,7 +194,7 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
   }
 
   // 7. Return value.
-  return Just(Object::Number(*value));
+  return Just(Object::NumberValue(*value));
 }
 
 }  // namespace internal

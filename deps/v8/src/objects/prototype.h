@@ -38,7 +38,8 @@ class PrototypeIterator {
   inline explicit PrototypeIterator(Isolate* isolate, Tagged<Map> receiver_map,
                                     WhereToEnd where_to_end = END_AT_NULL);
 
-  inline explicit PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
+  inline explicit PrototypeIterator(Isolate* isolate,
+                                    DirectHandle<Map> receiver_map,
                                     WhereToEnd where_to_end = END_AT_NULL);
 
   ~PrototypeIterator() = default;

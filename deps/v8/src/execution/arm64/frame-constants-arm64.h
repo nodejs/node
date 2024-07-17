@@ -40,8 +40,12 @@ namespace internal {
 //       |- - - - - - - - - - -|
 //   3   |     C entry FP      |
 //       |- - - - - - - - - - -|
-//   4   |   JS entry frame    |  <-- stack ptr
+//   4   |   JS entry frame    |
 //       |       marker        |
+//       |- - - - - - - - - - -|
+//   5   |  fast api call fp   |
+//       |- - - - - - - - - - -|
+//   6   |  fast api call pc   |  <-- stack ptr
 //  -----+---------------------+-----------------------
 //          TOP OF THE STACK     LOWEST ADDRESS
 //
@@ -50,7 +54,11 @@ class EntryFrameConstants : public AllStatic {
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
   static constexpr int kNextExitFrameFPOffset = -3 * kSystemPointerSize;
-  static constexpr int kFixedFrameSize = 4 * kSystemPointerSize;
+  // The offsets for storing the FP and PC of fast API calls.
+  static constexpr int kNextFastCallFrameFPOffset = -5 * kSystemPointerSize;
+  static constexpr int kNextFastCallFramePCOffset = -6 * kSystemPointerSize;
+
+  static constexpr int kFixedFrameSize = 6 * kSystemPointerSize;
 
   // The following constants are defined so we can static-assert their values
   // near the relevant JSEntry assembly code, not because they're actually very
@@ -95,6 +103,12 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
   static constexpr int kDeclaredFunctionIndexOffset = 1 * kSystemPointerSize;
   static constexpr int kNativeModuleOffset = 0;
+};
+
+class WasmLiftoffFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
+  static constexpr int kInstanceDataOffset = 2 * kSystemPointerSize;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.

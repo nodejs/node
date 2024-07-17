@@ -11,9 +11,18 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
+#include "src/objects/js-disposable-stack-inl.h"
+#include "src/objects/js-disposable-stack.h"
+#include "src/objects/objects.h"
+#include "src/objects/oddball.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -23,6 +32,12 @@ RUNTIME_FUNCTION(Runtime_ThrowConstAssignError) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                  NewTypeError(MessageTemplate::kConstAssign));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowUsingAssignError) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kUsingAssign));
 }
 
 namespace {
@@ -222,6 +237,62 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     if (IsException(result)) return result;
   });
 
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  Handle<JSDisposableStack> disposable_stack =
+      isolate->factory()->NewJSDisposableStack();
+  JSDisposableStack::Initialize(isolate, disposable_stack);
+  return *disposable_stack;
+}
+
+RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  Handle<JSDisposableStack> stack = args.at<JSDisposableStack>(0);
+  Handle<Object> value = args.at<Object>(1);
+
+  // a. If V is either null or undefined and hint is sync-dispose, return
+  // unused.
+  if (IsNullOrUndefined(*value)) {
+    return *value;
+  }
+
+  Handle<Object> dispose_method;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, dispose_method,
+      JSDisposableStack::CheckValueAndGetDisposeMethod(isolate, value));
+
+  // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
+  // hint, [[DisposeMethod]]: method }.
+  JSDisposableStack::Add(isolate, stack, value, dispose_method,
+                         DisposeMethodCallType::kValueIsReceiver);
+
+  return *value;
+}
+
+RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  Handle<JSDisposableStack> disposable_stack = args.at<JSDisposableStack>(0);
+  Handle<Smi> continuation_token = args.at<Smi>(1);
+  Handle<Object> continuation_error = args.at<Object>(2);
+
+  MAYBE_RETURN(
+      JSDisposableStack::DisposeResources(
+          isolate, disposable_stack,
+          (*continuation_token !=
+           Smi::FromInt(static_cast<int>(
+               interpreter::TryFinallyContinuationToken::kRethrowToken)))
+              ? MaybeHandle<Object>()
+              : continuation_error),
+      ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -694,8 +765,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,
-                      NewReferenceError(MessageTemplate::kNotDefined, name),
-                      Object);
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     DCHECK(!IsTheHole(*value, isolate));
     if (receiver_return) *receiver_return = receiver;
@@ -709,8 +779,8 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, value, Object::GetProperty(isolate, holder, name), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::GetProperty(isolate, holder, name));
     if (receiver_return) {
       *receiver_return =
           (IsJSGlobalObject(*holder) || IsJSContextExtensionObject(*holder))
@@ -722,8 +792,8 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
 
   if (should_throw == kThrowOnError) {
     // The property doesn't exist - throw exception.
-    THROW_NEW_ERROR(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+    THROW_NEW_ERROR(isolate,
+                    NewReferenceError(MessageTemplate::kNotDefined, name));
   }
 
   // The property doesn't exist - return undefined.
@@ -806,8 +876,8 @@ MaybeHandle<Object> StoreLookupSlot(
       SourceTextModule::StoreVariable(Handle<SourceTextModule>::cast(holder),
                                       index, value);
     } else {
-      THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kConstAssign, name), Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kConstAssign, name));
     }
     return value;
   }
@@ -817,8 +887,7 @@ MaybeHandle<Object> StoreLookupSlot(
     if (flag == kNeedsInitialization &&
         IsTheHole(holder_context->get(index), isolate)) {
       THROW_NEW_ERROR(isolate,
-                      NewReferenceError(MessageTemplate::kNotDefined, name),
-                      Object);
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if ((attributes & READ_ONLY) == 0) {
       if (v8_flags.const_tracking_let && holder_context->IsScriptContext()) {
@@ -827,8 +896,8 @@ MaybeHandle<Object> StoreLookupSlot(
       }
       Handle<Context>::cast(holder)->set(index, *value);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
-      THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kConstAssign, name), Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kConstAssign, name));
     }
     return value;
   }
@@ -842,16 +911,15 @@ MaybeHandle<Object> StoreLookupSlot(
     object = Handle<JSReceiver>::cast(holder);
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
-    THROW_NEW_ERROR(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+    THROW_NEW_ERROR(isolate,
+                    NewReferenceError(MessageTemplate::kNotDefined, name));
   } else {
     // If absent in sloppy mode: add the property to the global object.
     object = handle(context->global_object(), isolate);
   }
 
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                             Object::SetProperty(isolate, object, name, value),
-                             Object);
+                             Object::SetProperty(isolate, object, name, value));
   return value;
 }
 

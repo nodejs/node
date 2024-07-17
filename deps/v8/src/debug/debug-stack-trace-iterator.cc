@@ -68,7 +68,7 @@ void DebugStackTraceIterator::Advance() {
 
 int DebugStackTraceIterator::GetContextId() const {
   DCHECK(!Done());
-  Handle<Object> context = frame_inspector_->GetContext();
+  DirectHandle<Object> context = frame_inspector_->GetContext();
   if (IsContext(*context)) {
     Tagged<Object> value =
         Context::cast(*context)->native_context()->debug_context_id();
@@ -85,8 +85,8 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     // FrameInspector is not able to get receiver for arrow function.
     // So let's try to fetch it using same logic as is used to retrieve 'this'
     // during DebugEvaluate::Local.
-    Handle<JSFunction> function = frame_inspector_->GetFunction();
-    Handle<Context> context(function->context(), isolate_);
+    DirectHandle<JSFunction> function = frame_inspector_->GetFunction();
+    DirectHandle<Context> context(function->context(), isolate_);
     // Arrow function defined in top level function without references to
     // variables may have NativeContext as context.
     if (!context->IsFunctionContext()) return v8::MaybeLocal<v8::Value>();
@@ -160,11 +160,8 @@ debug::Location DebugStackTraceIterator::GetFunctionLocation() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (iterator_.frame()->is_wasm()) {
     auto frame = WasmFrame::cast(iterator_.frame());
-    Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate_);
-    auto offset = instance->module_object()
-                      ->module()
-                      ->functions[frame->function_index()]
-                      .code.offset();
+    const wasm::WasmModule* module = frame->trusted_instance_data()->module();
+    auto offset = module->functions[frame->function_index()].code.offset();
     return v8::debug::Location(0, offset);
   }
 #endif

@@ -7,12 +7,14 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
@@ -94,6 +96,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_constant_pool_offset(options.constant_pool_offset);
   code->set_code_comments_offset(options.code_comments_offset);
   code->set_unwinding_info_offset(options.unwinding_info_offset);
+  code->set_parameter_count(options.parameter_count);
 
   // Set bytecode/interpreter data or deoptimization data.
   if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {
@@ -134,9 +137,6 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   // Set instruction stream and entrypoint.
   Handle<InstructionStream> istream;
   if (options.instruction_stream.ToHandle(&istream)) {
-    CodePageHeaderModificationScope header_modification_scope(
-        "Setting the instruction_stream can trigger a write to the marking "
-        "bitmap.");
     DCHECK_EQ(options.instruction_start, kNullAddress);
     code->SetInstructionStreamAndInstructionStart(isolate(), *istream);
   } else {
@@ -272,15 +272,25 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
 }
 
 template <typename Impl>
+Handle<TrustedWeakFixedArray> FactoryBase<Impl>::NewTrustedWeakFixedArray(
+    int length) {
+  // TODO(saelo): Move this check to TrustedWeakFixedArray::New once we have a
+  // RO trusted space.
+  if (length == 0) return empty_trusted_weak_fixed_array();
+  return TrustedWeakFixedArray::New(isolate(), length);
+}
+
+template <typename Impl>
 Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
                                                   AllocationType allocation) {
   return ByteArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>
-Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(int length) {
+Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(
+    int length, AllocationType allocation_type) {
   if (length == 0) return empty_trusted_byte_array();
-  return TrustedByteArray::New(isolate(), length);
+  return TrustedByteArray::New(isolate(), length, allocation_type);
 }
 
 template <typename Impl>
@@ -311,20 +321,21 @@ template <typename Impl>
 Handle<DeoptimizationLiteralArray>
 FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
   return Handle<DeoptimizationLiteralArray>::cast(
-      NewWeakFixedArray(length, AllocationType::kOld));
+      NewTrustedWeakFixedArray(length));
 }
 
 template <typename Impl>
 Handle<DeoptimizationFrameTranslation>
 FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
   return Handle<DeoptimizationFrameTranslation>::cast(
-      NewByteArray(length, AllocationType::kOld));
+      NewTrustedByteArray(length));
 }
 
 template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
-    int parameter_count, DirectHandle<TrustedFixedArray> constant_pool,
+    uint16_t parameter_count, uint16_t max_arguments,
+    DirectHandle<TrustedFixedArray> constant_pool,
     DirectHandle<TrustedByteArray> handler_table) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
@@ -340,6 +351,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
+  instance->set_max_arguments(max_arguments);
   instance->set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
   instance->set_constant_pool(*constant_pool);
@@ -503,6 +515,19 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
 }
 
 template <typename Impl>
+Handle<SharedFunctionInfoWrapper>
+FactoryBase<Impl>::NewSharedFunctionInfoWrapper(
+    Handle<SharedFunctionInfo> sfi) {
+  Tagged<Map> map = read_only_roots().shared_function_info_wrapper_map();
+  Tagged<SharedFunctionInfoWrapper> wrapper = SharedFunctionInfoWrapper::cast(
+      NewWithImmortalMap(map, AllocationType::kTrusted));
+
+  wrapper->set_shared_info(*sfi);
+
+  return handle(wrapper, isolate());
+}
+
+template <typename Impl>
 Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
@@ -587,8 +612,11 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK(!IsInstructionStream(*function_data));
     DCHECK(!IsCode(*function_data));
-    raw->SetData(*function_data, kReleaseStore,
-                 SharedFunctionInfo::DataType::kRegular);
+    SharedFunctionInfo::DataType type =
+        IsExposedTrustedObject(*function_data)
+            ? SharedFunctionInfo::DataType::kTrusted
+            : SharedFunctionInfo::DataType::kRegular;
+    raw->SetData(*function_data, kReleaseStore, type);
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw->set_builtin_id(builtin);
   } else {
@@ -709,7 +737,8 @@ template <typename Impl>
 template <class StringTableKey>
 Handle<String> FactoryBase<Impl>::InternalizeStringWithKey(
     StringTableKey* key) {
-  return isolate()->string_table()->LookupKey(isolate(), key);
+  return indirect_handle(isolate()->string_table()->LookupKey(isolate(), key),
+                         isolate());
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
@@ -796,7 +825,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
                  RefineAllocationTypeForInPlaceInternalizableString(
                      allocation, map) == allocation);
   if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqStringT);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
   int size = SeqStringT::SizeFor(length);
@@ -871,7 +900,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
 
   bool left_is_one_byte = left->IsOneByteRepresentation();
@@ -969,8 +998,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewStringFromOneByte(
   if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                             NewRawOneByteString(string.length(), allocation),
-                             String);
+                             NewRawOneByteString(string.length(), allocation));
 
   DisallowGarbageCollection no_gc;
   // Copy the characters into the new object.
@@ -1334,10 +1362,10 @@ FactoryBase<Impl>::NewFunctionTemplateRareData() {
 }
 
 template <typename Impl>
-MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
+MaybeDirectHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
     Tagged<Map> from_string_map) {
   InstanceType instance_type = from_string_map->instance_type();
-  MaybeHandle<Map> map;
+  MaybeDirectHandle<Map> map;
   switch (instance_type) {
     case SEQ_TWO_BYTE_STRING_TYPE:
     case SHARED_SEQ_TWO_BYTE_STRING_TYPE:

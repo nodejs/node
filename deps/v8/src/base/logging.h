@@ -82,6 +82,10 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
                                                               const char*));
 
+// Override the default function invoked during V8_Fatal.
+V8_BASE_EXPORT void SetFatalFunction(void (*fatal_Function)(const char*, int,
+                                                            const char*));
+
 enum class OOMType {
   // We ran out of memory in the JavaScript heap.
   kJavaScript,

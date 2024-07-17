@@ -6,6 +6,3 @@
 extern class Foreign extends HeapObject {
   foreign_address: ExternalPointer;
 }
-
-extern operator '.foreign_address_ptr' macro LoadForeignForeignAddressPtr(
-    Foreign): RawPtr;

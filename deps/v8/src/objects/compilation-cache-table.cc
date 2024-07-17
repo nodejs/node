@@ -42,14 +42,14 @@ int SearchLiteralsMapEntry(Tagged<CompilationCacheTable> cache,
   return -1;
 }
 
-void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
+void AddToFeedbackCellsMap(DirectHandle<CompilationCacheTable> cache,
                            InternalIndex cache_entry,
-                           Handle<Context> native_context,
-                           Handle<FeedbackCell> feedback_cell) {
+                           DirectHandle<Context> native_context,
+                           DirectHandle<FeedbackCell> feedback_cell) {
   Isolate* isolate = native_context->GetIsolate();
   DCHECK(IsNativeContext(*native_context));
   static_assert(kLiteralEntryLength == 2);
-  Handle<WeakFixedArray> new_literals_map;
+  DirectHandle<WeakFixedArray> new_literals_map;
   int entry;
 
   Tagged<Object> obj = cache->EvalFeedbackValueAt(cache_entry);
@@ -62,7 +62,8 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
         kLiteralInitialLength, AllocationType::kOld);
     entry = 0;
   } else {
-    Handle<WeakFixedArray> old_literals_map(WeakFixedArray::cast(obj), isolate);
+    DirectHandle<WeakFixedArray> old_literals_map(WeakFixedArray::cast(obj),
+                                                  isolate);
     entry = SearchLiteralsMapEntry(*cache, cache_entry, *native_context);
     if (entry >= 0) {
       // Just set the code of the entry.
@@ -159,7 +160,7 @@ class EvalCacheKey : public HashTableKey {
     DisallowGarbageCollection no_gc;
     if (!IsFixedArray(other)) {
       DCHECK(IsNumber(other));
-      uint32_t other_hash = static_cast<uint32_t>(Object::Number(other));
+      uint32_t other_hash = static_cast<uint32_t>(Object::NumberValue(other));
       return Hash() == other_hash;
     }
     Tagged<FixedArray> other_array = FixedArray::cast(other);
@@ -390,8 +391,8 @@ bool ScriptCacheKey::IsMatch(Tagged<Object> other) {
   return other_source->Equals(*source_) && MatchesScript(other_script);
 }
 
-Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
-                                        Handle<SharedFunctionInfo> shared) {
+Handle<Object> ScriptCacheKey::AsHandle(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(kEnd);
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
@@ -431,7 +432,7 @@ CompilationCacheScriptLookupResult::FromRawObjects(
 }
 
 CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
-    Handle<CompilationCacheTable> table, Handle<String> src,
+    DirectHandle<CompilationCacheTable> table, Handle<String> src,
     const ScriptDetails& script_details, Isolate* isolate) {
   src = String::Flatten(isolate, src);
   ScriptCacheKey key(src, &script_details, isolate);
@@ -456,8 +457,8 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
 }
 
 InfoCellPair CompilationCacheTable::LookupEval(
-    Handle<CompilationCacheTable> table, Handle<String> src,
-    Handle<SharedFunctionInfo> outer_info, Handle<Context> native_context,
+    DirectHandle<CompilationCacheTable> table, Handle<String> src,
+    Handle<SharedFunctionInfo> outer_info, DirectHandle<Context> native_context,
     LanguageMode language_mode, int position) {
   InfoCellPair empty_result;
   Isolate* isolate = native_context->GetIsolate();
@@ -513,9 +514,9 @@ Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     MaybeHandle<FixedArray> maybe_wrapped_arguments,
-    Handle<SharedFunctionInfo> value, Isolate* isolate) {
+    DirectHandle<SharedFunctionInfo> value, Isolate* isolate) {
   src = String::Flatten(isolate, src);
-  Handle<Script> script = handle(Script::cast(value->script()), isolate);
+  DirectHandle<Script> script(Script::cast(value->script()), isolate);
   MaybeHandle<Object> script_name;
   if (IsString(script->name(), isolate)) {
     script_name = handle(script->name(), isolate);
@@ -525,7 +526,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   ScriptCacheKey key(src, script_name, script->line_offset(),
                      script->column_offset(), script->origin_options(),
                      host_defined_options, maybe_wrapped_arguments, isolate);
-  Handle<Object> k = key.AsHandle(isolate, value);
+  DirectHandle<Object> k = key.AsHandle(isolate, value);
 
   // Check whether there is already a matching entry. If so, we must overwrite
   // it. This allows an entry whose value is undefined to upgrade to contain a
@@ -556,9 +557,10 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-    Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
-    int position) {
+    Handle<SharedFunctionInfo> outer_info,
+    DirectHandle<SharedFunctionInfo> value,
+    DirectHandle<Context> native_context,
+    DirectHandle<FeedbackCell> feedback_cell, int position) {
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
   EvalCacheKey key(src, outer_info, value->language_mode(), position);
@@ -566,7 +568,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   // This block handles 'real' insertions, i.e. the initial dummy insert
   // (below) has already happened earlier.
   {
-    Handle<Object> k = key.AsHandle(isolate);
+    DirectHandle<Object> k = key.AsHandle(isolate);
     InternalIndex entry = cache->FindEntry(isolate, &key);
     if (entry.is_found()) {
       cache->SetKeyAt(entry, *k);
@@ -589,7 +591,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   // Create a dummy entry to mark that this key has already been inserted once.
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());
-  Handle<Object> k =
+  DirectHandle<Object> k =
       isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
   cache->SetKeyAt(entry, *k);
   cache->SetPrimaryValueAt(entry, Smi::FromInt(kHashGenerations));
@@ -599,7 +601,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
     Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
-    JSRegExp::Flags flags, Handle<FixedArray> value) {
+    JSRegExp::Flags flags, DirectHandle<FixedArray> value) {
   RegExpKey key(src, flags);
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());

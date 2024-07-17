@@ -228,27 +228,38 @@ ElementAccessFeedback::transition_groups() const {
 
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
     JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const {
+  if (inferred_maps.empty()) {
+    return *broker->zone()->New<ElementAccessFeedback>(
+        broker->zone(), keyed_mode(), slot_kind());
+  }
+
+  ZoneRefSet<Map> inferred(inferred_maps.begin(), inferred_maps.end(),
+                           broker->zone());
+  return Refine(broker, inferred, false);
+}
+
+ElementAccessFeedback const& ElementAccessFeedback::Refine(
+    JSHeapBroker* broker, ZoneRefSet<Map> const& inferred_maps,
+    bool always_keep_group_target) const {
   ElementAccessFeedback& refined_feedback =
       *broker->zone()->New<ElementAccessFeedback>(broker->zone(), keyed_mode(),
                                                   slot_kind());
-  if (inferred_maps.empty()) return refined_feedback;
-
-  ZoneRefUnorderedSet<MapRef> inferred(broker->zone());
-  inferred.insert(inferred_maps.begin(), inferred_maps.end());
+  if (inferred_maps.size() == 0) return refined_feedback;
 
   for (auto const& group : transition_groups()) {
     DCHECK(!group.empty());
     TransitionGroup new_group(broker->zone());
     for (size_t i = 1; i < group.size(); ++i) {
       MapRef source = group[i];
-      if (inferred.find(source) != inferred.end()) {
+      if (inferred_maps.contains(source)) {
         new_group.push_back(source);
       }
     }
 
     MapRef target = group.front();
-    bool const keep_target =
-        inferred.find(target) != inferred.end() || new_group.size() > 1;
+    bool const keep_target = always_keep_group_target ||
+                             inferred_maps.contains(target) ||
+                             new_group.size() > 1;
     if (keep_target) {
       new_group.push_back(target);
       // The target must be at the front, the order of sources doesn't matter.
@@ -564,7 +575,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   if (IsSmi(*feedback_value)) {
     // The wanted name belongs to a script-scope variable and the feedback
     // tells us where to find its value.
-    int const number = Object::Number(*feedback_value);
+    int const number = Object::NumberValue(*feedback_value);
     int const script_context_index =
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
@@ -597,6 +608,14 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForBinaryOperation(
   BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
   DCHECK_NE(hint, BinaryOperationHint::kNone);  // Not uninitialized.
   return *zone()->New<BinaryOperationFeedback>(hint, nexus.kind());
+}
+
+ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTypeOf(
+    FeedbackSource const& source) const {
+  FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
+  if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
+  return *zone()->New<TypeOfOpFeedback>(nexus.GetTypeOfFeedback(),
+                                        nexus.kind());
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCompareOperation(
@@ -705,6 +724,13 @@ BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
                                    : feedback.AsBinaryOperation().value();
 }
 
+TypeOfFeedback::Result JSHeapBroker::GetFeedbackForTypeOf(
+    FeedbackSource const& source) {
+  ProcessedFeedback const& feedback = ProcessFeedbackForTypeOf(source);
+  return feedback.IsInsufficient() ? TypeOfFeedback::kNone
+                                   : feedback.AsTypeOf().value();
+}
+
 CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
     FeedbackSource const& source) {
   ProcessedFeedback const& feedback =
@@ -740,6 +766,14 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForTemplateObject(source);
+  SetFeedback(source, &feedback);
+  return feedback;
+}
+
+ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForTypeOf(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const& feedback = ReadFeedbackForTypeOf(source);
   SetFeedback(source, &feedback);
   return feedback;
 }
@@ -832,7 +866,10 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
       MapUpdaterGuardIfNeeded mumd_scope(this);
 
       transition_target = map.object()->FindElementsKindTransitionedMap(
-          isolate(), possible_transition_targets, ConcurrencyMode::kConcurrent);
+          isolate(),
+          MapHandlesSpan(possible_transition_targets.begin(),
+                         possible_transition_targets.end()),
+          ConcurrencyMode::kConcurrent);
     }
 
     if (transition_target.is_null()) {
@@ -898,6 +935,11 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(MapRef map, NameRef name,
                   << map);
   property_access_infos_.insert({target, access_info});
   return access_info;
+}
+
+TypeOfOpFeedback const& ProcessedFeedback::AsTypeOf() const {
+  CHECK_EQ(kTypeOf, kind());
+  return *static_cast<TypeOfOpFeedback const*>(this);
 }
 
 BinaryOperationFeedback const& ProcessedFeedback::AsBinaryOperation() const {

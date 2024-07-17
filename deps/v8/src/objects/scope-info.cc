@@ -647,7 +647,8 @@ int ScopeInfo::length() const {
 
 // static
 Handle<ScopeInfo> ScopeInfo::RecreateWithBlockList(
-    Isolate* isolate, Handle<ScopeInfo> original, Handle<StringSet> blocklist) {
+    Isolate* isolate, Handle<ScopeInfo> original,
+    DirectHandle<StringSet> blocklist) {
   DCHECK(!original.is_null());
   if (original->HasLocalsBlockList()) return original;
 
@@ -1151,11 +1152,10 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
 }
 
 template <typename IsolateT>
-Handle<ModuleRequest> ModuleRequest::New(IsolateT* isolate,
-                                         Handle<String> specifier,
-                                         Handle<FixedArray> import_attributes,
-                                         int position) {
-  Handle<ModuleRequest> result = Handle<ModuleRequest>::cast(
+Handle<ModuleRequest> ModuleRequest::New(
+    IsolateT* isolate, DirectHandle<String> specifier,
+    DirectHandle<FixedArray> import_attributes, int position) {
+  auto result = Handle<ModuleRequest>::cast(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<ModuleRequest> raw = *result;
@@ -1166,19 +1166,19 @@ Handle<ModuleRequest> ModuleRequest::New(IsolateT* isolate,
 }
 
 template Handle<ModuleRequest> ModuleRequest::New(
-    Isolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_attributes, int position);
+    Isolate* isolate, DirectHandle<String> specifier,
+    DirectHandle<FixedArray> import_attributes, int position);
 template Handle<ModuleRequest> ModuleRequest::New(
-    LocalIsolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_attributes, int position);
+    LocalIsolate* isolate, DirectHandle<String> specifier,
+    DirectHandle<FixedArray> import_attributes, int position);
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    IsolateT* isolate, Handle<PrimitiveHeapObject> export_name,
-    Handle<PrimitiveHeapObject> local_name,
-    Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
-    int beg_pos, int end_pos) {
-  Handle<SourceTextModuleInfoEntry> result =
+    IsolateT* isolate, DirectHandle<PrimitiveHeapObject> export_name,
+    DirectHandle<PrimitiveHeapObject> local_name,
+    DirectHandle<PrimitiveHeapObject> import_name, int module_request,
+    int cell_index, int beg_pos, int end_pos) {
+  auto result =
       Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
           SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
@@ -1194,64 +1194,66 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
 }
 
 template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
-    Handle<PrimitiveHeapObject> local_name,
-    Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
-    int beg_pos, int end_pos);
+    Isolate* isolate, DirectHandle<PrimitiveHeapObject> export_name,
+    DirectHandle<PrimitiveHeapObject> local_name,
+    DirectHandle<PrimitiveHeapObject> import_name, int module_request,
+    int cell_index, int beg_pos, int end_pos);
 template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
-    Handle<PrimitiveHeapObject> local_name,
-    Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
-    int beg_pos, int end_pos);
+    LocalIsolate* isolate, DirectHandle<PrimitiveHeapObject> export_name,
+    DirectHandle<PrimitiveHeapObject> local_name,
+    DirectHandle<PrimitiveHeapObject> import_name, int module_request,
+    int cell_index, int beg_pos, int end_pos);
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     IsolateT* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
-  Handle<FixedArray> module_requests =
+  DirectHandle<FixedArray> module_requests =
       isolate->factory()->NewFixedArray(size, AllocationType::kOld);
   for (const auto& elem : descr->module_requests()) {
-    Handle<ModuleRequest> serialized_module_request = elem->Serialize(isolate);
+    DirectHandle<ModuleRequest> serialized_module_request =
+        elem->Serialize(isolate);
     module_requests->set(elem->index(), *serialized_module_request);
   }
 
   // Serialize special exports.
-  Handle<FixedArray> special_exports = isolate->factory()->NewFixedArray(
+  DirectHandle<FixedArray> special_exports = isolate->factory()->NewFixedArray(
       static_cast<int>(descr->special_exports().size()), AllocationType::kOld);
   {
     int i = 0;
     for (auto entry : descr->special_exports()) {
-      Handle<SourceTextModuleInfoEntry> serialized_entry =
+      DirectHandle<SourceTextModuleInfoEntry> serialized_entry =
           entry->Serialize(isolate);
       special_exports->set(i++, *serialized_entry);
     }
   }
 
   // Serialize namespace imports.
-  Handle<FixedArray> namespace_imports = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->namespace_imports().size()),
-      AllocationType::kOld);
+  DirectHandle<FixedArray> namespace_imports =
+      isolate->factory()->NewFixedArray(
+          static_cast<int>(descr->namespace_imports().size()),
+          AllocationType::kOld);
   {
     int i = 0;
     for (auto entry : descr->namespace_imports()) {
-      Handle<SourceTextModuleInfoEntry> serialized_entry =
+      DirectHandle<SourceTextModuleInfoEntry> serialized_entry =
           entry->Serialize(isolate);
       namespace_imports->set(i++, *serialized_entry);
     }
   }
 
   // Serialize regular exports.
-  Handle<FixedArray> regular_exports =
+  DirectHandle<FixedArray> regular_exports =
       descr->SerializeRegularExports(isolate, zone);
 
   // Serialize regular imports.
-  Handle<FixedArray> regular_imports = isolate->factory()->NewFixedArray(
+  DirectHandle<FixedArray> regular_imports = isolate->factory()->NewFixedArray(
       static_cast<int>(descr->regular_imports().size()), AllocationType::kOld);
   {
     int i = 0;
     for (const auto& elem : descr->regular_imports()) {
-      Handle<SourceTextModuleInfoEntry> serialized_entry =
+      DirectHandle<SourceTextModuleInfoEntry> serialized_entry =
           elem.second->Serialize(isolate);
       regular_imports->set(i++, *serialized_entry);
     }
