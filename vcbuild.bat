@@ -287,7 +287,7 @@ goto exit
 @rem Check if the version is v17.10 and exit if it is.
 echo %VSCMD_VER% | findstr /b /c:"17.10" >nul
 if %errorlevel% neq 1  (
-  echo NodeJS doesn't compile with Visual Studio 17.10 Please use a different version.
+  echo Node.js doesn't compile with Visual Studio 17.10 Please use a different version.
   goto exit
 )
 
