@@ -11,9 +11,13 @@ codecov:
   branch: main
   notify:
     # Wait for all coverage builds:
-    after_n_builds: 2
+    # - coverage-linux.yml
+    # - coverage-windows.yml
+    # - coverage-linux-without-intl.yml
+    after_n_builds: 3
 
 coverage:
+  # Useful for blocking Pull Requests that don't meet a particular coverage threshold.
   status:
     project: off
     patch: off
