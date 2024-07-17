@@ -973,10 +973,8 @@ added: v22.4.0
 > Stability: 1.0 - Early development.
 
 A browser-compatible implementation of [`sessionStorage`][]. Data is stored in
-memory, with a storage quota of 10 MB. `sessionStorage` data persists within the
-current process and only for the duration of the current runtime session,
-not across restarts or multiple instances. Any modification of this data
-outside of the Web Storage API is not supported. Enable this API with the
+memory, with a storage quota of 10 MB. `sessionStorage` data persists only within
+the currently running process, and is not shared between workers.
 [`--experimental-webstorage`][] CLI flag.
 
 ## `setImmediate(callback[, ...args])`
