@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const child = require('child_process');
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
 const fixtures = require('../common/fixtures');
@@ -1057,8 +1056,8 @@ test('setter() fails if getter options is true', (t) => {
   }, /The property 'options\.setter' cannot be used with 'options\.getter'/);
 });
 
-test.only('wrong import syntax should throw error after module mocking.', () => {
-  const { stdout, stderr } = child.spawnSync(
+test('wrong import syntax should throw error after module mocking.', async () => {
+  const { stdout, stderr } = await common.spawnPromisified(
     process.execPath,
     [
       '--experimental-test-module-mocks',
