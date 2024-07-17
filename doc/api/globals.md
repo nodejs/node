@@ -592,6 +592,10 @@ added: v22.4.0
 
 A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
+Data is stored in memory, with a storage quota of 10 MB.
+`localStorage` data persists within the current browser process and across
+page refreshes for the same origin,but it's not shared across different
+browser tabs, windows, or server-side rendering (SSR) contexts.
 Any modification of this data outside of the Web Storage API is not supported.
 Enable this API with the [`--experimental-webstorage`][] CLI flag.
 
@@ -972,8 +976,11 @@ added: v22.4.0
 > Stability: 1.0 - Early development.
 
 A browser-compatible implementation of [`sessionStorage`][]. Data is stored in
-memory, with a storage quota of 10 MB. Any modification of this data outside of
-the Web Storage API is not supported. Enable this API with the
+memory, with a storage quota of 10 MB. `sessionStorage` data persists within the
+current browser process and only for the duration of the current page session,
+not across page refreshes or different browser tabs,
+windows, or server-side rendering (SSR) contexts. Any modification of this data
+outside of the Web Storage API is not supported. Enable this API with the
 [`--experimental-webstorage`][] CLI flag.
 
 ## `setImmediate(callback[, ...args])`

@@ -1553,7 +1553,7 @@ added: v22.4.0
 
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
-between multiple Node.js processes concurrently. This flag is a no-op unless
+between multiple Node.js processes simultaneously. This flag is a no-op unless
 Node.js is started with the `--experimental-webstorage` flag.
 
 ### `--max-http-header-size=size`
