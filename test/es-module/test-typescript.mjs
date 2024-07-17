@@ -69,8 +69,8 @@ test('expect error when executing a TypeScript file with experimental decorators
     '--experimental-strip-types',
     fixtures.path('typescript/ts/test-experimental-decorators.ts'),
   ]);
-  // This error should be thrown during transformation
-  match(result.stderr, /Decorators are not supported/);
+  // This error should be thrown at runtime
+  match(result.stderr, /Invalid or unexpected token/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });

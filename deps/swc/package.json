@@ -1,10 +1,10 @@
 {
-  "name": "@swc/wasm-typescript",
+  "name": "@swc/binding_typescript_wasm",
   "collaborators": [
     "강동윤 <kdy1997.dev@gmail.com>"
   ],
   "description": "wasm module for swc",
-  "version": "1.6.13",
+  "version": "1.7.0-rc.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
