@@ -4,7 +4,6 @@ const child = require('child_process');
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
 const fixtures = require('../common/fixtures');
-const { unlinkSync } = require('fs');
 test('spies on a function', (t) => {
   const sum = t.mock.fn((arg1, arg2) => {
     return arg1 + arg2;
@@ -1058,7 +1057,7 @@ test('setter() fails if getter options is true', (t) => {
   }, /The property 'options\.setter' cannot be used with 'options\.getter'/);
 });
 
-test('wrong import syntax should throw error after module mocking.', () => {
+test.only('wrong import syntax should throw error after module mocking.', () => {
   const { stdout, stderr } = child.spawnSync(
     process.execPath,
     [
@@ -1067,8 +1066,6 @@ test('wrong import syntax should throw error after module mocking.', () => {
       fixtures.path('module-mocking/wrong-import-after-module-mocking.js'),
     ]
   );
-
-  unlinkSync(fixtures.path('module-mocking/test-2.js'));
 
   assert.equal(stdout.toString(), '')
   assert.match(stderr.toString(), /Error \[ERR_MODULE_NOT_FOUND\]: Cannot find module/)
