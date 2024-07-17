@@ -32,11 +32,11 @@ is passed. If no corresponding file is found, an error is thrown.
 If a file is found, its path will be passed to the
 [ES module loader][Modules loaders] under any of the following conditions:
 
-* The program was started with a command-line flag that forces the entry
+- The program was started with a command-line flag that forces the entry
   point to be loaded with ECMAScript module loader, such as `--import` or
   [`--experimental-default-type=module`][].
-* The file has an `.mjs` extension.
-* The file does not have a `.cjs` extension, and the nearest parent
+- The file has an `.mjs` extension.
+- The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
   `"module"`.
 
@@ -164,7 +164,10 @@ Example:
 ```js
 const childProcess = require('node:child_process');
 // Attempt to bypass the permission
-childProcess.spawn('node', ['-e', 'require("fs").writeFileSync("/new-file", "example")']);
+childProcess.spawn('node', [
+  '-e',
+  'require("fs").writeFileSync("/new-file", "example")',
+]);
 ```
 
 ```console
@@ -204,8 +207,8 @@ the [Permission Model][].
 
 The valid arguments for the `--allow-fs-read` flag are:
 
-* `*` - To allow all `FileSystemRead` operations.
-* Multiple paths can be allowed using multiple `--allow-fs-read` flags.
+- `*` - To allow all `FileSystemRead` operations.
+- Multiple paths can be allowed using multiple `--allow-fs-read` flags.
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
 Paths delimited by comma (`,`) are no longer allowed.
@@ -258,8 +261,8 @@ the [Permission Model][].
 
 The valid arguments for the `--allow-fs-write` flag are:
 
-* `*` - To allow all `FileSystemWrite` operations.
-* Multiple paths can be allowed using multiple `--allow-fs-read` flags.
+- `*` - To allow all `FileSystemWrite` operations.
+- Multiple paths can be allowed using multiple `--allow-fs-read` flags.
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
 Paths delimited by comma (`,`) are no longer allowed.
@@ -428,10 +431,10 @@ creation behavior.
 
 The following options are currently supported:
 
-* `builder` {string} Required. Provides the name to the script that is executed
+- `builder` {string} Required. Provides the name to the script that is executed
   before building the snapshot, as if [`--build-snapshot`][] had been passed
   with `builder` as the main script name.
-* `withoutCodeCache` {boolean} Optional. Including the code cache reduces the
+- `withoutCodeCache` {boolean} Optional. Including the code cache reduces the
   time spent on compiling functions included in the snapshot at the expense
   of a bigger snapshot size and potentially breaking portability of the
   snapshot.
@@ -575,9 +578,9 @@ Defaults to current working directory.
 
 Affects the default output directory of:
 
-* [`--cpu-prof-dir`][]
-* [`--heap-prof-dir`][]
-* [`--redirect-warnings`][]
+- [`--cpu-prof-dir`][]
+- [`--heap-prof-dir`][]
+- [`--redirect-warnings`][]
 
 ### `--disable-warning=code-or-type`
 
@@ -732,9 +735,9 @@ changes:
 Set the default value of `order` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
 
-* `ipv4first`: sets default `order` to `ipv4first`.
-* `ipv6first`: sets default `order` to `ipv6first`.
-* `verbatim`: sets default `order` to `verbatim`.
+- `ipv4first`: sets default `order` to `ipv4first`.
+- `ipv6first`: sets default `order` to `ipv6first`.
+- `verbatim`: sets default `order` to `verbatim`.
 
 The default is `verbatim` and [`dns.setDefaultResultOrder()`][] have higher
 priority than `--dns-result-order`.
@@ -887,12 +890,12 @@ added:
 
 Define which module system, `module` or `commonjs`, to use for the following:
 
-* String input provided via `--eval` or STDIN, if `--input-type` is unspecified.
+- String input provided via `--eval` or STDIN, if `--input-type` is unspecified.
 
-* Files ending in `.js` or with no extension, if there is no `package.json` file
+- Files ending in `.js` or with no extension, if there is no `package.json` file
   present in the same folder or any parent folder.
 
-* Files ending in `.js` or with no extension, if the nearest parent
+- Files ending in `.js` or with no extension, if the nearest parent
   `package.json` field lacks a `"type"` field; unless the `package.json` folder
   or any parent folder is inside a `node_modules` folder.
 
@@ -922,21 +925,21 @@ as an ES module.
 
 Ambiguous input is defined as:
 
-* Files with a `.js` extension or no extension; and either no controlling
+- Files with a `.js` extension or no extension; and either no controlling
   `package.json` file or one that lacks a `type` field; and
   `--experimental-default-type` is not specified.
-* String input (`--eval` or STDIN) when neither `--input-type` nor
+- String input (`--eval` or STDIN) when neither `--input-type` nor
   `--experimental-default-type` are specified.
 
 ES module syntax is defined as syntax that would throw when evaluated as
 CommonJS. This includes the following:
 
-* `import` statements (but _not_ `import()` expressions, which are valid in
+- `import` statements (but _not_ `import()` expressions, which are valid in
   CommonJS).
-* `export` statements.
-* `import.meta` references.
-* `await` at the top level of a module.
-* Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
+- `export` statements.
+- `import.meta` references.
+- `await` at the top level of a module.
+- Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
   `exports`, `__dirname`, `__filename`).
 
 ### `--experimental-eventsource`
@@ -1009,11 +1012,11 @@ added: v20.0.0
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
-* File System - manageable through
+- File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
-* Child Process - manageable through [`--allow-child-process`][] flag
-* Worker Threads - manageable through [`--allow-worker`][] flag
-* WASI - manageable through [`--allow-wasi`][] flag
+- Child Process - manageable through [`--allow-child-process`][] flag
+- Worker Threads - manageable through [`--allow-worker`][] flag
+- WASI - manageable through [`--allow-wasi`][] flag
 
 ### `--experimental-require-module`
 
@@ -1399,15 +1402,15 @@ interoperability with non-conformant HTTP implementations.
 
 When enabled, the parser will accept the following:
 
-* Invalid HTTP headers values.
-* Invalid HTTP versions.
-* Allow message containing both `Transfer-Encoding`
+- Invalid HTTP headers values.
+- Invalid HTTP versions.
+- Allow message containing both `Transfer-Encoding`
   and `Content-Length` headers.
-* Allow extra data after message when `Connection: close` is present.
-* Allow extra transfer encodings after `chunked` has been provided.
-* Allow `\n` to be used as token separator instead of `\r\n`.
-* Allow `\r\n` not to be provided after a chunk.
-* Allow spaces to be present after a chunk size and before `\r\n`.
+- Allow extra data after message when `Connection: close` is present.
+- Allow extra transfer encodings after `chunked` has been provided.
+- Allow `\n` to be used as token separator instead of `\r\n`.
+- Allow `\r\n` not to be provided after a chunk.
+- Allow spaces to be present after a chunk size and before `\r\n`.
 
 All the above will expose your application to request smuggling
 or poisoning attack. Avoid using this option.
@@ -1437,8 +1440,8 @@ a [remote code execution][] attack.
 
 If specifying a host, make sure that either:
 
-* The host is not accessible from public networks.
-* A firewall disallows unwanted connections on the port.
+- The host is not accessible from public networks.
+- A firewall disallows unwanted connections on the port.
 
 **More specifically, `--inspect=0.0.0.0` is insecure if the port (`9229` by
 default) is not firewall-protected.**
@@ -1519,7 +1522,7 @@ added: v22.4.0
 
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
-between multiple Node.js processes concurrently. This flag is a no-op unless
+between multiple Node.js processes simultaneously. This flag is a no-op unless
 Node.js is started with the `--experimental-webstorage` flag.
 
 ### `--max-http-header-size=size`
@@ -1680,7 +1683,7 @@ added:
 -->
 
 Enable OpenSSL 3.0 legacy provider. For more information please see
-[OSSL\_PROVIDER-legacy][OSSL_PROVIDER-legacy].
+[OSSL_PROVIDER-legacy][OSSL_PROVIDER-legacy].
 
 ### `--openssl-shared-config`
 
@@ -2053,16 +2056,16 @@ cases.
 Some features of other `run` implementations that are intentionally excluded
 are:
 
-* Running `pre` or `post` scripts in addition to the specified script.
-* Defining package manager-specific environment variables.
+- Running `pre` or `post` scripts in addition to the specified script.
+- Defining package manager-specific environment variables.
 
 #### Environment variables
 
 The following environment variables are set when running a script with `--run`:
 
-* `NODE_RUN_SCRIPT_NAME`: The name of the script being run. For example, if
+- `NODE_RUN_SCRIPT_NAME`: The name of the script being run. For example, if
   `--run` is used to run `test`, the value of this variable will be `test`.
-* `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
+- `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
 
 ### `--secure-heap=n`
@@ -2511,15 +2514,15 @@ changes:
 Using this flag allows to change what should happen when an unhandled rejection
 occurs. One of the following modes can be chosen:
 
-* `throw`: Emit [`unhandledRejection`][]. If this hook is not set, raise the
+- `throw`: Emit [`unhandledRejection`][]. If this hook is not set, raise the
   unhandled rejection as an uncaught exception. This is the default.
-* `strict`: Raise the unhandled rejection as an uncaught exception. If the
+- `strict`: Raise the unhandled rejection as an uncaught exception. If the
   exception is handled, [`unhandledRejection`][] is emitted.
-* `warn`: Always trigger a warning, no matter if the [`unhandledRejection`][]
+- `warn`: Always trigger a warning, no matter if the [`unhandledRejection`][]
   hook is set or not but do not print the deprecation warning.
-* `warn-with-error-code`: Emit [`unhandledRejection`][]. If this hook is not
+- `warn-with-error-code`: Emit [`unhandledRejection`][]. If this hook is not
   set, trigger a warning, and set the process exit code to 1.
-* `none`: Silence all warnings.
+- `none`: Silence all warnings.
 
 If a rejection happens during the command line entry point's ES module static
 loading phase, it will always raise it as an uncaught exception.
@@ -2559,10 +2562,10 @@ MiB pages instead of 4 KiB pages.
 
 The following values are valid for `mode`:
 
-* `off`: No mapping will be attempted. This is the default.
-* `on`: If supported by the OS, mapping will be attempted. Failure to map will
+- `off`: No mapping will be attempted. This is the default.
+- `on`: If supported by the OS, mapping will be attempted. Failure to map will
   be ignored and a message will be printed to standard error.
-* `silent`: If supported by the OS, mapping will be attempted. Failure to map
+- `silent`: If supported by the OS, mapping will be attempted. Failure to map
   will be ignored and will not be reported.
 
 ### `--v8-options`
@@ -2688,9 +2691,9 @@ instances.
 The `FORCE_COLOR` environment variable is used to
 enable ANSI colorized output. The value may be:
 
-* `1`, `true`, or the empty string `''` indicate 16-color support,
-* `2` to indicate 256-color support, or
-* `3` to indicate 16 million-color support.
+- `1`, `true`, or the empty string `''` indicate 16-color support,
+- `2` to indicate 256-color support, or
+- `3` to indicate 16 million-color support.
 
 When `FORCE_COLOR` is used and set to a supported value, both the `NO_COLOR`,
 and `NODE_DISABLE_COLORS` environment variables are ignored.
@@ -2699,7 +2702,7 @@ Any other value will result in colorized output being disabled.
 
 ### `NO_COLOR=<any>`
 
-[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
+[`NO_COLOR`][] is an alias for `NODE_DISABLE_COLORS`. The value of the
 environment variable is arbitrary.
 
 ### `NODE_COMPILE_CACHE=dir`
@@ -2831,126 +2834,126 @@ one is included in the list below.
 
 <!-- node-options-node start -->
 
-* `--allow-addons`
-* `--allow-child-process`
-* `--allow-fs-read`
-* `--allow-fs-write`
-* `--allow-wasi`
-* `--allow-worker`
-* `--conditions`, `-C`
-* `--diagnostic-dir`
-* `--disable-proto`
-* `--disable-warning`
-* `--disable-wasm-trap-handler`
-* `--dns-result-order`
-* `--enable-fips`
-* `--enable-network-family-autoselection`
-* `--enable-source-maps`
-* `--experimental-abortcontroller`
-* `--experimental-default-type`
-* `--experimental-detect-module`
-* `--experimental-eventsource`
-* `--experimental-import-meta-resolve`
-* `--experimental-json-modules`
-* `--experimental-loader`
-* `--experimental-modules`
-* `--experimental-network-imports`
-* `--experimental-permission`
-* `--experimental-print-required-tla`
-* `--experimental-require-module`
-* `--experimental-shadow-realm`
-* `--experimental-specifier-resolution`
-* `--experimental-sqlite`
-* `--experimental-top-level-await`
-* `--experimental-vm-modules`
-* `--experimental-wasi-unstable-preview1`
-* `--experimental-wasm-modules`
-* `--experimental-webstorage`
-* `--force-context-aware`
-* `--force-fips`
-* `--force-node-api-uncaught-exceptions-policy`
-* `--frozen-intrinsics`
-* `--heapsnapshot-near-heap-limit`
-* `--heapsnapshot-signal`
-* `--http-parser`
-* `--icu-data-dir`
-* `--import`
-* `--input-type`
-* `--insecure-http-parser`
-* `--inspect-brk`
-* `--inspect-port`, `--debug-port`
-* `--inspect-publish-uid`
-* `--inspect-wait`
-* `--inspect`
-* `--localstorage-file`
-* `--max-http-header-size`
-* `--napi-modules`
-* `--network-family-autoselection-attempt-timeout`
-* `--no-addons`
-* `--no-deprecation`
-* `--no-experimental-global-navigator`
-* `--no-experimental-repl-await`
-* `--no-experimental-websocket`
-* `--no-extra-info-on-fatal-exception`
-* `--no-force-async-hooks-checks`
-* `--no-global-search-paths`
-* `--no-network-family-autoselection`
-* `--no-warnings`
-* `--node-memory-debug`
-* `--openssl-config`
-* `--openssl-legacy-provider`
-* `--openssl-shared-config`
-* `--pending-deprecation`
-* `--preserve-symlinks-main`
-* `--preserve-symlinks`
-* `--prof-process`
-* `--redirect-warnings`
-* `--report-compact`
-* `--report-dir`, `--report-directory`
-* `--report-exclude-network`
-* `--report-filename`
-* `--report-on-fatalerror`
-* `--report-on-signal`
-* `--report-signal`
-* `--report-uncaught-exception`
-* `--require`, `-r`
-* `--secure-heap-min`
-* `--secure-heap`
-* `--snapshot-blob`
-* `--test-only`
-* `--test-reporter-destination`
-* `--test-reporter`
-* `--test-shard`
-* `--throw-deprecation`
-* `--title`
-* `--tls-cipher-list`
-* `--tls-keylog`
-* `--tls-max-v1.2`
-* `--tls-max-v1.3`
-* `--tls-min-v1.0`
-* `--tls-min-v1.1`
-* `--tls-min-v1.2`
-* `--tls-min-v1.3`
-* `--trace-deprecation`
-* `--trace-event-categories`
-* `--trace-event-file-pattern`
-* `--trace-events-enabled`
-* `--trace-exit`
-* `--trace-sigint`
-* `--trace-sync-io`
-* `--trace-tls`
-* `--trace-uncaught`
-* `--trace-warnings`
-* `--track-heap-objects`
-* `--unhandled-rejections`
-* `--use-bundled-ca`
-* `--use-largepages`
-* `--use-openssl-ca`
-* `--v8-pool-size`
-* `--watch-path`
-* `--watch-preserve-output`
-* `--watch`
-* `--zero-fill-buffers`
+- `--allow-addons`
+- `--allow-child-process`
+- `--allow-fs-read`
+- `--allow-fs-write`
+- `--allow-wasi`
+- `--allow-worker`
+- `--conditions`, `-C`
+- `--diagnostic-dir`
+- `--disable-proto`
+- `--disable-warning`
+- `--disable-wasm-trap-handler`
+- `--dns-result-order`
+- `--enable-fips`
+- `--enable-network-family-autoselection`
+- `--enable-source-maps`
+- `--experimental-abortcontroller`
+- `--experimental-default-type`
+- `--experimental-detect-module`
+- `--experimental-eventsource`
+- `--experimental-import-meta-resolve`
+- `--experimental-json-modules`
+- `--experimental-loader`
+- `--experimental-modules`
+- `--experimental-network-imports`
+- `--experimental-permission`
+- `--experimental-print-required-tla`
+- `--experimental-require-module`
+- `--experimental-shadow-realm`
+- `--experimental-specifier-resolution`
+- `--experimental-sqlite`
+- `--experimental-top-level-await`
+- `--experimental-vm-modules`
+- `--experimental-wasi-unstable-preview1`
+- `--experimental-wasm-modules`
+- `--experimental-webstorage`
+- `--force-context-aware`
+- `--force-fips`
+- `--force-node-api-uncaught-exceptions-policy`
+- `--frozen-intrinsics`
+- `--heapsnapshot-near-heap-limit`
+- `--heapsnapshot-signal`
+- `--http-parser`
+- `--icu-data-dir`
+- `--import`
+- `--input-type`
+- `--insecure-http-parser`
+- `--inspect-brk`
+- `--inspect-port`, `--debug-port`
+- `--inspect-publish-uid`
+- `--inspect-wait`
+- `--inspect`
+- `--localstorage-file`
+- `--max-http-header-size`
+- `--napi-modules`
+- `--network-family-autoselection-attempt-timeout`
+- `--no-addons`
+- `--no-deprecation`
+- `--no-experimental-global-navigator`
+- `--no-experimental-repl-await`
+- `--no-experimental-websocket`
+- `--no-extra-info-on-fatal-exception`
+- `--no-force-async-hooks-checks`
+- `--no-global-search-paths`
+- `--no-network-family-autoselection`
+- `--no-warnings`
+- `--node-memory-debug`
+- `--openssl-config`
+- `--openssl-legacy-provider`
+- `--openssl-shared-config`
+- `--pending-deprecation`
+- `--preserve-symlinks-main`
+- `--preserve-symlinks`
+- `--prof-process`
+- `--redirect-warnings`
+- `--report-compact`
+- `--report-dir`, `--report-directory`
+- `--report-exclude-network`
+- `--report-filename`
+- `--report-on-fatalerror`
+- `--report-on-signal`
+- `--report-signal`
+- `--report-uncaught-exception`
+- `--require`, `-r`
+- `--secure-heap-min`
+- `--secure-heap`
+- `--snapshot-blob`
+- `--test-only`
+- `--test-reporter-destination`
+- `--test-reporter`
+- `--test-shard`
+- `--throw-deprecation`
+- `--title`
+- `--tls-cipher-list`
+- `--tls-keylog`
+- `--tls-max-v1.2`
+- `--tls-max-v1.3`
+- `--tls-min-v1.0`
+- `--tls-min-v1.1`
+- `--tls-min-v1.2`
+- `--tls-min-v1.3`
+- `--trace-deprecation`
+- `--trace-event-categories`
+- `--trace-event-file-pattern`
+- `--trace-events-enabled`
+- `--trace-exit`
+- `--trace-sigint`
+- `--trace-sync-io`
+- `--trace-tls`
+- `--trace-uncaught`
+- `--trace-warnings`
+- `--track-heap-objects`
+- `--unhandled-rejections`
+- `--use-bundled-ca`
+- `--use-largepages`
+- `--use-openssl-ca`
+- `--v8-pool-size`
+- `--watch-path`
+- `--watch-preserve-output`
+- `--watch`
+- `--zero-fill-buffers`
 
 <!-- node-options-node end -->
 
@@ -2958,20 +2961,20 @@ V8 options that are allowed are:
 
 <!-- node-options-v8 start -->
 
-* `--abort-on-uncaught-exception`
-* `--disallow-code-generation-from-strings`
-* `--enable-etw-stack-walking`
-* `--expose-gc`
-* `--huge-max-old-generation-size`
-* `--interpreted-frames-native-stack`
-* `--jitless`
-* `--max-old-space-size`
-* `--max-semi-space-size`
-* `--perf-basic-prof-only-functions`
-* `--perf-basic-prof`
-* `--perf-prof-unwinding-info`
-* `--perf-prof`
-* `--stack-trace-limit`
+- `--abort-on-uncaught-exception`
+- `--disallow-code-generation-from-strings`
+- `--enable-etw-stack-walking`
+- `--expose-gc`
+- `--huge-max-old-generation-size`
+- `--interpreted-frames-native-stack`
+- `--jitless`
+- `--max-old-space-size`
+- `--max-semi-space-size`
+- `--perf-basic-prof-only-functions`
+- `--perf-basic-prof`
+- `--perf-prof-unwinding-info`
+- `--perf-prof`
+- `--stack-trace-limit`
 
 <!-- node-options-v8 end -->
 
@@ -3139,23 +3142,12 @@ and the line lengths of the source file (in the key `lineLengths`).
       "url": "./path-to-map.json",
       "data": {
         "version": 3,
-        "sources": [
-          "file:///absolute/path/to/original.js"
-        ],
-        "names": [
-          "Foo",
-          "console",
-          "info"
-        ],
+        "sources": ["file:///absolute/path/to/original.js"],
+        "names": ["Foo", "console", "info"],
         "mappings": "MAAMA,IACJC,YAAaC",
         "sourceRoot": "./"
       },
-      "lineLengths": [
-        13,
-        62,
-        38,
-        27
-      ]
+      "lineLengths": [13, 62, 38, 27]
     }
   }
 }
@@ -3240,12 +3232,12 @@ Asynchronous system APIs are used by Node.js whenever possible, but where they
 do not exist, libuv's threadpool is used to create asynchronous node APIs based
 on synchronous system APIs. Node.js APIs that use the threadpool are:
 
-* all `fs` APIs, other than the file watcher APIs and those that are explicitly
+- all `fs` APIs, other than the file watcher APIs and those that are explicitly
   synchronous
-* asynchronous crypto APIs such as `crypto.pbkdf2()`, `crypto.scrypt()`,
+- asynchronous crypto APIs such as `crypto.pbkdf2()`, `crypto.scrypt()`,
   `crypto.randomBytes()`, `crypto.randomFill()`, `crypto.generateKeyPair()`
-* `dns.lookup()`
-* all `zlib` APIs, other than those that are explicitly synchronous
+- `dns.lookup()`
+- all `zlib` APIs, other than those that are explicitly synchronous
 
 Because libuv's threadpool has a fixed size, it means that if for whatever
 reason any of these APIs takes a long time, other (seemingly unrelated) APIs
