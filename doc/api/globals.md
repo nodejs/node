@@ -593,7 +593,7 @@ added: v22.4.0
 A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
 Data is stored in memory, with a storage quota of 10 MB.
-`localStorage` data persists within the current browser process and across
+`localStorage` data persists within the current browser's process and across
 page refreshes for the same origin,but it's not shared across different
 browser tabs, windows, or server-side rendering (SSR) contexts.
 Any modification of this data outside of the Web Storage API is not supported.
