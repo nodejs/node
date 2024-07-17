@@ -11,7 +11,8 @@ added: v22.5.0
 <!-- source_link=lib/sqlite.js -->
 
 The `node:sqlite` module facilitates working with SQLite databases.
-To access it:
+This feature can only be used when the `--experimental-sqlite` CLI
+flag is specified. To access it:
 
 ```mjs
 import sqlite from 'node:sqlite';
