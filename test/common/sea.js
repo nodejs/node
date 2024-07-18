@@ -50,6 +50,14 @@ function skipIfSingleExecutableIsNotSupported() {
     common.skip('UndefinedBehavior Sanitizer is not supported');
   }
 
+  try {
+    readFileSync(process.execPath);
+  } catch (e) {
+    if (e.code === 'ERR_FS_FILE_TOO_LARGE') {
+      common.skip('The Node.js binary is too large to be supported by postject');
+    }
+  }
+
   tmpdir.refresh();
 
   // The SEA tests involve making a copy of the executable and writing some fixtures
