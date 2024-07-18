@@ -121,7 +121,7 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
 
   action === 'update' && await testUpdate();
   action === 'rename' && await testRename();
-  action === 'rename2' && await testRename2();
+  action === 'rename2' && await testRename();
   action === 'delete' && await testDelete();
 }
 
