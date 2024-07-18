@@ -551,3 +551,9 @@ describe('forceExit', () => {
     });
   });
 });
+
+// exitHandler doesn't run until after the tests / after hooks finish.
+process.on('exit', () => {
+  assert.strictEqual(process.listeners('uncaughtException').length, 0);
+  assert.strictEqual(process.listeners('unhandledRejection').length, 0);
+});
