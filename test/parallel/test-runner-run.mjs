@@ -8,11 +8,6 @@ import tmpdir from '../common/tmpdir.js';
 
 const testFixtures = fixtures.path('test-runner');
 
-// This is needed, because calling run() with no files will
-// load files matching from cwd, which includes all content of test/
-tmpdir.refresh();
-process.chdir(tmpdir.path);
-
 describe('require(\'node:test\').run', { concurrency: true }, () => {
   it('should run with no tests', async () => {
     const stream = run({ files: [] });
@@ -509,7 +504,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should run with no files', async () => {
+    tmpdir.refresh();
     const stream = run({
+      cwd: tmpdir.path,
       files: undefined
     }).compose(tap);
     stream.on('test:fail', common.mustNotCall());
@@ -520,7 +517,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should run with no files and use spec reporter', async () => {
+    tmpdir.refresh();
     const stream = run({
+      cwd: tmpdir.path,
       files: undefined
     }).compose(spec);
     stream.on('test:fail', common.mustNotCall());
@@ -531,7 +530,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should run with no files and use dot reporter', async () => {
+    tmpdir.refresh();
     const stream = run({
+      cwd: tmpdir.path,
       files: undefined
     }).compose(dot);
     stream.on('test:fail', common.mustNotCall());

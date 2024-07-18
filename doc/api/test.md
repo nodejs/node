@@ -1263,6 +1263,8 @@ changes:
     parallel.
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
+  * `cwd` {string} The current working directory for the test runner.
+    **Default:** `process.cwd()`.
   * `files`: {Array} An array containing the list of files to run.
     **Default** matching files from [test runner execution model][].
   * `forceExit`: {boolean} Configures the test runner to exit the process once
