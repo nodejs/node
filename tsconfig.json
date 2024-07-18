@@ -62,6 +62,8 @@
       "querystring": ["./lib/querystring.js"],
       "readline": ["./lib/readline.js"],
       "repl": ["./lib/repl.js"],
+      "sea": ["./lib/sea.js"],
+      "sqlite": ["./lib/sqlite.js"],
       "stream": ["./lib/stream.js"],
       "stream/promises": ["./lib/stream/promises.js"],
       "string_decoder": ["./lib/string_decoder.js"],
