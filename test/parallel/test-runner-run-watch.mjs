@@ -87,31 +87,15 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
 
     for (const run of runs) {
       assert.doesNotMatch(run, /run\(\) is being called recursively/);
-      assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
+      if (action === 'rename2') {
+        assert.match(run, /MODULE_NOT_FOUND/);
+      } else {
+        assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
+      }
       assert.match(run, /# tests 1/);
       assert.match(run, /# pass 1/);
       assert.match(run, /# fail 0/);
       assert.match(run, /# cancelled 0/);
-    }
-  };
-
-  const testRename2 = async () => {
-    await ran1.promise;
-    const fileToRenamePath = tmpdir.resolve(fileToUpdate);
-    const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
-    const interval = setInterval(() => renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000));
-    await ran2.promise;
-    runs.push(currentRun);
-    clearInterval(interval);
-    child.kill();
-
-    for (const run of runs) {
-      assert.doesNotMatch(run, /run\(\) is being called recursively/);
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
-      assert.match(run, /MODULE_NOT_FOUND/);
     }
   };
 
@@ -163,7 +147,7 @@ describe('test runner watch mode', () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'rename' });
   });
 
-  it('should not throw when delete a watched test file', async () => {
+  it('should not throw when deleting a watched test file', async () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
   });
 
@@ -176,7 +160,7 @@ describe('test runner watch mode', () => {
     });
   });
 
-  it('should handle ranames in a different cwd', async () => {
+  it('should handle renames in a different cwd', async () => {
     await testWatch({
       file: join(tmpdir.path, 'test.js'),
       fileToUpdate: 'test.js',
