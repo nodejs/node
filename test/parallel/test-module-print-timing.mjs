@@ -107,7 +107,7 @@ it('should support enable tracing dynamically', async () => {
   tracing.disable();
 
   require("vm");
-  `
+  `;
 
   spawnSyncAndAssert(process.execPath, [
     '--trace-event-file-pattern',
