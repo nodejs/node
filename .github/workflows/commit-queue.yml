@@ -86,9 +86,9 @@ jobs:
         run: |
           ncu-config set branch ${GITHUB_REF_NAME}
           ncu-config set upstream origin
-          ncu-config set username $USERNAME
-          ncu-config set token $GH_TOKEN
-          ncu-config set jenkins_token $JENKINS_TOKEN
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
           ncu-config set repo "${REPOSITORY}"
           ncu-config set owner "${OWNER}"
         env:
