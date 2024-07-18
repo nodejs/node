@@ -6,7 +6,7 @@
 added: v22.5.0
 -->
 
-> Stability: 1.1 - Active development. Enable this API with the 
+> Stability: 1.1 - Active development. Enable this API with the
 > [`--experimental-sqlite`][] CLI flag.
 
 <!-- source_link=lib/sqlite.js -->
