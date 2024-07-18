@@ -6,13 +6,13 @@
 added: v22.5.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Enable this API with the 
+> [`--experimental-sqlite`][] CLI flag.
 
 <!-- source_link=lib/sqlite.js -->
 
 The `node:sqlite` module facilitates working with SQLite databases.
-This feature can only be used when the `--experimental-sqlite` CLI
-flag is specified. To access it:
+To access it:
 
 ```mjs
 import sqlite from 'node:sqlite';
@@ -314,6 +314,7 @@ exception.
 | `TEXT`    | `string`             |
 | `BLOB`    | `Uint8Array`         |
 
+[`--experimental-sqlite`]: cli.md#--experimental-sqlite
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
