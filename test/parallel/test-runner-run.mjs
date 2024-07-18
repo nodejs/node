@@ -398,7 +398,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       const executedTestFiles = [];
       stream.on('test:fail', common.mustNotCall());
       stream.on('test:pass', (passedTest) => {
-        process._rawDebug(passedTest.file);
         executedTestFiles.push(passedTest.file);
       });
       // eslint-disable-next-line no-unused-vars
