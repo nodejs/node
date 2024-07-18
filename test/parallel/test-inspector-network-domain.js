@@ -48,29 +48,6 @@ const terminate = () => {
 };
 
 const testHttpGet = () => new Promise((resolve, reject) => {
-  let nodeNetworkEventFinished = false;
-  let networkEventFinished = false;
-
-  session.on('NodeNetwork.requestWillBeSent', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(params.request.url, 'http://127.0.0.1/hello-world');
-    assert.strictEqual(params.request.method, 'GET');
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.wallTime, 'number');
-  }));
-  session.on('NodeNetwork.responseReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-  }));
-  session.on('NodeNetwork.loadingFinished', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    nodeNetworkEventFinished = true;
-    if (networkEventFinished) {
-      resolve();
-    }
-  }));
-
   session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(params.request.url, 'http://127.0.0.1/hello-world');
@@ -85,10 +62,7 @@ const testHttpGet = () => new Promise((resolve, reject) => {
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
-    networkEventFinished = true;
-    if (nodeNetworkEventFinished) {
-      resolve();
-    }
+    resolve();
   }));
 
   http.get({
@@ -99,29 +73,6 @@ const testHttpGet = () => new Promise((resolve, reject) => {
 });
 
 const testHttpsGet = () => new Promise((resolve, reject) => {
-  let nodeNetworkEventFinished = false;
-  let networkEventFinished = false;
-
-  session.on('NodeNetwork.requestWillBeSent', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(params.request.url, 'https://127.0.0.1/hello-world');
-    assert.strictEqual(params.request.method, 'GET');
-    assert.strictEqual(typeof params.timestamp, 'number');
-    assert.strictEqual(typeof params.wallTime, 'number');
-  }));
-  session.on('NodeNetwork.responseReceived', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-  }));
-  session.on('NodeNetwork.loadingFinished', common.mustCall(({ params }) => {
-    assert.ok(params.requestId.startsWith('node-network-event-'));
-    assert.strictEqual(typeof params.timestamp, 'number');
-    nodeNetworkEventFinished = true;
-    if (networkEventFinished) {
-      resolve();
-    }
-  }));
-
   session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(params.request.url, 'https://127.0.0.1/hello-world');
@@ -136,10 +87,7 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
-    networkEventFinished = true;
-    if (nodeNetworkEventFinished) {
-      resolve();
-    }
+    resolve();
   }));
 
   https.get({
@@ -160,12 +108,6 @@ const testNetworkInspection = async () => {
 httpServer.listen(0, () => {
   httpsServer.listen(0, async () => {
     try {
-      await session.post('NodeNetwork.enable');
-      await testNetworkInspection();
-      await session.post('NodeNetwork.disable');
-
-      // ChromeDevTools sends a 'Network.enable' command to enable network inspection.
-      // This test ensures that the 'Network.enable' command correctly enables network inspection.
       await session.post('Network.enable');
       await testNetworkInspection();
       await session.post('Network.disable');

@@ -8,7 +8,7 @@ const inspector = require('node:inspector/promises');
 const assert = require('node:assert');
 
 const EXPECTED_EVENTS = {
-  NodeNetwork: [
+  Network: [
     {
       name: 'requestWillBeSent',
       params: {
@@ -64,7 +64,7 @@ const runAsyncTest = async () => {
   session.connect();
 
   // Check that all events emit the expected parameters.
-  await session.post('NodeNetwork.enable');
+  await session.post('Network.enable');
   for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
     for (const event of events) {
       session.on(`${domain}.${event.name}`, common.mustCall(({ params }) => {
@@ -75,9 +75,9 @@ const runAsyncTest = async () => {
   }
 
   // Check tht no events are emitted after disabling the domain.
-  await session.post('NodeNetwork.disable');
-  session.on('NodeNetwork.requestWillBeSent', common.mustNotCall());
-  inspector.NodeNetwork.requestWillBeSent({});
+  await session.post('Network.disable');
+  session.on('Network.requestWillBeSent', common.mustNotCall());
+  inspector.Network.requestWillBeSent({});
 };
 
 runAsyncTest().then(common.mustCall()).catch((e) => {

@@ -98,42 +98,6 @@ experimental domain NodeWorker
       SessionID sessionId
       string message
 
-experimental domain NodeNetwork
-  depends on Network
-
-  # Disables network tracking, prevents network events from being sent to the client.
-  command disable
-
-  # Enables network tracking, network events will now be delivered to the client.
-  command enable
-
-  # Fired when page is about to send HTTP request.
-  event requestWillBeSent
-    parameters
-      # Request identifier.
-      Network.RequestId requestId
-      # Request data.
-      Network.Request request
-      # Timestamp.
-      Network.MonotonicTime timestamp
-      # Timestamp.
-      Network.TimeSinceEpoch wallTime
-
-  # Fired when HTTP response is available.
-  event responseReceived
-    parameters
-      # Request identifier.
-      Network.RequestId requestId
-      # Timestamp.
-      Network.MonotonicTime timestamp
-
-  event loadingFinished
-    parameters
-      # Request identifier.
-      Network.RequestId requestId
-      # Timestamp.
-      Network.MonotonicTime timestamp
-
 # Partial support for Network domain of ChromeDevTools Protocol.
 # https://chromedevtools.github.io/devtools-protocol/tot/Network
 experimental domain Network

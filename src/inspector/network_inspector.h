@@ -3,10 +3,6 @@
 
 #include "env.h"
 #include "network_agent.h"
-#include "node_network_agent.h"
-#include "v8.h"
-
-#include <unordered_map>
 
 namespace node {
 class Environment;
@@ -34,7 +30,6 @@ class NetworkInspector {
   bool enabled_;
   Environment* env_;
   std::unique_ptr<protocol::NetworkAgent> network_agent_;
-  std::unique_ptr<protocol::NodeNetworkAgent> node_network_agent_;
 };
 
 }  // namespace inspector

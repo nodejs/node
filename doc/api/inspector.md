@@ -488,17 +488,17 @@ Blocks until a client (existing or connected later) has sent
 
 An exception will be thrown if there is no active inspector.
 
-## Node.js-specific protocol events
+## Integration with DevTools
 
-Node.js extends the Chrome DevTools protocol with Node.js-specific protocol events. DevTools
-frontends connected to a running Node.js instance can capture these events and display them
-accordingly to facilitate debugging.
-The following methods broadcast a Node.js-specific protocol event to all connected frontends.
+The `node:inspector` module provides an API for integrating with devtools that support Chrome DevTools Protocol.
+DevTools frontends connected to a running Node.js instance can capture protocol events emitted from the instance
+and display them accordingly to facilitate debugging.
+The following methods broadcast a protocol event to all connected frontends.
 The `params` passed to the methods can be optional, depending on the protocol.
 
 ```js
-// The `NodeNetwork.requestWillBeSent` event will be fired.
-inspector.NodeNetwork.requestWillBeSent({
+// The `Network.requestWillBeSent` event will be fired.
+inspector.Network.requestWillBeSent({
   requestId: 'request-id-1',
   timestamp: Date.now() / 1000,
   wallTime: Date.now(),
@@ -509,7 +509,7 @@ inspector.NodeNetwork.requestWillBeSent({
 });
 ```
 
-### `inspector.NodeNetwork.requestWillBeSent([params])`
+### `inspector.Network.requestWillBeSent([params])`
 
 <!-- YAML
 added:
@@ -522,10 +522,10 @@ added:
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
-Broadcasts the `NodeNetwork.requestWillBeSent` event to connected frontends. This event indicates that
+Broadcasts the `Network.requestWillBeSent` event to connected frontends. This event indicates that
 the application is about to send an HTTP request.
 
-### `inspector.NodeNetwork.responseReceived([params])`
+### `inspector.Network.responseReceived([params])`
 
 <!-- YAML
 added:
@@ -538,10 +538,10 @@ added:
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
-Broadcasts the `NodeNetwork.responseReceived` event to connected frontends. This event indicates that
+Broadcasts the `Network.responseReceived` event to connected frontends. This event indicates that
 HTTP response is available.
 
-### `inspector.NodeNetwork.loadingFinished([params])`
+### `inspector.Network.loadingFinished([params])`
 
 <!-- YAML
 added:
@@ -554,7 +554,7 @@ added:
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
-Broadcasts the `NodeNetwork.loadingFinished` event to connected frontends. This event indicates that
+Broadcasts the `Network.loadingFinished` event to connected frontends. This event indicates that
 HTTP request has finished loading.
 
 ## Support of breakpoints
