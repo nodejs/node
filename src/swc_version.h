@@ -2,5 +2,5 @@
 // Refer to tools/dep_updaters/update-swc.sh
 #ifndef SRC_SWC_VERSION_H_
 #define SRC_SWC_VERSION_H_
-#define SWC_VERSION "1.7.0-rc.1"
+#define SWC_VERSION "1.7.0"
 #endif  // SRC_SWC_VERSION_H_
