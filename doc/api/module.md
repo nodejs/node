@@ -28,6 +28,8 @@ added:
 A list of the names of all modules provided by Node.js. Can be used to verify
 if a module is maintained by a third party or not.
 
+Note: the list doesn't contain [prefix-only modules][] like `node:test`.
+
 `module` in this context isn't the same object that's provided
 by the [module wrapper][]. To access it, require the `Module` module:
 
@@ -1074,3 +1076,4 @@ returned object contains the following keys:
 [realm]: https://tc39.es/ecma262/#realm
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
+[prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
