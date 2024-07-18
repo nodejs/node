@@ -1248,11 +1248,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/52038
     description: Added the `forceExit` option.
   - version:
-    - v22.0.0
-    - v20.14.0
-    pr-url: https://github.com/nodejs/node/pull/52038
-    description: Added the `forceExit` option.
-  - version:
     - v20.1.0
     - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47628

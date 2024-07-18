@@ -476,7 +476,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
     it('should only allow array in options.globPatterns', async () => {
       [Symbol(), {}, () => {}, 0, 1, 0n, 1n, '', '1', Promise.resolve([]), true, false]
-        .forEach((globPatterns) => assert.throws(() => run({ globPatterns}), {
+        .forEach((globPatterns) => assert.throws(() => run({ globPatterns }), {
           code: 'ERR_INVALID_ARG_TYPE'
         }));
     });
