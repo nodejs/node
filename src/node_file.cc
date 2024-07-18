@@ -60,7 +60,6 @@ namespace fs {
 
 using v8::Array;
 using v8::BigInt;
-using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FastApiCallbackOptions;
@@ -305,7 +304,7 @@ FileHandle::TransferData::~TransferData() {
 
 BaseObjectPtr<BaseObject> FileHandle::TransferData::Deserialize(
     Environment* env,
-    Local<v8::Context> context,
+    v8::Local<v8::Context> context,
     std::unique_ptr<worker::TransferData> self) {
   BindingData* bd = Realm::GetBindingData<BindingData>(context);
   if (bd == nullptr) return {};
@@ -967,7 +966,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void Close(const FunctionCallbackInfo<Value>& args) {
+void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
@@ -992,30 +991,6 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_END(close);
   }
 }
-
-static void FastClose(Local<Object> recv,
-                      int32_t fd,
-                      // NOLINTNEXTLINE(runtime/references) This is V8 api.
-                      v8::FastApiCallbackOptions& options) {
-  Environment* env = Environment::GetCurrent(recv->GetCreationContextChecked());
-
-  uv_fs_t req;
-  FS_SYNC_TRACE_BEGIN(close);
-  int err = uv_fs_close(nullptr, &req, fd, nullptr) < 0;
-  FS_SYNC_TRACE_END(close);
-  uv_fs_req_cleanup(&req);
-
-  if (err < 0) {
-    options.fallback = true;
-  } else {
-    // Note: Only remove unmanaged fds if the close was successful.
-    // RemoveUnmanagedFd() can call ProcessEmitWarning() which calls back into
-    // JS process.emitWarning() and violates the fast API protocol.
-    env->RemoveUnmanagedFd(fd, true /* schedule native immediate */);
-  }
-}
-
-CFunction fast_close_ = CFunction::Make(FastClose);
 
 static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -3432,7 +3407,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
             "getFormatOfExtensionlessFile",
             GetFormatOfExtensionlessFile);
   SetMethod(isolate, target, "access", Access);
-  SetFastMethod(isolate, target, "close", Close, &fast_close_);
+  SetMethod(isolate, target, "close", Close);
   SetMethod(isolate, target, "existsSync", ExistsSync);
   SetMethod(isolate, target, "open", Open);
   SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
@@ -3558,8 +3533,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(GetFormatOfExtensionlessFile);
   registry->Register(Close);
-  registry->Register(FastClose);
-  registry->Register(fast_close_.GetTypeInfo());
   registry->Register(ExistsSync);
   registry->Register(Open);
   registry->Register(OpenFileHandle);
