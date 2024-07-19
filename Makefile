@@ -1189,7 +1189,6 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
 	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
-	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint
 	$(RM) -r $(TARNAME)/tools/eslint-rules
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
@@ -1501,22 +1500,27 @@ CPPLINT_QUIET =
 else
 CPPLINT_QUIET = --quiet
 endif
+.PHONY: lint-cpp-build
+lint-cpp-build:
+	$(info Pip installing cpplint on $(shell $(PYTHON) --version)...)
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages cpplint==1.6.1 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages cpplint==1.6.1
+# Lints the C++ code with cpplint and checkimports.py.
 .PHONY: lint-cpp
-# Lints the C++ code with cpplint.py and checkimports.py.
-lint-cpp: tools/.cpplintstamp
+lint-cpp: lint-cpp-build tools/.cpplintstamp
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
 	$(info Running C++ linter...)
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
+	@$(PYTHON) tools/pip/site-packages/cpplint.py $(CPPLINT_QUIET) $?
 	@$(PYTHON) tools/checkimports.py $?
 	@touch $@
 
 .PHONY: lint-addon-docs
-lint-addon-docs: tools/.doclintstamp
+lint-addon-docs: lint-cpp-build tools/.doclintstamp
 
 tools/.doclintstamp: test/addons/.docbuildstamp
 	$(info Running C++ linter on addon docs...)
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
+	@$(PYTHON) tools/pip/site-packages/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
 		$(LINT_CPP_ADDON_DOC_FILES_GLOB)
 	@touch $@
 

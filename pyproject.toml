@@ -1,7 +1,6 @@
 [tool.ruff]
 exclude = [
   "deps",
-  "tools/cpplint.py",
   "tools/gyp",
   "tools/inspector_protocol",
   "tools/eslint/node_modules",
