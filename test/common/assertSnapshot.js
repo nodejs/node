@@ -79,7 +79,10 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
   }
   const flags = common.parseTestFlags(filename);
   const executable = tty ? (process.env.PYTHON || 'python3') : process.execPath;
-  const args = tty ? [path.join(__dirname, '../..', 'tools/pseudo-tty.py'), process.execPath, ...flags, filename] : [...flags, filename];
+  const args =
+    tty ?
+      [path.join(__dirname, '../..', 'tools/pseudo-tty.py'), process.execPath, ...flags, filename] :
+      [...flags, filename];
   const { stdout, stderr } = await common.spawnPromisified(executable, args, options);
   await assertSnapshot(transform(`${stdout}${stderr}`), filename);
 }
