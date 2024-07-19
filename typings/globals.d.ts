@@ -1,7 +1,9 @@
 import {AsyncWrapBinding} from "./internalBinding/async_wrap";
 import {BlobBinding} from "./internalBinding/blob";
 import {ConfigBinding} from "./internalBinding/config";
+import {ContextifyBinding} from "./internalBinding/contextify";
 import {ConstantsBinding} from "./internalBinding/constants";
+import {HeapUtilsBinding} from "./internalBinding/heap_utils";
 import {HttpParserBinding} from "./internalBinding/http_parser";
 import {FsBinding} from "./internalBinding/fs";
 import {FsDirBinding} from "./internalBinding/fs_dir";
@@ -11,6 +13,7 @@ import {OSBinding} from "./internalBinding/os";
 import {SerdesBinding} from "./internalBinding/serdes";
 import {SymbolsBinding} from "./internalBinding/symbols";
 import {TimersBinding} from "./internalBinding/timers";
+import {TTYBinding} from "./internalBinding/tty";
 import {TypesBinding} from "./internalBinding/types";
 import {URLBinding} from "./internalBinding/url";
 import {UtilBinding} from "./internalBinding/util";
@@ -35,8 +38,10 @@ interface InternalBindingMap {
   blob: BlobBinding;
   config: ConfigBinding;
   constants: ConstantsBinding;
+  contextify: ContextifyBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
+  heap_utils: HeapUtilsBinding;
   http_parser: HttpParserBinding;
   messaging: MessagingBinding;
   modules: ModulesBinding;
@@ -45,6 +50,7 @@ interface InternalBindingMap {
   serdes: SerdesBinding;
   symbols: SymbolsBinding;
   timers: TimersBinding;
+  tty: TTYBinding;
   types: TypesBinding;
   url: URLBinding;
   util: UtilBinding;

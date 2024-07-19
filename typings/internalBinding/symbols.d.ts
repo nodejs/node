@@ -9,6 +9,7 @@ export const oninit_symbol: unique symbol;
 export const owner_symbol: unique symbol;
 export const onpskexchange_symbol: unique symbol;
 export const trigger_async_id_symbol: unique symbol;
+export const vm_dynamic_import_main_context_default: unique symbol;
 
 export interface SymbolsBinding {
   async_id_symbol: typeof async_id_symbol;
@@ -22,4 +23,5 @@ export interface SymbolsBinding {
   owner_symbol: typeof owner_symbol;
   onpskexchange_symbol: typeof onpskexchange_symbol;
   trigger_async_id_symbol: typeof trigger_async_id_symbol;
+  vm_dynamic_import_main_context_default: typeof vm_dynamic_import_main_context_default;
 }
