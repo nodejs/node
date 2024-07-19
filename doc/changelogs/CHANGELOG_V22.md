@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.5.1">22.5.1</a><br/>
 <a href="#22.5.0">22.5.0</a><br/>
 <a href="#22.4.1">22.4.1</a><br/>
 <a href="#22.4.0">22.4.0</a><br/>
@@ -42,6 +43,22 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.5.1"></a>
+
+## 2024-07-19, Version 22.5.1 (Current), @richardlau
+
+### Notable Changes
+
+This release fixes a regression introduced in Node.js 22.5.0. The problem is known to display the following symptoms:
+
+* Crash with `FATAL ERROR: v8::Object::GetCreationContextChecked No creation context available` [#53902](https://github.com/nodejs/node/issues/53902)
+* npm errors with `npm error Exit handler never called!` [npm/cli#7657](https://github.com/npm/cli/issues/7657)
+* yarn hangs or outputs `Usage Error: Couldn't find the node_modules state file - running an install might help (findPackageLocation)` [yarnpkg/berry#6398](https://github.com/yarnpkg/berry/issues/6398)
+
+### Commits
+
+* \[[`e2deeedc6e`](https://github.com/nodejs/node/commit/e2deeedc6e)] - _**Revert**_ "**fs**: add v8 fast api to closeSync" (Aviv Keller) [#53904](https://github.com/nodejs/node/pull/53904)
 
 <a id="22.5.0"></a>
 
