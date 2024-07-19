@@ -219,6 +219,9 @@ const customTypesMap = {
 
   'Tracing': 'tracing.html#tracing-object',
 
+  'tty.ReadStream': 'tty.html#class-ttyreadstream',
+  'tty.WriteStream': 'tty.html#class-ttywritestream',
+
   'URL': 'url.html#the-whatwg-url-api',
   'URLSearchParams': 'url.html#class-urlsearchparams',
 
