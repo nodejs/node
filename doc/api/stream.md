@@ -955,7 +955,7 @@ Getter for the property `objectMode` of a given `Writable` stream.
 ##### `writable[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v20.16.0
 -->
 
 > Stability: 1 - Experimental

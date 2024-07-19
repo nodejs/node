@@ -270,7 +270,7 @@ Relative paths are NOT supported through the CLI flag.
 ### `--allow-wasi`
 
 <!-- YAML
-added: REPLACEME
+added: v20.16.0
 -->
 
 > Stability: 1.1 - Active development
@@ -492,7 +492,7 @@ node -C development app.js
 added: v12.0.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -520,7 +520,7 @@ CPU.20190409.202950.15293.0.0.cpuprofile
 added: v12.0.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -539,7 +539,7 @@ The default value is controlled by the
 added: v12.2.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -555,7 +555,7 @@ by `--cpu-prof`. The default is 1000 microseconds.
 added: v12.0.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -1110,7 +1110,7 @@ To allow polyfills to be added,
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1138,7 +1138,7 @@ Heap.20190409.202950.15293.0.001.heapprofile
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1157,7 +1157,7 @@ The default value is controlled by the
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1173,7 +1173,7 @@ by `--heap-prof`. The default is 512 \* 1024 bytes.
 added: v12.4.0
 changes:
   - version:
-    - REPLACEME
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -2823,7 +2823,7 @@ added:
  - v12.16.0
 changes:
   - version:
-     - REPLACEME
+     - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/52905
     description:
       Remove the possibility to use this env var with

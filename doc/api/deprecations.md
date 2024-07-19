@@ -3530,7 +3530,7 @@ is deprecated to better align with recommendations per [NIST SP 800-38D][].
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53329
     description: Documentation-only deprecation.
 -->

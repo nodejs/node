@@ -2921,7 +2921,7 @@ test('top level test', (t) => {
 ### `context.fullName`
 
 <!-- YAML
-added: REPLACEME
+added: v20.16.0
 -->
 
 The name of the test and each of its ancestors, separated by `>`.
