@@ -1075,5 +1075,5 @@ returned object contains the following keys:
 [module wrapper]: modules.md#the-module-wrapper
 [realm]: https://tc39.es/ecma262/#realm
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
-[transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
 [prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
+[transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
