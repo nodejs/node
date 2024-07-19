@@ -10,6 +10,7 @@ This a list of all the dependencies:
 
 * [acorn][]
 * [ada][]
+* [amaro][]
 * [base64][]
 * [brotli][]
 * [c-ares][]
@@ -30,7 +31,6 @@ This a list of all the dependencies:
 * [simdjson][]
 * [simdutf][]
 * [sqlite][]
-* [swc][]
 * [undici][]
 * [uvwasi][]
 * [V8][]
@@ -168,6 +168,11 @@ an abstract syntax tree walker for the ESTree format.
 
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
+
+### amaro
+
+The [amaro](https://www.npmjs.com/package/amaro) dependency is a wrapper around the
+WebAssembly version of the SWC JavaScript/TypeScript parser.
 
 ### brotli
 
@@ -308,11 +313,6 @@ a C++ library for fast UTF-8 decoding and encoding.
 The [sqlite](https://github.com/sqlite/sqlite) dependency is
 an embedded SQL database engine written in C.
 
-### swc
-
-The [@swc/wasm-typescript](https://swc.rs/docs/usage/wasm) dependency is a
-WebAssembly version of the SWC JavaScript/TypeScript parser.
-
 ### undici
 
 The [undici](https://github.com/nodejs/undici) dependency is an HTTP/1.1 client,
@@ -342,6 +342,7 @@ performance improvements not currently available in standard zlib.
 
 [acorn]: #acorn
 [ada]: #ada
+[amaro]: #amaro
 [base64]: #base64
 [brotli]: #brotli
 [c-ares]: #c-ares
@@ -369,7 +370,6 @@ performance improvements not currently available in standard zlib.
 [simdjson]: #simdjson
 [simdutf]: #simdutf
 [sqlite]: #sqlite
-[swc]: #swc
 [undici]: #undici
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi]: #uvwasi

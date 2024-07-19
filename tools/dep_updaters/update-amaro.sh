@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Shell script to update swc in the source tree to the latest release.
+# Shell script to update amaro in the source tree to the latest release.
 
 # This script must be in the tools directory when it runs because it uses the
 # script source file path to determine directories to work in.
@@ -16,12 +16,12 @@ NPM="$DEPS_DIR/npm/bin/npm-cli.js"
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
-NEW_VERSION=$("$NODE" "$NPM" view @swc/wasm-typescript dist-tags.latest)
+NEW_VERSION=$("$NODE" "$NPM" view amaro dist-tags.latest)
 
-CURRENT_VERSION=$("$NODE" -p "require('./deps/swc/package.json').version")
+CURRENT_VERSION=$("$NODE" -p "require('./deps/amaro/package.json').version")
 
 # This function exit with 0 if new version and current version are the same
-compare_dependency_version "swc" "$NEW_VERSION" "$CURRENT_VERSION"
+compare_dependency_version "amaro" "$NEW_VERSION" "$CURRENT_VERSION"
 
 cd "$( dirname "$0" )/../.." || exit
 
@@ -39,49 +39,45 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-echo "Fetching swc source archive..."
+echo "Fetching amaro source archive..."
 
-"$NODE" "$NPM" pack "@swc/wasm-typescript@$NEW_VERSION"
+"$NODE" "$NPM" pack "amaro@$NEW_VERSION"
 
-swc_TGZ="swc-wasm-typescript-$NEW_VERSION.tgz"
+amaro_TGZ="amaro-$NEW_VERSION.tgz"
 
-log_and_verify_sha256sum "swc" "$swc_TGZ"
+log_and_verify_sha256sum "amaro" "$amaro_TGZ"
 
-cp ./* "$DEPS_DIR/swc/LICENSE"
+cp ./* "$DEPS_DIR/amaro/LICENSE"
 
-rm -r "$DEPS_DIR/swc"/*
+rm -r "$DEPS_DIR/amaro"/*
 
-tar -xf "$swc_TGZ"
+tar -xf "$amaro_TGZ"
 
 cd package
 
 rm -rf node_modules
 
-mv ./* "$DEPS_DIR/swc"
-
-curl -sL -o "LICENSE" "https://raw.githubusercontent.com/swc-project/swc/HEAD/LICENSE"
-
-mv "LICENSE" "$DEPS_DIR/swc/LICENSE"
+mv ./* "$DEPS_DIR/amaro"
 
 # update version information in src/undici_version.h
-cat > "$ROOT/src/swc_version.h" <<EOF
+cat > "$ROOT/src/amaro_version.h" <<EOF
 // This is an auto generated file, please do not edit.
-// Refer to tools/dep_updaters/update-swc.sh
-#ifndef SRC_SWC_VERSION_H_
-#define SRC_SWC_VERSION_H_
-#define SWC_VERSION "$NEW_VERSION"
-#endif  // SRC_SWC_VERSION_H_
+// Refer to tools/dep_updaters/update-amaro.sh
+#ifndef SRC_AMARO_VERSION_H_
+#define SRC_AMARO_VERSION_H_
+#define AMARO_VERSION "$NEW_VERSION"
+#endif  // SRC_AMARO_VERSION_H_
 EOF
 
 echo "All done!"
 echo ""
-echo "Please git add swc, commit the new version:"
+echo "Please git add amaro, commit the new version:"
 echo ""
-echo "$ git add -A deps/swc"
-echo "$ git commit -m \"deps: update swc to $NEW_VERSION\""
+echo "$ git add -A deps/amaro"
+echo "$ git commit -m \"deps: update amaro to $NEW_VERSION\""
 echo ""
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
 # to add it to $GITHUB_ENV variable
-finalize_version_update "swc" "$NEW_VERSION" "src/swc_version.h"
+finalize_version_update "amaro" "$NEW_VERSION" "src/amaro_version.h"

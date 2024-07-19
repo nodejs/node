@@ -16,6 +16,7 @@ on:
           - acorn
           - acorn-walk
           - ada
+          - amaro
           - brotli
           - c-ares
           - cjs-module-lexer
@@ -40,7 +41,6 @@ on:
           - simdjson
           - simdutf
           - sqlite
-          - swc
           - undici
           - uvwasi
           - zlib
@@ -80,6 +80,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-ada.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: amaro
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-amaro.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -280,14 +288,6 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-simdutf.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: swc
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-swc.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
