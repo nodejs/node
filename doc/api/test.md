@@ -1269,8 +1269,8 @@ changes:
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
   * `globPatterns`: {Array} An array containing the list of glob patterns to
-    match test files. **Default:** matching files from
-    [test runner execution model][].
+    match test files. This option cannot be used together with `files`.
+    **Default:** matching files from [test runner execution model][].
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
