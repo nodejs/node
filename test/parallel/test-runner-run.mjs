@@ -2,16 +2,10 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
-import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
 import tmpdir from '../common/tmpdir.js';
 
 const testFixtures = fixtures.path('test-runner');
-
-// This is needed, because calling run() with no files will
-// load files matching from cwd, which includes all content of test/
-tmpdir.refresh();
-process.chdir(tmpdir.path);
 
 describe('require(\'node:test\').run', { concurrency: true }, () => {
   it('should run with no tests', async () => {
@@ -506,39 +500,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       // eslint-disable-next-line no-unused-vars
       for await (const _ of stream);
     });
-  });
-
-  it('should run with no files', async () => {
-    const stream = run({
-      files: undefined
-    }).compose(tap);
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustNotCall());
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
-  });
-
-  it('should run with no files and use spec reporter', async () => {
-    const stream = run({
-      files: undefined
-    }).compose(spec);
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustNotCall());
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
-  });
-
-  it('should run with no files and use dot reporter', async () => {
-    const stream = run({
-      files: undefined
-    }).compose(dot);
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustNotCall());
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
   });
 
   it('should avoid running recursively', async () => {

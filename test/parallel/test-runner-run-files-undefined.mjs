@@ -1,0 +1,52 @@
+import * as common from '../common/index.mjs';
+import tmpdir from '../common/tmpdir.js';
+import { describe, it, run, beforeEach } from 'node:test';
+import { dot, spec, tap } from 'node:test/reporters';
+import child_process from 'child_process';
+import { fork } from 'node:child_process';
+
+if (process.env.CHILD === 'true') {
+  describe('require(\'node:test\').run with no files', { concurrency: true }, () => {
+    beforeEach(() => {
+      tmpdir.refresh();
+      process.chdir(tmpdir.path);
+    })
+
+    it('should neither pass or fail', async () => {
+      const stream = run({
+        files: undefined
+      }).compose(tap);
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustNotCall());
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('can use the spec reporter', async () => {
+      const stream = run({
+        files: undefined
+      }).compose(spec);
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustNotCall());
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('can use the dot reporter', async () => {
+      const stream = run({
+        files: undefined
+      }).compose(dot);
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustNotCall());
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+  })
+} else {
+  const child = fork(import.meta.filename, [], {
+    env: { CHILD: 'true' }
+  });
+}
