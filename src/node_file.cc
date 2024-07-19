@@ -1677,33 +1677,33 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
     maxRetries--;
   }
 
-  // This is required since std::filesystem::path::c_str() returns different
-  // values in Windows and Unix.
+  // On Windows path::c_str() returns wide char, convert to std::string first.
+  std::string file_path_str = file_path.string();
+  const char* path_c_str = file_path_str.c_str();
 #ifdef _WIN32
-  auto file_ = file_path.string().c_str();
   int permission_denied_error = EPERM;
 #else
-  auto file_ = file_path.c_str();
   int permission_denied_error = EACCES;
 #endif  // !_WIN32
 
   if (error == std::errc::operation_not_permitted) {
-    std::string message = "Operation not permitted: " + file_path.string();
-    return env->ThrowErrnoException(EPERM, "rm", message.c_str(), file_);
+    std::string message = "Operation not permitted: " + file_path_str;
+    return env->ThrowErrnoException(EPERM, "rm", message.c_str(), path_c_str);
   } else if (error == std::errc::directory_not_empty) {
-    std::string message = "Directory not empty: " + file_path.string();
-    return env->ThrowErrnoException(EACCES, "rm", message.c_str(), file_);
+    std::string message = "Directory not empty: " + file_path_str;
+    return env->ThrowErrnoException(EACCES, "rm", message.c_str(), path_c_str);
   } else if (error == std::errc::not_a_directory) {
-    std::string message = "Not a directory: " + file_path.string();
-    return env->ThrowErrnoException(ENOTDIR, "rm", message.c_str(), file_);
+    std::string message = "Not a directory: " + file_path_str;
+    return env->ThrowErrnoException(ENOTDIR, "rm", message.c_str(), path_c_str);
   } else if (error == std::errc::permission_denied) {
-    std::string message = "Permission denied: " + file_path.string();
+    std::string message = "Permission denied: " + file_path_str;
     return env->ThrowErrnoException(
-        permission_denied_error, "rm", message.c_str(), file_);
+        permission_denied_error, "rm", message.c_str(), path_c_str);
   }
 
   std::string message = "Unknown error: " + error.message();
-  return env->ThrowErrnoException(UV_UNKNOWN, "rm", message.c_str(), file_);
+  return env->ThrowErrnoException(
+      UV_UNKNOWN, "rm", message.c_str(), path_c_str);
 }
 
 int MKDirpSync(uv_loop_t* loop,
