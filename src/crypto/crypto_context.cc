@@ -34,7 +34,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -576,20 +576,20 @@ void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
 
-Maybe<bool> SecureContext::UseKey(Environment* env,
+Maybe<void> SecureContext::UseKey(Environment* env,
                                   std::shared_ptr<KeyObjectData> key) {
   if (key->GetKeyType() != KeyType::kKeyTypePrivate) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   ClearErrorOnReturn clear_error_on_return;
   if (!SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get())) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
@@ -689,9 +689,10 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
-Maybe<bool> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
+Maybe<void> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   ClearErrorOnReturn clear_error_on_return;
-  if (!bio) return Just(false);
+  // TODO(tniessen): this should be checked by the caller and not treated as ok
+  if (!bio) return JustVoid();
   cert_.reset();
   issuer_.reset();
 
@@ -701,9 +702,9 @@ Maybe<bool> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   if (SSL_CTX_use_certificate_chain(
           ctx_.get(), std::move(bio), &cert_, &issuer_) == 0) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_certificate_chain");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
@@ -745,16 +746,17 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   sc->SetCACert(bio);
 }
 
-Maybe<bool> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
+Maybe<void> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
-  if (!bio) return Just(false);
+  // TODO(tniessen): this should be checked by the caller and not treated as ok
+  if (!bio) return JustVoid();
 
   DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
       PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
 
   if (!crl) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
@@ -767,7 +769,7 @@ Maybe<bool> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
   CHECK_EQ(1,
            X509_STORE_set_flags(
                cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
