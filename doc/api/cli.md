@@ -272,7 +272,9 @@ Relative paths are NOT supported through the CLI flag.
 ### `--allow-wasi`
 
 <!-- YAML
-added: v22.3.0
+added:
+- v22.3.0
+- v20.16.0
 -->
 
 > Stability: 1.1 - Active development
@@ -497,6 +499,7 @@ added: v12.0.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -525,6 +528,7 @@ added: v12.0.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -544,6 +548,7 @@ added: v12.2.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -560,6 +565,7 @@ added: v12.0.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--cpu-prof` flags are now stable.
 -->
@@ -1174,6 +1180,7 @@ added: v12.4.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1202,6 +1209,7 @@ added: v12.4.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1221,6 +1229,7 @@ added: v12.4.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -1237,6 +1246,7 @@ added: v12.4.0
 changes:
   - version:
     - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53343
     description: The `--heap-prof` flags are now stable.
 -->
@@ -3077,6 +3087,7 @@ added:
 changes:
   - version:
      - v22.3.0
+     - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/52905
     description:
       Remove the possibility to use this env var with

@@ -3207,7 +3207,7 @@ test('top level test', (t) => {
 ### `context.filePath`
 
 <!-- YAML
-added: REPLACEME
+added: v20.16.0
 -->
 
 The absolute path of the test file that created the current test. If a test file
