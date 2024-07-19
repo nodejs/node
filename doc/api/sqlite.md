@@ -6,7 +6,8 @@
 added: v22.5.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Enable this API with the
+> [`--experimental-sqlite`][] CLI flag.
 
 <!-- source_link=lib/sqlite.js -->
 
@@ -314,6 +315,7 @@ exception.
 | `BLOB`    | `Uint8Array`         |
 
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
+[`--experimental-sqlite`]: cli.md#--experimental-sqlite
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
