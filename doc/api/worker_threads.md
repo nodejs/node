@@ -1455,7 +1455,7 @@ Node.js event loop.
 import {
   Worker,
   isMainThread,
-} from 'worker_threads';
+} from 'node:worker_threads';
 
 if (isMainThread) {
   new Worker(new URL(import.meta.url));
