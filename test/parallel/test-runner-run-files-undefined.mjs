@@ -2,7 +2,6 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { describe, it, run, beforeEach } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
-import child_process from 'child_process';
 import { fork } from 'node:child_process';
 
 if (process.env.CHILD === 'true') {
@@ -10,7 +9,7 @@ if (process.env.CHILD === 'true') {
     beforeEach(() => {
       tmpdir.refresh();
       process.chdir(tmpdir.path);
-    })
+    });
 
     it('should neither pass or fail', async () => {
       const stream = run({
@@ -44,9 +43,9 @@ if (process.env.CHILD === 'true') {
       // eslint-disable-next-line no-unused-vars
       for await (const _ of stream);
     });
-  })
+  });
 } else {
-  const child = fork(import.meta.filename, [], {
+  fork(import.meta.filename, [], {
     env: { CHILD: 'true' }
   });
 }

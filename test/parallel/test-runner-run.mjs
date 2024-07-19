@@ -2,8 +2,8 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
+import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
-import tmpdir from '../common/tmpdir.js';
 
 const testFixtures = fixtures.path('test-runner');
 
