@@ -109,3 +109,39 @@ test('localStorage is persisted if it is used', async () => {
   assert.strictEqual(cp.code, 0);
   assert.match(cp.stdout, /barbaz/);
 });
+
+test('localStorage can store and retrieve a max of 10 MB quota', async () => {
+  const localStorageFile = nextLocalStorage();
+  const cpToFill = await spawnPromisified(process.execPath, [
+    '--experimental-webstorage',
+    '--localstorage-file', localStorageFile,
+    // Each character is 2 bytes
+    '-pe', `for (let i = 0; i < 10; i++) {
+      localStorage[i.toString().repeat(1 * 1024 * 1024 / 2)] = '';
+    }
+    `,
+  ]);
+  const cpToVerify = await spawnPromisified(process.execPath, [
+    '--experimental-webstorage',
+    '--localstorage-file', localStorageFile,
+    '-pe', `localStorage.anything = 'should fail';`,
+  ]);
+
+  assert.doesNotMatch(cpToFill.stderr, /QuotaExceededError/);
+  assert.match(cpToVerify.stderr, /QuotaExceededError: Setting the value exceeded the quota/);
+});
+
+test('sessionStorage can store a max of 10 MB quota', async () => {
+  const cpToFill = await spawnPromisified(process.execPath, [
+    '--experimental-webstorage',
+    // Each character is 2 bytes
+    '-pe', `for (let i = 0; i < 10; i++) {
+      sessionStorage[i.toString().repeat(1 * 1024 * 1024 / 2)] = '';
+    }
+
+    sessionStorage.anything = 'should fail';
+    `,
+  ]);
+
+  assert.match(cpToFill.stderr, /QuotaExceededError/);
+});
