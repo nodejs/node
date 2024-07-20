@@ -887,38 +887,6 @@ files with no extension will be treated as WebAssembly if they begin with the
 WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
 JavaScript.
 
-### `--experimental-detect-module`
-
-<!-- YAML
-added:
-  - v20.10.0
--->
-
-> Stability: 1.1 - Active development
-
-Node.js will inspect the source code of ambiguous input to determine whether it
-contains ES module syntax; if such syntax is detected, the input will be treated
-as an ES module.
-
-Ambiguous input is defined as:
-
-* Files with a `.js` extension or no extension; and either no controlling
-  `package.json` file or one that lacks a `type` field; and
-  `--experimental-default-type` is not specified.
-* String input (`--eval` or STDIN) when neither `--input-type` nor
-  `--experimental-default-type` are specified.
-
-ES module syntax is defined as syntax that would throw when evaluated as
-CommonJS. This includes the following:
-
-* `import` statements (but _not_ `import()` expressions, which are valid in
-  CommonJS).
-* `export` statements.
-* `import.meta` references.
-* `await` at the top level of a module.
-* Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
-  `exports`, `__dirname`, `__filename`).
-
 ### `--experimental-eventsource`
 
 <!-- YAML
@@ -1539,6 +1507,21 @@ added: v0.8.0
 -->
 
 Silence deprecation warnings.
+
+### `--no-experimental-detect-module`
+
+<!-- YAML
+added:
+  - v21.1.0
+  - v20.10.0
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53619
+    description: Syntax detection is enabled by default.
+-->
+
+Disable using [syntax detection][] to determine module type.
 
 ### `--no-experimental-fetch`
 
@@ -3384,6 +3367,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [single executable application]: single-executable-applications.md
+[syntax detection]: packages.md#syntax-detection
 [test reporters]: test.md#test-reporters
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
