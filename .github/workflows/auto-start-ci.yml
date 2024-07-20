@@ -59,11 +59,15 @@ jobs:
 
       - name: Setup @node-core/utils
         run: |
-          ncu-config set username ${{ secrets.JENKINS_USER }}
-          ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
-          ncu-config set jenkins_token ${{ secrets.JENKINS_TOKEN }}
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
           ncu-config set owner "${{ github.repository_owner }}"
           ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Start the CI
         run: ./tools/actions/start-ci.sh ${{ needs.get-prs-for-ci.outputs.numbers }}
