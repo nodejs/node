@@ -3185,6 +3185,8 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  std::string package_initial_file = "";
+
   ada::result<ada::url_aggregator> file_path_url;
   std::optional<std::string> initial_file_path;
   std::string file_path;
@@ -3206,6 +3208,8 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     }
 
     FromNamespacedPath(&initial_file_path.value());
+
+    package_initial_file = *initial_file_path;
 
     for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
       file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
@@ -3262,13 +3266,10 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::optional<std::string> module_path =
-      node::url::FileURLToPath(env, *package_json_url);
-  std::optional<std::string> module_base;
+  if (package_initial_file == "")
+    package_initial_file = *initial_file_path + ".js";
 
-  if (!module_path.has_value()) {
-    return;
-  }
+  std::optional<std::string> module_base;
 
   if (args.Length() >= 3 && args[2]->IsString()) {
     Utf8Value utf8_base_path(isolate, args[2]);
@@ -3293,7 +3294,7 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
   THROW_ERR_MODULE_NOT_FOUND(isolate,
                              "Cannot find package '%s' imported from %s",
-                             *module_path,
+                             package_initial_file,
                              *module_base);
 }
 
