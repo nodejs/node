@@ -2008,6 +2008,40 @@ added: v20.10.0
 The maximum number of test files that the test runner CLI will execute
 concurrently. The default value is `os.availableParallelism() - 1`.
 
+### `--test-coverage-exclude`
+
+<!-- YAML
+added:
+  - v22.5.0
+-->
+
+> Stability: 1 - Experimental
+
+Excludes specific files from code coverage using a glob pattern, which can match
+both absolute and relative file paths.
+
+This option may be specified multiple times to exclude multiple glob patterns.
+
+If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
+files must meet **both** criteria to be included in the coverage report.
+
+### `--test-coverage-include`
+
+<!-- YAML
+added:
+  - v22.5.0
+-->
+
+> Stability: 1 - Experimental
+
+Includes specific files in code coverage using a glob pattern, which can match
+both absolute and relative file paths.
+
+This option may be specified multiple times to include multiple glob patterns.
+
+If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
+files must meet **both** criteria to be included in the coverage report.
+
 ### `--test-force-exit`
 
 <!-- YAML
