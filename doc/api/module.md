@@ -1073,7 +1073,7 @@ returned object contains the following keys:
 [hooks]: #customization-hooks
 [load hook]: #loadurl-context-nextload
 [module wrapper]: modules.md#the-module-wrapper
+[prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
 [realm]: https://tc39.es/ecma262/#realm
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
-[prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
 [transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist
