@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstring>
 #include "openssl/bn.h"
+#include "openssl/evp.h"
 #if OPENSSL_VERSION_MAJOR >= 3
 #include "openssl/provider.h"
 #endif
@@ -207,7 +208,7 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
 }
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
-  const Buffer* passphrase = static_cast<const Buffer*>(u);
+  auto passphrase = static_cast<const Buffer<char>*>(u);
   if (passphrase != nullptr) {
     size_t buflen = static_cast<size_t>(size);
     size_t len = passphrase->len;
@@ -218,6 +219,74 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   }
 
   return -1;
+}
+
+// ============================================================================
+// SPKAC
+
+bool VerifySpkac(const char* input, size_t length) {
+#ifdef OPENSSL_IS_BORINGSSL
+  // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
+  // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
+  // As such, we trim those characters here for compatibility.
+  //
+  // find_last_not_of can return npos, which is the maximum value of size_t.
+  // The + 1 will force a roll-ver to 0, which is the correct value. in that
+  // case.
+  length = std::string_view(input, length).find_last_not_of(" \n\r\t") + 1;
+#endif
+  NetscapeSPKIPointer spki(
+      NETSCAPE_SPKI_b64_decode(input, length));
+  if (!spki)
+    return false;
+
+  EVPKeyPointer pkey(X509_PUBKEY_get(spki->spkac->pubkey));
+  return pkey ? NETSCAPE_SPKI_verify(spki.get(), pkey.get()) > 0 : false;
+}
+
+BIOPointer ExportPublicKey(const char* input, size_t length) {
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+
+#ifdef OPENSSL_IS_BORINGSSL
+  // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
+  // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
+  // As such, we trim those characters here for compatibility.
+  length = std::string_view(input, length).find_last_not_of(" \n\r\t") + 1;
+#endif
+  NetscapeSPKIPointer spki(
+      NETSCAPE_SPKI_b64_decode(input, length));
+  if (!spki) return {};
+
+  EVPKeyPointer pkey(NETSCAPE_SPKI_get_pubkey(spki.get()));
+  if (!pkey) return {};
+
+  if (PEM_write_bio_PUBKEY(bio.get(), pkey.get()) <= 0) return { };
+
+  return std::move(bio);
+}
+
+Buffer<char> ExportChallenge(const char* input, size_t length) {
+#ifdef OPENSSL_IS_BORINGSSL
+  // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
+  // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
+  // As such, we trim those characters here for compatibility.
+  length = std::string_view(input, length).find_last_not_of(" \n\r\t") + 1;
+#endif
+  NetscapeSPKIPointer sp(
+      NETSCAPE_SPKI_b64_decode(input, length));
+  if (!sp) return {};
+
+  unsigned char* buf = nullptr;
+  int buf_size = ASN1_STRING_to_UTF8(&buf, sp->spkac->challenge);
+  if (buf_size >= 0) {
+    return {
+      .data = reinterpret_cast<char*>(buf),
+      .len = static_cast<size_t>(buf_size),
+    };
+  }
+
+  return {};
 }
 
 }  // namespace ncrypto

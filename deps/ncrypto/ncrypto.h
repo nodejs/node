@@ -269,9 +269,10 @@ bool testFipsEnabled();
 // ============================================================================
 // Various utilities
 
+template <typename T>
 struct Buffer {
-  const void* data;
-  size_t len;
+  T* data = nullptr;
+  size_t len = 0;
 };
 
 bool CSPRNG(void* buffer, size_t length) NCRYPTO_MUST_USE_RESULT;
@@ -284,6 +285,15 @@ bool CSPRNG(void* buffer, size_t length) NCRYPTO_MUST_USE_RESULT;
 int NoPasswordCallback(char* buf, int size, int rwflag, void* u);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
+
+// ============================================================================
+// SPKAC
+
+bool VerifySpkac(const char* input, size_t length);
+BIOPointer ExportPublicKey(const char* input, size_t length);
+
+// The caller takes ownership of the returned Buffer<char>
+Buffer<char> ExportChallenge(const char* input, size_t length);
 
 // ============================================================================
 // Version metadata
