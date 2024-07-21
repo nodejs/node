@@ -128,7 +128,7 @@ for (let i = 0; i < expected.length; i++) {
 }
 
 function getDirentPath(dirent) {
-  return pathModule.relative(testDir, dirent.path);
+  return pathModule.relative(testDir, pathModule.join(dirent.path, dirent.name));
 }
 
 function assertDirents(dirents) {
