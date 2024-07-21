@@ -6,6 +6,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "path.h"
 #include "sqlite3.h"
 #include "util-inl.h"
 
@@ -76,13 +77,14 @@ static void ThrowQuotaExceededException(Local<Context> context) {
   isolate->ThrowException(exception);
 }
 
-Storage::Storage(Environment* env, Local<Object> object, Local<String> location)
+Storage::Storage(Environment* env,
+                 Local<Object> object,
+                 std::string_view location)
     : BaseObject(env, object) {
   MakeWeak();
-  Utf8Value utf8_location(env->isolate(), location);
   symbols_.Reset(env->isolate(), Map::New(env->isolate()));
   db_ = nullptr;
-  location_ = utf8_location.ToString();
+  location_ = std::string(location);
 }
 
 Storage::~Storage() {
@@ -209,7 +211,15 @@ void Storage::New(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args.IsConstructCall());
   CHECK(args[1]->IsString());
-  new Storage(env, args.This(), args[1].As<String>());
+
+  BufferValue location(env->isolate(), args[1]);
+  CHECK_NOT_NULL(*location);
+  // Only call namespaced path if the location is not "in memory".
+  if (location.ToStringView() != kInMemoryPath) {
+    ToNamespacedPath(env, &location);
+  }
+
+  new Storage(env, args.This(), location.ToStringView());
 }
 
 void Storage::Clear() {
