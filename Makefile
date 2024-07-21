@@ -1387,16 +1387,19 @@ run-lint-js-fix = $(run-lint-js) --fix
 .PHONY: lint-js-doc
 .PHONY: lint-js-build
 
-lint-js-build:
+tools/.jslintstamp:
 	cd tools/eslint && $(call available-node,$(run-npm-ci))
+	touch $@
 
-lint-js-fix: lint-js-build
+lint-js-build: tools/.jslintstamp
+
+lint-js-fix: tools/.jslintstamp
 	@$(call available-node,$(run-lint-js-fix))
 
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
 lint-js-doc: LINT_JS_TARGETS=doc
-lint-js lint-js-doc: lint-js-build
+lint-js lint-js-doc: tools/.jslintstamp
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping $@ (no crypto)"; \
 	else \
