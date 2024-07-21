@@ -249,16 +249,19 @@ Local<Array> Storage::Enumerate() {
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Array>());
   auto stmt = stmt_unique_ptr(s);
   std::vector<Local<Value>> values;
+  Local<Value> value;
   while ((r = sqlite3_step(stmt.get())) == SQLITE_ROW) {
     CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
-    values.emplace_back(
-        String::NewFromTwoByte(env()->isolate(),
-                               reinterpret_cast<const uint16_t*>(
-                                   sqlite3_column_blob(stmt.get(), 0)),
-                               v8::NewStringType::kNormal,
-                               size)
-            .ToLocalChecked());
+    if (!String::NewFromTwoByte(env()->isolate(),
+                                reinterpret_cast<const uint16_t*>(
+                                    sqlite3_column_blob(stmt.get(), 0)),
+                                v8::NewStringType::kNormal,
+                                size)
+             .ToLocal(&value)) {
+      return Local<Array>();
+    }
+    values.emplace_back(value);
   }
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_DONE, Local<Array>());
   return Array::New(env()->isolate(), values.data(), values.size());
@@ -308,12 +311,14 @@ Local<Value> Storage::Load(Local<Name> key) {
   if (r == SQLITE_ROW) {
     CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
-    value = String::NewFromTwoByte(env()->isolate(),
-                                   reinterpret_cast<const uint16_t*>(
-                                       sqlite3_column_blob(stmt.get(), 0)),
-                                   v8::NewStringType::kNormal,
-                                   size)
-                .ToLocalChecked();
+    if (!String::NewFromTwoByte(env()->isolate(),
+                                reinterpret_cast<const uint16_t*>(
+                                    sqlite3_column_blob(stmt.get(), 0)),
+                                v8::NewStringType::kNormal,
+                                size)
+             .ToLocal(&value)) {
+      return {};
+    }
   } else if (r != SQLITE_DONE) {
     THROW_SQLITE_ERROR(env(), r);
   }
@@ -323,7 +328,7 @@ Local<Value> Storage::Load(Local<Name> key) {
 
 Local<Value> Storage::LoadKey(const int index) {
   if (!Open()) {
-    return Local<Value>();
+    return {};
   }
 
   static constexpr std::string_view sql =
@@ -340,12 +345,14 @@ Local<Value> Storage::LoadKey(const int index) {
   if (r == SQLITE_ROW) {
     CHECK(sqlite3_column_type(stmt.get(), 0) == SQLITE_BLOB);
     auto size = sqlite3_column_bytes(stmt.get(), 0) / sizeof(uint16_t);
-    value = String::NewFromTwoByte(env()->isolate(),
-                                   reinterpret_cast<const uint16_t*>(
-                                       sqlite3_column_blob(stmt.get(), 0)),
-                                   v8::NewStringType::kNormal,
-                                   size)
-                .ToLocalChecked();
+    if (!String::NewFromTwoByte(env()->isolate(),
+                                reinterpret_cast<const uint16_t*>(
+                                    sqlite3_column_blob(stmt.get(), 0)),
+                                v8::NewStringType::kNormal,
+                                size)
+             .ToLocal(&value)) {
+      return {};
+    }
   } else if (r != SQLITE_DONE) {
     THROW_SQLITE_ERROR(env(), r);
   }
@@ -421,10 +428,8 @@ bool Storage::Store(Local<Name> key, Local<Value> value) {
   return true;
 }
 
-static Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
-  return Uint32::New(context->GetIsolate(), index)
-      ->ToString(context)
-      .ToLocalChecked();
+static MaybeLocal<String> Uint32ToName(Local<Context> context, uint32_t index) {
+  return Uint32::New(context->GetIsolate(), index)->ToString(context);
 }
 
 static void Clear(const FunctionCallbackInfo<Value>& info) {
@@ -625,33 +630,68 @@ static Intercepted StorageDefiner(Local<Name> property,
 static Intercepted IndexedGetter(uint32_t index,
                                  const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageGetter(Uint32ToName(env->context(), index), info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageGetter(name, info);
 }
 
 static Intercepted IndexedSetter(uint32_t index,
                                  Local<Value> value,
                                  const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageSetter(Uint32ToName(env->context(), index), value, info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageSetter(name, value, info);
 }
 
 static Intercepted IndexedQuery(uint32_t index,
                                 const PropertyCallbackInfo<Integer>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageQuery(Uint32ToName(env->context(), index), info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageQuery(name, info);
 }
 
 static Intercepted IndexedDeleter(uint32_t index,
                                   const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageDeleter(Uint32ToName(env->context(), index), info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageDeleter(name, info);
 }
 
 static Intercepted IndexedDefiner(uint32_t index,
                                   const PropertyDescriptor& desc,
                                   const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  return StorageDefiner(Uint32ToName(env->context(), index), desc, info);
+  Local<Name> name;
+  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
+    // There was an error converting the index to a name.
+    // We aren't going to return a result but let's indicate
+    // that we intercepted the operation.
+    return Intercepted::kYes;
+  }
+  return StorageDefiner(name, desc, info);
 }
 
 static void StorageLengthGetter(const FunctionCallbackInfo<Value>& info) {
