@@ -91,19 +91,6 @@ void InitCrypto(v8::Local<v8::Object> target);
 
 extern void UseExtraCaCerts(const std::string& file);
 
-struct CSPRNGResult {
-  const bool ok;
-  MUST_USE_RESULT bool is_ok() const { return ok; }
-  MUST_USE_RESULT bool is_err() const { return !ok; }
-};
-
-// Either succeeds with exactly |length| bytes of cryptographically
-// strong pseudo-random data, or fails. This function may block.
-// Don't assume anything about the contents of |buffer| on error.
-// As a special case, |length == 0| can be used to check if the CSPRNG
-// is properly seeded without consuming entropy.
-MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length);
-
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
 int NoPasswordCallback(char* buf, int size, int rwflag, void* u);
