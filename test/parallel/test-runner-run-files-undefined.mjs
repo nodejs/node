@@ -3,6 +3,7 @@ import tmpdir from '../common/tmpdir.js';
 import { describe, it, run, beforeEach } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import { fork } from 'node:child_process';
+import assert from 'node:assert';
 
 if (process.env.CHILD === 'true') {
   describe('require(\'node:test\').run with no files', { concurrency: true }, () => {
@@ -48,6 +49,6 @@ if (process.env.CHILD === 'true') {
   fork(import.meta.filename, [], {
     env: { CHILD: 'true' }
   }).on('exit', common.mustCall((code) => {
-      assert.strictEqual(code, 0);
-  });
+    assert.strictEqual(code, 0);
+  }));
 }
