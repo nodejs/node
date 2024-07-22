@@ -75,7 +75,6 @@ using DHPointer = ncrypto::DHPointer;
 using ECDSASigPointer = ncrypto::ECDSASigPointer;
 using HMACCtxPointer = ncrypto::HMACCtxPointer;
 using CipherCtxPointer = ncrypto::CipherCtxPointer;
-using RsaPointer = ncrypto::RSAPointer;
 using DsaPointer = ncrypto::DSAPointer;
 using DsaSigPointer = ncrypto::DSASigPointer;
 
