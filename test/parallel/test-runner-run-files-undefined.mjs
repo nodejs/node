@@ -45,6 +45,8 @@ if (process.env.CHILD === 'true') {
       for await (const _ of stream);
     });
   });
+} else if (common.isAIX) {
+  console.log('1..0 # Skipped: test runner watch mode');
 } else {
   fork(import.meta.filename, [], {
     env: { CHILD: 'true' }
