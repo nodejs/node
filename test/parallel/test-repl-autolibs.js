@@ -66,5 +66,5 @@ function test2() {
   common.allowGlobals(val);
   assert(!gotWrite);
   putIn.run(['url']);
-  assert(gotWrite);
+  process.nextTick(() => assert(gotWrite));
 }

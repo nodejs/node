@@ -616,7 +616,10 @@ changes:
   * `eval` {Function} The function to be used when evaluating each given line
     of input. **Default:** an async wrapper for the JavaScript `eval()`
     function. An `eval` function can error with `repl.Recoverable` to indicate
-    the input was incomplete and prompt for additional lines.
+    the input was incomplete and prompt for additional lines. If a custom
+    `eval` function is provided, `callback` argument must be invoked
+    to allow processing next command (See [`repl.customEval`][] for
+    arguments passed to `eval`).
   * `useColors` {boolean} If `true`, specifies that the default `writer`
     function should include ANSI color styling to REPL output. If a custom
     `writer` function is provided then this has no effect. **Default:** checking
@@ -785,6 +788,7 @@ For an example of running a REPL instance over [`curl(1)`][], see:
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
 [`repl.ReplServer`]: #class-replserver
+[`repl.customEval`]: #custom-evaluation-functions
 [`repl.start()`]: #replstartoptions
 [`reverse-i-search`]: #reverse-i-search
 [`util.inspect()`]: util.md#utilinspectobject-options
