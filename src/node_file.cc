@@ -3016,6 +3016,130 @@ static void GetFormatOfExtensionlessFile(
   return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
 }
 
+static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 4);  // src, dest, dereference, recursive
+
+  BufferValue src(isolate, args[0]);
+  CHECK_NOT_NULL(*src);
+  ToNamespacedPath(env, &src);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
+  auto src_path = std::filesystem::path(src.ToStringView());
+
+  BufferValue dest(isolate, args[1]);
+  CHECK_NOT_NULL(*dest);
+  ToNamespacedPath(env, &dest);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
+  auto dest_path = std::filesystem::path(dest.ToStringView());
+
+  bool dereference = args[2]->IsTrue();
+  bool recursive = args[3]->IsTrue();
+
+  std::error_code error_code;
+  auto src_status = dereference
+                        ? std::filesystem::symlink_status(src_path, error_code)
+                        : std::filesystem::status(src_path, error_code);
+  if (error_code) {
+    return env->ThrowUVException(EEXIST, "lstat", nullptr, src.out());
+  }
+  auto dest_status =
+      dereference ? std::filesystem::symlink_status(dest_path, error_code)
+                  : std::filesystem::status(dest_path, error_code);
+
+  bool dest_exists = !error_code && dest_status.type() !=
+                                        std::filesystem::file_type::not_found;
+  bool src_is_dir = src_status.type() == std::filesystem::file_type::directory;
+
+  if (!error_code) {
+    // Check if src and dest are identical.
+    if (std::filesystem::equivalent(src_path, dest_path)) {
+      std::string message =
+          "src and dest cannot be the same " + dest_path.string();
+      return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+    }
+
+    const bool dest_is_dir =
+        dest_status.type() == std::filesystem::file_type::directory;
+
+    if (src_is_dir && !dest_is_dir) {
+      std::string message = "Cannot overwrite non-directory " +
+                            src_path.string() + " with directory " +
+                            dest_path.string();
+      return THROW_ERR_FS_CP_DIR_TO_NON_DIR(env, message.c_str());
+    }
+
+    if (!src_is_dir && dest_is_dir) {
+      std::string message = "Cannot overwrite directory " + dest_path.string() +
+                            " with non-directory " + src_path.string();
+      return THROW_ERR_FS_CP_NON_DIR_TO_DIR(env, message.c_str());
+    }
+  }
+
+  std::string dest_path_str = dest_path.string();
+  // Check if dest_path is a subdirectory of src_path.
+  if (src_is_dir && dest_path_str.starts_with(src_path.string())) {
+    std::string message = "Cannot copy " + src_path.string() +
+                          " to a subdirectory of self " + dest_path.string();
+    return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+  }
+
+  auto dest_parent = dest_path.parent_path();
+  // "/" parent is itself. Therefore, we need to check if the parent is the same
+  // as itself.
+  while (src_path.parent_path() != dest_parent &&
+         dest_parent.has_parent_path() &&
+         dest_parent.parent_path() != dest_parent) {
+    if (std::filesystem::equivalent(
+            src_path, dest_path.parent_path(), error_code)) {
+      std::string message = "Cannot copy " + src_path.string() +
+                            " to a subdirectory of self " + dest_path.string();
+      return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
+    }
+
+    // If equivalent fails, it's highly likely that dest_parent does not exist
+    if (error_code) {
+      break;
+    }
+
+    dest_parent = dest_parent.parent_path();
+  }
+
+  if (src_is_dir && !recursive) {
+    std::string message =
+        "Recursive option not enabled, cannot copy a directory: " +
+        src_path.string();
+    return THROW_ERR_FS_EISDIR(env, message.c_str());
+  }
+
+  switch (src_status.type()) {
+    case std::filesystem::file_type::socket: {
+      std::string message = "Cannot copy a socket file: " + dest_path.string();
+      return THROW_ERR_FS_CP_SOCKET(env, message.c_str());
+    }
+    case std::filesystem::file_type::fifo: {
+      std::string message = "Cannot copy a FIFO pipe: " + dest_path.string();
+      return THROW_ERR_FS_CP_FIFO_PIPE(env, message.c_str());
+    }
+    case std::filesystem::file_type::unknown: {
+      std::string message =
+          "Cannot copy an unknown file type: " + dest_path.string();
+      return THROW_ERR_FS_CP_UNKNOWN(env, message.c_str());
+    }
+    default:
+      break;
+  }
+
+  // Optimization opportunity: Check if this "exists" call is good for
+  // performance.
+  if (!dest_exists || !std::filesystem::exists(dest_path.parent_path())) {
+    std::filesystem::create_directories(dest_path.parent_path(), error_code);
+  }
+}
+
 BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
     Environment* env, const std::string& file_path) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -3364,6 +3488,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
 
+  SetMethod(isolate, target, "cpSyncCheckPaths", CpSyncCheckPaths);
+
   StatWatcher::CreatePerIsolateProperties(isolate_data, target);
   BindingData::CreatePerIsolateProperties(isolate_data, target);
 
@@ -3472,6 +3598,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteFileUtf8);
   registry->Register(RealPath);
   registry->Register(CopyFile);
+
+  registry->Register(CpSyncCheckPaths);
 
   registry->Register(Chmod);
   registry->Register(FChmod);

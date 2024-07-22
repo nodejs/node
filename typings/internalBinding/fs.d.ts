@@ -76,6 +76,8 @@ declare namespace InternalFSBinding {
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, req: undefined, ctx: FSSyncContext): void;
   function copyFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, usePromises: typeof kUsePromises): Promise<void>;
 
+  function cpSyncCheckPaths(src: StringOrBuffer, dest: StringOrBuffer, dereference: boolean, recursive: boolean): void;
+
   function fchmod(fd: number, mode: number, req: FSReqCallback): void;
   function fchmod(fd: number, mode: number): void;
   function fchmod(fd: number, mode: number, usePromises: typeof kUsePromises): Promise<void>;
@@ -255,6 +257,7 @@ export interface FsBinding {
   chown: typeof InternalFSBinding.chown;
   close: typeof InternalFSBinding.close;
   copyFile: typeof InternalFSBinding.copyFile;
+  cpSyncCheckPaths: typeof InternalFSBinding.cpSyncCheckPaths;
   fchmod: typeof InternalFSBinding.fchmod;
   fchown: typeof InternalFSBinding.fchown;
   fdatasync: typeof InternalFSBinding.fdatasync;

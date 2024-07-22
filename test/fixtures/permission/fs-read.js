@@ -161,23 +161,21 @@ const regularFile = __filename;
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    // cpSync calls lstatSync before reading blockedFile
-    resource: blockedFile,
+    resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
     fs.cpSync(blockedFileURL, path.join(blockedFolder, 'any-other-file'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    // cpSync calls lstatSync before reading blockedFile
-    resource: blockedFile,
+    resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
     fs.cpSync(blockedFile, path.join(__dirname, 'any-other-file'));
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: blockedFile,
+    resource: path.toNamespacedPath(blockedFile),
   }));
 }
 
