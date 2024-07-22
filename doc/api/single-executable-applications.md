@@ -190,6 +190,9 @@ If the paths are not absolute, Node.js will use the path relative to the
 current working directory. The version of the Node.js binary used to produce
 the blob must be the same as the one to which the blob will be injected.
 
+Note: When generating cross-platform SEAs (e.g., generating an SEA on platform A for platform B), `useCodeCache` must be set to false to avoid generating ‘broken’ executables. The generated executable might crash on startup if this setting is not configured properly.
+
+
 ### Assets
 
 Users can include assets by adding a key-path dictionary to the configuration
