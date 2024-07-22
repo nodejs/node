@@ -86,6 +86,16 @@ writeFileSync(testfile5, '');
 
   const res1 = blob.slice(995, 1005);
   strictEqual(await res1.text(), data.slice(995, 1005));
+
+  // Refs: https://github.com/nodejs/node/issues/53908
+  for (const res2 of [
+    blob.slice(995, 1005).slice(),
+    blob.slice(995).slice(0, 10),
+    blob.slice(0, 1005).slice(995),
+  ]) {
+    strictEqual(await res2.text(), data.slice(995, 1005));
+  }
+
   await unlink(testfile2);
 })().then(common.mustCall());
 
