@@ -52,7 +52,14 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
   });
 
   child.on('close', common.mustCall(function() {
-    expectData && assert.strictEqual(data.trim(), expectData);
+    if (!expectData) return;
+
+    if (common.isWindows) {
+      data = data.toLowerCase();
+      expectData = expectData.toLowerCase();
+    }
+
+    assert.strictEqual(data.trim(), expectData);
   }));
 
   return child;
