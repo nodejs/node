@@ -55,20 +55,31 @@ Open `hello-world.js` in any preferred text editor and
 paste in the following content:
 
 ```js
+// Import the 'node:http' (or just 'http') module, which provides functionality to create/request HTTP servers.
 const http = require('node:http');
 
-const hostname = '127.0.0.1';
+// Define the hostname and port number on which the server will listen for requests.
+const hostname = '127.0.0.1'; // localhost
 const port = 3000;
 
+// Create a new HTTP server instance using the 'createServer' method.
 const server = http.createServer((req, res) => {
+  // Set the HTTP status code to 200, indicating success.
   res.statusCode = 200;
+
+  // Set the response header to specify the content type as plain text.
   res.setHeader('Content-Type', 'text/plain');
+
+  // Send back 'Hello, World' to the client
   res.end('Hello, World!\n');
 });
 
+// Tell the server to listen for incoming connections on the specified hostname and port.
 server.listen(port, hostname, () => {
+  // Once the server starts listening, log a message to the console indicating the server is running.
   console.log(`Server running at http://${hostname}:${port}/`);
 });
+
 ```
 
 Save the file. Then, in the terminal window, to run the `hello-world.js` file,
