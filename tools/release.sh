@@ -158,7 +158,7 @@ sign() {
       # since the promotion script should take care of uploading them.
 
       # Remove /home/dist/ part
-      r2dir=$(echo "$shadir" | cut -c 11-)
+      r2dir=$(echo "$shadir" | cut -c 12-)
 
       # Copy SHASUMS256.txt.asc
       # shellcheck disable=SC2086,SC2029
