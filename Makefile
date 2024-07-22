@@ -1601,7 +1601,7 @@ endif
 lint-clean:
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
-	$(RM) tools/eslint/node_modules
+	$(RM) -r tools/eslint/node_modules
 
 HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 
