@@ -535,19 +535,25 @@ Returns `true` if the event had listeners, `false` otherwise.
 import { EventEmitter } from 'node:events';
 const myEmitter = new EventEmitter();
 
-// First listener
-myEmitter.on('event', function firstListener() {
+const firstListenerCallback = () => {
   console.log('Helloooo! first listener');
-});
-// Second listener
-myEmitter.on('event', function secondListener(arg1, arg2) {
+};
+
+const secondListenerCallback = (arg1, arg2) => {
   console.log(`event with parameters ${arg1}, ${arg2} in second listener`);
-});
-// Third listener
-myEmitter.on('event', function thirdListener(...args) {
+};
+
+const thirdListenerCallback = (...args) => {
   const parameters = args.join(', ');
   console.log(`event with parameters ${parameters} in third listener`);
-});
+};
+
+// First listener
+myEmitter.on('event', firstListenerCallback);
+// Second listener
+myEmitter.on('event', secondListenerCallback);
+// Third listener
+myEmitter.on('event', thirdListenerCallback);
 
 console.log(myEmitter.listeners('event'));
 
@@ -555,9 +561,9 @@ myEmitter.emit('event', 1, 2, 3, 4, 5);
 
 // Prints:
 // [
-//   [Function: firstListener],
-//   [Function: secondListener],
-//   [Function: thirdListener]
+//   [Function: firstListenerCallback],
+//   [Function: secondListenerCallback],
+//   [Function: thirdListenerCallback]
 // ]
 // Helloooo! first listener
 // event with parameters 1, 2 in second listener
