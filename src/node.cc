@@ -47,6 +47,7 @@
 #include "node_version.h"
 
 #if HAVE_OPENSSL
+#include "ncrypto.h"
 #include "node_crypto.h"
 #endif
 
@@ -1191,14 +1192,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     // Ensure CSPRNG is properly seeded.
-    CHECK(crypto::CSPRNG(nullptr, 0).is_ok());
+    CHECK(ncrypto::CSPRNG(nullptr, 0));
 
     V8::SetEntropySource([](unsigned char* buffer, size_t length) {
       // V8 falls back to very weak entropy when this function fails
       // and /dev/urandom isn't available. That wouldn't be so bad if
       // the entropy was only used for Math.random() but it's also used for
       // hash table and address space layout randomization. Better to abort.
-      CHECK(crypto::CSPRNG(buffer, length).is_ok());
+      CHECK(ncrypto::CSPRNG(buffer, length));
       return true;
     });
 #endif  // !defined(OPENSSL_IS_BORINGSSL)
