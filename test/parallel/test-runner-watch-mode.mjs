@@ -7,7 +7,6 @@ import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
-
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
@@ -134,7 +133,7 @@ describe('test runner watch mode', () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'rename' });
   });
 
-  it('should not throw when delete a watched test file', async () => {
+  it('should not throw when delete a watched test file', { skip: common.isAIX }, async () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
   });
 });
