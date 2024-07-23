@@ -1654,6 +1654,8 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
             error == std::errc::operation_not_permitted);
   };
 
+  int i = 1;
+
   while (maxRetries >= 0) {
     if (recursive) {
       std::filesystem::remove_all(file_path, error);
@@ -1667,14 +1669,15 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
       break;
     }
 
-    if (retryDelay != 0) {
+    if (retryDelay > 0) {
 #ifdef _WIN32
-      Sleep(retryDelay / 1000);
+      Sleep(i * retryDelay / 1000);
 #else
-      sleep(retryDelay / 1000);
+      sleep(i * retryDelay / 1000);
 #endif
     }
     maxRetries--;
+    i++;
   }
 
   // On Windows path::c_str() returns wide char, convert to std::string first.
