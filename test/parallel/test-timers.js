@@ -79,3 +79,7 @@ setTimeout(common.mustCall(() => {
 // Test 10 ms timeout separately.
 setTimeout(common.mustCall(), 10);
 setInterval(common.mustCall(function() { clearInterval(this); }), 10);
+
+// Test no timeout separately
+setTimeout(common.mustCall());
+setInterval(common.mustCall(function() { clearInterval(this); }));
