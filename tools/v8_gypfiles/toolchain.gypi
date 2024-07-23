@@ -711,13 +711,7 @@
     'configurations': {
       'Debug': {
         'defines': [
-          'ENABLE_DISASSEMBLER',
-          'V8_ENABLE_CHECKS',
-          'OBJECT_PRINT',
           'DEBUG',
-          'V8_TRACE_MAPS',
-          'V8_ENABLE_ALLOCATION_TIMEOUT',
-          'V8_ENABLE_FORCE_SLOW_PATH',
         ],
         'conditions': [
           ['OS=="linux" and v8_enable_backtrace==1', {
