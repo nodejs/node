@@ -959,8 +959,15 @@ void Access(const FunctionCallbackInfo<Value>& args) {
         path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_ACCESS, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "access", UTF8, AfterNoArgs,
-              uv_fs_access, *path, mode);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "access",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_access,
+                             *path,
+                             mode);
   } else {  // access(path, mode)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
@@ -1106,8 +1113,8 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
         path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_STAT, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "stat", UTF8, AfterStat,
-              uv_fs_stat, *path);
+    AsyncCallAndThrowOnError(
+        env, req_wrap_async, args, "stat", UTF8, AfterStat, uv_fs_stat, *path);
   } else {  // stat(path, use_bigint, undefined, do_not_throw_if_no_entry)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
@@ -1148,8 +1155,14 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_LSTAT, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "lstat", UTF8, AfterStat,
-              uv_fs_lstat, *path);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "lstat",
+                             UTF8,
+                             AfterStat,
+                             uv_fs_lstat,
+                             *path);
   } else {  // lstat(path, use_bigint, undefined, throw_if_no_entry)
     bool do_not_throw_if_no_entry = args[3]->IsFalse();
     FSReqWrapSync req_wrap_sync("lstat", *path);
@@ -1189,8 +1202,8 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
   if (!args[2]->IsUndefined()) {  // fstat(fd, use_bigint, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FSTAT, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "fstat", UTF8, AfterStat,
-              uv_fs_fstat, fd);
+    AsyncCallAndThrowOnError(
+        env, req_wrap_async, args, "fstat", UTF8, AfterStat, uv_fs_fstat, fd);
   } else {  // fstat(fd, use_bigint, undefined, do_not_throw_error)
     bool do_not_throw_error = args[2]->IsTrue();
     const auto should_throw = [do_not_throw_error](int result) {
@@ -1234,14 +1247,14 @@ static void StatFs(const FunctionCallbackInfo<Value>& args) {
         path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_STATFS, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env,
-              req_wrap_async,
-              args,
-              "statfs",
-              UTF8,
-              AfterStatFs,
-              uv_fs_statfs,
-              *path);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "statfs",
+                             UTF8,
+                             AfterStatFs,
+                             uv_fs_statfs,
+                             *path);
   } else {  // statfs(path, use_bigint)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
@@ -1387,8 +1400,14 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_READLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "readlink", encoding, AfterStringPtr,
-              uv_fs_readlink, *path);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "readlink",
+                             encoding,
+                             AfterStringPtr,
+                             uv_fs_readlink,
+                             *path);
   } else {  // readlink(path, encoding)
     FSReqWrapSync req_wrap_sync("readlink", *path);
     FS_SYNC_TRACE_BEGIN(readlink);
@@ -1490,8 +1509,15 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   if (argc > 2) {  // ftruncate(fd, len, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FTRUNCATE, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "ftruncate", UTF8, AfterNoArgs,
-              uv_fs_ftruncate, fd, len);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "ftruncate",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_ftruncate,
+                             fd,
+                             len);
   } else {  // ftruncate(fd, len)
     FSReqWrapSync req_wrap_sync("ftruncate");
     FS_SYNC_TRACE_BEGIN(ftruncate);
@@ -1515,8 +1541,14 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FDATASYNC, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "fdatasync", UTF8, AfterNoArgs,
-              uv_fs_fdatasync, fd);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "fdatasync",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_fdatasync,
+                             fd);
   } else {  // fdatasync(fd)
     FSReqWrapSync req_wrap_sync("fdatasync");
     FS_SYNC_TRACE_BEGIN(fdatasync);
@@ -1540,8 +1572,8 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FSYNC, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "fsync", UTF8, AfterNoArgs,
-              uv_fs_fsync, fd);
+    AsyncCallAndThrowOnError(
+        env, req_wrap_async, args, "fsync", UTF8, AfterNoArgs, uv_fs_fsync, fd);
   } else {
     FSReqWrapSync req_wrap_sync("fsync");
     FS_SYNC_TRACE_BEGIN(fsync);
@@ -1570,8 +1602,14 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UNLINK, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "unlink", UTF8, AfterNoArgs,
-              uv_fs_unlink, *path);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "unlink",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_unlink,
+                             *path);
   } else {  // unlink(path)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env,
@@ -1600,8 +1638,14 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);  // rmdir(path, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_RMDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "rmdir", UTF8, AfterNoArgs,
-              uv_fs_rmdir, *path);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "rmdir",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_rmdir,
+                             *path);
   } else {  // rmdir(path)
     FSReqWrapSync req_wrap_sync("rmdir", *path);
     FS_SYNC_TRACE_BEGIN(rmdir);
@@ -1942,8 +1986,14 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_REALPATH, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "realpath", encoding, AfterStringPtr,
-              uv_fs_realpath, *path);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "realpath",
+                             encoding,
+                             AfterStringPtr,
+                             uv_fs_realpath,
+                             *path);
   } else {  // realpath(path, encoding, undefined, ctx)
     FSReqWrapSync req_wrap_sync("realpath", *path);
     FS_SYNC_TRACE_BEGIN(realpath);
@@ -1995,15 +2045,15 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     req_wrap_async->set_with_file_types(with_types);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_SCANDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env,
-              req_wrap_async,
-              args,
-              "scandir",
-              encoding,
-              AfterScanDir,
-              uv_fs_scandir,
-              *path,
-              0 /*flags*/);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "scandir",
+                             encoding,
+                             AfterScanDir,
+                             uv_fs_scandir,
+                             *path,
+                             0 /*flags*/);
   } else {  // readdir(path, encoding, withTypes)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
@@ -2189,8 +2239,16 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   if (req_wrap_async != nullptr) {  // openFileHandle(path, flags, mode, req)
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_OPEN, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "open", UTF8, AfterOpenFileHandle,
-              uv_fs_open, *path, flags, mode);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "open",
+                             UTF8,
+                             AfterOpenFileHandle,
+                             uv_fs_open,
+                             *path,
+                             flags,
+                             mode);
   } else {  // openFileHandle(path, flags, mode, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
@@ -2306,8 +2364,17 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   FSReqBase* req_wrap_async = GetReqWrap(args, 5);
   if (req_wrap_async != nullptr) {  // write(fd, buffer, off, len, pos, req)
     FS_ASYNC_TRACE_BEGIN0(UV_FS_WRITE, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "write", UTF8, AfterInteger,
-              uv_fs_write, fd, &uvbuf, 1, pos);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "write",
+                             UTF8,
+                             AfterInteger,
+                             uv_fs_write,
+                             fd,
+                             &uvbuf,
+                             1,
+                             pos);
   } else {  // write(fd, buffer, off, len, pos, undefined, ctx)
     CHECK_EQ(argc, 7);
     FSReqWrapSync req_wrap_sync;
@@ -2353,17 +2420,17 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   if (argc > 3) {  // writeBuffers(fd, chunks, pos, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_WRITE, req_wrap_async)
-    AsyncCall(env,
-              req_wrap_async,
-              args,
-              "write",
-              UTF8,
-              AfterInteger,
-              uv_fs_write,
-              fd,
-              *iovs,
-              iovs.length(),
-              pos);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "write",
+                             UTF8,
+                             AfterInteger,
+                             uv_fs_write,
+                             fd,
+                             *iovs,
+                             iovs.length(),
+                             pos);
   } else {  // writeBuffers(fd, chunks, pos)
     FSReqWrapSync req_wrap_sync("write");
     FS_SYNC_TRACE_BEGIN(write);
@@ -2605,8 +2672,17 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 5);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_READ, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "read", UTF8, AfterInteger,
-              uv_fs_read, fd, &uvbuf, 1, pos);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "read",
+                             UTF8,
+                             AfterInteger,
+                             uv_fs_read,
+                             fd,
+                             &uvbuf,
+                             1,
+                             pos);
   } else {  // read(fd, buffer, offset, len, pos)
     FSReqWrapSync req_wrap_sync("read");
     FS_SYNC_TRACE_BEGIN(read);
@@ -2727,8 +2803,17 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
   if (argc > 3) {  // readBuffers(fd, buffers, pos, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_READ, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "read", UTF8, AfterInteger,
-              uv_fs_read, fd, *iovs, iovs.length(), pos);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "read",
+                             UTF8,
+                             AfterInteger,
+                             uv_fs_read,
+                             fd,
+                             *iovs,
+                             iovs.length(),
+                             pos);
   } else {  // readBuffers(fd, buffers, undefined, ctx)
     FSReqWrapSync req_wrap_sync("read");
     FS_SYNC_TRACE_BEGIN(read);
@@ -2765,8 +2850,15 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_CHMOD, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "chmod", UTF8, AfterNoArgs,
-              uv_fs_chmod, *path, mode);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "chmod",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_chmod,
+                             *path,
+                             mode);
   } else {  // chmod(path, mode)
     FSReqWrapSync req_wrap_sync("chmod", *path);
     FS_SYNC_TRACE_BEGIN(chmod);
@@ -2796,8 +2888,15 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
   if (argc > 2) {  // fchmod(fd, mode, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHMOD, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "fchmod", UTF8, AfterNoArgs,
-              uv_fs_fchmod, fd, mode);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "fchmod",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_fchmod,
+                             fd,
+                             mode);
   } else {  // fchmod(fd, mode)
     FSReqWrapSync req_wrap_sync("fchmod");
     FS_SYNC_TRACE_BEGIN(fchmod);
@@ -2835,8 +2934,16 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
         path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_CHOWN, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "chown", UTF8, AfterNoArgs,
-              uv_fs_chown, *path, uid, gid);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "chown",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_chown,
+                             *path,
+                             uid,
+                             gid);
   } else {  // chown(path, uid, gid)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env,
@@ -2873,8 +2980,16 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
   if (argc > 3) {  // fchown(fd, uid, gid, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHOWN, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "fchown", UTF8, AfterNoArgs,
-              uv_fs_fchown, fd, uid, gid);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "fchown",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_fchown,
+                             fd,
+                             uid,
+                             gid);
   } else {  // fchown(fd, uid, gid)
     FSReqWrapSync req_wrap_sync("fchown");
     FS_SYNC_TRACE_BEGIN(fchown);
@@ -2909,8 +3024,16 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
         path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_LCHOWN, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "lchown", UTF8, AfterNoArgs,
-              uv_fs_lchown, *path, uid, gid);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "lchown",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_lchown,
+                             *path,
+                             uid,
+                             gid);
   } else {  // lchown(path, uid, gid)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env,
@@ -2946,8 +3069,16 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_UTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "utime", UTF8, AfterNoArgs,
-              uv_fs_utime, *path, atime, mtime);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "utime",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_utime,
+                             *path,
+                             atime,
+                             mtime);
   } else {  // utimes(path, atime, mtime)
     FSReqWrapSync req_wrap_sync("utime", *path);
     FS_SYNC_TRACE_BEGIN(utimes);
@@ -2977,8 +3108,16 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   if (argc > 3) {  // futimes(fd, atime, mtime, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FUTIME, req_wrap_async)
-    AsyncCall(env, req_wrap_async, args, "futime", UTF8, AfterNoArgs,
-              uv_fs_futime, fd, atime, mtime);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "futime",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_futime,
+                             fd,
+                             atime,
+                             mtime);
   } else {  // futimes(fd, atime, mtime)
     FSReqWrapSync req_wrap_sync("futime");
     FS_SYNC_TRACE_BEGIN(futimes);
@@ -3010,8 +3149,16 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_LUTIME, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "lutime", UTF8, AfterNoArgs,
-              uv_fs_lutime, *path, atime, mtime);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "lutime",
+                             UTF8,
+                             AfterNoArgs,
+                             uv_fs_lutime,
+                             *path,
+                             atime,
+                             mtime);
   } else {  // lutimes(path, atime, mtime)
     FSReqWrapSync req_wrap_sync("lutime", *path);
     FS_SYNC_TRACE_BEGIN(lutimes);
@@ -3047,8 +3194,14 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
         tmpl.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_MKDTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
-    AsyncCall(env, req_wrap_async, args, "mkdtemp", encoding, AfterStringPath,
-              uv_fs_mkdtemp, *tmpl);
+    AsyncCallAndThrowOnError(env,
+                             req_wrap_async,
+                             args,
+                             "mkdtemp",
+                             encoding,
+                             AfterStringPath,
+                             uv_fs_mkdtemp,
+                             *tmpl);
   } else {  // mkdtemp(tmpl, encoding)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env,
