@@ -11,7 +11,7 @@ test('should fail', () => { throw new Error('fail'); });
 test('should skip', { skip: true }, () => {});
 test('parent', (t) => {
   t.test('should fail', () => { throw new Error('fail'); });
-  t.test('should pass but parent fail', (t, done) => {
+  t.test('should pass because parent waits', (t, done) => {
     setImmediate(done);
   });
 });

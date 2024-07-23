@@ -22,7 +22,7 @@ async function runAndKill(file) {
   await finished(child.stdout);
   assert(stdout.startsWith('TAP version 13\n'));
   assert.strictEqual(signal, null);
-  assert.strictEqual(code, 1);
+  assert.strictEqual(code, 0);
 }
 
 if (process.argv[2] === 'child') {

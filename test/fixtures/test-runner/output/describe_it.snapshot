@@ -404,9 +404,13 @@ not ok 44 - callback called twice
     *
   ...
 # Subtest: callback called twice in different ticks
-ok 45 - callback called twice in different ticks
+not ok 45 - callback called twice in different ticks
   ---
   duration_ms: *
+  location: '/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  failureType: 'uncaughtException'
+  error: 'callback invoked multiple times'
+  code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: callback called twice in future tick
 not ok 46 - callback called twice in future tick
@@ -432,9 +436,16 @@ not ok 47 - callback async throw
     *
   ...
 # Subtest: callback async throw after done
-ok 48 - callback async throw after done
+not ok 48 - callback async throw after done
   ---
   duration_ms: *
+  location: '/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  failureType: 'uncaughtException'
+  error: 'thrown from callback async throw after done'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
   ...
 # Subtest: custom inspect symbol fail
 not ok 49 - custom inspect symbol fail
@@ -695,12 +706,10 @@ not ok 58 - invalid subtest fail
 # Error: Test "async unhandled rejection - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Error: Test "immediate throw - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Error: Test "immediate reject - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
-# Error: Test "callback called twice in different ticks" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# Error: Test "callback async throw after done" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # tests 67
 # suites 11
-# pass 31
-# fail 19
+# pass 29
+# fail 21
 # cancelled 4
 # skipped 9
 # todo 4
