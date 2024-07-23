@@ -480,7 +480,8 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
 
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   r = sqlite3_step(stmt->statement_);
-  if (r != SQLITE_ROW && r != SQLITE_DONE) {
+  if (r == SQLITE_DONE) return;
+  if (r != SQLITE_ROW) {
     THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_);
     return;
   }

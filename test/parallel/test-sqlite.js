@@ -219,7 +219,9 @@ suite('StatementSync() constructor', () => {
 suite('StatementSync.prototype.get()', () => {
   test('executes a query and returns undefined on no results', (t) => {
     const db = new DatabaseSync(nextDb());
-    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    t.assert.strictEqual(stmt.get(), undefined);
+    stmt = db.prepare('SELECT * FROM storage');
     t.assert.strictEqual(stmt.get(), undefined);
   });
 
