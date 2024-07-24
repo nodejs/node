@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cstddef>
 #include <list>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 #include "openssl/bn.h"
 #include <openssl/x509.h>
 #include <openssl/dh.h>
@@ -81,6 +81,15 @@ namespace ncrypto {
 #define NCRYPTO_DISALLOW_NEW_DELETE()                                          \
   void* operator new(size_t) = delete;                                         \
   void operator delete(void*) = delete;
+
+[[noreturn]] inline void unreachable() {
+#ifdef __GNUC__
+  __builtin_unreachable();
+#elif defined(_MSC_VER)
+  __assume(false);
+#else
+#endif
+}
 
 // ============================================================================
 // Error handling utilities
@@ -190,30 +199,92 @@ using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 using X509Pointer = DeleteFnPtr<X509, X509_free>;
 
+// An unowned, unmanaged pointer to a buffer of data.
+template <typename T>
+struct Buffer {
+  T* data = nullptr;
+  size_t len = 0;
+};
+
+// A managed pointer to a buffer of data. When destroyed the underlying
+// buffer will be freed.
+class DataPointer final {
+ public:
+  static DataPointer Alloc(size_t len);
+
+  DataPointer() = default;
+  explicit DataPointer(void* data, size_t len);
+  explicit DataPointer(const Buffer<void>& buffer);
+  DataPointer(DataPointer&& other) noexcept;
+  DataPointer& operator=(DataPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(DataPointer)
+  ~DataPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return data_ == nullptr; }
+  inline operator bool() const { return data_ != nullptr; }
+  inline void* get() const noexcept { return data_; }
+  inline size_t size() const noexcept { return len_; }
+  void reset(void* data = nullptr, size_t len = 0);
+  void reset(const Buffer<void>& buffer);
+
+  // Releases ownership of the underlying data buffer. It is the caller's
+  // responsibility to ensure the buffer is appropriately freed.
+  Buffer<void> release();
+
+  // Returns a Buffer struct that is a view of the underlying data.
+  inline operator const Buffer<void>() const {
+    return {
+      .data = data_,
+      .len = len_,
+    };
+  }
+
+ private:
+  void* data_ = nullptr;
+  size_t len_ = 0;
+};
+
 class BignumPointer final {
  public:
   BignumPointer() = default;
   explicit BignumPointer(BIGNUM* bignum);
+  explicit BignumPointer(const unsigned char* data, size_t len);
   BignumPointer(BignumPointer&& other) noexcept;
   BignumPointer& operator=(BignumPointer&& other) noexcept;
   NCRYPTO_DISALLOW_COPY(BignumPointer)
   ~BignumPointer();
 
-  bool operator==(const BignumPointer& other) noexcept;
-  bool operator==(const BIGNUM* other) noexcept;
-  inline bool operator==(std::nullptr_t) noexcept { return bn_ == nullptr; }
+  int operator<=>(const BignumPointer& other) const noexcept;
+  int operator<=>(const BIGNUM* other) const noexcept;
   inline operator bool() const { return bn_ != nullptr; }
   inline BIGNUM* get() const noexcept { return bn_.get(); }
   void reset(BIGNUM* bn = nullptr);
+  void reset(const unsigned char* data, size_t len);
   BIGNUM* release();
 
-  size_t byteLength();
+  bool isZero() const;
+  bool isOne() const;
 
-  std::vector<uint8_t> encode();
-  std::vector<uint8_t> encodePadded(size_t size);
+  bool setWord(unsigned long w);
+  unsigned long getWord() const;
 
-  static std::vector<uint8_t> encode(const BIGNUM* bn);
-  static std::vector<uint8_t> encodePadded(const BIGNUM* bn, size_t size);
+  size_t byteLength() const;
+
+  DataPointer toHex() const;
+  DataPointer encode() const;
+  DataPointer encodePadded(size_t size) const;
+  size_t encodeInto(unsigned char* out) const;
+  size_t encodePaddedInto(unsigned char* out, size_t size) const;
+
+  static BignumPointer New();
+  static BignumPointer NewSecure();
+  static DataPointer Encode(const BIGNUM* bn);
+  static DataPointer EncodePadded(const BIGNUM* bn, size_t size);
+  static size_t EncodePaddedInto(const BIGNUM* bn, unsigned char* out, size_t size);
+  static int GetBitCount(const BIGNUM* bn);
+  static int GetByteCount(const BIGNUM* bn);
+  static unsigned long GetWord(const BIGNUM* bn);
+  static const BIGNUM* One();
 
  private:
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
@@ -269,12 +340,6 @@ bool testFipsEnabled();
 // ============================================================================
 // Various utilities
 
-template <typename T>
-struct Buffer {
-  T* data = nullptr;
-  size_t len = 0;
-};
-
 bool CSPRNG(void* buffer, size_t length) NCRYPTO_MUST_USE_RESULT;
 
 // This callback is used to avoid the default passphrase callback in OpenSSL
@@ -285,6 +350,9 @@ bool CSPRNG(void* buffer, size_t length) NCRYPTO_MUST_USE_RESULT;
 int NoPasswordCallback(char* buf, int size, int rwflag, void* u);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
+
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext);
+bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext);
 
 // ============================================================================
 // SPKAC
