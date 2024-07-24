@@ -1049,6 +1049,10 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
+        }],
       ],
     }, # fuzz_env
     { # fuzz_ClientHelloParser.cc
@@ -1216,6 +1220,10 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
+        }],
       ],
     }, # cctest
 
@@ -1274,6 +1282,10 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
+        }],
       ],
     }, # embedtest
 
@@ -1295,6 +1307,10 @@
         # Avoid excessive LTO
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
+        }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
         }],
       ]
     }, # overlapped-checker
@@ -1331,6 +1347,14 @@
               '-g', '-O0'
             ],
           },
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
         }],
       ]
     },
@@ -1394,6 +1418,10 @@
         # Avoid excessive LTO
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
+        }],
+        # Avoid extra debug information
+        ['v8_enable_handle_zapping==0', {
+          'ldflags': [ '-s' ],
         }],
       ],
     }, # node_mksnapshot
