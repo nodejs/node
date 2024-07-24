@@ -262,7 +262,7 @@ class ByteSource {
   operator bool() const { return data_ != nullptr; }
 
   BignumPointer ToBN() const {
-    return BignumPointer(BN_bin2bn(data<unsigned char>(), size(), nullptr));
+    return BignumPointer(data<unsigned char>(), size());
   }
 
   // Creates a v8::BackingStore that takes over responsibility for

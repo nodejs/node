@@ -596,14 +596,13 @@ MaybeLocal<Value> EncodeBignum(
     const BIGNUM* bn,
     int size,
     Local<Value>* error) {
-  std::vector<uint8_t> buf = ncrypto::BignumPointer::encodePadded(bn, size);
+  auto buf = ncrypto::BignumPointer::EncodePadded(bn, size);
   CHECK_EQ(buf.size(), static_cast<size_t>(size));
-  return StringBytes::Encode(
-      env->isolate(),
-      reinterpret_cast<const char*>(buf.data()),
-      buf.size(),
-      BASE64URL,
-      error);
+  return StringBytes::Encode(env->isolate(),
+                             reinterpret_cast<const char*>(buf.get()),
+                             buf.size(),
+                             BASE64URL,
+                             error);
 }
 
 Maybe<bool> SetEncodedValue(
@@ -615,8 +614,7 @@ Maybe<bool> SetEncodedValue(
   Local<Value> value;
   Local<Value> error;
   CHECK_NOT_NULL(bn);
-  if (size == 0)
-    size = BN_num_bytes(bn);
+  if (size == 0) size = BignumPointer::GetByteCount(bn);
   if (!EncodeBignum(env, bn, size, &error).ToLocal(&value)) {
     if (!error.IsEmpty())
       env->isolate()->ThrowException(error);

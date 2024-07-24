@@ -185,10 +185,7 @@ BignumPointer GetCounter(const AESCipherConfig& params) {
 
   if (remainder == 0) {
     unsigned int byte_length = params.length / CHAR_BIT;
-    return BignumPointer(BN_bin2bn(
-        data + params.iv.size() - byte_length,
-        byte_length,
-        nullptr));
+    return BignumPointer(data + params.iv.size() - byte_length, byte_length);
   }
 
   unsigned int byte_length =
@@ -199,7 +196,7 @@ BignumPointer GetCounter(const AESCipherConfig& params) {
       data + params.iv.size());
   counter[0] &= ~(0xFF << remainder);
 
-  return BignumPointer(BN_bin2bn(counter.data(), counter.size(), nullptr));
+  return BignumPointer(counter.data(), counter.size());
 }
 
 std::vector<unsigned char> BlockWithZeroedCounter(
@@ -269,23 +266,22 @@ WebCryptoCipherStatus AES_CTR_Cipher(
     const AESCipherConfig& params,
     const ByteSource& in,
     ByteSource* out) {
-  BignumPointer num_counters(BN_new());
-  if (!BN_lshift(num_counters.get(), BN_value_one(), params.length))
+  auto num_counters = BignumPointer::New();
+  if (!BN_lshift(num_counters.get(), BignumPointer::One(), params.length))
     return WebCryptoCipherStatus::FAILED;
 
   BignumPointer current_counter = GetCounter(params);
 
-  BignumPointer num_output(BN_new());
+  auto num_output = BignumPointer::New();
 
-  if (!BN_set_word(num_output.get(), CeilDiv(in.size(), kAesBlockSize)))
+  if (!num_output.setWord(CeilDiv(in.size(), kAesBlockSize)))
     return WebCryptoCipherStatus::FAILED;
 
   // Just like in chromium's implementation, if the counter will
   // be incremented more than there are counter values, we fail.
-  if (BN_cmp(num_output.get(), num_counters.get()) > 0)
-    return WebCryptoCipherStatus::FAILED;
+  if (num_output > num_counters) return WebCryptoCipherStatus::FAILED;
 
-  BignumPointer remaining_until_reset(BN_new());
+  auto remaining_until_reset = BignumPointer::New();
   if (!BN_sub(remaining_until_reset.get(),
               num_counters.get(),
               current_counter.get())) {
@@ -298,7 +294,7 @@ WebCryptoCipherStatus AES_CTR_Cipher(
   // Also just like in chromium's implementation, if we can process
   // the input without wrapping the counter, we'll do it as a single
   // call here. If we can't, we'll fallback to the a two-step approach
-  if (BN_cmp(remaining_until_reset.get(), num_output.get()) >= 0) {
+  if (remaining_until_reset >= num_output) {
     auto status = AES_CTR_Cipher2(key_data,
                                   cipher_mode,
                                   params,
@@ -309,8 +305,7 @@ WebCryptoCipherStatus AES_CTR_Cipher(
     return status;
   }
 
-  BN_ULONG blocks_part1 = BN_get_word(remaining_until_reset.get());
-  BN_ULONG input_size_part1 = blocks_part1 * kAesBlockSize;
+  BN_ULONG input_size_part1 = remaining_until_reset.getWord() * kAesBlockSize;
 
   // Encrypt the first part...
   auto status =
