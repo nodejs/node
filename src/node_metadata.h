@@ -51,6 +51,7 @@ namespace node {
   V(sqlite)                                                                    \
   V(ada)                                                                       \
   V(nbytes)                                                                    \
+  V(amaro)                                                                     \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
   V(cjs_module_lexer)
 

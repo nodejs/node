@@ -1,6 +1,7 @@
 #include "node_metadata.h"
 #include "acorn_version.h"
 #include "ada.h"
+#include "amaro_version.h"
 #include "ares.h"
 #include "brotli/encode.h"
 #include "cjs_module_lexer_version.h"
@@ -116,6 +117,7 @@ Metadata::Versions::Versions() {
   acorn = ACORN_VERSION;
   cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
+  amaro = AMARO_VERSION;
 
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();
