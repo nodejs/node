@@ -4016,6 +4016,16 @@ The public key in the certificate SubjectPublicKeyInfo could not be read.
 
 An error occurred trying to allocate memory. This should never happen.
 
+<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
+
+#### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Type stripping is not supported for files descendent of a `node_modules` directory.
+
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve

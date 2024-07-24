@@ -235,6 +235,8 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
+  bool experimental_strip_types = false;
+
   std::vector<std::string> user_argv;
 
   bool report_exclude_network = false;
