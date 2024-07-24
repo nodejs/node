@@ -3113,7 +3113,7 @@ added: REPLACEME
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_latin1(napi_env env,
-                                                           const char16_t* str,
+                                                           const char* str,
                                                            size_t length,
                                                            napi_value* result);
 ```
@@ -3177,7 +3177,7 @@ added: REPLACEME
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_utf8(napi_env env,
-                                                         const char16_t* str,
+                                                         const char* str,
                                                          size_t length,
                                                          napi_value* result);
 ```
