@@ -26,6 +26,8 @@
 #ifndef __ARES_DNS_PRIVATE_H
 #define __ARES_DNS_PRIVATE_H
 
+ares_status_t ares_dns_record_duplicate_ex(ares_dns_record_t **dest,
+                                           const ares_dns_record_t *src);
 ares_bool_t ares_dns_rec_type_allow_name_compression(ares_dns_rec_type_t type);
 ares_bool_t ares_dns_opcode_isvalid(ares_dns_opcode_t opcode);
 ares_bool_t ares_dns_rcode_isvalid(ares_dns_rcode_t rcode);
