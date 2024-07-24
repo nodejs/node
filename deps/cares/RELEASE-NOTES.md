@@ -1,3 +1,27 @@
+## c-ares version 1.32.2 - July 15 2024
+
+This is a bugfix release.
+
+Bugfixes:
+
+* Windows: rework EventThread AFD code for better stability.
+  [PR #811](https://github.com/c-ares/c-ares/pull/811)
+* Windows: If an IP address was detected to have changed, it could lead to a
+  crash due to a bad pointer.  Regression introduced in 1.31.0.
+  [59e3a1f4](https://github.com/c-ares/c-ares/commit/59e3a1f4)
+* Windows: use `QueryPerformanceCounters()` instead of `GetTickCount64()` for
+  better time accuracy (~15ms -> ~1us).
+* Windows 32bit config change callback needs to be tagged as `stdcall` otherwise
+  could result in a crash.
+  [5c2bab35](https://github.com/c-ares/c-ares/commit/5c2bab35)
+* Tests that need accurate timing should not depend on internal symbols as there
+  are C++ equivalents in `std::chrono`.
+  [PR #809](https://github.com/c-ares/c-ares/pull/809)
+* Kqueue (MacOS, \*BSD): If the open socket count exceeded 8 (unlikely), it
+  would try to allocate a new buffer that was too small.
+  [5aad7981](https://github.com/c-ares/c-ares/commit/5aad7981)
+
+
 ## c-ares version 1.32.1 - July 7 2024
 
 This is a bugfix release.
