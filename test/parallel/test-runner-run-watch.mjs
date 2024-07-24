@@ -1,17 +1,16 @@
 // Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import { describe, it, beforeEach } from 'node:test';
-import { once } from 'node:events';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
+import { join } from 'node:path';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
-
-let fixturePaths;
 
 // This test updates these files repeatedly,
 // Reading them from disk is unreliable due to race conditions.
@@ -26,20 +25,27 @@ import('data:text/javascript,');
 test('test has ran');`,
 };
 
+let fixturePaths;
+
 function refresh() {
   tmpdir.refresh();
+
   fixturePaths = Object.keys(fixtureContent)
     .reduce((acc, file) => ({ ...acc, [file]: tmpdir.resolve(file) }), {});
   Object.entries(fixtureContent)
     .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 }
 
-async function testWatch({ fileToUpdate, file, action = 'update' }) {
+const runner = join(import.meta.dirname, '..', 'fixtures', 'test-runner-watch.mjs');
+
+async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.path }) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
+  const args = [runner];
+  if (file) args.push('--file', file);
   const child = spawn(process.execPath,
-                      ['--watch', '--test', file ? fixturePaths[file] : undefined].filter(Boolean),
-                      { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
+                      args,
+                      { encoding: 'utf8', stdio: 'pipe', cwd });
   let stdout = '';
   let currentRun = '';
   const runs = [];
@@ -62,8 +68,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     clearInterval(interval);
     child.kill();
     await once(child, 'exit');
-
     for (const run of runs) {
+      assert.doesNotMatch(run, /run\(\) is being called recursively/);
       assert.match(run, /# tests 1/);
       assert.match(run, /# pass 1/);
       assert.match(run, /# fail 0/);
@@ -83,6 +89,12 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     await once(child, 'exit');
 
     for (const run of runs) {
+      assert.doesNotMatch(run, /run\(\) is being called recursively/);
+      if (action === 'rename2') {
+        assert.match(run, /MODULE_NOT_FOUND/);
+      } else {
+        assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
+      }
       assert.match(run, /# tests 1/);
       assert.match(run, /# pass 1/);
       assert.match(run, /# fail 0/);
@@ -113,6 +125,7 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
 
   action === 'update' && await testUpdate();
   action === 'rename' && await testRename();
+  action === 'rename2' && await testRename();
   action === 'delete' && await testDelete();
 }
 
@@ -138,7 +151,25 @@ describe('test runner watch mode', () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'rename' });
   });
 
-  it('should not throw when delete a watched test file', { skip: common.isAIX }, async () => {
+  it('should not throw when deleting a watched test file', { skip: common.isAIX }, async () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
+  });
+
+  it('should run tests with dependency repeatedly in a different cwd', async () => {
+    await testWatch({
+      file: join(tmpdir.path, 'test.js'),
+      fileToUpdate: 'dependency.js',
+      cwd: import.meta.dirname,
+      action: 'rename2'
+    });
+  });
+
+  it('should handle renames in a different cwd', async () => {
+    await testWatch({
+      file: join(tmpdir.path, 'test.js'),
+      fileToUpdate: 'test.js',
+      cwd: import.meta.dirname,
+      action: 'rename2'
+    });
   });
 });

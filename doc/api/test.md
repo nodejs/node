@@ -1239,6 +1239,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53866
+    description: Added the `globPatterns` option.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52038
     description: Added the `forceExit` option.
@@ -1263,6 +1266,9 @@ changes:
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
+  * `globPatterns`: {Array} An array containing the list of glob patterns to
+    match test files. This option cannot be used together with `files`.
+    **Default:** matching files from [test runner execution model][].
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
