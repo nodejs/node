@@ -3,6 +3,7 @@ import {BlobBinding} from "./internalBinding/blob";
 import {ConfigBinding} from "./internalBinding/config";
 import {ContextifyBinding} from "./internalBinding/contextify";
 import {ConstantsBinding} from "./internalBinding/constants";
+import {CryptoBinding} from "./internalBinding/crypto";
 import {HeapUtilsBinding} from "./internalBinding/heap_utils";
 import {HttpParserBinding} from "./internalBinding/http_parser";
 import {FsBinding} from "./internalBinding/fs";
@@ -39,6 +40,7 @@ interface InternalBindingMap {
   config: ConfigBinding;
   constants: ConstantsBinding;
   contextify: ContextifyBinding;
+  crypto: CryptoBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
   heap_utils: HeapUtilsBinding;
