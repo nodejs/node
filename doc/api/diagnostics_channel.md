@@ -977,6 +977,43 @@ channels.asyncStart.bindStore(myStore, (data) => {
 });
 ```
 
+#### `tracingChannel.hasSubscribers`
+
+<!-- YAML
+added:
+ - v22.0.0
+ - v20.13.0
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {boolean} `true` if any of the individual channels has a subscriber,
+  `false` if not.
+
+This is a helper method available on a [`TracingChannel`][] instance to check if
+any of the [TracingChannel Channels][] have subscribers. A `true` is returned if
+any of them have at least one subscriber, a `false` is returned otherwise.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+if (channels.hasSubscribers) {
+  // Do something
+}
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+if (channels.hasSubscribers) {
+  // Do something
+}
+```
+
 ### TracingChannel Channels
 
 A TracingChannel is a collection of several diagnostics\_channels representing
