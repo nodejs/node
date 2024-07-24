@@ -920,7 +920,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
   const BIGNUM* p;
   DH_get0_pqg(dh.get(), &p, nullptr, nullptr);
-  const int size = BN_num_bits(p);
+  const int size = BignumPointer::GetBitCount(p);
   if (size < 1024) {
     return THROW_ERR_INVALID_ARG_VALUE(
         env, "DH parameter is less than 1024 bits");
