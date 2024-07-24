@@ -280,6 +280,9 @@ int ares_init_options(ares_channel_t           **channelptr,
     return ARES_ENOMEM;
   }
 
+  /* We are in a good state */
+  channel->sys_up = ARES_TRUE;
+
   /* One option where zero is valid, so set default value here */
   channel->ndots = 1;
 
@@ -437,8 +440,9 @@ ares_status_t ares_reinit(ares_channel_t *channel)
 
   ares__channel_lock(channel);
 
-  /* If a reinit is already in process, lets not do it again */
-  if (channel->reinit_pending) {
+  /* If a reinit is already in process, lets not do it again. Or if we are
+   * shutting down, skip. */
+  if (!channel->sys_up || channel->reinit_pending) {
     ares__channel_unlock(channel);
     return ARES_SUCCESS;
   }
