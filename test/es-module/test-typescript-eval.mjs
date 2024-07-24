@@ -44,16 +44,16 @@ test('eval TypeScript CommonJS syntax by default', async () => {
   strictEqual(result.code, 0);
 });
 
-test('fail TypeScript ESM syntax if not specified', async () => {
+test('TypeScript ESM syntax not specified', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--eval',
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
-    console.log(util.styleText('red', text));`]);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /Cannot use import statement outside a module/);
-  strictEqual(result.code, 1);
+    console.log(text);`]);
+  match(result.stderr, /ExperimentalWarning: Type Stripping is an experimental/);
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
 });
 
 test('expect fail eval TypeScript CommonJS syntax with input-type module', async () => {

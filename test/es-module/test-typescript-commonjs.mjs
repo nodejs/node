@@ -149,7 +149,7 @@ test('expect failure of a .cts requiring esm without default type module', async
   ]);
 
   strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
+  match(result.stderr, /ERR_REQUIRE_ESM/);
   strictEqual(result.code, 1);
 });
 
