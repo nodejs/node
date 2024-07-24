@@ -1,6 +1,7 @@
 // Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import { describe, it, beforeEach } from 'node:test';
+import { once } from 'node:events';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
@@ -60,6 +61,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     runs.push(currentRun);
     clearInterval(interval);
     child.kill();
+    await once(child, 'exit');
+
     for (const run of runs) {
       assert.match(run, /# tests 1/);
       assert.match(run, /# pass 1/);
@@ -77,6 +80,7 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     runs.push(currentRun);
     clearInterval(interval);
     child.kill();
+    await once(child, 'exit');
 
     for (const run of runs) {
       assert.match(run, /# tests 1/);
@@ -100,6 +104,7 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     runs.push(currentRun);
     clearInterval(interval);
     child.kill();
+    await once(child, 'exit');
 
     for (const run of runs) {
       assert.doesNotMatch(run, /MODULE_NOT_FOUND/);

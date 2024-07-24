@@ -3,6 +3,7 @@ import * as common from '../common/index.mjs';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
@@ -66,6 +67,7 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     runs.push(currentRun);
     clearInterval(interval);
     child.kill();
+    await once(child, 'exit');
     for (const run of runs) {
       assert.doesNotMatch(run, /run\(\) is being called recursively/);
       assert.match(run, /# tests 1/);
@@ -84,6 +86,7 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     runs.push(currentRun);
     clearInterval(interval);
     child.kill();
+    await once(child, 'exit');
 
     for (const run of runs) {
       assert.doesNotMatch(run, /run\(\) is being called recursively/);
@@ -113,6 +116,7 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     runs.push(currentRun);
     clearInterval(interval);
     child.kill();
+    await once(child, 'exit');
 
     for (const run of runs) {
       assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
