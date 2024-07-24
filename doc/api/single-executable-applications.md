@@ -195,7 +195,6 @@ platform A for platform B), `useCodeCache` and `useSnapshot` must be set to
 false to avoid generating 'broken' executables. The generated executable might
 crash on startup if these settings are not configured properly.
 
-
 ### Assets
 
 Users can include assets by adding a key-path dictionary to the configuration
