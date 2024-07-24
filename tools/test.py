@@ -317,8 +317,7 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 class ActionsAnnotationProgressIndicator(DotsProgressIndicator):
   def AboutToRun(self, case):
     case.additional_flags = case.additional_flags.copy() if hasattr(case, 'additional_flags') else []
-    reporter_path = abspath(join(dirname(__file__), '..', 'tools', 'github_reporter', 'index.js'))
-    case.additional_flags.append('--test-reporter=' + reporter_path)
+    case.additional_flags.append('--test-reporter=./tools/github_reporter/index.js')
     case.additional_flags.append('--test-reporter-destination=stdout')
 
   def GetAnnotationInfo(self, test, output):
