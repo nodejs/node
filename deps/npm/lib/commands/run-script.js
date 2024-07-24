@@ -165,8 +165,9 @@ class RunScript extends BaseCommand {
       return
     }
 
-    // TODO this is missing things like prepare, prepublishOnly, and dependencies
     const cmdList = [
+      'prepare', 'preprepare', 'postprepare',
+      'prepack', 'postpack', 'prepublishOnly',
       'preinstall', 'install', 'postinstall',
       'prepublish', 'publish', 'postpublish',
       'prerestart', 'restart', 'postrestart',
@@ -175,6 +176,7 @@ class RunScript extends BaseCommand {
       'pretest', 'test', 'posttest',
       'preuninstall', 'uninstall', 'postuninstall',
       'preversion', 'version', 'postversion',
+      'dependencies'
     ]
     const [cmds, runScripts] = scriptEntries.reduce((acc, s) => {
       acc[cmdList.includes(s[0]) ? 0 : 1].push(s)
