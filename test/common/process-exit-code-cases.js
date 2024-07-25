@@ -36,7 +36,7 @@ function getTestCases(isWorker = false) {
   function exitWithOneOnUncaught() {
     process.exitCode = 99;
     process.on('exit', (code) => {
-      // cannot use assert because it will be uncaughtException -> 1 exit code
+      // Cannot use assert because it will be uncaughtException -> 1 exit code
       // that will render this test useless
       if (code !== 1 || process.exitCode !== 1) {
         console.log('wrong code! expected 1 for uncaughtException');
@@ -113,7 +113,7 @@ function getTestCases(isWorker = false) {
 
   function exitWithThrowInUncaughtHandler() {
     process.on('uncaughtException', () => {
-      throw new Error('ok')
+      throw new Error('ok');
     });
     throw new Error('bad');
   }
