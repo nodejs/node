@@ -1723,8 +1723,10 @@ napi_status node_api_create_property_key_utf8(napi_env env,
                                               size_t length,
                                               napi_value* result) {
   return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
-    return v8::String::NewFromUtf8(
-        isolate, str, v8::NewStringType::kInternalized, static_cast<int>(length));
+    return v8::String::NewFromUtf8(isolate,
+                                   str,
+                                   v8::NewStringType::kInternalized,
+                                   static_cast<int>(length));
   });
 }
 
