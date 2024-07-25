@@ -5,7 +5,6 @@ comment:
   require_changes: true
 
 codecov:
-  branch: main
   notify:
     # Wait for all coverage builds:
     # - coverage-linux.yml
