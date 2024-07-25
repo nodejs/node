@@ -441,7 +441,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
 
-  RsaPointer rsa(RSA_new());
+  RSAPointer rsa(RSA_new());
 
   ByteSource n = ByteSource::FromEncodedString(env, n_value.As<String>());
   ByteSource e = ByteSource::FromEncodedString(env, e_value.As<String>());
