@@ -192,8 +192,9 @@ the blob must be the same as the one to which the blob will be injected.
 
 Note: When generating cross-platform SEAs (e.g., generating an SEA on
 platform A for platform B), `useCodeCache` and `useSnapshot` must be set to
-false to avoid generating 'broken' executables. The generated executable might
-crash on startup if these settings are not configured properly.
+false to avoid generating incompatible executables. Since code cache and snapshots can only be loaded
+on the same platform where they are compiled, the generated executable might crash on startup when
+trying to load code cache or snapshots built on a different platform.
 
 ### Assets
 
