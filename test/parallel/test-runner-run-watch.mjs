@@ -27,13 +27,19 @@ test('test has ran');`,
 
 let fixturePaths;
 
-function refresh() {
+async function refresh() {
+  const { rm, readdir } = await import('node:fs/promises');
+  console.log('refreshing', tmpdir.path);
+  await rm(tmpdir.path, { maxRetries: 3, recursive: true, force: true });
+
   tmpdir.refresh();
 
   fixturePaths = Object.keys(fixtureContent)
     .reduce((acc, file) => ({ ...acc, [file]: tmpdir.resolve(file) }), {});
   Object.entries(fixtureContent)
     .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
+
+  console.log('contents of %s:', tmpdir.path, await readdir(tmpdir.path));
 }
 
 const runner = join(import.meta.dirname, '..', 'fixtures', 'test-runner-watch.mjs');
