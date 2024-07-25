@@ -62,23 +62,25 @@ function getTestCases(isWorker = false) {
   cases.push({ func: changeCodeInsideExit, result: 99 });
 
   function zeroExitWithUncaughtHandler() {
+    const noop = () => { };
     process.on('exit', (code) => {
-      assert.strictEqual(process.exitCode, 0);
+      process.off('uncaughtException', noop);
+      assert.strictEqual(process.exitCode, undefined);
       assert.strictEqual(code, 0);
     });
-    process.on('uncaughtException', () => { });
+    process.on('uncaughtException', noop);
     throw new Error('ok');
   }
   cases.push({ func: zeroExitWithUncaughtHandler, result: 0 });
 
   function changeCodeInUncaughtHandler() {
+    const modifyExitCode = () => { process.exitCode = 97; };
     process.on('exit', (code) => {
+      process.off('uncaughtException', modifyExitCode);
       assert.strictEqual(process.exitCode, 97);
       assert.strictEqual(code, 97);
     });
-    process.on('uncaughtException', () => {
-      process.exitCode = 97;
-    });
+    process.on('uncaughtException', modifyExitCode);
     throw new Error('ok');
   }
   cases.push({ func: changeCodeInUncaughtHandler, result: 97 });
