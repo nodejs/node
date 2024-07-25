@@ -4,7 +4,9 @@ with(this){__filename}
 ^^^^
 
 SyntaxError: Strict mode code may not include a with statement
-    at makeContextifyScript (node:internal/vm:*:*)
+    at new Script (node:vm:*:*)
+    at createScript (node:vm:*:*)
+    at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
     at runScript (node:internal/process/execution:*:*)
@@ -19,8 +21,9 @@ throw new Error("hello")
 ^
 
 Error: hello
-    at [eval]:1:7
-    at runScriptInThisContext (node:internal/vm:*:*)
+    at [eval]:*:*
+    at Script.runInThisContext (node:vm:*:*)
+    at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
     at runScript (node:internal/process/execution:*:*)
@@ -28,14 +31,14 @@ Error: hello
     at node:internal/main/eval_string:*:*
 
 Node.js *
-
 [eval]:1
 throw new Error("hello")
 ^
 
 Error: hello
-    at [eval]:1:7
-    at runScriptInThisContext (node:internal/vm:*:*)
+    at [eval]:*:*
+    at Script.runInThisContext (node:vm:*:*)
+    at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
     at runScript (node:internal/process/execution:*:*)
@@ -49,8 +52,9 @@ var x = 100; y = x;
                ^
 
 ReferenceError: y is not defined
-    at [eval]:1:16
-    at runScriptInThisContext (node:internal/vm:*:*)
+    at [eval]:*:*
+    at Script.runInThisContext (node:vm:*:*)
+    at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
     at runScript (node:internal/process/execution:*:*)
@@ -63,7 +67,7 @@ Node.js *
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `* --trace-uncaught ...` to show where the exception was thrown)
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
 
 Node.js *
 
@@ -71,7 +75,7 @@ Node.js *
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `* --trace-uncaught ...` to show where the exception was thrown)
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
 
 Node.js *
 done
