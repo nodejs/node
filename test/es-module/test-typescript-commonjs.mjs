@@ -18,8 +18,6 @@ test('require a .ts file with explicit extension succeeds', async () => {
   strictEqual(result.code, 0);
 });
 
-// TODO(marco-ippolito) This test should fail because extensionless require
-// but it's behaving like a .js file
 test('eval require a .ts file with implicit extension fails', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
@@ -30,13 +28,26 @@ test('eval require a .ts file with implicit extension fails', async () => {
     cwd: fixtures.path('typescript/ts'),
   });
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  strictEqual(result.stdout, '');
+  match(result.stderr, /Error: Cannot find module/);
+  strictEqual(result.code, 1);
 });
 
-// TODO(marco-ippolito) This test should fail because extensionless require
-// but it's behaving like a .js file
+test('eval require a .cts file with implicit extension fails', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--eval',
+    'require("./test-cts-typescript")',
+    '--no-warnings',
+  ], {
+    cwd: fixtures.path('typescript/ts'),
+  });
+
+  strictEqual(result.stdout, '');
+  match(result.stderr, /Error: Cannot find module/);
+  strictEqual(result.code, 1);
+});
+
 test('require a .ts file with implicit extension fails', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
@@ -44,9 +55,9 @@ test('require a .ts file with implicit extension fails', async () => {
     fixtures.path('typescript/cts/test-extensionless-require.ts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  strictEqual(result.stdout, '');
+  match(result.stderr, /Error: Cannot find module/);
+  strictEqual(result.code, 1);
 });
 
 test('expect failure of an .mts file with CommonJS syntax', async () => {
