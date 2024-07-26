@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.32.2" )
+PROJECT (c-ares LANGUAGES C VERSION "1.32.3" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "19:2:17")
+SET (CARES_LIB_VERSIONINFO "19:3:17")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
