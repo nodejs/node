@@ -95,7 +95,7 @@ The current security stewards are documented in the main Node.js
     * [build-wg](https://github.com/nodejs/build/issues)
     * [ ] (Not yet automatic - do this manually) [Google Groups](https://groups.google.com/g/nodejs-sec)
       * Email: notify <oss-security@lists.openwall.com>
-    * [ ] (Not yet automatic - do this manually) Post in the \[nodejs-social channel]\[]
+    * [ ] (Not yet automatic - do this manually) Post in the nodejs-social channel
       in the OpenJS slack asking for amplification of the blog post.
 
     ```text
