@@ -12,7 +12,6 @@ This directory contains modules used to test the Node.js implementation.
 * [CPU Profiler module](#cpu-profiler-module)
 * [Debugger module](#debugger-module)
 * [DNS module](#dns-module)
-* [Duplex pair helper](#duplex-pair-helper)
 * [Environment variables](#environment-variables)
 * [Fixtures module](#fixtures-module)
 * [Heap dump checker module](#heap-dump-checker-module)
@@ -668,14 +667,6 @@ Reads a Domain String and returns a Buffer containing the domain.
 
 Takes in a parsed Object and writes its fields to a DNS packet as a Buffer
 object.
-
-## Duplex pair helper
-
-The `common/duplexpair` module exports a single function `makeDuplexPair`,
-which returns an object `{ clientSide, serverSide }` where each side is a
-`Duplex` stream connected to the other side.
-
-There is no difference between client or server side beyond their names.
 
 ## Environment variables
 
