@@ -10,6 +10,9 @@
 //------------------------------------------------------------------------------
 
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
+/** @typedef {import("@eslint/core").Language} Language */
+/** @typedef {import("@eslint/core").Position} Position */
+/** @typedef {import("@eslint/core").RulesConfig} RulesConfig */
 
 //------------------------------------------------------------------------------
 // Module Definition
@@ -24,8 +27,8 @@ const {
 
 /**
  * Compares the locations of two objects in a source file
- * @param {{line: number, column: number}} itemA The first object
- * @param {{line: number, column: number}} itemB The second object
+ * @param {Position} itemA The first object
+ * @param {Position} itemB The second object
  * @returns {number} A value less than 1 if itemA appears before itemB in the source file, greater than 1 if
  * itemA appears after itemB in the source file, or 0 if itemA and itemB have the same location.
  */
@@ -418,7 +421,7 @@ function applyDirectives(options) {
  * @param {{ruleId: (string|null), line: number, column: number}[]} options.problems
  * A list of problems reported by rules, sorted by increasing location in the file, with one-based columns.
  * @param {"off" | "warn" | "error"} options.reportUnusedDisableDirectives If `"warn"` or `"error"`, adds additional problems for unused directives
- * @param {Object} options.configuredRules The rules configuration.
+ * @param {RulesConfig} options.configuredRules The rules configuration.
  * @param {Function} options.ruleFilter A predicate function to filter which rules should be executed.
  * @param {boolean} options.disableFixes If true, it doesn't make `fix` properties.
  * @returns {{ruleId: (string|null), line: number, column: number, suppressions?: {kind: string, justification: string}}[]}

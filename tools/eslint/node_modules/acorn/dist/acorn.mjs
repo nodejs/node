@@ -661,7 +661,7 @@ var pp$9 = Parser.prototype;
 
 // ## Parser utilities
 
-var literal = /^(?:'((?:\\.|[^'\\])*?)'|"((?:\\.|[^"\\])*?)")/s;
+var literal = /^(?:'((?:\\[^]|[^'\\])*?)'|"((?:\\[^]|[^"\\])*?)")/;
 pp$9.strictDirective = function(start) {
   if (this.options.ecmaVersion < 5) { return false }
   for (;;) {
@@ -5984,7 +5984,7 @@ pp.readWord = function() {
 // [walk]: util/walk.js
 
 
-var version = "8.12.0";
+var version = "8.12.1";
 
 Parser.acorn = {
   Parser: Parser,

@@ -194,6 +194,9 @@ Enable module mocking in the test runner.
 .It Fl -experimental-test-snapshots
 Enable snapshot testing in the test runner.
 .
+.It Fl -experimental-strip-types
+Enable experimental type-stripping for TypeScript files.
+.
 .It Fl -experimental-eventsource
 Enable experimental support for the EventSource Web API.
 .
@@ -434,6 +437,12 @@ Starts the Node.js command line test runner.
 .It Fl -test-concurrency
 The maximum number of test files that the test runner CLI will execute
 concurrently.
+.
+.It Fl -test-coverage-exclude
+A glob pattern that excludes matching files from the coverage report
+.
+.It Fl -test-coverage-include
+A glob pattern that only includes matching files in the coverage report
 .
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have

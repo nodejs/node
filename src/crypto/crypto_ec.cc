@@ -839,10 +839,9 @@ Maybe<void> ExportJWKEcKey(
   return JustVoid();
 }
 
-Maybe<bool> ExportJWKEdKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
+Maybe<void> ExportJWKEdKey(Environment* env,
+                           std::shared_ptr<KeyObjectData> key,
+                           Local<Object> target) {
   ManagedEVPPKey pkey = key->GetAsymmetricKey();
   Mutex::ScopedLock lock(*pkey.mutex());
 
@@ -867,7 +866,7 @@ Maybe<bool> ExportJWKEdKey(
           env->context(),
           env->jwk_crv_string(),
           OneByteString(env->isolate(), curve)).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   size_t len = 0;
@@ -875,7 +874,7 @@ Maybe<bool> ExportJWKEdKey(
   Local<Value> error;
 
   if (!EVP_PKEY_get_raw_public_key(pkey.get(), nullptr, &len))
-    return Nothing<bool>();
+    return Nothing<void>();
 
   ByteSource::Builder out(len);
 
@@ -888,7 +887,7 @@ Maybe<bool> ExportJWKEdKey(
         !target->Set(env->context(), env->jwk_d_string(), encoded).IsJust()) {
       if (!error.IsEmpty())
         env->isolate()->ThrowException(error);
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -900,17 +899,17 @@ Maybe<bool> ExportJWKEdKey(
       !target->Set(env->context(), env->jwk_x_string(), encoded).IsJust()) {
     if (!error.IsEmpty())
       env->isolate()->ThrowException(error);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (target->Set(
           env->context(),
           env->jwk_kty_string(),
           env->jwk_okp_string()).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 std::shared_ptr<KeyObjectData> ImportJWKEcKey(

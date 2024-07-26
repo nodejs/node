@@ -219,7 +219,9 @@ suite('StatementSync() constructor', () => {
 suite('StatementSync.prototype.get()', () => {
   test('executes a query and returns undefined on no results', (t) => {
     const db = new DatabaseSync(nextDb());
-    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    t.assert.strictEqual(stmt.get(), undefined);
+    stmt = db.prepare('SELECT * FROM storage');
     t.assert.strictEqual(stmt.get(), undefined);
   });
 
@@ -386,6 +388,22 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "readBigInts" argument must be a boolean/,
+    });
+  });
+
+  test('BigInt is required for reading large integers', (t) => {
+    const db = new DatabaseSync(nextDb());
+    const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
+    t.assert.throws(() => {
+      bad.get();
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: /^The value of column 0 is too large.*: 9007199254740992$/,
+    });
+    const good = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
+    good.setReadBigInts(true);
+    t.assert.deepStrictEqual(good.get(), {
+      [`${Number.MAX_SAFE_INTEGER} + 1`]: 2n ** 53n,
     });
   });
 });

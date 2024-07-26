@@ -1,6 +1,6 @@
 {
   "name": "esquery",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "author": "Joel Feenstra <jrfeenst+esquery@gmail.com>",
   "contributors": [],
   "description": "A query library for ECMAScript AST using a CSS selector like query language.",

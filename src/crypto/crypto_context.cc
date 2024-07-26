@@ -1,10 +1,11 @@
 #include "crypto/crypto_context.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_util.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "ncrypto.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_options.h"
@@ -33,7 +34,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -546,9 +547,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
   // exposed in the public API. To retain compatibility, install a callback
   // which restores the old algorithm.
-  if (CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)).is_err() ||
-      CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)).is_err() ||
-      CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_)).is_err()) {
+  if (!ncrypto::CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)) ||
+      !ncrypto::CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)) ||
+      !ncrypto::CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_))) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
@@ -575,20 +576,20 @@ void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
 
-Maybe<bool> SecureContext::UseKey(Environment* env,
+Maybe<void> SecureContext::UseKey(Environment* env,
                                   std::shared_ptr<KeyObjectData> key) {
   if (key->GetKeyType() != KeyType::kKeyTypePrivate) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   ClearErrorOnReturn clear_error_on_return;
   if (!SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get())) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
@@ -655,26 +656,28 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
         "experimental permission model is enabled");
   }
 
-  CryptoErrorStore errors;
+  ncrypto::CryptoErrorList errors;
   Utf8Value engine_id(env->isolate(), args[1]);
-  EnginePointer engine = LoadEngineById(*engine_id, &errors);
+  auto engine = ncrypto::EnginePointer::getEngineByName(
+      engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
-    if (errors.ToException(env).ToLocal(&exception))
+    if (errors.empty()) {
+      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
+                                          *engine_id));
+    }
+    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
       env->isolate()->ThrowException(exception);
     return;
   }
 
-  if (!ENGINE_init(engine.get())) {
+  if (!engine.init(true /* finish on exit*/)) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Failure to initialize engine");
   }
 
-  engine.finish_on_exit = true;
-
   Utf8Value key_name(env->isolate(), args[0]);
-  EVPKeyPointer key(ENGINE_load_private_key(engine.get(), *key_name,
-                                            nullptr, nullptr));
+  auto key = engine.loadPrivateKey(key_name.ToStringView());
 
   if (!key)
     return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
@@ -686,9 +689,10 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
-Maybe<bool> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
+Maybe<void> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   ClearErrorOnReturn clear_error_on_return;
-  if (!bio) return Just(false);
+  // TODO(tniessen): this should be checked by the caller and not treated as ok
+  if (!bio) return JustVoid();
   cert_.reset();
   issuer_.reset();
 
@@ -698,9 +702,9 @@ Maybe<bool> SecureContext::AddCert(Environment* env, BIOPointer&& bio) {
   if (SSL_CTX_use_certificate_chain(
           ctx_.get(), std::move(bio), &cert_, &issuer_) == 0) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_certificate_chain");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
@@ -742,16 +746,17 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   sc->SetCACert(bio);
 }
 
-Maybe<bool> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
+Maybe<void> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
-  if (!bio) return Just(false);
+  // TODO(tniessen): this should be checked by the caller and not treated as ok
+  if (!bio) return JustVoid();
 
   DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
       PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
 
   if (!crl) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
@@ -764,7 +769,7 @@ Maybe<bool> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
   CHECK_EQ(1,
            X509_STORE_set_flags(
                cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
-  return Just(true);
+  return JustVoid();
 }
 
 void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
@@ -1143,12 +1148,17 @@ void SecureContext::SetClientCertEngine(
         "experimental permission model is enabled");
   }
 
-  CryptoErrorStore errors;
+  ncrypto::CryptoErrorList errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
-  EnginePointer engine = LoadEngineById(*engine_id, &errors);
+  auto engine = ncrypto::EnginePointer::getEngineByName(
+      engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
-    if (errors.ToException(env).ToLocal(&exception))
+    if (errors.empty()) {
+      errors.add(getNodeCryptoErrorString(NodeCryptoError::ENGINE_NOT_FOUND,
+                                          *engine_id));
+    }
+    if (cryptoErrorListToException(env, errors).ToLocal(&exception))
       env->isolate()->ThrowException(exception);
     return;
   }
@@ -1314,7 +1324,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 
   if (enc) {
     memcpy(name, sc->ticket_key_name_, sizeof(sc->ticket_key_name_));
-    if (CSPRNG(iv, 16).is_err() ||
+    if (!ncrypto::CSPRNG(iv, 16) ||
         EVP_EncryptInit_ex(
             ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_, iv) <= 0 ||
         HMAC_Init_ex(hctx,

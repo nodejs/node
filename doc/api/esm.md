@@ -1082,8 +1082,7 @@ _isImports_, _conditions_)
 > 10. If _url_ ends in _".js"_, then
 >     1. If _packageType_ is not **null**, then
 >        1. Return _packageType_.
->     2. If `--experimental-detect-module` is enabled and the result of
->        **DETECT\_MODULE\_SYNTAX**(_source_) is true, then
+>     2. If the result of **DETECT\_MODULE\_SYNTAX**(_source_) is true, then
 >        1. Return _"module"_.
 >     3. Return _"commonjs"_.
 > 11. If _url_ does not have any extension, then
@@ -1093,8 +1092,7 @@ _isImports_, _conditions_)
 >        1. Return _"wasm"_.
 >     2. If _packageType_ is not **null**, then
 >        1. Return _packageType_.
->     3. If `--experimental-detect-module` is enabled and the source of
->        module contains static import or export syntax, then
+>     3. If the result of **DETECT\_MODULE\_SYNTAX**(_source_) is true, then
 >        1. Return _"module"_.
 >     4. Return _"commonjs"_.
 > 12. Return **undefined** (will throw during load phase).

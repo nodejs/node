@@ -110,7 +110,7 @@ class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
   std::vector<std::string> conditions;
-  bool detect_module = false;
+  bool detect_module = true;
   bool print_required_tla = false;
   bool require_module = false;
   std::string dns_result_order;
@@ -162,6 +162,7 @@ class EnvironmentOptions : public Options {
   uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
   std::string cpu_prof_name;
   bool cpu_prof = false;
+  bool experimental_network_inspection = false;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
@@ -187,6 +188,8 @@ class EnvironmentOptions : public Options {
   bool test_udp_no_try_send = false;
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> coverage_include_pattern;
+  std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
   bool trace_deprecation = false;
   bool trace_exit = false;
@@ -229,6 +232,8 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_cjs_modules;
 
   std::vector<std::string> preload_esm_modules;
+
+  bool experimental_strip_types = false;
 
   std::vector<std::string> user_argv;
 

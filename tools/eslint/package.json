@@ -7,14 +7,14 @@
     "electron-to-chromium": "1.4.806"
   },
   "dependencies": {
-    "@babel/core": "^7.24.7",
-    "@babel/eslint-parser": "^7.24.7",
+    "@babel/core": "^7.24.8",
+    "@babel/eslint-parser": "^7.24.8",
     "@babel/plugin-syntax-import-attributes": "^7.24.7",
     "@stylistic/eslint-plugin-js": "^2.3.0",
-    "eslint": "^9.6.0",
+    "eslint": "^9.7.0",
     "eslint-formatter-tap": "^8.40.0",
-    "eslint-plugin-jsdoc": "^48.5.0",
-    "eslint-plugin-markdown": "^5.0.0",
-    "globals": "^15.6.0"
+    "eslint-plugin-jsdoc": "^48.7.0",
+    "eslint-plugin-markdown": "^5.1.0",
+    "globals": "^15.8.0"
   }
 }

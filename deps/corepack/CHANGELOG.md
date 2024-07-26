@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.29.2](https://github.com/nodejs/corepack/compare/v0.29.1...v0.29.2) (2024-07-13)
+
+
+### Bug Fixes
+
+* trigger release after 0.29.1 failed to publish ([18e29ce](https://github.com/nodejs/corepack/commit/18e29ce3c465b64d48ccf3feef7cd1be94da70b0))
+
+## [0.29.1](https://github.com/nodejs/corepack/compare/v0.29.0...v0.29.1) (2024-07-13)
+
+
+### Bug Fixes
+
+* trigger release after 0.29.0 failed to publish ([e6ba066](https://github.com/nodejs/corepack/commit/e6ba06657b0985c112f288932ca39c0562129566))
+
+## [0.29.0](https://github.com/nodejs/corepack/compare/v0.28.2...v0.29.0) (2024-07-12)
+
+
+### Features
+
+* parallelize linking, unlinking and installing ([#524](https://github.com/nodejs/corepack/issues/524)) ([f0734e6](https://github.com/nodejs/corepack/commit/f0734e6e8023ff361dac179c0d8656740d550c27))
+* update package manager versions ([#492](https://github.com/nodejs/corepack/issues/492)) ([3e3b046](https://github.com/nodejs/corepack/commit/3e3b04619cb4a91f207a72fb450f6fc4e2f01aec))
+
+
+### Bug Fixes
+
+* replace npm registry domain in tarball URL ([#502](https://github.com/nodejs/corepack/issues/502)) ([db6fae5](https://github.com/nodejs/corepack/commit/db6fae50cf44884d1e9a6f7e99402e7e807ba3ca))
+* selectively import required semver functions ([#511](https://github.com/nodejs/corepack/issues/511)) ([e7ad533](https://github.com/nodejs/corepack/commit/e7ad533d43dc9495493f0d883c3cbbb94caa1d41))
+
 ## [0.28.2](https://github.com/nodejs/corepack/compare/v0.28.1...v0.28.2) (2024-05-31)
 
 

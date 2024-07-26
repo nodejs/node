@@ -51,11 +51,12 @@ namespace node {
   V(sqlite)                                                                    \
   V(ada)                                                                       \
   V(nbytes)                                                                    \
+  V(amaro)                                                                     \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
   V(cjs_module_lexer)
 
 #if HAVE_OPENSSL
-#define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)
+#define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl) V(ncrypto)
 #else
 #define NODE_VERSIONS_KEY_CRYPTO(V)
 #endif

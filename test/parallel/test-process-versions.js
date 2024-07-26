@@ -24,6 +24,7 @@ const expected_keys = [
   'ada',
   'cjs_module_lexer',
   'nbytes',
+  'amaro',
 ];
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
@@ -34,6 +35,7 @@ if (hasUndici) {
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');
+  expected_keys.push('ncrypto');
 }
 
 if (common.hasQuic) {
@@ -78,6 +80,7 @@ assert.match(process.versions.modules, /^\d+$/);
 assert.match(process.versions.cjs_module_lexer, commonTemplate);
 
 if (common.hasCrypto) {
+  assert.match(process.versions.ncrypto, commonTemplate);
   if (process.config.variables.node_shared_openssl) {
     assert.ok(process.versions.openssl);
   } else {

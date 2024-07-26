@@ -370,12 +370,21 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
 
 Local<Value> StatementSync::ColumnToValue(const int column) {
   switch (sqlite3_column_type(statement_, column)) {
-    case SQLITE_INTEGER:
+    case SQLITE_INTEGER: {
+      sqlite3_int64 value = sqlite3_column_int64(statement_, column);
       if (use_big_ints_) {
-        return BigInt::New(env()->isolate(),
-                           sqlite3_column_int64(statement_, column));
+        return BigInt::New(env()->isolate(), value);
+      } else if (std::abs(value) <= kMaxSafeJsInteger) {
+        return Number::New(env()->isolate(), value);
+      } else {
+        THROW_ERR_OUT_OF_RANGE(env()->isolate(),
+                               "The value of column %d is too large to be "
+                               "represented as a JavaScript number: %" PRId64,
+                               column,
+                               value);
+        return Local<Value>();
       }
-      // Fall through.
+    }
     case SQLITE_FLOAT:
       return Number::New(env()->isolate(),
                          sqlite3_column_double(statement_, column));
@@ -441,7 +450,9 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
 
     for (int i = 0; i < num_cols; ++i) {
       Local<Value> key = stmt->ColumnNameToValue(i);
+      if (key.IsEmpty()) return;
       Local<Value> val = stmt->ColumnToValue(i);
+      if (val.IsEmpty()) return;
 
       if (row->Set(env->context(), key, val).IsNothing()) {
         return;
@@ -469,7 +480,8 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
 
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   r = sqlite3_step(stmt->statement_);
-  if (r != SQLITE_ROW && r != SQLITE_DONE) {
+  if (r == SQLITE_DONE) return;
+  if (r != SQLITE_ROW) {
     THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_);
     return;
   }
@@ -483,7 +495,9 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
 
   for (int i = 0; i < num_cols; ++i) {
     Local<Value> key = stmt->ColumnNameToValue(i);
+    if (key.IsEmpty()) return;
     Local<Value> val = stmt->ColumnToValue(i);
+    if (val.IsEmpty()) return;
 
     if (result->Set(env->context(), key, val).IsNothing()) {
       return;

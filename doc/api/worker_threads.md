@@ -255,7 +255,7 @@ if (isMainThread) {
 ## `worker.postMessageToThread(threadId, value[, transferList][, timeout])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1455,7 +1455,7 @@ Node.js event loop.
 import {
   Worker,
   isMainThread,
-} from 'worker_threads';
+} from 'node:worker_threads';
 
 if (isMainThread) {
   new Worker(new URL(import.meta.url));

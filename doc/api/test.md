@@ -511,11 +511,6 @@ node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-de
 * No test results are reported by this reporter.
 * This reporter should ideally be used alongside another reporter.
 
-### Limitations
-
-The test runner's code coverage functionality does not support excluding
-specific files or directories from the coverage report.
-
 ## Mocking
 
 The `node:test` module supports mocking during testing via a top-level `mock`
@@ -1244,6 +1239,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53866
+    description: Added the `globPatterns` option.
   - version:
     - v22.0.0
     - v20.14.0
@@ -1270,6 +1268,9 @@ changes:
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
+  * `globPatterns`: {Array} An array containing the list of glob patterns to
+    match test files. This option cannot be used together with `files`.
+    **Default:** matching files from [test runner execution model][].
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
@@ -3209,6 +3210,16 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.filePath`
+
+<!-- YAML
+added: v20.16.0
+-->
+
+The absolute path of the test file that created the current test. If a test file
+imports additional modules that generate tests, the imported tests will return
+the path of the root test file.
+
 ### `context.fullName`
 
 <!-- YAML
@@ -3442,6 +3453,16 @@ added:
 An instance of `SuiteContext` is passed to each suite function in order to
 interact with the test runner. However, the `SuiteContext` constructor is not
 exposed as part of the API.
+
+### `context.filePath`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The absolute path of the test file that created the current suite. If a test
+file imports additional modules that generate suites, the imported suites will
+return the path of the root test file.
 
 ### `context.name`
 

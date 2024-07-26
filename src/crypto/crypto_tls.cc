@@ -64,6 +64,26 @@ using v8::Value;
 namespace crypto {
 
 namespace {
+
+// Our custom implementation of the certificate verify callback
+// used when establishing a TLS handshake. Because we cannot perform
+// I/O quickly enough with X509_STORE_CTX_ APIs in this callback,
+// we ignore preverify_ok errors here and let the handshake continue.
+// In other words, this VerifyCallback is a non-op. It is imperative
+// that the user user Connection::VerifyError after the `secure`
+// callback has been made.
+int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
+  // From https://www.openssl.org/docs/man1.1.1/man3/SSL_verify_cb:
+  //
+  //   If VerifyCallback returns 1, the verification process is continued. If
+  //   VerifyCallback always returns 1, the TLS/SSL handshake will not be
+  //   terminated with respect to verification failures and the connection will
+  //   be established. The calling process can however retrieve the error code
+  //   of the last verification error using SSL_get_verify_result(3) or by
+  //   maintaining its own error storage managed by VerifyCallback.
+  return 1;
+}
+
 SSL_SESSION* GetSessionCallback(
     SSL* s,
     const unsigned char* key,
@@ -1595,6 +1615,33 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void TLSWrap::SetKeyCert(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+
+  if (w->is_client()) return;
+
+  if (args.Length() < 1 || !args[0]->IsObject())
+    return env->ThrowTypeError("Must give a SecureContext as first argument");
+
+  Local<Value> ctx = args[0];
+  if (UNLIKELY(ctx.IsEmpty())) return;
+
+  Local<FunctionTemplate> cons = env->secure_context_constructor_template();
+  if (cons->HasInstance(ctx)) {
+    SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
+    CHECK_NOT_NULL(sc);
+    if (!UseSNIContext(w->ssl_, BaseObjectPtr<SecureContext>(sc)) ||
+        !w->SetCACerts(sc)) {
+      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+      return ThrowCryptoError(env, err, "SetKeyCert");
+    }
+  } else {
+    return env->ThrowTypeError("Must give a SecureContext as first argument");
+  }
+}
+
 void TLSWrap::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -2130,6 +2177,7 @@ void TLSWrap::Initialize(
   SetProtoMethod(isolate, t, "renegotiate", Renegotiate);
   SetProtoMethod(isolate, t, "requestOCSP", RequestOCSP);
   SetProtoMethod(isolate, t, "setALPNProtocols", SetALPNProtocols);
+  SetProtoMethod(isolate, t, "setKeyCert", SetKeyCert);
   SetProtoMethod(isolate, t, "setOCSPResponse", SetOCSPResponse);
   SetProtoMethod(isolate, t, "setServername", SetServername);
   SetProtoMethod(isolate, t, "setSession", SetSession);

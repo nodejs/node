@@ -1,6 +1,7 @@
 #include "node_metadata.h"
 #include "acorn_version.h"
 #include "ada.h"
+#include "amaro_version.h"
 #include "ares.h"
 #include "brotli/encode.h"
 #include "cjs_module_lexer_version.h"
@@ -25,12 +26,13 @@
 
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>
+#include "ncrypto.h"
 #if NODE_OPENSSL_HAS_QUIC
 #include <openssl/quic.h>
 #endif
 #endif  // HAVE_OPENSSL
 
-#ifdef OPENSSL_INFO_QUIC
+#ifdef NODE_OPENSSL_HAS_QUIC
 #include <ngtcp2/version.h>
 #include <nghttp3/version.h>
 #endif
@@ -115,9 +117,11 @@ Metadata::Versions::Versions() {
   acorn = ACORN_VERSION;
   cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
+  amaro = AMARO_VERSION;
 
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();
+  ncrypto = NCRYPTO_VERSION;
 #endif
 
 #ifdef NODE_HAVE_I18N_SUPPORT
@@ -125,7 +129,7 @@ Metadata::Versions::Versions() {
   unicode = U_UNICODE_VERSION;
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-#ifdef OPENSSL_INFO_QUIC
+#ifdef NODE_OPENSSL_HAS_QUIC
   ngtcp2 = NGTCP2_VERSION;
   nghttp3 = NGHTTP3_VERSION;
 #endif
