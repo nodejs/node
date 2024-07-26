@@ -128,6 +128,7 @@ if (common.isMainThread) {
     'NativeModule internal/streams/compose',
     'NativeModule internal/streams/destroy',
     'NativeModule internal/streams/duplex',
+    'NativeModule internal/streams/duplexpair',
     'NativeModule internal/streams/end-of-stream',
     'NativeModule internal/streams/from',
     'NativeModule internal/streams/legacy',
