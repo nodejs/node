@@ -184,6 +184,14 @@ static int configure_socket(ares_socket_t s, struct server_state *server)
   }
 #endif
 
+  /* No need to emit SIGPIPE on socket errors */
+#if defined(SO_NOSIGPIPE)
+  {
+    int opt = 1;
+    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, (void *)&opt, sizeof(opt));
+  }
+#endif
+
   /* Set the socket's send and receive buffer sizes. */
   if ((channel->socket_send_buffer_size > 0) &&
       setsockopt(s, SOL_SOCKET, SO_SNDBUF,

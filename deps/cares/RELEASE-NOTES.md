@@ -1,3 +1,29 @@
+## c-ares version 1.32.3 - July 24 2024
+
+This is a bugfix release.
+
+Changes:
+* Prevent complex recursion during query requeuing and connection cleanup for
+  stability. [e8b32b8](https://github.com/c-ares/c-ares/commit/e8b32b8)
+* Better propagate error codes on requeue situations.
+  [a9bc0a2](https://github.com/c-ares/c-ares/commit/a9bc0a2)
+* Try to prevent SIGPIPE from being generated and delivered to integrations.
+  [de01baa](https://github.com/c-ares/c-ares/commit/de01baa)
+
+Bugfixes:
+* Missing manpage for `ares_dns_record_set_id()`
+  [aa462b3](https://github.com/c-ares/c-ares/commit/aa462b3)
+* Memory leak in `ares__hosts_entry_to_hostent()` due to allocation strategy.
+  [PR #824](https://github.com/c-ares/c-ares/pull/824)
+* UDP write failure detected via ICMP unreachable should trigger faster
+  failover.  [PR #821](https://github.com/c-ares/c-ares/pull/821)
+* Fix pycares test case regression due to wrong error code being returned.
+  Regression from 1.31.0. [PR #820](https://github.com/c-ares/c-ares/pull/820)
+* Fix possible Windows crash during `ares_destroy()` when using event threads.
+  [5609bd4](https://github.com/c-ares/c-ares/commit/5609bd4)
+* `ARES_OPT_MAXTIMEOUTMS` wasn't being honored in all cases.
+  [a649c60](https://github.com/c-ares/c-ares/commit/a649c60)
+
 ## c-ares version 1.32.2 - July 15 2024
 
 This is a bugfix release.
