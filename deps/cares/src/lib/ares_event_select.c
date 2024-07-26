@@ -81,12 +81,14 @@ static size_t ares_evsys_select_wait(ares_event_thread_t *e,
   size_t          i;
   fd_set          read_fds;
   fd_set          write_fds;
+  fd_set          except_fds;
   int             nfds = 0;
   struct timeval  tv;
   struct timeval *tout = NULL;
 
   FD_ZERO(&read_fds);
   FD_ZERO(&write_fds);
+  FD_ZERO(&except_fds);
 
   for (i = 0; i < num_fds; i++) {
     const ares_event_t *ev =
@@ -97,6 +99,7 @@ static size_t ares_evsys_select_wait(ares_event_thread_t *e,
     if (ev->flags & ARES_EVENT_FLAG_WRITE) {
       FD_SET(ev->fd, &write_fds);
     }
+    FD_SET(ev->fd, &except_fds);
     if (ev->fd + 1 > nfds) {
       nfds = ev->fd + 1;
     }
@@ -108,7 +111,7 @@ static size_t ares_evsys_select_wait(ares_event_thread_t *e,
     tout       = &tv;
   }
 
-  rv = select(nfds, &read_fds, &write_fds, NULL, tout);
+  rv = select(nfds, &read_fds, &write_fds, &except_fds, tout);
   if (rv > 0) {
     for (i = 0; i < num_fds; i++) {
       ares_event_t      *ev;
@@ -119,7 +122,7 @@ static size_t ares_evsys_select_wait(ares_event_thread_t *e,
         continue; /* LCOV_EXCL_LINE: DefensiveCoding */
       }
 
-      if (FD_ISSET(fdlist[i], &read_fds)) {
+      if (FD_ISSET(fdlist[i], &read_fds) || FD_ISSET(fdlist[i], &except_fds)) {
         flags |= ARES_EVENT_FLAG_READ;
       }
 

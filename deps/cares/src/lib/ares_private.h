@@ -410,7 +410,8 @@ ares_bool_t   ares__timedout(const ares_timeval_t *now,
 /* Returns one of the normal ares status codes like ARES_SUCCESS */
 ares_status_t ares__send_query(struct query *query, const ares_timeval_t *now);
 ares_status_t ares__requeue_query(struct query         *query,
-                                  const ares_timeval_t *now);
+                                  const ares_timeval_t *now,
+                                  ares_status_t         status);
 
 /*! Retrieve a list of names to use for searching.  The first successful
  *  query in the list wins.  This function also uses the HOSTSALIASES file
@@ -438,10 +439,10 @@ void         *ares__dnsrec_convert_arg(ares_callback callback, void *arg);
 void ares__dnsrec_convert_cb(void *arg, ares_status_t status, size_t timeouts,
                              const ares_dns_record_t *dnsrec);
 
-void ares__close_connection(struct server_connection *conn);
+void ares__close_connection(struct server_connection *conn,
+                            ares_status_t requeue_status);
 void ares__close_sockets(struct server_state *server);
-void ares__check_cleanup_conn(const ares_channel_t     *channel,
-                              struct server_connection *conn);
+void ares__check_cleanup_conns(const ares_channel_t *channel);
 void ares__free_query(struct query *query);
 
 ares_rand_state *ares__init_rand_state(void);

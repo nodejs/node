@@ -296,6 +296,7 @@ ares_status_t ares_dns_record_query_set_name(ares_dns_record_t *dnsrec,
   if (dnsrec == NULL || idx >= dnsrec->qdcount || name == NULL) {
     return ARES_EFORMERR;
   }
+
   orig_name            = dnsrec->qd[idx].name;
   dnsrec->qd[idx].name = ares_strdup(name);
   if (dnsrec->qd[idx].name == NULL) {
@@ -1622,26 +1623,34 @@ done:
   return status;
 }
 
-ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
+ares_status_t ares_dns_record_duplicate_ex(ares_dns_record_t **dest,
+                                           const ares_dns_record_t *src)
 {
   unsigned char     *data     = NULL;
   size_t             data_len = 0;
-  ares_dns_record_t *out      = NULL;
   ares_status_t      status;
 
-  if (dnsrec == NULL) {
-    return NULL;
+  if (dest == NULL || src == NULL) {
+    return ARES_EFORMERR;
   }
 
-  status = ares_dns_write(dnsrec, &data, &data_len);
+  *dest = NULL;
+
+  status = ares_dns_write(src, &data, &data_len);
   if (status != ARES_SUCCESS) {
-    return NULL;
+    return status;
   }
 
-  status = ares_dns_parse(data, data_len, 0, &out);
+  status = ares_dns_parse(data, data_len, 0, dest);
   ares_free(data);
-  if (status != ARES_SUCCESS) {
-    return NULL;
-  }
-  return out;
+
+  return status;
+}
+
+ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
+{
+  ares_dns_record_t *dest = NULL;
+
+  ares_dns_record_duplicate_ex(&dest, dnsrec);
+  return dest;
 }
