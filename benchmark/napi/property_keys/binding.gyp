@@ -2,7 +2,7 @@
   'targets': [
     {
       'target_name': 'binding',
-      'sources': [ 'binding.c' ],
+      'sources': [ 'binding.cc' ],
       'defines': [ 'NAPI_EXPERIMENTAL' ],
     }
   ]

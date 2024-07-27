@@ -28,7 +28,7 @@ static napi_value Runner(napi_env env,
   napi_value* native_array;
 
   // Validate params and retrieve start and end function.
-  NODE_API_CALL(napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NODE_API_CALL(napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr));
   ABORT_IF_FALSE(argc == 2);
   NODE_API_CALL(napi_typeof(env, argv[0], &val_type));
   ABORT_IF_FALSE(val_type == napi_object);
@@ -46,13 +46,14 @@ static napi_value Runner(napi_env env,
   NODE_API_CALL(napi_create_uint32(env, array_length, &js_array_length));
 
   // Copy objects into a native array.
-  native_array = malloc(array_length * sizeof(*native_array));
+  native_array =
+      static_cast<napi_value*>(malloc(array_length * sizeof(napi_value)));
   for (uint32_t idx = 0; idx < array_length; idx++) {
     NODE_API_CALL(napi_get_element(env, argv[1], idx, &native_array[idx]));
   }
 
   // Start the benchmark.
-  napi_call_function(env, argv[0], start, 0, NULL, NULL);
+  napi_call_function(env, argv[0], start, 0, nullptr, nullptr);
 
   for (uint32_t idx = 0; idx < array_length; idx++) {
     NODE_API_CALL(
@@ -61,7 +62,7 @@ static napi_value Runner(napi_env env,
 
   // Conclude the benchmark.
   NODE_API_CALL(
-      napi_call_function(env, argv[0], end, 1, &js_array_length, NULL));
+      napi_call_function(env, argv[0], end, 1, &js_array_length, nullptr));
 
   free(native_array);
 
@@ -71,35 +72,37 @@ static napi_value Runner(napi_env env,
 static napi_value RunPropertyKey(napi_env env, napi_callback_info info) {
   napi_value property_key;
   NODE_API_CALL(node_api_create_property_key_utf16(
-      env, "prop", NAPI_AUTO_LENGTH, &property_key));
+      env, u"prop", NAPI_AUTO_LENGTH, &property_key));
   return Runner(env, info, property_key);
 }
 
 static napi_value RunNormalString(napi_env env, napi_callback_info info) {
   napi_value property_key;
   NODE_API_CALL(
-      napi_create_string_utf16(env, "prop", NAPI_AUTO_LENGTH, &property_key));
+      napi_create_string_utf16(env, u"prop", NAPI_AUTO_LENGTH, &property_key));
   return Runner(env, info, property_key);
 }
 
 NAPI_MODULE_INIT() {
   napi_property_descriptor props[] = {
       {"RunPropertyKey",
-       NULL,
+       nullptr,
        RunPropertyKey,
-       NULL,
-       NULL,
-       NULL,
-       napi_writable | napi_configurable | napi_enumerable,
-       NULL},
+       nullptr,
+       nullptr,
+       nullptr,
+       static_cast<napi_property_attributes>(napi_writable | napi_configurable |
+                                             napi_enumerable),
+       nullptr},
       {"RunNormalString",
-       NULL,
+       nullptr,
        RunNormalString,
-       NULL,
-       NULL,
-       NULL,
-       napi_writable | napi_configurable | napi_enumerable,
-       NULL},
+       nullptr,
+       nullptr,
+       nullptr,
+       static_cast<napi_property_attributes>(napi_writable | napi_configurable |
+                                             napi_enumerable),
+       nullptr},
   };
 
   NODE_API_CALL(napi_define_properties(
