@@ -105,7 +105,7 @@ it('should support enable tracing dynamically', async () => {
       stdout: '',
       stderr: '',
     });
-  } catch (err) {
+  } catch {
     // Skip this test if the trace_events module is not available
     return;
   }
