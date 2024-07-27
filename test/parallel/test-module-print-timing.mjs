@@ -97,6 +97,20 @@ it('should write tracing & print logs for cjs', async () => {
 });
 
 it('should support enable tracing dynamically', async () => {
+  try {
+    spawnSyncAndAssert(process.execPath, [
+      '--eval',
+      'require("trace_events")',
+    ], {
+      stdout: '',
+      stderr: '',
+    });
+  } catch (err) {
+    // Skip this test if the trace_events module is not available
+    return;
+  }
+
+
   const outputFile = tmpdir.resolve('output-dynamic-trace.log');
   const jsScript = `
   const traceEvents = require("trace_events");
