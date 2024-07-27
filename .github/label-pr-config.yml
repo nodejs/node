@@ -187,6 +187,7 @@ allJsSubSystems:
   - readline
   - repl
   - report
+  - sqlite
   - stream
   - string_decoder
   - timers
