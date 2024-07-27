@@ -17,19 +17,6 @@ import {UtilBinding} from "./internalBinding/util";
 import {WorkerBinding} from "./internalBinding/worker";
 import {ModulesBinding} from "./internalBinding/modules";
 
-declare type TypedArray =
-  | Uint8Array
-  | Uint8ClampedArray
-  | Uint16Array
-  | Uint32Array
-  | Int8Array
-  | Int16Array
-  | Int32Array
-  | Float32Array
-  | Float64Array
-  | BigUint64Array
-  | BigInt64Array;
-
 interface InternalBindingMap {
   async_wrap: AsyncWrapBinding;
   blob: BlobBinding;
@@ -56,6 +43,19 @@ type InternalBindingKeys = keyof InternalBindingMap;
 declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
 
 declare global {
+  type TypedArray =
+    | Uint8Array
+    | Uint8ClampedArray
+    | Uint16Array
+    | Uint32Array
+    | Int8Array
+    | Int16Array
+    | Int32Array
+    | Float32Array
+    | Float64Array
+    | BigUint64Array
+    | BigInt64Array;
+
   namespace NodeJS {
     interface Global {
       internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
