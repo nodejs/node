@@ -619,7 +619,7 @@ added: v16.5.0
 added: v16.5.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/50888
+    pr-url: https://github.com/nodejs/node/pull/54044
     description: Added `min` option.
 -->
 
