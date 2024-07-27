@@ -194,6 +194,32 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
   });
 
+  it('should include test type in enqueue, dequeue events', async () => {
+    const stream = await run({
+      files: [join(testFixtures, 'default-behavior/test/suite_and_test.cjs')],
+    });
+
+    stream.on('test:enqueue', common.mustCall((data) => {
+      if (data.name === 'this is a suite') {
+        assert.strictEqual(data.type, 'suite');
+      }
+      if (data.name === ' this is a test') {
+        assert.strictEqual(data.type, 'test');
+      }
+    }, 2));
+    stream.on('test:dequeue', common.mustCall((data) => {
+      if (data.name === 'this is a suite') {
+        assert.strictEqual(data.type, 'suite');
+      }
+      if (data.name === ' this is a test') {
+        assert.strictEqual(data.type, 'test');
+      }
+    }, 2));
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
   describe('AbortSignal', () => {
     it('should accept a signal', async () => {
       const stream = run({ signal: AbortSignal.timeout(50), files: [
