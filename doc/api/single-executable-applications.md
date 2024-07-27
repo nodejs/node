@@ -190,7 +190,7 @@ If the paths are not absolute, Node.js will use the path relative to the
 current working directory. The version of the Node.js binary used to produce
 the blob must be the same as the one to which the blob will be injected.
 
-Note: When generating cross-platform SEAs (e.g., generating an SEA on
+Note: When generating cross-platform SEAs (e.g., generating a SEA
 for `linux-x64` on `darwin-arm64`), `useCodeCache` and `useSnapshot` must be set to
 false to avoid generating incompatible executables. Since code cache and snapshots can only be loaded
 on the same platform where they are compiled, the generated executable might crash on startup when
