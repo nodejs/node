@@ -254,7 +254,7 @@ coverage: coverage-test ## Run the tests and generate a coverage report.
 .PHONY: coverage-build
 coverage-build: all
 	-$(MAKE) coverage-build-js
-	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==4.2; fi
+	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==7.2; fi
 	$(MAKE)
 
 .PHONY: coverage-build-js
@@ -270,9 +270,10 @@ coverage-test: coverage-build
 	-NODE_V8_COVERAGE=coverage/tmp \
 		TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
-	-(cd out && PYTHONPATH=../gcovr $(PYTHON) -m gcovr \
-		--gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
-		-r ../src/ --object-directory Release/obj.target \
+	-(PYTHONPATH=./gcovr $(PYTHON) -m gcovr \
+		--object-directory=out \
+		--filter src -v \
+		--root ./ \
 		--html --html-details -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@printf "Javascript coverage %%: "
