@@ -3567,23 +3567,6 @@ removed: v10.0.0
 
 Used by the `Node-API` when `Constructor.prototype` is not an object.
 
-<a id="ERR_NETWORK_IMPORT_BAD_RESPONSE"></a>
-
-### `ERR_NETWORK_IMPORT_BAD_RESPONSE`
-
-> Stability: 1 - Experimental
-
-Response was received but was invalid when importing a module over the network.
-
-<a id="ERR_NETWORK_IMPORT_DISALLOWED"></a>
-
-### `ERR_NETWORK_IMPORT_DISALLOWED`
-
-> Stability: 1 - Experimental
-
-A network module attempted to load another module that it is not allowed to
-load. Likely this restriction is for security reasons.
-
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 
 ### `ERR_NO_LONGER_SUPPORTED`

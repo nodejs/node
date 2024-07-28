@@ -124,7 +124,6 @@ class EnvironmentOptions : public Options {
   bool experimental_global_customevent = true;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
-  bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
