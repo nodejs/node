@@ -3129,7 +3129,9 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates an optimized JavaScript `string` value from
 an ISO-8859-1-encoded C string to be used as a property key for objects.
-The native string is copied.
+The native string is copied. In contrast with `napi_create_string_latin1`,
+subsequent calls to this function with the same `str` pointer may benefit from a speedup
+in the creation of the requested `napi_value`, depending on the engine.
 
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
