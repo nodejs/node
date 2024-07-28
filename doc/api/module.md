@@ -717,7 +717,7 @@ behaviors.
 #### Import from HTTPS
 
 In current Node.js, specifiers starting with `https://` are experimental (see
-[HTTPS and HTTP imports][]).
+\[HTTPS and HTTP imports]\[]).
 
 The hook below registers hooks to enable rudimentary support for such
 specifiers. While this may seem like a significant improvement to Node.js core
@@ -1054,7 +1054,6 @@ returned object contains the following keys:
 [Conditional exports]: packages.md#conditional-exports
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
-[HTTPS and HTTP imports]: esm.md#https-and-http-imports
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
