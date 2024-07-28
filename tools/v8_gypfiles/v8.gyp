@@ -249,6 +249,7 @@
         'v8_initializers',
         'v8_maybe_icu',
         'v8_abseil',
+        'fp16',
       ],
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-full.cc',
@@ -265,6 +266,7 @@
         'generate_bytecode_builtins_list',
         'run_torque',
         'v8_abseil',
+        'fp16',
       ],
       'cflags!': ['-O3'],
       'cflags': ['-O1'],
@@ -293,6 +295,7 @@
         'v8_shared_internal_headers',
         'v8_pch',
         'v8_abseil',
+        'fp16',
       ],
       'include_dirs': [
         '<(SHARED_INTERMEDIATE_DIR)',
@@ -916,6 +919,7 @@
         'v8_turboshaft',
         'v8_pch',
         'v8_abseil',
+        'fp16',
       ],
       'conditions': [
         ['v8_enable_turbofan==1', {
@@ -939,6 +943,7 @@
         'v8_shared_internal_headers',
         'v8_pch',
         'v8_abseil',
+        'fp16',
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_turboshaft.*?sources = ")',
@@ -1674,6 +1679,7 @@
         'v8_turboshaft',
         'v8_pch',
         'v8_abseil',
+        'fp16',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -2243,6 +2249,8 @@
         '<(ABSEIL_ROOT)/absl/base/log_severity.h',
         '<(ABSEIL_ROOT)/absl/base/log_severity.cc',
         '<(ABSEIL_ROOT)/absl/base/macros.h',
+        '<(ABSEIL_ROOT)/absl/base/nullability.h',
+        '<(ABSEIL_ROOT)/absl/base/nullability_impl.h',
         '<(ABSEIL_ROOT)/absl/base/optimization.h',
         '<(ABSEIL_ROOT)/absl/base/options.h',
         '<(ABSEIL_ROOT)/absl/base/policy_checks.h',
@@ -2285,6 +2293,9 @@
         '<(ABSEIL_ROOT)/absl/crc/internal/crc_x86_arm_combined.cc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/address_is_readable.h',
         '<(ABSEIL_ROOT)/absl/debugging/internal/address_is_readable.cc',
+        '<(ABSEIL_ROOT)/absl/debugging/internal/bounded_utf8_length_sequence.h',
+        '<(ABSEIL_ROOT)/absl/debugging/internal/decode_rust_punycode.h',
+        '<(ABSEIL_ROOT)/absl/debugging/internal/decode_rust_punycode.cc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/demangle.h',
         '<(ABSEIL_ROOT)/absl/debugging/internal/demangle.cc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/demangle_rust.h',
@@ -2302,6 +2313,8 @@
         '<(ABSEIL_ROOT)/absl/debugging/internal/stacktrace_win32-inl.inc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/stacktrace_x86-inl.inc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/symbolize.h',
+        '<(ABSEIL_ROOT)/absl/debugging/internal/utf8_for_code_point.h',
+        '<(ABSEIL_ROOT)/absl/debugging/internal/utf8_for_code_point.cc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/vdso_support.h',
         '<(ABSEIL_ROOT)/absl/debugging/internal/vdso_support.cc',
         '<(ABSEIL_ROOT)/absl/debugging/stacktrace.h',
