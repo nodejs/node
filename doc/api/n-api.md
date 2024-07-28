@@ -3097,7 +3097,7 @@ the performance after that by enabling comparison of string pointers instead
 of the whole strings.
 
 If a new JavaScript string is intended to be used as a property key, then for
-some JavaScript engines it will be more efficient to use the function in this
+some JavaScript engines it will be more efficient to use the functions in this
 section. Otherwise, use the `napi_create_string_utf8` or
 `node_api_create_external_string_utf8` series functions as there may be
 additional overhead in creating/storing strings with the property key
