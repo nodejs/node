@@ -28,5 +28,3 @@ console.groupCollapsed('label');
 console.groupEnd();
 
 console.table([{ a: 1, b: 2 }, { a: 'foo', b: 'bar' }]);
-
-console.timeStamp('label');
