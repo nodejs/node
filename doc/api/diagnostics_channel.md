@@ -1129,6 +1129,13 @@ independently.
 
 Emitted when client starts a request.
 
+`http.client.request.error`
+
+* `request` {http.ClientRequest}
+* `error` {Error}
+
+Emitted when an error occurs during a client request.
+
 `http.client.response.finish`
 
 * `request` {http.ClientRequest}
