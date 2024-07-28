@@ -4,7 +4,7 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { join } = require('node:path');
 const { readdir } = require('node:fs/promises');
-const { test } = require('node:test');
+const { test, describe } = require('node:test');
 const { spawnPromisified } = common;
 let cnt = 0;
 
@@ -110,38 +110,38 @@ test('localStorage is persisted if it is used', async () => {
   assert.match(cp.stdout, /barbaz/);
 });
 
-test('localStorage can store and retrieve a max of 10 MB quota', async () => {
-  const localStorageFile = nextLocalStorage();
-  const cpToFill = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage',
-    '--localstorage-file', localStorageFile,
-    // Each character is 2 bytes
-    '-pe', `for (let i = 0; i < 10; i++) {
-      localStorage[i.toString().repeat(1 * 1024 * 1024 / 2)] = '';
-    }
-    `,
-  ]);
-  const cpToVerify = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage',
-    '--localstorage-file', localStorageFile,
-    '-pe', `localStorage.anything = 'should fail';`,
-  ]);
 
-  assert.doesNotMatch(cpToFill.stderr, /QuotaExceededError/);
-  assert.match(cpToVerify.stderr, /QuotaExceededError: Setting the value exceeded the quota/);
-});
+describe('webstorage quota for localStorage and sessionStorage', () => {
+  const MAX_STORAGE_SIZE = 10 * 1024 * 1024;
 
-test('sessionStorage can store a max of 10 MB quota', async () => {
-  const cpToFill = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage',
-    // Each character is 2 bytes
-    '-pe', `for (let i = 0; i < 10; i++) {
-      sessionStorage[i.toString().repeat(1 * 1024 * 1024 / 2)] = '';
-    }
+  test('localStorage can store and retrieve a max of 10 MB quota', async () => {
+    const localStorageFile = nextLocalStorage();
+    const cp = await spawnPromisified(process.execPath, [
+      '--experimental-webstorage',
+      '--localstorage-file', localStorageFile,
+      // Each character is 2 bytes
+      '-pe', `
+      localStorage['a'.repeat(${MAX_STORAGE_SIZE} / 2)] = '';
+      console.error('filled');
+      localStorage.anything = 'should fail';
+      `,
+    ]);
 
-    sessionStorage.anything = 'should fail';
-    `,
-  ]);
+    assert.match(cp.stderr, /filled/);
+    assert.match(cp.stderr, /QuotaExceededError: Setting the value exceeded the quota/);
+  });
 
-  assert.match(cpToFill.stderr, /QuotaExceededError/);
+  test('sessionStorage can store a max of 10 MB quota', async () => {
+    const cp = await spawnPromisified(process.execPath, [
+      '--experimental-webstorage',
+      // Each character is 2 bytes
+      '-pe', `sessionStorage['a'.repeat(${MAX_STORAGE_SIZE} / 2)] = '';
+      console.error('filled');
+      sessionStorage.anything = 'should fail';
+      `,
+    ]);
+
+    assert.match(cp.stderr, /filled/);
+    assert.match(cp.stderr, /QuotaExceededError/);
+  });
 });
