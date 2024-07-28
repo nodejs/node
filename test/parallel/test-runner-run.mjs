@@ -6,6 +6,9 @@ import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
 
 const testFixtures = fixtures.path('test-runner');
+const skipIfNoInspector = {
+  skip: !process.features.inspector ? 'inspector disabled' : false
+};
 
 describe('require(\'node:test\').run', { concurrency: true }, () => {
   it('should run with no tests', async () => {
@@ -500,6 +503,125 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       // eslint-disable-next-line no-unused-vars
       for await (const _ of stream);
     });
+  });
+
+  describe('coverage', () => {
+    describe('validation', () => {
+
+      it('should only allow boolean in options.coverage', async () => {
+        [Symbol(), {}, () => {}, 0, 1, 0n, 1n, '', '1', Promise.resolve(true), []]
+          .forEach((coverage) => assert.throws(() => run({ coverage }), {
+            code: 'ERR_INVALID_ARG_TYPE'
+          }));
+      });
+
+      it('should only allow coverageExcludePatterns and coverageIncludePatterns when coverage is true', async () => {
+        assert.throws(
+          () => run({ coverage: false, coverageIncludePatterns: [] }),
+          { code: 'ERR_INVALID_ARG_VALUE' },
+        );
+        assert.throws(
+          () => run({ coverage: false, coverageExcludePatterns: [] }),
+          { code: 'ERR_INVALID_ARG_VALUE' },
+        );
+      });
+
+      it('should only allow string|string[] in options.coverageExcludePatterns', async () => {
+        [Symbol(), {}, () => {}, 0, 1, 0n, 1n, Promise.resolve([]), true, false]
+          .forEach((coverageExcludePatterns) => {
+            assert.throws(() => run({ coverage: true, coverageExcludePatterns }), {
+              code: 'ERR_INVALID_ARG_TYPE'
+            });
+            assert.throws(() => run({ coverage: true, coverageExcludePatterns: [coverageExcludePatterns] }), {
+              code: 'ERR_INVALID_ARG_TYPE'
+            });
+          });
+        run({ files: [], signal: AbortSignal.abort(), coverage: true, coverageExcludePatterns: [''] });
+        run({ files: [], signal: AbortSignal.abort(), coverage: true, coverageExcludePatterns: '' });
+      });
+
+      it('should only allow string|string[] in options.coverageIncludePatterns', async () => {
+        [Symbol(), {}, () => {}, 0, 1, 0n, 1n, Promise.resolve([]), true, false]
+          .forEach((coverageIncludePatterns) => {
+            assert.throws(() => run({ coverage: true, coverageIncludePatterns }), {
+              code: 'ERR_INVALID_ARG_TYPE'
+            });
+            assert.throws(() => run({ coverage: true, coverageIncludePatterns: [coverageIncludePatterns] }), {
+              code: 'ERR_INVALID_ARG_TYPE'
+            });
+          });
+
+        run({ files: [], signal: AbortSignal.abort(), coverage: true, coverageIncludePatterns: [''] });
+        run({ files: [], signal: AbortSignal.abort(), coverage: true, coverageIncludePatterns: '' });
+      });
+    });
+
+    const files = [fixtures.path('test-runner', 'coverage.js')];
+    it('should run with coverage', skipIfNoInspector, async () => {
+      const stream = run({ files, coverage: true });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      stream.on('test:coverage', common.mustCall());
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('should run with coverage and exclude by glob', skipIfNoInspector, async () => {
+      const stream = run({ files, coverage: true, coverageExcludePatterns: ['test/*/test-runner/invalid-tap.js'] });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      stream.on('test:coverage', common.mustCall(({ summary: { files } }) => {
+        const filesPaths = files.map(({ path }) => path);
+        assert.strictEqual(filesPaths.some((path) => path.includes('test-runner/invalid-tap.js')), false);
+      }));
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('should run with coverage and include by glob', skipIfNoInspector, async () => {
+      const stream = run({ files, coverage: true, coverageIncludePatterns: ['test/*/test-runner/invalid-tap.js'] });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall(1));
+      stream.on('test:coverage', common.mustCall(({ summary: { files } }) => {
+        const filesPaths = files.map(({ path }) => path);
+        assert.strictEqual(filesPaths.some((path) => path.includes('test-runner/invalid-tap.js')), true);
+      }));
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+  });
+
+  it('should run with no files', async () => {
+    const stream = run({
+      files: undefined
+    }).compose(tap);
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should run with no files and use spec reporter', async () => {
+    const stream = run({
+      files: undefined
+    }).compose(spec);
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should run with no files and use dot reporter', async () => {
+    const stream = run({
+      files: undefined
+    }).compose(dot);
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
   });
 
   it('should avoid running recursively', async () => {
