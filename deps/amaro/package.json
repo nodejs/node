@@ -1,6 +1,6 @@
 {
 	"name": "amaro",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"description": "Node.js TypeScript wrapper",
 	"license": "MIT",
 	"type": "commonjs",
@@ -30,9 +30,6 @@
 		"@types/node": "^20.14.11",
 		"rimraf": "^6.0.1",
 		"typescript": "^5.5.3"
-	},
-	"exports": {
-		"./package.json": "./package.json"
 	},
 	"files": ["dist", "LICENSE.md"]
 }
