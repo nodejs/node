@@ -292,6 +292,7 @@ export interface FsBinding {
   writeBuffer: typeof InternalFSBinding.writeBuffer;
   writeBuffers: typeof InternalFSBinding.writeBuffers;
   writeString: typeof InternalFSBinding.writeString;
+  writeFileUtf8: typeof InternalFSBinding.writeFileUtf8;
 
   getFormatOfExtensionlessFile: typeof InternalFSBinding.getFormatOfExtensionlessFile;
 }
