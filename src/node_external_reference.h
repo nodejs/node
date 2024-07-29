@@ -26,6 +26,8 @@ using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> receiver,
                                             int64_t);
 using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> receiver,
                                            bool);
+using CFunctionCallbackWithObjectUint32Int64Bool = int32_t (*)(
+    v8::Local<v8::Value>, v8::Local<v8::Object>, uint32_t, int64_t, bool);
 using CFunctionCallbackWithString =
     bool (*)(v8::Local<v8::Value>, const v8::FastOneByteString& input);
 using CFunctionCallbackWithStrings =
@@ -41,12 +43,6 @@ using CFunctionCallbackWithTwoUint8ArraysFallback =
              const v8::FastApiTypedArray<uint8_t>&,
              const v8::FastApiTypedArray<uint8_t>&,
              v8::FastApiCallbackOptions&);
-using CFunctionCallbackWithUint8ArrayUint32Int64Bool =
-    int32_t (*)(v8::Local<v8::Value>,
-                const v8::FastApiTypedArray<uint8_t>&,
-                uint32_t,
-                int64_t,
-                bool);
 using CFunctionWithUint32 = uint32_t (*)(v8::Local<v8::Value>,
                                          const uint32_t input);
 using CFunctionWithDoubleReturnDouble = double (*)(v8::Local<v8::Value>,
@@ -70,11 +66,11 @@ class ExternalReferenceRegistry {
   V(CFunctionCallbackValueReturnDouble)                                        \
   V(CFunctionCallbackWithInt64)                                                \
   V(CFunctionCallbackWithBool)                                                 \
+  V(CFunctionCallbackWithObjectUint32Int64Bool)                                \
   V(CFunctionCallbackWithString)                                               \
   V(CFunctionCallbackWithStrings)                                              \
   V(CFunctionCallbackWithTwoUint8Arrays)                                       \
   V(CFunctionCallbackWithTwoUint8ArraysFallback)                               \
-  V(CFunctionCallbackWithUint8ArrayUint32Int64Bool)                            \
   V(CFunctionWithUint32)                                                       \
   V(CFunctionWithDoubleReturnDouble)                                           \
   V(CFunctionWithInt64Fallback)                                                \
