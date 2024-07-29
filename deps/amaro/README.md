@@ -25,6 +25,29 @@ const { code } = amaro.transformSync("const foo: string = 'bar';");
 console.log(code); // "const foo         = 'bar';"
 ```
 
+### How to update SWC
+
+To update the SWC version, run:
+
+```shell
+./tools/update-swc.sh
+git add deps
+git commit -m "chore: update swc to vX.Y.Z"
+```
+
+Once you have updated the rust source code we must build the wasm.
+To build the wasm it is necessary to have Docker installed.
+
+```shell
+node ./tools/build-wasm.js
+git add lib
+git commit -m "chore: build wasm from swc vX.Y.Z"
+```
+
+### TypeScript Version
+
+The supported TypeScript version is 5.5.4.
+
 ## License (MIT)
 
 See [`LICENSE.md`](./LICENSE.md).
