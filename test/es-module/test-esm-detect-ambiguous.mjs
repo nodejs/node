@@ -352,6 +352,18 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
       });
     }
 
+    it('does not warn when there are no package.json', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        fixtures.path('es-modules/loose.js'),
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'executed\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+
     it('warns only once for a package.json that affects multiple files', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         fixtures.path('es-modules/package-without-type/detected-as-esm.js'),
