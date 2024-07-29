@@ -153,7 +153,7 @@ logger.log('count: %d', count);
 ```
 
 ```cjs
-const fs = require('fs');
+const fs = require('node:fs');
 const { Console } = require('node:console');
 // Alternatively
 // const { Console } = console;
