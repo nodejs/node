@@ -70,6 +70,14 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
 }
 
 {
+  fs.lstat(bufferTraversalPath, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(traversalPath),
+  }));
+}
+
+{
   fs.readFile(uint8ArrayTraversalPath, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
