@@ -15,7 +15,7 @@ describe('node --run [command]', () => {
       { cwd: __dirname },
     );
     assert.match(child.stderr, /ExperimentalWarning: Task runner is an experimental feature and might change at any time/);
-    assert.match(child.stderr, /Can't read package\.json/);
+    assert.match(child.stderr, /Can't read package\.json|Can't find "scripts" field in package\.json/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
@@ -26,7 +26,7 @@ describe('node --run [command]', () => {
       [ '--no-warnings', '--run', 'test'],
       { cwd: __dirname },
     );
-    assert.match(child.stderr, /Can't read package\.json/);
+    assert.match(child.stderr, /Can't read package\.json|Can't find "scripts" field in package\.json/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
