@@ -194,25 +194,26 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
   });
 
-  it('should include test type in enqueue, dequeue events', async () => {
+  it('should include test type in enqueue, dequeue events', async (t) => {
     const stream = await run({
       files: [join(testFixtures, 'default-behavior/test/suite_and_test.cjs')],
     });
+    t.plan(4);
 
     stream.on('test:enqueue', common.mustCall((data) => {
       if (data.name === 'this is a suite') {
-        assert.strictEqual(data.type, 'suite');
+        t.assert.strictEqual(data.type, 'suite');
       }
-      if (data.name === ' this is a test') {
-        assert.strictEqual(data.type, 'test');
+      if (data.name === 'this is a test') {
+        t.assert.strictEqual(data.type, 'test');
       }
     }, 2));
     stream.on('test:dequeue', common.mustCall((data) => {
       if (data.name === 'this is a suite') {
-        assert.strictEqual(data.type, 'suite');
+        t.assert.strictEqual(data.type, 'suite');
       }
-      if (data.name === ' this is a test') {
-        assert.strictEqual(data.type, 'test');
+      if (data.name === 'this is a test') {
+        t.assert.strictEqual(data.type, 'test');
       }
     }, 2));
 
