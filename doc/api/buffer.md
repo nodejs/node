@@ -539,6 +539,10 @@ Creates and returns a new `Blob` containing a subset of this `Blob` objects
 data. The original `Blob` is not altered.
 
 #### `blob.bytes()`
+<!-- YAML
+added:
+  - v20.16.0
+-->
 
 The `blob.bytes()` method returns the byte of the `Blob` object as a `Promise<Uint8Array>`.
 
