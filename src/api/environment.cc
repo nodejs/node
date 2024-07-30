@@ -262,8 +262,7 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
     isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
   }
 
-  if (per_process::cli_options->get_per_isolate_options()
-          ->experimental_shadow_realm) {
+  if (per_process::cli_options->experimental_shadow_realm) {
     isolate->SetHostCreateShadowRealmContextCallback(
         shadow_realm::HostCreateShadowRealmContextCallback);
   }

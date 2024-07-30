@@ -254,7 +254,6 @@ class PerIsolateOptions : public Options {
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
-  bool experimental_shadow_realm = false;
   std::string report_signal = "SIGUSR2";
   bool build_snapshot = false;
   std::string build_snapshot_config;
@@ -294,6 +293,7 @@ class PerProcessOptions : public Options {
   bool print_v8_help = false;
   bool print_version = false;
   std::string experimental_sea_config;
+  bool experimental_shadow_realm = false;
   std::string run;
 
 #ifdef NODE_HAVE_I18N_SUPPORT

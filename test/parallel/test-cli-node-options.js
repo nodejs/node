@@ -49,16 +49,6 @@ expectNoWorker('--trace-event-file-pattern {pid}-${rotation}.trace_events ' +
        '--trace-event-categories node.async_hooks', 'B\n');
 expect('--unhandled-rejections=none', 'B\n');
 
-if (common.isLinux) {
-  expect('--perf-basic-prof', 'B\n');
-  expect('--perf-basic-prof-only-functions', 'B\n');
-
-  if (['arm', 'x64'].includes(process.arch)) {
-    expect('--perf-prof', 'B\n');
-    expect('--perf-prof-unwinding-info', 'B\n');
-  }
-}
-
 if (common.hasCrypto) {
   expectNoWorker('--use-openssl-ca', 'B\n');
   expectNoWorker('--use-bundled-ca', 'B\n');
@@ -67,20 +57,31 @@ if (common.hasCrypto) {
 }
 
 // V8 options
-expect('--abort_on-uncaught_exception', 'B\n');
-expect('--disallow-code-generation-from-strings', 'B\n');
-expect('--expose-gc', 'B\n');
-expect('--huge-max-old-generation-size', 'B\n');
-expect('--jitless', 'B\n');
-expect('--max-old-space-size=0', 'B\n');
-expect('--max-semi-space-size=0', 'B\n');
-expect('--stack-trace-limit=100',
-       /(\s*at f \(\[(eval|worker eval)\]:1:\d*\)\r?\n)/,
-       '(function f() { f(); })();',
-       true);
+expectNoWorker('--abort_on-uncaught_exception', 'B\n');
+expectNoWorker('--disallow-code-generation-from-strings', 'B\n');
+expectNoWorker('--expose-gc', 'B\n');
+expectNoWorker('--huge-max-old-generation-size', 'B\n');
+expectNoWorker('--jitless', 'B\n');
+expectNoWorker('--max-old-space-size=0', 'B\n');
+expectNoWorker('--max-semi-space-size=0', 'B\n');
+expectNoWorker('--stack-trace-limit=100',
+               /(\s*at f \(\[eval\]:1:\d*\)\r?\n)/,
+               '(function f() { f(); })();',
+               true);
 // Unsupported on arm. See https://crbug.com/v8/8713.
 if (!['arm', 'arm64'].includes(process.arch))
-  expect('--interpreted-frames-native-stack', 'B\n');
+  expectNoWorker('--interpreted-frames-native-stack', 'B\n');
+
+// Linux only V8 options
+if (common.isLinux) {
+  expectNoWorker('--perf-basic-prof', 'B\n');
+  expectNoWorker('--perf-basic-prof-only-functions', 'B\n');
+
+  if (['arm', 'x64'].includes(process.arch)) {
+    expectNoWorker('--perf-prof', 'B\n');
+    expectNoWorker('--perf-prof-unwinding-info', 'B\n');
+  }
+}
 
 // Workers can't eval as ES Modules. https://github.com/nodejs/node/issues/30682
 expectNoWorker('--input-type=module',
