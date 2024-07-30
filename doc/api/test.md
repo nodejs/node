@@ -1239,7 +1239,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v22.6.0
     pr-url: https://github.com/nodejs/node/pull/53866
     description: Added the `globPatterns` option.
   - version:
@@ -3213,7 +3213,9 @@ test('top level test', (t) => {
 ### `context.filePath`
 
 <!-- YAML
-added: v20.16.0
+added:
+  - v20.16.0
+  - v22.6.0
 -->
 
 The absolute path of the test file that created the current test. If a test file
@@ -3457,7 +3459,7 @@ exposed as part of the API.
 ### `context.filePath`
 
 <!-- YAML
-added: REPLACEME
+added: v22.6.0
 -->
 
 The absolute path of the test file that created the current suite. If a test

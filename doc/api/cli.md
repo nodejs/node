@@ -868,7 +868,7 @@ export USERNAME="nodejs" # will result in `nodejs` as the value.
 <!-- YAML
 added: v0.5.2
 changes:
-  - version: REPLACEME
+  - version: v22.6.0
     pr-url: https://github.com/nodejs/node/pull/53725
     description: Eval now supports experimental type-stripping.
   - version: v5.11.0
@@ -984,7 +984,7 @@ Specify the `module` containing exported [module customization hooks][].
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.6.0
 -->
 
 > Stability: 1 - Experimental
@@ -1053,7 +1053,7 @@ Enable the experimental [`node:sqlite`][] module.
 ### `--experimental-strip-types`
 
 <!-- YAML
-added: REPLACEME
+added: v22.6.0
 -->
 
 > Stability: 1.0 - Early development
