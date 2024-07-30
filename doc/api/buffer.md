@@ -513,6 +513,18 @@ added:
 Returns a promise that fulfills with an {ArrayBuffer} containing a copy of
 the `Blob` data.
 
+### `blob.bytes()`
+
+<!-- YAML
+added:
+  - v20.16.0
+-->
+
+* Returns: {Promise}
+
+Returns a promise that fulfills with a {Uint8Array} containing a copy of the
+`Blob` data.
+
 ### `blob.size`
 
 <!-- YAML
