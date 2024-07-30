@@ -1,6 +1,17 @@
 // Step 1.
 test(function() {
     assert_throws_dom("TypeMismatchError", function() {
+        self.crypto.getRandomValues(new Float16Array(6))
+    }, "Float16Array")
+
+    assert_throws_dom("TypeMismatchError", function() {
+        const len = 65536 / Float16Array.BYTES_PER_ELEMENT + 1;
+        self.crypto.getRandomValues(new Float16Array(len));
+    }, "Float16Array (too long)")
+}, "Float16 arrays");
+
+test(function() {
+    assert_throws_dom("TypeMismatchError", function() {
         self.crypto.getRandomValues(new Float32Array(6))
     }, "Float32Array")
     assert_throws_dom("TypeMismatchError", function() {
