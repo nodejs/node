@@ -320,7 +320,6 @@ std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
          << "  \"" << i.node_version << "\", // node_version\n"
          << "  \"" << i.node_arch << "\", // node_arch\n"
          << "  \"" << i.node_platform << "\", // node_platform\n"
-         << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
          << "  " << i.flags << ", // flags\n"
          << "}";
   return output;
