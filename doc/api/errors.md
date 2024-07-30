@@ -3180,6 +3180,9 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54125
+    description: Corrected the description of the max header size to `maxHeaderSize`.
   - version:
      - v11.4.0
      - v10.15.0
@@ -3189,7 +3192,7 @@ changes:
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 8 KiB of HTTP header data is received then
+malconfigured clients, if more than `maxHeaderSize` of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
