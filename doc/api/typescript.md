@@ -38,7 +38,7 @@ To use TypeScript with full support for all TypeScript features, including
 ## Type stripping
 
 <!-- YAML
-added: REPLACEME
+added: v22.6.0
 -->
 
 > Stability: 1.0 - Early development

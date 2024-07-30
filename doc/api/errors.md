@@ -4004,7 +4004,7 @@ An error occurred trying to allocate memory. This should never happen.
 #### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
 
 <!-- YAML
-added: REPLACEME
+added: v22.6.0
 -->
 
 Type stripping is not supported for files descendent of a `node_modules` directory.
