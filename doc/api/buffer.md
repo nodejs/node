@@ -517,6 +517,7 @@ the `Blob` data.
 
 <!-- YAML
 added:
+  - v22.3.0
   - v20.16.0
 -->
 
@@ -528,7 +529,6 @@ blob.bytes().then((bytes) => {
   console.log(bytes); // Outputs: Uint8Array(5) [ 104, 101, 108, 108, 111 ]
 });
 ```
-
 
 ### `blob.size`
 
@@ -554,8 +554,6 @@ added:
 
 Creates and returns a new `Blob` containing a subset of this `Blob` objects
 data. The original `Blob` is not altered.
-
-
 
 ### `blob.stream()`
 
