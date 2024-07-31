@@ -31,8 +31,8 @@ function createTmpFile(content = 'console.log("running");', ext = '.js', basenam
 }
 
 function runInBackground({ args = [], options = {}, completed = 'Completed running', shouldFail = false }) {
-  let future = Promise.withResolvers()
-  let child
+  let future = Promise.withResolvers();
+  let child;
   let stderr = '';
   let stdout = [];
 
@@ -44,50 +44,50 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
       stderr += data;
     });
 
-    const rl = createInterface({ input: child.stdout })
-    rl.on('line', data => {
+    const rl = createInterface({ input: child.stdout });
+    rl.on('line', (data) => {
       if (!data.startsWith('Waiting for graceful termination') && !data.startsWith('Gracefully restarted')) {
         stdout.push(data);
         if (data.startsWith(completed)) {
-          future.resolve({ stderr, stdout })
-          future = Promise.withResolvers()
-          stdout = []
-          stderr = ""
+          future.resolve({ stderr, stdout });
+          future = Promise.withResolvers();
+          stdout = [];
+          stderr = '';
         } else if (data.startsWith('Failed running')) {
           if (shouldFail) {
-            future.resolve({ stderr, stdout })
+            future.resolve({ stderr, stdout });
           } else {
-            future.reject({ stderr, stdout })
+            future.reject({ stderr, stdout });
           }
-          future = Promise.withResolvers()
-          stdout = []
-          stderr = ""
+          future = Promise.withResolvers();
+          stdout = [];
+          stderr = '';
         }
       }
-    })
-  }
+    });
+  };
 
   return {
     async done() {
-      child?.kill()
-      future.resolve()
-      return { stdout, stderr }
+      child?.kill();
+      future.resolve();
+      return { stdout, stderr };
     },
     restart(timeout = 1000) {
       if (!child) {
-        run()
+        run();
       }
       const timer = setTimeout(() => {
         if (!future.resolved) {
-          child.kill()
-          future.reject(new Error('Timed out waiting for restart'))
+          child.kill();
+          future.reject(new Error('Timed out waiting for restart'));
         }
-      }, timeout)
+      }, timeout);
       return future.promise.finally(() => {
-        clearTimeout(timer)
-      })
+        clearTimeout(timer);
+      });
     }
-  }
+  };
 }
 
 async function runWriteSucceed({
@@ -193,17 +193,17 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
   });
 
   it('should reload env variables when --env-file changes', async () => {
-    const envKey = `TEST_ENV_${Date.now()}`
-    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`)
-    const envFile = createTmpFile(`${envKey}=value1`, '.env')
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey});`);
+    const envFile = createTmpFile(`${envKey}=value1`, '.env');
     const { done, restart } = runInBackground({ args: ['--watch', `--env-file=${envFile}`, jsFile] });
 
     try {
-      await restart()
+      await restart();
       writeFileSync(envFile, `${envKey}=value2`);
 
-      //Second restart, after env change
-      const { stdout, stderr } = await restart()
+      // Second restart, after env change
+      const { stdout, stderr } = await restart();
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
@@ -212,23 +212,23 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
         `Completed running ${inspect(jsFile)}`,
       ]);
     } finally {
-      await done()
+      await done();
     }
-  })
+  });
 
   it('should load new env variables when --env-file changes', async () => {
-    const envKey = `TEST_ENV_${Date.now()}`
-    const envKey2 = `TEST_ENV_2_${Date.now()}`
-    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey} + '\\n' + 'ENV2: ' + process.env.${envKey2});`)
-    const envFile = createTmpFile(`${envKey}=value1`, '.env')
+    const envKey = `TEST_ENV_${Date.now()}`;
+    const envKey2 = `TEST_ENV_2_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV: ' + process.env.${envKey} + '\\n' + 'ENV2: ' + process.env.${envKey2});`);
+    const envFile = createTmpFile(`${envKey}=value1`, '.env');
     const { done, restart } = runInBackground({ args: ['--watch', `--env-file=${envFile}`, jsFile] });
 
     try {
-      await restart()
+      await restart();
       await writeFileSync(envFile, `${envKey}=value1\n${envKey2}=newValue`);
 
-      //Second restart, after env change
-      const { stderr, stdout } = await restart()
+      // Second restart, after env change
+      const { stderr, stdout } = await restart();
 
       assert.strictEqual(stderr, '');
       assert.deepStrictEqual(stdout, [
@@ -238,9 +238,9 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
         `Completed running ${inspect(jsFile)}`,
       ]);
     } finally {
-      await done()
+      await done();
     }
-  })
+  });
 
   it('should watch changes to a failing file', async () => {
     const file = createTmpFile('throw new Error("fails");');
