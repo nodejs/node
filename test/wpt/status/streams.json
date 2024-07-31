@@ -36,8 +36,8 @@
     "skip": "Browser-specific test"
   },
   "readable-streams/owning-type.any.js": {
-    "note": "Readable streams with type owning are not yet supported",
     "fail": {
+      "note": "Readable streams with type owning are not yet supported",
       "expected": [
         "ReadableStream can be constructed with owning type",
         "ReadableStream of type owning should call start with a ReadableStreamDefaultController",
