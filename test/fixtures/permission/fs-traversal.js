@@ -73,7 +73,9 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
   fs.lstat(bufferTraversalPath, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(traversalPath),
+    // lstat checks and throw on JS side.
+    // resource is only resolved on C++ (is_granted)
+    resource: Buffer.toString(bufferTraversalPath),
   }));
 }
 
