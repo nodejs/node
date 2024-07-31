@@ -462,12 +462,10 @@
         'use_openssl_def%': 0,
       }],
       [ 'node_install_amaro=="true"', {
-          'defines': [
-            'HAVE_AMARO=1',
-          ],
-        'deps_files': [
-            'deps/amaro/dist/index.js',
-        ]
+          'defines': [ 'HAVE_AMARO=1' ],
+          'deps_files': [
+              'deps/amaro/dist/index.js',
+          ]
       } ]
     ],
   },

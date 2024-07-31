@@ -27,10 +27,10 @@ namespace node {
 #define NODE_HAS_RELEASE_URLS
 #endif
 
-#ifndef HAVE_AMARO
-#define NODE_VERSIONS_KEY_AMARO(V)
-#else
+#if HAVE_AMARO
 #define NODE_VERSIONS_KEY_AMARO(V) V(amaro)
+#else
+#define NODE_VERSIONS_KEY_AMARO(V)
 #endif
 
 #ifndef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
