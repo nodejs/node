@@ -513,6 +513,23 @@ added:
 Returns a promise that fulfills with an {ArrayBuffer} containing a copy of
 the `Blob` data.
 
+#### `blob.bytes()`
+
+<!-- YAML
+added:
+  - v20.16.0
+-->
+
+The `blob.bytes()` method returns the byte of the `Blob` object as a `Promise<Uint8Array>`.
+
+```js
+const blob = new Blob(['hello']);
+blob.bytes().then((bytes) => {
+  console.log(bytes); // Outputs: Uint8Array(5) [ 104, 101, 108, 108, 111 ]
+});
+```
+
+
 ### `blob.size`
 
 <!-- YAML
@@ -538,21 +555,7 @@ added:
 Creates and returns a new `Blob` containing a subset of this `Blob` objects
 data. The original `Blob` is not altered.
 
-#### `blob.bytes()`
 
-<!-- YAML
-added:
-  - v20.16.0
--->
-
-The `blob.bytes()` method returns the byte of the `Blob` object as a `Promise<Uint8Array>`.
-
-```js
-const blob = new Blob(['hello']);
-blob.bytes().then((bytes) => {
-  console.log(bytes); // Outputs: Uint8Array(5) [ 104, 101, 108, 108, 111 ]
-});
-```
 
 ### `blob.stream()`
 
