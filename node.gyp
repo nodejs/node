@@ -14,7 +14,7 @@
     'force_dynamic_crt%': 0,
     'ossfuzz' : 'false',
     'node_module_version%': '',
-    'node_install_amaro%': 'true',
+    'node_use_amaro%': 'true',
     'node_shared_brotli%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -461,8 +461,7 @@
       }, {
         'use_openssl_def%': 0,
       }],
-      [ 'node_install_amaro=="true"', {
-          'defines': [ 'HAVE_AMARO=1' ],
+      [ 'node_use_amaro=="true"', {
           'deps_files': [
               'deps/amaro/dist/index.js',
           ]

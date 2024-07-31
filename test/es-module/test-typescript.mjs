@@ -3,7 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import { match, strictEqual } from 'node:assert';
 import { test } from 'node:test';
 
-if (!process.config.variables.node_install_amaro) skip('Requires Amaro');
+if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('execute a TypeScript file', async () => {
   const result = await spawnPromisified(process.execPath, [
