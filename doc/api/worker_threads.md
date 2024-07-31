@@ -290,10 +290,8 @@ the last one will try to communicate with the main thread.
 
 ```mjs
 import { fileURLToPath } from 'node:url';
-import { once } from 'node:events';
 import process from 'node:process';
 import {
-  isMainThread,
   postMessageToThread,
   threadId,
   workerData,
@@ -328,9 +326,7 @@ channel.onmessage = channel.close;
 ```
 
 ```cjs
-const { once } = require('node:events');
 const {
-  isMainThread,
   postMessageToThread,
   threadId,
   workerData,
