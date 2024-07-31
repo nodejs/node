@@ -27,6 +27,12 @@ namespace node {
 #define NODE_HAS_RELEASE_URLS
 #endif
 
+#ifndef HAVE_AMARO
+#define NODE_VERSIONS_KEY_AMARO(V)
+#else
+#define NODE_VERSIONS_KEY_AMARO(V) V(amaro)
+#endif
+
 #ifndef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
 #define NODE_VERSIONS_KEY_UNDICI(V) V(undici)
 #else
@@ -51,7 +57,7 @@ namespace node {
   V(sqlite)                                                                    \
   V(ada)                                                                       \
   V(nbytes)                                                                    \
-  V(amaro)                                                                     \
+  NODE_VERSIONS_KEY_AMARO(V)                                                   \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
   V(cjs_module_lexer)
 

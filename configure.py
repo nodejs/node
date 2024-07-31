@@ -765,6 +765,12 @@ http2_optgroup.add_argument('--debug-nghttp2',
     default=None,
     help='build nghttp2 with DEBUGBUILD (default is false)')
 
+parser.add_argument('--without-amaro',
+    action='store_true',
+    dest='without_amaro',
+    default=None,
+    help='do not install the bundled Amaro (TypeScript utils)')
+
 parser.add_argument('--without-npm',
     action='store_true',
     dest='without_npm',
@@ -1378,6 +1384,7 @@ def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
   o['variables']['node_prefix'] = options.prefix
+  o['variables']['node_install_amaro'] = b(not options.without_amaro)
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_corepack'] = b(not options.without_corepack)
   o['variables']['debug_node'] = b(options.debug_node)
