@@ -13194,11 +13194,5 @@ module.exports.EventSource = require_eventsource().EventSource;
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent;
 module.exports.getGlobalDispatcher = getGlobalDispatcher;
 module.exports.setGlobalDispatcher = setGlobalDispatcher;
-/*! Bundled license information:
-
-undici/lib/web/fetch/body.js:
-  (*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> *)
-
-undici/lib/web/websocket/frame.js:
-  (*! ws. MIT License. Einar Otto Stangvik <einaros@gmail.com> *)
-*/
+/*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
+/*! ws. MIT License. Einar Otto Stangvik <einaros@gmail.com> */
