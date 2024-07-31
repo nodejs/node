@@ -181,3 +181,10 @@
 /lib/internal/navigator.js @nodejs/web-standards
 /test/fixtures/wpt/ @nodejs/web-standards
 /test/wpt/ @nodejs/web-standards
+
+# TypeScript
+
+/deps/amaro/ @nodejs/typescript
+/doc/api/typescript.md @nodejs/typescript
+/test/fixtures/typescript/ @nodejs/typescript
+/tools/dep_updaters/update-amaro.sh @nodejs/typescript
