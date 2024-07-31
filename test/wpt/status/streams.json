@@ -4,6 +4,7 @@
   },
   "piping/general-addition.any.js": {
     "fail": {
+      "note": "Blocked on https://github.com/whatwg/streams/issues/1243",
       "expected": [
         "enqueue() must not synchronously call write algorithm"
       ]
@@ -24,6 +25,7 @@
   },
   "readable-streams/owning-type-message-port.any.js": {
     "fail": {
+      "note": "Readable streams with type owning are not yet supported",
       "expected": [
         "Transferred MessageChannel works as expected",
         "Second branch of owning ReadableStream tee should end up into errors with transfer only values"
@@ -34,6 +36,7 @@
     "skip": "Browser-specific test"
   },
   "readable-streams/owning-type.any.js": {
+    "note": "Readable streams with type owning are not yet supported",
     "fail": {
       "expected": [
         "ReadableStream can be constructed with owning type",
