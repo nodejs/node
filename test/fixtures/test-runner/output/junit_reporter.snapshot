@@ -504,38 +504,6 @@ should loosely deep-equal
 }
 		</failure>
 	</testcase>
-	<testsuite name="should NOT print --test-only diagnostic warning - describe-only-false" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="only false in describe" time="*" classname="test"/>
-	</testsuite>
-	<testsuite name="should NOT print --test-only diagnostic warning - it-only-false" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="only false in the subtest" time="*" classname="test"/>
-	</testsuite>
-	<testsuite name="should NOT print --test-only diagnostic warning - no-only" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="no only" time="*" classname="test"/>
-	</testsuite>
-	<testsuite name="should NOT print --test-only diagnostic warning - test-only-false" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="only false in parent test" time="*" classname="test"/>
-	</testsuite>
-	<testsuite name="should NOT print --test-only diagnostic warning - t.test-only-false" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="only false in subtest" time="*" classname="test"/>
-	</testsuite>
-	<testsuite name="should NOT print --test-only diagnostic warning - no-only" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="no only" time="*" classname="test"/>
-	</testsuite>
-	<testsuite name="should print --test-only diagnostic warning - test-only-true" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="only true in parent test" time="*" classname="test"/>
-	</testsuite>
-	<!-- 'only' and 'runOnly' require the &#45;&#45;test-only command-line option. -->
-	<testsuite name="should print --test-only diagnostic warning - t.test-only-true" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testcase name="only true in subtest" time="*" classname="test"/>
-		<!-- 'only' and 'runOnly' require the &#45;&#45;test-only command-line option. -->
-	</testsuite>
-	<testsuite name="should print --test-only diagnostic warning - 2 levels of only" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-		<testsuite name="only true in parent test" time="*" disabled="0" errors="0" tests="1" failures="0" skipped="0" hostname="HOSTNAME">
-			<testcase name="only true in subtest" time="*" classname="test"/>
-			<!-- 'only' and 'runOnly' require the &#45;&#45;test-only command-line option. -->
-		</testsuite>
-	</testsuite>
 	<testcase name="invalid subtest fail" time="*" classname="test" failure="test could not be started because its parent finished">
 		<failure type="parentAlreadyFinished" message="test could not be started because its parent finished">
 Error [ERR_TEST_FAILURE]: test could not be started because its parent finished
@@ -546,16 +514,16 @@ Error [ERR_TEST_FAILURE]: test could not be started because its parent finished
 }
 		</failure>
 	</testcase>
-	<!-- Error: Test "unhandled rejection - passes but warns" at test/fixtures/test-runner/output/output.js:73:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event. -->
-	<!-- Error: Test "async unhandled rejection - passes but warns" at test/fixtures/test-runner/output/output.js:77:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event. -->
+	<!-- Error: Test "unhandled rejection - passes but warns" at test/fixtures/test-runner/output/output.js:72:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event. -->
+	<!-- Error: Test "async unhandled rejection - passes but warns" at test/fixtures/test-runner/output/output.js:76:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event. -->
 	<!-- Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: uncaught from outside of a test" which triggered an uncaughtException event, caught by the test runner. -->
-	<!-- Error: Test "immediate throw - passes but warns" at test/fixtures/test-runner/output/output.js:81:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event. -->
-	<!-- Error: Test "immediate reject - passes but warns" at test/fixtures/test-runner/output/output.js:87:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event. -->
-	<!-- Error: Test "callback called twice in different ticks" at test/fixtures/test-runner/output/output.js:252:1 generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event. -->
-	<!-- Error: Test "callback async throw after done" at test/fixtures/test-runner/output/output.js:270:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event. -->
-	<!-- tests 92 -->
-	<!-- suites 3 -->
-	<!-- pass 51 -->
+	<!-- Error: Test "immediate throw - passes but warns" at test/fixtures/test-runner/output/output.js:80:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event. -->
+	<!-- Error: Test "immediate reject - passes but warns" at test/fixtures/test-runner/output/output.js:86:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event. -->
+	<!-- Error: Test "callback called twice in different ticks" at test/fixtures/test-runner/output/output.js:251:1 generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event. -->
+	<!-- Error: Test "callback async throw after done" at test/fixtures/test-runner/output/output.js:269:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event. -->
+	<!-- tests 76 -->
+	<!-- suites 0 -->
+	<!-- pass 35 -->
 	<!-- fail 25 -->
 	<!-- cancelled 3 -->
 	<!-- skipped 9 -->
