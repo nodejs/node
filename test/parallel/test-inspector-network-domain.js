@@ -52,12 +52,17 @@ const testHttpGet = () => new Promise((resolve, reject) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(params.request.url, 'http://127.0.0.1/hello-world');
     assert.strictEqual(params.request.method, 'GET');
+    assert.strictEqual(typeof params.request.headers, 'object');
     assert.strictEqual(typeof params.timestamp, 'number');
     assert.strictEqual(typeof params.wallTime, 'number');
   }));
   session.on('Network.responseReceived', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
+    assert.strictEqual(params.type, 'Other');
+    assert.strictEqual(params.response.status, 200);
+    assert.strictEqual(params.response.url, 'http://127.0.0.1/hello-world');
+    assert.strictEqual(typeof params.response.headers, 'object');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
@@ -77,12 +82,17 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(params.request.url, 'https://127.0.0.1/hello-world');
     assert.strictEqual(params.request.method, 'GET');
+    assert.strictEqual(typeof params.request.headers, 'object');
     assert.strictEqual(typeof params.timestamp, 'number');
     assert.strictEqual(typeof params.wallTime, 'number');
   }));
   session.on('Network.responseReceived', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
     assert.strictEqual(typeof params.timestamp, 'number');
+    assert.strictEqual(params.type, 'Other');
+    assert.strictEqual(params.response.status, 200);
+    assert.strictEqual(params.response.url, 'https://127.0.0.1/hello-world');
+    assert.strictEqual(typeof params.response.headers, 'object');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
