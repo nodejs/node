@@ -1,0 +1,24 @@
+on:
+  pull_request_target:
+    paths:
+      - deps/**
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  add-comment:
+    runs-on: ubuntu-latest
+    name: Add comment when a PR modifies a automation-controlled directory
+    if: github.event.pull_request.user.login != 'nodejs-github-bot'  # Check if user is not the bot
+    steps:
+      - uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31  # v2.9.0
+        with:
+          number: ${{ github.event.pull_request.number }}
+          message: |
+            This pull request appears to be modifying a file within a
+            directory that is typically controlled by automation.
+
+            Please carefully review and follow the [Collaborator Guide](https://github.com/nodejs/node/blob/HEAD/doc/contributing/collaborator-guide.md#code-reviews)
+            before approving this pull request.
