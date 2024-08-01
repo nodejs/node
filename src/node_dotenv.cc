@@ -151,7 +151,17 @@ void Dotenv::ParseContent(const std::string_view input) {
     // Expand new line if \n it's inside double quotes
     // Example: EXPAND_NEWLINES = 'expand\nnew\nlines'
     if (content.front() == '"') {
-      auto closing_quote = content.find(content.front(), 1);
+      std::size_t closing_quote = 0;
+      do {
+        closing_quote = content.find(content.front(), closing_quote + 1);
+        if (closing_quote == std::string_view::npos) {
+          break;
+        }
+        if (closing_quote > 0 && content[closing_quote - 1] != '\\') {
+          break;
+        }
+      } while (closing_quote != std::string_view::npos);
+
       if (closing_quote != std::string_view::npos) {
         value = content.substr(1, closing_quote - 1);
         std::string multi_line_value = std::string(value);
@@ -160,6 +170,13 @@ void Dotenv::ParseContent(const std::string_view input) {
         while ((pos = multi_line_value.find("\\n", pos)) !=
                std::string_view::npos) {
           multi_line_value.replace(pos, 2, "\n");
+          pos += 1;
+        }
+
+        pos = 0;
+        while ((pos = multi_line_value.find(R"(\")", pos)) !=
+               std::string_view::npos) {
+          multi_line_value.replace(pos, 2, "\"");
           pos += 1;
         }
 
