@@ -17,10 +17,14 @@ std::unique_ptr<Network::Request> createRequest(
 }
 
 std::unique_ptr<Network::Response> createResponse(
-    const String& url, int status, std::unique_ptr<Network::Headers> headers) {
+    const String& url,
+    int status,
+    const String& statusText,
+    std::unique_ptr<Network::Headers> headers) {
   return Network::Response::create()
       .setUrl(url)
       .setStatus(status)
+      .setStatusText(statusText)
       .setHeaders(std::move(headers))
       .build();
 }
@@ -96,6 +100,8 @@ void NetworkAgent::responseReceived(
   response->getString("url", &url);
   int status;
   response->getInteger("status", &status);
+  String statusText;
+  response->getString("statusText", &statusText);
 
   ErrorSupport errors;
   auto headers =
@@ -104,10 +110,11 @@ void NetworkAgent::responseReceived(
     headers = std::make_unique<Network::Headers>(DictionaryValue::create());
   }
 
-  frontend_->responseReceived(request_id,
-                              timestamp,
-                              type,
-                              createResponse(url, status, std::move(headers)));
+  frontend_->responseReceived(
+      request_id,
+      timestamp,
+      type,
+      createResponse(url, status, statusText, std::move(headers)));
 }
 
 void NetworkAgent::loadingFinished(

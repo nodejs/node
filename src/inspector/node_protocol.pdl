@@ -144,6 +144,7 @@ experimental domain Network
     properties
       string url
       integer status
+      string statusText
       Headers headers
 
   # Request / response headers as keys / values of JSON object.

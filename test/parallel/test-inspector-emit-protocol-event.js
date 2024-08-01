@@ -42,6 +42,17 @@ const EXPECTED_EVENTS = {
           status: 200,
           headers: { host: 'nodejs.org' }
         }
+      },
+      expected: {
+        requestId: 'request-id-1',
+        timestamp: 1000,
+        type: 'Other',
+        response: {
+          url: 'https://nodejs.org/en',
+          status: 200,
+          statusText: '', // Status text should be an empty string if not provided.
+          headers: { host: 'nodejs.org' }
+        }
       }
     },
     {

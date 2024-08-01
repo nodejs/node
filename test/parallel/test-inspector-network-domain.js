@@ -61,6 +61,7 @@ const testHttpGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(typeof params.timestamp, 'number');
     assert.strictEqual(params.type, 'Other');
     assert.strictEqual(params.response.status, 200);
+    assert.strictEqual(params.response.statusText, 'OK');
     assert.strictEqual(params.response.url, 'http://127.0.0.1/hello-world');
     assert.strictEqual(typeof params.response.headers, 'object');
   }));
@@ -91,6 +92,7 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(typeof params.timestamp, 'number');
     assert.strictEqual(params.type, 'Other');
     assert.strictEqual(params.response.status, 200);
+    assert.strictEqual(params.response.statusText, 'OK');
     assert.strictEqual(params.response.url, 'https://127.0.0.1/hello-world');
     assert.strictEqual(typeof params.response.headers, 'object');
   }));
