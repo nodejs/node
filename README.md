@@ -739,20 +739,18 @@ maintaining the Node.js project.
   **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
 * [F3n67u](https://github.com/F3n67u) -
   **Feng Yu** <<F3n67u@outlook.com>> (he/him)
-* [himadriganguly](https://github.com/himadriganguly) -
-  **Himadri Ganguly** <<himadri.tech@gmail.com>> (he/him)
+* [gireeshpunathil](https://github.com/gireeshpunathil) -
+  **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
+* [kvakil](https://github.com/kvakil) -
+  **Keyhan Vakil** <<kvakil@sylph.kvakil.me>>
 * [marsonya](https://github.com/marsonya) -
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [meixg](https://github.com/meixg) -
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [mertcanaltin](https://github.com/mertcanaltin) -
   **Mert Can Altin** <<mertgold60@gmail.com>>
-* [Mesteery](https://github.com/Mesteery) -
-  **Mestery** <<mestery@protonmail.com>> (he/him)
-* [PoojaDurgad](https://github.com/PoojaDurgad) -
-  **Pooja Durgad** <<Pooja.D.P@ibm.com>>
 * [preveen-stack](https://github.com/preveen-stack) -
   **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [RedYetiDev](https://github.com/redyetidev) -
