@@ -1,6 +1,8 @@
-import { spawnPromisified } from '../common/index.mjs';
+import { skip, spawnPromisified } from '../common/index.mjs';
 import { match, strictEqual } from 'node:assert';
 import { test } from 'node:test';
+
+if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('eval TypeScript ESM syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
