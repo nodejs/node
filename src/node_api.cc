@@ -1,3 +1,4 @@
+#include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #define NAPI_EXPERIMENTAL
@@ -545,7 +546,9 @@ class AsyncContext {
       : env_(env) {
     async_id_ = node_env()->new_async_id();
     trigger_async_id_ = node_env()->get_default_trigger_async_id();
-    resource_.Reset(node_env()->isolate(), resource_object);
+    v8::Isolate* isolate = node_env()->isolate();
+    resource_.Reset(isolate, resource_object);
+    context_frame_.Reset(isolate, node::async_context_frame::current(isolate));
     lost_reference_ = false;
     if (externally_managed_resource) {
       resource_.SetWeak(
@@ -571,13 +574,15 @@ class AsyncContext {
       int argc,
       v8::Local<v8::Value> argv[]) {
     EnsureReference();
-    return node::InternalMakeCallback(node_env(),
-                                      resource(),
-                                      recv,
-                                      callback,
-                                      argc,
-                                      argv,
-                                      {async_id_, trigger_async_id_});
+    return node::InternalMakeCallback(
+        node_env(),
+        resource(),
+        recv,
+        callback,
+        argc,
+        argv,
+        {async_id_, trigger_async_id_},
+        context_frame_.Get(node_env()->isolate()));
   }
 
   inline napi_callback_scope OpenCallbackScope() {
@@ -633,6 +638,7 @@ class AsyncContext {
   double trigger_async_id_;
   v8::Global<v8::Object> resource_;
   bool lost_reference_;
+  v8::Global<v8::Value> context_frame_;
 };
 
 }  // end of anonymous namespace
