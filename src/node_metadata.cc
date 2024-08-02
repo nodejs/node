@@ -126,7 +126,10 @@ Metadata::Versions::Versions() {
   acorn = ACORN_VERSION;
   cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
+
+#if HAVE_AMARO
   amaro = AMARO_VERSION;
+#endif
 
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();
