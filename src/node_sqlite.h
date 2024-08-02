@@ -1,6 +1,9 @@
 #ifndef SRC_NODE_SQLITE_H_
 #define SRC_NODE_SQLITE_H_
 
+// TODO: move to gyp config
+#define SQLITE_ENABLE_SESSION
+
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
@@ -25,6 +28,8 @@ class DatabaseSync : public BaseObject {
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
@@ -72,6 +77,30 @@ class StatementSync : public BaseObject {
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
   v8::Local<v8::Value> ColumnToValue(const int column);
   v8::Local<v8::Value> ColumnNameToValue(const int column);
+};
+
+class Session : public BaseObject {
+ public:
+  Session(Environment* env,
+          v8::Local<v8::Object> object,
+          sqlite3* db,
+          sqlite3_session *session
+  );
+  ~Session() override;
+  static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+    Environment* env);
+  static BaseObjectPtr<Session> Create(Environment* env,
+                                       sqlite3* db,
+                                       sqlite3_session *session);
+
+  SET_MEMORY_INFO_NAME(Session)
+  SET_SELF_SIZE(Session)
+
+private:
+  sqlite3* db_;
+  sqlite3_session* session_;
 };
 
 }  // namespace sqlite

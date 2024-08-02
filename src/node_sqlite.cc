@@ -211,6 +211,56 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
 }
 
+void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, db->connection_ == nullptr, "database is not open");
+
+  const char *zDb = "main"; // TODO: take parameter
+  sqlite3_session *pSession;
+  int r = sqlite3session_create(db->connection_, zDb, &pSession);
+  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+
+  BaseObjectPtr<Session> session =
+      Session::Create(env, db->connection_, pSession);
+
+  args.GetReturnValue().Set(session->object());
+}
+
+static int xConflict(void *pCtx, int eConflict, sqlite3_changeset_iter *pIter) {
+  return SQLITE_ABORT;
+}
+
+void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+  env, db->connection_ == nullptr, "database is not open");
+
+  if (!args[0]->IsUint8Array()) {
+    node::THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"changeset\" argument must be a Uint8Array.");
+    return;
+  }
+  ArrayBufferViewContents<uint8_t> buf(args[0]);
+  int r = sqlite3changeset_apply(db->connection_,
+    buf.length(),
+    const_cast<void *>(static_cast<const void *>(buf.data())),
+    // TODO: allow passing filter callback
+    nullptr,
+    // TODO: allow custom conflict handler
+    xConflict,
+    nullptr);
+  if (r == SQLITE_ABORT) {
+    // TODO: throw with some other error in case of abort
+  }
+  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+}
+
 StatementSync::StatementSync(Environment* env,
                              Local<Object> object,
                              sqlite3* db,
@@ -653,6 +703,72 @@ BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
   return MakeBaseObject<StatementSync>(env, obj, db, stmt);
 }
 
+Session::Session(Environment* env,
+                      v8::Local<v8::Object> object,
+          sqlite3* db,
+          sqlite3_session *session): BaseObject(env, object), db_(db), session_(session) {
+  MakeWeak();
+  // TODO: allow specifying table name
+  sqlite3session_attach(session, nullptr);
+}
+
+Session::~Session() {
+  // TODO: should always be deleted before database is deleted
+  sqlite3session_delete(session_);
+}
+
+BaseObjectPtr<Session> Session::Create(Environment* env,
+                                       sqlite3* db,
+                                       sqlite3_session *session) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return BaseObjectPtr<Session>();
+  }
+
+  return MakeBaseObject<Session>(env, obj, db, session);
+}
+
+Local<FunctionTemplate> Session::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl =
+      env->sqlite_session_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Session"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        Session::kInternalFieldCount);
+    SetProtoMethod(isolate, tmpl, "changeset", Session::Changeset);
+    env->set_sqlite_session_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void Session::MemoryInfo(MemoryTracker* tracker) const {}
+
+void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  int nChangeset;
+  void *pChangeset;
+  int r = sqlite3session_changeset(session->session_, &nChangeset, &pChangeset);
+  CHECK_ERROR_OR_THROW(env->isolate(), session->db_, r, SQLITE_OK, void());
+
+  auto freeChangeset = OnScopeLeave([&] {
+    sqlite3_free(pChangeset);
+  });
+
+  v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(env->isolate(), nChangeset);
+  std::memcpy(buffer->GetBackingStore()->Data(), pChangeset, nChangeset);
+  v8::Local<v8::Uint8Array> uint8Array = v8::Uint8Array::New(buffer, 0, nChangeset);
+
+  args.GetReturnValue().Set(uint8Array);
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -668,6 +784,8 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
+  SetProtoMethod(isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
+  SetProtoMethod(isolate, db_tmpl, "applyChangeset", DatabaseSync::ApplyChangeset);
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,

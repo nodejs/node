@@ -756,3 +756,33 @@ test('PRAGMAs are supported', (t) => {
     { journal_mode: 'wal' },
   );
 });
+
+test('creating and applying a changeset', (t) => {
+  const createDatabase = () => {
+    const database = new DatabaseSync(':memory:');
+    database.exec(`
+      CREATE TABLE data(
+        key INTEGER PRIMARY KEY,
+        value TEXT
+      ) STRICT
+    `);
+    return database;
+  }
+
+  const databaseFrom = createDatabase();
+  const session = databaseFrom.createSession();
+
+  const select = `SELECT * FROM data ORDER BY key`;
+
+  const insert = databaseFrom.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+  insert.run(1, 'hello');
+  insert.run(2, 'world');
+
+  const databaseTo = createDatabase();
+
+  databaseTo.applyChangeset(session.changeset());
+  t.assert.deepStrictEqual(
+    databaseFrom.prepare(select).all(),
+    databaseTo.prepare(select).all()
+  );
+});
