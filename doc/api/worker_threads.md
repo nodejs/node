@@ -260,7 +260,7 @@ added: v22.5.0
 
 > Stability: 1.1 - Active development
 
-* `destination` {number} The target thread ID. If the thread ID is invalid, a
+* `threadId` {number} The target thread ID. If the thread ID is invalid, a
   [`ERR_WORKER_MESSAGING_FAILED`][] error will be thrown. If the target thread ID is the current thread ID,
   a [`ERR_WORKER_MESSAGING_SAME_THREAD`][] error will be thrown.
 * `value` {any} The value to send.
