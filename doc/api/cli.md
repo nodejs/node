@@ -894,8 +894,8 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Enables the use of AsyncLocalStorage backed by AsyncContextFrame rather than
-the default implementation which relies on async\_hooks. This new model is
+Enables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` rather
+than the default implementation which relies on async\_hooks. This new model is
 implemented very differently and so could have differences in how context data
 flows within the application. As such, it is presently recommended to be sure
 your application behaviour is unaffected by this change before using it in
@@ -3472,6 +3472,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
+[`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #node_optionsoptions
