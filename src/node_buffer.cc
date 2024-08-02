@@ -576,44 +576,40 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-// bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
-void Copy(const FunctionCallbackInfo<Value> &args) {
+// Assume caller has properly validated args.
+void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
   ArrayBufferViewContents<char> source(args[0]);
-  Local<Object> target_obj = args[1].As<Object>();
-  SPREAD_BUFFER_ARG(target_obj, target);
+  SPREAD_BUFFER_ARG(args[1].As<Object>(), target);
 
-  size_t target_start = 0;
-  size_t source_start = 0;
-  size_t source_end = 0;
-
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], source.length(),
-                                          &source_end));
-
-  // Copy 0 bytes; we're done
-  if (target_start >= target_length || source_start >= source_end)
-    return args.GetReturnValue().Set(0);
-
-  if (source_start > source.length())
-    return THROW_ERR_OUT_OF_RANGE(
-        env, "The value of \"sourceStart\" is out of range.");
-
-  if (source_end - source_start > target_length - target_start)
-    source_end = source_start + target_length - target_start;
-
-  uint32_t to_copy = std::min(
-      std::min(source_end - source_start, target_length - target_start),
-      source.length() - source_start);
+  const auto target_start = args[2]->Uint32Value(env->context()).ToChecked();
+  const auto source_start = args[3]->Uint32Value(env->context()).ToChecked();
+  const auto to_copy = args[4]->Uint32Value(env->context()).ToChecked();
 
   memmove(target_data + target_start, source.data() + source_start, to_copy);
   args.GetReturnValue().Set(to_copy);
 }
 
+// Assume caller has properly validated args.
+uint32_t FastCopy(Local<Value> receiver,
+                  const v8::FastApiTypedArray<uint8_t>& source,
+                  const v8::FastApiTypedArray<uint8_t>& target,
+                  uint32_t target_start,
+                  uint32_t source_start,
+                  uint32_t to_copy) {
+  uint8_t* source_data;
+  CHECK(source.getStorageIfAligned(&source_data));
+
+  uint8_t* target_data;
+  CHECK(target.getStorageIfAligned(&target_data));
+
+  memmove(target_data + target_start, source_data + source_start, to_copy);
+
+  return to_copy;
+}
+
+static v8::CFunction fast_copy(v8::CFunction::Make(FastCopy));
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1447,7 +1443,7 @@ void Initialize(Local<Object> target,
                             "byteLengthUtf8",
                             SlowByteLengthUtf8,
                             &fast_byte_length_utf8);
-  SetMethod(context, target, "copy", Copy);
+  SetFastMethod(context, target, "copy", SlowCopy, &fast_copy);
   SetFastMethodNoSideEffect(context, target, "compare", Compare, &fast_compare);
   SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
   SetMethod(context, target, "fill", Fill);
@@ -1510,7 +1506,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SlowByteLengthUtf8);
   registry->Register(fast_byte_length_utf8.GetTypeInfo());
   registry->Register(FastByteLengthUtf8);
-  registry->Register(Copy);
+  registry->Register(SlowCopy);
+  registry->Register(fast_copy.GetTypeInfo());
+  registry->Register(FastCopy);
   registry->Register(Compare);
   registry->Register(FastCompare);
   registry->Register(fast_compare.GetTypeInfo());
