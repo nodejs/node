@@ -12,13 +12,6 @@ class NetworkInspector;
 
 namespace protocol {
 
-std::unique_ptr<Network::Request> createRequest(
-    const String& url,
-    const String& method,
-    std::unique_ptr<Network::Headers> headers);
-std::unique_ptr<Network::Response> createResponse(
-    const String& url, int status, std::unique_ptr<Network::Headers> headers);
-
 class NetworkAgent : public Network::Backend {
  public:
   explicit NetworkAgent(NetworkInspector* inspector);
