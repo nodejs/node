@@ -40,6 +40,10 @@ class DatabaseSync : public BaseObject {
   ~DatabaseSync() override;
   std::string location_;
   sqlite3* connection_;
+
+  std::set<sqlite3_session*> sessions_;
+
+  friend class Session;
 };
 
 class StatementSync : public BaseObject {
@@ -83,7 +87,7 @@ class Session : public BaseObject {
  public:
   Session(Environment* env,
           v8::Local<v8::Object> object,
-          sqlite3* db,
+          BaseObjectWeakPtr<DatabaseSync> database,
           sqlite3_session *session
   );
   ~Session() override;
@@ -92,7 +96,7 @@ class Session : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
     Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
-                                       sqlite3* db,
+                                       BaseObjectWeakPtr<DatabaseSync> database,
                                        sqlite3_session *session);
 
   SET_MEMORY_INFO_NAME(Session)
@@ -101,6 +105,7 @@ class Session : public BaseObject {
 private:
   sqlite3* db_;
   sqlite3_session* session_;
+  BaseObjectWeakPtr<DatabaseSync> database_;     // The Parent Database
 };
 
 }  // namespace sqlite

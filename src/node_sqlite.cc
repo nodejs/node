@@ -91,6 +91,11 @@ DatabaseSync::DatabaseSync(Environment* env,
 }
 
 DatabaseSync::~DatabaseSync() {
+  // all attached sessions need to be deleted before the database is closed
+  // https://www.sqlite.org/session/sqlite3session_create.html
+  for (auto *session : sessions_) {
+    sqlite3session_delete(session);
+  }
   sqlite3_close_v2(connection_);
   connection_ = nullptr;
 }
@@ -222,9 +227,15 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   sqlite3_session *pSession;
   int r = sqlite3session_create(db->connection_, zDb, &pSession);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+  db->sessions_.insert(pSession);
+
+  // TODO: allow specifying table name
+  r = sqlite3session_attach(pSession, nullptr);
+  CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+
 
   BaseObjectPtr<Session> session =
-      Session::Create(env, db->connection_, pSession);
+      Session::Create(env, BaseObjectWeakPtr<DatabaseSync>(db), pSession);
 
   args.GetReturnValue().Set(session->object());
 }
@@ -704,21 +715,19 @@ BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
 }
 
 Session::Session(Environment* env,
-                      v8::Local<v8::Object> object,
-          sqlite3* db,
-          sqlite3_session *session): BaseObject(env, object), db_(db), session_(session) {
+                 v8::Local<v8::Object> object,
+                 BaseObjectWeakPtr<DatabaseSync> database,
+                 sqlite3_session *session): BaseObject(env, object), session_(session), database_(std::move(database)) {
   MakeWeak();
-  // TODO: allow specifying table name
-  sqlite3session_attach(session, nullptr);
 }
 
 Session::~Session() {
-  // TODO: should always be deleted before database is deleted
   sqlite3session_delete(session_);
+  if (database_) database_->sessions_.erase(session_);
 }
 
 BaseObjectPtr<Session> Session::Create(Environment* env,
-                                       sqlite3* db,
+                                       BaseObjectWeakPtr<DatabaseSync> database,
                                        sqlite3_session *session) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
@@ -728,7 +737,7 @@ BaseObjectPtr<Session> Session::Create(Environment* env,
     return BaseObjectPtr<Session>();
   }
 
-  return MakeBaseObject<Session>(env, obj, db, session);
+  return MakeBaseObject<Session>(env, obj, std::move(database), session);
 }
 
 Local<FunctionTemplate> Session::GetConstructorTemplate(
@@ -753,6 +762,9 @@ void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, !session->database_ || session->database_->connection_ == nullptr, "database is not open");
+
   int nChangeset;
   void *pChangeset;
   int r = sqlite3session_changeset(session->session_, &nChangeset, &pChangeset);
