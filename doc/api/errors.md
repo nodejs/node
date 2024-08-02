@@ -2353,6 +2353,22 @@ The `package.json` [`"exports"`][] field does not export the requested subpath.
 Because exports are encapsulated, private internal modules that are not exported
 cannot be imported through the package resolution, unless using an absolute URL.
 
+<a id="ERR_PACKAGE_SCRIPT_MISSING"></a>
+
+### `ERR_PACKAGE_SCRIPT_MISSING`
+
+The `package.json` "scripts" field does not contain the requested script.
+In order to use `--run` ensure that the contents are an object containing a
+`"scripts"` field that contains the missing script name as a field.
+
+```json
+{
+  "scripts": {
+    "start": "node server.js"
+  }
+}
+```
+
 <a id="ERR_PARSE_ARGS_INVALID_OPTION_VALUE"></a>
 
 ### `ERR_PARSE_ARGS_INVALID_OPTION_VALUE`

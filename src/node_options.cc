@@ -176,7 +176,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     } else if (test_runner_force_exit) {
       errors->push_back("either --watch or --test-force-exit "
                         "can be used, not both");
-    } else if (!test_runner && (argv->size() < 1 || (*argv)[1].empty())) {
+    } else if (!(test_runner || !per_process::cli_options->run.empty()) &&
+               (argv->size() < 1 || (*argv)[1].empty())) {
       errors->push_back("--watch requires specifying a file");
     }
 

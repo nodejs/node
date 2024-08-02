@@ -30,6 +30,12 @@ function createTmpFile(content = 'console.log("running");', ext = '.js', basenam
   return file;
 }
 
+function createPackageJSON(content = {}, basename = tmpdir.path) {
+  const file = path.join(basename, 'package.json');
+  writeFileSync(file, JSON.stringify(content, null, 2));
+  return file;
+}
+
 async function runWriteSucceed({
   file,
   watchedFile,
@@ -548,6 +554,43 @@ console.log(values.random);
       'running',
       `Completed running ${inspect(file)}`,
     ]);
+  });
+
+  it('should run when `--watch --run`', async () => {
+    const script = Math.random();
+    const output = Math.random();
+    const command = `echo ${output}`;
+    const file = createPackageJSON({
+      scripts: {
+        [script]: command
+      }
+    });
+    const args = ['--watch', '--run', script];
+    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: null, args, options: {
+      cwd: path.dirname(file)
+    } });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      `Running '${command}'`,
+      `${output}`,
+      `Completed running '${command}'`,
+    ]);
+  });
+
+  it('should error when `--watch --run` with positional arguments', async () => {
+    const file = createPackageJSON({
+      scripts: {
+        start: 'echo 123'
+      }
+    });
+    const args = ['--watch', '--run', 'start', 'positional'];
+    const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: null, args, options: {
+      cwd: path.dirname(file)
+    } });
+
+    assert.match(stderr, /cannot provide positional argument to both --run and --watch/);
+    assert.deepStrictEqual(stdout, []);
   });
 
   it('should run when `--watch -r ./foo.js`', async () => {
