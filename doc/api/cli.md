@@ -886,6 +886,21 @@ and `"` are usable.
 It is possible to run code containing inline types by passing
 [`--experimental-strip-types`][].
 
+### `--experimental-async-context-frame`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enables the use of AsyncLocalStorage backed by AsyncContextFrame rather than
+the default implementation which relies on async\_hooks. This new model is
+implemented very differently and so could have differences in how context data
+flows within the application. As such, it is presently recommended to be sure
+your application behaviour is unaffected by this change before using it in
+production.
+
 ### `--experimental-default-type=type`
 
 <!-- YAML
@@ -2893,6 +2908,7 @@ one is included in the list below.
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
+* `--experimental-async-context-frame`
 * `--experimental-default-type`
 * `--experimental-detect-module`
 * `--experimental-eventsource`
