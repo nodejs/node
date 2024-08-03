@@ -169,6 +169,11 @@ Creates and attackes a session to the database. This method is a wrapper around 
   * `filter` {Function} Optional function that takes the name of a table as the first argument.
      When `true` is returned, includes the change, otherwise, it is discarded. When not provided
      no changes are filtered, and all are changes are attempted.
+  * `onConflict` {number} When provided, must be one of `SQLITE_CHANGESET_OMIT`,
+    `SQLITE_CHANGESET_REPLACE` or `SQLITE_CHANGESET_ABORT`. Determines how conflicts are handled.
+    Conflicting changes are either omitted, changes replace existing values or the
+    call is aborted when the first conflicting change is encountered (this is the default).
+* Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
 
 An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].

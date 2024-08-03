@@ -276,8 +276,11 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(session->object());
 }
 
+static std::function<int()> conflictCallback;
+
 static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
-  return SQLITE_CHANGESET_ABORT;
+  if (!conflictCallback) return SQLITE_CHANGESET_ABORT;
+  return conflictCallback();
 }
 
 static std::function<bool(std::string)> filterCallback;
@@ -289,6 +292,7 @@ static int xFilter(void* pCtx, const char* zTab) {
 }
 
 void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
+  conflictCallback = nullptr;
   filterCallback = nullptr;
 
   DatabaseSync* db;
@@ -313,6 +317,24 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> options = args[1].As<Object>();
+
+    Local<String> conflictKey = String::NewFromUtf8(env->isolate(), "onConflict", v8::NewStringType::kNormal).ToLocalChecked();
+    if (options->HasOwnProperty(env->context(), conflictKey).FromJust()) {
+      Local<Value> conflictValue = options->Get(env->context(), conflictKey).ToLocalChecked();
+
+      if (!conflictValue->IsNumber()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.onConflict\" argument must be an number.");
+        return;
+      }
+
+      int conflictInt = conflictValue->Int32Value(env->context()).FromJust();
+      conflictCallback = [conflictInt]() -> int {
+        return conflictInt;
+      };
+    }
+
     Local<String> filterKey = String::NewFromUtf8(
       env->isolate(),
       "filter",
@@ -351,7 +373,6 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     buf.length(),
     const_cast<void *>(static_cast<const void *>(buf.data())),
     xFilter,
-    // TODO(louwers): allow custom conflict handler
     xConflict,
     nullptr);
   if (r == SQLITE_ABORT) {
