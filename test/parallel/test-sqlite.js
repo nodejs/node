@@ -782,7 +782,7 @@ suite('session extension', () => {
 
     const databaseTo = createDatabase();
 
-    databaseTo.applyChangeset(session.changeset());
+    t.assert.strictEqual(databaseTo.applyChangeset(session.changeset()), true);
     t.assert.deepStrictEqual(
       databaseFrom.prepare(select).all(),
       databaseTo.prepare(select).all()
@@ -833,7 +833,7 @@ suite('session extension', () => {
       });
     }, {
       name: 'TypeError',
-      message: 'The "table" property must be a string.'
+      message: 'The "options.table" argument must be a string.'
     });
   });
 
@@ -867,11 +867,31 @@ suite('session extension', () => {
     insert2.run(2, 'world');
     const select1 = 'SELECT * FROM data1 ORDER BY key';
     const select2 = 'SELECT * FROM data2 ORDER BY key';
-    database2.applyChangeset(session.changeset());
+    t.assert.strictEqual(database2.applyChangeset(session.changeset()), true);
     t.assert.deepStrictEqual(
       database1.prepare(select1).all(),
       database2.prepare(select1).all());  // data1 table should be equal
     t.assert.deepStrictEqual(database2.prepare(select2).all(), []);  // data2 should be empty in database2
     t.assert.strictEqual(database1.prepare(select2).all().length, 2);  // data1 should have values in database1
+  });
+
+  test('conflict while applying changeset', (t) => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+
+    const createDataTableSql = `CREATE TABLE data (
+      key INTEGER PRIMARY KEY,
+      value TEXT
+    ) STRICT
+    `;
+    database1.exec(createDataTableSql);
+    database2.exec(createDataTableSql);
+
+    const insertSql  = 'INSERT INTO data (key, value) VALUES (?, ?)';
+    const session = database1.createSession();
+    database1.prepare(insertSql).run(1, 'hello');
+    database2.prepare(insertSql).run(1, 'world');
+    const result = database2.applyChangeset(session.changeset());
+    t.assert.strictEqual(result, false, "expected applyChangeset to return false, indicating an conflict due to an abort");
   });
 });

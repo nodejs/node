@@ -277,7 +277,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 }
 
 static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
-  return SQLITE_ABORT;
+  return SQLITE_CHANGESET_ABORT;
 }
 
 void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
@@ -303,9 +303,11 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     xConflict,
     nullptr);
   if (r == SQLITE_ABORT) {
-    // TODO(louwers): throw with some other error in case of abort
+    args.GetReturnValue().Set(false);
+    return;
   }
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
+  args.GetReturnValue().Set(true);
 }
 
 StatementSync::StatementSync(Environment* env,
