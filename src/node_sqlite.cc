@@ -280,7 +280,17 @@ static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
   return SQLITE_CHANGESET_ABORT;
 }
 
+static std::function<bool(std::string)> filterCallback;
+
+static int xFilter(void* pCtx, const char* zTab) {
+  if (!filterCallback) return 1;
+
+  return filterCallback(zTab) ? 1 : 0;
+}
+
 void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
+  filterCallback = nullptr;
+
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -293,12 +303,54 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         "The \"changeset\" argument must be a Uint8Array.");
     return;
   }
+
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsObject()) {
+      node::THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The second argument, if provided, must be an options object.");
+      return;
+    }
+
+    Local<Object> options = args[1].As<Object>();
+    Local<String> filterKey = String::NewFromUtf8(
+      env->isolate(),
+      "filter",
+      v8::NewStringType::kNormal).ToLocalChecked();
+
+    if (options->HasOwnProperty(env->context(),
+                                filterKey).FromJust()) {
+      Local<Value> filterValue = options->Get(env->context(),
+                                              filterKey).ToLocalChecked();
+
+      if (!filterValue->IsFunction()) {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.filter\" argument must be a function.");
+        return;
+      }
+
+      Local<v8::Function> filterFunc = filterValue.As<v8::Function>();
+
+      filterCallback = [env, filterFunc](std::string item) -> bool {
+        Local<Value> argv[] = {
+          String::NewFromUtf8(env->isolate(),
+          item.c_str(),
+          v8::NewStringType::kNormal).ToLocalChecked()
+        };
+        Local<Value> result = filterFunc->Call(
+          env->context(),
+          Null(env->isolate()), 1, argv).ToLocalChecked();
+        return result->BooleanValue(env->isolate());
+      };
+    }
+  }
+
   ArrayBufferViewContents<uint8_t> buf(args[0]);
   int r = sqlite3changeset_apply(db->connection_,
     buf.length(),
     const_cast<void *>(static_cast<const void *>(buf.data())),
-    // TODO(louwers): allow passing filter callback
-    nullptr,
+    xFilter,
     // TODO(louwers): allow custom conflict handler
     xConflict,
     nullptr);
@@ -851,6 +903,10 @@ static void Initialize(Local<Object> target,
                          target,
                          "StatementSync",
                          StatementSync::GetConstructorTemplate(env));
+
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
+  NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_ABORT);
 }
 
 }  // namespace sqlite

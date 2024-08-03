@@ -4,7 +4,13 @@ const { spawnPromisified } = require('../common');
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
-const { DatabaseSync, StatementSync } = require('node:sqlite');
+const {
+  DatabaseSync,
+  StatementSync,
+  SQLITE_CHANGESET_OMIT,
+  SQLITE_CHANGESET_REPLACE,
+  SQLITE_CHANGESET_ABORT
+} = require('node:sqlite');
 const { suite, test } = require('node:test');
 let cnt = 0;
 
@@ -891,7 +897,38 @@ suite('session extension', () => {
     const session = database1.createSession();
     database1.prepare(insertSql).run(1, 'hello');
     database2.prepare(insertSql).run(1, 'world');
-    // When changeset is aborted due to a conflict,applyChangeset should return false
+    // When changeset is aborted due to a conflict, applyChangeset should return false
     t.assert.strictEqual(database2.applyChangeset(session.changeset()), false);
+  });
+
+  test('constants are defined', (t) => {
+    t.assert.strictEqual(SQLITE_CHANGESET_OMIT, 0);
+    t.assert.strictEqual(SQLITE_CHANGESET_REPLACE, 1);
+    t.assert.strictEqual(SQLITE_CHANGESET_ABORT, 2);
+  });
+
+  test('allow filtering changes', (t) => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+    const createTableSql = 'CREATE TABLE data1(key INTEGER PRIMARY KEY); CREATE TABLE data2(key INTEGER PRIMARY KEY);';
+    database1.exec(createTableSql);
+    database2.exec(createTableSql);
+
+    const session = database1.createSession();
+
+    database1.exec('INSERT INTO data1 (key) VALUES (1), (2), (3)');
+    database1.exec('INSERT INTO data2 (key) VALUES (1), (2), (3), (4), (5)');
+
+    database2.applyChangeset(session.changeset(), {
+      filter: (tableName) => tableName === 'data2'
+    });
+
+    const data1Rows = database2.prepare('SELECT * FROM data1').all();
+    const data2Rows = database2.prepare('SELECT * FROM data2').all();
+
+    // Expect no rows since all changes where filtered out
+    t.assert.strictEqual(data1Rows.length, 0);
+    // Expect 5 rows since these changes where not filtered out
+    t.assert.strictEqual(data2Rows.length, 5);
   });
 });
