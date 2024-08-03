@@ -887,11 +887,11 @@ suite('session extension', () => {
     database1.exec(createDataTableSql);
     database2.exec(createDataTableSql);
 
-    const insertSql  = 'INSERT INTO data (key, value) VALUES (?, ?)';
+    const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
     const session = database1.createSession();
     database1.prepare(insertSql).run(1, 'hello');
     database2.prepare(insertSql).run(1, 'world');
-    const result = database2.applyChangeset(session.changeset());
-    t.assert.strictEqual(result, false, "expected applyChangeset to return false, indicating an conflict due to an abort");
+    // When changeset is aborted due to a conflict,applyChangeset should return false
+    t.assert.strictEqual(database2.applyChangeset(session.changeset()), false);
   });
 });
