@@ -763,15 +763,13 @@ void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      !session->database_ || session->database_->connection_ == nullptr,
-      "database is not open");
+  sqlite3 *db = session->database_ ? session->database_->connection_ : nullptr;
+  THROW_AND_RETURN_ON_BAD_STATE(env, db == nullptr, "database is not open");
 
   int nChangeset;
   void* pChangeset;
   int r = sqlite3session_changeset(session->session_, &nChangeset, &pChangeset);
-  CHECK_ERROR_OR_THROW(env->isolate(), session->db_, r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 
   auto freeChangeset = OnScopeLeave([&] {
     sqlite3_free(pChangeset);
