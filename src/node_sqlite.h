@@ -1,7 +1,7 @@
 #ifndef SRC_NODE_SQLITE_H_
 #define SRC_NODE_SQLITE_H_
 
-// TODO: move to gyp config
+// TODO(louwers): move to gyp config
 #define SQLITE_ENABLE_SESSION
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
@@ -88,8 +88,7 @@ class Session : public BaseObject {
   Session(Environment* env,
           v8::Local<v8::Object> object,
           BaseObjectWeakPtr<DatabaseSync> database,
-          sqlite3_session *session
-  );
+          sqlite3_session* session);
   ~Session() override;
   static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -97,13 +96,12 @@ class Session : public BaseObject {
     Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
                                        BaseObjectWeakPtr<DatabaseSync> database,
-                                       sqlite3_session *session);
+                                       sqlite3_session* session);
 
   SET_MEMORY_INFO_NAME(Session)
   SET_SELF_SIZE(Session)
 
-private:
-  sqlite3* db_;
+ private:
   sqlite3_session* session_;
   BaseObjectWeakPtr<DatabaseSync> database_;     // The Parent Database
 };
