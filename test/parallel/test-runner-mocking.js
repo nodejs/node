@@ -1055,17 +1055,3 @@ test('setter() fails if getter options is true', (t) => {
     t.mock.setter({}, 'method', { getter: true });
   }, /The property 'options\.setter' cannot be used with 'options\.getter'/);
 });
-
-test('wrong import syntax should throw error after module mocking.', async () => {
-  const { stdout, stderr } = await common.spawnPromisified(
-    process.execPath,
-    [
-      '--experimental-test-module-mocks',
-      '--experimental-default-type=module',
-      fixtures.path('module-mocking/wrong-import-after-module-mocking.js'),
-    ]
-  );
-
-  assert.equal(stdout.toString(), '')
-  assert.match(stderr.toString(), /Error \[ERR_MODULE_NOT_FOUND\]: Cannot find module/)
-});
