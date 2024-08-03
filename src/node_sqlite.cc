@@ -290,7 +290,6 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
   BaseObjectPtr<Session> session =
       Session::Create(env, BaseObjectWeakPtr<DatabaseSync>(db), pSession);
-
   args.GetReturnValue().Set(session->object());
 }
 
@@ -316,8 +315,9 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-  env, db->connection_ == nullptr, "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(env,
+                                db->connection_ == nullptr,
+                                "database is not open");
 
   if (!args[0]->IsUint8Array()) {
     node::THROW_ERR_INVALID_ARG_TYPE(
@@ -380,19 +380,21 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       filterCallback = [env, filterFunc](std::string item) -> bool {
         Local<Value> argv[] = {
           String::NewFromUtf8(env->isolate(),
-          item.c_str(),
-          v8::NewStringType::kNormal).ToLocalChecked()
+                              item.c_str(),
+                              v8::NewStringType::kNormal).ToLocalChecked()
         };
-        Local<Value> result = filterFunc->Call(
-          env->context(),
-          Null(env->isolate()), 1, argv).ToLocalChecked();
+        Local<Value> result = filterFunc->Call(env->context(),
+                                               Null(env->isolate()),
+                                               1,
+                                               argv).ToLocalChecked();
         return result->BooleanValue(env->isolate());
       };
     }
   }
 
   ArrayBufferViewContents<uint8_t> buf(args[0]);
-  int r = sqlite3changeset_apply(db->connection_,
+  int r = sqlite3changeset_apply(
+    db->connection_,
     buf.length(),
     const_cast<void *>(static_cast<const void *>(buf.data())),
     xFilter,

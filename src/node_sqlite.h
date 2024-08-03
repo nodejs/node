@@ -1,10 +1,9 @@
 #ifndef SRC_NODE_SQLITE_H_
 #define SRC_NODE_SQLITE_H_
 
-// TODO(louwers): move to gyp config
-#define SQLITE_ENABLE_SESSION
-
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#define SQLITE_ENABLE_SESSION
 
 #include "base_object.h"
 #include "node_mem.h"
