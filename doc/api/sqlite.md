@@ -153,6 +153,54 @@ added: v22.5.0
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
 around [`sqlite3_prepare_v2()`][].
 
+### `database.createSession([options])`
+
+* `options` {Object} An optional object used to configure the session.
+  * `table` {string} When provided, only changes to this table are tracked by the created session.
+    By default, changes to all tables are tracked.
+* Returns: {Session} A session handle.
+
+Creates and attackes a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
+
+### `database.applyChangeset(changeset[, options])`
+
+* `changeset` {Uint8Array} A binary changeset.
+* `options` {Object} An optional object.
+  * `filter` {Function} Optional function that takes the name of a table as the first argument.
+     When `true` is returned, includes the change, otherwise, it is discarded. When not provided
+     no changes are filtered, and all are changes are attempted.
+
+An exception is thrown if the database is not
+open. This method is a wrapper around [`sqlite3changeset_apply()`][].
+
+Example usage is demonstrated below.
+
+```js
+const database1 = new DatabaseSync(':memory:');
+const database2 = new DatabaseSync(':memory:');
+
+database1.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+database2.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+
+const session = database1.createSession();
+
+const insert = database1.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+insert.run(1, 'hello');
+insert.run(2, 'world');
+
+const changeset = session.changeset();
+database2.applyChangeset(changeset);  // Will now contain the same data as database1
+```
+
+## Class: `Session`
+
+### `session.changeset()`
+
+* Returns: {Uint8Array} Binary changeset that can be applied to other databases.
+
+Retrieves a changeset containing all changes since the changeset was created. Can be called multiple times.
+An exception is thrown if the database is not open. This method is a wrapper around [`sqlite3session_changeset()`][].
+
 ## Class: `StatementSync`
 
 <!-- YAML
@@ -323,6 +371,10 @@ exception.
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
+[`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
+[`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
+[`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
 [in memory]: https://www.sqlite.org/inmemorydb.html
