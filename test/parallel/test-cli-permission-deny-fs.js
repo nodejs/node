@@ -27,7 +27,7 @@ const path = require('path');
 }
 
 {
-  const tmpPath = path.resolve('/tmp/');
+  const tmpPath = path.resolve('./tmp/');
   const { status, stdout } = spawnSync(
     process.execPath,
     [
@@ -36,7 +36,7 @@ const path = require('path');
       `console.log(process.permission.has("fs"));
       console.log(process.permission.has("fs.read"));
       console.log(process.permission.has("fs.write"));
-      console.log(process.permission.has("fs.write", "/tmp/"));`,
+      console.log(process.permission.has("fs.write", "./tmp/"));`,
     ]
   );
   const [fs, fsIn, fsOut, fsOutAllowed] = stdout.toString().split('\n');
