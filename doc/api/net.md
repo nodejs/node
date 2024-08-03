@@ -686,7 +686,6 @@ changes:
     socket.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
-
 * Returns: {net.Socket}
 
 Creates a new socket object.
