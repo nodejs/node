@@ -871,6 +871,19 @@ releases on a rotation basis as outlined in the
     **Joe Sepi** <<joesepi@ibm.com>> (he/him)
   * [mhdawson](https://github.com/mhdawson) -
     **Michael Dawson** <<midawson@redhat.com>> (he/him)
+    
+### Buffer Instances
+
+#### Properties
+
+- **`byteLength`**: Returns the number of bytes in the buffer.
+
+  ```javascript
+  const buf = Buffer.from('hello');
+  console.log(buf.byteLength); // 5
+  ```
+
+  This property provides the length of the buffer in bytes. It is equivalent to the `Buffer.byteLength()` static method when dealing with a buffer instance.
 
 ## License
 
