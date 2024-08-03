@@ -318,9 +318,14 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
     Local<Object> options = args[1].As<Object>();
 
-    Local<String> conflictKey = String::NewFromUtf8(env->isolate(), "onConflict", v8::NewStringType::kNormal).ToLocalChecked();
+    Local<String> conflictKey = String::NewFromUtf8(
+      env->isolate(),
+      "onConflict",
+      v8::NewStringType::kNormal).ToLocalChecked();
     if (options->HasOwnProperty(env->context(), conflictKey).FromJust()) {
-      Local<Value> conflictValue = options->Get(env->context(), conflictKey).ToLocalChecked();
+      Local<Value> conflictValue = options->Get(
+        env->context(),
+        conflictKey).ToLocalChecked();
 
       if (!conflictValue->IsNumber()) {
         node::THROW_ERR_INVALID_ARG_TYPE(
