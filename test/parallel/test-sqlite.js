@@ -809,3 +809,16 @@ test('trying to create changeset when database is closed results in exception', 
     message: 'database is not open',
   });
 });
+
+test('trying to apply a changeset when database is closed results in exception', (t) => {
+  const database = new DatabaseSync(':memory:');
+  const session = database.createSession();
+  const changeset = session.changeset();
+  database.close();
+  t.assert.throws(() => {
+    database.applyChangeset(changeset);
+  }, {
+    name: 'Error',
+    message: 'database is not open',
+  });
+});
