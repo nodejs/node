@@ -797,3 +797,15 @@ test('trying to create session when database is closed results in exception', (t
     message: 'database is not open',
   });
 });
+
+test('trying to create changeset when database is closed results in exception', (t) => {
+  const database = new DatabaseSync(':memory:');
+  const session = database.createSession();
+  database.close();
+  t.assert.throws(() => {
+    session.changeset();
+  }, {
+    name: 'Error',
+    message: 'database is not open',
+  });
+});
