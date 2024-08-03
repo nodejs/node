@@ -667,12 +667,26 @@ changes:
     `false`.
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
+  * `onread` {Object} If specified, incoming data is stored in a single `buffer`
+  and passed to the supplied `callback` when data arrives on the socket.
+  This will cause the streaming functionality to not provide any data.
+  The socket will emit events like `'error'`, `'end'`, and `'close'`
+  as usual. Methods like `pause()` and `resume()` will also behave as
+  expected.
+    * `buffer` {Buffer|Uint8Array|Function} Either a reusable chunk of memory to
+      use for storing incoming data or a function that returns such.
+    * `callback` {Function} This function is called for every chunk of incoming
+      data. Two arguments are passed to it: the number of bytes written to
+      `buffer` and a reference to `buffer`. Return `false` from this function to
+      implicitly `pause()` the socket. This function will be executed in the
+      global context.
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
   * `signal` {AbortSignal} An Abort signal that may be used to destroy the
     socket.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
+
 * Returns: {net.Socket}
 
 Creates a new socket object.
@@ -1038,21 +1052,6 @@ For [IPC][] connections, available `options` are:
   See [Identifying paths for IPC connections][]. If provided, the TCP-specific
   options above are ignored.
 
-For both types, available `options` include:
-
-* `onread` {Object} If specified, incoming data is stored in a single `buffer`
-  and passed to the supplied `callback` when data arrives on the socket.
-  This will cause the streaming functionality to not provide any data.
-  The socket will emit events like `'error'`, `'end'`, and `'close'`
-  as usual. Methods like `pause()` and `resume()` will also behave as
-  expected.
-  * `buffer` {Buffer|Uint8Array|Function} Either a reusable chunk of memory to
-    use for storing incoming data or a function that returns such.
-  * `callback` {Function} This function is called for every chunk of incoming
-    data. Two arguments are passed to it: the number of bytes written to
-    `buffer` and a reference to `buffer`. Return `false` from this function to
-    implicitly `pause()` the socket. This function will be executed in the
-    global context.
 
 Following is an example of a client using the `onread` option:
 
