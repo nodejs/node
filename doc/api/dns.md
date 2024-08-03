@@ -974,14 +974,7 @@ const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
 // This request will use the server at 4.4.4.4, independent of global settings.
-resolver.resolve4('example.org').then((addresses) => {
-  // ...
-});
-
-// Alternatively, the same code can be written using async-await style.
-(async function() {
-  const addresses = await resolver.resolve4('example.org');
-})();
+const addresses = await resolver.resolve4('example.org');
 ```
 
 ```cjs
@@ -1124,14 +1117,14 @@ const options = {
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
 };
 
-dnsPromises.lookup('example.org', options).then((result) => {
+await dnsPromises.lookup('example.org', options).then((result) => {
   console.log('address: %j family: IPv%s', result.address, result.family);
   // address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
 });
 
 // When options.all is true, the result will be an Array.
 options.all = true;
-dnsPromises.lookup('example.org', options).then((result) => {
+await dnsPromises.lookup('example.org', options).then((result) => {
   console.log('addresses: %j', result);
   // addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
 });
@@ -1179,10 +1172,9 @@ is the error code.
 
 ```mjs
 import dnsPromises from 'node:dns/promises';
-dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
-  console.log(result.hostname, result.service);
-  // Prints: localhost ssh
-});
+const result = await dnsPromises.lookupService('127.0.0.1', 22);
+
+console.log(result.hostname, result.service); // Prints: localhost ssh
 ```
 
 ```cjs
