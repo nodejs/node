@@ -767,12 +767,12 @@ test('creating and applying a changeset', (t) => {
       ) STRICT
     `);
     return database;
-  }
+  };
 
   const databaseFrom = createDatabase();
   const session = databaseFrom.createSession();
 
-  const select = `SELECT * FROM data ORDER BY key`;
+  const select = 'SELECT * FROM data ORDER BY key';
 
   const insert = databaseFrom.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
   insert.run(1, 'hello');
@@ -785,4 +785,15 @@ test('creating and applying a changeset', (t) => {
     databaseFrom.prepare(select).all(),
     databaseTo.prepare(select).all()
   );
+});
+
+test('trying to create session when database is closed results in exception', (t) => {
+  const database = new DatabaseSync(':memory:');
+  database.close();
+  t.assert.throws(() => {
+    database.createSession();
+  }, {
+    name: 'Error',
+    message: 'database is not open',
+  });
 });
