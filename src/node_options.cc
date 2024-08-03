@@ -800,6 +800,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Experimental type-stripping for TypeScript files.",
             &EnvironmentOptions::experimental_strip_types,
             kAllowedInEnvvar);
+  Implies("--experimental-strip-types", "--experimental-detect-module");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
