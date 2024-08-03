@@ -996,4 +996,16 @@ suite('session extension', () => {
     // Since this session is attached to a different database, its changeset should be empty
     t.assert.strictEqual(sessionTest.changeset().length, 0);
   });
+
+  test("wrong argument name of other database", (t) => {
+    const database = new DatabaseSync(':memory:');
+    t.assert.throws(() => {
+      const session = database.createSession({
+        db: 123
+      });
+    }, {
+      name: 'TypeError',
+      message: 'The "options.db" argument must be a string.'
+    });
+  })
 });
