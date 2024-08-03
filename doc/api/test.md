@@ -1134,13 +1134,13 @@ export default async function * customReporter(source) {
   for await (const event of source) {
     switch (event.type) {
       case 'test:dequeue':
-        yield `test ${event.data.name} dequeued`;
+        yield `test ${event.data.name} dequeued\n`;
         break;
       case 'test:enqueue':
-        yield `test ${event.data.name} enqueued`;
+        yield `test ${event.data.name} enqueued\n`;
         break;
       case 'test:watch:drained':
-        yield 'test watch queue drained';
+        yield 'test watch queue drained\n';
         break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
@@ -1152,7 +1152,7 @@ export default async function * customReporter(source) {
         yield `test ${event.data.name} failed\n`;
         break;
       case 'test:plan':
-        yield 'test plan';
+        yield 'test plan\n';
         break;
       case 'test:diagnostic':
       case 'test:stderr':
@@ -1174,13 +1174,13 @@ module.exports = async function * customReporter(source) {
   for await (const event of source) {
     switch (event.type) {
       case 'test:dequeue':
-        yield `test ${event.data.name} dequeued`;
+        yield `test ${event.data.name} dequeued\n`;
         break;
       case 'test:enqueue':
-        yield `test ${event.data.name} enqueued`;
+        yield `test ${event.data.name} enqueued\n`;
         break;
       case 'test:watch:drained':
-        yield 'test watch queue drained';
+        yield 'test watch queue drained\n';
         break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
