@@ -831,18 +831,6 @@ suite('session extension', () => {
     });
   });
 
-  test('set table with wrong type when creating session', (t) => {
-    const database = new DatabaseSync(':memory:');
-    t.assert.throws(() => {
-      database.createSession({
-        table: true
-      });
-    }, {
-      name: 'TypeError',
-      message: 'The "options.table" argument must be a string.'
-    });
-  });
-
   test('setting options.table causes only one table to be tracked', (t) => {
     const database1 = new DatabaseSync(':memory:');
     const database2 = new DatabaseSync(':memory:');
@@ -974,9 +962,9 @@ suite('session extension', () => {
     const data1Rows = database2.prepare('SELECT * FROM data1').all();
     const data2Rows = database2.prepare('SELECT * FROM data2').all();
 
-    // Expect no rows since all changes where filtered out
+    // Expect no rows since all changes were filtered out
     t.assert.strictEqual(data1Rows.length, 0);
-    // Expect 5 rows since these changes where not filtered out
+    // Expect 5 rows since these changes were not filtered out
     t.assert.strictEqual(data2Rows.length, 5);
   });
 
@@ -997,8 +985,24 @@ suite('session extension', () => {
     t.assert.strictEqual(sessionTest.changeset().length, 0);
   });
 
-  test('wrong argument name of other database', (t) => {
+  test('wrong arguments database.createSession()', (t) => {
     const database = new DatabaseSync(':memory:');
+    t.assert.throws(() => {
+      database.createSession(null);
+    }, {
+      name: 'TypeError',
+      message: 'The "options" argument must be an object.'
+    });
+
+    t.assert.throws(() => {
+      database.createSession({
+        table: 123
+      });
+    }, {
+      name: 'TypeError',
+      message: 'The "options.table" argument must be a string.'
+    });
+
     t.assert.throws(() => {
       database.createSession({
         db: 123
@@ -1006,6 +1010,42 @@ suite('session extension', () => {
     }, {
       name: 'TypeError',
       message: 'The "options.db" argument must be a string.'
+    });
+  });
+
+  test('wrong arguments database.applyChangeset()', (t) => {
+    const database = new DatabaseSync(':memory:');
+    const session = database.createSession();
+    t.assert.throws(() => {
+      database.applyChangeset(null);
+    }, {
+      name: 'TypeError',
+      message: 'The "changeset" argument must be a Uint8Array.'
+    });
+
+    t.assert.throws(() => {
+      database.applyChangeset(session.changeset(), null);
+    }, {
+      name: 'TypeError',
+      message: 'The "options" argument must be an object.'
+    });
+
+    t.assert.throws(() => {
+      database.applyChangeset(session.changeset(), {
+        filter: null
+      }, null);
+    }, {
+      name: 'TypeError',
+      message: 'The "options.filter" argument must be a function.'
+    });
+
+    t.assert.throws(() => {
+      database.applyChangeset(session.changeset(), {
+        onConflict: null
+      }, null);
+    }, {
+      name: 'TypeError',
+      message: 'The "options.onConflict" argument must be a number.'
     });
   });
 

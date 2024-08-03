@@ -330,7 +330,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     if (!args[1]->IsObject()) {
       node::THROW_ERR_INVALID_ARG_TYPE(
           env->isolate(),
-          "The second argument, if provided, must be an options object.");
+          "The \"options\" argument must be an object.");
       return;
     }
 
@@ -348,7 +348,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       if (!conflictValue->IsNumber()) {
         node::THROW_ERR_INVALID_ARG_TYPE(
             env->isolate(),
-            "The \"options.onConflict\" argument must be an number.");
+            "The \"options.onConflict\" argument must be a number.");
         return;
       }
 
