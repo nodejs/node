@@ -901,8 +901,8 @@ suite('session extension', () => {
     return {
       database2,
       changeset: session.changeset()
-    }
-  }
+    };
+  };
 
   test('conflict while applying changeset (default abort)', (t) => {
     const { database2, changeset } = prepareConflict();
@@ -934,7 +934,7 @@ suite('session extension', () => {
     t.assert.strictEqual(result, true);
     t.assert.deepStrictEqual(
       database2.prepare('SELECT value from data ORDER BY key').all(),
-      [{ value: 'hello'}, { value: 'foo' }]);  // replaced
+      [{ value: 'hello' }, { value: 'foo' }]);  // replaced
   });
 
   test('conflict while applying changeset (omit)', (t) => {
@@ -946,7 +946,7 @@ suite('session extension', () => {
     t.assert.strictEqual(result, true);
     t.assert.deepStrictEqual(
       database2.prepare('SELECT value from data ORDER BY key ASC').all(),
-      [{ value: 'world'}, { value: 'foo' }]);  // conflicting change omitted
+      [{ value: 'world' }, { value: 'foo' }]);  // Conflicting change omitted
   });
 
   test('constants are defined', (t) => {
@@ -978,5 +978,22 @@ suite('session extension', () => {
     t.assert.strictEqual(data1Rows.length, 0);
     // Expect 5 rows since these changes where not filtered out
     t.assert.strictEqual(data2Rows.length, 5);
+  });
+
+  test('specify other database', (t) => {
+    const database = new DatabaseSync(':memory:');
+    const session = database.createSession();
+    const sessionMain = database.createSession({
+      db: 'main'
+    });
+    const sessionTest = database.createSession({
+      db: 'test'
+    });
+    database.exec('CREATE TABLE data (key INTEGER PRIMARY KEY)');
+    database.exec('INSERT INTO data (key) VALUES (1)');
+    t.assert.notStrictEqual(session.changeset().length, 0);
+    t.assert.notStrictEqual(sessionMain.changeset().length, 0);
+    // Since this session is attached to a different database, its changeset should be empty
+    t.assert.strictEqual(sessionTest.changeset().length, 0);
   });
 });

@@ -158,6 +158,7 @@ around [`sqlite3_prepare_v2()`][].
 * `options` {Object} An optional object used to configure the session.
   * `table` {string} When provided, only changes to this table are tracked by the created session.
     By default, changes to all tables are tracked.
+  * `db` {string} Name of the database. Default: `'main'`.
 * Returns: {Session} A session handle.
 
 Creates and attackes a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].

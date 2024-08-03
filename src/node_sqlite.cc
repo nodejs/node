@@ -224,6 +224,7 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
 
 void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   std::string table;
+  std::string dbName = "main";
 
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() > 0) {
@@ -253,6 +254,24 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
         return;
       }
     }
+
+    Local<String> db_key = String::NewFromUtf8(
+      env->isolate(),
+      "db",
+      v8::NewStringType::kNormal).ToLocalChecked();
+    if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
+      Local<Value> db_value = options->Get(
+        env->context(),
+        db_key).ToLocalChecked();
+      if (db_value->IsString()) {
+        String::Utf8Value str(env->isolate(), db_value);
+        dbName = std::string(*str);
+      } else {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(), "The \"options.db\" argument must be a string.");
+        return;
+      }
+    }
   }
 
   DatabaseSync* db;
@@ -260,9 +279,8 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, db->connection_ == nullptr, "database is not open");
 
-  const char* zDb = "main";  // TODO(louwers): take parameter
   sqlite3_session* pSession;
-  int r = sqlite3session_create(db->connection_, zDb, &pSession);
+  int r = sqlite3session_create(db->connection_, dbName.c_str(), &pSession);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
   db->sessions_.insert(pSession);
 
