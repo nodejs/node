@@ -223,9 +223,40 @@ void DatabaseSync::Exec(const FunctionCallbackInfo<Value>& args) {
 }
 
 void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
+  std::string table;
+
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() > 0) {
+    if (!args[0]->IsObject()) {
+      node::THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(), "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[0].As<Object>();
+
+    Local<String> table_key = String::NewFromUtf8(
+      env->isolate(),
+      "table",
+      v8::NewStringType::kNormal).ToLocalChecked();
+    if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
+      Local<Value> table_value = options->Get(
+        env->context(),
+        table_key).ToLocalChecked();
+
+      if (table_value->IsString()) {
+        String::Utf8Value str(env->isolate(), table_value);
+        table = std::string(*str);
+      } else {
+        node::THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(), "The \"options.table\" argument must be a string.");
+        return;
+      }
+    }
+  }
+
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
-  Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, db->connection_ == nullptr, "database is not open");
 
@@ -235,8 +266,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
   db->sessions_.insert(pSession);
 
-  // TODO(louwers): allow specifying table name
-  r = sqlite3session_attach(pSession, nullptr);
+  r = sqlite3session_attach(pSession, table == "" ? nullptr : table.c_str());
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
 
 
@@ -770,7 +800,7 @@ void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = Environment::GetCurrent(args);
-  sqlite3 *db = session->database_ ? session->database_->connection_ : nullptr;
+  sqlite3* db = session->database_ ? session->database_->connection_ : nullptr;
   THROW_AND_RETURN_ON_BAD_STATE(env, db == nullptr, "database is not open");
 
   int nChangeset;

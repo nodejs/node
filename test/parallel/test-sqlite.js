@@ -757,68 +757,121 @@ test('PRAGMAs are supported', (t) => {
   );
 });
 
-test('creating and applying a changeset', (t) => {
-  const createDatabase = () => {
-    const database = new DatabaseSync(':memory:');
-    database.exec(`
+suite('session extension', () => {
+  test('creating and applying a changeset', (t) => {
+    const createDataTableSql = `
       CREATE TABLE data(
         key INTEGER PRIMARY KEY,
         value TEXT
-      ) STRICT
-    `);
-    return database;
-  };
+      ) STRICT`;
 
-  const databaseFrom = createDatabase();
-  const session = databaseFrom.createSession();
+    const createDatabase = () => {
+      const database = new DatabaseSync(':memory:');
+      database.exec(createDataTableSql);
+      return database;
+    };
 
-  const select = 'SELECT * FROM data ORDER BY key';
+    const databaseFrom = createDatabase();
+    const session = databaseFrom.createSession();
 
-  const insert = databaseFrom.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
-  insert.run(1, 'hello');
-  insert.run(2, 'world');
+    const select = 'SELECT * FROM data ORDER BY key';
 
-  const databaseTo = createDatabase();
+    const insert = databaseFrom.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+    insert.run(1, 'hello');
+    insert.run(2, 'world');
 
-  databaseTo.applyChangeset(session.changeset());
-  t.assert.deepStrictEqual(
-    databaseFrom.prepare(select).all(),
-    databaseTo.prepare(select).all()
-  );
-});
+    const databaseTo = createDatabase();
 
-test('trying to create session when database is closed results in exception', (t) => {
-  const database = new DatabaseSync(':memory:');
-  database.close();
-  t.assert.throws(() => {
-    database.createSession();
-  }, {
-    name: 'Error',
-    message: 'database is not open',
+    databaseTo.applyChangeset(session.changeset());
+    t.assert.deepStrictEqual(
+      databaseFrom.prepare(select).all(),
+      databaseTo.prepare(select).all()
+    );
   });
-});
 
-test('trying to create changeset when database is closed results in exception', (t) => {
-  const database = new DatabaseSync(':memory:');
-  const session = database.createSession();
-  database.close();
-  t.assert.throws(() => {
-    session.changeset();
-  }, {
-    name: 'Error',
-    message: 'database is not open',
+  test('trying to create session when database is closed results in exception', (t) => {
+    const database = new DatabaseSync(':memory:');
+    database.close();
+    t.assert.throws(() => {
+      database.createSession();
+    }, {
+      name: 'Error',
+      message: 'database is not open',
+    });
   });
-});
 
-test('trying to apply a changeset when database is closed results in exception', (t) => {
-  const database = new DatabaseSync(':memory:');
-  const session = database.createSession();
-  const changeset = session.changeset();
-  database.close();
-  t.assert.throws(() => {
-    database.applyChangeset(changeset);
-  }, {
-    name: 'Error',
-    message: 'database is not open',
+  test('trying to create changeset when database is closed results in exception', (t) => {
+    const database = new DatabaseSync(':memory:');
+    const session = database.createSession();
+    database.close();
+    t.assert.throws(() => {
+      session.changeset();
+    }, {
+      name: 'Error',
+      message: 'database is not open',
+    });
+  });
+
+  test('trying to apply a changeset when database is closed results in exception', (t) => {
+    const database = new DatabaseSync(':memory:');
+    const session = database.createSession();
+    const changeset = session.changeset();
+    database.close();
+    t.assert.throws(() => {
+      database.applyChangeset(changeset);
+    }, {
+      name: 'Error',
+      message: 'database is not open',
+    });
+  });
+
+  test('set table with wrong type when creating session', (t) => {
+    const database = new DatabaseSync(':memory:');
+    t.assert.throws(() => {
+      database.createSession({
+        table: true
+      });
+    }, {
+      name: 'TypeError',
+      message: 'The "table" property must be a string.'
+    });
+  });
+
+  test('setting options.table causes only one table to be tracked', (t) => {
+    const database1 = new DatabaseSync(':memory:');
+    const database2 = new DatabaseSync(':memory:');
+
+    const createData1TableSql = `CREATE TABLE data1 (
+      key INTEGER PRIMARY KEY,
+      value TEXT
+    ) STRICT
+    `;
+    const createData2TableSql = `CREATE TABLE data2 (
+      key INTEGER PRIMARY KEY,
+      value TEXT
+    ) STRICT
+    `;
+    database1.exec(createData1TableSql);
+    database1.exec(createData2TableSql);
+    database2.exec(createData1TableSql);
+    database2.exec(createData2TableSql);
+
+    const session = database1.createSession({
+      table: 'data1'
+    });
+    const insert1 = database1.prepare('INSERT INTO data1 (key, value) VALUES (?, ?)');
+    insert1.run(1, 'hello');
+    insert1.run(2, 'world');
+    const insert2 = database1.prepare('INSERT INTO data2 (key, value) VALUES (?, ?)');
+    insert2.run(1, 'hello');
+    insert2.run(2, 'world');
+    const select1 = 'SELECT * FROM data1 ORDER BY key';
+    const select2 = 'SELECT * FROM data2 ORDER BY key';
+    database2.applyChangeset(session.changeset());
+    t.assert.deepStrictEqual(
+      database1.prepare(select1).all(),
+      database2.prepare(select1).all());  // data1 table should be equal
+    t.assert.deepStrictEqual(database2.prepare(select2).all(), []);  // data2 should be empty in database2
+    t.assert.strictEqual(database1.prepare(select2).all().length, 2);  // data1 should have values in database1
   });
 });
