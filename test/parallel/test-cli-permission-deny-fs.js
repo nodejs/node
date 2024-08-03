@@ -138,6 +138,9 @@ const path = require('path');
   if (firstPath.startsWith('/etc')) {
     common.skip('/etc as firstPath');
   }
+  if (firstPath.startsWith('/tmp')) {
+    common.skip('/tmp as firstPath');
+  }
   const file = fixtures.path('permission', 'loader', 'index.js');
   const { status, stderr } = spawnSync(
     process.execPath,
