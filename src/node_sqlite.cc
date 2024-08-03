@@ -90,12 +90,17 @@ DatabaseSync::DatabaseSync(Environment* env,
   }
 }
 
-DatabaseSync::~DatabaseSync() {
+void DatabaseSync::DeleteSessions() {
   // all attached sessions need to be deleted before the database is closed
   // https://www.sqlite.org/session/sqlite3session_create.html
   for (auto* session : sessions_) {
     sqlite3session_delete(session);
   }
+  sessions_.clear();
+}
+
+DatabaseSync::~DatabaseSync() {
+  DeleteSessions();
   sqlite3_close_v2(connection_);
   connection_ = nullptr;
 }
@@ -171,6 +176,7 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, db->connection_ == nullptr, "database is not open");
+  db->DeleteSessions();
   int r = sqlite3_close_v2(db->connection_);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
   db->connection_ = nullptr;
@@ -723,8 +729,9 @@ Session::Session(Environment* env,
 }
 
 Session::~Session() {
+  if (!database_ || !database_->connection_) return;
   sqlite3session_delete(session_);
-  if (database_) database_->sessions_.erase(session_);
+  database_->sessions_.erase(session_);
 }
 
 BaseObjectPtr<Session> Session::Create(Environment* env,

@@ -36,6 +36,7 @@ class DatabaseSync : public BaseObject {
 
  private:
   bool Open();
+  void DeleteSessions();
 
   ~DatabaseSync() override;
   std::string location_;
