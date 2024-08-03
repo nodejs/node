@@ -158,22 +158,23 @@ around [`sqlite3_prepare_v2()`][].
 * `options` {Object} An optional object used to configure the session.
   * `table` {string} When provided, only changes to this table are tracked by the created session.
     By default, changes to all tables are tracked.
-  * `db` {string} Name of the database. Default: `'main'`.
+  * `db` {string} Name of the database to track. Default: `'main'`.
 * Returns: {Session} A session handle.
 
-Creates and attackes a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
+Creates and attaches a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
 
 ### `database.applyChangeset(changeset[, options])`
 
-* `changeset` {Uint8Array} A binary changeset.
-* `options` {Object} An optional object.
-  * `filter` {Function} Optional function that takes the name of a table as the first argument.
-     When `true` is returned, includes the change, otherwise, it is discarded. When not provided
-     no changes are filtered, and all are changes are attempted.
+* `changeset` {Uint8Array} A binary changeset or patchset.
+* `options` {Object} An optional object to configure how changes are applied.
+  * `filter` {Function} Optional function that allows skipping changes based on the name of a table
+     (passed as the first argument) based on a boolean returned. When not provided no changes are
+     filtered, and all are changes are attempted.
   * `onConflict` {number} When provided, must be one of `SQLITE_CHANGESET_OMIT`,
     `SQLITE_CHANGESET_REPLACE` or `SQLITE_CHANGESET_ABORT`. Determines how conflicts are handled.
     Conflicting changes are either omitted, changes replace existing values or the
-    call is aborted when the first conflicting change is encountered (this is the default).
+    call is aborted when the first conflicting change is encountered. Aborting on
+    conflict is the default when no value is provided for this option.
 * Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
 
 An exception is thrown if the database is not
@@ -195,7 +196,8 @@ insert.run(1, 'hello');
 insert.run(2, 'world');
 
 const changeset = session.changeset();
-database2.applyChangeset(changeset);  // Will now contain the same data as database1
+database2.applyChangeset(changeset);
+// Now database2 contains the same data as database1
 ```
 
 ## Class: `Session`
