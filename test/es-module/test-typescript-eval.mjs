@@ -6,8 +6,21 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('eval TypeScript ESM syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--input-type=module',
     '--experimental-strip-types',
+    '--eval',
+    `import util from 'node:util'
+    const text: string = 'Hello, TypeScript!'
+    console.log(util.styleText('red', text));`]);
+
+  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
+
+test('eval TypeScript ESM syntax with input-type module', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--input-type=module',
     '--eval',
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
@@ -20,8 +33,21 @@ test('eval TypeScript ESM syntax', async () => {
 
 test('eval TypeScript CommonJS syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--input-type=commonjs',
     '--experimental-strip-types',
+    '--eval',
+    `const util = require('node:util');
+    const text: string = 'Hello, TypeScript!'
+    console.log(util.styleText('red', text));`,
+    '--no-warnings']);
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.stderr, '');
+  strictEqual(result.code, 0);
+});
+
+test('eval TypeScript CommonJS syntax with input-type commonjs', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--input-type=commonjs',
     '--eval',
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'

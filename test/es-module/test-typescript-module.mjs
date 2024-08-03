@@ -30,7 +30,19 @@ test('execute an .mts file importing an .mts file', async () => {
 test('execute an .mts file importing a .ts file', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
-    '--experimental-default-type=module', // this should fail
+    '--no-warnings',
+    fixtures.path('typescript/mts/test-import-ts-file.mts'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
+
+test('execute an .mts file importing a .ts file with default-type module', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--experimental-default-type=module',
     '--no-warnings',
     fixtures.path('typescript/mts/test-import-ts-file.mts'),
   ]);
@@ -43,7 +55,6 @@ test('execute an .mts file importing a .ts file', async () => {
 test('execute an .mts file importing a .cts file', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
-    '--no-warnings',
     '--no-warnings',
     fixtures.path('typescript/mts/test-import-commonjs.mts'),
   ]);
@@ -96,4 +107,28 @@ test('execute a .ts file from node_modules', async () => {
   match(result.stderr, /ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
+});
+
+test('execute an empty .ts file', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--no-warnings',
+    fixtures.path('typescript/ts/test-empty-file.ts'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 0);
+});
+
+test('execute .ts file importing a module', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--no-warnings',
+    fixtures.path('typescript/ts/test-import-fs.ts'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'Hello, TypeScript!\n');
+  strictEqual(result.code, 0);
 });

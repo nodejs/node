@@ -120,7 +120,7 @@ test('execute a .cts file importing a .mts file export', async () => {
   strictEqual(result.code, 0);
 });
 
-test('expect failure of a .cts file with default type module', async () => {
+test('execute a .cts file with default type module', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--experimental-default-type=module', // Keeps working with commonjs
