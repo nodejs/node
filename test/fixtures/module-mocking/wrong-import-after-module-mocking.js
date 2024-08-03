@@ -1,7 +1,7 @@
 import { mock } from 'node:test';
 
 try {
-  if (mock.module) mock.module('Whatever, this is not significant', { namedExports: {} });
+  mock.module?.('Whatever, this is not significant', { namedExports: {} });
 } catch {}
 
 const { string } = await import('./basic-esm-without-extension');
