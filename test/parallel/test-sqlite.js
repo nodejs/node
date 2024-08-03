@@ -997,15 +997,29 @@ suite('session extension', () => {
     t.assert.strictEqual(sessionTest.changeset().length, 0);
   });
 
-  test("wrong argument name of other database", (t) => {
+  test('wrong argument name of other database', (t) => {
     const database = new DatabaseSync(':memory:');
     t.assert.throws(() => {
-      const session = database.createSession({
+      database.createSession({
         db: 123
       });
     }, {
       name: 'TypeError',
       message: 'The "options.db" argument must be a string.'
     });
-  })
+  });
+
+  test('generate patchset', (t) => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+
+    database.exec("INSERT INTO data VALUES ('1', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')");
+
+    const session = database.createSession();
+    database.exec("UPDATE data SET value = 'hi' WHERE key = 1");
+
+    t.assert.ok(
+      session.patchset().length < session.changeset().length,
+      'expected patchset to be smaller than changeset');
+  });
 });

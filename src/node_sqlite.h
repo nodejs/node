@@ -84,6 +84,8 @@ class StatementSync : public BaseObject {
   v8::Local<v8::Value> ColumnNameToValue(const int column);
 };
 
+using Sqlite3ChangesetGenFunc = int (*)(sqlite3_session*, int*, void**);
+
 class Session : public BaseObject {
  public:
   Session(Environment* env,
@@ -91,6 +93,7 @@ class Session : public BaseObject {
           BaseObjectWeakPtr<DatabaseSync> database,
           sqlite3_session* session);
   ~Session() override;
+  template<Sqlite3ChangesetGenFunc sqliteChangesetFunc>
   static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(

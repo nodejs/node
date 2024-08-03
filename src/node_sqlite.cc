@@ -886,7 +886,14 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Session"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         Session::kInternalFieldCount);
-    SetProtoMethod(isolate, tmpl, "changeset", Session::Changeset);
+    SetProtoMethod(isolate,
+                   tmpl,
+                   "changeset",
+                   Session::Changeset<sqlite3session_changeset>);
+    SetProtoMethod(isolate,
+                   tmpl,
+                   "patchset",
+                   Session::Changeset<sqlite3session_patchset>);
     env->set_sqlite_session_constructor_template(tmpl);
   }
   return tmpl;
@@ -894,6 +901,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(
 
 void Session::MemoryInfo(MemoryTracker* tracker) const {}
 
+template<Sqlite3ChangesetGenFunc sqliteChangesetFunc>
 void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -903,7 +911,7 @@ void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   int nChangeset;
   void* pChangeset;
-  int r = sqlite3session_changeset(session->session_, &nChangeset, &pChangeset);
+  int r = sqliteChangesetFunc(session->session_, &nChangeset, &pChangeset);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 
   auto freeChangeset = OnScopeLeave([&] {

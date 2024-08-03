@@ -207,6 +207,13 @@ database2.applyChangeset(changeset);  // Will now contain the same data as datab
 Retrieves a changeset containing all changes since the changeset was created. Can be called multiple times.
 An exception is thrown if the database is not open. This method is a wrapper around [`sqlite3session_changeset()`][].
 
+### `session.patchset()`
+
+* Returns: {Uint8Array} Binary patchset that can be applied to other databases.
+
+Similar to the method above, but generates a more compact patchset. See [Changesets and Patchsets][] in the documentation of SQLite.
+An exception is thrown if the database is not open. This method is a wrapper around [`sqlite3session_patchset()`][].
+
 ## Class: `StatementSync`
 
 <!-- YAML
@@ -380,7 +387,9 @@ exception.
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
 [`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
+[`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
+[Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
 [in memory]: https://www.sqlite.org/inmemorydb.html
