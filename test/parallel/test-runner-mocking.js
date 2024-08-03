@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
-const fixtures = require('../common/fixtures');
 test('spies on a function', (t) => {
   const sum = t.mock.fn((arg1, arg2) => {
     return arg1 + arg2;
