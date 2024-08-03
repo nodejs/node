@@ -668,11 +668,11 @@ changes:
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
   * `onread` {Object} If specified, incoming data is stored in a single `buffer`
-  and passed to the supplied `callback` when data arrives on the socket.
-  This will cause the streaming functionality to not provide any data.
-  The socket will emit events like `'error'`, `'end'`, and `'close'`
-  as usual. Methods like `pause()` and `resume()` will also behave as
-  expected.
+    and passed to the supplied `callback` when data arrives on the socket.
+    This will cause the streaming functionality to not provide any data.
+    The socket will emit events like `'error'`, `'end'`, and `'close'`
+    as usual. Methods like `pause()` and `resume()` will also behave as
+    expected.
     * `buffer` {Buffer|Uint8Array|Function} Either a reusable chunk of memory to
       use for storing incoming data or a function that returns such.
     * `callback` {Function} This function is called for every chunk of incoming
@@ -1050,7 +1050,6 @@ For [IPC][] connections, available `options` are:
 * `path` {string} Required. Path the client should connect to.
   See [Identifying paths for IPC connections][]. If provided, the TCP-specific
   options above are ignored.
-
 
 #### `socket.connect(path[, connectListener])`
 
