@@ -1052,23 +1052,6 @@ For [IPC][] connections, available `options` are:
   options above are ignored.
 
 
-Following is an example of a client using the `onread` option:
-
-```js
-const net = require('node:net');
-net.connect({
-  port: 80,
-  onread: {
-    // Reuses a 4KiB Buffer for every read from the socket.
-    buffer: Buffer.alloc(4 * 1024),
-    callback: function(nread, buf) {
-      // Received data is available in `buf` from 0 to `nread`.
-      console.log(buf.toString('utf8', 0, nread));
-    },
-  },
-});
-```
-
 #### `socket.connect(path[, connectListener])`
 
 * `path` {string} Path the client should connect to. See
@@ -1569,6 +1552,26 @@ To connect on the socket `/tmp/echo.sock`:
 
 ```js
 const client = net.createConnection({ path: '/tmp/echo.sock' });
+```
+
+Following is an example of a client using the `port` and `onread`
+option. In this case, the `onread` option will be only used to call
+`new net.Socket([options])` and the `port` option will be used to
+call `socket.connect(options[, connectListener])`.
+
+```js
+const net = require('node:net');
+net.createConnection({
+  port: 80,
+  onread: {
+    // Reuses a 4KiB Buffer for every read from the socket.
+    buffer: Buffer.alloc(4 * 1024),
+    callback: function(nread, buf) {
+      // Received data is available in `buf` from 0 to `nread`.
+      console.log(buf.toString('utf8', 0, nread));
+    },
+  },
+});
 ```
 
 ### `net.createConnection(path[, connectListener])`
