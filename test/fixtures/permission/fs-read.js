@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const blockedFile = process.env.BLOCKEDFILE;
+const bufferBlockedFile = Buffer.from(process.env.BLOCKEDFILE);
 const blockedFileURL = new URL('file://' + process.env.BLOCKEDFILE);
 const blockedFolder = process.env.BLOCKEDFOLDER;
 const allowedFolder = process.env.ALLOWEDFOLDER;
@@ -405,6 +406,11 @@ const regularFile = __filename;
   }));
   assert.throws(() => {
     fs.lstatSync(path.join(blockedFolder, 'anyfile'));
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+  }));
+  assert.throws(() => {
+    fs.lstatSync(bufferBlockedFile);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
   }));
