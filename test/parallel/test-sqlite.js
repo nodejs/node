@@ -795,7 +795,7 @@ suite('session extension', () => {
     );
   });
 
-  test('trying to create session when database is closed results in exception', (t) => {
+  test('database.createSession() - closed database results in exception', (t) => {
     const database = new DatabaseSync(':memory:');
     database.close();
     t.assert.throws(() => {
@@ -806,7 +806,7 @@ suite('session extension', () => {
     });
   });
 
-  test('trying to create changeset when database is closed results in exception', (t) => {
+  test('session.changeset() - closed database results in exception', (t) => {
     const database = new DatabaseSync(':memory:');
     const session = database.createSession();
     database.close();
@@ -818,7 +818,7 @@ suite('session extension', () => {
     });
   });
 
-  test('trying to apply a changeset when database is closed results in exception', (t) => {
+  test('database.applyChangeset() - closed database results in exception', (t) => {
     const database = new DatabaseSync(':memory:');
     const session = database.createSession();
     const changeset = session.changeset();
@@ -831,7 +831,7 @@ suite('session extension', () => {
     });
   });
 
-  test('setting options.table causes only one table to be tracked', (t) => {
+  test('database1.createSession() - use table option to track specific table', (t) => {
     const database1 = new DatabaseSync(':memory:');
     const database2 = new DatabaseSync(':memory:');
 
@@ -892,7 +892,7 @@ suite('session extension', () => {
     };
   };
 
-  test('conflict while applying changeset (default abort)', (t) => {
+  test('database.applyChangeset() - conflict with default behavior (abort)', (t) => {
     const { database2, changeset } = prepareConflict();
     // When changeset is aborted due to a conflict, applyChangeset should return false
     t.assert.strictEqual(database2.applyChangeset(changeset), false);
@@ -901,7 +901,7 @@ suite('session extension', () => {
       [{ value: 'world' }]);  // unchanged
   });
 
-  test('conflict while applying changeset (explicit abort)', (t) => {
+  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_ABORT', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
       onConflict: SQLITE_CHANGESET_ABORT
@@ -913,7 +913,7 @@ suite('session extension', () => {
       [{ value: 'world' }]);  // unchanged
   });
 
-  test('conflict while applying changeset (replacement)', (t) => {
+  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_REPLACE', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
       onConflict: SQLITE_CHANGESET_REPLACE
@@ -925,7 +925,7 @@ suite('session extension', () => {
       [{ value: 'hello' }, { value: 'foo' }]);  // replaced
   });
 
-  test('conflict while applying changeset (omit)', (t) => {
+  test('database.applyChangeset() - conflict with SQLITE_CHANGESET_OMIT', (t) => {
     const { database2, changeset } = prepareConflict();
     const result = database2.applyChangeset(changeset, {
       onConflict: SQLITE_CHANGESET_OMIT
@@ -937,13 +937,13 @@ suite('session extension', () => {
       [{ value: 'world' }, { value: 'foo' }]);  // Conflicting change omitted
   });
 
-  test('constants are defined', (t) => {
+  test('session related constants are defined', (t) => {
     t.assert.strictEqual(SQLITE_CHANGESET_OMIT, 0);
     t.assert.strictEqual(SQLITE_CHANGESET_REPLACE, 1);
     t.assert.strictEqual(SQLITE_CHANGESET_ABORT, 2);
   });
 
-  test('allow filtering changes', (t) => {
+  test('database.createSession() - filter changes', (t) => {
     const database1 = new DatabaseSync(':memory:');
     const database2 = new DatabaseSync(':memory:');
     const createTableSql = 'CREATE TABLE data1(key INTEGER PRIMARY KEY); CREATE TABLE data2(key INTEGER PRIMARY KEY);';
@@ -968,7 +968,7 @@ suite('session extension', () => {
     t.assert.strictEqual(data2Rows.length, 5);
   });
 
-  test('specify other database', (t) => {
+  test('database.createSession() - specify other database', (t) => {
     const database = new DatabaseSync(':memory:');
     const session = database.createSession();
     const sessionMain = database.createSession({
@@ -985,7 +985,7 @@ suite('session extension', () => {
     t.assert.strictEqual(sessionTest.changeset().length, 0);
   });
 
-  test('wrong arguments database.createSession()', (t) => {
+  test('database.createSession() - wrong arguments', (t) => {
     const database = new DatabaseSync(':memory:');
     t.assert.throws(() => {
       database.createSession(null);
@@ -1013,7 +1013,7 @@ suite('session extension', () => {
     });
   });
 
-  test('wrong arguments database.applyChangeset()', (t) => {
+  test('database.applyChangeset() - wrong arguments', (t) => {
     const database = new DatabaseSync(':memory:');
     const session = database.createSession();
     t.assert.throws(() => {
@@ -1049,7 +1049,7 @@ suite('session extension', () => {
     });
   });
 
-  test('generate patchset', (t) => {
+  test('session.patchset()', (t) => {
     const database = new DatabaseSync(':memory:');
     database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
