@@ -19,7 +19,7 @@ file a new issue.
     * [OpenSSL asm support](#openssl-asm-support)
   * [Previous versions of this document](#previous-versions-of-this-document)
 * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Note about Python](#note-about-python)
+  * [Prerequisites](#prerequisites)
   * [Unix and macOS](#unix-and-macos)
     * [Unix prerequisites](#unix-prerequisites)
     * [macOS prerequisites](#macos-prerequisites)
@@ -33,7 +33,7 @@ file a new issue.
     * [Speeding up frequent rebuilds when developing](#speeding-up-frequent-rebuilds-when-developing)
     * [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
   * [Windows](#windows)
-    * [Prerequisites](#prerequisites)
+    * [Windows Prerequisites](#windows-prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
@@ -221,9 +221,10 @@ Consult previous versions of this document for older versions of Node.js:
 
 ## Building Node.js on supported platforms
 
-### Note about Python
+### Prerequisites
 
-The Node.js project supports Python >= 3 for building and testing.
+* Python support: the Node.js project supports Python >= 3.6 for building and testing.
+* Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`)
 
 ### Unix and macOS
 
@@ -616,7 +617,7 @@ vcpkg integrate remove
 
 Refs: #24448, <https://github.com/microsoft/vcpkg/issues/37518>, [vcpkg](https://github.com/microsoft/vcpkg/)
 
-#### Prerequisites
+#### Windows Prerequisites
 
 ##### Option 1: Manual install
 
