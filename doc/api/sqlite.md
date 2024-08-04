@@ -167,14 +167,13 @@ Creates and attaches a session to the database. This method is a wrapper around 
 
 * `changeset` {Uint8Array} A binary changeset or patchset.
 * `options` {Object} An optional object to configure how changes are applied.
-  * `filter` {Function} Optional function that allows skipping changes based on the name of a table
-    (passed as the first argument) based on a boolean returned. When not provided no changes are
-    filtered, and all are changes are attempted.
-  * `onConflict` {number} When provided, must be one of `SQLITE_CHANGESET_OMIT`,
-    `SQLITE_CHANGESET_REPLACE` or `SQLITE_CHANGESET_ABORT`. Determines how conflicts are handled.
-    Conflicting changes are either omitted, changes replace existing values or the
-    call is aborted when the first conflicting change is encountered. Aborting on
-    conflict is the default when no value is provided for this option.
+  * `filter` {Function} Optional function. Skips changes when a truthy value is returned from it.
+    Takes the name of the table that a change targets as first argument. When this option is not
+    provided all changes are attempted.
+  * `onConflict` {number} Determines how conflicts are handled. When provided, must be one of the values below:
+    - `SQLITE_CHANGESET_OMIT`: conflicting changes are either omitted.
+    - `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
+    - `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back databsase (default).
 * Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
 
 An exception is thrown if the database is not
