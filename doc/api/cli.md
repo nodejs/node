@@ -476,10 +476,9 @@ added:
   - v12.19.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
-Enable experimental support for custom [conditional exports][] resolution
-conditions.
+Provide custom [conditional exports][] resolution conditions.
 
 Any number of custom string condition names are permitted.
 
