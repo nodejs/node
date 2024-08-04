@@ -236,14 +236,12 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<Object> options = args[0].As<Object>();
 
-    Local<String> table_key = String::NewFromUtf8(
-      env->isolate(),
-      "table",
-      v8::NewStringType::kNormal).ToLocalChecked();
+    Local<String> table_key =
+        String::NewFromUtf8(env->isolate(), "table", v8::NewStringType::kNormal)
+            .ToLocalChecked();
     if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
-      Local<Value> table_value = options->Get(
-        env->context(),
-        table_key).ToLocalChecked();
+      Local<Value> table_value =
+          options->Get(env->context(), table_key).ToLocalChecked();
 
       if (table_value->IsString()) {
         String::Utf8Value str(env->isolate(), table_value);
@@ -255,14 +253,12 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    Local<String> db_key = String::NewFromUtf8(
-      env->isolate(),
-      "db",
-      v8::NewStringType::kNormal).ToLocalChecked();
+    Local<String> db_key =
+        String::NewFromUtf8(env->isolate(), "db", v8::NewStringType::kNormal)
+            .ToLocalChecked();
     if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
-      Local<Value> db_value = options->Get(
-        env->context(),
-        db_key).ToLocalChecked();
+      Local<Value> db_value =
+          options->Get(env->context(), db_key).ToLocalChecked();
       if (db_value->IsString()) {
         String::Utf8Value str(env->isolate(), db_value);
         dbName = std::string(*str);
@@ -286,7 +282,6 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
   r = sqlite3session_attach(pSession, table == "" ? nullptr : table.c_str());
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
-
 
   BaseObjectPtr<Session> session =
       Session::Create(env, BaseObjectWeakPtr<DatabaseSync>(db), pSession);
@@ -315,35 +310,31 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(env,
-                                db->connection_ == nullptr,
-                                "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, db->connection_ == nullptr, "database is not open");
 
   if (!args[0]->IsUint8Array()) {
     node::THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(),
-        "The \"changeset\" argument must be a Uint8Array.");
+        env->isolate(), "The \"changeset\" argument must be a Uint8Array.");
     return;
   }
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
       node::THROW_ERR_INVALID_ARG_TYPE(
-          env->isolate(),
-          "The \"options\" argument must be an object.");
+          env->isolate(), "The \"options\" argument must be an object.");
       return;
     }
 
     Local<Object> options = args[1].As<Object>();
 
-    Local<String> conflictKey = String::NewFromUtf8(
-      env->isolate(),
-      "onConflict",
-      v8::NewStringType::kNormal).ToLocalChecked();
+    Local<String> conflictKey =
+        String::NewFromUtf8(
+            env->isolate(), "onConflict", v8::NewStringType::kNormal)
+            .ToLocalChecked();
     if (options->HasOwnProperty(env->context(), conflictKey).FromJust()) {
-      Local<Value> conflictValue = options->Get(
-        env->context(),
-        conflictKey).ToLocalChecked();
+      Local<Value> conflictValue =
+          options->Get(env->context(), conflictKey).ToLocalChecked();
 
       if (!conflictValue->IsNumber()) {
         node::THROW_ERR_INVALID_ARG_TYPE(
@@ -353,20 +344,17 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       }
 
       int conflictInt = conflictValue->Int32Value(env->context()).FromJust();
-      conflictCallback = [conflictInt]() -> int {
-        return conflictInt;
-      };
+      conflictCallback = [conflictInt]() -> int { return conflictInt; };
     }
 
-    Local<String> filterKey = String::NewFromUtf8(
-      env->isolate(),
-      "filter",
-      v8::NewStringType::kNormal).ToLocalChecked();
+    Local<String> filterKey =
+        String::NewFromUtf8(
+            env->isolate(), "filter", v8::NewStringType::kNormal)
+            .ToLocalChecked();
 
-    if (options->HasOwnProperty(env->context(),
-                                filterKey).FromJust()) {
-      Local<Value> filterValue = options->Get(env->context(),
-                                              filterKey).ToLocalChecked();
+    if (options->HasOwnProperty(env->context(), filterKey).FromJust()) {
+      Local<Value> filterValue =
+          options->Get(env->context(), filterKey).ToLocalChecked();
 
       if (!filterValue->IsFunction()) {
         node::THROW_ERR_INVALID_ARG_TYPE(
@@ -378,15 +366,13 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       Local<v8::Function> filterFunc = filterValue.As<v8::Function>();
 
       filterCallback = [env, filterFunc](std::string item) -> bool {
-        Local<Value> argv[] = {
-          String::NewFromUtf8(env->isolate(),
-                              item.c_str(),
-                              v8::NewStringType::kNormal).ToLocalChecked()
-        };
-        Local<Value> result = filterFunc->Call(env->context(),
-                                               Null(env->isolate()),
-                                               1,
-                                               argv).ToLocalChecked();
+        Local<Value> argv[] = {String::NewFromUtf8(env->isolate(),
+                                                   item.c_str(),
+                                                   v8::NewStringType::kNormal)
+                                   .ToLocalChecked()};
+        Local<Value> result =
+            filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
+                .ToLocalChecked();
         return result->BooleanValue(env->isolate());
       };
     }
@@ -394,12 +380,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
   ArrayBufferViewContents<uint8_t> buf(args[0]);
   int r = sqlite3changeset_apply(
-    db->connection_,
-    buf.length(),
-    const_cast<void *>(static_cast<const void *>(buf.data())),
-    xFilter,
-    xConflict,
-    nullptr);
+      db->connection_,
+      buf.length(),
+      const_cast<void*>(static_cast<const void*>(buf.data())),
+      xFilter,
+      xConflict,
+      nullptr);
   if (r == SQLITE_ABORT) {
     args.GetReturnValue().Set(false);
     return;
@@ -853,8 +839,10 @@ BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
 Session::Session(Environment* env,
                  v8::Local<v8::Object> object,
                  BaseObjectWeakPtr<DatabaseSync> database,
-                 sqlite3_session* session):
-    BaseObject(env, object), session_(session), database_(std::move(database)) {
+                 sqlite3_session* session)
+    : BaseObject(env, object),
+      session_(session),
+      database_(std::move(database)) {
   MakeWeak();
 }
 
@@ -878,10 +866,8 @@ BaseObjectPtr<Session> Session::Create(Environment* env,
   return MakeBaseObject<Session>(env, obj, std::move(database), session);
 }
 
-Local<FunctionTemplate> Session::GetConstructorTemplate(
-    Environment* env) {
-  Local<FunctionTemplate> tmpl =
-      env->sqlite_session_constructor_template();
+Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->sqlite_session_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
@@ -892,10 +878,8 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(
                    tmpl,
                    "changeset",
                    Session::Changeset<sqlite3session_changeset>);
-    SetProtoMethod(isolate,
-                   tmpl,
-                   "patchset",
-                   Session::Changeset<sqlite3session_patchset>);
+    SetProtoMethod(
+        isolate, tmpl, "patchset", Session::Changeset<sqlite3session_patchset>);
     env->set_sqlite_session_constructor_template(tmpl);
   }
   return tmpl;
@@ -903,7 +887,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(
 
 void Session::MemoryInfo(MemoryTracker* tracker) const {}
 
-template<Sqlite3ChangesetGenFunc sqliteChangesetFunc>
+template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
 void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -916,15 +900,13 @@ void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int r = sqliteChangesetFunc(session->session_, &nChangeset, &pChangeset);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 
-  auto freeChangeset = OnScopeLeave([&] {
-    sqlite3_free(pChangeset);
-  });
+  auto freeChangeset = OnScopeLeave([&] { sqlite3_free(pChangeset); });
 
-  v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(
-    env->isolate(), nChangeset);
+  v8::Local<v8::ArrayBuffer> buffer =
+      v8::ArrayBuffer::New(env->isolate(), nChangeset);
   std::memcpy(buffer->GetBackingStore()->Data(), pChangeset, nChangeset);
-  v8::Local<v8::Uint8Array> uint8Array = v8::Uint8Array::New(
-    buffer, 0, nChangeset);
+  v8::Local<v8::Uint8Array> uint8Array =
+      v8::Uint8Array::New(buffer, 0, nChangeset);
 
   args.GetReturnValue().Set(uint8Array);
 }
@@ -944,14 +926,10 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
-  SetProtoMethod(isolate,
-                 db_tmpl,
-                 "createSession",
-                 DatabaseSync::CreateSession);
-  SetProtoMethod(isolate,
-                 db_tmpl,
-                 "applyChangeset",
-                 DatabaseSync::ApplyChangeset);
+  SetProtoMethod(
+      isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
+  SetProtoMethod(
+      isolate, db_tmpl, "applyChangeset", DatabaseSync::ApplyChangeset);
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,
