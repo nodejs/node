@@ -2,5 +2,5 @@
 // Refer to tools/dep_updaters/update-amaro.sh
 #ifndef SRC_AMARO_VERSION_H_
 #define SRC_AMARO_VERSION_H_
-#define AMARO_VERSION "0.0.5"
+#define AMARO_VERSION "0.0.6"
 #endif  // SRC_AMARO_VERSION_H_
