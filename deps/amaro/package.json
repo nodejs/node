@@ -1,6 +1,6 @@
 {
 	"name": "amaro",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "Node.js TypeScript wrapper",
 	"license": "MIT",
 	"type": "commonjs",
@@ -17,11 +17,14 @@
 		"clean": "rimraf dist",
 		"lint": "biome lint --write",
 		"format": "biome format --write",
+		"ci": "biome ci",
+		"ci:fix": "biome check --write",
 		"prepack": "npm run build",
 		"postpack": "npm run clean",
 		"build": "rspack build",
 		"typecheck": "tsc --noEmit",
-		"test": "node --test ./test"
+		"test": "node --test --experimental-test-snapshots **/*.test.js",
+		"test:regenerate": "node --test --experimental-test-snapshots --test-update-snapshots **/*.test.js"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.8.3",
