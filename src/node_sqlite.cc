@@ -20,11 +20,13 @@ using v8::BigInt;
 using v8::Boolean;
 using v8::Context;
 using v8::Exception;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -237,7 +239,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
     Local<Object> options = args[0].As<Object>();
 
     Local<String> table_key =
-        String::NewFromUtf8(env->isolate(), "table", v8::NewStringType::kNormal)
+        String::NewFromUtf8(env->isolate(), "table", NewStringType::kNormal)
             .ToLocalChecked();
     if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
       Local<Value> table_value =
@@ -254,7 +256,7 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<String> db_key =
-        String::NewFromUtf8(env->isolate(), "db", v8::NewStringType::kNormal)
+        String::NewFromUtf8(env->isolate(), "db", NewStringType::kNormal)
             .ToLocalChecked();
     if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
       Local<Value> db_value =
@@ -330,7 +332,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
     Local<String> conflictKey =
         String::NewFromUtf8(
-            env->isolate(), "onConflict", v8::NewStringType::kNormal)
+            env->isolate(), "onConflict", NewStringType::kNormal)
             .ToLocalChecked();
     if (options->HasOwnProperty(env->context(), conflictKey).FromJust()) {
       Local<Value> conflictValue =
@@ -348,8 +350,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<String> filterKey =
-        String::NewFromUtf8(
-            env->isolate(), "filter", v8::NewStringType::kNormal)
+        String::NewFromUtf8(env->isolate(), "filter", NewStringType::kNormal)
             .ToLocalChecked();
 
     if (options->HasOwnProperty(env->context(), filterKey).FromJust()) {
@@ -363,12 +364,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      Local<v8::Function> filterFunc = filterValue.As<v8::Function>();
+      Local<Function> filterFunc = filterValue.As<Function>();
 
       filterCallback = [env, filterFunc](std::string item) -> bool {
         Local<Value> argv[] = {String::NewFromUtf8(env->isolate(),
                                                    item.c_str(),
-                                                   v8::NewStringType::kNormal)
+                                                   NewStringType::kNormal)
                                    .ToLocalChecked()};
         Local<Value> result =
             filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
@@ -837,7 +838,7 @@ BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
 }
 
 Session::Session(Environment* env,
-                 v8::Local<v8::Object> object,
+                 Local<Object> object,
                  BaseObjectWeakPtr<DatabaseSync> database,
                  sqlite3_session* session)
     : BaseObject(env, object),
@@ -888,7 +889,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
 void Session::MemoryInfo(MemoryTracker* tracker) const {}
 
 template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
-void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -902,11 +903,9 @@ void Session::Changeset(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   auto freeChangeset = OnScopeLeave([&] { sqlite3_free(pChangeset); });
 
-  v8::Local<v8::ArrayBuffer> buffer =
-      v8::ArrayBuffer::New(env->isolate(), nChangeset);
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), nChangeset);
   std::memcpy(buffer->GetBackingStore()->Data(), pChangeset, nChangeset);
-  v8::Local<v8::Uint8Array> uint8Array =
-      v8::Uint8Array::New(buffer, 0, nChangeset);
+  Local<Uint8Array> uint8Array = Uint8Array::New(buffer, 0, nChangeset);
 
   args.GetReturnValue().Set(uint8Array);
 }
