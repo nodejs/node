@@ -93,6 +93,7 @@ const lcovTransform = snapshot.transform(
 
 const tests = [
   { name: 'test-runner/output/abort.js' },
+  { name: 'test-runner/output/abort-runs-after-hook.js' },
   { name: 'test-runner/output/abort_suite.js' },
   { name: 'test-runner/output/abort_hooks.js' },
   { name: 'test-runner/output/describe_it.js' },
