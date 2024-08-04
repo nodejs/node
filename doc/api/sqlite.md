@@ -171,7 +171,7 @@ Creates and attaches a session to the database. This method is a wrapper around 
     Takes the name of the table that a change targets as first argument. When this option is not
     provided all changes are attempted.
   * `onConflict` {number} Determines how conflicts are handled. When provided, must be one of the values below:
-    * `SQLITE_CHANGESET_OMIT`: conflicting changes are either omitted.
+    * `SQLITE_CHANGESET_OMIT`: conflicting changes are omitted.
     * `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
     * `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back databsase (default).
 * Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
