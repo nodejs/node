@@ -171,9 +171,9 @@ Creates and attaches a session to the database. This method is a wrapper around 
     Takes the name of the table that a change targets as first argument. When this option is not
     provided all changes are attempted.
   * `onConflict` {number} Determines how conflicts are handled. When provided, must be one of the values below:
-    - `SQLITE_CHANGESET_OMIT`: conflicting changes are either omitted.
-    - `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
-    - `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back databsase (default).
+    * `SQLITE_CHANGESET_OMIT`: conflicting changes are either omitted.
+    * `SQLITE_CHANGESET_REPLACE`: conflicting changes replace existing values.
+    * `SQLITE_CHANGESET_ABORT`: abort on conflict and roll back databsase (default).
 * Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
 
 An exception is thrown if the database is not
@@ -212,8 +212,9 @@ An exception is thrown if the database is not open. This method is a wrapper aro
 
 * Returns: {Uint8Array} Binary patchset that can be applied to other databases.
 
-Similar to the method above, but generates a more compact patchset. See [Changesets and Patchsets][] in the documentation of SQLite.
-An exception is thrown if the database is not open. This method is a wrapper around [`sqlite3session_patchset()`][].
+Similar to the method above, but generates a more compact patchset. See [Changesets and Patchsets][]
+in the documentation of SQLite.An exception is thrown if the database is not open. This method is a
+wrapper around [`sqlite3session_patchset()`][].
 
 ## Class: `StatementSync`
 
@@ -376,6 +377,7 @@ exception.
 | `TEXT`    | `string`             |
 | `BLOB`    | `Uint8Array`         |
 
+[Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
@@ -385,12 +387,11 @@ exception.
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
-[`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
-[`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
-[`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
-[`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
-[Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
+[`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
+[`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
+[`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
+[`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
 [in memory]: https://www.sqlite.org/inmemorydb.html
