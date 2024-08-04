@@ -168,8 +168,8 @@ Creates and attaches a session to the database. This method is a wrapper around 
 * `changeset` {Uint8Array} A binary changeset or patchset.
 * `options` {Object} An optional object to configure how changes are applied.
   * `filter` {Function} Optional function that allows skipping changes based on the name of a table
-     (passed as the first argument) based on a boolean returned. When not provided no changes are
-     filtered, and all are changes are attempted.
+    (passed as the first argument) based on a boolean returned. When not provided no changes are
+    filtered, and all are changes are attempted.
   * `onConflict` {number} When provided, must be one of `SQLITE_CHANGESET_OMIT`,
     `SQLITE_CHANGESET_REPLACE` or `SQLITE_CHANGESET_ABORT`. Determines how conflicts are handled.
     Conflicting changes are either omitted, changes replace existing values or the
