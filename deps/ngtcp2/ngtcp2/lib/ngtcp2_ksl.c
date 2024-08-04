@@ -60,8 +60,7 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
   size_t nodelen = ksl_nodelen(keylen);
 
   ngtcp2_objalloc_init(&ksl->blkalloc,
-                       ((ksl_blklen(nodelen) + 0xfu) & ~(uintptr_t)0xfu) * 8,
-                       mem);
+                       (ksl_blklen(nodelen) + 0xfu) & ~(uintptr_t)0xfu, mem);
 
   ksl->head = NULL;
   ksl->front = ksl->back = NULL;
@@ -818,6 +817,6 @@ int ngtcp2_ksl_range_compar(const ngtcp2_ksl_key *lhs,
 int ngtcp2_ksl_range_exclusive_compar(const ngtcp2_ksl_key *lhs,
                                       const ngtcp2_ksl_key *rhs) {
   const ngtcp2_range *a = lhs, *b = rhs;
-  return a->begin < b->begin &&
-         !(ngtcp2_max(a->begin, b->begin) < ngtcp2_min(a->end, b->end));
+  return a->begin < b->begin && !(ngtcp2_max_uint64(a->begin, b->begin) <
+                                  ngtcp2_min_uint64(a->end, b->end));
 }

@@ -105,8 +105,9 @@ typedef struct ngtcp2_conn_stat {
   uint64_t bytes_in_flight;
   /**
    * :member:`max_tx_udp_payload_size` is the maximum size of UDP
-   * datagram payload that this endpoint transmits.  It is used by
-   * congestion controller to compute congestion window.
+   * datagram payload that this endpoint transmits to the current
+   * path.  It is used by congestion controller to compute congestion
+   * window.
    */
   size_t max_tx_udp_payload_size;
   /**

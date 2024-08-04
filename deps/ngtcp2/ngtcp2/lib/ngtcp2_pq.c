@@ -69,7 +69,7 @@ int ngtcp2_pq_push(ngtcp2_pq *pq, ngtcp2_pq_entry *item) {
     void *nq;
     size_t ncapacity;
 
-    ncapacity = ngtcp2_max(4, (pq->capacity * 2));
+    ncapacity = ngtcp2_max_size(4, pq->capacity * 2);
 
     nq = ngtcp2_mem_realloc(pq->mem, pq->q,
                             ncapacity * sizeof(ngtcp2_pq_entry *));

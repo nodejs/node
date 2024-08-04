@@ -86,6 +86,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
    received from the remote endpoint.  In this case,
    NGTCP2_STRM_FLAG_SHUT_WR is also set. */
 #define NGTCP2_STRM_FLAG_STOP_SENDING_RECVED 0x800u
+/* NGTCP2_STRM_FLAG_ANY_SENT indicates that any STREAM frame,
+   including empty one, has been sent. */
+#define NGTCP2_STRM_FLAG_ANY_SENT 0x1000u
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
