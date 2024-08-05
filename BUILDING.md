@@ -150,7 +150,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                              |
 | ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 10.1                                                    |
+| Linux            | GCC >= 12.2                                                    |
 | Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
 | macOS            | Xcode >= 13 (Apple LLVM >= 12)                                 |
 
@@ -230,7 +230,7 @@ Consult previous versions of this document for older versions of Node.js:
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 10.1 or newer
+* `gcc` and `g++` >= 12.2 or newer
 * GNU Make 3.81 or newer
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
