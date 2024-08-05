@@ -703,4 +703,28 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
   return ok;
 }
 
+// ============================================================================
+// X509Pointer
+
+X509Pointer::X509Pointer(X509* x509) : cert_(x509) {}
+
+X509Pointer::X509Pointer(X509Pointer&& other) noexcept
+    : cert_(other.release()) {}
+
+X509Pointer& X509Pointer::operator=(X509Pointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~X509Pointer();
+  return *new (this) X509Pointer(std::move(other));
+}
+
+X509Pointer::~X509Pointer() { reset(); }
+
+void X509Pointer::reset(X509* x509) {
+  cert_.reset(x509);
+}
+
+X509* X509Pointer::release() {
+  return cert_.release();
+}
+
 }  // namespace ncrypto

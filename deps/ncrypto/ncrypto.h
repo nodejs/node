@@ -197,7 +197,6 @@ using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
 using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
-using X509Pointer = DeleteFnPtr<X509, X509_free>;
 
 // An unowned, unmanaged pointer to a buffer of data.
 template <typename T>
@@ -288,6 +287,25 @@ class BignumPointer final {
 
  private:
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
+};
+
+class X509Pointer final {
+ public:
+  X509Pointer() = default;
+  explicit X509Pointer(X509* cert);
+  X509Pointer(X509Pointer&& other) noexcept;
+  X509Pointer& operator=(X509Pointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(X509Pointer)
+  ~X509Pointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
+  inline operator bool() const { return cert_ != nullptr; }
+  inline X509* get() const { return cert_.get(); }
+  void reset(X509* cert = nullptr);
+  X509* release();
+
+ private:
+  DeleteFnPtr<X509, X509_free> cert_;
 };
 
 #ifndef OPENSSL_NO_ENGINE
