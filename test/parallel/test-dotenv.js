@@ -73,10 +73,6 @@ assert.strictEqual(process.env.MULTI_DOUBLE_QUOTED, 'THIS\nIS\nA\nMULTILINE\nSTR
 assert.strictEqual(process.env.MULTI_SINGLE_QUOTED, 'THIS\nIS\nA\nMULTILINE\nSTRING');
 assert.strictEqual(process.env.MULTI_BACKTICKED, 'THIS\nIS\nA\n"MULTILINE\'S"\nSTRING');
 
-// These are no longer true, parser is now more strict when it comes to balancing double quotes
-// assert.strictEqual(process.env.MULTI_NOT_VALID_QUOTE, '"');
-// assert.strictEqual(process.env.MULTI_NOT_VALID, 'THIS');
-
 // Test that \n is expanded to a newline in double-quoted string
 assert.strictEqual(process.env.EXPAND_NEWLINES, 'expand\nnew\nlines');
 assert.strictEqual(process.env.DONT_EXPAND_UNQUOTED, 'dontexpand\\nnewlines');

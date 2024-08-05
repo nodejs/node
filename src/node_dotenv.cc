@@ -87,17 +87,25 @@ Local<Object> Dotenv::ToObject(Environment* env) const {
   return result;
 }
 
+/**
+ * Remove trailing and leading quotes from a string
+ * if they match.
+ */
 std::string_view trim_quotes(std::string_view input) {
   if (input.empty()) return "";
   auto first = input.front();
   if ((first == '\'' || first == '"' || first == '`') &&
       input.back() == first) {
-    input = input.substr(1, input.size() - 2);
+    input.remove_prefix(1);
+    input.remove_suffix(1);
   }
 
   return input;
 }
 
+/**
+ * Remove leading and trailing spaces from a string.
+ */
 std::string_view trim_spaces(std::string_view input) {
   if (input.empty()) return "";
   if (input.front() == ' ') {
@@ -109,6 +117,10 @@ std::string_view trim_spaces(std::string_view input) {
   return input;
 }
 
+/**
+ * Trim key from .env file, remove leading "export" if found,
+ * like it is ignored in dotenv.
+ */
 std::string_view parse_key(std::string_view key) {
   key = trim_spaces(key);
   if (key.empty()) return key;
@@ -119,23 +131,30 @@ std::string_view parse_key(std::string_view key) {
   return key;
 }
 
+/**
+ * Parse single value from .env file.
+ * Remove leading and trailing spaces and quotes.
+ * Leave empty space inside the quotes as is.
+ * Expand \n to newline only in double-quote strings.
+ * (like dotenv)
+ */
 std::string parse_value(std::string_view value) {
   value = trim_spaces(value);
   if (value.empty()) return "";
 
   auto trimmed = trim_quotes(value);
-  if (value.front() == '\"' && value.back() == '\"') {
-    // Expand \n to newline in double-quote strings
-    size_t pos = 0;
-    auto expanded = std::string(trimmed);
-    while ((pos = expanded.find("\\n", pos)) != std::string_view::npos) {
-      expanded.replace(pos, 2, "\n");
-      pos += 1;
-    }
-    return expanded;
-  } else {
+  if (value.front() != '\"' || value.back() != '\"') {
     return std::string(trimmed);
   }
+
+  // Expand \n to newline in double-quote strings
+  size_t pos = 0;
+  auto expanded = std::string(trimmed);
+  while ((pos = expanded.find("\\n", pos)) != std::string::npos) {
+    expanded.replace(pos, 2, "\n");
+    pos += 1;
+  }
+  return expanded;
 }
 
 /**
@@ -163,21 +182,26 @@ void Dotenv::ParseContent(const std::string_view input) {
         // Skip whitespace after key
         i++;
       }
+      //Move start/end pointers to the beginning of the value
       start = i + 1;
       end = i + 1;
       continue;
     } else if (!inComment && (c == '"' || c == '\'' || c == '`')) {
       if (start == i) {
+        // Whole value stars with a quote, parse it as a quoted string
         quote = c;
       } else if (quote == c) {
+        // Closing quote for quoted string found, no longer in quoted value
         quote = 0;
       }
 
       end++;
     } else if (!inComment && c == '#' && quote == 0) {
+      // Mark end as i, skips rest of the line
       end = i;
       inComment = true;
     } else if ((c == '\n' || c == '\r') && quote == 0) {
+      // If found any key store it
       if (!key.empty()) {
         auto value_str = parse_value(input.substr(start, end - start));
         store_.insert_or_assign(std::string(key), value_str);
@@ -187,6 +211,7 @@ void Dotenv::ParseContent(const std::string_view input) {
       if (i + 1 < input.size() && input[i + 1] == '\n') {
         i++;
       }
+      // Reset counters and flags as we're about to parse a new key
       start = i + 1;
       end = start;
       value = "";
@@ -194,6 +219,7 @@ void Dotenv::ParseContent(const std::string_view input) {
       quote = 0;
       inComment = false;
     } else if (!inComment) {
+      //Char is not a comment, advance the key/value end pointer
       end++;
     }
   }
@@ -250,11 +276,12 @@ void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) const {
   }
 }
 
-std::optional<std::string> Dotenv::GetValue(const std::string_view key) const {
+std::optional<std::string_view> Dotenv::GetValue(
+    const std::string_view key) const {
   auto match = store_.find(key.data());
 
   if (match != store_.end()) {
-    return std::optional<std::string>{match->second};
+    return match->second;
   }
   return std::nullopt;
 }

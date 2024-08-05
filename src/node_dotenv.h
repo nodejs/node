@@ -22,7 +22,7 @@ class Dotenv {
   ~Dotenv() = default;
 
   void ParseContent(const std::string_view content);
-  std::optional<std::string> GetValue(const std::string_view key) const;
+  std::optional<std::string_view> GetValue(const std::string_view key) const;
   ParseResult ParsePath(const std::string_view path);
   void AssignNodeOptionsIfAvailable(std::string* node_options) const;
   void SetEnvironment(Environment* env);
