@@ -4442,7 +4442,6 @@ Stats {
   birthtime: 2019-06-22T03:26:47.711Z
 }
 ```
-
 ### `fs.statfs(path[, options], callback)`
 
 <!-- YAML
@@ -4464,6 +4463,53 @@ contains `path`. The callback gets two arguments `(err, stats)` where `stats`
 is an {fs.StatFs} object.
 
 In case of an error, the `err.code` will be one of [Common System Errors][].
+
+### Properties of `fs.StatFs`
+
+#### `statfs.bsize`
+- `bsize` {number} The size of each block in bytes.
+
+#### `statfs.bavail`
+- `bavail` {number} The number of free blocks available to unprivileged users.
+
+#### `statfs.bfree`
+- `bfree` {number} The total number of free blocks.
+
+#### `statfs.blocks`
+- `blocks` {number} The total number of blocks in the filesystem.
+
+#### `statfs.files`
+- `files` {number} The total number of file nodes in the filesystem.
+
+#### `statfs.type`
+- `type` {number} The filesystem type. This is a number representing the filesystem type. To interpret this number, refer to the operating system documentation.
+
+### Example Usage
+
+```js
+import { statfs } from 'fs/promises';
+
+async function getFileSystemStats(path) {
+  try {
+    const statsfs = await statfs(path);
+    const availableBytes = statsfs.bsize * statsfs.bavail;
+    const freeBytes = statsfs.bsize * statsfs.bfree;
+
+    console.log(`Block size: ${statsfs.bsize} bytes`);
+    console.log(`Available space for unprivileged users: ${availableBytes} bytes`);
+    console.log(`Total free space: ${freeBytes} bytes`);
+    console.log(`Total blocks: ${statsfs.blocks}`);
+    console.log(`Total file nodes: ${statsfs.files}`);
+    console.log(`Filesystem type: ${statsfs.type}`);
+    // Interpretation of the type number may require consulting the OS documentation.
+  } catch (err) {
+    console.error(`Error retrieving filesystem stats: ${err.message}`);
+  }
+}
+
+getFileSystemStats('/tmp');
+```
+
 
 ### `fs.symlink(target, path[, type], callback)`
 
