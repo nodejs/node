@@ -60,8 +60,9 @@ The stability indexes are as follows:
 
 <div class="api_stability api_stability_3">
   Stability: 3 - Legacy. Although this feature is unlikely to be removed and is
-  still covered by semantic versioning guarantees, it is no longer actively
-  maintained, and other alternatives are available.
+  still covered by <a href="https://semver.org/">semantic versioning</a>
+  guarantees, it is no longer actively maintained, and other alternatives
+  are available.
 </div>
 
 Features are marked as legacy rather than being deprecated if their use does no
@@ -98,7 +99,6 @@ Most Unix system calls have Windows analogues. Still, behavior differences may
 be unavoidable.
 
 [V8 JavaScript engine]: https://v8.dev/
-[semantic versioning]: https://semver.org/
 [the contributing guide]: https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
 [warning]: process.md#event-warning
