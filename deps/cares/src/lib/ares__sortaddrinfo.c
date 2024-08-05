@@ -36,7 +36,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -51,8 +51,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "ares.h"
-#include "ares_private.h"
 
 struct addrinfo_sort_elem {
   struct ares_addrinfo_node *ai;

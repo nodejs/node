@@ -3220,7 +3220,7 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
       isolate()->native_context()->array_buffer_fun()->initial_map(),
       isolate());
   ResizableFlag resizable_by_js = ResizableFlag::kNotResizable;
-  if (v8_flags.harmony_rab_gsab && backing_store->is_resizable_by_js()) {
+  if (backing_store->is_resizable_by_js()) {
     resizable_by_js = ResizableFlag::kResizable;
   }
   auto result =
@@ -3276,8 +3276,6 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
 
 Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
     std::shared_ptr<BackingStore> backing_store) {
-  DCHECK_IMPLIES(backing_store->is_resizable_by_js(),
-                 v8_flags.harmony_rab_gsab);
   Handle<Map> map(
       isolate()->native_context()->shared_array_buffer_fun()->initial_map(),
       isolate());
@@ -3383,7 +3381,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(
   ElementsKind elements_kind;
   JSTypedArray::ForFixedTypedArray(type, &element_size, &elements_kind);
 
-  CHECK_IMPLIES(is_length_tracking, v8_flags.harmony_rab_gsab);
   const bool is_backed_by_rab =
       buffer->is_resizable_by_js() && !buffer->is_shared();
 
@@ -3425,7 +3422,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(
 Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
     DirectHandle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
     bool is_length_tracking) {
-  CHECK_IMPLIES(is_length_tracking, v8_flags.harmony_rab_gsab);
   if (is_length_tracking) {
     // Security: enforce the invariant that length-tracking DataViews have their
     // byte_length set to 0.

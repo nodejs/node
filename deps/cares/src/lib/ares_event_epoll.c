@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares_event.h"
 
@@ -73,20 +71,16 @@ static ares_bool_t ares_evsys_epoll_init(ares_event_thread_t *e)
 
   e->ev_sys_data = ep;
 
-  ep->epoll_fd = epoll_create1(0);
+  ep->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
   if (ep->epoll_fd == -1) {
     ares_evsys_epoll_destroy(e); /* LCOV_EXCL_LINE: UntestablePath */
-    return ARES_FALSE; /* LCOV_EXCL_LINE: UntestablePath */
+    return ARES_FALSE;           /* LCOV_EXCL_LINE: UntestablePath */
   }
-
-#  ifdef FD_CLOEXEC
-  fcntl(ep->epoll_fd, F_SETFD, FD_CLOEXEC);
-#  endif
 
   e->ev_signal = ares_pipeevent_create(e);
   if (e->ev_signal == NULL) {
     ares_evsys_epoll_destroy(e); /* LCOV_EXCL_LINE: UntestablePath */
-    return ARES_FALSE; /* LCOV_EXCL_LINE: UntestablePath */
+    return ARES_FALSE;           /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   return ARES_TRUE;

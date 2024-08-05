@@ -26,8 +26,6 @@
 #ifndef HEADER_CARES_STRSPLIT_H
 #define HEADER_CARES_STRSPLIT_H
 
-#include "ares_setup.h"
-
 /* Split a string on delms skipping empty or duplicate elements.
  *
  * param in String to split.

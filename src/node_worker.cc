@@ -359,6 +359,9 @@ void Worker::Run() {
       CHECK(!context.IsEmpty());
       Context::Scope context_scope(context);
       {
+#if HAVE_INSPECTOR
+        environment_flags_ |= EnvironmentFlags::kNoWaitForInspectorFrontend;
+#endif
         env_.reset(CreateEnvironment(
             data.isolate_data_.get(),
             context,
@@ -380,6 +383,10 @@ void Worker::Run() {
         this->env_ = env_.get();
       }
       Debug(this, "Created Environment for worker with id %llu", thread_id_.id);
+
+#if HAVE_INSPECTOR
+      this->env_->WaitForInspectorFrontendByOptions();
+#endif
       if (is_stopped()) return;
       {
         if (!CreateEnvMessagePort(env_.get())) {
@@ -549,12 +556,40 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       // [0] is expected to be the program name, add dummy string.
       env_argv.insert(env_argv.begin(), "");
       std::vector<std::string> invalid_args{};
-      options_parser::Parse(&env_argv,
-                            nullptr,
-                            &invalid_args,
-                            per_isolate_opts.get(),
-                            kAllowedInEnvvar,
-                            &errors);
+
+      std::string parent_node_options;
+      USE(env->env_vars()->Get("NODE_OPTIONS").To(&parent_node_options));
+
+      // If the worker code passes { env: { ...process.env, ... } } or
+      // the NODE_OPTIONS is otherwise character-for-character equal to the
+      // original NODE_OPTIONS, allow per-process options inherited into
+      // the worker since worker spawning code is not usually in charge of
+      // how the NODE_OPTIONS is configured for the parent.
+      // TODO(joyeecheung): a more intelligent filter may be more desirable.
+      // but a string comparison is good enough(TM) for the case where the
+      // worker spawning code just wants to pass the parent configuration down
+      // and does not intend to modify NODE_OPTIONS.
+      if (parent_node_options == node_options) {
+        // Creates a wrapper per-process option over the per_isolate_opts
+        // to allow per-process options copied from the parent.
+        std::unique_ptr<PerProcessOptions> per_process_opts =
+            std::make_unique<PerProcessOptions>();
+        per_process_opts->per_isolate = per_isolate_opts;
+        options_parser::Parse(&env_argv,
+                              nullptr,
+                              &invalid_args,
+                              per_process_opts.get(),
+                              kAllowedInEnvvar,
+                              &errors);
+      } else {
+        options_parser::Parse(&env_argv,
+                              nullptr,
+                              &invalid_args,
+                              per_isolate_opts.get(),
+                              kAllowedInEnvvar,
+                              &errors);
+      }
+
       if (!errors.empty() && args[1]->IsObject()) {
         // Only fail for explicitly provided env, this protects from failures
         // when NODE_OPTIONS from parent's env is used (which is the default).

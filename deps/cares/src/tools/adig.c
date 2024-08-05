@@ -84,7 +84,9 @@ static const nv_t configflags[] = {
   { "igntc",     ARES_FLAG_IGNTC     },
   { "norecurse", ARES_FLAG_NORECURSE },
   { "stayopen",  ARES_FLAG_STAYOPEN  },
-  { "noaliases", ARES_FLAG_NOALIASES }
+  { "noaliases", ARES_FLAG_NOALIASES },
+  { "edns",      ARES_FLAG_EDNS      },
+  { "dns0x20",   ARES_FLAG_DNS0x20   }
 };
 static const size_t nconfigflags = sizeof(configflags) / sizeof(*configflags);
 
@@ -113,35 +115,48 @@ static void free_config(adig_config_t *config)
 
 static void print_help(void)
 {
+  /* Split due to maximum c89 string literal of 509 bytes */
   printf("adig version %s\n\n", ares_version(NULL));
   printf(
     "usage: adig [-h] [-d] [-f flag] [[-s server] ...] [-T|U port] [-c class]\n"
-    "            [-t type] name ...\n\n"
-    "  -h : Display this help and exit.\n"
-    "  -d : Print some extra debugging output.\n"
-    "  -f flag   : Add a behavior control flag. Possible values are\n"
+    "            [-t type] name ...\n\n");
+  printf(
+    "  -h : Display this help and exit.\n");
+  printf(
+    "  -d : Print some extra debugging output.\n");
+  printf(
+    "  -f flag   : Add a behavior control flag. May be specified more than once\n"
+    "              to add additional flags. Possible values are:\n"
     "              igntc     - do not retry a truncated query as TCP, just\n"
     "                          return the truncated answer\n"
     "              noaliases - don't honor the HOSTALIASES environment\n"
-    "                          variable\n"
+    "                          variable\n");
+  printf(
     "              norecurse - don't query upstream servers recursively\n"
     "              primary   - use the first server\n"
     "              stayopen  - don't close the communication sockets\n"
     "              usevc     - use TCP only\n"
+    "              edns      - use EDNS\n"
+    "              dns0x20   - enable DNS 0x20 support\n");
+  printf(
     "  -s server : Connect to the specified DNS server, instead of the\n"
     "              system's default one(s). Servers are tried in round-robin,\n"
-    "              if the previous one failed.\n"
-    "  -T port   : Connect to the specified TCP port of DNS server.\n"
-    "  -U port   : Connect to the specified UDP port of DNS server.\n"
+    "              if the previous one failed.\n");
+  printf(
+    "  -T port   : Connect to the specified TCP port of DNS server.\n");
+  printf(
+    "  -U port   : Connect to the specified UDP port of DNS server.\n");
+  printf(
     "  -c class  : Set the query class. Possible values for class are:\n"
-    "              ANY, CHAOS, HS and IN (default)\n"
+    "              ANY, CHAOS, HS and IN (default)\n");
+  printf(
     "  -t type   : Query records of the specified type. Possible values for\n"
     "              type are:\n"
     "              A (default), AAAA, ANY, CNAME, HINFO, MX, NAPTR, NS, PTR,\n"
     "              SOA, SRV, TXT, TLSA, URI, CAA, SVCB, HTTPS\n\n");
 }
 
-static ares_bool_t read_cmdline(int argc, const char **argv,
+static ares_bool_t read_cmdline(int argc, const char * const * argv,
                                 adig_config_t *config)
 {
   ares_getopt_state_t state;
@@ -613,6 +628,21 @@ static void print_binp(const ares_dns_rr_t *rr, ares_dns_rr_key_t key)
   print_opt_binp(binp, len);
 }
 
+static void print_abinp(const ares_dns_rr_t *rr, ares_dns_rr_key_t key)
+{
+  size_t               i;
+  size_t               cnt = ares_dns_rr_get_abin_cnt(rr, key);
+
+  for (i=0; i<cnt; i++) {
+    size_t               len;
+    const unsigned char *binp = ares_dns_rr_get_abin(rr, key, i, &len);
+    if (i != 0) {
+      printf(" ");
+    }
+    print_opt_binp(binp, len);
+  }
+}
+
 static void print_rr(const ares_dns_rr_t *rr)
 {
   const char              *name     = ares_dns_rr_get_name(rr);
@@ -671,6 +701,9 @@ static void print_rr(const ares_dns_rr_t *rr)
         break;
       case ARES_DATATYPE_BINP:
         print_binp(rr, keys[i]);
+        break;
+      case ARES_DATATYPE_ABINP:
+        print_abinp(rr, keys[i]);
         break;
       case ARES_DATATYPE_OPT:
         print_opts(rr, keys[i]);
@@ -897,7 +930,7 @@ int main(int argc, char **argv)
   memset(&config, 0, sizeof(config));
   config.qclass = ARES_CLASS_IN;
   config.qtype  = ARES_REC_TYPE_A;
-  if (!read_cmdline(argc, (const char **)argv, &config)) {
+  if (!read_cmdline(argc, (const char * const *)argv, &config)) {
     printf("\n** ERROR: %s\n\n", config.error);
     print_help();
     rv = 1;

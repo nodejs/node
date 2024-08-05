@@ -26,6 +26,8 @@
 #ifndef __ARES_DNS_PRIVATE_H
 #define __ARES_DNS_PRIVATE_H
 
+ares_status_t ares_dns_record_duplicate_ex(ares_dns_record_t **dest,
+                                           const ares_dns_record_t *src);
 ares_bool_t ares_dns_rec_type_allow_name_compression(ares_dns_rec_type_t type);
 ares_bool_t ares_dns_opcode_isvalid(ares_dns_opcode_t opcode);
 ares_bool_t ares_dns_rcode_isvalid(ares_dns_rcode_t rcode);
@@ -41,6 +43,9 @@ ares_status_t ares_dns_rr_set_str_own(ares_dns_rr_t    *dns_rr,
 ares_status_t ares_dns_rr_set_bin_own(ares_dns_rr_t    *dns_rr,
                                       ares_dns_rr_key_t key, unsigned char *val,
                                       size_t len);
+ares_status_t ares_dns_rr_set_abin_own(ares_dns_rr_t           *dns_rr,
+                                       ares_dns_rr_key_t        key,
+                                       ares__dns_multistring_t *strs);
 ares_status_t ares_dns_rr_set_opt_own(ares_dns_rr_t    *dns_rr,
                                       ares_dns_rr_key_t key, unsigned short opt,
                                       unsigned char *val, size_t val_len);
@@ -120,8 +125,7 @@ typedef struct {
 } ares__dns_mx_t;
 
 typedef struct {
-  char  *data;
-  size_t data_len;
+  ares__dns_multistring_t *strs;
 } ares__dns_txt_t;
 
 typedef struct {

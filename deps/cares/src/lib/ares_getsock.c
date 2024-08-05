@@ -24,9 +24,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#include "ares.h"
 #include "ares_private.h"
 
 int ares_getsock(const ares_channel_t *channel, ares_socket_t *socks,

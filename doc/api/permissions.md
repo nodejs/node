@@ -563,6 +563,14 @@ Wildcards are supported too:
 After passing a wildcard character (`*`) all subsequent characters will
 be ignored. For example: `/home/*.js` will work similar to `/home/*`.
 
+When the permission model is initialized, it will automatically add a wildcard
+(\*) if the specified directory exists. For example, if `/home/test/files`
+exists, it will be treated as `/home/test/files/*`. However, if the directory
+does not exist, the wildcard will not be added, and access will be limited to
+`/home/test/files`. If you want to allow access to a folder that does not exist
+yet, make sure to explicitly include the wildcard:
+`/my-path/folder-do-not-exist/*`.
+
 #### Permission Model constraints
 
 There are constraints you need to know before using this system:
@@ -578,7 +586,8 @@ There are constraints you need to know before using this system:
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
-  not subject to the rules of the Permission Model.
+  not subject to the rules of the Permission Model. The same applies for V8
+  flags that can be set via runtime through `v8.setFlagsFromString`.
 * OpenSSL engines cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Using existing file descriptors via the `node:fs` module bypasses the

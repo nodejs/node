@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include "ares_event.h"
 
@@ -95,7 +93,7 @@ static ares_bool_t ares_evsys_kqueue_init(ares_event_thread_t *e)
 
   kq->nchanges_alloc = 8;
   kq->changelist =
-    ares_malloc_zero(sizeof(*kq->changelist) * kq->nchanges_alloc);
+    ares_malloc_zero(kq->nchanges_alloc * sizeof(*kq->changelist));
   if (kq->changelist == NULL) {
     ares_evsys_kqueue_destroy(e);
     return ARES_FALSE;
@@ -125,8 +123,11 @@ static void ares_evsys_kqueue_enqueue(ares_evsys_kqueue_t *kq, int fd,
 
   if (kq->nchanges > kq->nchanges_alloc) {
     kq->nchanges_alloc <<= 1;
-    kq->changelist = ares_realloc_zero(kq->changelist, kq->nchanges_alloc >> 1,
-                                       kq->nchanges_alloc);
+    kq->changelist = ares_realloc_zero(
+      kq->changelist,
+      (kq->nchanges_alloc >> 1) * sizeof(*kq->changelist),
+      kq->nchanges_alloc        * sizeof(*kq->changelist)
+    );
   }
 
   EV_SET(&kq->changelist[idx], fd, filter, flags, 0, 0, 0);

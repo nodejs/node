@@ -661,11 +661,14 @@ static ::std::vector<std::string> g_argvs;
 FilePath GetCurrentExecutableName() {
   FilePath result;
 
+  auto args = GetArgvs();
+  if (!args.empty()) {
 #if defined(GTEST_OS_WINDOWS) || defined(GTEST_OS_OS2)
-  result.Set(FilePath(GetArgvs()[0]).RemoveExtension("exe"));
+    result.Set(FilePath(args[0]).RemoveExtension("exe"));
 #else
-  result.Set(FilePath(GetArgvs()[0]));
+    result.Set(FilePath(args[0]));
 #endif  // GTEST_OS_WINDOWS
+  }
 
   return result.RemoveDirectoryName();
 }
@@ -6700,16 +6703,16 @@ void ParseGoogleTestFlagsOnlyImpl(int* argc, CharType** argv) {
     }
 
     if (remove_flag) {
-      // Shift the remainder of the argv list left by one.  Note
-      // that argv has (*argc + 1) elements, the last one always being
-      // NULL.  The following loop moves the trailing NULL element as
-      // well.
-      for (int j = i; j != *argc; j++) {
-        argv[j] = argv[j + 1];
+      // Shift the remainder of the argv list left by one.
+      for (int j = i + 1; j < *argc; ++j) {
+        argv[j - 1] = argv[j];
       }
 
       // Decrements the argument count.
       (*argc)--;
+
+      // Terminate the array with nullptr.
+      argv[*argc] = nullptr;
 
       // We also need to decrement the iterator as we just removed
       // an element.

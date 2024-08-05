@@ -23,12 +23,12 @@ Last update:
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
 - html/webappapis/structured-clone: https://github.com/web-platform-tests/wpt/tree/47d3fb280c/html/webappapis/structured-clone
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
-- interfaces: https://github.com/web-platform-tests/wpt/tree/727995f043/interfaces
+- interfaces: https://github.com/web-platform-tests/wpt/tree/e90ece61d6/interfaces
 - performance-timeline: https://github.com/web-platform-tests/wpt/tree/17ebc3aea0/performance-timeline
 - resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
 - resources: https://github.com/web-platform-tests/wpt/tree/1e140d63ec/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/9b03282a99/streams
-- url: https://github.com/web-platform-tests/wpt/tree/7f369fef2b/url
+- url: https://github.com/web-platform-tests/wpt/tree/6a39784534/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi

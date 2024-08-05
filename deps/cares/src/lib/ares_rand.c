@@ -24,8 +24,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 #include <stdlib.h>
 
@@ -43,7 +41,7 @@
 typedef enum {
   ARES_RAND_OS   = 1 << 0, /* OS-provided such as RtlGenRandom or arc4random */
   ARES_RAND_FILE = 1 << 1, /* OS file-backed random number generator */
-  ARES_RAND_RC4  = 1 << 2, /* Internal RC4 based PRNG */
+  ARES_RAND_RC4  = 1 << 2  /* Internal RC4 based PRNG */
 } ares_rand_backend;
 
 #define ARES_RC4_KEY_LEN 32 /* 256 bits */
@@ -57,7 +55,7 @@ typedef struct ares_rand_rc4 {
 static unsigned int ares_u32_from_ptr(void *addr)
 {
   /* LCOV_EXCL_START: FallbackCode */
-  if (sizeof(void *) == 8) {
+  if (ares__is_64bit()) {
     return (unsigned int)((((ares_uint64_t)addr >> 32) & 0xFFFFFFFF) |
                           ((ares_uint64_t)addr & 0xFFFFFFFF));
   }
@@ -91,7 +89,7 @@ static void ares_rc4_generate_key(ares_rand_rc4 *rc4_state, unsigned char *key,
   memcpy(key + len, &data, sizeof(data));
   len += sizeof(data);
 
-  tv   = ares__tvnow();
+  ares__tvnow(&tv);
   data = (unsigned int)((tv.sec | tv.usec) & 0xFFFFFFFF);
   memcpy(key + len, &data, sizeof(data));
   len += sizeof(data);
@@ -104,6 +102,13 @@ static void ares_rc4_generate_key(ares_rand_rc4 *rc4_state, unsigned char *key,
   }
   /* LCOV_EXCL_STOP */
 }
+
+#define ARES_SWAP_BYTE(a, b)           \
+  do {                                 \
+    unsigned char swapByte = *(a);     \
+    *(a)                   = *(b);     \
+    *(b)                   = swapByte; \
+  } while (0)
 
 static void ares_rc4_init(ares_rand_rc4 *rc4_state)
 {
@@ -229,7 +234,7 @@ ares_rand_state *ares__init_rand_state(void)
 
   if (!ares__init_rand_engine(state)) {
     ares_free(state); /* LCOV_EXCL_LINE: UntestablePath */
-    return NULL; /* LCOV_EXCL_LINE: UntestablePath */
+    return NULL;      /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   return state;
@@ -250,7 +255,7 @@ static void ares__clear_rand_state(ares_rand_state *state)
       break;
     case ARES_RAND_RC4:
       break;
-    /* LCOV_EXCL_STOP */
+      /* LCOV_EXCL_STOP */
   }
 }
 
@@ -313,7 +318,7 @@ static void ares__rand_bytes_fetch(ares_rand_state *state, unsigned char *buf,
         break;
 #endif
 
-      /* LCOV_EXCL_START: FallbackCode */
+        /* LCOV_EXCL_START: FallbackCode */
 
       case ARES_RAND_FILE:
         while (1) {
@@ -334,8 +339,7 @@ static void ares__rand_bytes_fetch(ares_rand_state *state, unsigned char *buf,
         ares_rc4_prng(&state->state.rc4, buf, len);
         return;
 
-      /* LCOV_EXCL_STOP */
-
+        /* LCOV_EXCL_STOP */
     }
 
     /* If we didn't return before we got here, that means we had a critical rand

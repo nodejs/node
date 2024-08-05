@@ -1,4 +1,4 @@
-/* auto-generated on 2024-05-07 22:33:11 -0400. Do not edit! */
+/* auto-generated on 2024-07-11 00:01:58 -0400. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -1522,10 +1522,10 @@ template<>
 struct simd16<bool>: base16<bool> {
   static simdutf_really_inline simd16<bool> splat(bool _value) { return vmovq_n_u16(uint16_t(-(!!_value))); }
 
-  simdutf_really_inline simd16<bool>() : base16() {}
-  simdutf_really_inline simd16<bool>(const uint16x8_t _value) : base16<bool>(_value) {}
+  simdutf_really_inline simd16() : base16() {}
+  simdutf_really_inline simd16(const uint16x8_t _value) : base16<bool>(_value) {}
   // Splat constructor
-  simdutf_really_inline simd16<bool>(bool _value) : base16<bool>(splat(_value)) {}
+  simdutf_really_inline simd16(bool _value) : base16<bool>(splat(_value)) {}
 
 };
 
@@ -2832,10 +2832,10 @@ template<>
 struct simd16<bool>: base16<bool> {
   static simdutf_really_inline simd16<bool> splat(bool _value) { return _mm256_set1_epi16(uint16_t(-(!!_value))); }
 
-  simdutf_really_inline simd16<bool>() : base16() {}
-  simdutf_really_inline simd16<bool>(const __m256i _value) : base16<bool>(_value) {}
+  simdutf_really_inline simd16() : base16() {}
+  simdutf_really_inline simd16(const __m256i _value) : base16<bool>(_value) {}
   // Splat constructor
-  simdutf_really_inline simd16<bool>(bool _value) : base16<bool>(splat(_value)) {}
+  simdutf_really_inline simd16(bool _value) : base16<bool>(splat(_value)) {}
 
   simdutf_really_inline bitmask_type to_bitmask() const { return _mm256_movemask_epi8(*this); }
   simdutf_really_inline bool any() const { return !_mm256_testz_si256(*this, *this); }
@@ -3803,10 +3803,10 @@ template<>
 struct simd16<bool>: base16<bool> {
   static simdutf_really_inline simd16<bool> splat(bool _value) { return _mm_set1_epi16(uint16_t(-(!!_value))); }
 
-  simdutf_really_inline simd16<bool>() : base16() {}
-  simdutf_really_inline simd16<bool>(const __m128i _value) : base16<bool>(_value) {}
+  simdutf_really_inline simd16() : base16() {}
+  simdutf_really_inline simd16(const __m128i _value) : base16<bool>(_value) {}
   // Splat constructor
-  simdutf_really_inline simd16<bool>(bool _value) : base16<bool>(splat(_value)) {}
+  simdutf_really_inline simd16(bool _value) : base16<bool>(splat(_value)) {}
 
   simdutf_really_inline int to_bitmask() const { return _mm_movemask_epi8(*this); }
   simdutf_really_inline bool any() const { return !_mm_testz_si128(*this, *this); }
@@ -5807,6 +5807,13 @@ result base64_tail_decode_safe(char *dst, size_t& outlen, const char_type *src, 
 // Returns the number of bytes written. The destination buffer must be large
 // enough. It will add padding (=) if needed.
 size_t tail_encode_base64(char *dst, const char *src, size_t srclen, base64_options options) {
+  // By default, we use padding if we are not using the URL variant.
+  // This is check with ((options & base64_url) == 0) which returns true if we are not using the URL variant.
+  // However, we also allow 'inversion' of the convention with the base64_reverse_padding option.
+  // If the base64_reverse_padding option is set, we use padding if we are using the URL variant,
+  // and we omit it if we are not using the URL variant. This is checked with
+  // ((options & base64_reverse_padding) == base64_reverse_padding).
+  bool use_padding = ((options & base64_url) == 0) ^ ((options & base64_reverse_padding) == base64_reverse_padding);
   // This looks like 3 branches, but we expect the compiler to resolve this to a single branch:
   const char *e0 = (options & base64_url) ? tables::base64::base64_url::e0 : tables::base64::base64_default::e0;
   const char *e1 = (options & base64_url) ? tables::base64::base64_url::e1 : tables::base64::base64_default::e1;
@@ -5830,7 +5837,7 @@ size_t tail_encode_base64(char *dst, const char *src, size_t srclen, base64_opti
     t1 = uint8_t(src[i]);
     *out++ = e0[t1];
     *out++ = e1[(t1 & 0x03) << 4];
-    if((options & base64_url) == 0) {
+    if(use_padding) {
       *out++ = '=';
       *out++ = '=';
     }
@@ -5841,7 +5848,7 @@ size_t tail_encode_base64(char *dst, const char *src, size_t srclen, base64_opti
     *out++ = e0[t1];
     *out++ = e1[((t1 & 0x03) << 4) | ((t2 >> 4) & 0x0F)];
     *out++ = e2[(t2 & 0x0F) << 2];
-    if((options & base64_url) == 0) {
+    if(use_padding) {
       *out++ = '=';
     }
   }
@@ -5869,7 +5876,14 @@ simdutf_warn_unused size_t maximal_binary_length_from_base64(const char_type * i
 }
 
 simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options) noexcept {
-  if(options & base64_url) {
+  // By default, we use padding if we are not using the URL variant.
+  // This is check with ((options & base64_url) == 0) which returns true if we are not using the URL variant.
+  // However, we also allow 'inversion' of the convention with the base64_reverse_padding option.
+  // If the base64_reverse_padding option is set, we use padding if we are using the URL variant,
+  // and we omit it if we are not using the URL variant. This is checked with
+  // ((options & base64_reverse_padding) == base64_reverse_padding).
+  bool use_padding = ((options & base64_url) == 0) ^ ((options & base64_reverse_padding) == base64_reverse_padding);
+  if(!use_padding) {
     return length/3 * 4 + ((length % 3) ? (length % 3) + 1 : 0);
   }
   return (length + 2)/3 * 4; // We use padding to make the length a multiple of 4.
@@ -17055,8 +17069,6 @@ result compress_decode_base64(char *dst, const char_type *src, size_t srclen,
         // can avoid the call to compress_block and decode directly.
         copy_block(&b, bufferptr);
         bufferptr += 64;
-        //          base64_decode_block(dst, &b);
-        // dst += 48;
       }
       if (bufferptr >= (block_size - 1) * 64 + buffer) {
         for (size_t i = 0; i < (block_size - 1); i++) {
@@ -27138,8 +27150,8 @@ simdutf_really_inline __m256i lookup_pshufb_improved(const __m256i input) {
   return _mm256_add_epi8(result, input);
 }
 
-template <base64_options options>
-size_t encode_base64(char *dst, const char *src, size_t srclen) {
+template <bool isbase64url>
+size_t encode_base64(char *dst, const char *src, size_t srclen, base64_options options) {
   // credit: Wojciech Muła
   const uint8_t *input = (const uint8_t *)src;
 
@@ -27206,18 +27218,18 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m256i input3 = _mm256_or_si256(t1_3, t3_3);
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved<options == base64_url>(input0));
+                        lookup_pshufb_improved<isbase64url>(input0));
     out += 32;
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved<options == base64_url>(input1));
+                        lookup_pshufb_improved<isbase64url>(input1));
     out += 32;
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved<options == base64_url>(input2));
+                        lookup_pshufb_improved<isbase64url>(input2));
     out += 32;
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved<options == base64_url>(input3));
+                        lookup_pshufb_improved<isbase64url>(input3));
     out += 32;
   }
   for (; i + 28 <= srclen; i += 24) {
@@ -27241,7 +27253,7 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m256i indices = _mm256_or_si256(t1, t3);
 
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(out),
-                        lookup_pshufb_improved<options == base64_url>(indices));
+                        lookup_pshufb_improved<isbase64url>(indices));
     out += 32;
   }
   return i / 3 * 4 + scalar::base64::tail_encode_base64((char *)out, src + i,
@@ -30012,9 +30024,9 @@ simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t leng
 
 size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
   if(options & base64_url) {
-    return encode_base64<base64_url>(output, input, length);
+    return encode_base64<true>(output, input, length, options);
   } else {
-    return encode_base64<base64_default>(output, input, length);
+    return encode_base64<false>(output, input, length, options);
   }
 }
 } // namespace haswell
@@ -35675,8 +35687,8 @@ template <bool base64_url> __m128i lookup_pshufb_improved(const __m128i input) {
   return _mm_add_epi8(result, input);
 }
 
-template <base64_options options>
-size_t encode_base64(char *dst, const char *src, size_t srclen) {
+template <bool isbase64url>
+size_t encode_base64(char *dst, const char *src, size_t srclen, base64_options options) {
   // credit: Wojciech Muła
   // SSE (lookup: pshufb improved unrolled)
   const uint8_t *input = (const uint8_t *)src;
@@ -35727,19 +35739,19 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m128i input3 = _mm_or_si128(t1_3, t3_3);
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved<options & base64_url>(input0));
+                     lookup_pshufb_improved<isbase64url>(input0));
     out += 16;
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved<options & base64_url>(input1));
+                     lookup_pshufb_improved<isbase64url>(input1));
     out += 16;
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved<options & base64_url>(input2));
+                     lookup_pshufb_improved<isbase64url>(input2));
     out += 16;
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved<options & base64_url>(input3));
+                     lookup_pshufb_improved<isbase64url>(input3));
     out += 16;
   }
   for (; i + 16 <= srclen; i += 12) {
@@ -35779,7 +35791,7 @@ size_t encode_base64(char *dst, const char *src, size_t srclen) {
     const __m128i indices = _mm_or_si128(t1, t3);
 
     _mm_storeu_si128(reinterpret_cast<__m128i *>(out),
-                     lookup_pshufb_improved<options & base64_url>(indices));
+                     lookup_pshufb_improved<isbase64url>(indices));
     out += 16;
   }
 
@@ -38555,10 +38567,10 @@ simdutf_warn_unused size_t implementation::base64_length_from_binary(size_t leng
 }
 
 size_t implementation::binary_to_base64(const char * input, size_t length, char* output, base64_options options) const noexcept {
-  if(options == base64_url) {
-    return encode_base64<base64_url>(output, input, length);
+  if(options & base64_url) {
+    return encode_base64<true>(output, input, length, options);
   } else {
-    return encode_base64<base64_default>(output, input, length);
+    return encode_base64<false>(output, input, length, options);
   }
 }
 } // namespace westmere

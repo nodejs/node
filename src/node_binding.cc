@@ -29,6 +29,7 @@
 // The binding IDs that start with 'internal_only' are not exposed to the user
 // land even from internal/test/binding module under --expose-internals.
 #define NODE_BUILTIN_STANDARD_BINDINGS(V)                                      \
+  V(async_context_frame)                                                       \
   V(async_wrap)                                                                \
   V(blob)                                                                      \
   V(block_list)                                                                \
@@ -67,6 +68,7 @@
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
+  V(sqlite)                                                                    \
   V(stream_pipe)                                                               \
   V(stream_wrap)                                                               \
   V(string_decoder)                                                            \

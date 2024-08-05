@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "May 2024" "NPM@10.8.1" ""
+.TH "PACKAGE.JSON" "5" "July 2024" "NPM@10.8.2" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -205,7 +205,7 @@ Both email and url are optional either way.
 npm also sets a top-level "maintainers" field with your npm user info.
 .SS "funding"
 .P
-You can specify an object containing a URL that provides up-to-date information about ways to help fund development of your package, or a string URL, or an array of these:
+You can specify an object containing a URL that provides up-to-date information about ways to help fund development of your package, a string URL, or an array of objects and string URLs:
 .P
 .RS 2
 .nf
@@ -213,15 +213,33 @@ You can specify an object containing a URL that provides up-to-date information 
   "funding": {
     "type" : "individual",
     "url" : "http://example.com/donate"
-  },
-
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+{
   "funding": {
     "type" : "patreon",
     "url" : "https://www.patreon.com/my-account"
-  },
-
-  "funding": "http://example.com/donate",
-
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+{
+  "funding": "http://example.com/donate"
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+{
   "funding": \[lB]
     {
       "type" : "individual",
@@ -237,7 +255,7 @@ You can specify an object containing a URL that provides up-to-date information 
 .fi
 .RE
 .P
-Users can use the \fBnpm fund\fR subcommand to list the \fBfunding\fR URLs of all dependencies of their project, direct and indirect. A shortcut to visit each funding url is also available when providing the project name such as: \fBnpm fund <projectname>\fR (when there are multiple URLs, the first one will be visited)
+Users can use the \fBnpm fund\fR subcommand to list the \fBfunding\fR URLs of all dependencies of their project, direct and indirect. A shortcut to visit each funding URL is also available when providing the project name such as: \fBnpm fund <projectname>\fR (when there are multiple URLs, the first one will be visited)
 .SS "files"
 .P
 The optional \fBfiles\fR field is an array of file patterns that describes the entries to be included when your package is installed as a dependency. File patterns follow a similar syntax to \fB.gitignore\fR, but reversed: including a file, directory, or glob pattern (\fB*\fR, \fB**/*\fR, and such) will make it so that file is included in the tarball when it's packed. Omitting the field will make it default to \fB\[lB]"*"\[rB]\fR, which means it will include all files.
@@ -465,7 +483,7 @@ Do it like this:
 {
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/cli.git"
+    "url": "git+https://github.com/npm/cli.git"
   }
 }
 .fi
@@ -498,8 +516,8 @@ If the \fBpackage.json\fR for your package is not in the root directory (for exa
 {
   "repository": {
     "type": "git",
-    "url": "https://github.com/facebook/react.git",
-    "directory": "packages/react-dom"
+    "url": "git+https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmpublish"
   }
 }
 .fi

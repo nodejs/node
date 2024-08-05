@@ -49,15 +49,18 @@ bool is_tree_granted(
     const std::string_view& param) {
   std::string resolved_param = node::PathResolve(env, {param});
 #ifdef _WIN32
-  // is UNC file path
-  if (resolved_param.rfind("\\\\", 0) == 0) {
-    // return lookup with normalized param
-    size_t starting_pos = 4;  // "\\?\"
-    if (resolved_param.rfind("\\\\?\\UNC\\") == 0) {
-      starting_pos += 4;  // "UNC\"
-    }
-    auto normalized = param.substr(starting_pos);
-    return granted_tree->Lookup(normalized, true);
+  // Remove leading "\\?\" from UNC path
+  if (resolved_param.substr(0, 4) == "\\\\?\\") {
+    resolved_param.erase(0, 4);
+  }
+
+  // Remove leading "UNC\" from UNC path
+  if (resolved_param.substr(0, 4) == "UNC\\") {
+    resolved_param.erase(0, 4);
+  }
+  // Remove leading "//" from UNC path
+  if (resolved_param.substr(0, 2) == "//") {
+    resolved_param.erase(0, 2);
   }
 #endif
   return granted_tree->Lookup(resolved_param, true);

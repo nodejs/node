@@ -540,7 +540,7 @@
         'defines': [
           'WIN32',
           'NOMINMAX',  # Refs: https://chromium-review.googlesource.com/c/v8/v8/+/1456620
-          '_WIN32_WINNT=0x0602',  # Windows 8
+          '_WIN32_WINNT=0x0A00',  # Windows 10
           '_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS',
         ],
         # 4351: VS 2005 and later are warning us that they've fixed a bug
@@ -703,13 +703,7 @@
     'configurations': {
       'Debug': {
         'defines': [
-          'ENABLE_DISASSEMBLER',
-          'V8_ENABLE_CHECKS',
-          'OBJECT_PRINT',
           'DEBUG',
-          'V8_TRACE_MAPS',
-          'V8_ENABLE_ALLOCATION_TIMEOUT',
-          'V8_ENABLE_FORCE_SLOW_PATH',
         ],
         'conditions': [
           ['OS=="linux" and v8_enable_backtrace==1', {

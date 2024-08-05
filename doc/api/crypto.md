@@ -980,6 +980,11 @@ The `decipher.update()` method can be called multiple times with new data until
 [`decipher.final()`][] is called. Calling `decipher.update()` after
 [`decipher.final()`][] will result in an error being thrown.
 
+Even if the underlying cipher implements authentication, the authenticity and
+integrity of the plaintext returned from this function may be uncertain at this
+time. For authenticated encryption algorithms, authenticity is generally only
+established when the application calls [`decipher.final()`][].
+
 ## Class: `DiffieHellman`
 
 <!-- YAML
@@ -5272,7 +5277,9 @@ added: v15.6.0
 <!-- YAML
 added: v0.11.11
 changes:
-  - version: REPLACEME
+  - version:
+    - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53329
     description: Custom engine support in OpenSSL 3 is deprecated.
 -->

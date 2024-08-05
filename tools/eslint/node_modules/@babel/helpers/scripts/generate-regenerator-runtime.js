@@ -1,5 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
-
 import fs from "fs";
 import { createRequire } from "module";
 

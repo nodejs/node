@@ -280,8 +280,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_regexp_modifiers, "RegExp modifiers") \
   V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")
 
-DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
-
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
@@ -293,11 +291,8 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                      \
   V(harmony_import_assertions, "harmony import assertions")           \
-  V(harmony_rab_gsab,                                                 \
-    "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")       \
   V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")       \
   V(harmony_json_parse_with_source, "harmony json parse with source") \
-  V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")        \
   V(harmony_array_grouping, "harmony array grouping")                 \
   V(harmony_array_from_async, "harmony Array.fromAsync")              \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")          \
@@ -1278,9 +1273,6 @@ DEFINE_BOOL_READONLY(turbo_rewrite_far_jumps, false,
                      "rewrite far to near jumps (ia32,x64)")
 #endif
 
-DEFINE_BOOL(
-    turbo_rab_gsab, true,
-    "optimize ResizableArrayBuffer / GrowableSharedArrayBuffer in TurboFan")
 DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")

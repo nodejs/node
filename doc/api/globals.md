@@ -585,7 +585,7 @@ A browser-compatible implementation of {Headers}.
 ## `localStorage`
 
 <!-- YAML
-added: REPLACEME
+added: v22.4.0
 -->
 
 > Stability: 1.0 - Early development.
@@ -966,7 +966,7 @@ A browser-compatible implementation of {Request}.
 ## `sessionStorage`
 
 <!-- YAML
-added: REPLACEME
+added: v22.4.0
 -->
 
 > Stability: 1.0 - Early development.
@@ -1009,7 +1009,7 @@ added: v0.0.1
 ## Class: `Storage`
 
 <!-- YAML
-added: REPLACEME
+added: v22.4.0
 -->
 
 > Stability: 1.0 - Early development.
@@ -1156,7 +1156,7 @@ added:
   - v21.0.0
   - v20.10.0
 changes:
-  - version: REPLACEME
+  - version: v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53352
     description: No longer experimental.
   - version: v22.0.0

@@ -199,6 +199,8 @@ const customTypesMap = {
 
   'repl.REPLServer': 'repl.html#class-replserver',
 
+  'StatementSync': 'sqlite.html#class-statementsync',
+
   'Stream': 'stream.html#stream',
   'stream.Duplex': 'stream.html#class-streamduplex',
   'Duplex': 'stream.html#class-streamduplex',
@@ -220,6 +222,9 @@ const customTypesMap = {
   'tls.TLSSocket': 'tls.html#class-tlstlssocket',
 
   'Tracing': 'tracing.html#tracing-object',
+
+  'tty.ReadStream': 'tty.html#class-ttyreadstream',
+  'tty.WriteStream': 'tty.html#class-ttywritestream',
 
   'URL': 'url.html#the-whatwg-url-api',
   'URLSearchParams': 'url.html#class-urlsearchparams',

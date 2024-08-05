@@ -76,12 +76,12 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
 
 void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
+  CHECK_GE(args.Length(), 1);  // input
   CHECK(args[0]->IsString());
 
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  if (input.empty()) {
-    return args.GetReturnValue().Set(String::Empty(env->isolate()));
+  Utf8Value input(env->isolate(), args[0]);
+  if (input.ToStringView().empty()) {
+    return args.GetReturnValue().SetEmptyString();
   }
 
   // It is important to have an initial value that contains a special scheme.
@@ -89,7 +89,7 @@ void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   // spec.
   auto out = ada::parse<ada::url>("ws://x");
   DCHECK(out);
-  if (!out->set_hostname(input)) {
+  if (!out->set_hostname(input.ToStringView())) {
     return args.GetReturnValue().Set(String::Empty(env->isolate()));
   }
   std::string host = out->get_hostname();
@@ -99,12 +99,12 @@ void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
 
 void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
+  CHECK_GE(args.Length(), 1);  // input
   CHECK(args[0]->IsString());
 
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  if (input.empty()) {
-    return args.GetReturnValue().Set(String::Empty(env->isolate()));
+  Utf8Value input(env->isolate(), args[0]);
+  if (input.ToStringView().empty()) {
+    return args.GetReturnValue().SetEmptyString();
   }
 
   // It is important to have an initial value that contains a special scheme.
@@ -112,10 +112,10 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   // spec.
   auto out = ada::parse<ada::url>("ws://x");
   DCHECK(out);
-  if (!out->set_hostname(input)) {
+  if (!out->set_hostname(input.ToStringView())) {
     return args.GetReturnValue().Set(String::Empty(env->isolate()));
   }
-  std::string result = ada::unicode::to_unicode(out->get_hostname());
+  std::string result = ada::idna::to_unicode(out->get_hostname());
 
   args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
                                                 result.c_str(),
@@ -499,7 +499,7 @@ std::optional<std::string> FileURLToPath(Environment* env,
     // about percent encoding because the URL parser will have
     // already taken care of that for us. Note that this only
     // causes IDNs with an appropriate `xn--` prefix to be decoded.
-    return "\\\\" + ada::unicode::to_unicode(hostname) + decoded_pathname;
+    return "\\\\" + ada::idna::to_unicode(hostname) + decoded_pathname;
   }
 
   char letter = decoded_pathname[1] | 0x20;

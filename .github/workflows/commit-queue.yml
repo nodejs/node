@@ -58,7 +58,7 @@ jobs:
     if: needs.get_mergeable_prs.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
         with:
           # Needs the whole git history for ncu to work
           # See https://github.com/nodejs/node-core-utils/pull/486
@@ -86,11 +86,15 @@ jobs:
         run: |
           ncu-config set branch ${GITHUB_REF_NAME}
           ncu-config set upstream origin
-          ncu-config set username "${{ secrets.GH_USER_NAME }}"
-          ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
-          ncu-config set jenkins_token "${{ secrets.JENKINS_TOKEN }}"
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
           ncu-config set repo "${REPOSITORY}"
           ncu-config set owner "${OWNER}"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Start the Commit Queue
         run: ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} ${{ needs.get_mergeable_prs.outputs.numbers }}

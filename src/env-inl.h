@@ -678,6 +678,10 @@ inline bool Environment::should_create_inspector() const {
          !options_->test_runner && !options_->watch_mode;
 }
 
+inline bool Environment::should_wait_for_inspector_frontend() const {
+  return (flags_ & EnvironmentFlags::kNoWaitForInspectorFrontend) == 0;
+}
+
 inline bool Environment::tracks_unmanaged_fds() const {
   return flags_ & EnvironmentFlags::kTrackUnmanagedFds;
 }
@@ -930,6 +934,26 @@ inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
                                         heap_limit);
 }
 
+inline void Environment::SetAsyncResourceContextFrame(
+    std::uintptr_t async_resource_handle,
+    v8::Global<v8::Value>&& context_frame) {
+  async_resource_context_frames_.emplace(
+      std::make_pair(async_resource_handle, std::move(context_frame)));
+}
+
+inline const v8::Global<v8::Value>& Environment::GetAsyncResourceContextFrame(
+    std::uintptr_t async_resource_handle) {
+  auto&& async_resource_context_frame =
+      async_resource_context_frames_.find(async_resource_handle);
+  CHECK_NE(async_resource_context_frame, async_resource_context_frames_.end());
+
+  return async_resource_context_frame->second;
+}
+
+inline void Environment::RemoveAsyncResourceContextFrame(
+    std::uintptr_t async_resource_handle) {
+  async_resource_context_frames_.erase(async_resource_handle);
+}
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this

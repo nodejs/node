@@ -47,6 +47,7 @@
 #include "node_version.h"
 
 #if HAVE_OPENSSL
+#include "ncrypto.h"
 #include "node_crypto.h"
 #endif
 
@@ -205,7 +206,17 @@ void Environment::InitializeInspector(
     return;
   }
 
+  if (should_wait_for_inspector_frontend()) {
+    WaitForInspectorFrontendByOptions();
+  }
+
   profiler::StartProfilers(this);
+}
+
+void Environment::WaitForInspectorFrontendByOptions() {
+  if (!inspector_agent_->WaitForConnectByOptions()) {
+    return;
+  }
 
   if (inspector_agent_->options().break_node_first_line) {
     inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
@@ -254,6 +265,14 @@ std::optional<StartExecutionCallbackInfo> CallbackInfoFromArray(
   CHECK(process_obj->IsObject());
   CHECK(require_fn->IsFunction());
   CHECK(runcjs_fn->IsFunction());
+  // TODO(joyeecheung): some support for running ESM as an entrypoint
+  // is needed. The simplest API would be to add a run_esm to
+  // StartExecutionCallbackInfo which compiles, links (to builtins)
+  // and evaluates a SourceTextModule.
+  // TODO(joyeecheung): the env pointer should be part of
+  // StartExecutionCallbackInfo, otherwise embedders are forced to use
+  // lambdas to pass it into the callback, which can make the code
+  // difficult to read.
   node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
                                         require_fn.As<Function>(),
                                         runcjs_fn.As<Function>()};
@@ -1124,14 +1143,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     // Ensure CSPRNG is properly seeded.
-    CHECK(crypto::CSPRNG(nullptr, 0).is_ok());
+    CHECK(ncrypto::CSPRNG(nullptr, 0));
 
     V8::SetEntropySource([](unsigned char* buffer, size_t length) {
       // V8 falls back to very weak entropy when this function fails
       // and /dev/urandom isn't available. That wouldn't be so bad if
       // the entropy was only used for Math.random() but it's also used for
       // hash table and address space layout randomization. Better to abort.
-      CHECK(crypto::CSPRNG(buffer, length).is_ok());
+      CHECK(ncrypto::CSPRNG(buffer, length));
       return true;
     });
 #endif  // !defined(OPENSSL_IS_BORINGSSL)

@@ -23,8 +23,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
-#include "ares.h"
 #include "ares_private.h"
 
 #ifdef CARES_THREADS
@@ -227,7 +225,7 @@ ares__thread_mutex_t *ares__thread_mutex_create(void)
 
   if (pthread_mutexattr_init(&attr) != 0) {
     ares_free(mut); /* LCOV_EXCL_LINE: UntestablePath */
-    return NULL; /* LCOV_EXCL_LINE: UntestablePath */
+    return NULL;    /* LCOV_EXCL_LINE: UntestablePath */
   }
 
   if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE) != 0) {
@@ -246,7 +244,7 @@ fail:
   pthread_mutexattr_destroy(&attr);
   ares_free(mut);
   return NULL;
-/* LCOV_EXCL_STOP */
+  /* LCOV_EXCL_STOP */
 }
 
 void ares__thread_mutex_destroy(ares__thread_mutex_t *mut)
@@ -384,7 +382,7 @@ ares_status_t ares__thread_create(ares__thread_t    **thread,
     return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
   if (pthread_create(&thr->thread, NULL, func, arg) != 0) {
-    ares_free(thr); /* LCOV_EXCL_LINE: UntestablePath */
+    ares_free(thr);        /* LCOV_EXCL_LINE: UntestablePath */
     return ARES_ESERVFAIL; /* LCOV_EXCL_LINE: UntestablePath */
   }
 
@@ -564,7 +562,7 @@ ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
   }
 
   if (timeout_ms >= 0) {
-    tout       = ares__tvnow();
+    ares__tvnow(&tout);
     tout.sec  += (ares_int64_t)(timeout_ms / 1000);
     tout.usec += (unsigned int)(timeout_ms % 1000) * 1000;
   }
@@ -575,9 +573,10 @@ ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
       ares__thread_cond_wait(channel->cond_empty, channel->lock);
     } else {
       ares_timeval_t tv_remaining;
-      ares_timeval_t tv_now = ares__tvnow();
+      ares_timeval_t tv_now;
       unsigned long  tms;
 
+      ares__tvnow(&tv_now);
       ares__timeval_remaining(&tv_remaining, &tv_now, &tout);
       tms =
         (unsigned long)((tv_remaining.sec * 1000) + (tv_remaining.usec / 1000));

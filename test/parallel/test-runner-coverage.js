@@ -335,3 +335,96 @@ test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);
 });
+
+test('coverage with excluded files', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage-exclude=test/*/test-runner/invalid-tap.js',
+    fixture];
+  const result = spawnSync(process.execPath, args);
+  const report = [
+    '# start of coverage report',
+    '# ' + '-'.repeat(112),
+    '# file                                  | line % | branch % | funcs % | uncovered lines',
+    '# ' + '-'.repeat(112),
+    '# test/fixtures/test-runner/coverage.js |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '# test/fixtures/v8-coverage/throw.js    |  71.43 |    50.00 |  100.00 | 5-6',
+    '# ' + '-'.repeat(112),
+    '# all files                             |  78.13 |    40.00 |   60.00 |',
+    '# ' + '-'.repeat(112),
+    '# end of coverage report',
+  ].join('\n');
+
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage with included files', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage-include=test/fixtures/test-runner/coverage.js',
+    '--test-coverage-include=test/fixtures/v8-coverage/throw.js',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = [
+    '# start of coverage report',
+    '# ' + '-'.repeat(112),
+    '# file                                  | line % | branch % | funcs % | uncovered lines',
+    '# ' + '-'.repeat(112),
+    '# test/fixtures/test-runner/coverage.js |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '# test/fixtures/v8-coverage/throw.js    |  71.43 |    50.00 |  100.00 | 5-6',
+    '# ' + '-'.repeat(112),
+    '# all files                             |  78.13 |    40.00 |   60.00 |',
+    '# ' + '-'.repeat(112),
+    '# end of coverage report',
+  ].join('\n');
+
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage with included and excluded files', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage-include=test/fixtures/test-runner/*.js',
+    '--test-coverage-exclude=test/fixtures/test-runner/*-tap.js',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = [
+    '# start of coverage report',
+    '# ' + '-'.repeat(112),
+    '# file                                  | line % | branch % | funcs % | uncovered lines',
+    '# ' + '-'.repeat(112),
+    '# test/fixtures/test-runner/coverage.js |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '# ' + '-'.repeat(112),
+    '# all files                             |  78.65 |    38.46 |   60.00 |',
+    '# ' + '-'.repeat(112),
+    '# end of coverage report',
+  ].join('\n');
+
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});

@@ -24,7 +24,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_SYS_UIO_H
 #  include <sys/uio.h>
@@ -56,8 +56,6 @@
 #include <fcntl.h>
 #include <limits.h>
 
-#include "ares.h"
-#include "ares_private.h"
 
 ares_ssize_t ares__socket_recvfrom(ares_channel_t *channel, ares_socket_t s,
                                    void *data, size_t data_len, int flags,
@@ -186,6 +184,14 @@ static int configure_socket(ares_socket_t s, struct server_state *server)
   }
 #endif
 
+  /* No need to emit SIGPIPE on socket errors */
+#if defined(SO_NOSIGPIPE)
+  {
+    int opt = 1;
+    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, (void *)&opt, sizeof(opt));
+  }
+#endif
+
   /* Set the socket's send and receive buffer sizes. */
   if ((channel->socket_send_buffer_size > 0) &&
       setsockopt(s, SOL_SOCKET, SO_SNDBUF,
@@ -305,7 +311,7 @@ ares_status_t ares__open_connection(ares_channel_t      *channel,
         setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *)&opt, sizeof(opt)) ==
           -1) {
       ares__close_socket(channel, s); /* LCOV_EXCL_LINE: UntestablePath */
-      return ARES_ECONNREFUSED; /* LCOV_EXCL_LINE: UntestablePath */
+      return ARES_ECONNREFUSED;       /* LCOV_EXCL_LINE: UntestablePath */
     }
   }
 #endif
@@ -339,7 +345,7 @@ ares_status_t ares__open_connection(ares_channel_t      *channel,
   conn = ares_malloc(sizeof(*conn));
   if (conn == NULL) {
     ares__close_socket(channel, s); /* LCOV_EXCL_LINE: OutOfMemory */
-    return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    return ARES_ENOMEM;             /* LCOV_EXCL_LINE: OutOfMemory */
   }
   memset(conn, 0, sizeof(*conn));
   conn->fd              = s;

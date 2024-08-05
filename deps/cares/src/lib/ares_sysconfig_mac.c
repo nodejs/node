@@ -45,7 +45,14 @@
  * private header extracted from:
  * https://opensource.apple.com/source/configd/configd-1109.140.1/dnsinfo/dnsinfo.h
  */
-#  include "ares_setup.h"
+
+/* The apple header uses anonymous unions which came with C11 */
+#  if defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wc11-extensions"
+#  endif
+
+#  include "ares_private.h"
 #  include <stdio.h>
 #  include <stdlib.h>
 #  include <string.h>
@@ -56,8 +63,6 @@
 #  if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
 #    include <SystemConfiguration/SCNetworkConfiguration.h>
 #  endif
-#  include "ares.h"
-#  include "ares_private.h"
 
 typedef struct {
   void *handle;
@@ -80,12 +85,13 @@ static void dnsinfo_destroy(dnsinfo_t *dnsinfo)
 
 static ares_status_t dnsinfo_init(dnsinfo_t **dnsinfo_out)
 {
-  dnsinfo_t    *dnsinfo       = NULL;
-  ares_status_t status        = ARES_SUCCESS;
+  dnsinfo_t    *dnsinfo = NULL;
+  ares_status_t status  = ARES_SUCCESS;
   size_t        i;
-  const char   *searchlibs[]  = {
+  const char   *searchlibs[] = {
     "/usr/lib/libSystem.dylib",
-    "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+    "/System/Library/Frameworks/SystemConfiguration.framework/"
+      "SystemConfiguration",
     NULL
   };
 
@@ -102,17 +108,17 @@ static ares_status_t dnsinfo_init(dnsinfo_t **dnsinfo_out)
     goto done;
   }
 
-  for (i=0; searchlibs[i] != NULL; i++) {
+  for (i = 0; searchlibs[i] != NULL; i++) {
     dnsinfo->handle = dlopen(searchlibs[i], RTLD_LAZY /* | RTLD_NOLOAD */);
     if (dnsinfo->handle == NULL) {
       /* Fail, loop */
       continue;
     }
 
-    dnsinfo->dns_configuration_copy =
+    dnsinfo->dns_configuration_copy = (dns_config_t *(*)(void))
       dlsym(dnsinfo->handle, "dns_configuration_copy");
 
-    dnsinfo->dns_configuration_free =
+    dnsinfo->dns_configuration_free = (void (*)(dns_config_t *))
       dlsym(dnsinfo->handle, "dns_configuration_free");
 
     if (dnsinfo->dns_configuration_copy != NULL &&
@@ -162,7 +168,7 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
   unsigned short port   = 0;
   ares_status_t  status = ARES_SUCCESS;
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
+#  if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
   /* XXX: resolver->domain is for domain-specific servers.  When we implement
    *      this support, we'll want to use this.  But for now, we're going to
    *      skip any servers which set this since we can't properly route.
@@ -172,9 +178,9 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
   if (resolver->domain != NULL) {
     return ARES_SUCCESS;
   }
-#endif
+#  endif
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
+#  if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 /* MacOS 10.8 */
   /* Check to see if DNS server should be used, base this on if the server is
    * reachable or can be reachable automatically if we send traffic that
    * direction. */
@@ -183,7 +189,7 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
          kSCNetworkReachabilityFlagsConnectionOnTraffic))) {
     return ARES_SUCCESS;
   }
-#endif
+#  endif
 
   /* NOTE: it doesn't look like resolver->flags is relevant */
 
@@ -296,8 +302,8 @@ static ares_status_t read_resolver(const dns_resolver_t *resolver,
 
     if_name = ares__if_indextoname(resolver->if_index, if_name_str,
                                    sizeof(if_name_str));
-    status = ares__sconfig_append(&sysconfig->sconfig, &addr, addrport,
-                                  addrport, if_name);
+    status  = ares__sconfig_append(&sysconfig->sconfig, &addr, addrport,
+                                   addrport, if_name);
     if (status != ARES_SUCCESS) {
       return status;
     }
@@ -365,5 +371,13 @@ done:
   return status;
 }
 
+#  if defined(__clang__)
+#    pragma GCC diagnostic pop
+#  endif
+
+#else
+
+/* Prevent compiler warnings due to empty translation unit */
+typedef int make_iso_compilers_happy;
 
 #endif

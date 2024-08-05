@@ -133,7 +133,7 @@ static void WriteNodeReport(Isolate* isolate,
            tm_struct.wMinute,
            tm_struct.wSecond);
   writer.json_keyvalue("dumpEventTime", timebuf);
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   snprintf(timebuf,
            sizeof(timebuf),
            "%4d-%02d-%02dT%02d:%02d:%02dZ",

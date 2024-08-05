@@ -110,7 +110,7 @@ class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
   std::vector<std::string> conditions;
-  bool detect_module = false;
+  bool detect_module = true;
   bool print_required_tla = false;
   bool require_module = false;
   std::string dns_result_order;
@@ -118,11 +118,11 @@ class EnvironmentOptions : public Options {
   bool experimental_eventsource = false;
   bool experimental_fetch = true;
   bool experimental_websocket = true;
+  bool experimental_sqlite = false;
   bool experimental_webstorage = false;
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
-  bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
@@ -136,6 +136,7 @@ class EnvironmentOptions : public Options {
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
+  bool async_context_frame = false;
   bool expose_internals = false;
   bool force_node_api_uncaught_exceptions_policy = false;
   bool frozen_intrinsics = false;
@@ -161,6 +162,7 @@ class EnvironmentOptions : public Options {
   uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
   std::string cpu_prof_name;
   bool cpu_prof = false;
+  bool experimental_network_inspection = false;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
@@ -186,6 +188,8 @@ class EnvironmentOptions : public Options {
   bool test_udp_no_try_send = false;
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> coverage_include_pattern;
+  std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
   bool trace_deprecation = false;
   bool trace_exit = false;
@@ -228,6 +232,8 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_cjs_modules;
 
   std::vector<std::string> preload_esm_modules;
+
+  bool experimental_strip_types = false;
 
   std::vector<std::string> user_argv;
 

@@ -12,6 +12,7 @@ on:
       - tools/gyp/**
       - tools/test.py
       - .github/workflows/coverage-windows.yml
+      - codecov.yml
   push:
     branches:
       - main
@@ -24,6 +25,7 @@ on:
       - tools/gyp/**
       - tools/test.py
       - .github/workflows/coverage-windows.yml
+      - codecov.yml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -41,7 +43,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -67,7 +69,7 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c  # v4.4.1
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673  # v4.5.0
         with:
           directory: ./coverage
           token: ${{ secrets.CODECOV_TOKEN }}

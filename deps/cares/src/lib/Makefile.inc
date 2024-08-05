@@ -5,7 +5,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares__addrinfo_localhost.c		\
   ares__buf.c				\
   ares__close_sockets.c			\
-  ares__hosts_file.c		\
+  ares__hosts_file.c			\
   ares__htable.c			\
   ares__htable_asvp.c			\
   ares__htable_strvp.c			\
@@ -24,11 +24,12 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_data.c				\
   ares_destroy.c			\
   ares_dns_mapping.c			\
+  ares_dns_multistring.c	\
   ares_dns_name.c			\
   ares_dns_parse.c			\
   ares_dns_record.c			\
   ares_dns_write.c			\
-  ares_event_configchg.c	\
+  ares_event_configchg.c		\
   ares_event_epoll.c			\
   ares_event_kqueue.c			\
   ares_event_poll.c			\
@@ -50,7 +51,8 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_getsock.c			\
   ares_init.c				\
   ares_library_init.c			\
-  ares_math.c			\
+  ares_math.c				\
+  ares_metrics.c			\
   ares_create_query.c			\
   ares_options.c			\
   ares_parse_a_reply.c			\
@@ -66,7 +68,7 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_parse_uri_reply.c		\
   ares_platform.c			\
   ares_process.c			\
-  ares_qcache.c			\
+  ares_qcache.c				\
   ares_query.c				\
   ares_rand.c				\
   ares_search.c				\
@@ -75,11 +77,12 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_str.c				\
   ares_strerror.c			\
   ares_strsplit.c			\
-  ares_sysconfig.c		\
-  ares_sysconfig_files.c	\
-  ares_sysconfig_mac.c	\
+  ares_sysconfig.c			\
+  ares_sysconfig_files.c		\
+  ares_sysconfig_mac.c			\
+  ares_sysconfig_win.c			\
   ares_timeout.c			\
-  ares_update_servers.c	\
+  ares_update_servers.c			\
   ares_version.c			\
   inet_net_pton.c			\
   inet_ntop.c				\
@@ -97,6 +100,7 @@ HHEADERS = ares__buf.h			\
   ares__threads.h			\
   ares_android.h			\
   ares_data.h				\
+  ares_dns_multistring.h		\
   ares_dns_private.h			\
   ares_event.h				\
   ares_event_win32.h			\
@@ -109,6 +113,5 @@ HHEADERS = ares__buf.h			\
   ares_str.h				\
   ares_strsplit.h			\
   ares_setup.h				\
-  setup_once.h				\
   thirdparty/apple/dnsinfo.h
 

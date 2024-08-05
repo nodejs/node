@@ -76,7 +76,7 @@ class PathHoister {
       } else {
         break;
       }
-      if (this.breakOnScopePaths.indexOf(scope.path) >= 0) {
+      if (this.breakOnScopePaths.includes(scope.path)) {
         break;
       }
     } while (scope = scope.parent);

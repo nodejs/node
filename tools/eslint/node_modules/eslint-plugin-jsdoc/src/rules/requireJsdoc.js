@@ -18,6 +18,11 @@ import {
  * }} RequireJsdocOpts
  */
 
+/**
+ * @typedef {import('eslint').Rule.Node|
+ *   import('@typescript-eslint/types').TSESTree.Node} ESLintOrTSNode
+ */
+
 /** @type {import('json-schema').JSONSchema4} */
 const OPTIONS_SCHEMA = {
   additionalProperties: false,
@@ -411,10 +416,13 @@ export default {
       const fix = /** @type {import('eslint').Rule.ReportFixer} */ (fixer) => {
         // Default to one line break if the `minLines`/`maxLines` settings allow
         const lines = settings.minLines === 0 && settings.maxLines >= 1 ? 1 : settings.minLines;
-        /** @type {import('eslint').Rule.Node|import('@typescript-eslint/types').TSESTree.Decorator} */
+        /** @type {ESLintOrTSNode|import('@typescript-eslint/types').TSESTree.Decorator} */
         let baseNode = getReducedASTNode(node, sourceCode);
 
-        const decorator = getDecorator(baseNode);
+        const decorator = getDecorator(
+          /** @type {import('eslint').Rule.Node} */
+          (baseNode)
+        );
         if (decorator) {
           baseNode = decorator;
         }
