@@ -182,7 +182,7 @@ void Dotenv::ParseContent(const std::string_view input) {
         // Skip whitespace after key
         i++;
       }
-      //Move start/end pointers to the beginning of the value
+      // Move start/end pointers to the beginning of the value
       start = i + 1;
       end = i + 1;
       continue;
@@ -219,7 +219,7 @@ void Dotenv::ParseContent(const std::string_view input) {
       quote = 0;
       inComment = false;
     } else if (!inComment) {
-      //Char is not a comment, advance the key/value end pointer
+      // Char is not a comment, advance the key/value end pointer
       end++;
     }
   }
