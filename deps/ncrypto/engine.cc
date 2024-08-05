@@ -58,7 +58,7 @@ EnginePointer EnginePointer::getEngineByName(const std::string_view name,
       }
     }
   }
-  return std::move(engine);
+  return engine;
 }
 
 bool EnginePointer::setAsDefault(uint32_t flags, CryptoErrorList* errors) {
