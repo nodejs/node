@@ -17,7 +17,7 @@ test-http2-large-file: PASS, FLAKY
 # for a preemptive check now. It should idealy fail more gracefully
 # with a better checking mechanism.
 # https://github.com/nodejs/build/issues/3043
-test-snapshot-incompatible
+test-snapshot-incompatible: SKIP
 [$system==win32]
 # https://github.com/nodejs/node/issues/47116
 test-http-max-sockets: PASS, FLAKY
