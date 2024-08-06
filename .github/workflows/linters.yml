@@ -185,4 +185,21 @@ jobs:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
         with:
           persist-credentials: false
-      - run: tools/lint-readme-lists.mjs
+      - name: Get team members if possible
+        id: team_members
+        run: |
+          get_list_members() {
+            TEAM="$1"
+            QUOTE='"'
+            gh api "/orgs/nodejs/teams/$TEAM/members" -X GET -f per_page=100 --jq "map(.login) | ${QUOTE}${TEAM}=\(tojson)${QUOTE}"
+          }
+          [ -z "$GITHUB_TOKEN" ] || (
+            get_list_members "collaborators"
+            get_list_members "issue-triage"
+            get_list_members "tsc"
+          ) >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+      - run: tools/lint-readme-lists.mjs "$TEAMS"
+        env:
+          TEAMS: ${{ tojson(steps.team_members.outputs) }}
