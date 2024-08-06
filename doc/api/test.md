@@ -3214,8 +3214,8 @@ test('top level test', (t) => {
 
 <!-- YAML
 added:
-  - v20.16.0
   - v22.6.0
+  - v20.16.0
 -->
 
 The absolute path of the test file that created the current test. If a test file
