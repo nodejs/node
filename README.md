@@ -738,6 +738,8 @@ maintaining the Node.js project.
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
+* [KevinEady](https://github.com/KevinEady) -
+  **Kevin Eady** <<kevin.c.eady@gmail.com>> (he/him)
 * [kvakil](https://github.com/kvakil) -
   **Keyhan Vakil** <<kvakil@sylph.kvakil.me>>
 * [marsonya](https://github.com/marsonya) -
