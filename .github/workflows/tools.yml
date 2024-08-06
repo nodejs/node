@@ -22,7 +22,6 @@ on:
           - cjs-module-lexer
           - corepack
           - doc
-          - eslint
           - github_reporter
           - googletest
           - gyp-next
@@ -137,14 +136,6 @@ jobs:
                 npm install --ignore-scripts $NEW_VERSION
                 npm install --ignore-scripts
               fi
-          - id: eslint
-            subsystem: tools
-            label: tools
-            run: |
-              ./tools/dep_updaters/update-eslint.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: github_reporter
             subsystem: tools
             label: tools
