@@ -1240,6 +1240,9 @@ added:
   - v16.19.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/53937
+    description: Added coverage options.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/53866
     description: Added the `globPatterns` option.
   - version:
@@ -1304,6 +1307,14 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `coverage` {boolean} Whether to collect code coverage or not.
+    **Default:** `false`.
+  * `coverageIncludePatterns` {string|Array} Includes specific files in code coverage using a
+    glob expression, which can match both absolute and relative file paths.
+    **Default:** `undefined`.
+  * `coverageExcludePatterns` {string|Array} Excludes specific files from code coverage using
+    a glob expression, which can match both absolute and relative file paths.
+    **Default:** `undefined`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
