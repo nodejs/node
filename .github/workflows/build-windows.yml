@@ -48,6 +48,6 @@ jobs:
       - name: Install deps
         run: choco install nasm
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       - name: Build
         run: ./vcbuild.bat

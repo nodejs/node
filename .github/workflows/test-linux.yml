@@ -49,7 +49,7 @@ jobs:
         with:
           version: v0.8.0
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       - name: Build
         run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
