@@ -112,6 +112,7 @@ tools/*/*.i.tmp
 /node_modules
 /tools/doc/node_modules
 /tools/clang-format/node_modules
+/tools/eslint/node_modules
 
 # === Rules for test artifacts ===
 /*.tap
