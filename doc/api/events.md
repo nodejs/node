@@ -1378,6 +1378,7 @@ try {
 
 ```cjs
 const { once, EventEmitter } = require('node:events');
+const process = require('node:process');
 
 async function run() {
   const ee = new EventEmitter();
@@ -1522,6 +1523,7 @@ foo().then(() => console.log('done'));
 
 ```cjs
 const { EventEmitter, once } = require('node:events');
+const process = require('node:process');
 
 const myEE = new EventEmitter();
 
@@ -1568,6 +1570,7 @@ foo().then(() => console.log('done'));
 
 ```cjs
 const { EventEmitter, once } = require('node:events');
+const process = require('node:process');
 
 const myEE = new EventEmitter();
 
@@ -1713,6 +1716,7 @@ for await (const event of on(ee, 'foo')) {
 
 ```cjs
 const { on, EventEmitter } = require('node:events');
+const process = require('node:process');
 
 (async () => {
   const ee = new EventEmitter();
@@ -1769,6 +1773,7 @@ process.nextTick(() => ac.abort());
 
 ```cjs
 const { on, EventEmitter } = require('node:events');
+const process = require('node:process');
 
 const ac = new AbortController();
 
