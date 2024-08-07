@@ -8,22 +8,10 @@ const fixtures = require('../common/fixtures');
 const envSuffix = common.isWindows ? '-windows' : '';
 
 describe('node --run [command]', () => {
-  it('should emit experimental warning', async () => {
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--run', 'test'],
-      { cwd: __dirname },
-    );
-    assert.match(child.stderr, /ExperimentalWarning: Task runner is an experimental feature and might change at any time/);
-    assert.match(child.stderr, /Can't read package\.json/);
-    assert.strictEqual(child.stdout, '');
-    assert.strictEqual(child.code, 1);
-  });
-
   it('returns error on non-existent file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', 'test'],
+      [ '--run', 'test'],
       { cwd: __dirname },
     );
     assert.match(child.stderr, /Can't read package\.json/);
@@ -45,7 +33,7 @@ describe('node --run [command]', () => {
   it('adds node_modules/.bin to path', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', `ada${envSuffix}`],
+      [ '--run', `ada${envSuffix}`],
       { cwd: fixtures.path('run-script') },
     );
     assert.match(child.stdout, /06062023/);
@@ -56,7 +44,7 @@ describe('node --run [command]', () => {
   it('appends positional arguments', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C'],
+      [ '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C'],
       { cwd: fixtures.path('run-script') },
     );
     if (common.isWindows) {
@@ -72,7 +60,7 @@ describe('node --run [command]', () => {
   it('should set PATH environment variable with paths appended with node_modules/.bin', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', `path-env${envSuffix}`],
+      [ '--run', `path-env${envSuffix}`],
       { cwd: fixtures.path('run-script/sub-directory') },
     );
     assert.ok(child.stdout.includes(fixtures.path('run-script/node_modules/.bin')));
@@ -93,7 +81,7 @@ describe('node --run [command]', () => {
     const packageJsonPath = fixtures.path('run-script/package.json');
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', scriptName],
+      [ '--run', scriptName],
       { cwd: fixtures.path('run-script') },
     );
     assert.ok(child.stdout.includes(scriptName));
@@ -106,7 +94,7 @@ describe('node --run [command]', () => {
     const packageJsonPath = fixtures.path('run-script/package.json');
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--no-warnings', '--run', `special-env-variables${envSuffix}`],
+      [ '--run', `special-env-variables${envSuffix}`],
       { cwd: fixtures.path('run-script/sub-directory') },
     );
     assert.ok(child.stdout.includes(packageJsonPath));
