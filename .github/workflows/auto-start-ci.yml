@@ -73,3 +73,7 @@ jobs:
         run: ./tools/actions/start-ci.sh ${{ needs.get-prs-for-ci.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2.17.0
+            
