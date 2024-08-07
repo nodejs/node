@@ -1,9 +1,9 @@
-#include "base_object-inl.h"
 #include "crypto_x509.h"
+#include "base_object-inl.h"
+#include "crypto_bio.h"
 #include "crypto_common.h"
 #include "crypto_context.h"
 #include "crypto_keys.h"
-#include "crypto_bio.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "ncrypto.h"
@@ -76,11 +76,12 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
   BUF_MEM* mem;
   BIO_get_mem_ptr(bio.get(), &mem);
   Local<Value> ret;
-  if (!String::NewFromUtf8(
-          context->GetIsolate(),
-          mem->data,
-          NewStringType::kNormal,
-          mem->length).ToLocal(&ret)) return {};
+  if (!String::NewFromUtf8(context->GetIsolate(),
+                           mem->data,
+                           NewStringType::kNormal,
+                           mem->length)
+           .ToLocal(&ret))
+    return {};
   return ret;
 }
 
@@ -136,7 +137,8 @@ void SubjectAltName(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (ToV8Value(env->context(), cert->view().getSubjectAltName()).ToLocal(&ret)) {
+  if (ToV8Value(env->context(), cert->view().getSubjectAltName())
+          .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -187,8 +189,8 @@ void SerialNumber(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   auto serial = cert->view().getSerialNumber();
   if (serial) {
-    args.GetReturnValue().Set(
-        OneByteString(env->isolate(), static_cast<unsigned char*>(serial.get())));
+    args.GetReturnValue().Set(OneByteString(
+        env->isolate(), static_cast<unsigned char*>(serial.get())));
   }
 }
 
@@ -204,8 +206,8 @@ void PublicKey(const FunctionCallbackInfo<Value>& args) {
     ThrowCryptoError(env, result.error.value_or(0));
     return;
   }
-  std::shared_ptr<KeyObjectData> key_data =
-      KeyObjectData::CreateAsymmetric(kKeyTypePublic, ManagedEVPPKey(std::move(result.value)));
+  std::shared_ptr<KeyObjectData> key_data = KeyObjectData::CreateAsymmetric(
+      kKeyTypePublic, ManagedEVPPKey(std::move(result.value)));
 
   Local<Value> ret;
   if (KeyObjectHandle::Create(env, std::move(key_data)).ToLocal(&ret)) {
@@ -227,14 +229,14 @@ void KeyUsage(const FunctionCallbackInfo<Value>& args) {
 
   int j = 0;
   for (int i = 0; i < count; i++) {
-    if (OBJ_obj2txt(buf,
-                    sizeof(buf),
-                    sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
+    if (OBJ_obj2txt(buf, sizeof(buf), sk_ASN1_OBJECT_value(eku.get(), i), 1) >=
+        0) {
       ext_key_usage[j++] = OneByteString(env->isolate(), buf);
     }
   }
 
-  args.GetReturnValue().Set(Array::New(env->isolate(), ext_key_usage.out(), count));
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), ext_key_usage.out(), count));
 }
 
 void CheckCA(const FunctionCallbackInfo<Value>& args) {
@@ -262,7 +264,8 @@ void CheckPrivateKey(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
   CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePrivate);
-  args.GetReturnValue().Set(cert->view().checkPrivateKey(key->Data()->GetAsymmetricKey().pkey()));
+  args.GetReturnValue().Set(
+      cert->view().checkPrivateKey(key->Data()->GetAsymmetricKey().pkey()));
 }
 
 void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
@@ -274,7 +277,8 @@ void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
   CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePublic);
 
-  args.GetReturnValue().Set(cert->view().checkPublicKey(key->Data()->GetAsymmetricKey().pkey()));
+  args.GetReturnValue().Set(
+      cert->view().checkPublicKey(key->Data()->GetAsymmetricKey().pkey()));
 }
 
 void CheckHost(const FunctionCallbackInfo<Value>& args) {
@@ -290,12 +294,12 @@ void CheckHost(const FunctionCallbackInfo<Value>& args) {
   ncrypto::DataPointer peername;
 
   switch (cert->view().checkHost(name.ToStringView(), flags, &peername)) {
-    case ncrypto::X509View::CheckMatch::MATCH:  {  // Match!
+    case ncrypto::X509View::CheckMatch::MATCH: {  // Match!
       Local<Value> ret = args[0];
       if (peername) {
         ret = OneByteString(env->isolate(),
-            static_cast<const char*>(peername.get()),
-            peername.size());
+                            static_cast<const char*>(peername.get()),
+                            peername.size());
       }
       return args.GetReturnValue().Set(ret);
     }
@@ -367,9 +371,9 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<unsigned char> buf(args[0].As<ArrayBufferView>());
   Local<Object> cert;
 
-  auto result = X509Pointer::Parse(ncrypto::Buffer<const unsigned char> {
-    .data = buf.data(),
-    .len = buf.length(),
+  auto result = X509Pointer::Parse(ncrypto::Buffer<const unsigned char>{
+      .data = buf.data(),
+      .len = buf.length(),
   });
 
   if (!result.value) return ThrowCryptoError(env, result.error.value_or(0));
@@ -433,18 +437,16 @@ bool X509Certificate::HasInstance(Environment* env, Local<Object> object) {
   return GetConstructorTemplate(env)->HasInstance(object);
 }
 
-MaybeLocal<Object> X509Certificate::New(
-    Environment* env,
-    X509Pointer cert,
-    STACK_OF(X509)* issuer_chain) {
+MaybeLocal<Object> X509Certificate::New(Environment* env,
+                                        X509Pointer cert,
+                                        STACK_OF(X509) * issuer_chain) {
   std::shared_ptr<ManagedX509> mcert(new ManagedX509(std::move(cert)));
   return New(env, std::move(mcert), issuer_chain);
 }
 
-MaybeLocal<Object> X509Certificate::New(
-    Environment* env,
-    std::shared_ptr<ManagedX509> cert,
-    STACK_OF(X509)* issuer_chain) {
+MaybeLocal<Object> X509Certificate::New(Environment* env,
+                                        std::shared_ptr<ManagedX509> cert,
+                                        STACK_OF(X509) * issuer_chain) {
   EscapableHandleScope scope(env->isolate());
   Local<Function> ctor;
   if (!GetConstructorTemplate(env)->GetFunction(env->context()).ToLocal(&ctor))
@@ -458,22 +460,19 @@ MaybeLocal<Object> X509Certificate::New(
   return scope.Escape(obj);
 }
 
-MaybeLocal<Object> X509Certificate::GetCert(
-    Environment* env,
-    const SSLPointer& ssl) {
+MaybeLocal<Object> X509Certificate::GetCert(Environment* env,
+                                            const SSLPointer& ssl) {
   ClearErrorOnReturn clear_error_on_return;
   X509* cert = SSL_get_certificate(ssl.get());
-  if (cert == nullptr)
-    return MaybeLocal<Object>();
+  if (cert == nullptr) return MaybeLocal<Object>();
 
   X509Pointer ptr(X509_dup(cert));
   return New(env, std::move(ptr));
 }
 
-MaybeLocal<Object> X509Certificate::GetPeerCert(
-    Environment* env,
-    const SSLPointer& ssl,
-    GetPeerCertificateFlag flag) {
+MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
+                                                const SSLPointer& ssl,
+                                                GetPeerCertificateFlag flag) {
   ClearErrorOnReturn clear_error_on_return;
   MaybeLocal<Object> maybe_cert;
 
@@ -492,9 +491,8 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(
     sk_X509_delete(ssl_certs, 0);
   }
 
-  return sk_X509_num(ssl_certs)
-      ? New(env, std::move(cert), ssl_certs)
-      : New(env, std::move(cert));
+  return sk_X509_num(ssl_certs) ? New(env, std::move(cert), ssl_certs)
+                                : New(env, std::move(cert));
 }
 
 template <MaybeLocal<Value> Property(Environment* env, X509* cert)>

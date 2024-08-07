@@ -75,7 +75,9 @@ class X509Certificate final : public BaseObject {
       v8::Local<v8::Object> object,
       X509Pointer cert);
 
-  inline BaseObjectPtr<X509Certificate> getIssuerCert() const { return issuer_cert_; }
+  inline BaseObjectPtr<X509Certificate> getIssuerCert() const {
+    return issuer_cert_;
+  }
 
   inline ncrypto::X509View view() const { return *cert_; }
   X509* get() { return cert_->get(); }
