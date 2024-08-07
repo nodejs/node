@@ -184,8 +184,7 @@ void SerialNumber(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-  auto serial = cert->view().getSerialNumber();
-  if (serial) {
+  if (auto serial = cert->view().getSerialNumber()) {
     args.GetReturnValue().Set(OneByteString(
         env->isolate(), static_cast<unsigned char*>(serial.get())));
   }
@@ -238,7 +237,6 @@ void KeyUsage(const FunctionCallbackInfo<Value>& args) {
 
 void CheckCA(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
-  ClearErrorOnReturn clear_error_on_return;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   args.GetReturnValue().Set(cert->view().isCA());
 }
