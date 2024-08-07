@@ -1,13 +1,13 @@
 #ifndef SRC_CRYPTO_CRYPTO_X509_H_
 #define SRC_CRYPTO_CRYPTO_X509_H_
 
-#include "ncrypto.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
 #include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
+#include "ncrypto.h"
 #include "node_worker.h"
 #include "v8.h"
 

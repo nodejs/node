@@ -1,13 +1,13 @@
 #ifndef SRC_CRYPTO_CRYPTO_COMMON_H_
 #define SRC_CRYPTO_CRYPTO_COMMON_H_
 
-#include "ncrypto.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_crypto.h"
-#include "v8.h"
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#include "ncrypto.h"
+#include "node_crypto.h"
+#include "v8.h"
 
 #include <string>
 
