@@ -8,6 +8,7 @@
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
 #include "util-inl.h"
+#include "v8-primitive.h"
 #include "v8.h"
 
 #include <string>
@@ -15,6 +16,7 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -24,7 +26,9 @@ using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
+using v8::String;
 using v8::Uint32;
 using v8::Value;
 
@@ -61,6 +65,56 @@ void Fingerprint(const FunctionCallbackInfo<Value>& args) {
   if (GetFingerprintDigest(env, algo(), cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
+
+MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
+  if (!bio) return {};
+  BUF_MEM* mem;
+  BIO_get_mem_ptr(bio.get(), &mem);
+  Local<Value> ret;
+  if (!String::NewFromUtf8(
+          context->GetIsolate(),
+          mem->data,
+          NewStringType::kNormal,
+          mem->length).ToLocal(&ret)) return {};
+  return ret;
+}
+
+MaybeLocal<Value> ToBuffer(Environment* env, BIOPointer&& bio) {
+  if (!bio) return {};
+  BUF_MEM* mem;
+  BIO_get_mem_ptr(bio.get(), &mem);
+  auto backing = ArrayBuffer::NewBackingStore(
+      mem->data,
+      mem->length,
+      [](void*, size_t, void* data) {
+        BIOPointer free_me(static_cast<BIO*>(data));
+      },
+      bio.release());
+  auto ab = ArrayBuffer::New(env->isolate(), std::move(backing));
+  Local<Value> ret;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&ret)) return {};
+  return ret;
+}
+
+void Pem(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), cert->view().toPEM()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void Der(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToBuffer(env, cert->view().toDER()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
 }  // namespace
 
 Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
@@ -85,7 +139,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "keyUsage", KeyUsage);
     SetProtoMethod(isolate, tmpl, "serialNumber", SerialNumber);
     SetProtoMethod(isolate, tmpl, "pem", Pem);
-    SetProtoMethod(isolate, tmpl, "raw", Raw);
+    SetProtoMethod(isolate, tmpl, "raw", Der);
     SetProtoMethod(isolate, tmpl, "publicKey", PublicKey);
     SetProtoMethod(isolate, tmpl, "checkCA", CheckCA);
     SetProtoMethod(isolate, tmpl, "checkHost", CheckHost);
@@ -257,10 +311,6 @@ void X509Certificate::SerialNumber(const FunctionCallbackInfo<Value>& args) {
   ReturnProperty<GetSerialNumber>(args);
 }
 
-void X509Certificate::Raw(const FunctionCallbackInfo<Value>& args) {
-  ReturnProperty<GetRawDERCertificate>(args);
-}
-
 void X509Certificate::PublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
@@ -278,16 +328,6 @@ void X509Certificate::PublicKey(const FunctionCallbackInfo<Value>& args) {
   Local<Value> ret;
   if (KeyObjectHandle::Create(env, key_data).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
-}
-
-void X509Certificate::Pem(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-  BIOPointer bio(BIO_new(BIO_s_mem()));
-  CHECK(bio);
-  if (PEM_write_bio_X509(bio.get(), cert->get()))
-    args.GetReturnValue().Set(ToV8Value(env, bio));
 }
 
 void X509Certificate::CheckCA(const FunctionCallbackInfo<Value>& args) {
@@ -529,7 +569,7 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(KeyUsage);
   registry->Register(SerialNumber);
   registry->Register(Pem);
-  registry->Register(Raw);
+  registry->Register(Der);
   registry->Register(PublicKey);
   registry->Register(CheckCA);
   registry->Register(CheckHost);

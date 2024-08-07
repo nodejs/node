@@ -727,4 +727,23 @@ X509* X509Pointer::release() {
   return cert_.release();
 }
 
+X509View X509Pointer::view() const {
+  return X509View(cert_.get());
+}
+
+BIOPointer X509View::toPEM() const {
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+  if (PEM_write_bio_X509(bio.get(), cert_) <= 0) return {};
+  return bio;
+}
+
+BIOPointer X509View::toDER() const {
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (i2d_X509_bio(bio.get(), cert_) <= 0) return {};
+  return bio;
+}
+
 }  // namespace ncrypto

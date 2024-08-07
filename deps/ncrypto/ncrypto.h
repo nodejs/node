@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include "openssl/bn.h"
+#include "openssl/types.h"
 #include <openssl/x509.h>
 #include <openssl/dh.h>
 #include <openssl/dsa.h>
@@ -289,6 +290,24 @@ class BignumPointer final {
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
 };
 
+class X509View final {
+ public:
+  X509View() = default;
+  inline explicit X509View(const X509* cert) : cert_(cert) {}
+  X509View(const X509View& other) = default;
+  X509View& operator=(const X509View& other) = default;
+  NCRYPTO_DISALLOW_MOVE(X509View)
+
+  inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
+  inline operator bool() const { return cert_ != nullptr; }
+
+  BIOPointer toPEM() const;
+  BIOPointer toDER() const;
+
+ private:
+  const X509* cert_ = nullptr;
+};
+
 class X509Pointer final {
  public:
   X509Pointer() = default;
@@ -303,6 +322,9 @@ class X509Pointer final {
   inline X509* get() const { return cert_.get(); }
   void reset(X509* cert = nullptr);
   X509* release();
+
+  X509View view() const;
+  operator X509View() const { return view(); }
 
  private:
   DeleteFnPtr<X509, X509_free> cert_;
