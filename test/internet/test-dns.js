@@ -587,6 +587,17 @@ TEST(function test_lookup_ip_promise(done) {
     });
 });
 
+TEST(async function test_lookup_ipv6_loopback(done) {
+  const response = await dnsPromises.lookup('ipv6_loopback', { verbatim: true });
+  assert.strictEqual(Object.keys(response).length, 0);
+
+  util.promisify(dns.lookup)('ipv6_loopback').then(({ address, family }) => {
+    assert.strictEqual(address, undefined);
+    assert.strictEqual(family, undefined);
+
+    done();
+  });
+});
 
 TEST(async function test_lookup_null_all(done) {
   assert.deepStrictEqual(await dnsPromises.lookup(null, { all: true }), []);
