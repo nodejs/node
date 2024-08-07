@@ -138,12 +138,22 @@ struct PerIsolateWrapperData {
 };
 
 class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
- public:
+ private:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
-              MultiIsolatePlatform* platform = nullptr,
-              ArrayBufferAllocator* node_allocator = nullptr,
-              const SnapshotData* snapshot_data = nullptr);
+              MultiIsolatePlatform* platform,
+              ArrayBufferAllocator* node_allocator,
+              const SnapshotData* snapshot_data,
+              std::shared_ptr<PerIsolateOptions> options);
+
+ public:
+  static IsolateData* CreateIsolateData(
+      v8::Isolate* isolate,
+      uv_loop_t* event_loop,
+      MultiIsolatePlatform* platform = nullptr,
+      ArrayBufferAllocator* node_allocator = nullptr,
+      const EmbedderSnapshotData* embedder_snapshot_data = nullptr,
+      std::shared_ptr<PerIsolateOptions> options = nullptr);
   ~IsolateData();
 
   SET_MEMORY_INFO_NAME(IsolateData)
@@ -172,7 +182,6 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   inline MultiIsolatePlatform* platform() const;
   inline const SnapshotData* snapshot_data() const;
   inline std::shared_ptr<PerIsolateOptions> options();
-  inline void set_options(std::shared_ptr<PerIsolateOptions> options);
 
   inline NodeArrayBufferAllocator* node_allocator() const;
 
