@@ -4,6 +4,7 @@
 #include "openssl/bn.h"
 #include "openssl/evp.h"
 #include "openssl/pkcs12.h"
+#include "openssl/types.h"
 #include "openssl/x509v3.h"
 #if OPENSSL_VERSION_MAJOR >= 3
 #include "openssl/provider.h"
@@ -732,6 +733,7 @@ X509View X509Pointer::view() const {
 }
 
 BIOPointer X509View::toPEM() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -740,10 +742,98 @@ BIOPointer X509View::toPEM() const {
 }
 
 BIOPointer X509View::toDER() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
   if (i2d_X509_bio(bio.get(), cert_) <= 0) return {};
   return bio;
+}
+
+BIOPointer X509View::getSubject() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+  if (X509_NAME_print_ex(bio.get(), X509_get_subject_name(cert_),
+                         0, kX509NameFlagsMultiline) <= 0) {
+    return {};
+  }
+  return bio;
+}
+
+BIOPointer X509View::getSubjectAltName() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+  int index = X509_get_ext_by_NID(cert_, NID_subject_alt_name, -1);
+  if (index < 0 || !SafeX509SubjectAltNamePrint(bio, X509_get_ext(cert_, index))) {
+    return {};
+  }
+  return bio;
+}
+
+BIOPointer X509View::getIssuer() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+  if (X509_NAME_print_ex(bio.get(), X509_get_issuer_name(cert_), 0,
+                         kX509NameFlagsMultiline) <= 0) {
+    return {};
+  }
+  return bio;
+}
+
+BIOPointer X509View::getInfoAccess() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+  int index = X509_get_ext_by_NID(cert_, NID_info_access, -1);
+  if (index < 0) return {};
+  if (!SafeX509InfoAccessPrint(bio, X509_get_ext(cert_, index))) {
+    return {};
+  }
+  return bio;
+}
+
+BIOPointer X509View::getValidFrom() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+  ASN1_TIME_print(bio.get(), X509_get_notBefore(cert_));
+  return bio;
+}
+
+BIOPointer X509View::getValidTo() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return {};
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) return {};
+  ASN1_TIME_print(bio.get(), X509_get_notAfter(cert_));
+  return bio;
+}
+
+DataPointer X509View::getSerialNumber() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return {};
+  if (ASN1_INTEGER* serial_number = X509_get_serialNumber(const_cast<X509*>(cert_))) {
+    if (auto bn = BignumPointer(ASN1_INTEGER_to_BN(serial_number, nullptr))) {
+      return bn.toHex();
+    }
+  }
+  return {};
+}
+
+Result<EVPKeyPointer, int> X509View::getPublicKey() const {
+  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  if (cert_ == nullptr) return Result<EVPKeyPointer, int>(EVPKeyPointer {});
+  auto pkey = EVPKeyPointer(X509_get_pubkey(const_cast<X509*>(cert_)));
+  if (!pkey) return Result<EVPKeyPointer, int>(ERR_get_error());
+  return pkey;
 }
 
 }  // namespace ncrypto

@@ -92,6 +92,13 @@ namespace ncrypto {
 #endif
 }
 
+static constexpr int kX509NameFlagsMultiline =
+    ASN1_STRFLGS_ESC_2253 |
+    ASN1_STRFLGS_ESC_CTRL |
+    ASN1_STRFLGS_UTF8_CONVERT |
+    XN_FLAG_SEP_MULTILINE |
+    XN_FLAG_FN_SN;
+
 // ============================================================================
 // Error handling utilities
 
@@ -163,6 +170,14 @@ public:
 
 private:
   CryptoErrorList* errors_;
+};
+
+template <typename T, typename E>
+struct Result final {
+  T value;
+  std::optional<E> error;
+  Result(T&& value) : value(std::move(value)) {}
+  Result(E&& error) : error(std::move(error)) {}
 };
 
 // ============================================================================
@@ -303,6 +318,15 @@ class X509View final {
 
   BIOPointer toPEM() const;
   BIOPointer toDER() const;
+
+  BIOPointer getSubject() const;
+  BIOPointer getSubjectAltName() const;
+  BIOPointer getIssuer() const;
+  BIOPointer getInfoAccess() const;
+  BIOPointer getValidFrom() const;
+  BIOPointer getValidTo() const;
+  DataPointer getSerialNumber() const;
+  Result<EVPKeyPointer, int> getPublicKey() const;
 
  private:
   const X509* cert_ = nullptr;

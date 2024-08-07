@@ -8,6 +8,8 @@
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
 #include "util-inl.h"
+#include "v8-function-callback.h"
+#include "v8-function.h"
 #include "v8-primitive.h"
 #include "v8.h"
 
@@ -62,8 +64,9 @@ void Fingerprint(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetFingerprintDigest(env, algo(), cert->get()).ToLocal(&ret))
+  if (GetFingerprintDigest(env, algo(), cert->get()).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
+  }
 }
 
 MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
@@ -112,6 +115,98 @@ void Der(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
   if (ToBuffer(env, cert->view().toDER()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void Subject(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), cert->view().getSubject()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void SubjectAltName(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), cert->view().getSubjectAltName()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void Issuer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), cert->view().getIssuer()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void InfoAccess(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), cert->view().getInfoAccess()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void ValidFrom(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), cert->view().getValidFrom()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void ValidTo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), cert->view().getValidTo()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void SerialNumber(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  auto serial = cert->view().getSerialNumber();
+  if (serial) {
+    args.GetReturnValue().Set(
+        OneByteString(env->isolate(), static_cast<unsigned char*>(serial.get())));
+  }
+}
+
+void PublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+
+  // TODO(tniessen): consider checking X509_get_pubkey() when the
+  // X509Certificate object is being created.
+  auto result = cert->view().getPublicKey();
+  if (!result.value) {
+    ThrowCryptoError(env, result.error.value_or(0));
+    return;
+  }
+  std::shared_ptr<KeyObjectData> key_data =
+      KeyObjectData::CreateAsymmetric(kKeyTypePublic, ManagedEVPPKey(std::move(result.value)));
+
+  Local<Value> ret;
+  if (KeyObjectHandle::Create(env, std::move(key_data)).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -257,43 +352,6 @@ void X509Certificate::Parse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(cert);
 }
 
-template <MaybeLocal<Value> Property(
-    Environment* env, X509* cert, const BIOPointer& bio)>
-static void ReturnPropertyThroughBIO(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-  BIOPointer bio(BIO_new(BIO_s_mem()));
-  CHECK(bio);
-  Local<Value> ret;
-  if (Property(env, cert->get(), bio).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
-}
-
-void X509Certificate::Subject(const FunctionCallbackInfo<Value>& args) {
-  ReturnPropertyThroughBIO<GetSubject>(args);
-}
-
-void X509Certificate::Issuer(const FunctionCallbackInfo<Value>& args) {
-  ReturnPropertyThroughBIO<GetIssuerString>(args);
-}
-
-void X509Certificate::SubjectAltName(const FunctionCallbackInfo<Value>& args) {
-  ReturnPropertyThroughBIO<GetSubjectAltNameString>(args);
-}
-
-void X509Certificate::InfoAccess(const FunctionCallbackInfo<Value>& args) {
-  ReturnPropertyThroughBIO<GetInfoAccessString>(args);
-}
-
-void X509Certificate::ValidFrom(const FunctionCallbackInfo<Value>& args) {
-  ReturnPropertyThroughBIO<GetValidFrom>(args);
-}
-
-void X509Certificate::ValidTo(const FunctionCallbackInfo<Value>& args) {
-  ReturnPropertyThroughBIO<GetValidTo>(args);
-}
-
 template <MaybeLocal<Value> Property(Environment* env, X509* cert)>
 static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -305,29 +363,6 @@ static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
 
 void X509Certificate::KeyUsage(const FunctionCallbackInfo<Value>& args) {
   ReturnProperty<GetKeyUsage>(args);
-}
-
-void X509Certificate::SerialNumber(const FunctionCallbackInfo<Value>& args) {
-  ReturnProperty<GetSerialNumber>(args);
-}
-
-void X509Certificate::PublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  // TODO(tniessen): consider checking X509_get_pubkey() when the
-  // X509Certificate object is being created.
-  ClearErrorOnReturn clear_error_on_return;
-  EVPKeyPointer pkey(X509_get_pubkey(cert->get()));
-  if (!pkey) return ThrowCryptoError(env, ERR_get_error());
-  ManagedEVPPKey epkey(std::move(pkey));
-  std::shared_ptr<KeyObjectData> key_data =
-      KeyObjectData::CreateAsymmetric(kKeyTypePublic, epkey);
-
-  Local<Value> ret;
-  if (KeyObjectHandle::Create(env, key_data).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
 }
 
 void X509Certificate::CheckCA(const FunctionCallbackInfo<Value>& args) {
