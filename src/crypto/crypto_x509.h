@@ -79,6 +79,8 @@ class X509Certificate : public BaseObject {
   static void InfoAccess(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ValidFrom(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ValidTo(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ValidFromDate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ValidToDate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void KeyUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SerialNumber(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Raw(const v8::FunctionCallbackInfo<v8::Value>& args);
