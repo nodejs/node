@@ -319,6 +319,8 @@ class X509View final {
   X509View& operator=(const X509View& other) = default;
   NCRYPTO_DISALLOW_MOVE(X509View)
 
+  inline X509* get() const { return const_cast<X509*>(cert_); }
+
   inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
   inline operator bool() const { return cert_ != nullptr; }
 

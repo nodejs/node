@@ -1,6 +1,7 @@
 #include "crypto/crypto_common.h"
 #include "base_object-inl.h"
 #include "crypto/crypto_util.h"
+#include "crypto/crypto_x509.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "nbytes.h"
@@ -9,6 +10,7 @@
 #include "node_buffer.h"
 #include "node_crypto.h"
 #include "node_internals.h"
+#include "openssl/types.h"
 #include "string_bytes.h"
 #include "v8.h"
 
@@ -263,12 +265,9 @@ MaybeLocal<Value> GetValidationErrorCode(Environment* env, int err) {
 
 MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
   ClearErrorOnReturn clear_error_on_return;
-  X509* cert = SSL_get_certificate(ssl.get());
-  if (cert == nullptr)
-    return Undefined(env->isolate());
-
-  MaybeLocal<Object> maybe_cert = X509ToObject(env, cert);
-  return maybe_cert.FromMaybe<Value>(Local<Value>());
+  ncrypto::X509View cert(SSL_get_certificate(ssl.get()));
+  if (!cert) return Undefined(env->isolate());
+  return X509Certificate::toObject(env, cert);
 }
 
 Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
@@ -335,23 +334,24 @@ MaybeLocal<Object> AddIssuerChainToObject(
     Local<Object> object,
     StackOfX509&& peer_certs,
     Environment* const env) {
-  Local<Context> context = env->isolate()->GetCurrentContext();
   cert->reset(sk_X509_delete(peer_certs.get(), 0));
   for (;;) {
     int i;
     for (i = 0; i < sk_X509_num(peer_certs.get()); i++) {
-      X509* ca = sk_X509_value(peer_certs.get(), i);
-      if (X509_check_issued(ca, cert->get()) != X509_V_OK)
+      ncrypto::X509View ca(sk_X509_value(peer_certs.get(), i));
+      if (!cert->view().isIssuedBy(ca))
         continue;
 
-      Local<Object> ca_info;
-      MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca);
-      if (!maybe_ca_info.ToLocal(&ca_info))
-        return MaybeLocal<Object>();
+      Local<Value> ca_info;
+      if (!X509Certificate::toObject(env, ca).ToLocal(&ca_info))
+        return {};
+      CHECK(ca_info->IsObject());
 
-      if (!Set<Object>(context, object, env->issuercert_string(), ca_info))
-        return MaybeLocal<Object>();
-      object = ca_info;
+      if (!Set<Object>(env->context(), object, env->issuercert_string(),
+                       ca_info.As<Object>())) {
+        return {};
+      }
+      object = ca_info.As<Object>();;
 
       // NOTE: Intentionally freeing cert that is not used anymore.
       // Delete cert and continue aggregating issuers.
@@ -371,20 +371,21 @@ MaybeLocal<Object> GetLastIssuedCert(
     const SSLPointer& ssl,
     Local<Object> issuer_chain,
     Environment* const env) {
-  Local<Context> context = env->isolate()->GetCurrentContext();
-  while (X509_check_issued(cert->get(), cert->get()) != X509_V_OK) {
-    X509Pointer ca;
-    if (!(ca = SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get())))
-      break;
+  Local<Value> ca_info;
+  while (!cert->view().isIssuedBy(cert->view())) {
+    X509Pointer ca = SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get());
+    if (!ca) break;
 
-    Local<Object> ca_info;
-    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca.get());
-    if (!maybe_ca_info.ToLocal(&ca_info))
-      return MaybeLocal<Object>();
+    if (!X509Certificate::toObject(env, ca.view()).ToLocal(&ca_info))
+      return {};
 
-    if (!Set<Object>(context, issuer_chain, env->issuercert_string(), ca_info))
-      return MaybeLocal<Object>();
-    issuer_chain = ca_info;
+    CHECK(ca_info->IsObject());
+
+    if (!Set<Object>(env->context(), issuer_chain, env->issuercert_string(),
+                     ca_info.As<Object>())) {
+      return {};
+    }
+    issuer_chain = ca_info.As<Object>();
 
     // For self-signed certificates whose keyUsage field does not include
     // keyCertSign, X509_check_issued() will return false. Avoid going into an
@@ -897,8 +898,6 @@ MaybeLocal<Value> GetPeerCert(
     bool abbreviated,
     bool is_server) {
   ClearErrorOnReturn clear_error_on_return;
-  Local<Object> result;
-  MaybeLocal<Object> maybe_cert;
 
   // NOTE: This is because of the odd OpenSSL behavior. On client `cert_chain`
   // contains the `peer_certificate`, but on server it doesn't.
@@ -909,9 +908,10 @@ MaybeLocal<Value> GetPeerCert(
 
   // Short result requested.
   if (abbreviated) {
-    maybe_cert =
-        X509ToObject(env, cert ? cert.get() : sk_X509_value(ssl_certs, 0));
-    return maybe_cert.ToLocal(&result) ? result : MaybeLocal<Value>();
+    if (cert) {
+      return X509Certificate::toObject(env, cert.view());
+    }
+    return X509Certificate::toObject(env, ncrypto::X509View(sk_X509_value(ssl_certs, 0)));
   }
 
   StackOfX509 peer_certs = CloneSSLCerts(std::move(cert), ssl_certs);
@@ -919,11 +919,12 @@ MaybeLocal<Value> GetPeerCert(
     return Undefined(env->isolate());
 
   // First and main certificate.
-  X509Pointer first_cert(sk_X509_value(peer_certs.get(), 0));
+  Local<Value> result;
+  ncrypto::X509View first_cert(sk_X509_value(peer_certs.get(), 0));
   CHECK(first_cert);
-  maybe_cert = X509ToObject(env, first_cert.release());
-  if (!maybe_cert.ToLocal(&result))
-    return MaybeLocal<Value>();
+  if (!X509Certificate::toObject(env, first_cert).ToLocal(&result))
+    return {};
+  CHECK(result->IsObject());
 
   Local<Object> issuer_chain;
   MaybeLocal<Object> maybe_issuer_chain;
@@ -931,11 +932,11 @@ MaybeLocal<Value> GetPeerCert(
   maybe_issuer_chain =
       AddIssuerChainToObject(
           &cert,
-          result,
+          result.As<Object>(),
           std::move(peer_certs),
           env);
   if (!maybe_issuer_chain.ToLocal(&issuer_chain))
-    return MaybeLocal<Value>();
+    return {};
 
   maybe_issuer_chain =
       GetLastIssuedCert(
@@ -946,15 +947,15 @@ MaybeLocal<Value> GetPeerCert(
 
   issuer_chain.Clear();
   if (!maybe_issuer_chain.ToLocal(&issuer_chain))
-    return MaybeLocal<Value>();
+    return {};
 
   // Last certificate should be self-signed.
-  if (X509_check_issued(cert.get(), cert.get()) == X509_V_OK &&
+  if (cert.view().isIssuedBy(cert.view()) &&
       !Set<Object>(env->context(),
            issuer_chain,
            env->issuercert_string(),
            issuer_chain)) {
-    return MaybeLocal<Value>();
+    return {};
   }
 
   return result;

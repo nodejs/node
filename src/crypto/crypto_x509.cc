@@ -384,7 +384,7 @@ void ToLegacy(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   ClearErrorOnReturn clear_error_on_return;
   Local<Value> ret;
-  if (X509ToObject(env, cert->get()).ToLocal(&ret)) {
+  if (cert->toObject(env).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -490,13 +490,13 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
                                 : New(env, std::move(cert));
 }
 
-template <MaybeLocal<Value> Property(Environment* env, X509* cert)>
-static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-  Local<Value> ret;
-  if (Property(env, cert->get()).ToLocal(&ret)) args.GetReturnValue().Set(ret);
+v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env) {
+  return toObject(env, view());
+}
+
+v8::MaybeLocal<v8::Value> X509Certificate::toObject(Environment* env, const ncrypto::X509View& cert) {
+  if (!cert) return {};
+  return X509ToObject(env, cert.get()).FromMaybe(Local<Value>());
 }
 
 X509Certificate::X509Certificate(
