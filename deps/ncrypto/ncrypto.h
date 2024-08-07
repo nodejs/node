@@ -6,8 +6,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include "openssl/bn.h"
-#include "openssl/types.h"
+#include <openssl/bn.h>
 #include <openssl/x509.h>
 #include <openssl/dh.h>
 #include <openssl/dsa.h>

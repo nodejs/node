@@ -9,9 +9,6 @@
 #include "ncrypto.h"
 #include "node_errors.h"
 #include "util-inl.h"
-#include "v8-function-callback.h"
-#include "v8-function.h"
-#include "v8-primitive.h"
 #include "v8.h"
 
 #include <string>

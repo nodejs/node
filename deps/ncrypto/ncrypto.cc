@@ -1,13 +1,12 @@
 #include "ncrypto.h"
 #include <algorithm>
 #include <cstring>
-#include "openssl/bn.h"
-#include "openssl/evp.h"
-#include "openssl/pkcs12.h"
-#include "openssl/types.h"
-#include "openssl/x509v3.h"
+#include <openssl/bn.h>
+#include <openssl/evp.h>
+#include <openssl/pkcs12.h>
+#include <openssl/x509v3.h>
 #if OPENSSL_VERSION_MAJOR >= 3
-#include "openssl/provider.h"
+#include <openssl/provider.h>
 #endif
 
 namespace ncrypto {
@@ -737,7 +736,7 @@ BIOPointer X509View::toPEM() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  if (PEM_write_bio_X509(bio.get(), cert_) <= 0) return {};
+  if (PEM_write_bio_X509(bio.get(), const_cast<X509*>(cert_)) <= 0) return {};
   return bio;
 }
 
@@ -746,7 +745,7 @@ BIOPointer X509View::toDER() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  if (i2d_X509_bio(bio.get(), cert_) <= 0) return {};
+  if (i2d_X509_bio(bio.get(), const_cast<X509*>(cert_)) <= 0) return {};
   return bio;
 }
 
