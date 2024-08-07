@@ -360,6 +360,35 @@ void GetIssuerCert(const FunctionCallbackInfo<Value>& args) {
   auto issuer = cert->getIssuerCert();
   if (issuer) args.GetReturnValue().Set(issuer->object());
 }
+
+void Parse(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsArrayBufferView());
+  ArrayBufferViewContents<unsigned char> buf(args[0].As<ArrayBufferView>());
+  Local<Object> cert;
+
+  auto result = X509Pointer::Parse(ncrypto::Buffer<const unsigned char> {
+    .data = buf.data(),
+    .len = buf.length(),
+  });
+
+  if (!result.value) return ThrowCryptoError(env, result.error.value_or(0));
+
+  if (X509Certificate::New(env, std::move(result.value)).ToLocal(&cert)) {
+    args.GetReturnValue().Set(cert);
+  }
+}
+
+void ToLegacy(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  ClearErrorOnReturn clear_error_on_return;
+  Local<Value> ret;
+  if (X509ToObject(env, cert->get()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
 }  // namespace
 
 Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
@@ -468,40 +497,6 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(
       : New(env, std::move(cert));
 }
 
-void X509Certificate::Parse(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsArrayBufferView());
-  ArrayBufferViewContents<unsigned char> buf(args[0].As<ArrayBufferView>());
-  const unsigned char* data = buf.data();
-  unsigned data_len = buf.length();
-
-  ClearErrorOnReturn clear_error_on_return;
-  BIOPointer bio(LoadBIO(env, args[0]));
-  if (!bio)
-    return ThrowCryptoError(env, ERR_get_error());
-
-  Local<Object> cert;
-
-  X509Pointer pem(PEM_read_bio_X509_AUX(
-      bio.get(), nullptr, NoPasswordCallback, nullptr));
-  if (!pem) {
-    // Try as DER, but return the original PEM failure if it isn't DER.
-    MarkPopErrorOnReturn mark_here;
-
-    X509Pointer der(d2i_X509(nullptr, &data, data_len));
-    if (!der)
-      return ThrowCryptoError(env, ERR_get_error());
-
-    if (!X509Certificate::New(env, std::move(der)).ToLocal(&cert))
-      return;
-  } else if (!X509Certificate::New(env, std::move(pem)).ToLocal(&cert)) {
-    return;
-  }
-
-  args.GetReturnValue().Set(cert);
-}
-
 template <MaybeLocal<Value> Property(Environment* env, X509* cert)>
 static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -509,16 +504,6 @@ static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
   if (Property(env, cert->get()).ToLocal(&ret)) args.GetReturnValue().Set(ret);
-}
-
-void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-  ClearErrorOnReturn clear_error_on_return;
-  Local<Value> ret;
-  if (X509ToObject(env, cert->get()).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
 }
 
 X509Certificate::X509Certificate(
@@ -575,7 +560,7 @@ std::unique_ptr<worker::TransferData> X509Certificate::CloneForMessaging()
 
 
 void X509Certificate::Initialize(Environment* env, Local<Object> target) {
-  SetMethod(env->context(), target, "parseX509", X509Certificate::Parse);
+  SetMethod(env->context(), target, "parseX509", Parse);
 
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT);
   NODE_DEFINE_CONSTANT(target, X509_CHECK_FLAG_NEVER_CHECK_SUBJECT);
@@ -587,7 +572,7 @@ void X509Certificate::Initialize(Environment* env, Local<Object> target) {
 
 void X509Certificate::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(X509Certificate::Parse);
+  registry->Register(Parse);
   registry->Register(Subject);
   registry->Register(SubjectAltName);
   registry->Register(InfoAccess);

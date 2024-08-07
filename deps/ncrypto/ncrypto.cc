@@ -908,4 +908,19 @@ X509View::CheckMatch X509View::checkIp(const std::string_view ip, int flags) con
     default: return CheckMatch::OPERATION_FAILED;
   }
 }
+
+Result<X509Pointer, int> X509Pointer::Parse(Buffer<const unsigned char> buffer) {
+  ClearErrorOnReturn clearErrorOnReturn;
+  BIOPointer bio(BIO_new_mem_buf(buffer.data, buffer.len));
+  if (!bio) return Result<X509Pointer, int>(ERR_get_error());
+
+  X509Pointer pem(PEM_read_bio_X509_AUX(bio.get(), nullptr, NoPasswordCallback, nullptr));
+  if (pem) return Result<X509Pointer, int>(std::move(pem));
+  BIO_reset(bio.get());
+
+  X509Pointer der(d2i_X509_bio(bio.get(), nullptr));
+  if (der) return Result<X509Pointer, int>(std::move(der));
+
+  return Result<X509Pointer, int>(ERR_get_error());
+}
 }  // namespace ncrypto

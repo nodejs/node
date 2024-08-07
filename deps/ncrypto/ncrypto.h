@@ -358,6 +358,8 @@ class X509View final {
 
 class X509Pointer final {
  public:
+  static Result<X509Pointer, int> Parse(Buffer<const unsigned char> buffer);
+
   X509Pointer() = default;
   explicit X509Pointer(X509* cert);
   X509Pointer(X509Pointer&& other) noexcept;

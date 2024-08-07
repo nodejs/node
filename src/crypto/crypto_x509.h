@@ -75,9 +75,6 @@ class X509Certificate final : public BaseObject {
       v8::Local<v8::Object> object,
       X509Pointer cert);
 
-  static void Parse(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ToLegacy(const v8::FunctionCallbackInfo<v8::Value>& args);
-
   inline BaseObjectPtr<X509Certificate> getIssuerCert() const { return issuer_cert_; }
 
   inline ncrypto::X509View view() const { return *cert_; }
