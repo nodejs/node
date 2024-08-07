@@ -214,6 +214,13 @@ using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
 using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
 
+struct StackOfXASN1Deleter {
+  void operator()(STACK_OF(ASN1_OBJECT)* p) const {
+    sk_ASN1_OBJECT_pop_free(p, ASN1_OBJECT_free);
+  }
+};
+using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
+
 // An unowned, unmanaged pointer to a buffer of data.
 template <typename T>
 struct Buffer {
@@ -327,6 +334,12 @@ class X509View final {
   BIOPointer getValidTo() const;
   DataPointer getSerialNumber() const;
   Result<EVPKeyPointer, int> getPublicKey() const;
+  StackOfASN1 getKeyUsage() const;
+
+  bool isCA() const;
+  bool isIssuedBy(const X509View& other) const;
+  bool checkPrivateKey(const EVPKeyPointer& pkey) const;
+  bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
  private:
   const X509* cert_ = nullptr;

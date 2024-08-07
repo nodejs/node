@@ -733,7 +733,7 @@ X509View X509Pointer::view() const {
 }
 
 BIOPointer X509View::toPEM() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -742,7 +742,7 @@ BIOPointer X509View::toPEM() const {
 }
 
 BIOPointer X509View::toDER() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -751,7 +751,7 @@ BIOPointer X509View::toDER() const {
 }
 
 BIOPointer X509View::getSubject() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -763,7 +763,7 @@ BIOPointer X509View::getSubject() const {
 }
 
 BIOPointer X509View::getSubjectAltName() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -775,7 +775,7 @@ BIOPointer X509View::getSubjectAltName() const {
 }
 
 BIOPointer X509View::getIssuer() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -787,7 +787,7 @@ BIOPointer X509View::getIssuer() const {
 }
 
 BIOPointer X509View::getInfoAccess() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -800,7 +800,7 @@ BIOPointer X509View::getInfoAccess() const {
 }
 
 BIOPointer X509View::getValidFrom() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -809,7 +809,7 @@ BIOPointer X509View::getValidFrom() const {
 }
 
 BIOPointer X509View::getValidTo() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
@@ -818,7 +818,7 @@ BIOPointer X509View::getValidTo() const {
 }
 
 DataPointer X509View::getSerialNumber() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return {};
   if (ASN1_INTEGER* serial_number = X509_get_serialNumber(const_cast<X509*>(cert_))) {
     if (auto bn = BignumPointer(ASN1_INTEGER_to_BN(serial_number, nullptr))) {
@@ -829,11 +829,43 @@ DataPointer X509View::getSerialNumber() const {
 }
 
 Result<EVPKeyPointer, int> X509View::getPublicKey() const {
-  ClearErrorOnReturn clearErrorOnReturn(nullptr);
+  ClearErrorOnReturn clearErrorOnReturn;
   if (cert_ == nullptr) return Result<EVPKeyPointer, int>(EVPKeyPointer {});
   auto pkey = EVPKeyPointer(X509_get_pubkey(const_cast<X509*>(cert_)));
   if (!pkey) return Result<EVPKeyPointer, int>(ERR_get_error());
   return pkey;
+}
+
+StackOfASN1 X509View::getKeyUsage() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return {};
+  return StackOfASN1(static_cast<STACK_OF(ASN1_OBJECT)*>(
+      X509_get_ext_d2i(cert_, NID_ext_key_usage, nullptr, nullptr)));
+}
+
+bool X509View::isCA() const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return false;
+  return X509_check_ca(const_cast<X509*>(cert_)) == 1;
+}
+
+bool X509View::isIssuedBy(const X509View& issuer) const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr || issuer.cert_ == nullptr) return false;
+  return X509_check_issued(const_cast<X509*>(issuer.cert_),
+                           const_cast<X509*>(cert_)) == X509_V_OK;
+}
+
+bool X509View::checkPrivateKey(const EVPKeyPointer& pkey) const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr || pkey == nullptr) return false;
+  return X509_check_private_key(const_cast<X509*>(cert_), pkey.get()) == 1;
+}
+
+bool X509View::checkPublicKey(const EVPKeyPointer& pkey) const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr || pkey == nullptr) return false;
+  return X509_verify(const_cast<X509*>(cert_), pkey.get()) == 1;
 }
 
 }  // namespace ncrypto

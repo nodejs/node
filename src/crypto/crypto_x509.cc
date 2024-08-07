@@ -18,6 +18,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Context;
@@ -210,6 +211,70 @@ void PublicKey(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret);
   }
 }
+
+void KeyUsage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+
+  auto eku = cert->view().getKeyUsage();
+  if (!eku) return;
+
+  const int count = sk_ASN1_OBJECT_num(eku.get());
+  MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
+  char buf[256];
+
+  int j = 0;
+  for (int i = 0; i < count; i++) {
+    if (OBJ_obj2txt(buf,
+                    sizeof(buf),
+                    sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
+      ext_key_usage[j++] = OneByteString(env->isolate(), buf);
+    }
+  }
+
+  args.GetReturnValue().Set(Array::New(env->isolate(), ext_key_usage.out(), count));
+}
+
+void CheckCA(const FunctionCallbackInfo<Value>& args) {
+  X509Certificate* cert;
+  ClearErrorOnReturn clear_error_on_return;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  args.GetReturnValue().Set(cert->view().isCA());
+}
+
+void CheckIssued(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  CHECK(args[0]->IsObject());
+  CHECK(X509Certificate::HasInstance(env, args[0].As<Object>()));
+  X509Certificate* issuer;
+  ASSIGN_OR_RETURN_UNWRAP(&issuer, args[0]);
+  args.GetReturnValue().Set(cert->view().isIssuedBy(issuer->view()));
+}
+
+void CheckPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  CHECK(args[0]->IsObject());
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
+  CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePrivate);
+  args.GetReturnValue().Set(cert->view().checkPrivateKey(key->Data()->GetAsymmetricKey().pkey()));
+}
+
+void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+
+  CHECK(args[0]->IsObject());
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
+  CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePublic);
+
+  args.GetReturnValue().Set(cert->view().checkPublicKey(key->Data()->GetAsymmetricKey().pkey()));
+}
 }  // namespace
 
 Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
@@ -242,7 +307,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "checkIP", CheckIP);
     SetProtoMethod(isolate, tmpl, "checkIssued", CheckIssued);
     SetProtoMethod(isolate, tmpl, "checkPrivateKey", CheckPrivateKey);
-    SetProtoMethod(isolate, tmpl, "verify", Verify);
+    SetProtoMethod(isolate, tmpl, "verify", CheckPublicKey);
     SetProtoMethod(isolate, tmpl, "toLegacy", ToLegacy);
     SetProtoMethod(isolate, tmpl, "getIssuerCert", GetIssuerCert);
     env->set_x509_constructor_template(tmpl);
@@ -361,17 +426,6 @@ static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
   if (Property(env, cert->get()).ToLocal(&ret)) args.GetReturnValue().Set(ret);
 }
 
-void X509Certificate::KeyUsage(const FunctionCallbackInfo<Value>& args) {
-  ReturnProperty<GetKeyUsage>(args);
-}
-
-void X509Certificate::CheckCA(const FunctionCallbackInfo<Value>& args) {
-  X509Certificate* cert;
-  ClearErrorOnReturn clear_error_on_return;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-  args.GetReturnValue().Set(X509_check_ca(cert->get()) == 1);
-}
-
 void X509Certificate::CheckHost(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
@@ -455,57 +509,6 @@ void X509Certificate::CheckIP(const FunctionCallbackInfo<Value>& args) {
     default:  // Error!
       return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
   }
-}
-
-void X509Certificate::CheckIssued(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsObject());
-  CHECK(X509Certificate::HasInstance(env, args[0].As<Object>()));
-
-  X509Certificate* issuer;
-  ASSIGN_OR_RETURN_UNWRAP(&issuer, args[0]);
-
-  ClearErrorOnReturn clear_error_on_return;
-
-  args.GetReturnValue().Set(
-    X509_check_issued(issuer->get(), cert->get()) == X509_V_OK);
-}
-
-void X509Certificate::CheckPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsObject());
-  KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
-  CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePrivate);
-
-  ClearErrorOnReturn clear_error_on_return;
-
-  args.GetReturnValue().Set(
-      X509_check_private_key(
-          cert->get(),
-          key->Data()->GetAsymmetricKey().get()) == 1);
-}
-
-void X509Certificate::Verify(const FunctionCallbackInfo<Value>& args) {
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsObject());
-  KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
-  CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePublic);
-
-  ClearErrorOnReturn clear_error_on_return;
-
-  args.GetReturnValue().Set(
-      X509_verify(
-          cert->get(),
-          key->Data()->GetAsymmetricKey().get()) > 0);
 }
 
 void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
@@ -612,7 +615,7 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(CheckIP);
   registry->Register(CheckIssued);
   registry->Register(CheckPrivateKey);
-  registry->Register(Verify);
+  registry->Register(CheckPublicKey);
   registry->Register(ToLegacy);
   registry->Register(GetIssuerCert);
 }

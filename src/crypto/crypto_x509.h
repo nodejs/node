@@ -76,14 +76,9 @@ class X509Certificate final : public BaseObject {
       X509Pointer cert);
 
   static void Parse(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void KeyUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckCA(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CheckHost(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CheckEmail(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CheckIP(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckIssued(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Verify(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ToLegacy(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetIssuerCert(const v8::FunctionCallbackInfo<v8::Value>& args);
 
