@@ -76,4 +76,9 @@ jobs:
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2.17.0
+        with:
+          files: "**/test-results/**/*.xml"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          check_name: "Test Results"
+          comment_mode: always
             
