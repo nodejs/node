@@ -797,21 +797,9 @@ assert.throws(
 {
   // Dh, x25519 and x448 should not be used for signing/verifying
   // https://github.com/nodejs/node/issues/53742
-  const keys = [
-    {
-      privateKey: fixtures.readKey('dh_private.pem', 'ascii'),
-      publicKey: fixtures.readKey('dh_public.pem', 'ascii'),
-    },
-    {
-      privateKey: fixtures.readKey('x25519_private.pem', 'ascii'),
-      publicKey: fixtures.readKey('x25519_public.pem', 'ascii'),
-    },
-    {
-      privateKey: fixtures.readKey('x448_private.pem', 'ascii'),
-      publicKey: fixtures.readKey('x448_public.pem', 'ascii'),
-    },
-  ];
-  for (const { publicKey, privateKey } of keys) {
+  for (const algo of ['dh', 'x25519', 'x448']) {
+    const privateKey = fixtures.readKey(`${algo}_private.pem`, 'ascii');
+    const publicKey = fixtures.readKey(`${algo}_public.pem`, 'ascii');
     assert.throws(() => {
       crypto.createSign('SHA256').update('Test123').sign(privateKey);
     }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
