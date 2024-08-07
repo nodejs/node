@@ -83,7 +83,8 @@ class X509Certificate final : public BaseObject {
   X509* get() { return cert_->get(); }
 
   v8::MaybeLocal<v8::Value> toObject(Environment* env);
-  static v8::MaybeLocal<v8::Value> toObject(Environment* env, const ncrypto::X509View& cert);
+  static v8::MaybeLocal<v8::Value> toObject(Environment* env,
+                                            const ncrypto::X509View& cert);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(X509Certificate)
