@@ -25,6 +25,10 @@ using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
+using v8::MaybeLocal;
+using v8::Name;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -405,7 +409,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
   return true;
 }
 
-Local<Value> StatementSync::ColumnToValue(const int column) {
+MaybeLocal<Value> StatementSync::ColumnToValue(const int column) {
   switch (sqlite3_column_type(statement_, column)) {
     case SQLITE_INTEGER: {
       sqlite3_int64 value = sqlite3_column_int64(statement_, column);
@@ -419,7 +423,7 @@ Local<Value> StatementSync::ColumnToValue(const int column) {
                                "represented as a JavaScript number: %" PRId64,
                                column,
                                value);
-        return Local<Value>();
+        return MaybeLocal<Value>();
       }
     }
     case SQLITE_FLOAT:
@@ -428,14 +432,10 @@ Local<Value> StatementSync::ColumnToValue(const int column) {
     case SQLITE_TEXT: {
       const char* value = reinterpret_cast<const char*>(
           sqlite3_column_text(statement_, column));
-      Local<Value> val;
-      if (!String::NewFromUtf8(env()->isolate(), value).ToLocal(&val)) {
-        return Local<Value>();
-      }
-      return val;
+      return String::NewFromUtf8(env()->isolate(), value).As<Value>();
     }
     case SQLITE_NULL:
-      return v8::Null(env()->isolate());
+      return Null(env()->isolate());
     case SQLITE_BLOB: {
       size_t size =
           static_cast<size_t>(sqlite3_column_bytes(statement_, column));
@@ -451,19 +451,15 @@ Local<Value> StatementSync::ColumnToValue(const int column) {
   }
 }
 
-Local<Value> StatementSync::ColumnNameToValue(const int column) {
+MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
   const char* col_name = sqlite3_column_name(statement_, column);
   if (col_name == nullptr) {
     node::THROW_ERR_INVALID_STATE(
         env(), "Cannot get name of column %d", column);
-    return Local<Value>();
+    return MaybeLocal<Name>();
   }
 
-  Local<String> key;
-  if (!String::NewFromUtf8(env()->isolate(), col_name).ToLocal(&key)) {
-    return Local<Value>();
-  }
-  return key;
+  return String::NewFromUtf8(env()->isolate(), col_name).As<Name>();
 }
 
 void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
@@ -474,9 +470,9 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  Isolate* isolate = env->isolate();
   int r = sqlite3_reset(stmt->statement_);
-  CHECK_ERROR_OR_THROW(
-      env->isolate(), stmt->db_->Connection(), r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_->Connection(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
     return;
@@ -484,28 +480,30 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
 
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   int num_cols = sqlite3_column_count(stmt->statement_);
-  std::vector<Local<Value>> rows;
+  LocalVector<Value> rows(isolate);
   while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-    Local<Object> row = Object::New(env->isolate());
+    LocalVector<Name> row_keys(isolate);
+    row_keys.reserve(num_cols);
+    LocalVector<Value> row_values(isolate);
+    row_values.reserve(num_cols);
 
     for (int i = 0; i < num_cols; ++i) {
-      Local<Value> key = stmt->ColumnNameToValue(i);
-      if (key.IsEmpty()) return;
-      Local<Value> val = stmt->ColumnToValue(i);
-      if (val.IsEmpty()) return;
-
-      if (row->Set(env->context(), key, val).IsNothing()) {
-        return;
-      }
+      Local<Name> key;
+      if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
+      Local<Value> val;
+      if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
+      row_keys.emplace_back(key);
+      row_values.emplace_back(val);
     }
 
+    Local<Object> row = Object::New(
+        isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
     rows.emplace_back(row);
   }
 
   CHECK_ERROR_OR_THROW(
-      env->isolate(), stmt->db_->Connection(), r, SQLITE_DONE, void());
-  args.GetReturnValue().Set(
-      Array::New(env->isolate(), rows.data(), rows.size()));
+      isolate, stmt->db_->Connection(), r, SQLITE_DONE, void());
+  args.GetReturnValue().Set(Array::New(isolate, rows.data(), rows.size()));
 }
 
 void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
@@ -514,9 +512,9 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  Isolate* isolate = env->isolate();
   int r = sqlite3_reset(stmt->statement_);
-  CHECK_ERROR_OR_THROW(
-      env->isolate(), stmt->db_->Connection(), r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_->Connection(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
     return;
@@ -526,7 +524,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   r = sqlite3_step(stmt->statement_);
   if (r == SQLITE_DONE) return;
   if (r != SQLITE_ROW) {
-    THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_->Connection());
+    THROW_ERR_SQLITE_ERROR(isolate, stmt->db_->Connection());
     return;
   }
 
@@ -535,18 +533,22 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Object> result = Object::New(env->isolate());
+  LocalVector<Name> keys(isolate);
+  keys.reserve(num_cols);
+  LocalVector<Value> values(isolate);
+  values.reserve(num_cols);
 
   for (int i = 0; i < num_cols; ++i) {
-    Local<Value> key = stmt->ColumnNameToValue(i);
-    if (key.IsEmpty()) return;
-    Local<Value> val = stmt->ColumnToValue(i);
-    if (val.IsEmpty()) return;
-
-    if (result->Set(env->context(), key, val).IsNothing()) {
-      return;
-    }
+    Local<Name> key;
+    if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
+    Local<Value> val;
+    if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
+    keys.emplace_back(key);
+    values.emplace_back(val);
   }
+
+  Local<Object> result =
+      Object::New(isolate, Null(isolate), keys.data(), values.data(), num_cols);
 
   args.GetReturnValue().Set(result);
 }
@@ -676,7 +678,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StatementSync"));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "StatementSync"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         StatementSync::kInternalFieldCount);
     SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
