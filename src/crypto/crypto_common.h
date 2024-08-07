@@ -27,10 +27,6 @@ struct StackOfX509Deleter {
 };
 using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
-using StackOfASN1 = ncrypto::StackOfASN1;
-
-X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert);
-
 void LogSecret(
     const SSLPointer& ssl,
     const char* name,
@@ -95,52 +91,10 @@ v8::MaybeLocal<v8::Object> ECPointToBuffer(
     point_conversion_form_t form,
     const char** error);
 
-v8::MaybeLocal<v8::Object> X509ToObject(
-    Environment* env,
-    X509* cert);
-
-v8::MaybeLocal<v8::Value> GetValidTo(
-    Environment* env,
-    X509* cert,
-    const BIOPointer& bio);
-
-v8::MaybeLocal<v8::Value> GetValidFrom(
-    Environment* env,
-    X509* cert,
-    const BIOPointer& bio);
-
-v8::MaybeLocal<v8::Value> GetFingerprintDigest(
-    Environment* env,
-    const EVP_MD* method,
-    X509* cert);
-
-v8::MaybeLocal<v8::Value> GetKeyUsage(Environment* env, X509* cert);
 v8::MaybeLocal<v8::Value> GetCurrentCipherName(Environment* env,
                                                const SSLPointer& ssl);
 v8::MaybeLocal<v8::Value> GetCurrentCipherVersion(Environment* env,
                                                   const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetSerialNumber(Environment* env, X509* cert);
-
-v8::MaybeLocal<v8::Value> GetRawDERCertificate(Environment* env, X509* cert);
-
-v8::Local<v8::Value> ToV8Value(Environment* env, const BIOPointer& bio);
-
-v8::MaybeLocal<v8::Value> GetSubject(Environment* env,
-                                     X509* cert,
-                                     const BIOPointer& bio);
-
-v8::MaybeLocal<v8::Value> GetIssuerString(Environment* env,
-                                          X509* cert,
-                                          const BIOPointer& bio);
-
-v8::MaybeLocal<v8::Value> GetSubjectAltNameString(Environment* env,
-                                                  X509* cert,
-                                                  const BIOPointer& bio);
-
-v8::MaybeLocal<v8::Value> GetInfoAccessString(Environment* env,
-                                              X509* cert,
-                                              const BIOPointer& bio);
 
 }  // namespace crypto
 }  // namespace node

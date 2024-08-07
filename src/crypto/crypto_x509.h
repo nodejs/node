@@ -82,6 +82,10 @@ class X509Certificate final : public BaseObject {
   inline ncrypto::X509View view() const { return *cert_; }
   X509* get() { return cert_->get(); }
 
+  v8::MaybeLocal<v8::Value> toObject(Environment* env);
+  static v8::MaybeLocal<v8::Value> toObject(Environment* env,
+                                            const ncrypto::X509View& cert);
+
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(X509Certificate)
   SET_SELF_SIZE(X509Certificate)
@@ -118,6 +122,20 @@ class X509Certificate final : public BaseObject {
   std::shared_ptr<ManagedX509> cert_;
   BaseObjectPtr<X509Certificate> issuer_cert_;
 };
+
+inline X509Certificate::GetPeerCertificateFlag operator|(
+    X509Certificate::GetPeerCertificateFlag lhs,
+    X509Certificate::GetPeerCertificateFlag rhs) {
+  return static_cast<X509Certificate::GetPeerCertificateFlag>(
+      static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
+inline X509Certificate::GetPeerCertificateFlag operator&(
+    X509Certificate::GetPeerCertificateFlag lhs,
+    X509Certificate::GetPeerCertificateFlag rhs) {
+  return static_cast<X509Certificate::GetPeerCertificateFlag>(
+      static_cast<int>(lhs) & static_cast<int>(rhs));
+}
 
 }  // namespace crypto
 }  // namespace node

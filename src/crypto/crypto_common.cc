@@ -1,6 +1,7 @@
 #include "crypto/crypto_common.h"
 #include "base_object-inl.h"
 #include "crypto/crypto_util.h"
+#include "crypto/crypto_x509.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "nbytes.h"
@@ -29,40 +30,17 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
-using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
 
 namespace crypto {
-static constexpr int kX509NameFlagsMultiline =
-    ASN1_STRFLGS_ESC_2253 |
-    ASN1_STRFLGS_ESC_CTRL |
-    ASN1_STRFLGS_UTF8_CONVERT |
-    XN_FLAG_SEP_MULTILINE |
-    XN_FLAG_FN_SN;
-
-X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert) {
-  X509_STORE* store = SSL_CTX_get_cert_store(ctx);
-  DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
-      X509_STORE_CTX_new());
-  X509Pointer result;
-  X509* issuer;
-  if (store_ctx.get() != nullptr &&
-      X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
-      X509_STORE_CTX_get1_issuer(&issuer, store_ctx.get(), cert) == 1) {
-    result.reset(issuer);
-  }
-  return result;
-}
-
 void LogSecret(
     const SSLPointer& ssl,
     const char* name,
@@ -120,8 +98,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
     long def) {  // NOLINT(runtime/int)
   long err = def;  // NOLINT(runtime/int)
-  if (X509* peer_cert = SSL_get_peer_certificate(ssl.get())) {
-    X509_free(peer_cert);
+  if (X509Pointer::PeerFrom(ssl)) {
     err = SSL_get_verify_result(ssl.get());
   } else {
     const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(ssl.get());
@@ -140,13 +117,14 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
 
 bool UseSNIContext(
     const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
+  auto x509 = ncrypto::X509View::From(context->ctx());
+  if (!x509) return false;
   SSL_CTX* ctx = context->ctx().get();
-  X509* x509 = SSL_CTX_get0_certificate(ctx);
   EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx);
   STACK_OF(X509)* chain;
 
   int err = SSL_CTX_get0_chain_certs(ctx, &chain);
-  if (err == 1) err = SSL_use_certificate(ssl.get(), x509);
+  if (err == 1) err = SSL_use_certificate(ssl.get(), x509.get());
   if (err == 1) err = SSL_use_PrivateKey(ssl.get(), pkey);
   if (err == 1 && chain != nullptr) err = SSL_set1_chain(ssl.get(), chain);
   return err == 1;
@@ -263,25 +241,9 @@ MaybeLocal<Value> GetValidationErrorCode(Environment* env, int err) {
 
 MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
   ClearErrorOnReturn clear_error_on_return;
-  X509* cert = SSL_get_certificate(ssl.get());
-  if (cert == nullptr)
-    return Undefined(env->isolate());
-
-  MaybeLocal<Object> maybe_cert = X509ToObject(env, cert);
-  return maybe_cert.FromMaybe<Value>(Local<Value>());
-}
-
-Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
-  BUF_MEM* mem;
-  BIO_get_mem_ptr(bio.get(), &mem);
-  MaybeLocal<String> ret =
-      String::NewFromUtf8(
-          env->isolate(),
-          mem->data,
-          NewStringType::kNormal,
-          mem->length);
-  CHECK_EQ(BIO_reset(bio.get()), 1);
-  return ret.FromMaybe(Local<Value>());
+  ncrypto::X509View cert(SSL_get_certificate(ssl.get()));
+  if (!cert) return Undefined(env->isolate());
+  return X509Certificate::toObject(env, cert);
 }
 
 namespace {
@@ -330,28 +292,28 @@ StackOfX509 CloneSSLCerts(X509Pointer&& cert,
   return peer_certs;
 }
 
-MaybeLocal<Object> AddIssuerChainToObject(
-    X509Pointer* cert,
-    Local<Object> object,
-    StackOfX509&& peer_certs,
-    Environment* const env) {
-  Local<Context> context = env->isolate()->GetCurrentContext();
+MaybeLocal<Object> AddIssuerChainToObject(X509Pointer* cert,
+                                          Local<Object> object,
+                                          StackOfX509&& peer_certs,
+                                          Environment* const env) {
   cert->reset(sk_X509_delete(peer_certs.get(), 0));
   for (;;) {
     int i;
     for (i = 0; i < sk_X509_num(peer_certs.get()); i++) {
-      X509* ca = sk_X509_value(peer_certs.get(), i);
-      if (X509_check_issued(ca, cert->get()) != X509_V_OK)
-        continue;
+      ncrypto::X509View ca(sk_X509_value(peer_certs.get(), i));
+      if (!cert->view().isIssuedBy(ca)) continue;
 
-      Local<Object> ca_info;
-      MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca);
-      if (!maybe_ca_info.ToLocal(&ca_info))
-        return MaybeLocal<Object>();
+      Local<Value> ca_info;
+      if (!X509Certificate::toObject(env, ca).ToLocal(&ca_info)) return {};
+      CHECK(ca_info->IsObject());
 
-      if (!Set<Object>(context, object, env->issuercert_string(), ca_info))
-        return MaybeLocal<Object>();
-      object = ca_info;
+      if (!Set<Object>(env->context(),
+                       object,
+                       env->issuercert_string(),
+                       ca_info.As<Object>())) {
+        return {};
+      }
+      object = ca_info.As<Object>();
 
       // NOTE: Intentionally freeing cert that is not used anymore.
       // Delete cert and continue aggregating issuers.
@@ -371,20 +333,22 @@ MaybeLocal<Object> GetLastIssuedCert(
     const SSLPointer& ssl,
     Local<Object> issuer_chain,
     Environment* const env) {
-  Local<Context> context = env->isolate()->GetCurrentContext();
-  while (X509_check_issued(cert->get(), cert->get()) != X509_V_OK) {
-    X509Pointer ca;
-    if (!(ca = SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get())))
-      break;
+  Local<Value> ca_info;
+  while (!cert->view().isIssuedBy(cert->view())) {
+    auto ca = X509Pointer::IssuerFrom(ssl, cert->view());
+    if (!ca) break;
 
-    Local<Object> ca_info;
-    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca.get());
-    if (!maybe_ca_info.ToLocal(&ca_info))
-      return MaybeLocal<Object>();
+    if (!X509Certificate::toObject(env, ca.view()).ToLocal(&ca_info)) return {};
 
-    if (!Set<Object>(context, issuer_chain, env->issuercert_string(), ca_info))
-      return MaybeLocal<Object>();
-    issuer_chain = ca_info;
+    CHECK(ca_info->IsObject());
+
+    if (!Set<Object>(env->context(),
+                     issuer_chain,
+                     env->issuercert_string(),
+                     ca_info.As<Object>())) {
+      return {};
+    }
+    issuer_chain = ca_info.As<Object>();
 
     // For self-signed certificates whose keyUsage field does not include
     // keyCertSign, X509_check_issued() will return false. Avoid going into an
@@ -398,143 +362,7 @@ MaybeLocal<Object> GetLastIssuedCert(
   return MaybeLocal<Object>(issuer_chain);
 }
 
-void AddFingerprintDigest(
-    const unsigned char* md,
-    unsigned int md_size,
-    char fingerprint[3 * EVP_MAX_MD_SIZE]) {
-  unsigned int i;
-  const char hex[] = "0123456789ABCDEF";
-
-  for (i = 0; i < md_size; i++) {
-    fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
-    fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
-    fingerprint[(3*i)+2] = ':';
-  }
-
-  DCHECK_GT(md_size, 0);
-  fingerprint[(3 * (md_size - 1)) + 2] = '\0';
-}
-
-template <const char* (*nid2string)(int nid)>
-MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
-  const char* name = nid2string(nid);
-  return name != nullptr ?
-      MaybeLocal<Value>(OneByteString(env->isolate(), name)) :
-      MaybeLocal<Value>(Undefined(env->isolate()));
-}
-
-MaybeLocal<Value> GetECPubKey(Environment* env,
-                              const EC_GROUP* group,
-                              OSSL3_CONST EC_KEY* ec) {
-  const EC_POINT* pubkey = EC_KEY_get0_public_key(ec);
-  if (pubkey == nullptr)
-    return Undefined(env->isolate());
-
-  return ECPointToBuffer(env, group, pubkey, EC_KEY_get_conv_form(ec), nullptr)
-      .FromMaybe(Local<Object>());
-}
-
-MaybeLocal<Value> GetECGroupBits(Environment* env, const EC_GROUP* group) {
-  if (group == nullptr)
-    return Undefined(env->isolate());
-
-  int bits = EC_GROUP_order_bits(group);
-  if (bits <= 0)
-    return Undefined(env->isolate());
-
-  return Integer::New(env->isolate(), bits);
-}
-
-MaybeLocal<Object> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
-  int size = i2d_RSA_PUBKEY(rsa, nullptr);
-  CHECK_GE(size, 0);
-
-  std::unique_ptr<BackingStore> bs;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
-  }
-
-  unsigned char* serialized = reinterpret_cast<unsigned char*>(bs->Data());
-  CHECK_GE(i2d_RSA_PUBKEY(rsa, &serialized), 0);
-
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
-  return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
-}
-
-MaybeLocal<Value> GetExponentString(
-    Environment* env,
-    const BIOPointer& bio,
-    const BIGNUM* e) {
-  uint64_t exponent_word = static_cast<uint64_t>(BignumPointer::GetWord(e));
-  BIO_printf(bio.get(), "0x%" PRIx64, exponent_word);
-  return ToV8Value(env, bio);
-}
-
-Local<Value> GetBits(Environment* env, const BIGNUM* n) {
-  return Integer::New(env->isolate(), BignumPointer::GetBitCount(n));
-}
-
-MaybeLocal<Value> GetModulusString(
-    Environment* env,
-    const BIOPointer& bio,
-    const BIGNUM* n) {
-  BN_print(bio.get(), n);
-  return ToV8Value(env, bio);
-}
 }  // namespace
-
-MaybeLocal<Value> GetRawDERCertificate(Environment* env, X509* cert) {
-  int size = i2d_X509(cert, nullptr);
-
-  std::unique_ptr<BackingStore> bs;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
-  }
-
-  unsigned char* serialized = reinterpret_cast<unsigned char*>(bs->Data());
-  CHECK_GE(i2d_X509(cert, &serialized), 0);
-
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
-  return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Object>());
-}
-
-MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
-  if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
-    if (auto bn = BignumPointer(ASN1_INTEGER_to_BN(serial_number, nullptr))) {
-      if (auto hex = bn.toHex()) {
-        return OneByteString(env->isolate(),
-                             static_cast<unsigned char*>(hex.get()));
-      }
-    }
-  }
-
-  return Undefined(env->isolate());
-}
-
-MaybeLocal<Value> GetKeyUsage(Environment* env, X509* cert) {
-  StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
-      X509_get_ext_d2i(cert, NID_ext_key_usage, nullptr, nullptr)));
-  if (eku) {
-    const int count = sk_ASN1_OBJECT_num(eku.get());
-    MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
-    char buf[256];
-
-    int j = 0;
-    for (int i = 0; i < count; i++) {
-      if (OBJ_obj2txt(buf,
-                      sizeof(buf),
-                      sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
-        ext_key_usage[j++] = OneByteString(env->isolate(), buf);
-      }
-    }
-
-    return Array::New(env->isolate(), ext_key_usage.out(), count);
-  }
-
-  return Undefined(env->isolate());
-}
 
 MaybeLocal<Value> GetCurrentCipherName(Environment* env,
                                        const SSLPointer& ssl) {
@@ -544,199 +372,6 @@ MaybeLocal<Value> GetCurrentCipherName(Environment* env,
 MaybeLocal<Value> GetCurrentCipherVersion(Environment* env,
                                           const SSLPointer& ssl) {
   return GetCipherVersion(env, SSL_get_current_cipher(ssl.get()));
-}
-
-MaybeLocal<Value> GetFingerprintDigest(
-    Environment* env,
-    const EVP_MD* method,
-    X509* cert) {
-  unsigned char md[EVP_MAX_MD_SIZE];
-  unsigned int md_size;
-  char fingerprint[EVP_MAX_MD_SIZE * 3];
-
-  if (X509_digest(cert, method, md, &md_size)) {
-    AddFingerprintDigest(md, md_size, fingerprint);
-    return OneByteString(env->isolate(), fingerprint);
-  }
-  return Undefined(env->isolate());
-}
-
-MaybeLocal<Value> GetValidTo(
-    Environment* env,
-    X509* cert,
-    const BIOPointer& bio) {
-  ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert));
-  return ToV8Value(env, bio);
-}
-
-MaybeLocal<Value> GetValidFrom(
-    Environment* env,
-    X509* cert,
-    const BIOPointer& bio) {
-  ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert));
-  return ToV8Value(env, bio);
-}
-
-v8::MaybeLocal<v8::Value> GetSubjectAltNameString(Environment* env,
-                                                  X509* cert,
-                                                  const BIOPointer& bio) {
-  int index = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
-  if (index < 0)
-    return Undefined(env->isolate());
-
-  X509_EXTENSION* ext = X509_get_ext(cert, index);
-  CHECK_NOT_NULL(ext);
-
-  if (!ncrypto::SafeX509SubjectAltNamePrint(bio, ext)) {
-    CHECK_EQ(BIO_reset(bio.get()), 1);
-    return v8::Null(env->isolate());
-  }
-
-  return ToV8Value(env, bio);
-}
-
-v8::MaybeLocal<v8::Value> GetInfoAccessString(Environment* env,
-                                              X509* cert,
-                                              const BIOPointer& bio) {
-  int index = X509_get_ext_by_NID(cert, NID_info_access, -1);
-  if (index < 0)
-    return Undefined(env->isolate());
-
-  X509_EXTENSION* ext = X509_get_ext(cert, index);
-  CHECK_NOT_NULL(ext);
-
-  if (!ncrypto::SafeX509InfoAccessPrint(bio, ext)) {
-    CHECK_EQ(BIO_reset(bio.get()), 1);
-    return v8::Null(env->isolate());
-  }
-
-  return ToV8Value(env, bio);
-}
-
-MaybeLocal<Value> GetIssuerString(Environment* env,
-                                  X509* cert,
-                                  const BIOPointer& bio) {
-  X509_NAME* issuer_name = X509_get_issuer_name(cert);
-  if (X509_NAME_print_ex(
-          bio.get(),
-          issuer_name,
-          0,
-          kX509NameFlagsMultiline) <= 0) {
-    CHECK_EQ(BIO_reset(bio.get()), 1);
-    return Undefined(env->isolate());
-  }
-
-  return ToV8Value(env, bio);
-}
-
-MaybeLocal<Value> GetSubject(Environment* env,
-                             X509* cert,
-                             const BIOPointer& bio) {
-  if (X509_NAME_print_ex(
-          bio.get(),
-          X509_get_subject_name(cert),
-          0,
-          kX509NameFlagsMultiline) <= 0) {
-    CHECK_EQ(BIO_reset(bio.get()), 1);
-    return Undefined(env->isolate());
-  }
-
-  return ToV8Value(env, bio);
-}
-
-template <X509_NAME* get_name(const X509*)>
-static MaybeLocal<Value> GetX509NameObject(Environment* env, X509* cert) {
-  X509_NAME* name = get_name(cert);
-  CHECK_NOT_NULL(name);
-
-  int cnt = X509_NAME_entry_count(name);
-  CHECK_GE(cnt, 0);
-
-  Local<Object> result =
-      Object::New(env->isolate(), Null(env->isolate()), nullptr, nullptr, 0);
-  if (result.IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-
-  for (int i = 0; i < cnt; i++) {
-    X509_NAME_ENTRY* entry = X509_NAME_get_entry(name, i);
-    CHECK_NOT_NULL(entry);
-
-    // We intentionally ignore the value of X509_NAME_ENTRY_set because the
-    // representation as an object does not allow grouping entries into sets
-    // anyway, and multi-value RDNs are rare, i.e., the vast majority of
-    // Relative Distinguished Names contains a single type-value pair only.
-    const ASN1_OBJECT* type = X509_NAME_ENTRY_get_object(entry);
-    const ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
-
-    // If OpenSSL knows the type, use the short name of the type as the key, and
-    // the numeric representation of the type's OID otherwise.
-    int type_nid = OBJ_obj2nid(type);
-    char type_buf[80];
-    const char* type_str;
-    if (type_nid != NID_undef) {
-      type_str = OBJ_nid2sn(type_nid);
-      CHECK_NOT_NULL(type_str);
-    } else {
-      OBJ_obj2txt(type_buf, sizeof(type_buf), type, true);
-      type_str = type_buf;
-    }
-
-    Local<String> v8_name;
-    if (!String::NewFromUtf8(env->isolate(), type_str).ToLocal(&v8_name)) {
-      return MaybeLocal<Value>();
-    }
-
-    // The previous implementation used X509_NAME_print_ex, which escapes some
-    // characters in the value. The old implementation did not decode/unescape
-    // values correctly though, leading to ambiguous and incorrect
-    // representations. The new implementation only converts to Unicode and does
-    // not escape anything.
-    unsigned char* value_str;
-    int value_str_size = ASN1_STRING_to_UTF8(&value_str, value);
-    if (value_str_size < 0) {
-      return Undefined(env->isolate());
-    }
-    auto free_value_str = OnScopeLeave([&]() { OPENSSL_free(value_str); });
-
-    Local<String> v8_value;
-    if (!String::NewFromUtf8(env->isolate(),
-                             reinterpret_cast<const char*>(value_str),
-                             NewStringType::kNormal,
-                             value_str_size)
-             .ToLocal(&v8_value)) {
-      return MaybeLocal<Value>();
-    }
-
-    // For backward compatibility, we only create arrays if multiple values
-    // exist for the same key. That is not great but there is not much we can
-    // change here without breaking things. Note that this creates nested data
-    // structures, yet still does not allow representing Distinguished Names
-    // accurately.
-    bool multiple;
-    if (!result->HasOwnProperty(env->context(), v8_name).To(&multiple)) {
-      return MaybeLocal<Value>();
-    } else if (multiple) {
-      Local<Value> accum;
-      if (!result->Get(env->context(), v8_name).ToLocal(&accum)) {
-        return MaybeLocal<Value>();
-      }
-      if (!accum->IsArray()) {
-        accum = Array::New(env->isolate(), &accum, 1);
-        if (result->Set(env->context(), v8_name, accum).IsNothing()) {
-          return MaybeLocal<Value>();
-        }
-      }
-      Local<Array> array = accum.As<Array>();
-      if (array->Set(env->context(), array->Length(), v8_value).IsNothing()) {
-        return MaybeLocal<Value>();
-      }
-    } else if (result->Set(env->context(), v8_name, v8_value).IsNothing()) {
-      return MaybeLocal<Value>();
-    }
-  }
-
-  return result;
 }
 
 template <MaybeLocal<Value> (*Get)(Environment* env, const SSL_CIPHER* cipher)>
@@ -897,8 +532,6 @@ MaybeLocal<Value> GetPeerCert(
     bool abbreviated,
     bool is_server) {
   ClearErrorOnReturn clear_error_on_return;
-  Local<Object> result;
-  MaybeLocal<Object> maybe_cert;
 
   // NOTE: This is because of the odd OpenSSL behavior. On client `cert_chain`
   // contains the `peer_certificate`, but on server it doesn't.
@@ -909,9 +542,11 @@ MaybeLocal<Value> GetPeerCert(
 
   // Short result requested.
   if (abbreviated) {
-    maybe_cert =
-        X509ToObject(env, cert ? cert.get() : sk_X509_value(ssl_certs, 0));
-    return maybe_cert.ToLocal(&result) ? result : MaybeLocal<Value>();
+    if (cert) {
+      return X509Certificate::toObject(env, cert.view());
+    }
+    return X509Certificate::toObject(
+        env, ncrypto::X509View(sk_X509_value(ssl_certs, 0)));
   }
 
   StackOfX509 peer_certs = CloneSSLCerts(std::move(cert), ssl_certs);
@@ -919,23 +554,18 @@ MaybeLocal<Value> GetPeerCert(
     return Undefined(env->isolate());
 
   // First and main certificate.
-  X509Pointer first_cert(sk_X509_value(peer_certs.get(), 0));
+  Local<Value> result;
+  ncrypto::X509View first_cert(sk_X509_value(peer_certs.get(), 0));
   CHECK(first_cert);
-  maybe_cert = X509ToObject(env, first_cert.release());
-  if (!maybe_cert.ToLocal(&result))
-    return MaybeLocal<Value>();
+  if (!X509Certificate::toObject(env, first_cert).ToLocal(&result)) return {};
+  CHECK(result->IsObject());
 
   Local<Object> issuer_chain;
   MaybeLocal<Object> maybe_issuer_chain;
 
-  maybe_issuer_chain =
-      AddIssuerChainToObject(
-          &cert,
-          result,
-          std::move(peer_certs),
-          env);
-  if (!maybe_issuer_chain.ToLocal(&issuer_chain))
-    return MaybeLocal<Value>();
+  maybe_issuer_chain = AddIssuerChainToObject(
+      &cert, result.As<Object>(), std::move(peer_certs), env);
+  if (!maybe_issuer_chain.ToLocal(&issuer_chain)) return {};
 
   maybe_issuer_chain =
       GetLastIssuedCert(
@@ -945,154 +575,18 @@ MaybeLocal<Value> GetPeerCert(
           env);
 
   issuer_chain.Clear();
-  if (!maybe_issuer_chain.ToLocal(&issuer_chain))
-    return MaybeLocal<Value>();
+  if (!maybe_issuer_chain.ToLocal(&issuer_chain)) return {};
 
   // Last certificate should be self-signed.
-  if (X509_check_issued(cert.get(), cert.get()) == X509_V_OK &&
+  if (cert.view().isIssuedBy(cert.view()) &&
       !Set<Object>(env->context(),
-           issuer_chain,
-           env->issuercert_string(),
-           issuer_chain)) {
-    return MaybeLocal<Value>();
+                   issuer_chain,
+                   env->issuercert_string(),
+                   issuer_chain)) {
+    return {};
   }
 
   return result;
-}
-
-MaybeLocal<Object> X509ToObject(
-    Environment* env,
-    X509* cert) {
-  EscapableHandleScope scope(env->isolate());
-  Local<Context> context = env->context();
-  Local<Object> info = Object::New(env->isolate());
-
-  BIOPointer bio(BIO_new(BIO_s_mem()));
-  CHECK(bio);
-
-  // X509_check_ca() returns a range of values. Only 1 means "is a CA"
-  auto is_ca = Boolean::New(env->isolate(), 1 == X509_check_ca(cert));
-  if (!Set<Value>(context,
-                  info,
-                  env->subject_string(),
-                  GetX509NameObject<X509_get_subject_name>(env, cert)) ||
-      !Set<Value>(context,
-                  info,
-                  env->issuer_string(),
-                  GetX509NameObject<X509_get_issuer_name>(env, cert)) ||
-      !Set<Value>(context,
-                  info,
-                  env->subjectaltname_string(),
-                  GetSubjectAltNameString(env, cert, bio)) ||
-      !Set<Value>(context,
-                  info,
-                  env->infoaccess_string(),
-                  GetInfoAccessString(env, cert, bio)) ||
-      !Set<Boolean>(context, info, env->ca_string(), is_ca)) {
-    return MaybeLocal<Object>();
-  }
-
-  OSSL3_CONST EVP_PKEY* pkey = X509_get0_pubkey(cert);
-  OSSL3_CONST RSA* rsa = nullptr;
-  OSSL3_CONST EC_KEY* ec = nullptr;
-  if (pkey != nullptr) {
-    switch (EVP_PKEY_id(pkey)) {
-      case EVP_PKEY_RSA:
-        rsa = EVP_PKEY_get0_RSA(pkey);
-        break;
-      case EVP_PKEY_EC:
-        ec = EVP_PKEY_get0_EC_KEY(pkey);
-        break;
-    }
-  }
-
-  if (rsa) {
-    const BIGNUM* n;
-    const BIGNUM* e;
-    RSA_get0_key(rsa, &n, &e, nullptr);
-    if (!Set<Value>(context,
-                    info,
-                    env->modulus_string(),
-                    GetModulusString(env, bio, n)) ||
-        !Set<Value>(context, info, env->bits_string(), GetBits(env, n)) ||
-        !Set<Value>(context,
-                    info,
-                    env->exponent_string(),
-                    GetExponentString(env, bio, e)) ||
-        !Set<Object>(context,
-                     info,
-                     env->pubkey_string(),
-                     GetPubKey(env, rsa))) {
-      return MaybeLocal<Object>();
-    }
-  } else if (ec) {
-    const EC_GROUP* group = EC_KEY_get0_group(ec);
-
-    if (!Set<Value>(
-            context, info, env->bits_string(), GetECGroupBits(env, group)) ||
-        !Set<Value>(
-            context, info, env->pubkey_string(), GetECPubKey(env, group, ec))) {
-      return MaybeLocal<Object>();
-    }
-
-    const int nid = EC_GROUP_get_curve_name(group);
-    if (nid != 0) {
-      // Curve is well-known, get its OID and NIST nick-name (if it has one).
-
-      if (!Set<Value>(context,
-                      info,
-                      env->asn1curve_string(),
-                      GetCurveName<OBJ_nid2sn>(env, nid)) ||
-          !Set<Value>(context,
-                      info,
-                      env->nistcurve_string(),
-                      GetCurveName<EC_curve_nid2nist>(env, nid))) {
-        return MaybeLocal<Object>();
-      }
-    } else {
-      // Unnamed curves can be described by their mathematical properties,
-      // but aren't used much (at all?) with X.509/TLS. Support later if needed.
-    }
-  }
-
-  if (!Set<Value>(context,
-                  info,
-                  env->valid_from_string(),
-                  GetValidFrom(env, cert, bio)) ||
-      !Set<Value>(context,
-                  info,
-                  env->valid_to_string(),
-                  GetValidTo(env, cert, bio))) {
-    return MaybeLocal<Object>();
-  }
-
-  // bio is no longer needed
-  bio.reset();
-
-  if (!Set<Value>(context,
-                  info,
-                  env->fingerprint_string(),
-                  GetFingerprintDigest(env, EVP_sha1(), cert)) ||
-      !Set<Value>(context,
-                  info,
-                  env->fingerprint256_string(),
-                  GetFingerprintDigest(env, EVP_sha256(), cert)) ||
-      !Set<Value>(context,
-                  info,
-                  env->fingerprint512_string(),
-                  GetFingerprintDigest(env, EVP_sha512(), cert)) ||
-      !Set<Value>(
-          context, info, env->ext_key_usage_string(), GetKeyUsage(env, cert)) ||
-      !Set<Value>(context,
-                  info,
-                  env->serial_number_string(),
-                  GetSerialNumber(env, cert)) ||
-      !Set<Value>(
-          context, info, env->raw_string(), GetRawDERCertificate(env, cert))) {
-    return MaybeLocal<Object>();
-  }
-
-  return scope.Escape(info);
 }
 
 }  // namespace crypto
