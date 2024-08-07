@@ -6,6 +6,7 @@
 #include "crypto_bio.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "ncrypto.h"
 #include "node_errors.h"
 #include "util-inl.h"
 #include "v8-function-callback.h"
@@ -275,6 +276,90 @@ void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(cert->view().checkPublicKey(key->Data()->GetAsymmetricKey().pkey()));
 }
+
+void CheckHost(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+
+  CHECK(args[0]->IsString());  // name
+  CHECK(args[1]->IsUint32());  // flags
+
+  Utf8Value name(env->isolate(), args[0]);
+  uint32_t flags = args[1].As<Uint32>()->Value();
+  ncrypto::DataPointer peername;
+
+  switch (cert->view().checkHost(name.ToStringView(), flags, &peername)) {
+    case ncrypto::X509View::CheckMatch::MATCH:  {  // Match!
+      Local<Value> ret = args[0];
+      if (peername) {
+        ret = OneByteString(env->isolate(),
+            static_cast<const char*>(peername.get()),
+            peername.size());
+      }
+      return args.GetReturnValue().Set(ret);
+    }
+    case ncrypto::X509View::CheckMatch::NO_MATCH:  // No Match!
+      return;  // No return value is set
+    case ncrypto::X509View::CheckMatch::INVALID_NAME:  // Error!
+      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid name");
+    default:  // Error!
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
+  }
+}
+
+void CheckEmail(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+
+  CHECK(args[0]->IsString());  // name
+  CHECK(args[1]->IsUint32());  // flags
+
+  Utf8Value name(env->isolate(), args[0]);
+  uint32_t flags = args[1].As<Uint32>()->Value();
+
+  switch (cert->view().checkEmail(name.ToStringView(), flags)) {
+    case ncrypto::X509View::CheckMatch::MATCH:  // Match!
+      return args.GetReturnValue().Set(args[0]);
+    case ncrypto::X509View::CheckMatch::NO_MATCH:  // No Match!
+      return;  // No return value is set
+    case ncrypto::X509View::CheckMatch::INVALID_NAME:  // Error!
+      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid name");
+    default:  // Error!
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
+  }
+}
+
+void CheckIP(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+
+  CHECK(args[0]->IsString());  // IP
+  CHECK(args[1]->IsUint32());  // flags
+
+  Utf8Value name(env->isolate(), args[0]);
+  uint32_t flags = args[1].As<Uint32>()->Value();
+
+  switch (cert->view().checkIp(name.ToStringView(), flags)) {
+    case ncrypto::X509View::CheckMatch::MATCH:  // Match!
+      return args.GetReturnValue().Set(args[0]);
+    case ncrypto::X509View::CheckMatch::NO_MATCH:  // No Match!
+      return;  // No return value is set
+    case ncrypto::X509View::CheckMatch::INVALID_NAME:  // Error!
+      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP");
+    default:  // Error!
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
+  }
+}
+
+void GetIssuerCert(const FunctionCallbackInfo<Value>& args) {
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  auto issuer = cert->getIssuerCert();
+  if (issuer) args.GetReturnValue().Set(issuer->object());
+}
 }  // namespace
 
 Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
@@ -426,91 +511,6 @@ static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
   if (Property(env, cert->get()).ToLocal(&ret)) args.GetReturnValue().Set(ret);
 }
 
-void X509Certificate::CheckHost(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsString());  // name
-  CHECK(args[1]->IsUint32());  // flags
-
-  Utf8Value name(env->isolate(), args[0]);
-  uint32_t flags = args[1].As<Uint32>()->Value();
-  char* peername;
-
-  switch (X509_check_host(
-              cert->get(),
-              *name,
-              name.length(),
-              flags,
-              &peername)) {
-    case 1:  {  // Match!
-      Local<Value> ret = args[0];
-      if (peername != nullptr) {
-        ret = OneByteString(env->isolate(), peername);
-        OPENSSL_free(peername);
-      }
-      return args.GetReturnValue().Set(ret);
-    }
-    case 0:  // No Match!
-      return;  // No return value is set
-    case -2:  // Error!
-      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid name");
-    default:  // Error!
-      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
-  }
-}
-
-void X509Certificate::CheckEmail(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsString());  // name
-  CHECK(args[1]->IsUint32());  // flags
-
-  Utf8Value name(env->isolate(), args[0]);
-  uint32_t flags = args[1].As<Uint32>()->Value();
-
-  switch (X509_check_email(
-              cert->get(),
-              *name,
-              name.length(),
-              flags)) {
-    case 1:  // Match!
-      return args.GetReturnValue().Set(args[0]);
-    case 0:  // No Match!
-      return;  // No return value is set
-    case -2:  // Error!
-      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid name");
-    default:  // Error!
-      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
-  }
-}
-
-void X509Certificate::CheckIP(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsString());  // IP
-  CHECK(args[1]->IsUint32());  // flags
-
-  Utf8Value name(env->isolate(), args[0]);
-  uint32_t flags = args[1].As<Uint32>()->Value();
-
-  switch (X509_check_ip_asc(cert->get(), *name, flags)) {
-    case 1:  // Match!
-      return args.GetReturnValue().Set(args[0]);
-    case 0:  // No Match!
-      return;  // No return value is set
-    case -2:  // Error!
-      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP");
-    default:  // Error!
-      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
-  }
-}
-
 void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
@@ -519,13 +519,6 @@ void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
   Local<Value> ret;
   if (X509ToObject(env, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
-}
-
-void X509Certificate::GetIssuerCert(const FunctionCallbackInfo<Value>& args) {
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-  if (cert->issuer_cert_)
-    args.GetReturnValue().Set(cert->issuer_cert_->object());
 }
 
 X509Certificate::X509Certificate(

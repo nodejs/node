@@ -868,4 +868,44 @@ bool X509View::checkPublicKey(const EVPKeyPointer& pkey) const {
   return X509_verify(const_cast<X509*>(cert_), pkey.get()) == 1;
 }
 
+X509View::CheckMatch X509View::checkHost(const std::string_view host, int flags,
+                                         DataPointer* peerName) const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return CheckMatch::NO_MATCH;
+  char* peername;
+  switch (X509_check_host(const_cast<X509*>(cert_), host.data(), host.size(), flags, &peername)) {
+    case 0: return CheckMatch::NO_MATCH;
+    case 1: {
+      if (peername != nullptr) {
+        DataPointer name(peername, strlen(peername));
+        if (peerName != nullptr) *peerName = std::move(name);
+      }
+      return CheckMatch::MATCH;
+    }
+    case -2: return CheckMatch::INVALID_NAME;
+    default: return CheckMatch::OPERATION_FAILED;
+  }
+}
+
+X509View::CheckMatch X509View::checkEmail(const std::string_view email, int flags) const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return CheckMatch::NO_MATCH;
+  switch (X509_check_email(const_cast<X509*>(cert_), email.data(), email.size(), flags)) {
+    case 0: return CheckMatch::NO_MATCH;
+    case 1: return CheckMatch::MATCH;
+    case -2: return CheckMatch::INVALID_NAME;
+    default: return CheckMatch::OPERATION_FAILED;
+  }
+}
+
+X509View::CheckMatch X509View::checkIp(const std::string_view ip, int flags) const {
+  ClearErrorOnReturn clearErrorOnReturn;
+  if (cert_ == nullptr) return CheckMatch::NO_MATCH;
+  switch (X509_check_ip_asc(const_cast<X509*>(cert_), ip.data(), flags)) {
+    case 0: return CheckMatch::NO_MATCH;
+    case 1: return CheckMatch::MATCH;
+    case -2: return CheckMatch::INVALID_NAME;
+    default: return CheckMatch::OPERATION_FAILED;
+  }
+}
 }  // namespace ncrypto

@@ -341,6 +341,17 @@ class X509View final {
   bool checkPrivateKey(const EVPKeyPointer& pkey) const;
   bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
+  enum class CheckMatch {
+    NO_MATCH,
+    MATCH,
+    INVALID_NAME,
+    OPERATION_FAILED,
+  };
+  CheckMatch checkHost(const std::string_view host, int flags,
+                       DataPointer* peerName = nullptr) const;
+  CheckMatch checkEmail(const std::string_view email, int flags) const;
+  CheckMatch checkIp(const std::string_view ip, int flags) const;
+
  private:
   const X509* cert_ = nullptr;
 };
