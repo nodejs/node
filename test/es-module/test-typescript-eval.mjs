@@ -98,7 +98,7 @@ test('expect fail eval TypeScript CommonJS syntax with input-type module', async
   strictEqual(result.code, 1);
 });
 
-test('expect fail eval TypeScript CommonJS syntax with input-type module', async () => {
+test('expect fail eval TypeScript ESM syntax with input-type commonjs', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
     '--input-type=commonjs',
