@@ -7,9 +7,11 @@ import { writeFileSync, unlinkSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 
-
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
+
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
 
 tmpdir.refresh();
 
