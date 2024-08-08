@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const dns = require('dns');
+const { mock } = require('node:test');
 
 if (!common.hasIPv6) {
   common.printSkipMessage('ipv6 part of test, no IPv6 support');
@@ -49,16 +50,14 @@ if (!common.hasIPv6) {
 // Test on IPv6 Server, picks 127.0.0.1 between that and fe80::1
 {
 
-  // Mock dns.lookup
-  const originalLookup = dns.lookup;
-  dns.lookup = (hostname, options, callback) => {
+  mock.method(dns, 'lookup', (hostname, options, callback) => {
     if (hostname === 'ipv6_loopback_with_double_entry') {
       callback(null, [{ address: 'fe80::1', family: 6 },
                       { address: '127.0.0.1', family: 4 }]);
     } else {
-      originalLookup(hostname, options, callback);
+      dns.lookup.wrappedMethod(hostname, options, callback);
     }
-  };
+  });
 
   const host = 'ipv6_loopback_with_double_entry';
   const family4 = 'IPv4';
@@ -73,6 +72,5 @@ if (!common.hasIPv6) {
     assert.strictEqual(address.port, common.PORT + 2);
     assert.strictEqual(address.family, family4);
     server.close();
-    dns.lookup = originalLookup;
   }));
 }
