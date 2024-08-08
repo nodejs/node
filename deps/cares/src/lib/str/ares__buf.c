@@ -204,7 +204,7 @@ ares_status_t ares__buf_set_length(ares__buf_t *buf, size_t len)
     return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
-  buf->data_len = len;
+  buf->data_len = len + buf->offset;
   return ARES_SUCCESS;
 }
 

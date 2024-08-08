@@ -47,7 +47,7 @@ void ares__tvnow(ares_timeval_t *now)
   /* We want to prevent overflows so we get the remainder, then multiply to
    * microseconds before dividing */
   now->usec = (unsigned int)(((current.QuadPart % freq.QuadPart) * 1000000) /
-              freq.QuadPart);
+                             freq.QuadPart);
 }
 
 #elif defined(HAVE_CLOCK_GETTIME_MONOTONIC)

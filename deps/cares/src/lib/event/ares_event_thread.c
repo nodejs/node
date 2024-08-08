@@ -47,6 +47,23 @@ static void ares_event_destroy_cb(void *arg)
   ares_free(event);
 }
 
+static void ares_event_signal(const ares_event_t *event)
+{
+  if (event == NULL || event->signal_cb == NULL) {
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+  event->signal_cb(event);
+}
+
+static void ares_event_thread_wake(const ares_event_thread_t *e)
+{
+  if (e == NULL) {
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
+  }
+
+  ares_event_signal(e->ev_signal);
+}
+
 /* See if a pending update already exists. We don't want to enqueue multiple
  * updates for the same event handle. Right now this is O(n) based on number
  * of updates already enqueued.  In the future, it might make sense to make
@@ -86,6 +103,7 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
                                 ares_event_signal_cb_t signal_cb)
 {
   ares_event_t *ev = NULL;
+  ares_status_t status;
 
   if (e == NULL) {
     return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
@@ -116,18 +134,22 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
 
   /* That's all the validation we can really do */
 
+  ares__thread_mutex_lock(e->mutex);
+
   /* See if we have a queued update already */
   ev = ares_event_update_find(e, fd, data);
   if (ev == NULL) {
     /* Allocate a new one */
     ev = ares_malloc_zero(sizeof(*ev));
     if (ev == NULL) {
-      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     if (ares__llist_insert_last(e->ev_updates, ev) == NULL) {
-      ares_free(ev);      /* LCOV_EXCL_LINE: OutOfMemory */
-      return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      ares_free(ev);        /* LCOV_EXCL_LINE: OutOfMemory */
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
@@ -150,24 +172,17 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
     *event = ev;
   }
 
-  return ARES_SUCCESS;
-}
+  status = ARES_SUCCESS;
 
-static void ares_event_signal(const ares_event_t *event)
-{
-  if (event == NULL || event->signal_cb == NULL) {
-    return; /* LCOV_EXCL_LINE: DefensiveCoding */
-  }
-  event->signal_cb(event);
-}
-
-static void ares_event_thread_wake(const ares_event_thread_t *e)
-{
-  if (e == NULL) {
-    return; /* LCOV_EXCL_LINE: DefensiveCoding */
+done:
+  if (status == ARES_SUCCESS) {
+    /* Wake event thread if successful so it can pull the updates */
+    ares_event_thread_wake(e);
   }
 
-  ares_event_signal(e->ev_signal);
+  ares__thread_mutex_unlock(e->mutex);
+
+  return status;
 }
 
 static void ares_event_thread_process_fd(ares_event_thread_t *e,
@@ -195,15 +210,10 @@ static void ares_event_thread_sockstate_cb(void *data, ares_socket_t socket_fd,
     flags |= ARES_EVENT_FLAG_WRITE;
   }
 
-  /* Update channel fd */
-  ares__thread_mutex_lock(e->mutex);
+  /* Update channel fd.  This function will lock e->mutex and also wake the
+   * event thread to process the update */
   ares_event_update(NULL, e, flags, ares_event_thread_process_fd, socket_fd,
                     NULL, NULL, NULL);
-
-  /* Wake the event thread so it properly enqueues any updates */
-  ares_event_thread_wake(e);
-
-  ares__thread_mutex_unlock(e->mutex);
 }
 
 static void ares_event_process_updates(ares_event_thread_t *e)
@@ -370,7 +380,7 @@ void ares_event_thread_destroy(ares_channel_t *channel)
 
   ares_event_thread_destroy_int(e);
   channel->sock_state_cb_data = NULL;
-  channel->sock_state_cb = NULL;
+  channel->sock_state_cb      = NULL;
 }
 
 static const ares_event_sys_t *ares_event_fetch_sys(ares_evsys_t evsys)

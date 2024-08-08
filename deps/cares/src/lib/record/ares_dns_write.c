@@ -91,7 +91,7 @@ static ares_status_t ares_dns_write_header(const ares_dns_record_t *dnsrec,
   }
 
   /* RCODE */
-  if (dnsrec->rcode > 15 && !ares_dns_has_opt_rr(dnsrec)) {
+  if (dnsrec->rcode > 15 && ares_dns_get_opt_rr_const(dnsrec) == NULL) {
     /* Must have OPT RR in order to write extended error codes */
     rcode = ARES_RCODE_SERVFAIL;
   } else {
@@ -105,25 +105,29 @@ static ares_status_t ares_dns_write_header(const ares_dns_record_t *dnsrec,
   }
 
   /* QDCOUNT */
-  status = ares__buf_append_be16(buf, (unsigned short)dnsrec->qdcount);
+  status = ares__buf_append_be16(
+    buf, (unsigned short)ares_dns_record_query_cnt(dnsrec));
   if (status != ARES_SUCCESS) {
     return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   /* ANCOUNT */
-  status = ares__buf_append_be16(buf, (unsigned short)dnsrec->ancount);
+  status = ares__buf_append_be16(
+    buf, (unsigned short)ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER));
   if (status != ARES_SUCCESS) {
     return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   /* NSCOUNT */
-  status = ares__buf_append_be16(buf, (unsigned short)dnsrec->nscount);
+  status = ares__buf_append_be16(buf, (unsigned short)ares_dns_record_rr_cnt(
+                                        dnsrec, ARES_SECTION_AUTHORITY));
   if (status != ARES_SUCCESS) {
     return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   /* ARCOUNT */
-  status = ares__buf_append_be16(buf, (unsigned short)dnsrec->arcount);
+  status = ares__buf_append_be16(buf, (unsigned short)ares_dns_record_rr_cnt(
+                                        dnsrec, ARES_SECTION_ADDITIONAL));
   if (status != ARES_SUCCESS) {
     return status; /* LCOV_EXCL_LINE: OutOfMemory */
   }
@@ -1090,12 +1094,107 @@ static ares_status_t ares_dns_write_rr(const ares_dns_record_t *dnsrec,
   return ARES_SUCCESS;
 }
 
+ares_status_t ares_dns_write_buf(const ares_dns_record_t *dnsrec,
+                                 ares__buf_t             *buf)
+{
+  ares__llist_t *namelist = NULL;
+  size_t         orig_len;
+  ares_status_t  status;
+
+  if (dnsrec == NULL || buf == NULL) {
+    return ARES_EFORMERR;
+  }
+
+  orig_len = ares__buf_len(buf);
+
+  status = ares_dns_write_header(dnsrec, buf);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  status = ares_dns_write_questions(dnsrec, &namelist, buf);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  status = ares_dns_write_rr(dnsrec, &namelist, ARES_SECTION_ANSWER, buf);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  status = ares_dns_write_rr(dnsrec, &namelist, ARES_SECTION_AUTHORITY, buf);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  status = ares_dns_write_rr(dnsrec, &namelist, ARES_SECTION_ADDITIONAL, buf);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+done:
+  ares__llist_destroy(namelist);
+  if (status != ARES_SUCCESS) {
+    ares__buf_set_length(buf, orig_len);
+  }
+
+  return status;
+}
+
+ares_status_t ares_dns_write_buf_tcp(const ares_dns_record_t *dnsrec,
+                                     ares__buf_t             *buf)
+{
+  ares_status_t status;
+  size_t        orig_len;
+  size_t        msg_len;
+  size_t        len;
+
+  if (dnsrec == NULL || buf == NULL) {
+    return ARES_EFORMERR;
+  }
+
+  orig_len = ares__buf_len(buf);
+
+  /* Write placeholder for length */
+  status = ares__buf_append_be16(buf, 0);
+  if (status != ARES_SUCCESS) {
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
+  /* Write message */
+  status = ares_dns_write_buf(dnsrec, buf);
+  if (status != ARES_SUCCESS) {
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+
+  len     = ares__buf_len(buf);
+  msg_len = len - orig_len - 2;
+  if (msg_len > 65535) {
+    status = ARES_EBADQUERY;
+    goto done;
+  }
+
+  /* Now we need to overwrite the length, so we jump back to the original
+   * message length, overwrite the section and jump back */
+  ares__buf_set_length(buf, orig_len);
+  status = ares__buf_append_be16(buf, (unsigned short)(msg_len & 0xFFFF));
+  if (status != ARES_SUCCESS) {
+    goto done; /* LCOV_EXCL_LINE: UntestablePath */
+  }
+  ares__buf_set_length(buf, len);
+
+done:
+  if (status != ARES_SUCCESS) {
+    ares__buf_set_length(buf, orig_len);
+  }
+  return status;
+}
+
 ares_status_t ares_dns_write(const ares_dns_record_t *dnsrec,
                              unsigned char **buf, size_t *buf_len)
 {
-  ares__buf_t   *b = NULL;
-  ares_status_t  status;
-  ares__llist_t *namelist = NULL;
+  ares__buf_t  *b = NULL;
+  ares_status_t status;
 
   if (buf == NULL || buf_len == NULL || dnsrec == NULL) {
     return ARES_EFORMERR;
@@ -1109,33 +1208,7 @@ ares_status_t ares_dns_write(const ares_dns_record_t *dnsrec,
     return ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
-  status = ares_dns_write_header(dnsrec, b);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
-  status = ares_dns_write_questions(dnsrec, &namelist, b);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
-  status = ares_dns_write_rr(dnsrec, &namelist, ARES_SECTION_ANSWER, b);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
-  status = ares_dns_write_rr(dnsrec, &namelist, ARES_SECTION_AUTHORITY, b);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
-  status = ares_dns_write_rr(dnsrec, &namelist, ARES_SECTION_ADDITIONAL, b);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
-done:
-  ares__llist_destroy(namelist);
+  status = ares_dns_write_buf(dnsrec, b);
 
   if (status != ARES_SUCCESS) {
     ares__buf_destroy(b);

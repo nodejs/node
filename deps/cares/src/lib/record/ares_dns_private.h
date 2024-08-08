@@ -26,7 +26,7 @@
 #ifndef __ARES_DNS_PRIVATE_H
 #define __ARES_DNS_PRIVATE_H
 
-ares_status_t ares_dns_record_duplicate_ex(ares_dns_record_t **dest,
+ares_status_t ares_dns_record_duplicate_ex(ares_dns_record_t      **dest,
                                            const ares_dns_record_t *src);
 ares_bool_t ares_dns_rec_type_allow_name_compression(ares_dns_rec_type_t type);
 ares_bool_t ares_dns_opcode_isvalid(ares_dns_opcode_t opcode);
@@ -38,22 +38,31 @@ ares_bool_t ares_dns_class_isvalid(ares_dns_class_t    qclass,
                                    ares_dns_rec_type_t type,
                                    ares_bool_t         is_query);
 ares_bool_t ares_dns_section_isvalid(ares_dns_section_t sect);
-ares_status_t ares_dns_rr_set_str_own(ares_dns_rr_t    *dns_rr,
-                                      ares_dns_rr_key_t key, char *val);
-ares_status_t ares_dns_rr_set_bin_own(ares_dns_rr_t    *dns_rr,
-                                      ares_dns_rr_key_t key, unsigned char *val,
-                                      size_t len);
-ares_status_t ares_dns_rr_set_abin_own(ares_dns_rr_t           *dns_rr,
-                                       ares_dns_rr_key_t        key,
-                                       ares__dns_multistring_t *strs);
-ares_status_t ares_dns_rr_set_opt_own(ares_dns_rr_t    *dns_rr,
-                                      ares_dns_rr_key_t key, unsigned short opt,
-                                      unsigned char *val, size_t val_len);
-ares_status_t ares_dns_record_rr_prealloc(ares_dns_record_t *dnsrec,
-                                          ares_dns_section_t sect, size_t cnt);
-ares_bool_t   ares_dns_has_opt_rr(const ares_dns_record_t *rec);
+ares_status_t        ares_dns_rr_set_str_own(ares_dns_rr_t    *dns_rr,
+                                             ares_dns_rr_key_t key, char *val);
+ares_status_t        ares_dns_rr_set_bin_own(ares_dns_rr_t    *dns_rr,
+                                             ares_dns_rr_key_t key, unsigned char *val,
+                                             size_t len);
+ares_status_t        ares_dns_rr_set_abin_own(ares_dns_rr_t           *dns_rr,
+                                              ares_dns_rr_key_t        key,
+                                              ares__dns_multistring_t *strs);
+ares_status_t        ares_dns_rr_set_opt_own(ares_dns_rr_t    *dns_rr,
+                                             ares_dns_rr_key_t key, unsigned short opt,
+                                             unsigned char *val, size_t val_len);
+ares_status_t        ares_dns_record_rr_prealloc(ares_dns_record_t *dnsrec,
+                                                 ares_dns_section_t sect, size_t cnt);
+ares_dns_rr_t       *ares_dns_get_opt_rr(ares_dns_record_t *rec);
+const ares_dns_rr_t *ares_dns_get_opt_rr_const(const ares_dns_record_t *rec);
 void          ares_dns_record_write_ttl_decrement(ares_dns_record_t *dnsrec,
                                                   unsigned int       ttl_decrement);
+
+/* Same as ares_dns_write() but appends to an existing buffer object */
+ares_status_t ares_dns_write_buf(const ares_dns_record_t *dnsrec,
+                                 ares__buf_t             *buf);
+
+/* Same as ares_dns_write_buf(), but prepends a 16bit length */
+ares_status_t ares_dns_write_buf_tcp(const ares_dns_record_t *dnsrec,
+                                     ares__buf_t             *buf);
 
 /*! Create a DNS record object for a query. The arguments are the same as
  *  those for ares_create_query().
@@ -168,18 +177,11 @@ typedef struct {
 } ares__dns_optval_t;
 
 typedef struct {
-  ares__dns_optval_t *optval; /*!< Attribute/value pairs */
-  size_t              cnt;    /*!< Count of Attribute/Value pairs */
-  size_t              alloc;  /*!< Allocated count of attribute/value
-                               *   pairs */
-} ares__dns_options_t;
-
-typedef struct {
-  unsigned short       udp_size; /*!< taken from class */
-  unsigned char        version;  /*!< taken from bits 8-16 of ttl */
-  unsigned short       flags;    /*!< Flags, remaining 16 bits, though only
-                                  *   1 currently defined */
-  ares__dns_options_t *options;  /*!< Attribute/Value pairs */
+  unsigned short udp_size; /*!< taken from class */
+  unsigned char  version;  /*!< taken from bits 8-16 of ttl */
+  unsigned short flags;    /*!< Flags, remaining 16 bits, though only
+                            *   1 currently defined */
+  ares__array_t *options;  /*!< Type is ares__dns_optval_t */
 } ares__dns_opt_t;
 
 typedef struct {
@@ -191,9 +193,9 @@ typedef struct {
 } ares__dns_tlsa_t;
 
 typedef struct {
-  unsigned short       priority;
-  char                *target;
-  ares__dns_options_t *params;
+  unsigned short priority;
+  char          *target;
+  ares__array_t *params; /*!< Type is ares__dns_optval_t */
 } ares__dns_svcb_t;
 
 typedef struct {
@@ -262,21 +264,10 @@ struct ares_dns_record {
                                     *   the ttl of any resource records by
                                     *   this amount.  Used for cache */
 
-  ares_dns_qd_t    *qd;
-  size_t            qdcount;
-  size_t            qdalloc;
-
-  ares_dns_rr_t    *an;
-  size_t            ancount;
-  size_t            analloc;
-
-  ares_dns_rr_t    *ns;
-  size_t            nscount;
-  size_t            nsalloc;
-
-  ares_dns_rr_t    *ar;
-  size_t            arcount;
-  size_t            aralloc;
+  ares__array_t    *qd;            /*!< Type is ares_dns_qd_t */
+  ares__array_t    *an;            /*!< Type is ares_dns_rr_t */
+  ares__array_t    *ns;            /*!< Type is ares_dns_rr_t */
+  ares__array_t    *ar;            /*!< Type is ares_dns_rr_t */
 };
 
 #endif

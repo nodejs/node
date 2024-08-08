@@ -72,5 +72,18 @@ ares_bool_t   ares__is_hostname(const char *str);
  */
 ares_bool_t   ares__str_isprint(const char *str, size_t len);
 
+/* We only care about ASCII rules */
+#define ares__isascii(x) (((unsigned char)x) <= 127)
+#define ares__isdigit(x) \
+  (((unsigned char)x) >= '0' && ((unsigned char)x) <= '9')
+#define ares__isxdigit(x)                                      \
+  (ares__isdigit(x) ||                                         \
+   (((unsigned char)x) >= 'a' && ((unsigned char)x) <= 'f') || \
+   (((unsigned char)x) >= 'A' && ((unsigned char)x) <= 'F'))
+#define ares__isupper(x) \
+  (((unsigned char)x) >= 'A' && ((unsigned char)x) <= 'Z')
+#define ares__islower(x) \
+  (((unsigned char)x) >= 'a' && ((unsigned char)x) <= 'z')
+#define ares__isalpha(x) (ares__islower(x) || ares__isupper(x))
 
 #endif /* __ARES_STR_H */

@@ -123,11 +123,9 @@ static void ares_evsys_kqueue_enqueue(ares_evsys_kqueue_t *kq, int fd,
 
   if (kq->nchanges > kq->nchanges_alloc) {
     kq->nchanges_alloc <<= 1;
-    kq->changelist = ares_realloc_zero(
-      kq->changelist,
-      (kq->nchanges_alloc >> 1) * sizeof(*kq->changelist),
-      kq->nchanges_alloc        * sizeof(*kq->changelist)
-    );
+    kq->changelist       = ares_realloc_zero(
+      kq->changelist, (kq->nchanges_alloc >> 1) * sizeof(*kq->changelist),
+      kq->nchanges_alloc * sizeof(*kq->changelist));
   }
 
   EV_SET(&kq->changelist[idx], fd, filter, flags, 0, 0, 0);
@@ -198,7 +196,7 @@ static size_t ares_evsys_kqueue_wait(ares_event_thread_t *e,
   size_t               cnt     = 0;
 
   if (timeout_ms != 0) {
-    ts.tv_sec  = timeout_ms / 1000;
+    ts.tv_sec  = (time_t)timeout_ms / 1000;
     ts.tv_nsec = (timeout_ms % 1000) * 1000 * 1000;
     timeout    = &ts;
   }

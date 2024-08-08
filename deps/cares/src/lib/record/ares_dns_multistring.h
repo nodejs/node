@@ -40,8 +40,9 @@ ares_status_t ares__dns_multistring_del(ares__dns_multistring_t *strs,
 ares_status_t ares__dns_multistring_add_own(ares__dns_multistring_t *strs,
                                             unsigned char *str, size_t len);
 size_t        ares__dns_multistring_cnt(const ares__dns_multistring_t *strs);
-const unsigned char *ares__dns_multistring_get(
-  const ares__dns_multistring_t *strs, size_t idx, size_t *len);
+const unsigned char *
+  ares__dns_multistring_get(const ares__dns_multistring_t *strs, size_t idx,
+                            size_t *len);
 const unsigned char *
   ares__dns_multistring_get_combined(ares__dns_multistring_t *strs,
                                      size_t                  *len);

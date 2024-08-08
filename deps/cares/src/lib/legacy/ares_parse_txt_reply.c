@@ -71,7 +71,7 @@ static int ares__parse_txt_reply(const unsigned char *abuf, size_t alen,
 
     cnt = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
 
-    for (j=0; j<cnt; j++) {
+    for (j = 0; j < cnt; j++) {
       const unsigned char *ptr;
       size_t               ptr_len;
 

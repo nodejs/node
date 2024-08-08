@@ -26,7 +26,7 @@
  */
 
 #include "ares_private.h"
-#include "ares_event.h"
+#include "event/ares_event.h"
 #include <assert.h>
 
 void ares_destroy(ares_channel_t *channel)
@@ -73,7 +73,7 @@ void ares_destroy(ares_channel_t *channel)
   node = ares__llist_node_first(channel->all_queries);
   while (node != NULL) {
     ares__llist_node_t *next  = ares__llist_node_next(node);
-    struct query       *query = ares__llist_node_claim(node);
+    ares_query_t       *query = ares__llist_node_claim(node);
 
     query->node_all_queries = NULL;
     query->callback(query->arg, ARES_EDESTRUCTION, 0, NULL);
@@ -134,7 +134,7 @@ void ares_destroy(ares_channel_t *channel)
   ares_free(channel);
 }
 
-void ares__destroy_server(struct server_state *server)
+void ares__destroy_server(ares_server_t *server)
 {
   if (server == NULL) {
     return; /* LCOV_EXCL_LINE: DefensiveCoding */
@@ -152,7 +152,7 @@ void ares__destroy_servers_state(ares_channel_t *channel)
   ares__slist_node_t *node;
 
   while ((node = ares__slist_node_first(channel->servers)) != NULL) {
-    struct server_state *server = ares__slist_node_claim(node);
+    ares_server_t *server = ares__slist_node_claim(node);
     ares__destroy_server(server);
   }
 
