@@ -529,6 +529,11 @@ process.permission.has('fs.read', '/home/rafaelgss/protected-folder'); // false
 
 #### File System Permissions
 
+The Permission Model by default restricts access to `node:fs` module.
+It doesn't guarantee users won't be able to write to the disk.
+For instance, `node:sqlite` allows users to use
+a file-based database.
+
 To allow access to the file system, use the [`--allow-fs-read`][] and
 [`--allow-fs-write`][] flags:
 
