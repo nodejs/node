@@ -1,4 +1,4 @@
-name: Close stale pull requests
+name: Close stale issues and PRs
 on:
   workflow_dispatch:
   schedule:
