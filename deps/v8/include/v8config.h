@@ -677,7 +677,7 @@ path. Add it with -I<path> to the command line
 //   V8_NODISCARD Foo() { ... };
 // [[nodiscard]] comes in C++17 but supported in clang with -std >= c++11.
 #if V8_HAS_CPP_ATTRIBUTE_NODISCARD
-#define V8_NODISCARD [[nodiscard]]
+#define V8_NODISCARD
 #else
 #define V8_NODISCARD /* NOT SUPPORTED */
 #endif
