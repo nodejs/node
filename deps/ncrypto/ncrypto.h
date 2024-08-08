@@ -311,8 +311,13 @@ class BignumPointer final {
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
 };
 
+class X509Pointer;
+
 class X509View final {
  public:
+  static X509View From(const SSLPointer& ssl);
+  static X509View From(const SSLCtxPointer& ctx);
+
   X509View() = default;
   inline explicit X509View(const X509* cert) : cert_(cert) {}
   X509View(const X509View& other) = default;
@@ -342,6 +347,8 @@ class X509View final {
   bool checkPrivateKey(const EVPKeyPointer& pkey) const;
   bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
+  X509Pointer clone() const;
+
   enum class CheckMatch {
     NO_MATCH,
     MATCH,
@@ -360,6 +367,9 @@ class X509View final {
 class X509Pointer final {
  public:
   static Result<X509Pointer, int> Parse(Buffer<const unsigned char> buffer);
+  static X509Pointer IssuerFrom(const SSLPointer& ssl, const X509View& view);
+  static X509Pointer IssuerFrom(const SSL_CTX* ctx, const X509View& view);
+  static X509Pointer PeerFrom(const SSLPointer& ssl);
 
   X509Pointer() = default;
   explicit X509Pointer(X509* cert);

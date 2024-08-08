@@ -123,6 +123,20 @@ class X509Certificate final : public BaseObject {
   BaseObjectPtr<X509Certificate> issuer_cert_;
 };
 
+inline X509Certificate::GetPeerCertificateFlag operator|(
+    X509Certificate::GetPeerCertificateFlag lhs,
+    X509Certificate::GetPeerCertificateFlag rhs) {
+  return static_cast<X509Certificate::GetPeerCertificateFlag>(
+      static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
+inline X509Certificate::GetPeerCertificateFlag operator&(
+    X509Certificate::GetPeerCertificateFlag lhs,
+    X509Certificate::GetPeerCertificateFlag rhs) {
+  return static_cast<X509Certificate::GetPeerCertificateFlag>(
+      static_cast<int>(lhs) & static_cast<int>(rhs));
+}
+
 }  // namespace crypto
 }  // namespace node
 

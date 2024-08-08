@@ -10,7 +10,6 @@
 #include "node_buffer.h"
 #include "node_crypto.h"
 #include "node_internals.h"
-#include "openssl/types.h"
 #include "string_bytes.h"
 #include "v8.h"
 
@@ -31,40 +30,17 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
-using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
 
 namespace crypto {
-static constexpr int kX509NameFlagsMultiline =
-    ASN1_STRFLGS_ESC_2253 |
-    ASN1_STRFLGS_ESC_CTRL |
-    ASN1_STRFLGS_UTF8_CONVERT |
-    XN_FLAG_SEP_MULTILINE |
-    XN_FLAG_FN_SN;
-
-X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert) {
-  X509_STORE* store = SSL_CTX_get_cert_store(ctx);
-  DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
-      X509_STORE_CTX_new());
-  X509Pointer result;
-  X509* issuer;
-  if (store_ctx.get() != nullptr &&
-      X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
-      X509_STORE_CTX_get1_issuer(&issuer, store_ctx.get(), cert) == 1) {
-    result.reset(issuer);
-  }
-  return result;
-}
-
 void LogSecret(
     const SSLPointer& ssl,
     const char* name,
@@ -122,8 +98,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
     long def) {  // NOLINT(runtime/int)
   long err = def;  // NOLINT(runtime/int)
-  if (X509* peer_cert = SSL_get_peer_certificate(ssl.get())) {
-    X509_free(peer_cert);
+  if (X509Pointer::PeerFrom(ssl)) {
     err = SSL_get_verify_result(ssl.get());
   } else {
     const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(ssl.get());
@@ -142,13 +117,14 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
 
 bool UseSNIContext(
     const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
+  auto x509 = ncrypto::X509View::From(context->ctx());
+  if (!x509) return false;
   SSL_CTX* ctx = context->ctx().get();
-  X509* x509 = SSL_CTX_get0_certificate(ctx);
   EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx);
   STACK_OF(X509)* chain;
 
   int err = SSL_CTX_get0_chain_certs(ctx, &chain);
-  if (err == 1) err = SSL_use_certificate(ssl.get(), x509);
+  if (err == 1) err = SSL_use_certificate(ssl.get(), x509.get());
   if (err == 1) err = SSL_use_PrivateKey(ssl.get(), pkey);
   if (err == 1 && chain != nullptr) err = SSL_set1_chain(ssl.get(), chain);
   return err == 1;
@@ -270,19 +246,6 @@ MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
   return X509Certificate::toObject(env, cert);
 }
 
-Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
-  BUF_MEM* mem;
-  BIO_get_mem_ptr(bio.get(), &mem);
-  MaybeLocal<String> ret =
-      String::NewFromUtf8(
-          env->isolate(),
-          mem->data,
-          NewStringType::kNormal,
-          mem->length);
-  CHECK_EQ(BIO_reset(bio.get()), 1);
-  return ret.FromMaybe(Local<Value>());
-}
-
 namespace {
 template <typename T>
 bool Set(
@@ -351,7 +314,6 @@ MaybeLocal<Object> AddIssuerChainToObject(X509Pointer* cert,
         return {};
       }
       object = ca_info.As<Object>();
-      ;
 
       // NOTE: Intentionally freeing cert that is not used anymore.
       // Delete cert and continue aggregating issuers.
@@ -373,8 +335,7 @@ MaybeLocal<Object> GetLastIssuedCert(
     Environment* const env) {
   Local<Value> ca_info;
   while (!cert->view().isIssuedBy(cert->view())) {
-    X509Pointer ca =
-        SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get());
+    auto ca = X509Pointer::IssuerFrom(ssl, cert->view());
     if (!ca) break;
 
     if (!X509Certificate::toObject(env, ca.view()).ToLocal(&ca_info)) return {};

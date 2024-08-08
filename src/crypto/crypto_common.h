@@ -27,10 +27,6 @@ struct StackOfX509Deleter {
 };
 using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
-using StackOfASN1 = ncrypto::StackOfASN1;
-
-X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert);
-
 void LogSecret(
     const SSLPointer& ssl,
     const char* name,
@@ -99,8 +95,6 @@ v8::MaybeLocal<v8::Value> GetCurrentCipherName(Environment* env,
                                                const SSLPointer& ssl);
 v8::MaybeLocal<v8::Value> GetCurrentCipherVersion(Environment* env,
                                                   const SSLPointer& ssl);
-
-v8::Local<v8::Value> ToV8Value(Environment* env, const BIOPointer& bio);
 
 }  // namespace crypto
 }  // namespace node

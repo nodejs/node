@@ -908,6 +908,24 @@ X509View::CheckMatch X509View::checkIp(const std::string_view ip, int flags) con
   }
 }
 
+X509View X509View::From(const SSLPointer& ssl) {
+  ClearErrorOnReturn clear_error_on_return;
+  if (!ssl) return {};
+  return X509View(SSL_get_certificate(ssl.get()));
+}
+
+X509View X509View::From(const SSLCtxPointer& ctx) {
+  ClearErrorOnReturn clear_error_on_return;
+  if (!ctx) return {};
+  return X509View(SSL_CTX_get0_certificate(ctx.get()));
+}
+
+X509Pointer X509View::clone() const {
+  ClearErrorOnReturn clear_error_on_return;
+  if (!cert_) return {};
+  return X509Pointer(X509_dup(const_cast<X509*>(cert_)));
+}
+
 Result<X509Pointer, int> X509Pointer::Parse(Buffer<const unsigned char> buffer) {
   ClearErrorOnReturn clearErrorOnReturn;
   BIOPointer bio(BIO_new_mem_buf(buffer.data, buffer.len));
@@ -921,5 +939,28 @@ Result<X509Pointer, int> X509Pointer::Parse(Buffer<const unsigned char> buffer) 
   if (der) return Result<X509Pointer, int>(std::move(der));
 
   return Result<X509Pointer, int>(ERR_get_error());
+}
+
+
+X509Pointer X509Pointer::IssuerFrom(const SSLPointer& ssl, const X509View& view) {
+  return IssuerFrom(SSL_get_SSL_CTX(ssl.get()), view);
+}
+
+X509Pointer X509Pointer::IssuerFrom(const SSL_CTX* ctx, const X509View& cert) {
+  X509_STORE* store = SSL_CTX_get_cert_store(ctx);
+  DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
+      X509_STORE_CTX_new());
+  X509Pointer result;
+  X509* issuer;
+  if (store_ctx.get() != nullptr &&
+      X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
+      X509_STORE_CTX_get1_issuer(&issuer, store_ctx.get(), cert.get()) == 1) {
+    result.reset(issuer);
+  }
+  return result;
+}
+
+X509Pointer X509Pointer::PeerFrom(const SSLPointer& ssl) {
+  return X509Pointer(SSL_get_peer_certificate(ssl.get()));
 }
 }  // namespace ncrypto

@@ -1,16 +1,13 @@
-#include "crypto_x509.h"
+#include "crypto/crypto_x509.h"
 #include "base_object-inl.h"
-#include "crypto_bio.h"
-#include "crypto_common.h"
-#include "crypto_context.h"
-#include "crypto_keys.h"
+#include "crypto/crypto_common.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
-#include "env.h"
 #include "memory_tracker-inl.h"
 #include "ncrypto.h"
 #include "node_errors.h"
 #include "util-inl.h"
-#include "v8-primitive.h"
 #include "v8.h"
 
 #include <string>
@@ -32,7 +29,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::Name;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;
@@ -67,7 +63,7 @@ void AddFingerprintDigest(const unsigned char* md,
                           unsigned int md_size,
                           char fingerprint[3 * EVP_MAX_MD_SIZE]) {
   unsigned int i;
-  const char hex[] = "0123456789ABCDEF";
+  static constexpr char hex[] = "0123456789ABCDEF";
 
   for (i = 0; i < md_size; i++) {
     fingerprint[3 * i] = hex[(md[i] & 0xf0) >> 4];
@@ -255,7 +251,7 @@ MaybeLocal<Value> GetSerialNumber(Environment* env,
 }
 
 MaybeLocal<Value> GetKeyUsage(Environment* env, const ncrypto::X509View& cert) {
-  StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
+  ncrypto::StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
       X509_get_ext_d2i(cert.get(), NID_ext_key_usage, nullptr, nullptr)));
   if (eku) {
     const int count = sk_ASN1_OBJECT_num(eku.get());
@@ -832,29 +828,33 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
         BaseObject::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "X509Certificate"));
-    SetProtoMethod(isolate, tmpl, "subject", Subject);
-    SetProtoMethod(isolate, tmpl, "subjectAltName", SubjectAltName);
-    SetProtoMethod(isolate, tmpl, "infoAccess", InfoAccess);
-    SetProtoMethod(isolate, tmpl, "issuer", Issuer);
-    SetProtoMethod(isolate, tmpl, "validTo", ValidTo);
-    SetProtoMethod(isolate, tmpl, "validFrom", ValidFrom);
-    SetProtoMethod(isolate, tmpl, "fingerprint", Fingerprint<EVP_sha1>);
-    SetProtoMethod(isolate, tmpl, "fingerprint256", Fingerprint<EVP_sha256>);
-    SetProtoMethod(isolate, tmpl, "fingerprint512", Fingerprint<EVP_sha512>);
-    SetProtoMethod(isolate, tmpl, "keyUsage", KeyUsage);
-    SetProtoMethod(isolate, tmpl, "serialNumber", SerialNumber);
-    SetProtoMethod(isolate, tmpl, "pem", Pem);
-    SetProtoMethod(isolate, tmpl, "raw", Der);
-    SetProtoMethod(isolate, tmpl, "publicKey", PublicKey);
-    SetProtoMethod(isolate, tmpl, "checkCA", CheckCA);
-    SetProtoMethod(isolate, tmpl, "checkHost", CheckHost);
-    SetProtoMethod(isolate, tmpl, "checkEmail", CheckEmail);
-    SetProtoMethod(isolate, tmpl, "checkIP", CheckIP);
-    SetProtoMethod(isolate, tmpl, "checkIssued", CheckIssued);
-    SetProtoMethod(isolate, tmpl, "checkPrivateKey", CheckPrivateKey);
-    SetProtoMethod(isolate, tmpl, "verify", CheckPublicKey);
-    SetProtoMethod(isolate, tmpl, "toLegacy", ToLegacy);
-    SetProtoMethod(isolate, tmpl, "getIssuerCert", GetIssuerCert);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "subject", Subject);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "subjectAltName", SubjectAltName);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "infoAccess", InfoAccess);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "issuer", Issuer);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "validTo", ValidTo);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "validFrom", ValidFrom);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "fingerprint", Fingerprint<EVP_sha1>);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "fingerprint256", Fingerprint<EVP_sha256>);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "fingerprint512", Fingerprint<EVP_sha512>);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "keyUsage", KeyUsage);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "serialNumber", SerialNumber);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "pem", Pem);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "raw", Der);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "publicKey", PublicKey);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "checkCA", CheckCA);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "checkHost", CheckHost);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "checkEmail", CheckEmail);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "checkIP", CheckIP);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "checkIssued", CheckIssued);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "checkPrivateKey", CheckPrivateKey);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "verify", CheckPublicKey);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "toLegacy", ToLegacy);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "getIssuerCert", GetIssuerCert);
     env->set_x509_constructor_template(tmpl);
   }
   return tmpl;
@@ -889,12 +889,9 @@ MaybeLocal<Object> X509Certificate::New(Environment* env,
 
 MaybeLocal<Object> X509Certificate::GetCert(Environment* env,
                                             const SSLPointer& ssl) {
-  ClearErrorOnReturn clear_error_on_return;
-  X509* cert = SSL_get_certificate(ssl.get());
-  if (cert == nullptr) return MaybeLocal<Object>();
-
-  X509Pointer ptr(X509_dup(cert));
-  return New(env, std::move(ptr));
+  auto cert = ncrypto::X509View::From(ssl);
+  if (!cert) return {};
+  return New(env, cert.clone());
 }
 
 MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
@@ -903,15 +900,15 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
   ClearErrorOnReturn clear_error_on_return;
   MaybeLocal<Object> maybe_cert;
 
-  bool is_server =
-      static_cast<int>(flag) & static_cast<int>(GetPeerCertificateFlag::SERVER);
+  X509Pointer cert;
+  if ((flag & GetPeerCertificateFlag::SERVER) ==
+      GetPeerCertificateFlag::SERVER) {
+    cert = X509Pointer::PeerFrom(ssl);
+  }
 
-  X509Pointer cert(is_server ? SSL_get_peer_certificate(ssl.get()) : nullptr);
   STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(ssl.get());
   if (!cert && (ssl_certs == nullptr || sk_X509_num(ssl_certs) == 0))
     return MaybeLocal<Object>();
-
-  std::vector<Local<Value>> certs;
 
   if (!cert) {
     cert.reset(sk_X509_value(ssl_certs, 0));
@@ -983,7 +980,6 @@ std::unique_ptr<worker::TransferData> X509Certificate::CloneForMessaging()
     const {
   return std::make_unique<X509CertificateTransferData>(cert_);
 }
-
 
 void X509Certificate::Initialize(Environment* env, Local<Object> target) {
   SetMethod(env->context(), target, "parseX509", Parse);
