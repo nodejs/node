@@ -82,6 +82,7 @@ class X509Certificate : public BaseObject {
   static void KeyUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SerialNumber(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Raw(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Extensions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Pem(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CheckCA(const v8::FunctionCallbackInfo<v8::Value>& args);
