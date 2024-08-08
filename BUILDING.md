@@ -651,6 +651,8 @@ Optional requirements to build the MSI installer package:
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
 * Visual Studio 17.6.0 or newer
+  > **Note:** There is [a bug](https://github.com/nodejs/build/issues/3739) in `17.10.x`
+  > preventing Node.js from compiling.
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64
