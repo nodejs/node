@@ -6,6 +6,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "path.h"
 #include "sqlite3.h"
 #include "util-inl.h"
 
@@ -252,7 +253,11 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto path = node::Utf8Value(env->isolate(), args[0].As<String>());
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   int r = sqlite3_load_extension(db->connection_, *path, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env->isolate(), db->connection_, r, SQLITE_OK, void());
 }
