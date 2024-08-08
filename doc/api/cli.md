@@ -3488,23 +3488,6 @@ threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
 greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
 
-### `UV_USE_IO_URING=value`
-
-Enable or disable libuv's use of `io_uring` on supported platforms.
-
-On supported platforms, `io_uring` can significantly improve the performance of
-various asynchronous I/O operations.
-
-`io_uring` is disabled by default due to security concerns. When `io_uring`
-is enabled, applications must not change the user identity of the process at
-runtime. In this case, JavaScript functions such as [`process.setuid()`][] are
-unavailable, and native addons must not invoke system functions such as
-[`setuid(2)`][].
-
-This environment variable is implemented by a dependency of Node.js and may be
-removed in future versions of Node.js. No stability guarantees are provided for
-the behavior of this environment variable.
-
 ## Useful V8 options
 
 V8 has its own set of CLI options. Any V8 CLI option that is provided to `node`
@@ -3671,8 +3654,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:sqlite`]: sqlite.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
-[`process.setuid()`]: process.md#processsetuidid
-[`setuid(2)`]: https://man7.org/linux/man-pages/man2/setuid.2.html
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
