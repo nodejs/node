@@ -15,6 +15,7 @@ be accessed by other modules.
   The resource can be entirely allowed or denied, or actions related to it can
   be controlled. For example, file system reads can be allowed while denying
   writes.
+  This feature does not protect against malicious code.
 
 If you find a potential security vulnerability, please refer to our
 [Security Policy][].
@@ -595,6 +596,10 @@ There are constraints you need to know before using this system:
 
 #### Limitations and Known Issues
 
+* The permission model provides no security guarantees in the presence of
+  malicious code. Even when the permission model is enabled, malicious code can
+  bypass it and execute arbitrary code without the restrictions that are usually
+  imposed by the permission model.
 * Symbolic links will be followed even to locations outside of the set of paths
   that access has been granted to. Relative symbolic links may allow access to
   arbitrary files and directories. When starting applications with the
