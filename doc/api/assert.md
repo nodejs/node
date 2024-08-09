@@ -2545,6 +2545,130 @@ assert.throws(throwingFirst, /Second$/);
 // AssertionError [ERR_ASSERTION]
 ```
 
+## `assert.matchObject(actual, expected[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `actual` {any}
+* `expected` {any}
+* `message` {string|Error}
+
+Evaluates the equivalence between the `actual` and `expected` parameters by
+performing a deep comparison. This function ensures that all properties defined
+in the `expected` parameter exactly match those in the `actual` parameter in
+both value and type, without allowing type coercion.
+
+```mjs
+import assert from 'node:assert';
+
+assert.matchObject({ a: 1, b: '2' }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: 1, b: '2', c: 3 }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: { b: { c: '1' } } }, { a: { b: { c: 1 } } });
+// OK
+
+assert.matchObject({ a: 1 }, { a: 1, b: 2 });
+// AssertionError
+
+assert.matchObject({ a: 1, b: true }, { a: 1, b: 'true' });
+// AssertionError
+
+assert.matchObject({ a: { b: 2 } }, { a: { b: 2, c: 3 } });
+// AssertionError
+```
+
+```cjs
+const assert = require('node:assert');
+
+assert.matchObject({ a: 1, b: '2' }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: 1, b: '2', c: 3 }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: { b: { c: '1' } } }, { a: { b: { c: 1 } } });
+// OK
+
+assert.matchObject({ a: 1 }, { a: 1, b: 2 });
+// AssertionError: Expected key b
+
+assert.matchObject({ a: 1, b: true }, { a: 1, b: 'true' });
+// AssertionError
+
+assert.matchObject({ a: { b: 2, d: 4 } }, { a: { b: 2, c: 3 } });
+// AssertionError: Expected key c
+```
+
+If the values or keys are not equal in the `expected` parameter, an [`AssertionError`][] is thrown with a `message`
+property set equal to the value of the `message` parameter. If the `message`
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an [`Error`][] then it will be thrown instead of the
+`AssertionError`.
+
+## `assert.matchObjectStrict(actual, expected[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `actual` {any}
+* `expected` {any}
+* `message` {string|Error}
+
+Assesses the equivalence between the `actual` and `expected` parameters through a
+deep comparison, ensuring that all properties in the `expected` parameter are
+present in the `actual` parameter with equivalent values, permitting type coercion
+where necessary.
+
+```mjs
+import assert from 'node:assert';
+
+assert.matchObject({ a: 1, b: 2 }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: { b: { c: 1 } } }, { a: { b: { c: 1 } } });
+// OK
+
+assert.matchObject({ a: 1, b: 2, c: 3 }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: 1 }, { a: 1, b: 2 });
+// AssertionError
+
+assert.matchObject({ a: 1, b: '2' }, { a: 1, b: 2 });
+// AssertionError
+
+assert.matchObject({ a: { b: 2 } }, { a: { b: '2' } });
+// AssertionError
+```
+
+```cjs
+const assert = require('node:assert');
+
+assert.matchObject({ a: 1, b: 2 }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: { b: { c: 1 } } }, { a: { b: { c: 1 } } });
+// OK
+
+assert.matchObject({ a: 1, b: 2, c: 3 }, { a: 1, b: 2 });
+// OK
+
+assert.matchObject({ a: 1 }, { a: 1, b: 2 });
+// AssertionError
+
+assert.matchObject({ a: 1, b: '2' }, { a: 1, b: 2 });
+// AssertionError
+
+assert.matchObject({ a: { b: 2 } }, { a: { b: '2' } });
+// AssertionError
+```
+
 Due to the confusing error-prone notation, avoid a string as the second
 argument.
 
