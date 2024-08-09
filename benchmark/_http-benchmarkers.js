@@ -38,6 +38,12 @@ class AutocannonBenchmarker {
         args.push('-H', `${field}=${options.headers[field]}`);
       }
     }
+    if (options.upload) {
+      // TODO cleanup of upload data is left as an exercise to the poor user...
+      const upload_data_path = 'bench-upload.data';
+      fs.writeFileSync(upload_data_path, Buffer.alloc(options.upload, 'U'));
+      args.push('-i', upload_data_path);
+    }
     const scheme = options.scheme || 'http';
     args.push(`${scheme}://127.0.0.1:${options.port}${options.path}`);
     const child = child_process.spawn(this.executable, args, this.opts);
@@ -79,6 +85,18 @@ class WrkBenchmarker {
     ];
     for (const field in options.headers) {
       args.push('-H', `${field}: ${options.headers[field]}`);
+    }
+    if (options.upload) {
+      // TODO cleanup of upload data is left as an exercise to the poor user...
+      const upload_data_path = 'bench-upload.data';
+      const upload_lua_path = 'bench-upload.lua';
+      fs.writeFileSync(upload_data_path, Buffer.alloc(options.upload, 'U'));
+      fs.writeFileSync(upload_lua_path, `
+        wrk.method = "POST"
+        file = io.open("${upload_data_path}", "rb")
+        wrk.body = file:read("*all")
+      `);
+      args.push('-s', upload_lua_path);
     }
     const child = child_process.spawn(this.executable, args);
     return child;
