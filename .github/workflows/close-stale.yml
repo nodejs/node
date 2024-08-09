@@ -42,5 +42,5 @@ jobs:
           exempt-pr-labels: never-stale
           stale-issue-label: stale
           stale-pr-label: stale
-          operations-per-run: 500
+          operations-per-run: 50
           remove-stale-when-updated: true
