@@ -38,6 +38,8 @@ const addresses = {
   CNAME_HOST: 'blog.nodejs.org',
   // A host with NS records registered
   NS_HOST: 'nodejs.org',
+  // A host with TLSA records registered
+  TLSA_HOST: '_443._tcp.fedoraproject.org',
   // A host with TXT records registered
   TXT_HOST: 'nodejs.org',
   // An accessible IPv4 DNS server
