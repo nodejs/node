@@ -41,6 +41,7 @@ set msi=
 set upload=
 set licensertf=
 set lint_js=
+set lint_js_build=
 set lint_js_fix=
 set lint_cpp=
 set lint_md=
@@ -116,6 +117,7 @@ if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&g
 if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="lint-cpp"      set lint_cpp=1&goto arg-ok
 if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
+if /i "%1"=="lint-js-build" set lint_js_build=1&goto arg-ok
 if /i "%1"=="lint-js-fix"   set lint_js_fix=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
@@ -729,7 +731,13 @@ goto lint-js
 
 :run-make-lint
 %NODEJS_MAKE% lint-cpp
-goto lint-js
+goto lint-js-build
+
+:lint-js-build
+if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
+cd tools\eslint
+%npm_exe% ci
+cd ..\..
 
 :lint-js
 if not defined lint_js goto lint-js-fix
