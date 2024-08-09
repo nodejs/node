@@ -1,58 +1,81 @@
-# To be or not to be in core
+# Components in core
 
-This document explains things to consider when deciding whether a component
-should be in core or not.
+This document outlines the considerations for deciding whether a
+component should be included in the Node.js core.
 
-A component may be included in core as a dependency, a module, or integrated
-into the code base. The same arguments for including/not including in core
-generally apply in all of these cases.
+A component may be included in the core as a dependency, a module,
+or integrated into the codebase. The same arguments for inclusion
+or exclusion generally apply in all these cases.
 
 ## Strong arguments for including a component in core
 
-1. The component provides functionality that is standardized (such as a
-   [Web API][]) and overlaps with existing functionality.
-2. The component can only be implemented in core.
-3. The component can only be implemented in a performant way in core.
-4. Developer experience is significantly improved if the component is in core.
-5. The component provides functionality that can be expected to solve at
-   least one common use case Node.js users face.
-6. The component requires native bindings. Inclusion in core enables
-   utility across operating systems and architectures without requiring
-   users to have a native compilation toolchain.
-7. Part or all of the component will also be re-used or duplicated in core.
+1. **Standardized functionality:** The component provides functionality
+   that is standardized (such as a [Web API][]) and overlaps with existing
+   functionality.
+
+2. **Core-only implementation:** The component can only be implemented in
+   the core.
+
+3. **Performance:** The component can only be implemented in a performant way
+   in the core.
+
+4. **Improved developer experience:** Developer experience is significantly
+   improved if the component is in the core.
+
+5. **Common use cases:** The component provides functionality that can be expected
+   to solve at least one common use case Node.js users face.
+
+6. **Native bindings:** The component requires native bindings. Inclusion in the
+   core enables utility across operating systems and architectures without
+   requiring users to have a native compilation toolchain.
+
+7. **Reusability:** Part or all of the component will also be reused or
+   duplicated in the core.
 
 ## Strong arguments against including a component in core
 
-1. None of the arguments listed in the previous section apply.
-2. The component has a license that prohibits Node.js from including it in core
-   without also changing its own license.
-3. There is already similar functionality in core and adding the component will
-   provide a second API to do the same thing.
-4. A component (or/and the standard it is based on) is deprecated and there is
-   a non-deprecated alternative.
-5. The component is evolving quickly and inclusion in core will require frequent
-   API changes.
+1. **Lack of justification:** None of the arguments listed in the previous
+   section apply.
+
+2. **Licensing issues:** The component has a license that prohibits Node.js
+   from including it in the core without also changing its own license.
+
+3. **Redundancy:** There is already similar functionality in the core, and
+   adding the component will provide a second API to do the same thing.
+
+4. **Deprecation:** The component (or the standard it is based on) is deprecated,
+   and there is a non-deprecated alternative.
+
+5. **Rapid evolution:** The component is evolving quickly, and inclusion in the core
+   will require frequent API changes.
 
 ## Benefits and challenges
 
-When it is unclear whether a component should be included in core, it might be
-helpful to consider these additional factors.
+When it is unclear whether a component should be included in the core, consider these
+additional factors.
 
 ### Benefits
 
-1. The component will receive more frequent testing with Node.js CI and CITGM.
-2. The component will be integrated into the LTS workflow.
-3. Documentation will be integrated with core.
-4. There is no dependency on npm.
+1. **Frequent testing:** The component will receive more frequent testing with Node.js CI
+   and CITGM.
+
+2. **LTS integration:** The component will be integrated into the Long Term Support (LTS)
+   workflow.
+
+3. **Unified documentation:** Documentation will be integrated with the core.
+
+4. **No npm dependency:** There is no dependency on npm.
 
 ### Challenges
 
-1. Inclusion in core, rather than as an ecosystem module, is likely to reduce
-   code merging velocity. The Node.js process for code review and merging is
-   more time-consuming than that of most separate modules.
-2. By being bound to the Node.js release cycle, it is harder and slower to
-   publish patches.
-3. Less flexibility for users. They can't update the component
-   when they choose without also updating Node.js.
+1. **Reduced code merging velocity:** Inclusion in the core is likely to reduce code
+   merging velocity. The Node.js process for code review and merging is more
+   time-consuming than that of most separate modules.
+
+2. **Slower patch publication:** Being bound to the Node.js release cycle makes it harder
+   and slower to publish patches.
+
+3. **Reduced user flexibility:** Users cannot update the component independently without
+   also updating Node.js.
 
 [Web API]: https://developer.mozilla.org/en-US/docs/Web/API
