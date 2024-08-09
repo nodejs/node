@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { it } from 'node:test';
 import tmpdir from '../common/tmpdir.js';
 import { spawnSyncAndAssert } from '../common/child_process.js';
+import fixtures from '../common/fixtures.js';
 
 tmpdir.refresh();
 
@@ -152,4 +153,20 @@ it('should support enable tracing dynamically', async () => {
 
   const vmTraces = outputFileJson.filter((trace) => trace.name === "require('vm')");
   assert.strictEqual(vmTraces.length, 0);
+});
+
+it('should not print when is disabled and found duplicated labels (GH-54265)', () => {
+  const testFile = fixtures.path('GH-54265/index.js');
+
+  spawnSyncAndAssert(process.execPath, [
+    testFile,
+  ], {
+    cwd: tmpdir.path,
+    env: {
+      ...process.env,
+    },
+  }, {
+    stdout: '',
+    stderr: '',
+  });
 });
