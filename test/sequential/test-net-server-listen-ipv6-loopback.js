@@ -10,7 +10,24 @@ if (!common.hasIPv6) {
   return;
 }
 
-// Test on IPv6 Server, throws an error
+// Test on IPv6 Server, dns.lookup throws an error
+{
+  mock.method(dns, 'lookup', (hostname, options, callback) => {
+    callback(new Error('Mocked error'));
+  });
+  const host = 'ipv6_loopback';
+
+  const server = net.createServer();
+
+  server.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.message, 'Mocked error');
+  }));
+
+  server.listen(common.PORT + 2, host);
+}
+
+
+// Test on IPv6 Server, server.listen throws an error
 {
   mock.method(dns, 'lookup', (hostname, options, callback) => {
     if (hostname === 'ipv6_loopback') {
