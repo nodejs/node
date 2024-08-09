@@ -1,0 +1,24 @@
+name: Request reviews for PRs
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
+        name: Checkout default branch
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        name: Make initial comment
+        with:
+          script: |
+            const initialCommentBuilder = require('${{ github.workspace }}/tools/actions/pr-open.js');
+            await initialCommentBuilder(github, context);
