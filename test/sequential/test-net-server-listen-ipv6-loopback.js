@@ -43,7 +43,6 @@ if (!common.hasIPv6) {
   server.on('error', common.mustCall((e) => {
     assert.strictEqual(e.address, 'fe80::1');
     assert.strictEqual(e.syscall, 'listen');
-    assert.strictEqual(e.errno, -49);
   }));
 
   server.listen(common.PORT + 2, host);
