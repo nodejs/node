@@ -152,12 +152,6 @@ for (const extraSnapshotArgs of [
     { cwd: tmpdir.path });
 }
 
-// Skipping rest of the test on Windows because it fails in the CI
-// TODO(StefanStojanovic): Reenable rest of the test after fixing it
-if (common.isWindows) {
-  return;
-}
-
 // Guarantee NODE_REPL_EXTERNAL_MODULE won't bypass kDisableNodeOptionsEnv
 {
   spawnSyncAndExit(
