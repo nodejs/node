@@ -31,6 +31,7 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
+using v8::Date;
 using v8::EscapableHandleScope;
 using v8::Integer;
 using v8::Local;
@@ -575,6 +576,20 @@ MaybeLocal<Value> GetValidFrom(
     const BIOPointer& bio) {
   ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert));
   return ToV8Value(env, bio);
+}
+
+MaybeLocal<Value> GetValidToDate(Environment* env, X509* cert) {
+  struct tm tp;
+  ASN1_TIME_to_tm(X509_get0_notAfter(cert), &tp);
+  time_t unixtime = timegm(&tp);
+  return Date::New(env->context(), unixtime * 1000.);
+}
+
+MaybeLocal<Value> GetValidFromDate(Environment* env, X509* cert) {
+  struct tm tp;
+  ASN1_TIME_to_tm(X509_get0_notBefore(cert), &tp);
+  time_t unixtime = timegm(&tp);
+  return Date::New(env->context(), unixtime * 1000.);
 }
 
 v8::MaybeLocal<v8::Value> GetSubjectAltNameString(Environment* env,

@@ -113,6 +113,10 @@ v8::MaybeLocal<v8::Value> GetValidFrom(
     X509* cert,
     const BIOPointer& bio);
 
+v8::MaybeLocal<v8::Value> GetValidToDate(Environment* env, X509* cert);
+
+v8::MaybeLocal<v8::Value> GetValidFromDate(Environment* env, X509* cert);
+
 v8::MaybeLocal<v8::Value> GetFingerprintDigest(
     Environment* env,
     const EVP_MD* method,

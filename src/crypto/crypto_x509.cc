@@ -79,6 +79,8 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "issuer", Issuer);
     SetProtoMethod(isolate, tmpl, "validTo", ValidTo);
     SetProtoMethod(isolate, tmpl, "validFrom", ValidFrom);
+    SetProtoMethod(isolate, tmpl, "validToDate", ValidToDate);
+    SetProtoMethod(isolate, tmpl, "validFromDate", ValidFromDate);
     SetProtoMethod(isolate, tmpl, "fingerprint", Fingerprint<EVP_sha1>);
     SetProtoMethod(isolate, tmpl, "fingerprint256", Fingerprint<EVP_sha256>);
     SetProtoMethod(isolate, tmpl, "fingerprint512", Fingerprint<EVP_sha512>);
@@ -247,6 +249,14 @@ static void ReturnProperty(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
   if (Property(env, cert->get()).ToLocal(&ret)) args.GetReturnValue().Set(ret);
+}
+
+void X509Certificate::ValidFromDate(const FunctionCallbackInfo<Value>& args) {
+  ReturnProperty<GetValidFromDate>(args);
+}
+
+void X509Certificate::ValidToDate(const FunctionCallbackInfo<Value>& args) {
+  ReturnProperty<GetValidToDate>(args);
 }
 
 void X509Certificate::KeyUsage(const FunctionCallbackInfo<Value>& args) {
@@ -523,6 +533,8 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(Issuer);
   registry->Register(ValidTo);
   registry->Register(ValidFrom);
+  registry->Register(ValidToDate);
+  registry->Register(ValidFromDate);
   registry->Register(Fingerprint<EVP_sha1>);
   registry->Register(Fingerprint<EVP_sha256>);
   registry->Register(Fingerprint<EVP_sha512>);
