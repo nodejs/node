@@ -11,7 +11,8 @@
     "#external": "pkgexports/valid-cjs",
     "#external/subpath/*": "pkgexports/sub/*",
     "#external/invalidsubpath/": "pkgexports/sub",
-    "#belowbase": "../belowbase",
+    "#belowbase": "../belowbase.js",
+    "#belowbase/*": "../belowbase/*.js",
     "#url": "some:url",
     "#null": null,
     "#nullcondition": {
