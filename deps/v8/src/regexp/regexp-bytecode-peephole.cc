@@ -1012,7 +1012,7 @@ Zone* RegExpBytecodePeephole::zone() const { return zone_; }
 
 // static
 Handle<ByteArray> RegExpBytecodePeepholeOptimization::OptimizeBytecode(
-    Isolate* isolate, Zone* zone, Handle<String> source,
+    Isolate* isolate, Zone* zone, DirectHandle<String> source,
     const uint8_t* bytecode, int length,
     const ZoneUnorderedMap<int, int>& jump_edges) {
   RegExpBytecodePeephole peephole(zone, length, jump_edges);

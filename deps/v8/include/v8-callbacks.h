@@ -152,9 +152,6 @@ using JitCodeEventHandler = void (*)(const JitCodeEvent* event);
 enum GCType {
   kGCTypeScavenge = 1 << 0,
   kGCTypeMinorMarkSweep = 1 << 1,
-  kGCTypeMinorMarkCompact V8_DEPRECATE_SOON(
-      "Use kGCTypeMinorMarkSweep instead of kGCTypeMinorMarkCompact.") =
-      kGCTypeMinorMarkSweep,
   kGCTypeMarkSweepCompact = 1 << 2,
   kGCTypeIncrementalMarking = 1 << 3,
   kGCTypeProcessWeakCallbacks = 1 << 4,
@@ -234,7 +231,7 @@ using MessageCallback = void (*)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
 
-enum LogEventStatus : int { kStart = 0, kEnd = 1, kStamp = 2 };
+enum LogEventStatus : int { kStart = 0, kEnd = 1, kLog = 2 };
 using LogEventCallback = void (*)(const char* name,
                                   int /* LogEventStatus */ status);
 
@@ -340,6 +337,14 @@ using JavaScriptCompileHintsMagicEnabledCallback =
 
 // --- Callback for checking if WebAssembly JSPI is enabled ---
 using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
+
+/**
+ * Import phases in import requests.
+ */
+enum class ModuleImportPhase {
+  kSource,
+  kEvaluation,
+};
 
 /**
  * HostImportModuleDynamicallyCallback is called when we

@@ -33,9 +33,6 @@ OBJECT_CONSTRUCTORS_IMPL(ClosureFeedbackCellArray,
 NEVER_READ_ONLY_SPACE_IMPL(FeedbackVector)
 NEVER_READ_ONLY_SPACE_IMPL(ClosureFeedbackCellArray)
 
-CAST_ACCESSOR(FeedbackMetadata)
-CAST_ACCESSOR(ClosureFeedbackCellArray)
-
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
@@ -67,6 +64,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kInstanceOf:
+    case FeedbackSlotKind::kTypeOf:
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
@@ -116,8 +114,8 @@ void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
-UINT8_ACCESSORS(FeedbackVector, invocation_count_before_stable,
-                kInvocationCountBeforeStableOffset)
+RELAXED_UINT8_ACCESSORS(FeedbackVector, invocation_count_before_stable,
+                        kInvocationCountBeforeStableOffset)
 
 int FeedbackVector::osr_urgency() const {
   return OsrUrgencyBits::decode(osr_state());
@@ -166,7 +164,7 @@ Tagged<Code> FeedbackVector::optimized_code(IsolateForSandbox isolate) const {
   Tagged<HeapObject> heap_object;
   Tagged<Code> code;
   if (slot.GetHeapObject(&heap_object)) {
-    code = CodeWrapper::cast(heap_object)->code(isolate);
+    code = Cast<CodeWrapper>(heap_object)->code(isolate);
   }
   // It is possible that the maybe_optimized_code slot is cleared but the flags
   // haven't been updated yet. We update them when we execute the function next
@@ -229,7 +227,7 @@ base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
   if (maybe_code.IsCleared()) return {};
 
   Tagged<Code> code =
-      CodeWrapper::cast(maybe_code.GetHeapObject())->code(isolate);
+      Cast<CodeWrapper>(maybe_code.GetHeapObject())->code(isolate);
   if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.

@@ -87,6 +87,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":config",
         ":core_headers",
         "//absl/meta:type_traits",
     ],
@@ -333,6 +334,18 @@ cc_test(
         ":core_headers",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "c_header_test",
+    srcs = ["c_header_test.c"],
+    tags = [
+        "no_test_wasm",
+    ],
+    deps = [
+        ":config",
+        ":core_headers",
     ],
 )
 
@@ -845,6 +858,41 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":prefetch",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "poison",
+    srcs = [
+        "internal/poison.cc",
+    ],
+    hdrs = ["internal/poison.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        ":config",
+        ":core_headers",
+        ":malloc_internal",
+    ],
+)
+
+cc_test(
+    name = "poison_test",
+    size = "small",
+    timeout = "short",
+    srcs = [
+        "internal/poison_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":config",
+        ":poison",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

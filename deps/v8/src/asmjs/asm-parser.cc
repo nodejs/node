@@ -78,7 +78,7 @@ AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
       stack_limit_(stack_limit),
       block_stack_(zone),
       global_imports_(zone) {
-  module_builder_->SetMinMemorySize(0);
+  module_builder_->AddMemory(0);
   InitializeStdlibTypes();
 }
 

@@ -558,6 +558,11 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
               ExternalReference::address_of_float_abs_constant());
   }
 
+  void Absph(XMMRegister dst, XMMRegister src, Register tmp) {
+    FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Andps,
+              ExternalReference::address_of_fp16_abs_constant());
+  }
+
   void Negpd(XMMRegister dst, XMMRegister src, Register tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Xorps,
               ExternalReference::address_of_double_neg_constant());
@@ -566,6 +571,11 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   void Negps(XMMRegister dst, XMMRegister src, Register tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Xorps,
               ExternalReference::address_of_float_neg_constant());
+  }
+
+  void Negph(XMMRegister dst, XMMRegister src, Register tmp) {
+    FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Xorps,
+              ExternalReference::address_of_fp16_neg_constant());
   }
 #undef FLOAT_UNOP
 

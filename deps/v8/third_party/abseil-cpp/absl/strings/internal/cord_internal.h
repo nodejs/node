@@ -85,7 +85,7 @@ enum Constants {
 };
 
 // Emits a fatal error "Unexpected node type: xyz" and aborts the program.
-ABSL_ATTRIBUTE_NORETURN void LogFatalNodeType(CordRep* rep);
+[[noreturn]] void LogFatalNodeType(CordRep* rep);
 
 // Fast implementation of memmove for up to 15 bytes. This implementation is
 // safe for overlapping regions. If nullify_tail is true, the destination is
@@ -399,7 +399,6 @@ inline CordRepSubstring* CordRepSubstring::Create(CordRep* child, size_t pos,
   assert(pos < child->length);
   assert(n <= child->length - pos);
 
-  // TODO(b/217376272): Harden internal logic.
   // Move to strategical places inside the Cord logic and make this an assert.
   if (ABSL_PREDICT_FALSE(!(child->IsExternal() || child->IsFlat()))) {
     LogFatalNodeType(child);

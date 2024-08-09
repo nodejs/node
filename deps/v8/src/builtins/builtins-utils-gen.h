@@ -58,6 +58,28 @@ class CodeAssemblerState;
   }                                                                         \
   void Name##Assembler::Generate##Name##Impl()
 
+#define TS_BUILTIN(Name, BaseAssembler)                                   \
+  class Name##Assembler : public BaseAssembler {                          \
+   public:                                                                \
+    using Descriptor = Builtin_##Name##_InterfaceDescriptor;              \
+    Name##Assembler(compiler::turboshaft::PipelineData* data,             \
+                    Isolate* isolate, compiler::turboshaft::Graph& graph, \
+                    Zone* phase_zone)                                     \
+        : BaseAssembler(data, graph, phase_zone) {}                       \
+    BaseAssembler& Asm() { return *this; }                                \
+    void Generate##Name##Impl();                                          \
+  };                                                                      \
+  void Builtins::Generate_##Name(                                         \
+      compiler::turboshaft::PipelineData* data, Isolate* isolate,         \
+      compiler::turboshaft::Graph& graph, Zone* phase_zone) {             \
+    Name##Assembler assembler(data, isolate, graph, phase_zone);          \
+    assembler.Asm().Bind(assembler.Asm().NewBlock());                     \
+    assembler.Generate##Name##Impl();                                     \
+    /* Builtin definition must generate something! */                     \
+    DCHECK_GT(graph.op_id_count(), 0);                                    \
+  }                                                                       \
+  void Name##Assembler::Generate##Name##Impl()
+
 }  // namespace internal
 }  // namespace v8
 

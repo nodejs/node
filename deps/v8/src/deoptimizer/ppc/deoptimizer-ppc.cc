@@ -22,8 +22,21 @@ const int Deoptimizer::kEagerDeoptExitSize = 3 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
-  float float_val = static_cast<float>(double_registers_[n].get_scalar());
+  double double_val = base::ReadUnalignedValue<Float64>(
+                          reinterpret_cast<Address>(simd128_registers_ + n))
+                          .get_scalar();
+  float float_val = static_cast<float>(double_val);
   return Float32::FromBits(base::bit_cast<uint32_t>(float_val));
+}
+
+Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
+  return base::ReadUnalignedValue<Float64>(
+      reinterpret_cast<Address>(simd128_registers_ + n));
+}
+
+void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
+  base::WriteUnalignedValue<Float64>(
+      reinterpret_cast<Address>(simd128_registers_ + n), value);
 }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
@@ -39,7 +52,9 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
 }
 
-void FrameDescription::SetPc(intptr_t pc) { pc_ = pc; }
+void FrameDescription::SetPc(intptr_t pc, bool skip_validity_check) {
+  pc_ = pc;
+}
 
 }  // namespace internal
 }  // namespace v8

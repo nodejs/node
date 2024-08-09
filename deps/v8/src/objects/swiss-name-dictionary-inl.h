@@ -27,7 +27,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/swiss-name-dictionary-tq-inl.inc"
 
-CAST_ACCESSOR(SwissNameDictionary)
 OBJECT_CONSTRUCTORS_IMPL(SwissNameDictionary, HeapObject)
 
 swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
@@ -151,7 +150,7 @@ void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
                                              Tagged<Object> key) {
-  Tagged<Name> name = Name::cast(key);
+  Tagged<Name> name = Cast<Name>(key);
   DCHECK(IsUniqueName(name));
   uint32_t hash = name->hash();
 
@@ -216,7 +215,7 @@ InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
 
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
-                                             Handle<Object> key) {
+                                             DirectHandle<Object> key) {
   return FindEntry(isolate, *key);
 }
 
@@ -296,7 +295,7 @@ Tagged<Object> SwissNameDictionary::KeyAt(InternalIndex entry) {
 }
 
 Tagged<Name> SwissNameDictionary::NameAt(InternalIndex entry) {
-  return Name::cast(KeyAt(entry));
+  return Cast<Name>(KeyAt(entry));
 }
 
 // This version can be called on empty buckets.
@@ -511,7 +510,7 @@ bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::Add(
     IsolateT* isolate, Handle<SwissNameDictionary> original_table,
-    Handle<Name> key, Handle<Object> value, PropertyDetails details,
+    DirectHandle<Name> key, DirectHandle<Object> value, PropertyDetails details,
     InternalIndex* entry_out) {
   DCHECK(original_table->FindEntry(isolate, *key).is_not_found());
 

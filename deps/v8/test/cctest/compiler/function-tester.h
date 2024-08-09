@@ -43,22 +43,23 @@ class FunctionTester : public InitializedHandleScope {
   template <typename T, typename... Args>
   Handle<T> CallChecked(Args... args) {
     Handle<Object> result = Call(args...).ToHandleChecked();
-    return Handle<T>::cast(result);
+    return Cast<T>(result);
   }
 
   void CheckThrows(Handle<Object> a);
   void CheckThrows(Handle<Object> a, Handle<Object> b);
   v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
                                                   Handle<Object> b);
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
-                 Handle<Object> c, Handle<Object> d);
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
+                 Handle<Object> b, Handle<Object> c, Handle<Object> d);
 
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
-                 Handle<Object> c) {
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
+                 Handle<Object> b, Handle<Object> c) {
     return CheckCall(expected, a, b, c, undefined());
   }
 
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b) {
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
+                 Handle<Object> b) {
     return CheckCall(expected, a, b, undefined());
   }
 

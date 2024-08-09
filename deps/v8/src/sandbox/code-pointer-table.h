@@ -28,6 +28,10 @@ class Counters;
  * the Code's entrypoint.
  */
 struct CodePointerTableEntry {
+  // We write-protect the CodePointerTable on platforms that support it for
+  // forward-edge CFI.
+  static constexpr bool IsWriteProtected = true;
+
   // Make this entry a code pointer entry for the given code object and
   // entrypoint.
   inline void MakeCodePointerEntry(Address code, Address entrypoint,
@@ -129,6 +133,7 @@ class V8_EXPORT_PRIVATE CodePointerTable
       CodePointerTableEntry,
       kCodePointerTableReservationSize>::SpaceWithBlackAllocationSupport;
 
+  // Retrieves the entrypoint of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
   inline Address GetEntrypoint(CodePointerHandle handle,
@@ -181,6 +186,8 @@ class V8_EXPORT_PRIVATE CodePointerTable
 
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
+
+  void Initialize();
 
  private:
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;

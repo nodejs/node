@@ -166,6 +166,7 @@ Token::Value Scanner::Next() {
   // clear its token to indicate that it wasn't scanned yet. Otherwise we use
   // current_ as next_ and scan into it, leaving next_next_ uninitialized.
   if (V8_LIKELY(next_next().token == Token::kUninitialized)) {
+    DCHECK(next_next_next().token == Token::kUninitialized);
     next_ = previous;
     // User 'previous' instead of 'next_' because for some reason the compiler
     // thinks 'next_' could be modified before the entry into Scan.
@@ -173,7 +174,14 @@ Token::Value Scanner::Next() {
     Scan(previous);
   } else {
     next_ = next_next_;
-    next_next_ = previous;
+
+    if (V8_LIKELY(next_next_next().token == Token::kUninitialized)) {
+      next_next_ = previous;
+    } else {
+      next_next_ = next_next_next_;
+      next_next_next_ = previous;
+    }
+
     previous->token = Token::kUninitialized;
     DCHECK_NE(Token::kUninitialized, current().token);
   }
@@ -194,6 +202,23 @@ Token::Value Scanner::PeekAhead() {
   next_next_ = next_;
   next_ = temp;
   return next_next().token;
+}
+
+Token::Value Scanner::PeekAheadAhead() {
+  if (next_next_next().token != Token::kUninitialized) {
+    return next_next_next().token;
+  }
+  // PeekAhead() must be called first in order to call PeekAheadAhead().
+  DCHECK(next_next().token != Token::kUninitialized);
+  TokenDesc* temp = next_;
+  TokenDesc* temp_next = next_next_;
+  next_ = next_next_next_;
+  next().after_line_terminator = false;
+  Scan();
+  next_next_next_ = next_;
+  next_next_ = temp_next;
+  next_ = temp;
+  return next_next_next().token;
 }
 
 Token::Value Scanner::SkipSingleHTMLComment() {
@@ -247,8 +272,7 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
     value = &source_mapping_url_;
     DCHECK(hash_or_at_sign == '#' || hash_or_at_sign == '@');
     saw_source_mapping_url_magic_comment_at_sign_ = hash_or_at_sign == '@';
-  } else if (name_literal ==
-             base::StaticOneByteVector("experimentalChromiumCompileHints")) {
+  } else if (name_literal == base::StaticOneByteVector("eagerCompilation")) {
     value = &compile_hints_value;
   } else {
     return;
@@ -275,7 +299,7 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
     }
     Advance();
   }
-  if (value == &compile_hints_value) {
+  if (value == &compile_hints_value && compile_hints_value.is_one_byte()) {
     base::Vector<const uint8_t> value_literal =
         compile_hints_value.one_byte_literal();
     if (value_literal == base::StaticOneByteVector("all")) {

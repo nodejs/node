@@ -185,6 +185,7 @@ class FastApiCallBuilder {
                      Node** inputs, Node* target,
                      const CFunctionInfo* c_signature, int c_arg_count,
                      Node* stack_slot);
+  void PropagateException();
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
@@ -204,29 +205,10 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
                                        const CFunctionInfo* c_signature,
                                        int c_arg_count, Node* stack_slot) {
   // CPU profiler support
-  Node* target_address = __ ExternalConstant(
-      ExternalReference::fast_api_call_target_address(isolate()));
+  Node* target_address = __ IsolateField(IsolateFieldId::kFastApiCallTarget);
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            target_address, 0, __ BitcastTaggedToWord(target));
-
-  // Disable JS execution
-  Node* javascript_execution_assert = __ ExternalConstant(
-      ExternalReference::javascript_execution_assert(isolate()));
-  static_assert(sizeof(bool) == 1, "Wrong assumption about boolean size.");
-
-  if (v8_flags.debug_code) {
-    auto do_store = __ MakeLabel();
-    Node* old_scope_value =
-        __ Load(MachineType::Int8(), javascript_execution_assert, 0);
-    __ GotoIf(__ Word32Equal(old_scope_value, __ Int32Constant(1)), &do_store);
-
-    // We expect that JS execution is enabled, otherwise assert.
-    __ Unreachable();
-    __ Bind(&do_store);
-  }
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(0));
 
   // Update effect and control
   if (stack_slot != nullptr) {
@@ -241,16 +223,40 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
   // Create the fast call
   Node* call = __ Call(call_descriptor, inputs_size, inputs);
 
-  // Reenable JS execution
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(1));
-
   // Reset the CPU profiler target address.
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            target_address, 0, __ IntPtrConstant(0));
 
   return call;
+}
+
+void FastApiCallBuilder::PropagateException() {
+  Runtime::FunctionId fun_id = Runtime::FunctionId::kPropagateException;
+  const Runtime::Function* fun = Runtime::FunctionForId(fun_id);
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+      graph()->zone(), fun_id, fun->nargs, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  // The CEntryStub is loaded from the IsolateRoot so that generated code is
+  // Isolate independent. At the moment this is only done for CEntryStub(1).
+  Node* isolate_root = __ LoadRootRegister();
+  DCHECK_EQ(1, fun->result_size);
+  auto centry_id = Builtin::kWasmCEntry;
+  int builtin_slot_offset = IsolateData::BuiltinSlotOffset(centry_id);
+  Node* centry_stub =
+      __ Load(MachineType::Pointer(), isolate_root, builtin_slot_offset);
+  const int kInputCount = 6;
+  Node* inputs[kInputCount];
+  int count = 0;
+  inputs[count++] = centry_stub;
+  inputs[count++] = __ ExternalConstant(ExternalReference::Create(fun_id));
+  inputs[count++] = __ Int32Constant(fun->nargs);
+  inputs[count++] = __ IntPtrConstant(0);
+  inputs[count++] = __ effect();
+  inputs[count++] = __ control();
+  DCHECK_EQ(kInputCount, count);
+
+  __ Call(call_descriptor, count, inputs);
 }
 
 Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
@@ -287,8 +293,10 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   const int kFastTargetAddressInputIndex = 0;
   const int kFastTargetAddressInputCount = 1;
 
-  int extra_input_count = FastApiCallNode::kEffectAndControlInputCount +
-                          (c_signature->HasOptions() ? 1 : 0);
+  const int kEffectAndControlInputCount = 2;
+
+  int extra_input_count =
+      kEffectAndControlInputCount + (c_signature->HasOptions() ? 1 : 0);
 
   Node** const inputs = graph()->zone()->AllocateArray<Node*>(
       kFastTargetAddressInputCount + c_arg_count + extra_input_count);
@@ -340,7 +348,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
     // If this check fails, you've probably added new fields to
     // v8::FastApiCallbackOptions, which means you'll need to write code
     // that initializes and reads from them too.
-    static_assert(kSize == sizeof(uintptr_t) * 3);
+    static_assert(kSize == sizeof(uintptr_t) * 4);
     stack_slot = __ StackSlot(kSize, kAlign);
 
     __ Store(
@@ -348,6 +356,12 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
         stack_slot,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
         __ Int32Constant(0));
+
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                 kNoWriteBarrier),
+             stack_slot,
+             static_cast<int>(offsetof(v8::FastApiCallbackOptions, isolate)),
+             __ ExternalConstant(ExternalReference::isolate_address()));
 
     Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
@@ -369,6 +383,25 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
       WrapFastCall(call_descriptor, c_arg_count + extra_input_count + 1, inputs,
                    inputs[0], c_signature, c_arg_count, stack_slot);
 
+  Node* exception = __ Load(MachineType::IntPtr(),
+                            __ ExternalConstant(ExternalReference::Create(
+                                IsolateAddressId::kExceptionAddress, isolate_)),
+                            0);
+
+  Node* the_hole =
+      __ Load(MachineType::IntPtr(), __ LoadRootRegister(),
+              IsolateData::root_slot_offset(RootIndex::kTheHoleValue));
+
+  auto throw_label = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+  __ GotoIfNot(__ IntPtrEqual(exception, the_hole), &throw_label);
+  __ Goto(&done);
+
+  __ Bind(&throw_label);
+  PropagateException();
+  __ Unreachable();
+
+  __ Bind(&done);
   Node* fast_call_result = convert_return_value_(c_signature, c_call_result);
 
   auto merge = __ MakeLabel(MachineRepresentation::kTagged);

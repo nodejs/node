@@ -134,16 +134,18 @@
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ##############################################################################
+# On 32 bit platforms we have int64 lowering.
+['(arch != x64 and arch != arm64) or no_simd_hardware', {
+  'wasm-trace-deopt-64': [SKIP],
+}],
+['(arch != ia32 and arch != arm) or no_simd_hardware', {
+  'wasm-trace-deopt-32': [SKIP],
+}],
+
+##############################################################################
 ['verify_predictable', {
   # https://crbug.com/v8/14397
   'wasm-finish-compilation': [PASS, FAIL],
 }],  # 'verify_predictable'
-
-##############################################################################
-['variant == future', {
-  # Turboshaft and Turbofan outputs do not match.
-  # TODO(14108): Update output and reenable test.
-  'wasm-recognize-imports': [FAIL],
-}],  # variant == future
 
 ]

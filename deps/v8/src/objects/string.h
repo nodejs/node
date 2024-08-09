@@ -267,7 +267,7 @@ V8_OBJECT class String : public Name {
   Get(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
-  static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);
+  static Handle<Number> ToNumber(Isolate* isolate, Handle<String> subject);
 
   // Flattens the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.
@@ -483,7 +483,6 @@ V8_OBJECT class String : public Name {
   char* ToAsciiArray();
 #endif
   DECL_PRINTER(String)
-  DECL_CAST(String)
   DECL_VERIFIER(String)
 
   inline bool IsFlat() const;
@@ -753,12 +752,10 @@ class SeqString : public String {
   // Zero out only the padding bytes of this string.
   void ClearPadding();
 
-  DECL_CAST(SeqString)
   EXPORT_DECL_VERIFIER(SeqString)
 };
 
 V8_OBJECT class InternalizedString : public String{
-  public : DECL_CAST(InternalizedString)
 
   // TODO(neis): Possibly move some stuff from String here.
 } V8_OBJECT_END;
@@ -809,8 +806,6 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   static inline bool IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots);
 
   class BodyDescriptor;
-
-  DECL_CAST(SeqOneByteString)
 
  private:
   friend struct OffsetsForDebug;
@@ -882,8 +877,6 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
 
   class BodyDescriptor;
 
-  DECL_CAST(SeqTwoByteString)
-
  private:
   friend struct OffsetsForDebug;
   friend class CodeStubAssembler;
@@ -947,7 +940,6 @@ V8_OBJECT class ConsString : public String {
   // Minimum length for a cons string.
   static const int kMinLength = 13;
 
-  DECL_CAST(ConsString)
   DECL_VERIFIER(ConsString)
 
  private:
@@ -992,7 +984,6 @@ V8_OBJECT class ThinString : public String {
   V8_EXPORT_PRIVATE uint16_t
   Get(int index, const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  DECL_CAST(ThinString)
   DECL_VERIFIER(ThinString)
 
  private:
@@ -1046,13 +1037,13 @@ V8_OBJECT class SlicedString : public String {
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
 
-  DECL_CAST(SlicedString)
   DECL_VERIFIER(SlicedString)
  private:
   friend struct ObjectTraits<SlicedString>;
   friend struct OffsetsForDebug;
   friend class V8HeapExplorer;
   friend class CodeStubAssembler;
+  friend class SandboxTesting;
   friend class ToDirectStringAssembler;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
@@ -1090,7 +1081,6 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
  public:
   class BodyDescriptor;
 
-  DECL_CAST(ExternalString)
   DECL_VERIFIER(ExternalString)
 
   inline void InitExternalPointerFields(Isolate* isolate);
@@ -1162,8 +1152,6 @@ V8_OBJECT class ExternalOneByteString : public ExternalString {
   inline uint8_t Get(int index,
                      const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  DECL_CAST(ExternalOneByteString)
-
  private:
   // The underlying resource as a non-const pointer.
   inline Resource* mutable_resource();
@@ -1203,8 +1191,6 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
-
-  DECL_CAST(ExternalTwoByteString)
 
  private:
   // The underlying resource as a non-const pointer.

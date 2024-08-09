@@ -1444,7 +1444,7 @@ char* DoubleToRadixCString(double value, int radix) {
 // ES6 18.2.4 parseFloat(string)
 double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val) {
-  Handle<String> flattened = String::Flatten(isolate, string);
+  DirectHandle<String> flattened = String::Flatten(isolate, string);
   return FlatStringToDouble(*flattened, flags, empty_string_val);
 }
 
@@ -1462,7 +1462,7 @@ double FlatStringToDouble(Tagged<String> string, int flags,
 }
 
 base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
-                                         Handle<String> object,
+                                         DirectHandle<String> object,
                                          int max_length_for_conversion) {
   DisallowGarbageCollection no_gc;
   int length = object->length();
@@ -1479,7 +1479,7 @@ base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
 }
 
 base::Optional<double> TryStringToInt(LocalIsolate* isolate,
-                                      Handle<String> object, int radix) {
+                                      DirectHandle<String> object, int radix) {
   DisallowGarbageCollection no_gc;
   const int kMaxLengthForConversion = 20;
   int length = object->length();

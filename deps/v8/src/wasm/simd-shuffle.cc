@@ -187,6 +187,45 @@ void SimdShuffle::Pack16Lanes(uint32_t* dst, const uint8_t* shuffle) {
   }
 }
 
+#ifdef V8_TARGET_ARCH_X64
+// static
+bool SimdShuffle::TryMatchVpshufd(const uint8_t* shuffle32x8,
+                                  uint8_t* control) {
+  *control = 0;
+  for (int i = 0; i < 4; ++i) {
+    uint8_t mask;
+    if (shuffle32x8[i] < 4 && shuffle32x8[i + 4] - shuffle32x8[i] == 4) {
+      mask = shuffle32x8[i];
+      *control |= mask << (2 * i);
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+// static
+bool SimdShuffle::TryMatchShufps256(const uint8_t* shuffle32x8,
+                                    uint8_t* control) {
+  *control = 0;
+  for (int i = 0; i < 4; ++i) {
+    // low 128-bits and high 128-bits should have the same shuffle order.
+    if (shuffle32x8[i + 4] - shuffle32x8[i] == 4) {
+      // [63:0]   bits select from SRC1,
+      // [127:64] bits select from SRC2
+      if ((i < 2 && shuffle32x8[i] < 4) ||
+          (i >= 2 && shuffle32x8[i] >= 8 && shuffle32x8[i] < 12)) {
+        *control |= (shuffle32x8[i] % 4) << (2 * i);
+        continue;
+      }
+      return false;
+    }
+    return false;
+  }
+  return true;
+}
+#endif  // V8_TARGET_ARCH_X64
+
 bool SimdSwizzle::AllInRangeOrTopBitSet(
     std::array<uint8_t, kSimd128Size> shuffle) {
   return std::all_of(shuffle.begin(), shuffle.end(),

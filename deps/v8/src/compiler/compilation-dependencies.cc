@@ -173,7 +173,7 @@ class PendingDependencies final {
   }
 
  private:
-  uint32_t HandleValueHash(Handle<HeapObject> handle) {
+  uint32_t HandleValueHash(DirectHandle<HeapObject> handle) {
     return static_cast<uint32_t>(base::hash_value(handle->ptr()));
   }
   struct HandleValueEqual {
@@ -197,7 +197,7 @@ class InitialMapDependency final : public CompilationDependency {
         initial_map_(initial_map) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
-    Handle<JSFunction> function = function_.object();
+    DirectHandle<JSFunction> function = function_.object();
     return function->has_initial_map() &&
            function->initial_map() == *initial_map_.object();
   }
@@ -237,7 +237,7 @@ class PrototypePropertyDependency final : public CompilationDependency {
   }
 
   bool IsValid(JSHeapBroker* broker) const override {
-    Handle<JSFunction> function = function_.object();
+    DirectHandle<JSFunction> function = function_.object();
     return function->has_prototype_slot() &&
            function->has_instance_prototype() &&
            !function->PrototypeRequiresRuntimeLookup() &&
@@ -252,7 +252,7 @@ class PrototypePropertyDependency final : public CompilationDependency {
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
-    Handle<JSFunction> function = function_.object();
+    DirectHandle<JSFunction> function = function_.object();
     CHECK(function->has_initial_map());
     Handle<Map> initial_map(function->initial_map(), broker->isolate());
     deps->Register(initial_map, DependentCode::kInitialMapChangedGroup);
@@ -327,7 +327,7 @@ class ConstantInDictionaryPrototypeChainDependency final
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    Handle<JSObject> holder = GetHolderIfValid(broker).ToHandleChecked();
+    DirectHandle<JSObject> holder = GetHolderIfValid(broker).ToHandleChecked();
     Handle<Map> map = receiver_map_.object();
 
     while (map->prototype() != *holder) {
@@ -351,7 +351,6 @@ class ConstantInDictionaryPrototypeChainDependency final
     DisallowGarbageCollection no_gc;
     Isolate* isolate = broker->isolate();
 
-    Handle<Object> holder;
     Tagged<HeapObject> prototype = receiver_map_.object()->prototype();
 
     enum class ValidationResult { kFoundCorrect, kFoundIncorrect, kNotFound };
@@ -384,7 +383,7 @@ class ConstantInDictionaryPrototypeChainDependency final
         }
         // Only supporting loading at the moment, so we only ever want the
         // getter.
-        value = AccessorPair::cast(dictionary_value)
+        value = Cast<AccessorPair>(dictionary_value)
                     ->get(AccessorComponent::ACCESSOR_GETTER);
       } else {
         value = dictionary_value;
@@ -397,7 +396,7 @@ class ConstantInDictionaryPrototypeChainDependency final
       // We only care about JSObjects because that's the only type of holder
       // (and types of prototypes on the chain to the holder) that
       // AccessInfoFactory::ComputePropertyAccessInfo allows.
-      Tagged<JSObject> object = JSObject::cast(prototype);
+      Tagged<JSObject> object = Cast<JSObject>(prototype);
 
       // We only support dictionary mode prototypes on the chain for this kind
       // of dependency.
@@ -519,7 +518,7 @@ class OwnConstantDoublePropertyDependency final : public CompilationDependency {
 
     // Compare doubles by bit pattern.
     if (!IsHeapNumber(current_value) ||
-        HeapNumber::cast(current_value)->value_as_bits() !=
+        Cast<HeapNumber>(current_value)->value_as_bits() !=
             used_value.get_bits()) {
       TRACE_BROKER_MISSING(broker_, "Constant Double property value changed in "
                                         << holder_.object() << " at FieldIndex "
@@ -868,7 +867,7 @@ class GlobalPropertyDependency final : public CompilationDependency {
   }
 
   bool IsValid(JSHeapBroker* broker) const override {
-    Handle<PropertyCell> cell = cell_.object();
+    DirectHandle<PropertyCell> cell = cell_.object();
     // The dependency is never valid if the cell is 'invalidated'. This is
     // marked by setting the value to the hole.
     if (cell->value() ==
@@ -944,7 +943,7 @@ class ProtectorDependency final : public CompilationDependency {
       : CompilationDependency(kProtector), cell_(cell) {}
 
   bool IsValid(JSHeapBroker* broker) const override {
-    Handle<PropertyCell> cell = cell_.object();
+    DirectHandle<PropertyCell> cell = cell_.object();
     return cell->value() == Smi::FromInt(Protectors::kProtectorValid);
   }
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
@@ -1011,7 +1010,7 @@ class ElementsKindDependency final : public CompilationDependency {
   }
 
   bool IsValid(JSHeapBroker* broker) const override {
-    Handle<AllocationSite> site = site_.object();
+    DirectHandle<AllocationSite> site = site_.object();
     ElementsKind kind =
         site->PointsToLiteral()
             ? site->boilerplate(kAcquireLoad)->map()->elements_kind()

@@ -40,7 +40,7 @@ class BaselineBatchCompiler {
   void EnsureQueueCapacity();
 
   // Enqueues SharedFunctionInfo.
-  void Enqueue(Handle<SharedFunctionInfo> shared);
+  void Enqueue(DirectHandle<SharedFunctionInfo> shared);
 
   // Returns true if the current batch exceeds the threshold and should be
   // compiled.

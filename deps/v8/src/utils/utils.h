@@ -242,6 +242,16 @@ inline T RoundingAverageUnsigned(T a, T b) {
     LIST_MACRO(DEFINE_ONE_FIELD_OFFSET)                        \
   };
 
+#define DEFINE_ONE_FIELD_OFFSET_PURE_NAME(CamelName, Size, ...) \
+  k##CamelName##Offset,                                         \
+      k##CamelName##OffsetEnd = k##CamelName##Offset + (Size)-1,
+
+#define DEFINE_FIELD_OFFSET_CONSTANTS_WITH_PURE_NAME(StartOffset, LIST_MACRO) \
+  enum {                                                                      \
+    LIST_MACRO##_StartOffset = StartOffset - 1,                               \
+    LIST_MACRO(DEFINE_ONE_FIELD_OFFSET_PURE_NAME)                             \
+  };
+
 // Size of the field defined by DEFINE_FIELD_OFFSET_CONSTANTS
 #define FIELD_SIZE(Name) (Name##End + 1 - Name)
 
@@ -387,9 +397,13 @@ V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
 
 #elif defined(V8_OPTIMIZE_WITH_NEON)
 
+// We intentionally use misaligned read/writes for NEON intrinsics, disable
+// alignment sanitization explicitly.
 template <typename Char>
-V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
-                            size_t order) {
+V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const Char* lhs,
+                                                              const Char* rhs,
+                                                              size_t count,
+                                                              size_t order) {
   static_assert(sizeof(Char) == 1);
   DCHECK_GE(order, 5);
 

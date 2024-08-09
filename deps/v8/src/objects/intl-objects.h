@@ -25,15 +25,38 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
+class Locale;
+class ListFormatter;
+class RelativeDateTimeFormatter;
+class SimpleDateFormat;
+class DateIntervalFormat;
+class PluralRules;
 class Collator;
 class FormattedValue;
 class StringEnumeration;
 class TimeZone;
 class UnicodeString;
+namespace number {
+class LocalizedNumberFormatter;
+}  //  namespace number
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+#define ICU_EXTERNAL_POINTER_TAG_LIST(V)                              \
+  V(icu::UnicodeString, kIcuUnicodeStringTag)                         \
+  V(icu::BreakIterator, kIcuBreakIteratorTag)                         \
+  V(icu::Locale, kIcuLocaleTag)                                       \
+  V(icu::SimpleDateFormat, kIcuSimpleDateFormatTag)                   \
+  V(icu::DateIntervalFormat, kIcuDateIntervalFormatTag)               \
+  V(icu::RelativeDateTimeFormatter, kIcuRelativeDateTimeFormatterTag) \
+  V(icu::ListFormatter, kIcuListFormatterTag)                         \
+  V(icu::Collator, kIcuCollatorTag)                                   \
+  V(icu::PluralRules, kIcuPluralRulesTag)                             \
+  V(icu::number::LocalizedNumberFormatter, kIcuLocalizedNumberFormatterTag)
+ICU_EXTERNAL_POINTER_TAG_LIST(ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED)
+#undef ICU_EXTERNAL_POINTER_TAG_LIST
 
 struct NumberFormatSpan {
   int32_t field_id;
@@ -132,7 +155,8 @@ class Intl {
   };
   template <class IsolateT>
   V8_EXPORT_PRIVATE static CompareStringsOptions CompareStringsOptionsFor(
-      IsolateT* isolate, Handle<Object> locales, Handle<Object> options);
+      IsolateT* isolate, DirectHandle<Object> locales,
+      DirectHandle<Object> options);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static int CompareStrings(
       Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
       Handle<String> s2,
@@ -349,7 +373,7 @@ class Intl {
 
   // Convert a Handle<String> to icu::UnicodeString
   static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
-                                               Handle<String> string,
+                                               DirectHandle<String> string,
                                                int offset = 0);
 
   static const uint8_t* ToLatin1LowerTable();
@@ -381,8 +405,8 @@ class Intl {
       const icu::TimeZone& tz);
   V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(Isolate* isolate,
                                                         const std::string& id);
-  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(Isolate* isolate,
-                                                        Handle<String> id);
+  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(
+      Isolate* isolate, DirectHandle<String> id);
 
   // Function to support Temporal
   V8_WARN_UNUSED_RESULT static std::string TimeZoneIdFromIndex(int32_t index);
@@ -390,7 +414,8 @@ class Intl {
   // Return the index of timezone which later could be used with
   // TimeZoneIdFromIndex. Returns -1 while the identifier is not a built-in
   // TimeZone name.
-  static int32_t GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier);
+  static int32_t GetTimeZoneIndex(Isolate* isolate,
+                                  DirectHandle<String> identifier);
 
   enum class Transition { kNext, kPrevious };
 
@@ -427,7 +452,7 @@ class Intl {
   static Handle<String> DefaultTimeZone(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
-      Isolate* isolate, Handle<String> identifier);
+      Isolate* isolate, DirectHandle<String> identifier);
 
   // ecma402/#sec-coerceoptionstoobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(

@@ -236,7 +236,8 @@ bool IsolateLoadScriptData::MaybeAddLoadedScript(Isolate* isolate,
 }  // namespace
 
 void MaybeSetHandlerNow(Isolate* isolate) {
-  if (is_etw_enabled) {
+  // Iterating read-only heap before sealed might not be safe.
+  if (is_etw_enabled && !isolate->heap()->read_only_space()->writable()) {
     if (etw_filter_payload.Pointer()->empty()) {
       IsolateLoadScriptData::EnableLog(isolate, 0);
     } else {
@@ -376,7 +377,7 @@ void EventHandler(const JitCodeEvent* event) {
 
   Tagged<SharedFunctionInfo> sfi = GetSharedFunctionInfo(event);
   if (!sfi.is_null() && IsScript(sfi->script())) {
-    Tagged<Script> script = Script::cast(sfi->script());
+    Tagged<Script> script = Cast<Script>(sfi->script());
 
     // if the first time seeing this source file, log the SourceLoad event
     script_id = script->id();
@@ -384,7 +385,7 @@ void EventHandler(const JitCodeEvent* event) {
       std::wstring wstr_name(0, L'\0');
       Tagged<Object> script_name = script->GetNameOrSourceURL();
       if (IsString(script_name)) {
-        Tagged<String> v8str_name = String::cast(script_name);
+        Tagged<String> v8str_name = Cast<String>(script_name);
         wstr_name.resize(v8str_name->length());
         // On Windows wchar_t == uint16_t. const_Cast needed for C++14.
         uint16_t* wstr_data = const_cast<uint16_t*>(

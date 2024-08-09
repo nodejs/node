@@ -27,9 +27,9 @@ bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, Handle<String> pattern,
   return can_be_handled;
 }
 
-void ExperimentalRegExp::Initialize(Isolate* isolate, Handle<JSRegExp> re,
-                                    Handle<String> source, RegExpFlags flags,
-                                    int capture_count) {
+void ExperimentalRegExp::Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
+                                    DirectHandle<String> source,
+                                    RegExpFlags flags, int capture_count) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Initializing experimental regexp " << *source
@@ -40,7 +40,8 @@ void ExperimentalRegExp::Initialize(Isolate* isolate, Handle<JSRegExp> re,
       re, source, JSRegExp::AsJSRegExpFlags(flags), capture_count);
 }
 
-bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
+bool ExperimentalRegExp::IsCompiled(DirectHandle<JSRegExp> re,
+                                    Isolate* isolate) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(re->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
@@ -71,7 +72,7 @@ struct CompilationResult {
 
 // Compiles source pattern, but doesn't change the regexp object.
 base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
-                                              Handle<JSRegExp> regexp) {
+                                              DirectHandle<JSRegExp> regexp) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   Handle<String> source(regexp->source(), isolate);
@@ -104,14 +105,14 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
 
 }  // namespace
 
-bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
+bool ExperimentalRegExp::Compile(Isolate* isolate, DirectHandle<JSRegExp> re) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(re->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) re->JSRegExpVerify(isolate);
 #endif
 
-  Handle<String> source(re->source(), isolate);
+  DirectHandle<String> source(re->source(), isolate);
   if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Compiling experimental regexp " << *source << std::endl;
   }
@@ -176,7 +177,7 @@ int32_t ExperimentalRegExp::ExecRaw(
   }
 
   static constexpr bool kIsLatin1 = true;
-  Tagged<ByteArray> bytecode = ByteArray::cast(regexp->bytecode(kIsLatin1));
+  Tagged<ByteArray> bytecode = Cast<ByteArray>(regexp->bytecode(kIsLatin1));
 
   return ExecRawImpl(isolate, call_origin, bytecode, subject,
                      regexp->capture_count(), output_registers,
@@ -197,9 +198,9 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  Tagged<String> subject_string = String::cast(Tagged<Object>(subject));
+  Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
 
-  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Tagged<Object>(regexp));
+  Tagged<JSRegExp> regexp_obj = Cast<JSRegExp>(Tagged<Object>(regexp));
 
   return ExecRaw(isolate, RegExp::kFromJs, regexp_obj, subject_string,
                  output_registers, output_register_count, start_position);
@@ -266,8 +267,8 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
 }
 
 int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate,
-                                           Handle<JSRegExp> regexp,
-                                           Handle<String> subject,
+                                           DirectHandle<JSRegExp> regexp,
+                                           DirectHandle<String> subject,
                                            int32_t* output_registers,
                                            int32_t output_register_count,
                                            int32_t subject_index) {
@@ -290,7 +291,7 @@ int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate,
 }
 
 MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
-    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+    Isolate* isolate, Handle<JSRegExp> regexp, DirectHandle<String> subject,
     int subject_index, Handle<RegExpMatchInfo> last_match_info,
     RegExp::ExecQuirks exec_quirks) {
   DCHECK(v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);

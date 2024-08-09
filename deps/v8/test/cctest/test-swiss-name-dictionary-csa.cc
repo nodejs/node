@@ -134,7 +134,7 @@ void CSATestRunner::Add(Handle<Name> key, Handle<Object> value,
       SwissNameDictionary::Add(isolate_, reference_, key, value, details);
 
   Handle<Smi> details_smi = handle(details.AsSmi(), isolate_);
-  Handle<Boolean> success =
+  DirectHandle<Boolean> success =
       add_ft_.CallChecked<Boolean>(table, key, value, details_smi);
 
   if (*success == roots.false_value()) {
@@ -183,7 +183,8 @@ Handle<FixedArray> CSATestRunner::GetData(InternalIndex entry) {
 void CSATestRunner::CheckCounts(base::Optional<int> capacity,
                                 base::Optional<int> elements,
                                 base::Optional<int> deleted) {
-  Handle<FixedArray> counts = get_counts_ft_.CallChecked<FixedArray>(table);
+  DirectHandle<FixedArray> counts =
+      get_counts_ft_.CallChecked<FixedArray>(table);
 
   if (capacity.has_value()) {
     CHECK_EQ(Smi::FromInt(capacity.value()), counts->get(0));
@@ -245,7 +246,7 @@ void CSATestRunner::Shrink() {
 }
 
 void CSATestRunner::CheckCopy() {
-  Handle<SwissNameDictionary> copy =
+  DirectHandle<SwissNameDictionary> copy =
       copy_ft_.CallChecked<SwissNameDictionary>(table);
   CHECK(table->EqualsForTesting(*copy));
 }

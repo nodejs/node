@@ -12,7 +12,7 @@ namespace internal {
 using EnumIndexOverflowTest = TestWithNativeContextAndZone;
 
 TEST_F(EnumIndexOverflowTest, GlobalObject) {
-  Handle<GlobalDictionary> dictionary(
+  DirectHandle<GlobalDictionary> dictionary(
       isolate()->global_object()->global_dictionary(kAcquireLoad), isolate());
   dictionary->set_next_enumeration_index(
       PropertyDetails::DictionaryStorageField::kMax);

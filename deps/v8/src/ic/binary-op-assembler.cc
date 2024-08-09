@@ -624,8 +624,8 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
       }
       case Operation::kExponentiate: {
         // TODO(panq): replace the runtime with builtin once it is implemented.
-        var_result = CallRuntime(Runtime::kBigIntBinaryOp, context(), lhs, rhs,
-                                 SmiConstant(op));
+        var_result =
+            CallRuntime(Runtime::kBigIntExponentiate, context(), lhs, rhs);
         Goto(&end);
         break;
       }

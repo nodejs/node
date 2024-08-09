@@ -299,6 +299,64 @@ std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
   return parent()->GetGeneratedTNodeTypeName();
 }
 
+std::string UnionType::GetRuntimeType() const {
+  for (const Type* t : types_) {
+    if (!t->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      return parent()->GetRuntimeType();
+    }
+  }
+  return "Tagged<" + GetConstexprGeneratedTypeName() + ">";
+}
+
+// static
+void UnionType::InsertConstexprGeneratedTypeName(std::set<std::string>& names,
+                                                 const Type* t) {
+  if (t->IsUnionType()) {
+    for (const Type* u : ((const UnionType*)t)->types_) {
+      names.insert(u->GetConstexprGeneratedTypeName());
+    }
+  } else {
+    names.insert(t->GetConstexprGeneratedTypeName());
+  }
+}
+
+std::string UnionType::GetConstexprGeneratedTypeName() const {
+  // For non-tagged unions, use the superclass GetConstexprGeneratedTypeName.
+  for (const Type* t : types_) {
+    if (!t->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      return this->Type::GetConstexprGeneratedTypeName();
+    }
+  }
+
+  // Allow some aliased simple names to be used as-is.
+  std::string simple_name = SimpleName();
+  if (simple_name == "Object") return simple_name;
+  if (simple_name == "Number") return simple_name;
+  if (simple_name == "Numeric") return simple_name;
+  if (simple_name == "JSAny") return simple_name;
+  if (simple_name == "JSPrimitive") return simple_name;
+
+  // Deduplicate generated typenames and flatten unions.
+  std::set<std::string> names;
+  for (const Type* t : types_) {
+    InsertConstexprGeneratedTypeName(names, t);
+  };
+  std::stringstream result;
+  result << "Union<";
+  bool first = true;
+  for (std::string name : names) {
+    if (!first) {
+      result << ", ";
+    }
+    first = false;
+    result << name;
+  }
+  result << ">";
+  return result.str();
+}
+
+std::string UnionType::GetDebugType() const { return parent()->GetDebugType(); }
+
 void UnionType::RecomputeParent() {
   const Type* parent = nullptr;
   for (const Type* t : types_) {
@@ -1184,6 +1242,8 @@ size_t AbstractType::AlignmentLog2() const {
     alignment = TargetArchitecture::RawPtrSize();
   } else if (this == TypeOracle::GetExternalPointerType()) {
     alignment = TargetArchitecture::ExternalPointerSize();
+  } else if (this == TypeOracle::GetCppHeapPointerType()) {
+    alignment = TargetArchitecture::CppHeapPointerSize();
   } else if (this == TypeOracle::GetIndirectPointerType()) {
     alignment = TargetArchitecture::IndirectPointerSize();
   } else if (this == TypeOracle::GetProtectedPointerType()) {
@@ -1258,6 +1318,9 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
     size = TargetArchitecture::ExternalPointerSize();
     size_string = "kExternalPointerSlotSize";
+  } else if (type->IsSubtypeOf(TypeOracle::GetCppHeapPointerType())) {
+    size = TargetArchitecture::CppHeapPointerSize();
+    size_string = "kCppHeapPointerSlotSize";
   } else if (type->IsSubtypeOf(TypeOracle::GetIndirectPointerType())) {
     size = TargetArchitecture::IndirectPointerSize();
     size_string = "kIndirectPointerSize";

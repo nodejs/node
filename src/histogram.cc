@@ -14,6 +14,7 @@ using v8::Context;
 using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -193,7 +194,8 @@ void HistogramBase::FastRecord(Local<Value> receiver,
                                const int64_t value,
                                FastApiCallbackOptions& options) {
   if (value < 1) {
-    options.fallback = true;
+    HandleScope scope(options.isolate);
+    THROW_ERR_OUT_OF_RANGE(options.isolate, "value is out of range");
     return;
   }
   HistogramBase* histogram;

@@ -44,6 +44,12 @@ void TrustedPointerTableEntry::SetPointer(Address pointer,
   payload_.store(new_payload, std::memory_order_relaxed);
 }
 
+bool TrustedPointerTableEntry::HasPointer(IndirectPointerTag tag) const {
+  auto payload = payload_.load(std::memory_order_relaxed);
+  if (!payload.ContainsPointer()) return false;
+  return tag == kUnknownIndirectPointerTag || payload.IsTaggedWith(tag);
+}
+
 bool TrustedPointerTableEntry::IsFreelistEntry() const {
   auto payload = payload_.load(std::memory_order_relaxed);
   return payload.ContainsFreelistLink();
@@ -55,7 +61,7 @@ uint32_t TrustedPointerTableEntry::GetNextFreelistEntryIndex() const {
 
 void TrustedPointerTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsTrustedPointer());
+  DCHECK(old_payload.ContainsPointer());
 
   auto new_payload = old_payload;
   new_payload.SetMarkBit();
@@ -82,6 +88,23 @@ bool TrustedPointerTableEntry::IsMarked() const {
 Address TrustedPointerTable::Get(TrustedPointerHandle handle,
                                  IndirectPointerTag tag) const {
   uint32_t index = HandleToIndex(handle);
+#if defined(V8_USE_ADDRESS_SANITIZER)
+  // We rely on the tagging scheme to produce non-canonical addresses when an
+  // entry isn't tagged with the expected tag. Such "safe" crashes can then be
+  // filtered out by our sandbox crash filter. However, when ASan is active, it
+  // may perform its shadow memory access prior to the actual memory access.
+  // For a non-canonical address, this can lead to a segfault at a _canonical_
+  // address, which our crash filter can then not distinguish from a "real"
+  // crash. Therefore, in ASan builds, we perform an additional CHECK here that
+  // the entry is tagged with the expected tag. The resulting CHECK failure
+  // will then be ignored by the crash filter.
+  // This check is, however, not needed when accessing the null entry, as that
+  // is always valid (it just contains nullptr).
+  CHECK(index == 0 || at(index).HasPointer(tag));
+#else
+  // Otherwise, this is just a DCHECK.
+  DCHECK(index == 0 || at(index).HasPointer(tag));
+#endif
   return at(index).GetPointer(tag);
 }
 

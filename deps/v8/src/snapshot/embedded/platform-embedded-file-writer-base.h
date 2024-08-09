@@ -31,6 +31,7 @@ enum class EmbeddedTargetOs {
   kMac,
   kWin,
   kStarboard,
+  kZOS,
   kGeneric,  // Everything not covered above falls in here.
 };
 
@@ -62,6 +63,8 @@ class PlatformEmbeddedFileWriterBase {
 
   virtual void DeclareSymbolGlobal(const char* name) = 0;
   virtual void DeclareLabel(const char* name) = 0;
+  virtual void DeclareLabelProlog(const char* name) {}
+  virtual void DeclareLabelEpilogue() {}
 
   virtual void SourceInfo(int fileid, const char* filename, int line) = 0;
   virtual void DeclareFunctionBegin(const char* name, uint32_t size) = 0;

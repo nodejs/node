@@ -22,12 +22,12 @@ class ExperimentalRegExp final : public AllStatic {
   // AST again is more flexible and less error prone (but less performant).
   static bool CanBeHandled(RegExpTree* tree, Handle<String> pattern,
                            RegExpFlags flags, int capture_count);
-  static void Initialize(Isolate* isolate, Handle<JSRegExp> re,
-                         Handle<String> pattern, RegExpFlags flags,
+  static void Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
+                         DirectHandle<String> pattern, RegExpFlags flags,
                          int capture_count);
-  static bool IsCompiled(Handle<JSRegExp> re, Isolate* isolate);
+  static bool IsCompiled(DirectHandle<JSRegExp> re, Isolate* isolate);
   V8_WARN_UNUSED_RESULT
-  static bool Compile(Isolate* isolate, Handle<JSRegExp> re);
+  static bool Compile(Isolate* isolate, DirectHandle<JSRegExp> re);
 
   // Execution:
   static int32_t MatchForCallFromJs(Address subject, int32_t start_position,
@@ -48,11 +48,11 @@ class ExperimentalRegExp final : public AllStatic {
   // Compile and execute a regexp with the experimental engine, regardless of
   // its type tag.  The regexp itself is not changed (apart from lastIndex).
   static MaybeHandle<Object> OneshotExec(
-      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+      Isolate* isolate, Handle<JSRegExp> regexp, DirectHandle<String> subject,
       int index, Handle<RegExpMatchInfo> last_match_info,
       RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
-  static int32_t OneshotExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
-                                Handle<String> subject,
+  static int32_t OneshotExecRaw(Isolate* isolate, DirectHandle<JSRegExp> regexp,
+                                DirectHandle<String> subject,
                                 int32_t* output_registers,
                                 int32_t output_register_count,
                                 int32_t subject_index);

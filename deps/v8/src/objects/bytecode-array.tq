@@ -12,7 +12,8 @@ extern class BytecodeArray extends ExposedTrustedObject {
   handler_table: ProtectedPointer<TrustedByteArray>;
   constant_pool: ProtectedPointer<TrustedFixedArray>;
   frame_size: int32;
-  parameter_size: int32;
+  parameter_size: uint16;
+  max_arguments: uint16;
   incoming_new_target_or_generator_register: int32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;

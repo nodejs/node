@@ -113,7 +113,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
       std::unique_ptr<StreamingProcessor> processor);
 
   static std::unique_ptr<StreamingDecoder> CreateSyncStreamingDecoder(
-      Isolate* isolate, WasmFeatures enabled,
+      Isolate* isolate, WasmEnabledFeatures enabled,
       CompileTimeImports compile_imports, Handle<Context> context,
       const char* api_method_name_for_errors,
       std::shared_ptr<CompilationResultResolver> resolver);

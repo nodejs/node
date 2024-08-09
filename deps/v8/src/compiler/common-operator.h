@@ -656,11 +656,11 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
-      FrameStateType type, int parameter_count, int local_count,
-      Handle<SharedFunctionInfo> shared_info);
+      FrameStateType type, uint16_t parameter_count, uint16_t max_arguments,
+      int local_count, Handle<SharedFunctionInfo> shared_info);
 #if V8_ENABLE_WEBASSEMBLY
   const FrameStateFunctionInfo* CreateJSToWasmFrameStateFunctionInfo(
-      FrameStateType type, int parameter_count, int local_count,
+      FrameStateType type, uint16_t parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info,
       const wasm::FunctionSig* signature);
 #endif  // V8_ENABLE_WEBASSEMBLY

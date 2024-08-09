@@ -21,7 +21,7 @@ const int32_t kUndefined = kMinInt31;
 void CheckCalendar(Isolate* isolate, Handle<String> iso_string,
                    int32_t calendar_start, int32_t calendar_length,
                    const std::string& expected_calendar) {
-  Handle<String> actual_calendar = isolate->factory()->NewSubString(
+  DirectHandle<String> actual_calendar = isolate->factory()->NewSubString(
       iso_string, calendar_start, calendar_start + calendar_length);
   CHECK(expected_calendar == actual_calendar->ToCString().get());
 }

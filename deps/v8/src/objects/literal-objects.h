@@ -74,7 +74,6 @@ class ObjectBoilerplateDescription
   inline void set_key_value(int index, Tagged<Object> key,
                             Tagged<Object> value);
 
-  DECL_CAST(ObjectBoilerplateDescription)
   DECL_VERIFIER(ObjectBoilerplateDescription)
   DECL_PRINTER(ObjectBoilerplateDescription)
 
@@ -187,7 +186,6 @@ class ClassBoilerplate : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
 
-  DECL_CAST(ClassBoilerplate)
   DECL_PRINTER(ClassBoilerplate)
   DECL_VERIFIER(ClassBoilerplate)
 

@@ -29,11 +29,11 @@ add_all_32bit_int_arg5 + add_all_32bit_int_arg6 + add_all_32bit_int_arg7 + add_a
 const fast_c_api = new d8.test.FastCAPI();
 
 (function () {
-  function overloaded_add_all(should_fallback = false) {
-    return fast_c_api.overloaded_add_all_8args(should_fallback,
-      add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
-      add_all_32bit_int_arg4, add_all_32bit_int_arg5, add_all_32bit_int_arg6,
-      add_all_32bit_int_arg7, add_all_32bit_int_arg8);
+  function overloaded_add_all() {
+    return fast_c_api.overloaded_add_all_8args(
+        add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
+        add_all_32bit_int_arg4, add_all_32bit_int_arg5, add_all_32bit_int_arg6,
+        add_all_32bit_int_arg7, add_all_32bit_int_arg8);
   }
 
   %PrepareFunctionForOptimization(overloaded_add_all);

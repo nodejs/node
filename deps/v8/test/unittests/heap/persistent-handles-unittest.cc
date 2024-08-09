@@ -85,12 +85,12 @@ TEST_F(PersistentHandlesTest, Iterate) {
 
   size_t handles_in_empty_scope = count_handles(isolate);
 
-  Handle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
+  IndirectHandle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
   Address* old_limit = data->limit;
   CHECK_EQ(count_handles(isolate), handles_in_empty_scope + 1);
 
   std::unique_ptr<PersistentHandles> ph;
-  Handle<String> verify_handle;
+  IndirectHandle<String> verify_handle;
 
   {
     PersistentHandlesScope persistent_scope(isolate);
@@ -139,12 +139,9 @@ class PersistentHandlesThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    {
-      ParkedScope parked_scope(&local_heap);
-      sema_gc_finished_->Wait();
-    }
+    local_heap.ExecuteWhileParked([this]() { sema_gc_finished_->Wait(); });
 
-    for (Handle<HeapNumber> handle : handles_) {
+    for (DirectHandle<HeapNumber> handle : handles_) {
       CHECK_EQ(42.0, handle->value());
     }
 

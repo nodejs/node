@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/contextual.h"
+#include "src/torque/constants.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/types.h"
@@ -199,6 +200,10 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
 
   static const Type* GetExternalPointerType() {
     return Get().GetBuiltinType(EXTERNALPTR_TYPE_STRING);
+  }
+
+  static const Type* GetCppHeapPointerType() {
+    return Get().GetBuiltinType(CPPHEAPPTR_TYPE_STRING);
   }
 
   static const Type* GetIndirectPointerType() {

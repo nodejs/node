@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE FrameInspector {
   int inlined_frame_index() const { return inlined_frame_index_; }
 
  private:
-  bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
+  bool ParameterIsShadowedByContextLocal(DirectHandle<ScopeInfo> info,
                                          Handle<String> parameter_name);
 
   CommonFrame* frame_;

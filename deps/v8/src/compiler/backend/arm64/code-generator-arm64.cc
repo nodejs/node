@@ -14,7 +14,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-metadata.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -239,14 +239,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     Constant constant = ToConstant(operand);
     switch (constant.type()) {
       case Constant::kInt32:
-        return Operand(constant.ToInt32());
+        return Operand(constant.ToInt32(), constant.rmode());
       case Constant::kInt64:
-#if V8_ENABLE_WEBASSEMBLY
-        if (RelocInfo::IsWasmReference(constant.rmode())) {
-          return Operand(constant.ToInt64(), constant.rmode());
-        }
-#endif  // V8_ENABLE_WEBASSEMBLY
-        return Operand(constant.ToInt64());
+        return Operand(constant.ToInt64(), constant.rmode());
       case Constant::kFloat32:
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
@@ -330,8 +325,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
-    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                     exit());
+    // No need to check value page flags with the indirect pointer write barrier
+    // because the value is always an ExposedTrustedObject.
+    if (mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+      __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask,
+                       eq, exit());
+    }
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
@@ -902,6 +901,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareTailCall:
       AssemblePrepareTailCall();
       break;
+    case kArchCallCFunctionWithFrameState:
     case kArchCallCFunction: {
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
@@ -925,6 +925,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                      set_isolate_data_slots, &return_location);
       }
       RecordSafepoint(instr->reference_map(), pc_offset);
+
+      bool const needs_frame_state =
+          (arch_opcode == kArchCallCFunctionWithFrameState);
+      if (needs_frame_state) {
+        RecordDeoptInfo(instr, pc_offset);
+      }
+
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -1011,16 +1018,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ hlt(kImmExceptionIsSwitchStackLimit);
       }
       __ Mov(sp, i.InputRegister(0));
-      auto fp_scope = static_cast<wasm::FPRelativeScope>(
-          MiscField::decode(instr->opcode()));
-      if (fp_scope == wasm::kEnterFPRelativeOnlyScope) {
-        DCHECK(frame_access_state()->has_frame());
-        frame_access_state()->SetFrameAccessToFP();
-      } else {
-        frame_access_state()->SetFrameAccessToDefault();
-      }
-      frame_access_state()->SetFPRelativeOnly(fp_scope ==
-                                              wasm::kEnterFPRelativeOnlyScope);
       break;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1135,8 +1132,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           &unwinding_info_writer_, tag);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreIndirectPointerField(value, MemOperand(object, offset));
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
+      __ JumpIfMarking(ool->entry());
       __ Bind(ool->exit());
       break;
     }
@@ -2062,6 +2058,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
       break;
+    case kArm64LdrDecompressProtected:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ DecompressProtected(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kArm64LdarDecompressTaggedSigned:
       __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.InputRegister(0),
                                       i.InputRegister(1), i.TempRegister(0));
@@ -2704,6 +2704,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64I32x4DotI8x16AddS: {
       if (CpuFeatures::IsSupported(DOTPROD)) {
+        CpuFeatureScope scope(masm(), DOTPROD);
+
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(2));
         __ Sdot(i.InputSimd128Register(2).V4S(),
                 i.InputSimd128Register(0).V16B(),
@@ -2827,7 +2829,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I8x16BitMask: {
-      __ I8x16BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
+      VRegister temp = NoVReg;
+
+      if (CpuFeatures::IsSupported(PMULL1Q)) {
+        temp = i.TempSimd128Register(0);
+      }
+
+      __ I8x16BitMask(i.OutputRegister32(), i.InputSimd128Register(0), temp);
       break;
     }
     case kArm64S128Const: {
@@ -3221,6 +3229,139 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = FlagsConditionToCondition(condition);
   __ Cset(reg, cc);
+}
+
+// Given condition, return a value for nzcv which represents it. This is used
+// for the default condition for ccmp.
+inline StatusFlags ConditionToDefaultFlags(Condition condition) {
+  switch (condition) {
+    default:
+      UNREACHABLE();
+    case eq:
+      return ZFlag;  // Z == 1
+    case ne:
+      return NoFlag;  // Z == 0
+    case hs:
+      return CFlag;  // C == 1
+    case lo:
+      return NoFlag;  // C == 0
+    case mi:
+      return NFlag;  // N == 1
+    case pl:
+      return NoFlag;  // N == 0
+    case vs:
+      return VFlag;  // V == 1
+    case vc:
+      return NoFlag;  // V == 0
+    case hi:
+      return CFlag;  // C == 1 && Z == 0
+    case ls:
+      return NoFlag;  // C == 0 || Z == 1
+    case ge:
+      return NoFlag;  // N == V
+    case lt:
+      return NFlag;  // N != V
+    case gt:
+      return NoFlag;  // Z == 0 && N == V
+    case le:
+      return ZFlag;  // Z == 1 || N != V
+  }
+}
+
+void AssembleConditionalCompareChain(Instruction* instr, int64_t num_ccmps,
+                                     size_t ccmp_base_index,
+                                     CodeGenerator* gen) {
+  Arm64OperandConverter i(gen, instr);
+  // The first two, or three operands are the compare that begins the chain.
+  // These operands are used when the first compare, the one with the
+  // continuation attached, is generated.
+  // Then, each five provide:
+  //  - cmp opcode
+  //  - compare lhs
+  //  - compare rhs
+  //  - default flags
+  //  - user condition
+  for (unsigned n = 0; n < num_ccmps; ++n) {
+    size_t opcode_index = ccmp_base_index + kCcmpOffsetOfOpcode;
+    size_t compare_lhs_index = ccmp_base_index + kCcmpOffsetOfLhs;
+    size_t compare_rhs_index = ccmp_base_index + kCcmpOffsetOfRhs;
+    size_t default_condition_index =
+        ccmp_base_index + kCcmpOffsetOfDefaultFlags;
+    size_t compare_condition_index =
+        ccmp_base_index + kCcmpOffsetOfCompareCondition;
+    ccmp_base_index += kNumCcmpOperands;
+    DCHECK_LT(ccmp_base_index, instr->InputCount() - 1);
+
+    InstructionCode code = static_cast<InstructionCode>(
+        i.ToConstant(instr->InputAt(opcode_index)).ToInt64());
+
+    FlagsCondition default_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(default_condition_index)).ToInt64());
+
+    StatusFlags default_flags =
+        ConditionToDefaultFlags(FlagsConditionToCondition(default_condition));
+
+    FlagsCondition compare_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(compare_condition_index)).ToInt64());
+
+    if (code == kArm64Cmp) {
+      gen->masm()->Ccmp(i.InputRegister64(compare_lhs_index),
+                        i.InputOperand64(compare_rhs_index), default_flags,
+                        FlagsConditionToCondition(compare_condition));
+    } else {
+      DCHECK_EQ(code, kArm64Cmp32);
+      gen->masm()->Ccmp(i.InputRegister32(compare_lhs_index),
+                        i.InputOperand32(compare_rhs_index), default_flags,
+                        FlagsConditionToCondition(compare_condition));
+    }
+  }
+}
+
+// Assemble a conditional compare and boolean materializations after this
+// instruction.
+void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+  // Materialize a full 64-bit 1 or 0 value. The result register is always the
+  // last output of the instruction.
+  DCHECK_NE(0u, instr->OutputCount());
+  Arm64OperandConverter i(this, instr);
+  Register reg = i.OutputRegister(instr->OutputCount() - 1);
+  DCHECK_GE(instr->InputCount(), 6);
+
+  // Input ordering:
+  // > InputCount - 1: number of ccmps.
+  // > InputCount - 2: branch condition.
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalSetEndOffsetOfNumCcmps;
+  size_t set_condition_index =
+      instr->InputCount() - kConditionalSetEndOffsetOfCondition;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = set_condition_index - kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+
+  FlagsCondition set_condition = static_cast<FlagsCondition>(
+      i.ToConstant(instr->InputAt(set_condition_index)).ToInt64());
+  __ Cset(reg, FlagsConditionToCondition(set_condition));
+}
+
+void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
+                                                  BranchInfo* branch) {
+  DCHECK_GE(instr->InputCount(), 6);
+  Arm64OperandConverter i(this, instr);
+  // Input ordering:
+  // > InputCount - 1: false block.
+  // > InputCount - 2: true block.
+  // > InputCount - 3: number of ccmps.
+  // > InputCount - 4: branch condition.
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalBranchEndOffsetOfNumCcmps;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalBranchEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+  Condition cc = FlagsConditionToCondition(branch->condition);
+  __ B(cc, branch->true_label);
+  if (!branch->fallthru) __ B(branch->false_label);
 }
 
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
@@ -3808,8 +3949,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Mov(dst.W(),
                Immediate(src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
       }
+    } else if (src.type() == Constant::kExternalReference) {
+      __ Mov(dst, src.ToExternalReference());
     } else {
-      __ Mov(dst, g.ToImmediate(source));
+      Operand src_op = g.ToImmediate(source);
+      if (src.type() == Constant::kInt32 && src_op.NeedsRelocation(masm())) {
+        // Use 32-bit loads for relocatable 32-bit constants.
+        dst = dst.W();
+      }
+      __ Mov(dst, src_op);
     }
   };
   switch (MoveType::InferMove(source, destination)) {

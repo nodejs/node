@@ -37,20 +37,6 @@ class Processor final : public AstVisitor<Processor> {
     InitializeAstVisitor(stack_limit);
   }
 
-  Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,
-            AstValueFactory* ast_value_factory, Zone* zone)
-      : result_(result),
-        replacement_(nullptr),
-        zone_(zone),
-        closure_scope_(closure_scope),
-        factory_(ast_value_factory, zone_),
-        result_assigned_(false),
-        is_set_(false),
-        breakable_(false) {
-    DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
-    InitializeAstVisitor(parser->stack_limit());
-  }
-
   void Process(ZonePtrList<Statement>* statements);
   bool result_assigned() const { return result_assigned_; }
 

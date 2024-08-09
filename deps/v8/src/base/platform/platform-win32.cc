@@ -19,11 +19,12 @@
 
 // This has to come after windows.h.
 #include <VersionHelpers.h>
-#include <dbghelp.h>  // For SymLoadModule64 and al.
-#include <malloc.h>   // For _msize()
-#include <mmsystem.h>  // For timeGetTime().
-#include <psapi.h>     // For GetProcessmMemoryInfo().
-#include <tlhelp32.h>  // For Module32First and al.
+#include <dbghelp.h>            // For SymLoadModule64 and al.
+#include <malloc.h>             // For _msize()
+#include <mmsystem.h>           // For timeGetTime().
+#include <processthreadsapi.h>  // For GetProcessMitigationPolicy().
+#include <psapi.h>              // For GetProcessMemoryInfo().
+#include <tlhelp32.h>           // For Module32First and al.
 
 #include <limits>
 
@@ -137,6 +138,11 @@ namespace v8 {
 namespace base {
 
 namespace {
+
+// g_cet gets set to kEnabled on platform initialization if the Intel CET shadow
+// stack is found to be enabled for this process.
+enum PlatformCETStatus { kNotSet, kEnabled, kDisabled };
+PlatformCETStatus g_cet = kNotSet;
 
 }  // namespace
 
@@ -752,8 +758,46 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
                                 GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
+namespace {
+
+bool UserShadowStackEnabled() {
+  auto is_user_cet_available_in_environment =
+      reinterpret_cast<decltype(&IsUserCetAvailableInEnvironment)>(
+          ::GetProcAddress(::GetModuleHandleW(L"kernel32.dll"),
+                           "IsUserCetAvailableInEnvironment"));
+  auto get_process_mitigation_policy =
+      reinterpret_cast<decltype(&GetProcessMitigationPolicy)>(::GetProcAddress(
+          ::GetModuleHandle(L"Kernel32.dll"), "GetProcessMitigationPolicy"));
+
+  if (!is_user_cet_available_in_environment || !get_process_mitigation_policy) {
+    return false;
+  }
+
+  if (!is_user_cet_available_in_environment(
+          USER_CET_ENVIRONMENT_WIN32_PROCESS)) {
+    return false;
+  }
+
+  PROCESS_MITIGATION_USER_SHADOW_STACK_POLICY uss_policy;
+  if (!get_process_mitigation_policy(GetCurrentProcess(),
+                                     ProcessUserShadowStackPolicy, &uss_policy,
+                                     sizeof(uss_policy))) {
+    return false;
+  }
+
+  return uss_policy.EnableUserShadowStack;
+}
+
+void InitializeCETStatus() {
+  DCHECK_EQ(kNotSet, g_cet);
+  g_cet = UserShadowStackEnabled() ? kEnabled : kDisabled;
+}
+
+}  // namespace
+
 void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
   g_abort_mode = abort_mode;
+  InitializeCETStatus();
 }
 
 typedef PVOID(__stdcall* VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
@@ -782,6 +826,12 @@ void OS::EnsureWin32MemoryAPILoaded() {
 
     loaded = true;
   }
+}
+
+// static
+bool OS::IsHardwareEnforcedShadowStacksEnabled() {
+  DCHECK_NE(kNotSet, g_cet);
+  return g_cet == kEnabled;
 }
 
 // static
@@ -1205,9 +1255,11 @@ void OS::Abort() {
   fflush(stderr);
 
   switch (g_abort_mode) {
-    case AbortMode::kSoft:
+    case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
+      _exit(0);
+    case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
       _exit(-1);
-    case AbortMode::kHard:
+    case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
     case AbortMode::kDefault:
       break;
@@ -1770,11 +1822,9 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 void OS::AdjustSchedulingParams() {}
 
-std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
     size_t alignment) {
-  std::vector<OS::MemoryRange> result = {};
-
   // Search for the virtual memory (vm) ranges within the boundary.
   // If a range is free and larger than {minimum_size}, then push it to the
   // returned vector.
@@ -1798,14 +1848,14 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
           RoundDown(std::min(vm_end, boundary_end), alignment);
       if (overlap_start < overlap_end &&
           overlap_end - overlap_start >= minimum_size) {
-        result.push_back({overlap_start, overlap_end});
+        return OS::MemoryRange{overlap_start, overlap_end};
       }
     }
     // Continue to visit the next virtual memory range.
     vm_start = vm_end;
   }
 
-  return result;
+  return {};
 }
 
 // static

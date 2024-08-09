@@ -16,6 +16,15 @@ from unittest.mock import patch, mock_open
 from download_profiles import main, parse_args, retrieve_version
 
 
+def mock_version_file(major, minor, build, patch):
+  return (
+      f'#define V8_MAJOR_VERSION {major}\n'
+      f'#define V8_MINOR_VERSION {minor}\n'
+      f'#define V8_BUILD_NUMBER {build}\n'
+      f'#define V8_PATCH_LEVEL {patch}\n'
+  )
+
+
 class TestDownloadProfiles(unittest.TestCase):
 
   def _test_cmd(self, cmd, exitcode):
@@ -61,6 +70,16 @@ class TestDownloadProfiles(unittest.TestCase):
         self.assertEqual(len(err), 0)
         gsutil.assert_called_once()
 
+  def test_arg_quiet(self):
+    with patch(
+        'builtins.open',
+        new=mock_open(read_data=mock_version_file(11, 9, 0, 0))):
+      out, err = self._test_cmd(['download'], 0)
+      self.assertGreater(len(out), 0)
+
+      out, err = self._test_cmd(['download', '--quiet'], 0)
+      self.assertEqual(len(out), 0)
+
   def test_invalid_args(self):
     out, err = self._test_cmd(['invalid-action'], 2)
     self.assertEqual(len(out), 0)
@@ -79,19 +98,10 @@ class TestDownloadProfiles(unittest.TestCase):
 
 
 class TestRetrieveVersion(unittest.TestCase):
-
-  def mock_version_file(self, major, minor, build, patch):
-    return (
-        f'#define V8_MAJOR_VERSION {major}\n'
-        f'#define V8_MINOR_VERSION {minor}\n'
-        f'#define V8_BUILD_NUMBER {build}\n'
-        f'#define V8_PATCH_LEVEL {patch}\n'
-    )
-
   def test_retrieve_valid_version(self):
     with patch(
         'builtins.open',
-        new=mock_open(read_data=self.mock_version_file(11, 4, 1, 0))):
+        new=mock_open(read_data=mock_version_file(11, 4, 1, 0))):
       args = parse_args(['download'])
       version = retrieve_version(args)
 
@@ -106,7 +116,7 @@ class TestRetrieveVersion(unittest.TestCase):
     out = io.StringIO()
     with patch(
         'builtins.open',
-        new=mock_open(read_data=self.mock_version_file(11, 4, 0, 0))), \
+        new=mock_open(read_data=mock_version_file(11, 4, 0, 0))), \
         contextlib.redirect_stdout(out), \
         self.assertRaises(SystemExit) as se:
       args = parse_args(['download'])
@@ -115,6 +125,7 @@ class TestRetrieveVersion(unittest.TestCase):
     self.assertEqual(se.exception.code, 0)
     self.assertEqual(out.getvalue(),
         'The version file specifies 11.4.0.0, which has no profiles.\n')
+
 
 if __name__ == '__main__':
   unittest.main()

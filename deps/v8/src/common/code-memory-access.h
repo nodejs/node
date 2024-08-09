@@ -11,8 +11,9 @@
 #include "include/v8-platform.h"
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
-#include "src/heap/mutable-page.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -22,9 +23,6 @@ namespace internal {
 //
 // For this purposed, there are a few scope objects with different semantics:
 //
-// - CodePageHeaderModificationScope:
-//     Used when we write to the page header of CodeSpace pages. Only needed on
-//     Apple Silicon where we can't have RW- pages in the RWX space.
 // - CodePageMemoryModificationScopeForDebugging:
 //     A scope only used in non-release builds, e.g. for code zapping.
 // - wasm::CodeSpaceWriteScope:
@@ -53,8 +51,9 @@ class CodeSpaceWriteScope;
 #define THREAD_ISOLATION_ALIGN_SZ 0x1000
 #define THREAD_ISOLATION_ALIGN alignas(THREAD_ISOLATION_ALIGN_SZ)
 #define THREAD_ISOLATION_ALIGN_OFFSET_MASK (THREAD_ISOLATION_ALIGN_SZ - 1)
-#define THREAD_ISOLATION_FILL_PAGE_SZ(size)                                    \
-  ((THREAD_ISOLATION_ALIGN_SZ - ((size)&THREAD_ISOLATION_ALIGN_OFFSET_MASK)) % \
+#define THREAD_ISOLATION_FILL_PAGE_SZ(size)          \
+  ((THREAD_ISOLATION_ALIGN_SZ -                      \
+    ((size) & THREAD_ISOLATION_ALIGN_OFFSET_MASK)) % \
    THREAD_ISOLATION_ALIGN_SZ)
 
 #else  // V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -123,11 +122,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // scope classes that affect executable pages permissions.
   V8_INLINE static void SetWritable();
   V8_INLINE static void SetExecutable();
-
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
-  // This counter is used for supporting scope reentrance.
-  V8_EXPORT_PRIVATE static thread_local int code_space_write_nesting_level_;
-#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
 };
 
 class WritableJitPage;
@@ -198,6 +192,11 @@ class V8_EXPORT ThreadIsolation {
   // allocation from inside a signal handler.
   static bool CanLookupStartOfJitAllocationAt(Address inner_pointer);
   static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
+
+  // Write-protect a given range of memory. Address and size need to be page
+  // aligned.
+  V8_NODISCARD static bool WriteProtectMemory(
+      Address addr, size_t size, PageAllocator::Permission page_permissions);
 
   static void RegisterJitAllocationForTesting(Address obj, size_t size);
   static void UnregisterJitAllocationForTesting(Address addr, size_t size);
@@ -383,8 +382,8 @@ class WritableJitAllocation {
   WritableJitAllocation& operator=(const WritableJitAllocation&) = delete;
   V8_INLINE ~WritableJitAllocation();
 
-  static V8_INLINE WritableJitAllocation
-  ForInstructionStream(Tagged<InstructionStream> istream);
+  static WritableJitAllocation ForInstructionStream(
+      Tagged<InstructionStream> istream);
 
   // WritableJitAllocations are used during reloc iteration. But in some
   // cases, we relocate code off-heap, e.g. when growing AssemblerBuffers.
@@ -472,7 +471,7 @@ class WritableFreeSpace {
   template <typename T, size_t offset>
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) const;
   template <size_t offset>
-  V8_INLINE void ClearTagged(size_t count) const;
+  void ClearTagged(size_t count) const;
 
   base::Address Address() const { return address_; }
   int Size() const { return size_; }
@@ -487,6 +486,11 @@ class WritableFreeSpace {
 
   friend class WritableJitPage;
 };
+
+extern template void WritableFreeSpace::ClearTagged<kTaggedSize>(
+    size_t count) const;
+extern template void WritableFreeSpace::ClearTagged<2 * kTaggedSize>(
+    size_t count) const;
 
 class WritableJitPage {
  public:
@@ -541,8 +545,9 @@ bool operator!=(const ThreadIsolation::StlAllocator<T>&,
 // This class is a no-op version of the RwxMemoryWriteScope class above.
 // It's used as a target type for other scope type definitions when a no-op
 // semantics is required.
-class V8_NODISCARD NopRwxMemoryWriteScope final {
+class V8_NODISCARD V8_ALLOW_UNUSED NopRwxMemoryWriteScope final {
  public:
+  V8_INLINE NopRwxMemoryWriteScope() = default;
   V8_INLINE explicit NopRwxMemoryWriteScope(const char* comment) {
     // Define a constructor to avoid unused variable warnings.
   }
@@ -563,6 +568,13 @@ class V8_NODISCARD RwxMemoryWriteScopeForTesting final
   RwxMemoryWriteScopeForTesting& operator=(
       const RwxMemoryWriteScopeForTesting&) = delete;
 };
+
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+// Metadata are not protected yet with PTHREAD_JIT_WRITE_PROTECT
+using CFIMetadataWriteScope = NopRwxMemoryWriteScope;
+#else
+using CFIMetadataWriteScope = RwxMemoryWriteScope;
+#endif
 
 }  // namespace internal
 }  // namespace v8

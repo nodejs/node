@@ -12,6 +12,7 @@ namespace node {
 using v8::FastApiCallbackOptions;
 using v8::FastApiTypedArray;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -57,7 +58,8 @@ bool FastTimingSafeEqual(Local<Value> receiver,
   uint8_t* data_b;
   if (a.length() != b.length() || !a.getStorageIfAligned(&data_a) ||
       !b.getStorageIfAligned(&data_b)) {
-    options.fallback = true;
+    HandleScope scope(options.isolate);
+    THROW_ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH(options.isolate);
     return false;
   }
 

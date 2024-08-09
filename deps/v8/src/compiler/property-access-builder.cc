@@ -157,7 +157,7 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
   if (!value) return {};
 
   for (MapRef map : access_info.lookup_start_object_maps()) {
-    Handle<Map> map_handle = map.object();
+    DirectHandle<Map> map_handle = map.object();
     // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
     // must have different lookup start map.
     if (!IsJSReceiverMap(*map_handle)) {

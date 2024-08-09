@@ -59,9 +59,6 @@ class V8_EXPORT Function : public Object {
   void SetName(Local<String> name);
   Local<Value> GetName() const;
 
-  V8_DEPRECATED("No direct replacement")
-  MaybeLocal<UnboundScript> GetUnboundScript() const;
-
   /**
    * Name inferred from variable or property assignment of this function.
    * Used to facilitate debugging and profiling of JavaScript code written

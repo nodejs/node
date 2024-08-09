@@ -10,4 +10,10 @@ specific_include_rules = {
     "+src/regexp/experimental/experimental.h",
     "+src/regexp/regexp-macro-assembler-arch.h",
   ],
+  "turboshaft-builtins-assembler-inl.h": [
+    "+src/compiler/turboshaft/assembler.h",
+    "+src/compiler/turboshaft/machine-lowering-reducer-inl.h",
+    "+src/compiler/turboshaft/define-assembler-macros.inc",
+    "+src/compiler/turboshaft/undef-assembler-macros.inc",
+  ]
 }

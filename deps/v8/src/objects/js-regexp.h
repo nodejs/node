@@ -69,13 +69,13 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // This could be a Smi kUninitializedValue or InstructionStream.
   V8_EXPORT_PRIVATE Tagged<Object> code(IsolateForSandbox isolate,
                                         bool is_latin1) const;
-  V8_EXPORT_PRIVATE void set_code(bool is_unicode, Handle<Code> code);
+  V8_EXPORT_PRIVATE void set_code(bool is_unicode, DirectHandle<Code> code);
   // This could be a Smi kUninitializedValue or ByteArray.
   V8_EXPORT_PRIVATE Tagged<Object> bytecode(bool is_latin1) const;
   // Sets the bytecode as well as initializing trampoline slots to the
   // RegExpInterpreterTrampoline.
   void set_bytecode_and_trampoline(Isolate* isolate,
-                                   Handle<ByteArray> bytecode);
+                                   DirectHandle<ByteArray> bytecode);
   inline int max_register_count() const;
   // Number of captures (without the match itself).
   inline int capture_count() const;
@@ -98,10 +98,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     if (!f.has_value()) return f;
     if (f.value() == RegExpFlag::kLinear &&
         !v8_flags.enable_experimental_regexp_engine) {
-      return {};
-    }
-    if (f.value() == RegExpFlag::kUnicodeSets &&
-        !v8_flags.harmony_regexp_unicode_sets) {
       return {};
     }
     return f;
@@ -235,11 +231,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   // Descriptor array index to important methods in the prototype.
   static constexpr int kExecFunctionDescriptorIndex = 1;
-  static constexpr int kSymbolMatchFunctionDescriptorIndex = 14;
-  static constexpr int kSymbolMatchAllFunctionDescriptorIndex = 15;
-  static constexpr int kSymbolReplaceFunctionDescriptorIndex = 16;
-  static constexpr int kSymbolSearchFunctionDescriptorIndex = 17;
-  static constexpr int kSymbolSplitFunctionDescriptorIndex = 18;
+  static constexpr int kSymbolMatchFunctionDescriptorIndex = 15;
+  static constexpr int kSymbolMatchAllFunctionDescriptorIndex = 16;
+  static constexpr int kSymbolReplaceFunctionDescriptorIndex = 17;
+  static constexpr int kSymbolSearchFunctionDescriptorIndex = 18;
+  static constexpr int kSymbolSplitFunctionDescriptorIndex = 19;
 
   // The uninitialized value for a regexp code object.
   static constexpr int kUninitializedValue = -1;
@@ -319,7 +315,7 @@ class JSRegExpResultIndices
                                                   JSArray> {
  public:
   static Handle<JSRegExpResultIndices> BuildIndices(
-      Isolate* isolate, Handle<RegExpMatchInfo> match_info,
+      Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
       Handle<Object> maybe_names);
 
   // Indices of in-object properties.

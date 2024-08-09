@@ -213,7 +213,6 @@ class RegExpTree : public ZoneObject {
 #undef MAKE_ASTYPE
 };
 
-
 class RegExpDisjunction final : public RegExpTree {
  public:
   explicit RegExpDisjunction(ZoneList<RegExpTree*>* alternatives);
@@ -236,7 +235,6 @@ class RegExpDisjunction final : public RegExpTree {
   int max_match_;
 };
 
-
 class RegExpAlternative final : public RegExpTree {
  public:
   explicit RegExpAlternative(ZoneList<RegExpTree*>* nodes);
@@ -255,7 +253,6 @@ class RegExpAlternative final : public RegExpTree {
   int min_match_;
   int max_match_;
 };
-
 
 class RegExpAssertion final : public RegExpTree {
  public:
@@ -543,15 +540,16 @@ class RegExpText final : public RegExpTree {
   int length_ = 0;
 };
 
-
 class RegExpQuantifier final : public RegExpTree {
  public:
   enum QuantifierType { GREEDY, NON_GREEDY, POSSESSIVE };
-  RegExpQuantifier(int min, int max, QuantifierType type, RegExpTree* body)
+  RegExpQuantifier(int min, int max, QuantifierType type, int index,
+                   RegExpTree* body)
       : body_(body),
         min_(min),
         max_(max),
-        quantifier_type_(type) {
+        quantifier_type_(type),
+        index_(index) {
     if (min > 0 && body->min_match() > kInfinity / min) {
       min_match_ = kInfinity;
     } else {
@@ -575,6 +573,7 @@ class RegExpQuantifier final : public RegExpTree {
   int min() const { return min_; }
   int max() const { return max_; }
   QuantifierType quantifier_type() const { return quantifier_type_; }
+  int index() const { return index_; }
   bool is_possessive() const { return quantifier_type_ == POSSESSIVE; }
   bool is_non_greedy() const { return quantifier_type_ == NON_GREEDY; }
   bool is_greedy() const { return quantifier_type_ == GREEDY; }
@@ -587,8 +586,8 @@ class RegExpQuantifier final : public RegExpTree {
   int min_match_;
   int max_match_;
   QuantifierType quantifier_type_;
+  int index_;
 };
-
 
 class RegExpCapture final : public RegExpTree {
  public:
@@ -704,7 +703,6 @@ class RegExpLookaround final : public RegExpTree {
   int index_;
 };
 
-
 class RegExpBackReference final : public RegExpTree {
  public:
   explicit RegExpBackReference(Zone* zone) : captures_(1, zone) {}
@@ -730,7 +728,6 @@ class RegExpBackReference final : public RegExpTree {
   ZoneList<RegExpCapture*> captures_;
   const ZoneVector<base::uc16>* name_ = nullptr;
 };
-
 
 class RegExpEmpty final : public RegExpTree {
  public:

@@ -5,6 +5,7 @@
 #include "src/wasm/value-type.h"
 
 #include "src/codegen/signature.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

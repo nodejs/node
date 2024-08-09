@@ -120,7 +120,7 @@ class RegExp final : public AllStatic {
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   ExperimentalOneshotExec(Isolate* isolate, Handle<JSRegExp> regexp,
-                          Handle<String> subject, int index,
+                          DirectHandle<String> subject, int index,
                           Handle<RegExpMatchInfo> last_match_info,
                           ExecQuirks exec_quirks = ExecQuirks::kNone);
 
@@ -144,7 +144,7 @@ class RegExp final : public AllStatic {
   // omitted.
   static Handle<RegExpMatchInfo> SetLastMatchInfo(
       Isolate* isolate, Handle<RegExpMatchInfo> last_match_info,
-      Handle<String> subject, int capture_count, int32_t* match);
+      DirectHandle<String> subject, int capture_count, int32_t* match);
 
   V8_EXPORT_PRIVATE static bool CompileForTesting(
       Isolate* isolate, Zone* zone, RegExpCompileData* input, RegExpFlags flags,
@@ -157,14 +157,15 @@ class RegExp final : public AllStatic {
 
   V8_WARN_UNUSED_RESULT
   static MaybeHandle<Object> ThrowRegExpException(Isolate* isolate,
-                                                  Handle<JSRegExp> re,
+                                                  DirectHandle<JSRegExp> re,
                                                   RegExpFlags flags,
                                                   Handle<String> pattern,
                                                   RegExpError error);
-  static void ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
+  static void ThrowRegExpException(Isolate* isolate, DirectHandle<JSRegExp> re,
                                    RegExpError error_text);
 
-  static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp);
+  static bool IsUnmodifiedRegExp(Isolate* isolate,
+                                 DirectHandle<JSRegExp> regexp);
 
   static Handle<FixedArray> CreateCaptureNameMap(
       Isolate* isolate, ZoneVector<RegExpCapture*>* named_captures);
@@ -220,9 +221,11 @@ class RegExpResultsCache final : public AllStatic {
                                ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.
-  static void Enter(Isolate* isolate, Handle<String> key_string,
-                    Handle<Object> key_pattern, Handle<FixedArray> value_array,
-                    Handle<FixedArray> last_match_cache, ResultsCacheType type);
+  static void Enter(Isolate* isolate, DirectHandle<String> key_string,
+                    DirectHandle<Object> key_pattern,
+                    DirectHandle<FixedArray> value_array,
+                    DirectHandle<FixedArray> last_match_cache,
+                    ResultsCacheType type);
   static void Clear(Tagged<FixedArray> cache);
 
   static constexpr int kRegExpResultsCacheSize = 0x100;

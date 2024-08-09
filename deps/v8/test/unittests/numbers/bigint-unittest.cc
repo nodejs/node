@@ -18,7 +18,7 @@ namespace internal {
 
 using BigIntWithIsolate = TestWithIsolate;
 
-void Compare(Handle<BigInt> x, double value, ComparisonResult expected) {
+void Compare(DirectHandle<BigInt> x, double value, ComparisonResult expected) {
   CHECK_EQ(expected, BigInt::CompareToDouble(x, value));
 }
 
@@ -28,9 +28,9 @@ Handle<BigInt> NewFromInt(Isolate* isolate, int value) {
 }
 
 TEST_F(BigIntWithIsolate, CompareToDouble) {
-  Handle<BigInt> zero = NewFromInt(isolate(), 0);
-  Handle<BigInt> one = NewFromInt(isolate(), 1);
-  Handle<BigInt> minus_one = NewFromInt(isolate(), -1);
+  DirectHandle<BigInt> zero = NewFromInt(isolate(), 0);
+  DirectHandle<BigInt> one = NewFromInt(isolate(), 1);
+  DirectHandle<BigInt> minus_one = NewFromInt(isolate(), -1);
 
   // Non-finite doubles.
   Compare(zero, std::nan(""), ComparisonResult::kUndefined);
@@ -57,8 +57,8 @@ TEST_F(BigIntWithIsolate, CompareToDouble) {
   Compare(minus_one, -0.5, ComparisonResult::kLessThan);
 
   // Different bit lengths.
-  Handle<BigInt> four = NewFromInt(isolate(), 4);
-  Handle<BigInt> minus_five = NewFromInt(isolate(), -5);
+  DirectHandle<BigInt> four = NewFromInt(isolate(), 4);
+  DirectHandle<BigInt> minus_five = NewFromInt(isolate(), -5);
   Compare(four, 3.9, ComparisonResult::kGreaterThan);
   Compare(four, 1.5, ComparisonResult::kGreaterThan);
   Compare(four, 8, ComparisonResult::kLessThan);
@@ -106,7 +106,7 @@ TEST_F(BigIntWithIsolate, CompareToDouble) {
   big = BigIntLiteral(isolate(), "0xF00D00000000000000").ToHandleChecked();
   Compare(big, big_double, ComparisonResult::kEqual);
 
-  Handle<BigInt> two_52 =
+  DirectHandle<BigInt> two_52 =
       BigIntLiteral(isolate(), "0x10000000000000").ToHandleChecked();
   Compare(two_52, 4503599627370496.0, ComparisonResult::kEqual);
 }

@@ -18,7 +18,7 @@ class Zone;
 class ExperimentalRegExpInterpreter final : public AllStatic {
  public:
   // Executes a bytecode program in breadth-first NFA mode, without
-  // backtracking, to find matching substrings.  Trys to find up to
+  // backtracking, to find matching substrings.  Tries to find up to
   // `max_match_num` matches in `input`, starting at `start_index`.  Returns
   // the actual number of matches found.  The boundaries of matching subranges
   // are written to `matches_out`.  Provided in variants for one-byte and

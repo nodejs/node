@@ -21,7 +21,7 @@ BUILTIN(ShadowRealmConstructor) {
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
 
   // 3. Let realmRec be CreateRealm().
   // 5. Let context be a new execution context.
@@ -46,7 +46,7 @@ BUILTIN(ShadowRealmConstructor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSShadowRealm> O = Handle<JSShadowRealm>::cast(result);
+  auto O = Cast<JSShadowRealm>(result);
 
   // 4. Set O.[[ShadowRealm]] to realmRec.
   // 9. Set O.[[ExecutionContext]] to context.
@@ -59,9 +59,9 @@ BUILTIN(ShadowRealmConstructor) {
 namespace {
 
 // https://tc39.es/proposal-shadowrealm/#sec-getwrappedvalue
-MaybeHandle<Object> GetWrappedValue(Isolate* isolate,
-                                    Handle<NativeContext> creation_context,
-                                    Handle<Object> value) {
+MaybeHandle<Object> GetWrappedValue(
+    Isolate* isolate, DirectHandle<NativeContext> creation_context,
+    Handle<Object> value) {
   // 1. If Type(value) is Object, then
   if (!IsJSReceiver(*value)) {
     // 2. Return value.
@@ -80,7 +80,7 @@ MaybeHandle<Object> GetWrappedValue(Isolate* isolate,
   }
   // 1b. Return ? WrappedFunctionCreate(callerRealm, value).
   return JSWrappedFunction::Create(isolate, creation_context,
-                                   Handle<JSReceiver>::cast(value));
+                                   Cast<JSReceiver>(value));
 }
 
 }  // namespace
@@ -100,7 +100,7 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver));
   }
-  Handle<JSShadowRealm> shadow_realm = Handle<JSShadowRealm>::cast(receiver);
+  auto shadow_realm = Cast<JSShadowRealm>(receiver);
 
   // 3. If Type(sourceText) is not String, throw a TypeError exception.
   if (!IsString(*source_text)) {
@@ -110,7 +110,7 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   }
 
   // 4. Let callerRealm be the current Realm Record.
-  Handle<NativeContext> caller_context = isolate->native_context();
+  DirectHandle<NativeContext> caller_context = isolate->native_context();
 
   // 5. Let evalRealm be O.[[ShadowRealm]].
   Handle<NativeContext> eval_context =
@@ -190,18 +190,19 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
 
   if (result.is_null()) {
     DCHECK(isolate->has_exception());
-    Handle<Object> exception = Handle<Object>(isolate->exception(), isolate);
+    Handle<Object> exception(isolate->exception(), isolate);
     isolate->clear_internal_exception();
     if (is_parse_failed) {
-      Handle<JSObject> error_object = Handle<JSObject>::cast(exception);
-      Handle<String> message = Handle<String>::cast(JSReceiver::GetDataProperty(
+      auto error_object = Cast<JSObject>(exception);
+      auto message = Cast<String>(JSReceiver::GetDataProperty(
           isolate, error_object, factory->message_string()));
 
       return isolate->ReThrow(
           *factory->NewError(isolate->syntax_error_function(), message));
     }
     // 21. If result.[[Type]] is not normal, throw a TypeError exception.
-    Handle<String> string = Object::NoSideEffectsToString(isolate, exception);
+    DirectHandle<String> string =
+        Object::NoSideEffectsToString(isolate, exception);
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kCallShadowRealmEvaluateThrew, string));

@@ -127,51 +127,6 @@ void String::set_length(int32_t value, ReleaseStoreTag) {
   base::AsAtomic32::Release_Store(&length_, value);
 }
 
-Tagged<String> String::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsString(obj));
-  return String::unchecked_cast(obj);
-}
-Tagged<SeqString> SeqString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsSeqString(obj));
-  return SeqString::unchecked_cast(obj);
-}
-Tagged<SeqOneByteString> SeqOneByteString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsSeqOneByteString(obj));
-  return SeqOneByteString::unchecked_cast(obj);
-}
-Tagged<SeqTwoByteString> SeqTwoByteString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsSeqTwoByteString(obj));
-  return SeqTwoByteString::unchecked_cast(obj);
-}
-Tagged<InternalizedString> InternalizedString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsInternalizedString(obj));
-  return InternalizedString::unchecked_cast(obj);
-}
-Tagged<ConsString> ConsString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsConsString(obj));
-  return ConsString::unchecked_cast(obj);
-}
-Tagged<ThinString> ThinString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsThinString(obj));
-  return ThinString::unchecked_cast(obj);
-}
-Tagged<SlicedString> SlicedString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsSlicedString(obj));
-  return SlicedString::unchecked_cast(obj);
-}
-Tagged<ExternalString> ExternalString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsExternalString(obj));
-  return ExternalString::unchecked_cast(obj);
-}
-Tagged<ExternalOneByteString> ExternalOneByteString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsExternalOneByteString(obj));
-  return ExternalOneByteString::unchecked_cast(obj);
-}
-Tagged<ExternalTwoByteString> ExternalTwoByteString::cast(Tagged<Object> obj) {
-  SLOW_DCHECK(IsExternalTwoByteString(obj));
-  return ExternalTwoByteString::unchecked_cast(obj);
-}
-
 static_assert(kTaggedCanConvertToRawObjects);
 
 StringShape::StringShape(const Tagged<String> str)
@@ -333,7 +288,7 @@ inline TResult StringShape::DispatchToSpecificType(Tagged<String> str,
    public:
 #define DEFINE_METHOD(Type)                                                 \
   static inline TResult Handle##Type(Tagged<String> str, TArgs&&... args) { \
-    return TDispatcher::Handle##Type(Type::cast(str),                       \
+    return TDispatcher::Handle##Type(Cast<Type>(str),                       \
                                      std::forward<TArgs>(args)...);         \
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
@@ -587,26 +542,26 @@ bool String::IsEqualToImpl(
     switch (type & kStringRepresentationAndEncodingMask) {
       case kSeqOneByteStringTag:
         return CompareCharsEqual(
-            SeqOneByteString::cast(string)->GetChars(no_gc, access_guard) +
+            Cast<SeqOneByteString>(string)->GetChars(no_gc, access_guard) +
                 slice_offset,
             data, len);
       case kSeqTwoByteStringTag:
         return CompareCharsEqual(
-            SeqTwoByteString::cast(string)->GetChars(no_gc, access_guard) +
+            Cast<SeqTwoByteString>(string)->GetChars(no_gc, access_guard) +
                 slice_offset,
             data, len);
       case kExternalOneByteStringTag:
         return CompareCharsEqual(
-            ExternalOneByteString::cast(string)->GetChars() + slice_offset,
+            Cast<ExternalOneByteString>(string)->GetChars() + slice_offset,
             data, len);
       case kExternalTwoByteStringTag:
         return CompareCharsEqual(
-            ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
+            Cast<ExternalTwoByteString>(string)->GetChars() + slice_offset,
             data, len);
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
-        Tagged<SlicedString> slicedString = SlicedString::cast(string);
+        Tagged<SlicedString> slicedString = Cast<SlicedString>(string);
         slice_offset += slicedString->offset();
         string = slicedString->parent();
         continue;
@@ -619,13 +574,13 @@ bool String::IsEqualToImpl(
         // Slices cannot refer to ConsStrings, so there cannot be a non-zero
         // slice offset here.
         DCHECK_EQ(slice_offset, 0);
-        return IsConsStringEqualToImpl<Char>(ConsString::cast(string), str,
+        return IsConsStringEqualToImpl<Char>(Cast<ConsString>(string), str,
                                              access_guard);
       }
 
       case kThinStringTag | kOneByteStringTag:
       case kThinStringTag | kTwoByteStringTag:
-        string = ThinString::cast(string)->actual();
+        string = Cast<ThinString>(string)->actual();
         continue;
 
       default:
@@ -643,7 +598,7 @@ bool String::IsConsStringEqualToImpl(
   // this is a prefix check.
   DCHECK_GE(string->length(), str.size());
 
-  ConsStringIterator iter(ConsString::cast(string));
+  ConsStringIterator iter(Cast<ConsString>(string));
   base::Vector<const Char> remaining_str = str;
   int offset;
   for (Tagged<String> segment = iter.Next(&offset); !segment.is_null();
@@ -677,8 +632,8 @@ const Char* String::GetDirectStringChars(
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
   DCHECK(StringShape(this).IsDirect());
   return StringShape(this).IsExternal()
-             ? CharTraits<Char>::ExternalString::cast(this).GetChars()
-             : CharTraits<Char>::String::cast(this).GetChars(no_gc);
+             ? Cast<typename CharTraits<Char>::ExternalString>(this).GetChars()
+             : Cast<typename CharTraits<Char>::String>(this).GetChars(no_gc);
 }
 
 template <typename Char>
@@ -687,9 +642,9 @@ const Char* String::GetDirectStringChars(
     const SharedStringAccessGuardIfNeeded& access_guard) const {
   DCHECK(StringShape(this).IsDirect());
   return StringShape(this).IsExternal()
-             ? CharTraits<Char>::ExternalString::cast(this)->GetChars()
-             : CharTraits<Char>::String::cast(this)->GetChars(no_gc,
-                                                              access_guard);
+             ? Cast<typename CharTraits<Char>::ExternalString>(this)->GetChars()
+             : Cast<typename CharTraits<Char>::String>(this)->GetChars(
+                   no_gc, access_guard);
 }
 
 // static
@@ -704,7 +659,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
 
   if (shape.IsCons()) {
     DCHECK(!InAnySharedSpace(s));
-    Tagged<ConsString> cons = ConsString::cast(s);
+    Tagged<ConsString> cons = Cast<ConsString>(s);
     if (!cons->IsFlat()) {
       AllowGarbageCollection yes_gc;
       return SlowFlatten(isolate, handle(cons, isolate), allocation);
@@ -714,7 +669,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   }
 
   if (shape.IsThin()) {
-    s = ThinString::cast(s)->actual();
+    s = Cast<ThinString>(s)->actual();
     DCHECK(!IsConsString(s));
   }
 
@@ -739,21 +694,21 @@ base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
   switch (StringShape{string}.representation_and_encoding_tag()) {
     case kSeqOneByteStringTag:
       return FlatContent(
-          SeqOneByteString::cast(string)->GetChars(no_gc, access_guard) +
+          Cast<SeqOneByteString>(string)->GetChars(no_gc, access_guard) +
               offset,
           length, no_gc);
     case kSeqTwoByteStringTag:
       return FlatContent(
-          SeqTwoByteString::cast(string)->GetChars(no_gc, access_guard) +
+          Cast<SeqTwoByteString>(string)->GetChars(no_gc, access_guard) +
               offset,
           length, no_gc);
     case kExternalOneByteStringTag:
       return FlatContent(
-          ExternalOneByteString::cast(string)->GetChars() + offset, length,
+          Cast<ExternalOneByteString>(string)->GetChars() + offset, length,
           no_gc);
     case kExternalTwoByteStringTag:
       return FlatContent(
-          ExternalTwoByteString::cast(string)->GetChars() + offset, length,
+          Cast<ExternalTwoByteString>(string)->GetChars() + offset, length,
           no_gc);
     default:
       return {};
@@ -822,7 +777,7 @@ String::FlatContent String::GetFlatContent(
 
 Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
   DCHECK(v8_flags.shared_string_table);
-  MaybeHandle<Map> new_map;
+  MaybeDirectHandle<Map> new_map;
   switch (
       isolate->factory()->ComputeSharingStrategyForString(string, &new_map)) {
     case StringTransitionStrategy::kCopy:
@@ -889,13 +844,13 @@ void String::Set(int index, uint16_t value) {
   DCHECK(StringShape(this).IsSequential());
 
   return IsOneByteRepresentation()
-             ? SeqOneByteString::cast(this)->SeqOneByteStringSet(index, value)
-             : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
+             ? Cast<SeqOneByteString>(this)->SeqOneByteStringSet(index, value)
+             : Cast<SeqTwoByteString>(this)->SeqTwoByteStringSet(index, value);
 }
 
 bool String::IsFlat() const {
   if (!StringShape(this).IsCons()) return true;
-  return ConsString::cast(this)->IsFlat();
+  return Cast<ConsString>(this)->IsFlat();
 }
 
 bool String::IsShared() const {
@@ -937,33 +892,33 @@ Tagged<ConsString> String::VisitFlat(
     switch (tag) {
       case kSeqOneByteStringTag:
         visitor->VisitOneByteString(
-            SeqOneByteString::cast(string)->GetChars(no_gc, access_guard) +
+            Cast<SeqOneByteString>(string)->GetChars(no_gc, access_guard) +
                 slice_offset,
             length - offset);
         return Tagged<ConsString>();
 
       case kSeqTwoByteStringTag:
         visitor->VisitTwoByteString(
-            SeqTwoByteString::cast(string)->GetChars(no_gc, access_guard) +
+            Cast<SeqTwoByteString>(string)->GetChars(no_gc, access_guard) +
                 slice_offset,
             length - offset);
         return Tagged<ConsString>();
 
       case kExternalOneByteStringTag:
         visitor->VisitOneByteString(
-            ExternalOneByteString::cast(string)->GetChars() + slice_offset,
+            Cast<ExternalOneByteString>(string)->GetChars() + slice_offset,
             length - offset);
         return Tagged<ConsString>();
 
       case kExternalTwoByteStringTag:
         visitor->VisitTwoByteString(
-            ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
+            Cast<ExternalTwoByteString>(string)->GetChars() + slice_offset,
             length - offset);
         return Tagged<ConsString>();
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
-        Tagged<SlicedString> slicedString = SlicedString::cast(string);
+        Tagged<SlicedString> slicedString = Cast<SlicedString>(string);
         slice_offset += slicedString->offset();
         string = slicedString->parent();
         continue;
@@ -971,11 +926,11 @@ Tagged<ConsString> String::VisitFlat(
 
       case kConsStringTag | kOneByteStringTag:
       case kConsStringTag | kTwoByteStringTag:
-        return ConsString::cast(string);
+        return Cast<ConsString>(string);
 
       case kThinStringTag | kOneByteStringTag:
       case kThinStringTag | kTwoByteStringTag:
-        string = ThinString::cast(string)->actual();
+        string = Cast<ThinString>(string)->actual();
         continue;
 
       default:
@@ -1185,9 +1140,9 @@ bool ExternalString::is_uncached() const {
 }
 
 void ExternalString::InitExternalPointerFields(Isolate* isolate) {
-  resource_.Init(isolate, kNullAddress);
+  resource_.Init(address(), isolate, kNullAddress);
   if (is_uncached()) return;
-  resource_data_.Init(isolate, kNullAddress);
+  resource_data_.Init(address(), isolate, kNullAddress);
 }
 
 void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) {
@@ -1204,9 +1159,9 @@ Address ExternalString::resource_as_address() const {
 void ExternalString::set_address_as_resource(Isolate* isolate, Address value) {
   resource_.store(isolate, value);
   if (IsExternalOneByteString(this)) {
-    ExternalOneByteString::cast(this)->update_data_cache(isolate);
+    Cast<ExternalOneByteString>(this)->update_data_cache(isolate);
   } else {
-    ExternalTwoByteString::cast(this)->update_data_cache(isolate);
+    Cast<ExternalTwoByteString>(this)->update_data_cache(isolate);
   }
 }
 
@@ -1583,14 +1538,14 @@ bool String::IsInPlaceInternalizableExcludingExternal(
 class SeqOneByteString::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return SeqOneByteString::unchecked_cast(raw_object)->AllocatedSize();
+    return UncheckedCast<SeqOneByteString>(raw_object)->AllocatedSize();
   }
 };
 
 class SeqTwoByteString::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return SeqTwoByteString::unchecked_cast(raw_object)->AllocatedSize();
+    return UncheckedCast<SeqTwoByteString>(raw_object)->AllocatedSize();
   }
 };
 

@@ -319,6 +319,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ldr:
     case kArm64LdrDecompressTaggedSigned:
     case kArm64LdrDecompressTagged:
+    case kArm64LdrDecompressProtected:
     case kArm64LdarDecompressTaggedSigned:
     case kArm64LdarDecompressTagged:
     case kArm64LdrDecodeSandboxedPointer:
@@ -440,6 +441,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 
     case kArm64LdrDecompressTaggedSigned:
     case kArm64LdrDecompressTagged:
+    case kArm64LdrDecompressProtected:
     case kArm64Ldr:
     case kArm64LdrD:
     case kArm64LdrS:

@@ -67,6 +67,10 @@ inline bool IsAnyStore(AccessMode mode) {
          mode == AccessMode::kDefine;
 }
 
+inline bool IsDefiningStore(AccessMode mode) {
+  return mode == AccessMode::kStoreInLiteral || mode == AccessMode::kDefine;
+}
+
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
@@ -198,6 +202,7 @@ HEAP_BROKER_OBJECT_LIST_BASE(BACKGROUND_SERIALIZED_REF_TRAITS,
 template <>
 struct ref_traits<Object> {
   using ref_type = ObjectRef;
+  using data_type = ObjectData;
   // Note: While a bit awkward, this artificial ref serialization kind value is
   // okay: smis are never-serialized, and we never create raw non-smi
   // ObjectRefs (they would at least be HeapObjectRefs instead).
@@ -205,8 +210,8 @@ struct ref_traits<Object> {
       RefSerializationKind::kNeverSerialized;
 };
 
-// For types used in ReadOnlyRoots, but which don't have a corresponding Ref
-// type, use HeapObjectRef.
+// For types which don't have a corresponding Ref type, use the next best
+// existing Ref.
 template <>
 struct ref_traits<Oddball> : public ref_traits<HeapObject> {};
 template <>
@@ -259,6 +264,40 @@ struct ref_traits<RegisteredSymbolTable> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<WasmNull> : public ref_traits<HeapObject> {};
 #endif  // V8_ENABLE_WEBASSEMBLY
+template <>
+struct ref_traits<Smi> : public ref_traits<Object> {};
+template <>
+struct ref_traits<Boolean> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<JSProxy> : public ref_traits<JSReceiver> {};
+template <>
+struct ref_traits<JSWrappedFunction> : public ref_traits<JSFunction> {};
+
+template <class... T>
+struct ref_traits<Union<T...>> {
+  // There's no good way in C++ to find a common base class, so just test a few
+  // common cases.
+  static constexpr bool kAllJSReceiverRef =
+      (std::is_base_of_v<JSReceiverRef, typename ref_traits<T>::ref_type> &&
+       ...);
+  static constexpr bool kAllHeapObjectRef =
+      (std::is_base_of_v<JSReceiverRef, typename ref_traits<T>::ref_type> &&
+       ...);
+
+  using ref_type = std::conditional_t<
+      kAllJSReceiverRef, JSReceiverRef,
+      std::conditional_t<kAllHeapObjectRef, HeapObjectRef, ObjectRef>>;
+  using data_type = std::conditional_t<
+      kAllJSReceiverRef, JSReceiverData,
+      std::conditional_t<kAllHeapObjectRef, HeapObjectData, ObjectData>>;
+
+  static constexpr RefSerializationKind ref_serialization_kind =
+      ((ref_traits<T>::ref_serialization_kind ==
+        RefSerializationKind::kNeverSerialized) &&
+       ...)
+          ? RefSerializationKind::kNeverSerialized
+          : RefSerializationKind::kBackgroundSerialized;
+};
 
 // Wrapper around heap refs which works roughly like a base::Optional, but
 // doesn't use extra storage for a boolean, but instead uses a null data pointer
@@ -973,7 +1012,8 @@ class BytecodeArrayRef : public HeapObjectRef {
   int length() const;
 
   int register_count() const;
-  int parameter_count() const;
+  uint16_t parameter_count() const;
+  uint16_t max_arguments() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 
   Handle<TrustedByteArray> SourcePositionTable(JSHeapBroker* broker) const;
@@ -1032,6 +1072,7 @@ class ScopeInfoRef : public HeapObjectRef {
   Handle<ScopeInfo> object() const;
 
   int ContextLength() const;
+  bool HasContext() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool ClassScopeHasPrivateBrand() const;
@@ -1221,8 +1262,7 @@ class InternalizedStringRef : public StringRef {
   static_assert(std::is_trivially_destructible_v<Name##Ref>);     \
   static_assert(std::is_trivially_destructible_v<OptionalName##Ref>);
 
-V(Object)
-HEAP_BROKER_OBJECT_LIST(V)
+V(Object) HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
 }  // namespace compiler

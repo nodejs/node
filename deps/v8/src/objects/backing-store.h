@@ -41,8 +41,6 @@ struct SharedWasmMemoryData;
 // regions, etc. Instances of this classes *own* the underlying memory
 // when they are created through one of the {Allocate()} methods below,
 // and the destructor frees the memory (and page allocation if necessary).
-// Backing stores can also *wrap* embedder-allocated memory. In this case,
-// they do not own the memory, and upon destruction, they do not deallocate it.
 class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  public:
   ~BackingStore();

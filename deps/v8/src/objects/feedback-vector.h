@@ -71,6 +71,7 @@ enum class FeedbackSlotKind : uint8_t {
   kLiteral,
   kForIn,
   kInstanceOf,
+  kTypeOf,
   kCloneObject,
   kJumpLoop,
 
@@ -206,12 +207,11 @@ class ClosureFeedbackCellArray
   using Shape = ClosureFeedbackCellArrayShape;
 
   V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared,
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
       AllocationType allocation = AllocationType::kYoung);
 
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
-  DECL_CAST(ClosureFeedbackCellArray)
 
   class BodyDescriptor;
 };
@@ -252,7 +252,7 @@ class FeedbackVector
   inline void clear_invocation_count(RelaxedStoreTag tag);
   using TorqueGeneratedFeedbackVector::invocation_count_before_stable;
   using TorqueGeneratedFeedbackVector::set_invocation_count_before_stable;
-  DECL_UINT8_ACCESSORS(invocation_count_before_stable)
+  DECL_RELAXED_UINT8_ACCESSORS(invocation_count_before_stable)
 
   // The [osr_urgency] controls when OSR is attempted, and is incremented as
   // the function becomes hotter. When the current loop depth is less than the
@@ -306,8 +306,8 @@ class FeedbackVector
   void set_tiering_state(TieringState state);
   void reset_tiering_state();
 
-  TieringState osr_tiering_state();
-  void set_osr_tiering_state(TieringState marker);
+  bool osr_tiering_in_progress();
+  void set_osr_tiering_in_progress(bool osr_in_progress);
 
   inline bool interrupt_budget_reset_by_ic_change() const;
   inline void set_interrupt_budget_reset_by_ic_change(bool value);
@@ -343,9 +343,9 @@ class FeedbackVector
                                              AcquireLoadTag tag) const;
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared,
-      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
-      Handle<FeedbackCell> parent_feedback_cell,
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
+      DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+      DirectHandle<FeedbackCell> parent_feedback_cell,
       IsCompiledScope* is_compiled_scope);
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> NewForTesting(
@@ -426,8 +426,8 @@ class FeedbackVector
  private:
   bool ClearSlots(Isolate* isolate, ClearBehavior behavior);
 
-  static void AddToVectorsForProfilingTools(Isolate* isolate,
-                                            Handle<FeedbackVector> vector);
+  static void AddToVectorsForProfilingTools(
+      Isolate* isolate, DirectHandle<FeedbackVector> vector);
 
   // Private for initializing stores in FeedbackVector::New().
   inline void Set(FeedbackSlot slot, Tagged<MaybeObject> value,
@@ -536,6 +536,8 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(FeedbackSlotKind::kInstanceOf);
   }
 
+  FeedbackSlot AddTypeOfSlot() { return AddSlot(FeedbackSlotKind::kTypeOf); }
+
   FeedbackSlot AddLiteralSlot() { return AddSlot(FeedbackSlotKind::kLiteral); }
 
   FeedbackSlot AddDefineKeyedOwnPropertyInLiteralICSlot() {
@@ -594,8 +596,6 @@ class SharedFeedbackSlot {
 // the number of slots is static once an instance is created.
 class FeedbackMetadata : public HeapObject {
  public:
-  DECL_CAST(FeedbackMetadata)
-
   // The number of slots that this metadata contains. Stored as an int32.
   DECL_INT32_ACCESSORS(slot_count)
 
@@ -827,7 +827,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   int ExtractMapsAndHandlers(
       std::vector<MapAndHandler>* maps_and_handlers,
       TryUpdateHandler map_handler = TryUpdateHandler()) const;
-  MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
+  MaybeObjectHandle FindHandlerForMap(DirectHandle<Map> map) const;
   // Used to obtain maps and the associated feedback stored in the feedback
   // vector. The returned feedback need not be always a handler. It could be a
   // name in the case of StoreDataInPropertyLiteral. This is used by TurboFan to
@@ -855,7 +855,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   inline Isolate* GetIsolate() const;
 
-  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
+  void ConfigureMonomorphic(Handle<Name> name, DirectHandle<Map> receiver_map,
                             const MaybeObjectHandle& handler);
 
   void ConfigurePolymorphic(
@@ -866,6 +866,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
+  TypeOfFeedback::Result GetTypeOfFeedback() const;
   ForInHint GetForInFeedback() const;
 
   // For KeyedLoad ICs.
@@ -896,7 +897,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   MaybeHandle<JSObject> GetConstructorFeedback() const;
 
   // For Global Load and Store ICs.
-  void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
+  void ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell);
   // Returns false if given combination of indices is not allowed.
   bool ConfigureLexicalVarMode(int script_context_index, int context_slot_index,
                                bool immutable);

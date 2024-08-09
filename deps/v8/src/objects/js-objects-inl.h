@@ -15,6 +15,8 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/keys.h"
@@ -39,6 +41,7 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSReceiver)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObjectWithEmbedderSlots)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSAPIObjectWithEmbedderSlots)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSCustomElementsObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSpecialObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator)
@@ -52,8 +55,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSValidIteratorWrapper)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
-
-CAST_ACCESSOR(JSIteratorResult)
 
 DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
@@ -133,7 +134,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
 bool JSObject::PrototypeHasNoElements(Isolate* isolate,
                                       Tagged<JSObject> object) {
   DisallowGarbageCollection no_gc;
-  Tagged<HeapObject> prototype = HeapObject::cast(object->map()->prototype());
+  Tagged<HeapObject> prototype = Cast<HeapObject>(object->map()->prototype());
   ReadOnlyRoots roots(isolate);
   Tagged<HeapObject> null = roots.null_value();
   Tagged<FixedArrayBase> empty_fixed_array = roots.empty_fixed_array();
@@ -142,12 +143,12 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate,
   while (prototype != null) {
     Tagged<Map> map = prototype->map();
     if (IsCustomElementsReceiverMap(map)) return false;
-    Tagged<FixedArrayBase> elements = JSObject::cast(prototype)->elements();
+    Tagged<FixedArrayBase> elements = Cast<JSObject>(prototype)->elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
       return false;
     }
-    prototype = HeapObject::cast(map->prototype());
+    prototype = Cast<HeapObject>(map->prototype());
   }
   return true;
 }
@@ -223,8 +224,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
     if (mode == ALLOW_COPIED_DOUBLE_ELEMENTS) {
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
-    ObjectSlot objects =
-        Handle<FixedArray>::cast(elements)->RawFieldOfFirstElement();
+    ObjectSlot objects = Cast<FixedArray>(elements)->RawFieldOfFirstElement();
     EnsureCanContainElements(object, objects, length, mode);
     return;
   }
@@ -233,8 +233,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   if (object->GetElementsKind() == HOLEY_SMI_ELEMENTS) {
     TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
   } else if (object->GetElementsKind() == PACKED_SMI_ELEMENTS) {
-    Handle<FixedDoubleArray> double_array =
-        Handle<FixedDoubleArray>::cast(elements);
+    auto double_array = Cast<FixedDoubleArray>(elements);
     for (uint32_t i = 0; i < length; ++i) {
       if (double_array->is_the_hole(i)) {
         TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
@@ -245,8 +244,9 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
   }
 }
 
-void JSObject::SetMapAndElements(Handle<JSObject> object, Handle<Map> new_map,
-                                 Handle<FixedArrayBase> value) {
+void JSObject::SetMapAndElements(DirectHandle<JSObject> object,
+                                 Handle<Map> new_map,
+                                 DirectHandle<FixedArrayBase> value) {
   Isolate* isolate = object->GetIsolate();
   JSObject::MigrateToMap(isolate, object, new_map);
   DCHECK((object->map()->has_fast_smi_or_object_elements() ||
@@ -298,9 +298,10 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 bool JSObject::MayHaveEmbedderFields(Tagged<Map> map) {
   InstanceType instance_type = map->instance_type();
   // TODO(v8) It'd be nice if all objects with embedder data slots inherited
-  // from JSObjectWithEmbedderSlots, but this is currently not possible due to
-  // instance_type constraints.
+  // from JSObjectJSAPIObjectWithEmbedderSlotsWithEmbedderSlots, but this is
+  // currently not possible due to instance_type constraints.
   return InstanceTypeChecker::IsJSObjectWithEmbedderSlots(instance_type) ||
+         InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(instance_type) ||
          InstanceTypeChecker::IsJSSpecialObject(instance_type);
 }
 
@@ -359,15 +360,15 @@ bool JSObject::IsDroppableApiObject() const {
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Tagged<Object> JSObject::RawFastPropertyAt(FieldIndex index) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return RawFastPropertyAt(cage_base, index);
 }
 
-Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
-                                           FieldIndex index) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
+                                          FieldIndex index) const {
   if (index.is_inobject()) {
-    return TaggedField<Object>::Relaxed_Load(cage_base, *this, index.offset());
+    return TaggedField<JSAny>::Relaxed_Load(cage_base, *this, index.offset());
   } else {
     return property_array(cage_base)->get(cage_base,
                                           index.outobject_array_index());
@@ -376,17 +377,17 @@ Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
 
 // The SeqCst versions of RawFastPropertyAt are used for atomically accessing
 // shared struct fields.
-Tagged<Object> JSObject::RawFastPropertyAt(FieldIndex index,
-                                           SeqCstAccessTag tag) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index,
+                                          SeqCstAccessTag tag) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return RawFastPropertyAt(cage_base, index, tag);
 }
 
-Tagged<Object> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
-                                           FieldIndex index,
-                                           SeqCstAccessTag tag) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
+                                          FieldIndex index,
+                                          SeqCstAccessTag tag) const {
   if (index.is_inobject()) {
-    return TaggedField<Object>::SeqCst_Load(cage_base, *this, index.offset());
+    return TaggedField<JSAny>::SeqCst_Load(cage_base, *this, index.offset());
   } else {
     return property_array(cage_base)->get(cage_base,
                                           index.outobject_array_index(), tag);
@@ -485,9 +486,9 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
       bits = kHoleNanInt64;
     } else {
       DCHECK(IsHeapNumber(value));
-      bits = HeapNumber::cast(value)->value_as_bits();
+      bits = Cast<HeapNumber>(value)->value_as_bits();
     }
-    auto box = HeapNumber::cast(RawFastPropertyAt(index));
+    auto box = Cast<HeapNumber>(RawFastPropertyAt(index));
     box->set_value_as_bits(bits);
   } else {
     FastPropertyAtPut(index, value);
@@ -617,13 +618,53 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
 
+JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
+  DCHECK(IsJSApiWrapperObject(object));
+}
+
+template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
+void* JSApiWrapper::GetCppHeapWrappable(
+    IsolateForPointerCompression isolate) const {
+  return reinterpret_cast<void*>(
+      object_->ReadCppHeapPointerField<lower_bound, upper_bound>(
+          kCppHeapWrappableOffset, isolate));
+}
+
+void* JSApiWrapper::GetCppHeapWrappable(
+    IsolateForPointerCompression isolate,
+    CppHeapPointerTagRange tag_range) const {
+  return reinterpret_cast<void*>(object_->ReadCppHeapPointerField(
+      kCppHeapWrappableOffset, isolate, tag_range));
+}
+
+template <CppHeapPointerTag tag>
+void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
+                                       void* instance) {
+  object_->WriteLazilyInitializedCppHeapPointerField<tag>(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
+      reinterpret_cast<Address>(instance));
+  if (instance) {
+    WriteBarrier::CombinedBarrierForCppHeapPointer(object_, instance);
+  }
+}
+
+void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
+                                       void* instance, CppHeapPointerTag tag) {
+  object_->WriteLazilyInitializedCppHeapPointerField(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
+      reinterpret_cast<Address>(instance), tag);
+  if (instance) {
+    WriteBarrier::CombinedBarrierForCppHeapPointer(object_, instance);
+  }
+}
+
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();
 }
 
 // static
 void JSMessageObject::EnsureSourcePositionsAvailable(
-    Isolate* isolate, Handle<JSMessageObject> message) {
+    Isolate* isolate, DirectHandle<JSMessageObject> message) {
   if (message->DidEnsureSourcePositionsAvailable()) {
     DCHECK(message->script()->has_line_ends());
   } else {
@@ -661,7 +702,7 @@ SMI_ACCESSORS(JSMessageObject, raw_type, kMessageTypeOffset)
 DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   ElementsKind kind = map(cage_base)->elements_kind();
 #if VERIFY_HEAP && DEBUG
-  Tagged<FixedArrayBase> fixed_array = FixedArrayBase::unchecked_cast(
+  Tagged<FixedArrayBase> fixed_array = UncheckedCast<FixedArrayBase>(
       TaggedField<HeapObject, kElementsOffset>::load(cage_base, *this));
 
   // If a GC was caused while constructing this object, the elements
@@ -798,7 +839,7 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
 DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
   DCHECK(HasDictionaryElements(cage_base) ||
          HasSlowStringWrapperElements(cage_base));
-  return NumberDictionary::cast(elements(cage_base));
+  return Cast<NumberDictionary>(elements(cage_base));
 }
 
 void JSReceiver::initialize_properties(Isolate* isolate) {
@@ -839,7 +880,7 @@ DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
   if (IsSmi(prop)) {
     return GetReadOnlyRoots(cage_base).empty_property_dictionary();
   }
-  return NameDictionary::cast(prop);
+  return Cast<NameDictionary>(prop);
 }
 
 DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
@@ -851,7 +892,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
   if (IsSmi(prop)) {
     return GetReadOnlyRoots(cage_base).empty_swiss_property_dictionary();
   }
-  return SwissNameDictionary::cast(prop);
+  return Cast<SwissNameDictionary>(prop);
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access
@@ -862,7 +903,7 @@ DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   if (IsSmi(prop) || prop == GetReadOnlyRoots(cage_base).empty_fixed_array()) {
     return GetReadOnlyRoots(cage_base).empty_property_array();
   }
-  return PropertyArray::cast(prop);
+  return Cast<PropertyArray>(prop);
 }
 
 base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
@@ -872,7 +913,7 @@ base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
   Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
   if (IsNull(maybe_native_context)) return {};
   DCHECK(IsNativeContext(maybe_native_context));
-  return NativeContext::cast(maybe_native_context);
+  return Cast<NativeContext>(maybe_native_context);
 }
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext(Isolate* isolate) {

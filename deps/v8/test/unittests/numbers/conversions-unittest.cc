@@ -402,15 +402,16 @@ TEST_F(ConversionsTest, NoHandlesForTryNumberToSize) {
   result = 0;
   {
     HandleScope scope(i_isolate());
-    Handle<HeapNumber> heap_number1 =
+    DirectHandle<HeapNumber> heap_number1 =
         i_isolate()->factory()->NewHeapNumber(2.0);
     {
       SealHandleScope no_handles(i_isolate());
       CHECK(TryNumberToSize(*heap_number1, &result));
       CHECK_EQ(result, 2u);
     }
-    Handle<HeapNumber> heap_number2 = i_isolate()->factory()->NewHeapNumber(
-        static_cast<double>(std::numeric_limits<size_t>::max()) + 10000.0);
+    DirectHandle<HeapNumber> heap_number2 =
+        i_isolate()->factory()->NewHeapNumber(
+            static_cast<double>(std::numeric_limits<size_t>::max()) + 10000.0);
     {
       SealHandleScope no_handles(i_isolate());
       CHECK(!TryNumberToSize(*heap_number2, &result));
@@ -424,7 +425,7 @@ TEST_F(ConversionsTest, TryNumberToSizeWithMaxSizePlusOne) {
     // 1 << 64, larger than the limit of size_t.
     double value = 18446744073709551616.0;
     size_t result = 0;
-    Handle<HeapNumber> heap_number =
+    DirectHandle<HeapNumber> heap_number =
         i_isolate()->factory()->NewHeapNumber(value);
     CHECK(!TryNumberToSize(*heap_number, &result));
   }

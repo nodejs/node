@@ -26,9 +26,12 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
 
   // In case a StackOverflow occurs, a StackOverflowException is created and
   // EXCEPTION is returned.
-  static Result MatchForCallFromRuntime(
-      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject_string,
-      int* output_registers, int output_register_count, int start_position);
+  static Result MatchForCallFromRuntime(Isolate* isolate,
+                                        DirectHandle<JSRegExp> regexp,
+                                        DirectHandle<String> subject_string,
+                                        int* output_registers,
+                                        int output_register_count,
+                                        int start_position);
 
   // In case a StackOverflow occurs, EXCEPTION is returned. The caller is
   // responsible for creating the exception.

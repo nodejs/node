@@ -141,7 +141,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   }
   virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const { return this; }
-  std::string GetConstexprGeneratedTypeName() const;
+  virtual std::string GetConstexprGeneratedTypeName() const;
   base::Optional<const ClassType*> ClassSupertype() const;
   base::Optional<const StructType*> StructSupertype() const;
   base::Optional<const AggregateType*> AggregateSupertype() const;
@@ -396,10 +396,9 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
     return "TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;
-  std::string GetRuntimeType() const override {
-    return parent()->GetRuntimeType();
-  }
-  std::string GetDebugType() const override { return parent()->GetDebugType(); }
+  std::string GetRuntimeType() const override;
+  std::string GetDebugType() const override;
+  std::string GetConstexprGeneratedTypeName() const override;
 
   friend size_t hash_value(const UnionType& p) {
     size_t result = 0;
@@ -487,6 +486,9 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
   explicit UnionType(const Type* t) : Type(Kind::kUnionType, t), types_({t}) {}
   void RecomputeParent();
   std::string SimpleNameImpl() const override;
+
+  static void InsertConstexprGeneratedTypeName(std::set<std::string>& names,
+                                               const Type* t);
 
   std::set<const Type*, TypeLess> types_;
 };

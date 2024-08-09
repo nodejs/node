@@ -10,6 +10,7 @@
 #include "src/base/platform/memory.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-assembler-inl.h"
@@ -345,12 +346,16 @@ int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {
          kSystemPointerSize;
 }
 
+int LiftoffAssembler::OolSpillCount() const {
+  return ool_spill_space_size_ / kSystemPointerSize;
+}
+
 namespace {
 
 AssemblerOptions DefaultLiftoffOptions() {
-  AssemblerOptions options = AssemblerOptions{};
-  options.is_wasm = true;
-  return options;
+  return AssemblerOptions{
+      .is_wasm = true,
+  };
 }
 
 }  // namespace
@@ -395,28 +400,6 @@ LiftoffRegister LiftoffAssembler::LoadI64HalfIntoRegister(VarState slot,
   return dst;
 }
 
-LiftoffRegister LiftoffAssembler::PeekToRegister(int index,
-                                                 LiftoffRegList pinned) {
-  DCHECK_LT(index, cache_state_.stack_state.size());
-  VarState& slot = cache_state_.stack_state.end()[-1 - index];
-  if (V8_LIKELY(slot.is_reg())) return slot.reg();
-  LiftoffRegister reg = LoadToRegister(slot, pinned);
-  cache_state_.inc_used(reg);
-  slot.MakeRegister(reg);
-  return reg;
-}
-
-void LiftoffAssembler::DropValues(int count) {
-  DCHECK_GE(cache_state_.stack_state.size(), count);
-  for (VarState& slot :
-       base::VectorOf(cache_state_.stack_state.end() - count, count)) {
-    if (slot.is_reg()) {
-      cache_state_.dec_used(slot.reg());
-    }
-  }
-  cache_state_.stack_state.pop_back(count);
-}
-
 void LiftoffAssembler::DropExceptionValueAtOffset(int offset) {
   auto* dropped = cache_state_.stack_state.begin() + offset;
   if (dropped->is_reg()) {
@@ -430,12 +413,13 @@ void LiftoffAssembler::DropExceptionValueAtOffset(int offset) {
        slot != end; ++slot) {
     *slot = *(slot + 1);
     stack_offset = NextSpillOffset(slot->kind(), stack_offset);
-    // Padding could allow us to exit early.
-    if (slot->offset() == stack_offset) break;
-    if (slot->is_stack()) {
-      MoveStackValue(stack_offset, slot->offset(), slot->kind());
+    // Padding could cause some spill offsets to remain the same.
+    if (slot->offset() != stack_offset) {
+      if (slot->is_stack()) {
+        MoveStackValue(stack_offset, slot->offset(), slot->kind());
+      }
+      slot->set_offset(stack_offset);
     }
-    slot->set_offset(stack_offset);
   }
   cache_state_.stack_state.pop_back();
 }
@@ -652,17 +636,14 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
           ObjectAccess::ToTagged(WasmTrustedInstanceData::kMemory0StartOffset),
           sizeof(size_t));
     } else {
-      LoadTaggedPointerFromInstance(
+      LoadProtectedPointer(
           target.cached_mem_start, instance_data,
           ObjectAccess::ToTagged(
-              WasmTrustedInstanceData::kMemoryBasesAndSizesOffset));
+              WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset));
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * target.cached_mem_index * 2;
       LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
                       buffer_offset);
-#ifdef V8_ENABLE_SANDBOX
-      DecodeSandboxedPointer(target.cached_mem_start);
-#endif
     }
   }
 }
@@ -890,6 +871,15 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   }
 }
 
+namespace {
+constexpr LiftoffRegList AllReturnRegs() {
+  LiftoffRegList result;
+  for (Register r : kGpReturnRegisters) result.set(r);
+  for (DoubleRegister r : kFpReturnRegisters) result.set(r);
+  return result;
+}
+}  // namespace
+
 void LiftoffAssembler::FinishCall(const ValueKindSig* sig,
                                   compiler::CallDescriptor* call_descriptor) {
   int call_desc_return_idx = 0;
@@ -902,7 +892,9 @@ void LiftoffAssembler::FinishCall(const ValueKindSig* sig,
     // Initialize to anything, will be set in the loop and used afterwards.
     LiftoffRegister reg_pair[2] = {kGpCacheRegList.GetFirstRegSet(),
                                    kGpCacheRegList.GetFirstRegSet()};
-    LiftoffRegList pinned;
+    // Make sure not to clobber results in registers (which might not be the
+    // first values to be processed) prematurely.
+    LiftoffRegList pinned = AllReturnRegs();
     for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
       LinkageLocation loc =
           call_descriptor->GetReturnLocation(call_desc_return_idx++);
@@ -1213,14 +1205,14 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, VarState slot) {
+std::ostream& operator<<(std::ostream& os, LiftoffVarState slot) {
   os << name(slot.kind()) << ":";
   switch (slot.loc()) {
-    case VarState::kStack:
+    case LiftoffVarState::kStack:
       return os << "s0x" << std::hex << slot.offset() << std::dec;
-    case VarState::kRegister:
+    case LiftoffVarState::kRegister:
       return os << slot.reg();
-    case VarState::kIntConst:
+    case LiftoffVarState::kIntConst:
       return os << "c" << slot.i32_const();
   }
   UNREACHABLE();

@@ -68,6 +68,15 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstanceData(
                           kHeapObjectTag)));
 }
 
+TNode<WasmTrustedInstanceData>
+WasmBuiltinsAssembler::LoadSharedPartFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return CAST(LoadProtectedPointerFromObject(
+      trusted_data,
+      IntPtrConstant(WasmTrustedInstanceData::kProtectedSharedPartOffset -
+                     kHeapObjectTag)));
+}
+
 TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstanceData(
     TNode<WasmTrustedInstanceData> trusted_data) {
   return LoadObjectField<FixedArray>(trusted_data,
@@ -100,6 +109,20 @@ TNode<Float64T> WasmBuiltinsAssembler::StringToFloat64(TNode<String> input) {
       CallRuntime(Runtime::kStringParseFloat, NoContextConstant(), input);
   return ChangeNumberToFloat64(CAST(result));
 #endif
+}
+
+TNode<Smi> WasmBuiltinsAssembler::SignatureCheckFail(
+    TNode<WasmInternalFunction> internal_function,
+    TNode<UintPtrT> expected_hash) {
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::wasm_signature_check_fail());
+  // The C-side return type is "void", but "None()" isn't supported here.
+  // Since we ignore the result anyway, it doesn't matter to pretend there's
+  // a pointer in the return register.
+  CallCFunction(function, MachineType::Pointer(),
+                std::make_pair(MachineType::AnyTagged(), internal_function),
+                std::make_pair(MachineType::UintPtr(), expected_hash));
+  return SmiConstant(0);
 }
 
 TF_BUILTIN(WasmFloat32ToNumber, WasmBuiltinsAssembler) {
