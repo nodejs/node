@@ -305,6 +305,14 @@ function nextdir() {
   );
 }
 
+// It allows copying a directory into another directory, with the destination
+// directory name prefixed by the source directory name.
+{
+  const dir = nextdir();
+  mkdirSync(join(dir, 'foo'), { recursive: true });
+  cpSync(join(dir, 'foo'), join(dir, 'foobar'), { recursive: true });
+}
+
 // It throws an error if attempt is made to copy socket.
 if (!isWindows) {
   const src = nextdir();
