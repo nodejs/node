@@ -48,6 +48,14 @@
 /* NGHTTP3_QPACK_MAX_VALUELEN is the maximum (compressed) length of
    header value this library can decode. */
 #define NGHTTP3_QPACK_MAX_VALUELEN 65536
+/* NGHTTP3_QPACK_MAX_ENCODERLEN is the maximum encoder stream length
+   that a decoder accepts without completely processing a single field
+   section. */
+#define NGHTTP3_QPACK_MAX_ENCODERLEN (128 * 1024)
+/* NGHTTP3_QPACK_MAX_DECODERLEN is the maximum decoder stream length
+   that an encoder accepts without completely encoding a single field
+   section. */
+#define NGHTTP3_QPACK_MAX_DECODERLEN (4 * 1024)
 
 /* nghttp3_qpack_indexing_mode is a indexing strategy. */
 typedef enum nghttp3_qpack_indexing_mode {
@@ -250,6 +258,9 @@ struct nghttp3_qpack_encoder {
   /* last_max_dtable_update is the dynamic table size last
      requested. */
   size_t last_max_dtable_update;
+  /* uninterrupted_decoderlen is the number of bytes read from decoder
+     stream without encoding a single field section. */
+  size_t uninterrupted_decoderlen;
   /* flags is bitwise OR of zero or more of
      NGHTTP3_QPACK_ENCODER_FLAG_*. */
   uint8_t flags;
@@ -779,6 +790,9 @@ struct nghttp3_qpack_decoder {
      unidirectional streams which potentially receives QPACK encoded
      HEADER frame. */
   size_t max_concurrent_streams;
+  /* uninterrupted_encoderlen is the number of bytes read from encoder
+     stream without completing a single field section. */
+  size_t uninterrupted_encoderlen;
 };
 
 /*
@@ -880,19 +894,19 @@ int nghttp3_qpack_decoder_dtable_duplicate_add(nghttp3_qpack_decoder *decoder);
 int nghttp3_qpack_decoder_dtable_literal_add(nghttp3_qpack_decoder *decoder);
 
 struct nghttp3_qpack_stream_context {
-  /* state is a current state of reading request stream. */
-  nghttp3_qpack_request_stream_state state;
   /* rstate is a set of intermediate state which are used to process
      request stream. */
   nghttp3_qpack_read_state rstate;
   const nghttp3_mem *mem;
-  /* opcode is a request stream opcode being processed. */
-  nghttp3_qpack_request_stream_opcode opcode;
   int64_t stream_id;
   /* ricnt is Required Insert Count to decode this header block. */
   uint64_t ricnt;
   /* base is Base in Header Block Prefix. */
   uint64_t base;
+  /* state is a current state of reading request stream. */
+  nghttp3_qpack_request_stream_state state;
+  /* opcode is a request stream opcode being processed. */
+  nghttp3_qpack_request_stream_opcode opcode;
   /* dbase_sign is the delta base sign in Header Block Prefix. */
   int dbase_sign;
 };

@@ -71,7 +71,7 @@ int nghttp3_pq_push(nghttp3_pq *pq, nghttp3_pq_entry *item) {
     void *nq;
     size_t ncapacity;
 
-    ncapacity = nghttp3_max(4, (pq->capacity * 2));
+    ncapacity = nghttp3_max_size(4, (pq->capacity * 2));
 
     nq = nghttp3_mem_realloc(pq->mem, pq->q,
                              ncapacity * sizeof(nghttp3_pq_entry *));
