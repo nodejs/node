@@ -139,6 +139,7 @@ class ExternalReferenceRegistry {
   V(buffer)                                                                    \
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
+  V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(encoding_binding)                                                          \
