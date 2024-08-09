@@ -17,6 +17,14 @@ describe('Mock Timers Test Suite', () => {
       });
     });
 
+    it('should throw an error if data type of trying to enable a timer is not string', (t) => {
+      assert.throws(() => {
+        t.mock.timers.enable({ apis: [1] });
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+      });
+    });
+
     it('should throw an error if trying to enable a timer twice', (t) => {
       t.mock.timers.enable();
       assert.throws(() => {
