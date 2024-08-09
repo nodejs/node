@@ -130,6 +130,7 @@ class EnvironmentOptions : public Options {
   bool experimental_global_web_crypto = true;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
+  bool full_assert_diff = false;
   std::string input_type;  // Value of --input-type
   std::string type;        // Value of --experimental-default-type
   bool experimental_permission = false;
