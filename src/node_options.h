@@ -239,6 +239,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool experimental_strip_types = false;
+  bool experimental_enable_transformation = false;
 
   std::vector<std::string> user_argv;
 
