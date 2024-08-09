@@ -27,8 +27,8 @@ AsyncResource::AsyncResource(Isolate* isolate,
 
 AsyncResource::~AsyncResource() {
   CHECK_NOT_NULL(env_);
-  env_->RemoveAsyncResourceContextFrame(reinterpret_cast<std::uintptr_t>(this));
   EmitAsyncDestroy(env_, async_context_);
+  env_->RemoveAsyncResourceContextFrame(reinterpret_cast<std::uintptr_t>(this));
 }
 
 MaybeLocal<Value> AsyncResource::MakeCallback(Local<Function> callback,
