@@ -122,9 +122,9 @@ namespace {
 class BufferFinalizer : private Finalizer {
  public:
   static BufferFinalizer* New(napi_env env,
-                              napi_finalize finalize_callback = nullptr,
-                              void* finalize_data = nullptr,
-                              void* finalize_hint = nullptr) {
+                              napi_finalize finalize_callback,
+                              void* finalize_data,
+                              void* finalize_hint) {
     return new BufferFinalizer(
         env, finalize_callback, finalize_data, finalize_hint);
   }
@@ -132,13 +132,8 @@ class BufferFinalizer : private Finalizer {
   static void FinalizeBufferCallback(char* data, void* hint) {
     std::unique_ptr<BufferFinalizer, Deleter> finalizer{
         static_cast<BufferFinalizer*>(hint)};
-    finalizer->finalize_data_ = data;
-
     // It is safe to call into JavaScript at this point.
-    if (finalizer->finalize_callback_ == nullptr) return;
-    finalizer->env_->CallFinalizer(finalizer->finalize_callback_,
-                                   finalizer->finalize_data_,
-                                   finalizer->finalize_hint_);
+    finalizer->CallFinalizer();
   }
 
   struct Deleter {
@@ -151,10 +146,10 @@ class BufferFinalizer : private Finalizer {
                   void* finalize_data,
                   void* finalize_hint)
       : Finalizer(env, finalize_callback, finalize_data, finalize_hint) {
-    env_->Ref();
+    env->Ref();
   }
 
-  ~BufferFinalizer() { env_->Unref(); }
+  ~BufferFinalizer() { env()->Unref(); }
 };
 
 void ThrowNodeApiVersionError(node::Environment* node_env,
@@ -1064,7 +1059,7 @@ napi_create_external_buffer(napi_env env,
 
   // The finalizer object will delete itself after invoking the callback.
   v8impl::BufferFinalizer* finalizer =
-      v8impl::BufferFinalizer::New(env, finalize_cb, nullptr, finalize_hint);
+      v8impl::BufferFinalizer::New(env, finalize_cb, data, finalize_hint);
 
   v8::MaybeLocal<v8::Object> maybe =
       node::Buffer::New(isolate,
