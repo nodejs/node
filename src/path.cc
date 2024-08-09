@@ -169,10 +169,17 @@ std::string PathResolve(Environment* env,
             while (j < len && !IsPathSeparator(path[j])) {
               j++;
             }
-            if (j == len || j != last) {
-              // We matched a UNC root
-              device = "\\\\" + firstPart + "\\" + path.substr(last, j - last);
-              rootEnd = j;
+            if ((j == len || j != last)) {
+              if (firstPart != "." && firstPart != "?") {
+                // We matched a UNC root
+                device =
+                    "\\\\" + firstPart + "\\" + path.substr(last, j - last);
+                rootEnd = j;
+              } else {
+                // We matched a device root (e.g. \\\\.\\PHYSICALDRIVE0)
+                device = "\\\\" + firstPart;
+                rootEnd = 4;
+              }
             }
           }
         }
