@@ -94,6 +94,7 @@ class Session : public BaseObject {
   ~Session() override;
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
   static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
@@ -105,6 +106,7 @@ class Session : public BaseObject {
   SET_SELF_SIZE(Session)
 
  private:
+  void Delete();
   sqlite3_session* session_;
   BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
 };

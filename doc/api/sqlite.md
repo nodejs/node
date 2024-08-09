@@ -206,15 +206,20 @@ database2.applyChangeset(changeset);
 * Returns: {Uint8Array} Binary changeset that can be applied to other databases.
 
 Retrieves a changeset containing all changes since the changeset was created. Can be called multiple times.
-An exception is thrown if the database is not open. This method is a wrapper around [`sqlite3session_changeset()`][].
+An exception is thrown if the database or the session is not open. This method is a wrapper around [`sqlite3session_changeset()`][].
 
 ### `session.patchset()`
 
 * Returns: {Uint8Array} Binary patchset that can be applied to other databases.
 
 Similar to the method above, but generates a more compact patchset. See [Changesets and Patchsets][]
-in the documentation of SQLite.An exception is thrown if the database is not open. This method is a
+in the documentation of SQLite. An exception is thrown if the database or the session is not open. This method is a
 wrapper around [`sqlite3session_patchset()`][].
+
+### `session.close()`.
+
+Closes the session. An exception is thrown if the database or the session is not open.  This method is a
+wrapper around [`sqlite3session_delete()`][].
 
 ## Class: `StatementSync`
 
@@ -391,6 +396,7 @@ exception.
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
 [`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
+[`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html

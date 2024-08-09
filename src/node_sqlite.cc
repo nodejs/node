@@ -848,9 +848,7 @@ Session::Session(Environment* env,
 }
 
 Session::~Session() {
-  if (!database_ || !database_->connection_) return;
-  sqlite3session_delete(session_);
-  database_->sessions_.erase(session_);
+  Delete();
 }
 
 BaseObjectPtr<Session> Session::Create(Environment* env,
@@ -881,6 +879,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
                    Session::Changeset<sqlite3session_changeset>);
     SetProtoMethod(
         isolate, tmpl, "patchset", Session::Changeset<sqlite3session_patchset>);
+    SetProtoMethod(isolate, tmpl, "close", Session::Close);
     env->set_sqlite_session_constructor_template(tmpl);
   }
   return tmpl;
@@ -895,6 +894,7 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   sqlite3* db = session->database_ ? session->database_->connection_ : nullptr;
   THROW_AND_RETURN_ON_BAD_STATE(env, db == nullptr, "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(env, session->session_ == nullptr, "session is not open");
 
   int nChangeset;
   void* pChangeset;
@@ -908,6 +908,24 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   Local<Uint8Array> uint8Array = Uint8Array::New(buffer, 0, nChangeset);
 
   args.GetReturnValue().Set(uint8Array);
+}
+
+void Session::Close(const FunctionCallbackInfo<Value>& args) {
+  Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  sqlite3* db = session->database_ ? session->database_->connection_ : nullptr;
+  THROW_AND_RETURN_ON_BAD_STATE(env, db == nullptr, "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(env, session->session_ == nullptr, "session is not open");
+
+  session->Delete();
+}
+
+void Session::Delete() {
+  if (!database_ || !database_->connection_ || session_ == nullptr) return;
+  sqlite3session_delete(session_);
+  database_->sessions_.erase(session_);
+  session_ = nullptr;
 }
 
 static void Initialize(Local<Object> target,

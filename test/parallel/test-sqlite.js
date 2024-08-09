@@ -1062,4 +1062,53 @@ suite('session extension', () => {
       session.patchset().length < session.changeset().length,
       'expected patchset to be smaller than changeset');
   });
+
+  test('session.close() - using session after close throws exception', (t) => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+
+    database.exec("INSERT INTO data VALUES ('1', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')");
+
+    const session = database.createSession();
+    database.exec("UPDATE data SET value = 'hi' WHERE key = 1");
+    session.close();
+
+    database.exec("UPDATE data SET value = 'world' WHERE key = 1");
+    t.assert.throws(() => {
+      session.changeset();
+    }, {
+      name: 'Error',
+      message: 'session is not open'
+    });
+  });
+
+  test('session.close() - after closing database throws exception', (t) => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+
+    database.exec("INSERT INTO data VALUES ('1', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.')");
+
+    const session = database.createSession();
+    database.close();
+
+    t.assert.throws(() => {
+      session.close();
+    }, {
+      name: 'Error',
+      message: 'database is not open'
+    });
+  });
+
+  test('session.close() - closing twice', (t) => {
+    const database = new DatabaseSync(':memory:');
+    const session = database.createSession();
+    session.close();
+
+    t.assert.throws(() => {
+      session.close();
+    }, {
+      name: 'Error',
+      message: 'session is not open'
+    });
+  });
 });
