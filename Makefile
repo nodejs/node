@@ -1529,8 +1529,8 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.4.5 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.4.5
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.5.2 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.5.2
 
 .PHONY: lint-py
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
