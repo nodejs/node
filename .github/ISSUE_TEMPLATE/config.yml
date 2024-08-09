@@ -6,3 +6,6 @@ contact_links:
   - name: 🌐 Found a problem with nodejs.org beyond the API reference docs?
     url: https://github.com/nodejs/nodejs.org/issues/new/choose
     about: Please file an issue in the Node.js website repo.
+  - name: 🛠️ Before submitting an issue, please check the support document
+    url: https://github.com/nodejs/node/blob/HEAD/.github/SUPPORT.md
+    about: Please view the support document before asking a question
