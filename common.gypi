@@ -399,6 +399,7 @@
       }],
       ['ubsan == 1 and OS != "mac" and OS != "zos"', {
         'cflags+': [
+          '-g', # better stack traces to use with no-omit-frame-pointer
           '-fno-omit-frame-pointer',
           '-fsanitize=undefined',
         ],
@@ -409,6 +410,7 @@
       ['ubsan == 1 and OS == "mac"', {
         'xcode_settings': {
           'OTHER_CFLAGS+': [
+            '-g', # better stack traces to use with no-omit-frame-pointer
             '-fno-omit-frame-pointer',
             '-fsanitize=undefined',
             '-DUNDEFINED_SANITIZER'
