@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "src/base/abort-mode.h"
 #include "src/base/base-export.h"
