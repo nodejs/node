@@ -1008,24 +1008,23 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
-  uv_fs_t req;
-  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-  FS_SYNC_TRACE_BEGIN(access);
-  int err = uv_fs_access(nullptr, &req, path.out(), 0, nullptr);
-  FS_SYNC_TRACE_END(access);
+  std::error_code error{};
+  auto file_path = std::filesystem::path(path.ToStringView());
+  bool exists = false;
 
 #ifdef _WIN32
-  // In case of an invalid symlink, `uv_fs_access` on win32
-  // will **not** return an error and is therefore not enough.
-  // Double check with `uv_fs_stat()`.
-  if (err == 0) {
-    FS_SYNC_TRACE_BEGIN(stat);
-    err = uv_fs_stat(nullptr, &req, path.out(), nullptr);
-    FS_SYNC_TRACE_END(stat);
+  FS_SYNC_TRACE_BEGIN(stat);
+  auto status = std::filesystem::status(file_path, error);
+  FS_SYNC_TRACE_END(stat);
+  if (!error) {
+    exists = status.type() != std::filesystem::file_type::not_found;
   }
-#endif  // _WIN32
-
-  args.GetReturnValue().Set(err == 0);
+#else
+  FS_SYNC_TRACE_BEGIN(access);
+  exists = std::filesystem::exists(file_path, error);
+  FS_SYNC_TRACE_END(access);
+#endif
+  args.GetReturnValue().Set(exists);
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
