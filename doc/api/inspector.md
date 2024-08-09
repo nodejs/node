@@ -557,6 +557,22 @@ This feature is only available with the `--experimental-network-inspection` flag
 Broadcasts the `Network.loadingFinished` event to connected frontends. This event indicates that
 HTTP request has finished loading.
 
+### `inspector.Network.loadingFailed([params])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.loadingFailed` event to connected frontends. This event indicates that
+HTTP request has failed to load.
+
 ## Support of breakpoints
 
 The Chrome DevTools Protocol [`Debugger` domain][] allows an

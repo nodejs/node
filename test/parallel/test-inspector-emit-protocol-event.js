@@ -62,6 +62,15 @@ const EXPECTED_EVENTS = {
         timestamp: 1000,
       }
     },
+    {
+      name: 'loadingFailed',
+      params: {
+        requestId: 'request-id-1',
+        timestamp: 1000,
+        type: 'Document',
+        errorText: 'Failed to load resource'
+      }
+    },
   ]
 };
 

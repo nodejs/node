@@ -29,6 +29,8 @@ class NetworkAgent : public Network::Backend {
 
   void responseReceived(std::unique_ptr<protocol::DictionaryValue> params);
 
+  void loadingFailed(std::unique_ptr<protocol::DictionaryValue> params);
+
   void loadingFinished(std::unique_ptr<protocol::DictionaryValue> params);
 
  private:

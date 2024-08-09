@@ -5,6 +5,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const assert = require('node:assert');
+const { addresses } = require('../common/internet');
 const fixtures = require('../common/fixtures');
 const http = require('node:http');
 const https = require('node:https');
@@ -144,10 +145,49 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
   }, common.mustCall());
 });
 
+const testHttpError = () => new Promise((resolve, reject) => {
+  session.on('Network.requestWillBeSent', common.mustCall());
+  session.on('Network.loadingFailed', common.mustCall(({ params }) => {
+    assert.ok(params.requestId.startsWith('node-network-event-'));
+    assert.strictEqual(typeof params.timestamp, 'number');
+    assert.strictEqual(params.type, 'Other');
+    assert.strictEqual(typeof params.errorText, 'string');
+    resolve();
+  }));
+  session.on('Network.responseReceived', common.mustNotCall());
+  session.on('Network.loadingFinished', common.mustNotCall());
+
+  http.get({
+    host: addresses.INVALID_HOST,
+  }, common.mustNotCall()).on('error', common.mustCall());
+});
+
+
+const testHttpsError = () => new Promise((resolve, reject) => {
+  session.on('Network.requestWillBeSent', common.mustCall());
+  session.on('Network.loadingFailed', common.mustCall(({ params }) => {
+    assert.ok(params.requestId.startsWith('node-network-event-'));
+    assert.strictEqual(typeof params.timestamp, 'number');
+    assert.strictEqual(params.type, 'Other');
+    assert.strictEqual(typeof params.errorText, 'string');
+    resolve();
+  }));
+  session.on('Network.responseReceived', common.mustNotCall());
+  session.on('Network.loadingFinished', common.mustNotCall());
+
+  https.get({
+    host: addresses.INVALID_HOST,
+  }, common.mustNotCall()).on('error', common.mustCall());
+});
+
 const testNetworkInspection = async () => {
   await testHttpGet();
   session.removeAllListeners();
   await testHttpsGet();
+  session.removeAllListeners();
+  await testHttpError();
+  session.removeAllListeners();
+  await testHttpsError();
   session.removeAllListeners();
 };
 
