@@ -22,6 +22,7 @@ expectNoWorker(`-r ${JSON.stringify(printSpaceA)}`, 'A\nB\n');
 expectNoWorker(`-r ${printA} -r ${printA}`, 'A\nB\n');
 expectNoWorker(`   -r ${printA}    -r ${printA}`, 'A\nB\n');
 expectNoWorker(`   --require ${printA}    --require ${printA}`, 'A\nB\n');
+expect('--heap-prof', 'B\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--no_warnings', 'B\n');
