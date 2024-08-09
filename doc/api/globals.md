@@ -9,11 +9,11 @@ These objects are available in all modules.
 The following variables may appear to be global but are not. They exist only in
 the scope of [CommonJS modules][]:
 
-* [`__dirname`][]
-* [`__filename`][]
-* [`exports`][]
-* [`module`][]
-* [`require()`][]
+- [`__dirname`][]
+- [`__filename`][]
+- [`exports`][]
+- [`module`][]
+- [`require()`][]
 
 The objects listed here are specific to Node.js. There are [built-in objects][]
 that are part of the JavaScript language itself, which are also globally
@@ -39,12 +39,13 @@ The API is based on the Web API [`AbortController`][].
 ```js
 const ac = new AbortController();
 
-ac.signal.addEventListener('abort', () => console.log('Aborted!'),
-                           { once: true });
+ac.signal.addEventListener("abort", () => console.log("Aborted!"), {
+  once: true,
+});
 
 ac.abort();
 
-console.log(ac.signal.aborted);  // Prints true
+console.log(ac.signal.aborted); // Prints true
 ```
 
 ### `abortController.abort([reason])`
@@ -61,7 +62,7 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-* `reason` {any} An optional reason, retrievable on the `AbortSignal`'s
+- `reason` {any} An optional reason, retrievable on the `AbortSignal`'s
   `reason` property.
 
 Triggers the abort signal, causing the `abortController.signal` to emit
@@ -75,7 +76,7 @@ added:
   - v14.17.0
 -->
 
-* Type: {AbortSignal}
+- Type: {AbortSignal}
 
 ### Class: `AbortSignal`
 
@@ -85,7 +86,7 @@ added:
   - v14.17.0
 -->
 
-* Extends: {EventTarget}
+- Extends: {EventTarget}
 
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
@@ -104,8 +105,8 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-* `reason`: {any}
-* Returns: {AbortSignal}
+- `reason`: {any}
+- Returns: {AbortSignal}
 
 Returns a new already aborted `AbortSignal`.
 
@@ -117,7 +118,7 @@ added:
   - v16.14.0
 -->
 
-* `delay` {number} The number of milliseconds to wait before triggering
+- `delay` {number} The number of milliseconds to wait before triggering
   the AbortSignal.
 
 Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
@@ -130,7 +131,7 @@ added:
   - v18.17.0
 -->
 
-* `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
+- `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
 
 Returns a new `AbortSignal` which will be aborted if any of the provided
 signals are aborted. Its [`abortSignal.reason`][] will be set to whichever
@@ -152,12 +153,16 @@ single `type` property set to `'abort'`:
 const ac = new AbortController();
 
 // Use either the onabort property...
-ac.signal.onabort = () => console.log('aborted!');
+ac.signal.onabort = () => console.log("aborted!");
 
 // Or the EventTarget API...
-ac.signal.addEventListener('abort', (event) => {
-  console.log(event.type);  // Prints 'abort'
-}, { once: true });
+ac.signal.addEventListener(
+  "abort",
+  (event) => {
+    console.log(event.type); // Prints 'abort'
+  },
+  { once: true }
+);
 
 ac.abort();
 ```
@@ -181,7 +186,7 @@ added:
   - v14.17.0
 -->
 
-* Type: {boolean} True after the `AbortController` has been aborted.
+- Type: {boolean} True after the `AbortController` has been aborted.
 
 #### `abortSignal.onabort`
 
@@ -191,7 +196,7 @@ added:
   - v14.17.0
 -->
 
-* Type: {Function}
+- Type: {Function}
 
 An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
@@ -204,14 +209,14 @@ added:
   - v16.14.0
 -->
 
-* Type: {any}
+- Type: {any}
 
 An optional reason specified when the `AbortSignal` was triggered.
 
 ```js
 const ac = new AbortController();
-ac.abort(new Error('boom!'));
-console.log(ac.signal.reason);  // Error: boom!
+ac.abort(new Error("boom!"));
+console.log(ac.signal.reason); // Error: boom!
 ```
 
 #### `abortSignal.throwIfAborted()`
@@ -242,7 +247,7 @@ added: v0.1.103
 
 <!-- type=global -->
 
-* {Function}
+- {Function}
 
 Used to handle binary data. See the [buffer section][].
 
@@ -353,7 +358,7 @@ added: v0.1.100
 
 <!-- type=global -->
 
-* {Object}
+- {Object}
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
@@ -553,7 +558,7 @@ added: v0.1.27
 
 > Stability: 3 - Legacy. Use [`globalThis`][] instead.
 
-* {Object} The global namespace object.
+- {Object} The global namespace object.
 
 In browsers, the top-level scope has traditionally been the global scope. This
 means that `var something` will define a new global variable, except within
@@ -592,8 +597,11 @@ added: v22.4.0
 
 A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
+The maximum amount of data that can be stored is 10 MB.
 Any modification of this data outside of the Web Storage API is not supported.
 Enable this API with the [`--experimental-webstorage`][] CLI flag.
+`localStorage` data is not stored per user or per request when used in the context
+of a server, it is shared across all users and requests.
 
 ## `MessageChannel`
 
@@ -657,13 +665,15 @@ A partial implementation of [`window.navigator`][].
 added: v21.0.0
 -->
 
-* {number}
+- {number}
 
 The `navigator.hardwareConcurrency` read-only property returns the number of
 logical processors available to the current Node.js instance.
 
 ```js
-console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
+console.log(
+  `This process is running on ${navigator.hardwareConcurrency} logical processors`
+);
 ```
 
 ### `navigator.language`
@@ -672,7 +682,7 @@ console.log(`This process is running on ${navigator.hardwareConcurrency} logical
 added: v21.2.0
 -->
 
-* {string}
+- {string}
 
 The `navigator.language` read-only property returns a string representing the
 preferred language of the Node.js instance. The language will be determined by
@@ -684,7 +694,9 @@ The value is representing the language version as defined in [RFC 5646][].
 The fallback value on builds without ICU is `'en-US'`.
 
 ```js
-console.log(`The preferred language of the Node.js instance has the tag '${navigator.language}'`);
+console.log(
+  `The preferred language of the Node.js instance has the tag '${navigator.language}'`
+);
 ```
 
 ### `navigator.languages`
@@ -693,7 +705,7 @@ console.log(`The preferred language of the Node.js instance has the tag '${navig
 added: v21.2.0
 -->
 
-* {Array<string>}
+- {Array<string>}
 
 The `navigator.languages` read-only property returns an array of strings
 representing the preferred languages of the Node.js instance.
@@ -713,7 +725,7 @@ console.log(`The preferred languages are '${navigator.languages}'`);
 added: v21.2.0
 -->
 
-* {string}
+- {string}
 
 The `navigator.platform` read-only property returns a string identifying the
 platform on which the Node.js instance is running.
@@ -728,7 +740,7 @@ console.log(`This process is running on ${navigator.platform}`);
 added: v21.1.0
 -->
 
-* {string}
+- {string}
 
 The `navigator.userAgent` read-only property returns user agent
 consisting of the runtime name and major version number.
@@ -815,7 +827,7 @@ added: v0.1.7
 
 <!-- type=global -->
 
-* {Object}
+- {Object}
 
 The process object. See the [`process` object][] section.
 
@@ -827,7 +839,7 @@ added: v11.0.0
 
 <!-- type=global -->
 
-* `callback` {Function} Function to be queued.
+- `callback` {Function} Function to be queued.
 
 The `queueMicrotask()` method queues a microtask to invoke `callback`. If
 `callback` throws an exception, the [`process` object][] `'uncaughtException'`
@@ -848,14 +860,14 @@ DataHandler.prototype.load = async function load(key) {
   const hit = this._cache.get(key);
   if (hit !== undefined) {
     queueMicrotask(() => {
-      this.emit('load', hit);
+      this.emit("load", hit);
     });
     return;
   }
 
   const data = await fetchData(key);
   this._cache.set(key, data);
-  this.emit('load', data);
+  this.emit("load", data);
 };
 ```
 
@@ -972,9 +984,11 @@ added: v22.4.0
 > Stability: 1.0 - Early development.
 
 A browser-compatible implementation of [`sessionStorage`][]. Data is stored in
-memory, with a storage quota of 10 MB. Any modification of this data outside of
-the Web Storage API is not supported. Enable this API with the
-[`--experimental-webstorage`][] CLI flag.
+memory, with a storage quota of 10 MB. `sessionStorage` data persists only within
+the currently running process, and is not shared between workers.
+[`--experimental-webstorage`][] CLI flag. `sessionStorage` data is not stored per
+user or per request when used in the context of a server, it is specific to
+a single session.
 
 ## `setImmediate(callback[, ...args])`
 
@@ -1143,7 +1157,7 @@ added: v8.0.0
 
 <!-- type=global -->
 
-* {Object}
+- {Object}
 
 The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
