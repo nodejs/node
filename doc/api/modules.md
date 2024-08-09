@@ -201,10 +201,9 @@ export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
 
 ```mjs
 // point.mjs
-class Point {
+export default class Point {
   constructor(x, y) { this.x = x; this.y = y; }
 }
-export default Point;
 ```
 
 A CommonJS module can load them with `require()` under `--experimental-detect-module`:
@@ -232,6 +231,23 @@ ES Modules. If the namespace already defines `__esModule`, this would not be add
 This property is experimental and can change in the future. It should only be used
 by tools converting ES modules into CommonJS modules, following existing ecosystem
 conventions. Code authored directly in CommonJS should avoid depending on it.
+
+To create an ESM module that should provide an arbitrary value to CommonJS, the
+`__cjsModule: true` marker can be used instead:
+
+```mjs
+// point.mjs
+export default class Point {
+  constructor(c, x) { this.x = x; this.y = y; }
+}
+export const __cjsModule = true;
+```
+
+```cjs
+const point = require('./point.mjs');
+console.log(point);
+// [class Point]
+```
 
 If the module being `require()`'d contains top-level `await`, or the module
 graph it `import`s contains top-level `await`,
