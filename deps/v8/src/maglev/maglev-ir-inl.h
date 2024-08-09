@@ -30,11 +30,12 @@ enum class DeoptFrameVisitMode {
 
 template <DeoptFrameVisitMode mode, typename T>
 using const_if_default =
-    std::conditional<mode == DeoptFrameVisitMode::kDefault, const T, T>::type;
+    std::conditional_t<mode == DeoptFrameVisitMode::kDefault, const T, T>;
 
 template <DeoptFrameVisitMode mode>
-using ValueNodeT = std::conditional<mode == DeoptFrameVisitMode::kDefault,
-                                    ValueNode*, ValueNode*&>::type;
+using ValueNodeT =
+    std::conditional_t<mode == DeoptFrameVisitMode::kDefault, ValueNode*,
+                       ValueNode*&>;
 
 template <DeoptFrameVisitMode mode, typename Function>
 void DeepForEachInputSingleFrameImpl(
