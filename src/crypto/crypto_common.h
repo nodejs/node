@@ -3,10 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_crypto.h"
-#include "v8.h"
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#include "ncrypto.h"
+#include "node_crypto.h"
+#include "v8.h"
 
 #include <string>
 
@@ -26,12 +27,7 @@ struct StackOfX509Deleter {
 };
 using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
 
-struct StackOfXASN1Deleter {
-  void operator()(STACK_OF(ASN1_OBJECT)* p) const {
-    sk_ASN1_OBJECT_pop_free(p, ASN1_OBJECT_free);
-  }
-};
-using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
+using StackOfASN1 = ncrypto::StackOfASN1;
 
 X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert);
 

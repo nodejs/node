@@ -7,6 +7,7 @@
 #include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
+#include "ncrypto.h"
 #include "node_worker.h"
 #include "v8.h"
 
@@ -17,7 +18,7 @@ namespace crypto {
 // X509 objects that allows an X509Certificate instance to
 // be cloned at the JS level while pointing at the same
 // underlying X509 instance.
-class ManagedX509 : public MemoryRetainer {
+class ManagedX509 final : public MemoryRetainer {
  public:
   ManagedX509() = default;
   explicit ManagedX509(X509Pointer&& cert);
@@ -26,6 +27,8 @@ class ManagedX509 : public MemoryRetainer {
 
   operator bool() const { return !!cert_; }
   X509* get() const { return cert_.get(); }
+  ncrypto::X509View view() const { return cert_; }
+  operator ncrypto::X509View() const { return cert_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(ManagedX509)
@@ -35,7 +38,7 @@ class ManagedX509 : public MemoryRetainer {
   X509Pointer cert_;
 };
 
-class X509Certificate : public BaseObject {
+class X509Certificate final : public BaseObject {
  public:
   enum class GetPeerCertificateFlag {
     NONE,
@@ -72,28 +75,11 @@ class X509Certificate : public BaseObject {
       v8::Local<v8::Object> object,
       X509Pointer cert);
 
-  static void Parse(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Subject(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SubjectAltName(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Issuer(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InfoAccess(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ValidFrom(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ValidTo(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void KeyUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SerialNumber(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Raw(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void PublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Pem(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckCA(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckHost(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckEmail(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckIP(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckIssued(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Verify(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ToLegacy(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetIssuerCert(const v8::FunctionCallbackInfo<v8::Value>& args);
+  inline BaseObjectPtr<X509Certificate> getIssuerCert() const {
+    return issuer_cert_;
+  }
 
+  inline ncrypto::X509View view() const { return *cert_; }
   X509* get() { return cert_->get(); }
 
   void MemoryInfo(MemoryTracker* tracker) const override;

@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include "openssl/bn.h"
+#include <openssl/bn.h>
 #include <openssl/x509.h>
 #include <openssl/dh.h>
 #include <openssl/dsa.h>
@@ -91,6 +91,13 @@ namespace ncrypto {
 #endif
 }
 
+static constexpr int kX509NameFlagsMultiline =
+    ASN1_STRFLGS_ESC_2253 |
+    ASN1_STRFLGS_ESC_CTRL |
+    ASN1_STRFLGS_UTF8_CONVERT |
+    XN_FLAG_SEP_MULTILINE |
+    XN_FLAG_FN_SN;
+
 // ============================================================================
 // Error handling utilities
 
@@ -164,6 +171,14 @@ private:
   CryptoErrorList* errors_;
 };
 
+template <typename T, typename E>
+struct Result final {
+  T value;
+  std::optional<E> error;
+  Result(T&& value) : value(std::move(value)) {}
+  Result(E&& error) : error(std::move(error)) {}
+};
+
 // ============================================================================
 // Various smart pointer aliases for OpenSSL types.
 
@@ -197,7 +212,13 @@ using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
 using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
-using X509Pointer = DeleteFnPtr<X509, X509_free>;
+
+struct StackOfXASN1Deleter {
+  void operator()(STACK_OF(ASN1_OBJECT)* p) const {
+    sk_ASN1_OBJECT_pop_free(p, ASN1_OBJECT_free);
+  }
+};
+using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
 
 // An unowned, unmanaged pointer to a buffer of data.
 template <typename T>
@@ -288,6 +309,74 @@ class BignumPointer final {
 
  private:
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
+};
+
+class X509View final {
+ public:
+  X509View() = default;
+  inline explicit X509View(const X509* cert) : cert_(cert) {}
+  X509View(const X509View& other) = default;
+  X509View& operator=(const X509View& other) = default;
+  NCRYPTO_DISALLOW_MOVE(X509View)
+
+  inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
+  inline operator bool() const { return cert_ != nullptr; }
+
+  BIOPointer toPEM() const;
+  BIOPointer toDER() const;
+
+  BIOPointer getSubject() const;
+  BIOPointer getSubjectAltName() const;
+  BIOPointer getIssuer() const;
+  BIOPointer getInfoAccess() const;
+  BIOPointer getValidFrom() const;
+  BIOPointer getValidTo() const;
+  DataPointer getSerialNumber() const;
+  Result<EVPKeyPointer, int> getPublicKey() const;
+  StackOfASN1 getKeyUsage() const;
+
+  bool isCA() const;
+  bool isIssuedBy(const X509View& other) const;
+  bool checkPrivateKey(const EVPKeyPointer& pkey) const;
+  bool checkPublicKey(const EVPKeyPointer& pkey) const;
+
+  enum class CheckMatch {
+    NO_MATCH,
+    MATCH,
+    INVALID_NAME,
+    OPERATION_FAILED,
+  };
+  CheckMatch checkHost(const std::string_view host, int flags,
+                       DataPointer* peerName = nullptr) const;
+  CheckMatch checkEmail(const std::string_view email, int flags) const;
+  CheckMatch checkIp(const std::string_view ip, int flags) const;
+
+ private:
+  const X509* cert_ = nullptr;
+};
+
+class X509Pointer final {
+ public:
+  static Result<X509Pointer, int> Parse(Buffer<const unsigned char> buffer);
+
+  X509Pointer() = default;
+  explicit X509Pointer(X509* cert);
+  X509Pointer(X509Pointer&& other) noexcept;
+  X509Pointer& operator=(X509Pointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(X509Pointer)
+  ~X509Pointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
+  inline operator bool() const { return cert_ != nullptr; }
+  inline X509* get() const { return cert_.get(); }
+  void reset(X509* cert = nullptr);
+  X509* release();
+
+  X509View view() const;
+  operator X509View() const { return view(); }
+
+ private:
+  DeleteFnPtr<X509, X509_free> cert_;
 };
 
 #ifndef OPENSSL_NO_ENGINE
