@@ -1,0 +1,116 @@
+{
+    "name": "typescript",
+    "author": "Microsoft Corp.",
+    "homepage": "https://www.typescriptlang.org/",
+    "version": "5.5.4",
+    "license": "Apache-2.0",
+    "description": "TypeScript is a language for application scale JavaScript development",
+    "keywords": [
+        "TypeScript",
+        "Microsoft",
+        "compiler",
+        "language",
+        "javascript"
+    ],
+    "bugs": {
+        "url": "https://github.com/Microsoft/TypeScript/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Microsoft/TypeScript.git"
+    },
+    "main": "./lib/typescript.js",
+    "typings": "./lib/typescript.d.ts",
+    "bin": {
+        "tsc": "./bin/tsc",
+        "tsserver": "./bin/tsserver"
+    },
+    "engines": {
+        "node": ">=14.17"
+    },
+    "files": [
+        "bin",
+        "lib",
+        "!lib/enu",
+        "LICENSE.txt",
+        "README.md",
+        "SECURITY.md",
+        "ThirdPartyNoticeText.txt",
+        "!**/.gitattributes"
+    ],
+    "devDependencies": {
+        "@dprint/formatter": "^0.3.0",
+        "@dprint/typescript": "0.91.0",
+        "@esfx/canceltoken": "^1.0.0",
+        "@octokit/rest": "^20.1.1",
+        "@types/chai": "^4.3.16",
+        "@types/microsoft__typescript-etw": "^0.1.3",
+        "@types/minimist": "^1.2.5",
+        "@types/mocha": "^10.0.6",
+        "@types/ms": "^0.7.34",
+        "@types/node": "latest",
+        "@types/source-map-support": "^0.5.10",
+        "@types/which": "^3.0.3",
+        "@typescript-eslint/eslint-plugin": "^7.11.0",
+        "@typescript-eslint/parser": "^7.11.0",
+        "@typescript-eslint/utils": "^7.11.0",
+        "azure-devops-node-api": "^13.0.0",
+        "c8": "^9.1.0",
+        "chai": "^4.4.1",
+        "chalk": "^4.1.2",
+        "chokidar": "^3.6.0",
+        "diff": "^5.2.0",
+        "dprint": "^0.46.1",
+        "esbuild": "^0.21.4",
+        "eslint": "^8.57.0",
+        "eslint-formatter-autolinkable-stylish": "^1.3.0",
+        "eslint-plugin-local": "^4.2.2",
+        "fast-xml-parser": "^4.4.0",
+        "glob": "^10.4.1",
+        "hereby": "^1.8.9",
+        "jsonc-parser": "^3.2.1",
+        "minimist": "^1.2.8",
+        "mocha": "^10.4.0",
+        "mocha-fivemat-progress-reporter": "^0.1.0",
+        "ms": "^2.1.3",
+        "node-fetch": "^3.3.2",
+        "playwright": "^1.44.1",
+        "source-map-support": "^0.5.21",
+        "tslib": "^2.6.2",
+        "typescript": "^5.4.5",
+        "which": "^3.0.1"
+    },
+    "overrides": {
+        "typescript@*": "$typescript"
+    },
+    "scripts": {
+        "test": "hereby runtests-parallel --light=false",
+        "test:eslint-rules": "hereby run-eslint-rules-tests",
+        "build": "npm run build:compiler && npm run build:tests",
+        "build:compiler": "hereby local",
+        "build:tests": "hereby tests",
+        "build:tests:notypecheck": "hereby tests --no-typecheck",
+        "clean": "hereby clean",
+        "gulp": "hereby",
+        "lint": "hereby lint",
+        "format": "dprint fmt",
+        "setup-hooks": "node scripts/link-hooks.mjs"
+    },
+    "browser": {
+        "fs": false,
+        "os": false,
+        "path": false,
+        "crypto": false,
+        "buffer": false,
+        "@microsoft/typescript-etw": false,
+        "source-map-support": false,
+        "inspector": false,
+        "perf_hooks": false
+    },
+    "packageManager": "npm@8.19.4",
+    "volta": {
+        "node": "20.1.0",
+        "npm": "8.19.4"
+    },
+    "gitHead": "c8a7d589e647e19c94150d9892909f3aa93e48eb"
+}

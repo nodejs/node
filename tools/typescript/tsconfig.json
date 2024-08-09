@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["../../typings"],
+  "compilerOptions": {
+    "skipLibCheck": false,
+    "skipDefaultLibCheck": true,
+  }
+}
