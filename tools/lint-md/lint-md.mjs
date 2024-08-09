@@ -1,7 +1,7 @@
 import fs from 'fs';
-import path$2 from 'path';
+import path$1 from 'path';
 import { pathToFileURL } from 'url';
-import path$1 from 'node:path';
+import minpath from 'node:path';
 import process$1 from 'node:process';
 import { fileURLToPath } from 'node:url';
 import fs$1 from 'node:fs';
@@ -348,7 +348,7 @@ class VFile {
     } else {
       options = value;
     }
-    this.cwd = process$1.cwd();
+    this.cwd = 'cwd' in options ? '' : process$1.cwd();
     this.data = {};
     this.history = [];
     this.messages = [];
@@ -358,39 +358,45 @@ class VFile {
     this.stored;
     let index = -1;
     while (++index < order.length) {
-      const prop = order[index];
+      const field = order[index];
       if (
-        prop in options &&
-        options[prop] !== undefined &&
-        options[prop] !== null
+        field in options &&
+        options[field] !== undefined &&
+        options[field] !== null
       ) {
-        this[prop] = prop === 'history' ? [...options[prop]] : options[prop];
+        this[field] = field === 'history' ? [...options[field]] : options[field];
       }
     }
-    let prop;
-    for (prop in options) {
-      if (!order.includes(prop)) {
-        this[prop] = options[prop];
+    let field;
+    for (field in options) {
+      if (!order.includes(field)) {
+        this[field] = options[field];
       }
     }
   }
   get basename() {
-    return typeof this.path === 'string' ? path$1.basename(this.path) : undefined
+    return typeof this.path === 'string'
+      ? minpath.basename(this.path)
+      : undefined
   }
   set basename(basename) {
     assertNonEmpty(basename, 'basename');
     assertPart(basename, 'basename');
-    this.path = path$1.join(this.dirname || '', basename);
+    this.path = minpath.join(this.dirname || '', basename);
   }
   get dirname() {
-    return typeof this.path === 'string' ? path$1.dirname(this.path) : undefined
+    return typeof this.path === 'string'
+      ? minpath.dirname(this.path)
+      : undefined
   }
   set dirname(dirname) {
     assertPath(this.basename, 'dirname');
-    this.path = path$1.join(dirname || '', this.basename);
+    this.path = minpath.join(dirname || '', this.basename);
   }
   get extname() {
-    return typeof this.path === 'string' ? path$1.extname(this.path) : undefined
+    return typeof this.path === 'string'
+      ? minpath.extname(this.path)
+      : undefined
   }
   set extname(extname) {
     assertPart(extname, 'extname');
@@ -403,7 +409,7 @@ class VFile {
         throw new Error('`extname` cannot contain multiple dots')
       }
     }
-    this.path = path$1.join(this.dirname, this.stem + (extname || ''));
+    this.path = minpath.join(this.dirname, this.stem + (extname || ''));
   }
   get path() {
     return this.history[this.history.length - 1]
@@ -419,13 +425,13 @@ class VFile {
   }
   get stem() {
     return typeof this.path === 'string'
-      ? path$1.basename(this.path, this.extname)
+      ? minpath.basename(this.path, this.extname)
       : undefined
   }
   set stem(stem) {
     assertNonEmpty(stem, 'stem');
     assertPart(stem, 'stem');
-    this.path = path$1.join(this.dirname || '', stem + (this.extname || ''));
+    this.path = minpath.join(this.dirname || '', stem + (this.extname || ''));
   }
   fail(causeOrReason, optionsOrParentOrPlace, origin) {
     const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
@@ -463,9 +469,9 @@ class VFile {
   }
 }
 function assertPart(part, name) {
-  if (part && part.includes(path$1.sep)) {
+  if (part && part.includes(minpath.sep)) {
     throw new Error(
-      '`' + name + '` cannot be a path: did not expect `' + path$1.sep + '`'
+      '`' + name + '` cannot be a path: did not expect `' + minpath.sep + '`'
     )
   }
 }
@@ -6755,7 +6761,7 @@ function postprocess(events) {
   return events
 }
 
-const search$1 = /[\0\t\n\r]/g;
+const search = /[\0\t\n\r]/g;
 function preprocess() {
   let column = 1;
   let buffer = '';
@@ -6783,8 +6789,8 @@ function preprocess() {
       start = undefined;
     }
     while (startPosition < value.length) {
-      search$1.lastIndex = startPosition;
-      match = search$1.exec(value);
+      search.lastIndex = startPosition;
+      match = search.exec(value);
       endPosition =
         match && match.index !== undefined ? match.index : value.length;
       code = value.charCodeAt(endPosition);
@@ -11306,50 +11312,58 @@ function parse$1(value) {
   return input ? input.split(/[ \t\n\r\f]+/g) : []
 }
 
-const search = /\r?\n|\r/g;
 function location(file) {
   const value = String(file);
   const indices = [];
-  search.lastIndex = 0;
-  while (search.test(value)) {
-    indices.push(search.lastIndex);
-  }
-  indices.push(value.length + 1);
-  return {toPoint, toOffset}
+  return {toOffset, toPoint}
   function toPoint(offset) {
-    let index = -1;
-    if (
-      typeof offset === 'number' &&
-      offset > -1 &&
-      offset < indices[indices.length - 1]
-    ) {
-      while (++index < indices.length) {
-        if (indices[index] > offset) {
+    if (typeof offset === 'number' && offset > -1 && offset <= value.length) {
+      let index = 0;
+      while (true) {
+        let end = indices[index];
+        if (end === undefined) {
+          const eol = next(value, indices[index - 1]);
+          end = eol === -1 ? value.length + 1 : eol + 1;
+          indices[index] = end;
+        }
+        if (end > offset) {
           return {
             line: index + 1,
             column: offset - (index > 0 ? indices[index - 1] : 0) + 1,
             offset
           }
         }
+        index++;
       }
     }
   }
   function toOffset(point) {
-    const line = point && point.line;
-    const column = point && point.column;
     if (
-      typeof line === 'number' &&
-      typeof column === 'number' &&
-      !Number.isNaN(line) &&
-      !Number.isNaN(column) &&
-      line - 1 in indices
+      point &&
+      typeof point.line === 'number' &&
+      typeof point.column === 'number' &&
+      !Number.isNaN(point.line) &&
+      !Number.isNaN(point.column)
     ) {
-      const offset = (indices[line - 2] || 0) + column - 1 || 0;
-      if (offset > -1 && offset < indices[indices.length - 1]) {
-        return offset
+      while (indices.length < point.line) {
+        const from = indices[indices.length - 1];
+        const eol = next(value, from);
+        const end = eol === -1 ? value.length + 1 : eol + 1;
+        if (from === end) break
+        indices.push(end);
       }
+      const offset =
+        (point.line > 1 ? indices[point.line - 2] : 0) + point.column - 1;
+      if (offset < indices[point.line - 1]) return offset
     }
   }
+}
+function next(value, from) {
+  const cr = value.indexOf('\r', from);
+  const lf = value.indexOf('\n', from);
+  if (lf === -1) return cr
+  if (cr === -1 || cr + 1 === lf) return lf
+  return cr < lf ? cr : lf
 }
 
 const own = {}.hasOwnProperty;
@@ -11573,7 +11587,7 @@ function lintRule$1(meta, rule) {
   Object.defineProperty(plugin, 'name', {value: id});
   return plugin
   function plugin(config) {
-    const [severity, options] = coerce$2(ruleId, config);
+    const [severity, options] = coerce$1(ruleId, config);
     const fatal = severity === 2;
     if (!severity) return
     return function (tree, file, next) {
@@ -11593,7 +11607,7 @@ function lintRule$1(meta, rule) {
     }
   }
 }
-function coerce$2(name, config) {
+function coerce$1(name, config) {
   if (!Array.isArray(config)) {
     return [1, config]
   }
@@ -15012,7 +15026,7 @@ const remarkLintDefinitionSpacing = lintRule$1(
 const quotation =
   (
     function (value, open, close) {
-      const start = open ;
+      const start = open;
       const end = start;
       let index = -1;
       if (Array.isArray(value)) {
@@ -17672,340 +17686,24 @@ const remarkLintNoTabs = lintRule$1(
   }
 );
 
-var sliced$1 = function (args, slice, sliceEnd) {
-  var ret = [];
-  var len = args.length;
-  if (0 === len) return ret;
-  var start = slice < 0
-    ? Math.max(0, slice + len)
-    : slice || 0;
-  if (sliceEnd !== undefined) {
-    len = sliceEnd < 0
-      ? sliceEnd + len
-      : sliceEnd;
-  }
-  while (len-- > start) {
-    ret[len - start] = args[len];
-  }
-  return ret;
-};
-getDefaultExportFromCjs(sliced$1);
-
-var slice = Array.prototype.slice;
-var co_1 = co$1;
-function co$1(fn) {
-  var isGenFun = isGeneratorFunction(fn);
-  return function (done) {
-    var ctx = this;
-    var gen = fn;
-    if (isGenFun) {
-      var args = slice.call(arguments), len = args.length;
-      var hasCallback = len && 'function' == typeof args[len - 1];
-      done = hasCallback ? args.pop() : error;
-      gen = fn.apply(this, args);
-    } else {
-      done = done || error;
-    }
-    next();
-    function exit(err, res) {
-      setImmediate(function(){
-        done.call(ctx, err, res);
-      });
-    }
-    function next(err, res) {
-      var ret;
-      if (arguments.length > 2) res = slice.call(arguments, 1);
-      if (err) {
-        try {
-          ret = gen.throw(err);
-        } catch (e) {
-          return exit(e);
-        }
-      }
-      if (!err) {
-        try {
-          ret = gen.next(res);
-        } catch (e) {
-          return exit(e);
-        }
-      }
-      if (ret.done) return exit(null, ret.value);
-      ret.value = toThunk(ret.value, ctx);
-      if ('function' == typeof ret.value) {
-        var called = false;
-        try {
-          ret.value.call(ctx, function(){
-            if (called) return;
-            called = true;
-            next.apply(ctx, arguments);
-          });
-        } catch (e) {
-          setImmediate(function(){
-            if (called) return;
-            called = true;
-            next(e);
-          });
-        }
-        return;
-      }
-      next(new TypeError('You may only yield a function, promise, generator, array, or object, '
-        + 'but the following was passed: "' + String(ret.value) + '"'));
-    }
-  }
-}
-function toThunk(obj, ctx) {
-  if (isGeneratorFunction(obj)) {
-    return co$1(obj.call(ctx));
-  }
-  if (isGenerator(obj)) {
-    return co$1(obj);
-  }
-  if (isPromise(obj)) {
-    return promiseToThunk(obj);
-  }
-  if ('function' == typeof obj) {
-    return obj;
-  }
-  if (isObject$1(obj) || Array.isArray(obj)) {
-    return objectToThunk.call(ctx, obj);
-  }
-  return obj;
-}
-function objectToThunk(obj){
-  var ctx = this;
-  var isArray = Array.isArray(obj);
-  return function(done){
-    var keys = Object.keys(obj);
-    var pending = keys.length;
-    var results = isArray
-      ? new Array(pending)
-      : new obj.constructor();
-    var finished;
-    if (!pending) {
-      setImmediate(function(){
-        done(null, results);
-      });
-      return;
-    }
-    if (!isArray) {
-      for (var i = 0; i < pending; i++) {
-        results[keys[i]] = undefined;
-      }
-    }
-    for (var i = 0; i < keys.length; i++) {
-      run(obj[keys[i]], keys[i]);
-    }
-    function run(fn, key) {
-      if (finished) return;
-      try {
-        fn = toThunk(fn, ctx);
-        if ('function' != typeof fn) {
-          results[key] = fn;
-          return --pending || done(null, results);
-        }
-        fn.call(ctx, function(err, res){
-          if (finished) return;
-          if (err) {
-            finished = true;
-            return done(err);
-          }
-          results[key] = res;
-          --pending || done(null, results);
-        });
-      } catch (err) {
-        finished = true;
-        done(err);
-      }
-    }
-  }
-}
-function promiseToThunk(promise) {
-  return function(fn){
-    promise.then(function(res) {
-      fn(null, res);
-    }, fn);
-  }
-}
-function isPromise(obj) {
-  return obj && 'function' == typeof obj.then;
-}
-function isGenerator(obj) {
-  return obj && 'function' == typeof obj.next && 'function' == typeof obj.throw;
-}
-function isGeneratorFunction(obj) {
-  return obj && obj.constructor && 'GeneratorFunction' == obj.constructor.name;
-}
-function isObject$1(val) {
-  return val && Object == val.constructor;
-}
-function error(err) {
-  if (!err) return;
-  setImmediate(function(){
-    throw err;
-  });
-}
-getDefaultExportFromCjs(co_1);
-
-var sliced = sliced$1;
-var noop = function(){};
-var co = co_1;
-var wrapped_1 = wrapped$1;
-function wrapped$1(fn) {
-  function wrap() {
-    var args = sliced(arguments);
-    var last = args[args.length - 1];
-    var ctx = this;
-    var done = typeof last == 'function' ? args.pop() : noop;
-    if (!fn) {
-      return done.apply(ctx, [null].concat(args));
-    }
-    if (generator(fn)) {
-      return co(fn).apply(ctx, args.concat(done));
-    }
-    if (fn.length > args.length) {
-      try {
-        return fn.apply(ctx, args.concat(done));
-      } catch (e) {
-        return done(e);
-      }
-    }
-    return sync(fn, done).apply(ctx, args);
-  }
-  return wrap;
-}
-function sync(fn, done) {
-  return function () {
-    var ret;
-    try {
-      ret = fn.apply(this, arguments);
-    } catch (err) {
-      return done(err);
-    }
-    if (promise(ret)) {
-      ret.then(function (value) { done(null, value); }, done);
-    } else {
-      ret instanceof Error ? done(ret) : done(null, ret);
-    }
-  }
-}
-function generator(value) {
-  return value
-    && value.constructor
-    && 'GeneratorFunction' == value.constructor.name;
-}
-function promise(value) {
-  return value && 'function' == typeof value.then;
-}
-getDefaultExportFromCjs(wrapped_1);
-
-var wrapped = wrapped_1;
-var unifiedLintRule = factory;
-function factory(id, rule) {
-  var parts = id.split(':');
-  var source = parts[0];
-  var ruleId = parts[1];
-  var fn = wrapped(rule);
-  if (!ruleId) {
-    ruleId = source;
-    source = null;
-  }
-  attacher.displayName = id;
-  return attacher
-  function attacher(raw) {
-    var config = coerce$1(ruleId, raw);
-    var severity = config[0];
-    var options = config[1];
-    var fatal = severity === 2;
-    return severity ? transformer : undefined
-    function transformer(tree, file, next) {
-      var index = file.messages.length;
-      fn(tree, file, options, done);
-      function done(err) {
-        var messages = file.messages;
-        var message;
-        if (err && messages.indexOf(err) === -1) {
-          try {
-            file.fail(err);
-          } catch (_) {}
-        }
-        while (index < messages.length) {
-          message = messages[index];
-          message.ruleId = ruleId;
-          message.source = source;
-          message.fatal = fatal;
-          index++;
-        }
-        next();
-      }
-    }
-  }
-}
-function coerce$1(name, value) {
-  var def = 1;
-  var result;
-  var level;
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value == null) {
-    result = [def];
-  } else if (
-    typeof value === 'object' &&
-    (typeof value[0] === 'number' ||
-      typeof value[0] === 'boolean' ||
-      typeof value[0] === 'string')
-  ) {
-    result = value.concat();
-  } else {
-    result = [1, value];
-  }
-  level = result[0];
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
-    }
-  }
-  if (level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-  result[0] = level;
-  return result
-}
-getDefaultExportFromCjs(unifiedLintRule);
-
-var rule = unifiedLintRule;
-var remarkLintNoTrailingSpaces = rule('remark-lint:no-trailing-spaces', noTrailingSpaces);
+const rule = lintRule$1('remark-lint:no-trailing-spaces', noTrailingSpaces);
 function noTrailingSpaces(ast, file) {
-  var lines = file.toString().split(/\r?\n/);
-  for (var i = 0; i < lines.length; i++) {
-    var currentLine = lines[i];
-    var lineIndex = i + 1;
-    if (/\s$/.test(currentLine)) {
+  const myLocation = location(file);
+  const lines = file.toString().split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const currentLine = lines[i];
+    const lineIndex = i + 1;
+    const match = /\s+$/.exec(currentLine);
+    if (match) {
+      const startOffset = myLocation.toOffset({ line: lineIndex, column: match.index+1 });
+      const endOffset = myLocation.toOffset({ line: lineIndex, column: currentLine.length+1 });
       file.message('Remove trailing whitespace', {
-        position: {
-          start: { line: lineIndex, column: currentLine.length + 1 },
-          end: { line: lineIndex }
-        }
+        start: myLocation.toPoint(startOffset),
+        end: myLocation.toPoint(endOffset),
       });
     }
   }
 }
-var remarkLintNoTrailingSpaces$1 = getDefaultExportFromCjs(remarkLintNoTrailingSpaces);
 
 function* getLinksRecursively(node) {
   if (node.url) {
@@ -18016,7 +17714,7 @@ function* getLinksRecursively(node) {
   }
 }
 function validateLinks(tree, vfile) {
-  const currentFileURL = pathToFileURL(path$2.join(vfile.cwd, vfile.path));
+  const currentFileURL = pathToFileURL(path$1.join(vfile.cwd, vfile.path));
   let previousDefinitionLabel;
   for (const node of getLinksRecursively(tree)) {
     if (node.url[0] !== "#") {
@@ -23139,7 +22837,7 @@ const plugins = [
   remarkLintNoShellDollars,
   remarkLintNoTableIndentation,
   remarkLintNoTabs,
-  remarkLintNoTrailingSpaces$1,
+  rule,
   remarkLintNodejsLinks,
   remarkLintNodejsYamlComments,
   [
@@ -23184,7 +22882,7 @@ function read(description, options, callback) {
   function executor(resolve, reject) {
     let fp;
     try {
-      fp = path$1.resolve(file.cwd, file.path);
+      fp = minpath.resolve(file.cwd, file.path);
     } catch (error) {
       const exception =  (error);
       return reject(exception)
