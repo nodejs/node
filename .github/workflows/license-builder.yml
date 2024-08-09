@@ -1,4 +1,4 @@
-name: License update
+name: Build LICENSE
 on:
   schedule:
     # 00:00:00 every Monday
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  update_license:
+  build-license:
     permissions:
       contents: write  # for gr2m/create-or-update-pull-request-action to push local changes
       pull-requests: write  # for gr2m/create-or-update-pull-request-action to create a PR

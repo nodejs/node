@@ -1,4 +1,4 @@
-name: Tools and deps update
+name: Update tools and dependencies
 on:
   schedule:
     # Run once a week at 00:05 AM UTC on Sunday.
@@ -52,7 +52,7 @@ permissions:
   contents: read
 
 jobs:
-  tools-deps-update:
+  update-tools-deps:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     strategy:

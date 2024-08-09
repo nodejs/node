@@ -1,9 +1,10 @@
+name: Notify on abnormal push to main
+
 on:
   push:
     branches:
       - main
 
-name: Notify on Push
 permissions:
   contents: read
 

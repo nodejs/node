@@ -1,4 +1,4 @@
-name: Node.js daily job
+name: Build LTO
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Build from tarball
+name: Build and test tarball
 
 on:
   pull_request:
