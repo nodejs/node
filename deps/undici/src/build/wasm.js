@@ -62,7 +62,7 @@ if (process.argv[2] === '--prebuild') {
 }
 
 if (process.argv[2] === '--docker') {
-  let cmd = `docker run --rm -it --platform=${platform.toString().trim()}`
+  let cmd = `docker run --rm -t --platform=${platform.toString().trim()}`
   if (process.platform === 'linux') {
     cmd += ` --user ${process.getuid()}:${process.getegid()}`
   }

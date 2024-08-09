@@ -8749,8 +8749,9 @@ var require_response = __commonJS({
     var hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf("v18") !== 0;
     var registry;
     if (hasFinalizationRegistry) {
-      registry = new FinalizationRegistry((stream) => {
-        if (!stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
+      registry = new FinalizationRegistry((weakRef) => {
+        const stream = weakRef.deref();
+        if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
           stream.cancel("Response object has been garbage collected").catch(noop);
         }
       });
@@ -9064,7 +9065,7 @@ var require_response = __commonJS({
       setHeadersList(response[kHeaders], innerResponse.headersList);
       setHeadersGuard(response[kHeaders], guard);
       if (hasFinalizationRegistry && innerResponse.body?.stream) {
-        registry.register(response, innerResponse.body.stream);
+        registry.register(response, new WeakRef(innerResponse.body.stream));
       }
       return response;
     }
