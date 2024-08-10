@@ -56,6 +56,13 @@ using CFunctionWithInt64Fallback = void (*)(v8::Local<v8::Value>,
                                             v8::FastApiCallbackOptions&);
 using CFunctionWithBool = void (*)(v8::Local<v8::Value>, bool);
 
+using CFunctionWriteString =
+    uint32_t (*)(v8::Local<v8::Value> receiver,
+                 const v8::FastApiTypedArray<uint8_t>& dst,
+                 const v8::FastOneByteString& src,
+                 uint32_t offset,
+                 uint32_t max_length);
+
 using CFunctionBufferCopy =
     uint32_t (*)(v8::Local<v8::Value> receiver,
                  const v8::FastApiTypedArray<uint8_t>& source,
@@ -88,6 +95,7 @@ class ExternalReferenceRegistry {
   V(CFunctionWithInt64Fallback)                                                \
   V(CFunctionWithBool)                                                         \
   V(CFunctionBufferCopy)                                                       \
+  V(CFunctionWriteString)                                                      \
   V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
   V(v8::AccessorNameGetterCallback)                                            \
