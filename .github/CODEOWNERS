@@ -167,6 +167,7 @@
 /doc/api/permissions.md @nodejs/security-wg
 /lib/internal/process/permission.js @nodejs/security-wg
 /src/permission/* @nodejs/security-wg
+/test/parallel/test-permission-* @nodejs/security-wg
 
 # Dependency Update Tools
 
