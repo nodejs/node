@@ -45,7 +45,11 @@ function logAfterTime(time) {
 
 function checkOutput(str, check) {
   if (common.isWindows && typeof str === 'string') {
+    // Normalize the line endings for the output and the check strings.
     str = str.replaceAll(os.EOL, '\n');
+    if (typeof check === 'string') {
+      check = check.replaceAll(os.EOL, '\n');
+    }
   }
   if ((check instanceof RegExp && !check.test(str)) ||
     (typeof check === 'string' && check !== str)) {
