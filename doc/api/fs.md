@@ -7509,6 +7509,19 @@ added:
 
 Free blocks available to unprivileged users.
 
+**Example:**
+```javascript
+import { statfs } from "fs/promises";
+
+async function getAvailableSpace(path) {
+    const stats = await statfs(path);
+    const availableSpace = stats.bsize * stats.bavail; // available space in bytes
+    console.log(`Available space: ${availableSpace} bytes`);
+}
+
+getAvailableSpace("/tmp");
+```
+
 #### `statfs.bfree`
 
 <!-- YAML
@@ -7520,6 +7533,19 @@ added:
 * {number|bigint}
 
 Free blocks in file system.
+
+**Example:**
+```javascript
+import { statfs } from "fs/promises";
+
+async function getFreeSpace(path) {
+    const stats = await statfs(path);
+    const freeSpace = stats.bsize * stats.bfree; // free space in bytes
+    console.log(`Free space: ${freeSpace} bytes`);
+}
+
+getFreeSpace("/tmp");
+```
 
 #### `statfs.blocks`
 
@@ -7533,6 +7559,18 @@ added:
 
 Total data blocks in file system.
 
+**Example:**
+```javascript
+import { statfs } from "fs/promises";
+
+async function getTotalBlocks(path) {
+    const stats = await statfs(path);
+    console.log(`Total blocks: ${stats.blocks}`);
+}
+
+getTotalBlocks("/tmp");
+```
+
 #### `statfs.bsize`
 
 <!-- YAML
@@ -7543,7 +7581,7 @@ added:
 
 * {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size in bytes.
 
 #### `statfs.ffree`
 
@@ -7569,6 +7607,17 @@ added:
 
 Total file nodes in file system.
 
+```javascript
+import { statfs } from "fs/promises";
+
+async function getTotalFiles(path) {
+    const stats = await statfs(path);
+    console.log(`Total file nodes: ${stats.files}`);
+}
+
+getTotalFiles("/tmp");
+```
+
 #### `statfs.type`
 
 <!-- YAML
@@ -7579,7 +7628,8 @@ added:
 
 * {number|bigint}
 
-Type of file system.
+Type of file system.  
+This numeric value represents the file system type (e.g., EXT4, NTFS, etc.). The specific value can be interpreted by referring to platform-specific documentation or using a lookup table.
 
 ### Class: `fs.WriteStream`
 
