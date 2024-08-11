@@ -59,7 +59,7 @@ void ares_cancel(ares_channel_t *channel)
 
     node = ares__llist_node_first(list_copy);
     while (node != NULL) {
-      struct query             *query;
+      ares_query_t *query;
 
       /* Cache next since this node is being deleted */
       next = ares__llist_node_next(node);

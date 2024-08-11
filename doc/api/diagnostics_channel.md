@@ -872,7 +872,7 @@ channels.tracePromise(async () => {
 });
 ```
 
-#### `tracingChannel.traceCallback(fn, position, context, thisArg, ...args)`
+#### `tracingChannel.traceCallback(fn[, position[, context[, thisArg[, ...args]]]])`
 
 <!-- YAML
 added:
@@ -927,7 +927,7 @@ const channels = diagnostics_channel.tracingChannel('my-channel');
 channels.traceCallback((arg1, callback) => {
   // Do something
   callback(null, 'result');
-}, {
+}, 1, {
   some: 'thing',
 }, thisArg, arg1, callback);
 ```
