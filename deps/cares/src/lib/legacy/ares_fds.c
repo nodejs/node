@@ -45,14 +45,14 @@ int ares_fds(const ares_channel_t *channel, fd_set *read_fds, fd_set *write_fds)
   nfds = 0;
   for (snode = ares__slist_node_first(channel->servers); snode != NULL;
        snode = ares__slist_node_next(snode)) {
-    struct server_state *server = ares__slist_node_val(snode);
-    ares__llist_node_t  *node;
+    ares_server_t      *server = ares__slist_node_val(snode);
+    ares__llist_node_t *node;
 
     for (node = ares__llist_node_first(server->connections); node != NULL;
          node = ares__llist_node_next(node)) {
-      const struct server_connection *conn = ares__llist_node_val(node);
+      const ares_conn_t *conn = ares__llist_node_val(node);
 
-      if (!active_queries && !conn->is_tcp) {
+      if (!active_queries && !(conn->flags & ARES_CONN_FLAG_TCP)) {
         continue;
       }
 
@@ -69,7 +69,7 @@ int ares_fds(const ares_channel_t *channel, fd_set *read_fds, fd_set *write_fds)
       }
 
       /* TCP only wait on write if we have buffered data */
-      if (conn->is_tcp && ares__buf_len(server->tcp_send)) {
+      if (conn->flags & ARES_CONN_FLAG_TCP && ares__buf_len(server->tcp_send)) {
         FD_SET(conn->fd, write_fds);
       }
     }
