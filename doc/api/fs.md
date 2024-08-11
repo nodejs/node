@@ -7510,7 +7510,7 @@ added:
 Free blocks available to unprivileged users.
 
 **Example:**
-```javascript
+```mjs
 import { statfs } from "fs/promises";
 
 async function getAvailableSpace(path) {
@@ -7535,7 +7535,7 @@ added:
 Free blocks in file system.
 
 **Example:**
-```javascript
+```mjs
 import { statfs } from "fs/promises";
 
 async function getFreeSpace(path) {
@@ -7560,7 +7560,7 @@ added:
 Total data blocks in file system.
 
 **Example:**
-```javascript
+```mjs
 import { statfs } from "fs/promises";
 
 async function getTotalBlocks(path) {
@@ -7607,7 +7607,7 @@ added:
 
 Total file nodes in file system.
 
-```javascript
+```mjs
 import { statfs } from "fs/promises";
 
 async function getTotalFiles(path) {
