@@ -25,9 +25,13 @@
  */
 
 /* Uses an anonymous union */
-#if defined(__clang__)
+#if defined(__clang__) || defined(__GNUC__)
 #  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wc11-extensions"
+#  if defined(__clang__)
+#    pragma GCC diagnostic ignored "-Wc11-extensions"
+#  else
+#    pragma GCC diagnostic ignored "-Wpedantic"
+#  endif
 #endif
 
 #include "ares_private.h"
@@ -967,6 +971,6 @@ const ares_event_sys_t ares_evsys_win32 = { "win32",
                                             ares_evsys_win32_wait };
 #endif
 
-#if defined(__clang__)
+#if defined(__clang__) || defined(__GNUC__)
 #  pragma GCC diagnostic pop
 #endif

@@ -47,12 +47,12 @@ int ares_getsock(const ares_channel_t *channel, ares_socket_t *socks,
 
   for (snode = ares__slist_node_first(channel->servers); snode != NULL;
        snode = ares__slist_node_next(snode)) {
-    struct server_state *server = ares__slist_node_val(snode);
-    ares__llist_node_t  *node;
+    ares_server_t      *server = ares__slist_node_val(snode);
+    ares__llist_node_t *node;
 
     for (node = ares__llist_node_first(server->connections); node != NULL;
          node = ares__llist_node_next(node)) {
-      const struct server_connection *conn = ares__llist_node_val(node);
+      const ares_conn_t *conn = ares__llist_node_val(node);
 
       if (sockindex >= (size_t)numsocks || sockindex >= ARES_GETSOCK_MAXNUM) {
         break;
@@ -61,17 +61,17 @@ int ares_getsock(const ares_channel_t *channel, ares_socket_t *socks,
       /* We only need to register interest in UDP sockets if we have
        * outstanding queries.
        */
-      if (!active_queries && !conn->is_tcp) {
+      if (!active_queries && !(conn->flags & ARES_CONN_FLAG_TCP)) {
         continue;
       }
 
       socks[sockindex] = conn->fd;
 
-      if (active_queries || conn->is_tcp) {
+      if (active_queries || conn->flags & ARES_CONN_FLAG_TCP) {
         bitmap |= ARES_GETSOCK_READABLE(setbits, sockindex);
       }
 
-      if (conn->is_tcp && ares__buf_len(server->tcp_send)) {
+      if (conn->flags & ARES_CONN_FLAG_TCP && ares__buf_len(server->tcp_send)) {
         /* then the tcp socket is also writable! */
         bitmap |= ARES_GETSOCK_WRITABLE(setbits, sockindex);
       }
