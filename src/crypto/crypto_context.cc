@@ -64,16 +64,17 @@ X509_STORE* GetOrCreateRootCertStore() {
 // Caller responsible for BIO_free_all-ing the returned object.
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
   if (v->IsString() || v->IsArrayBufferView()) {
-    BIOPointer bio(BIO_new(BIO_s_secmem()));
-    if (!bio) return nullptr;
+    auto bio = BIOPointer::NewSecMem();
+    if (!bio) return {};
     ByteSource bsrc = ByteSource::FromStringOrBuffer(env, v);
-    if (bsrc.size() > INT_MAX) return nullptr;
-    int written = BIO_write(bio.get(), bsrc.data<char>(), bsrc.size());
-    if (written < 0) return nullptr;
-    if (static_cast<size_t>(written) != bsrc.size()) return nullptr;
+    if (bsrc.size() > INT_MAX) return {};
+    int written = BIOPointer::Write(
+        &bio, std::string_view(bsrc.data<char>(), bsrc.size()));
+    if (written < 0) return {};
+    if (static_cast<size_t>(written) != bsrc.size()) return {};
     return bio;
   }
-  return nullptr;
+  return {};
 }
 
 namespace {
@@ -202,7 +203,7 @@ unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
     const char* file) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  BIOPointer bio(BIO_new_file(file, "r"));
+  auto bio = BIOPointer::NewFile(file, "r");
   if (!bio) return ERR_get_error();
 
   while (X509* x509 = PEM_read_bio_X509(
@@ -1012,16 +1013,15 @@ void SecureContext::SetSessionIdContext(
   if (SSL_CTX_set_session_id_context(sc->ctx_.get(), sid_ctx, sid_ctx_len) == 1)
     return;
 
-  BUF_MEM* mem;
   Local<String> message;
 
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
   if (!bio) {
     message = FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "SSL_CTX_set_session_id_context error");
   } else {
     ERR_print_errors(bio.get());
-    BIO_get_mem_ptr(bio.get(), &mem);
+    BUF_MEM* mem = bio;
     message = OneByteString(env->isolate(), mem->data, mem->length);
   }
 

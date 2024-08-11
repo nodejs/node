@@ -104,7 +104,7 @@ ParseKeyResult TryParsePublicKey(EVPKeyPointer* pkey,
 ParseKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
                                  const char* key_pem,
                                  int key_pem_len) {
-  BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
+  auto bp = BIOPointer::New(key_pem, key_pem_len);
   if (!bp)
     return ParseKeyResult::kParseKeyFailed;
 
@@ -119,7 +119,7 @@ ParseKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
     return ret;
 
   // Maybe it is PKCS#1.
-  CHECK(BIO_reset(bp.get()));
+  CHECK(bp.resetBio());
   ret = TryParsePublicKey(pkey, bp, "RSA PUBLIC KEY",
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         return d2i_PublicKey(EVP_PKEY_RSA, nullptr, p, l);
@@ -128,7 +128,7 @@ ParseKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
     return ret;
 
   // X.509 fallback.
-  CHECK(BIO_reset(bp.get()));
+  CHECK(bp.resetBio());
   return TryParsePublicKey(pkey, bp, "CERTIFICATE",
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         X509Pointer x509(d2i_X509(nullptr, p, l));
@@ -218,7 +218,7 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
   const ByteSource* passphrase = config.passphrase_.get();
 
   if (config.format_ == kKeyFormatPEM) {
-    BIOPointer bio(BIO_new_mem_buf(key, key_len));
+    auto bio = BIOPointer::New(key, key_len);
     if (!bio)
       return ParseKeyResult::kParseKeyFailed;
 
@@ -233,7 +233,7 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
       const unsigned char* p = reinterpret_cast<const unsigned char*>(key);
       pkey->reset(d2i_PrivateKey(EVP_PKEY_RSA, nullptr, &p, key_len));
     } else if (config.type_.ToChecked() == kKeyEncodingPKCS8) {
-      BIOPointer bio(BIO_new_mem_buf(key, key_len));
+      auto bio = BIOPointer::New(key, key_len);
       if (!bio)
         return ParseKeyResult::kParseKeyFailed;
 
@@ -270,12 +270,10 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
   return ParseKeyResult::kParseKeyFailed;
 }
 
-MaybeLocal<Value> BIOToStringOrBuffer(
-    Environment* env,
-    BIO* bio,
-    PKFormatType format) {
-  BUF_MEM* bptr;
-  BIO_get_mem_ptr(bio, &bptr);
+MaybeLocal<Value> BIOToStringOrBuffer(Environment* env,
+                                      const BIOPointer& bio,
+                                      PKFormatType format) {
+  BUF_MEM* bptr = bio;
   if (format == kKeyFormatPEM) {
     // PEM is an ASCII format, so we will return it as a string.
     return String::NewFromUtf8(env->isolate(), bptr->data,
@@ -292,7 +290,7 @@ MaybeLocal<Value> BIOToStringOrBuffer(
 MaybeLocal<Value> WritePrivateKey(Environment* env,
                                   OSSL3_CONST EVP_PKEY* pkey,
                                   const PrivateKeyEncodingConfig& config) {
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
   CHECK(bio);
 
   // If an empty string was passed as the passphrase, the ByteSource might
@@ -388,7 +386,7 @@ MaybeLocal<Value> WritePrivateKey(Environment* env,
     ThrowCryptoError(env, ERR_get_error(), "Failed to encode private key");
     return MaybeLocal<Value>();
   }
-  return BIOToStringOrBuffer(env, bio.get(), config.format_);
+  return BIOToStringOrBuffer(env, bio, config.format_);
 }
 
 bool WritePublicKeyInner(OSSL3_CONST EVP_PKEY* pkey,
@@ -422,14 +420,14 @@ bool WritePublicKeyInner(OSSL3_CONST EVP_PKEY* pkey,
 MaybeLocal<Value> WritePublicKey(Environment* env,
                                  OSSL3_CONST EVP_PKEY* pkey,
                                  const PublicKeyEncodingConfig& config) {
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
   CHECK(bio);
 
   if (!WritePublicKeyInner(pkey, bio, config)) {
     ThrowCryptoError(env, ERR_get_error(), "Failed to encode public key");
     return MaybeLocal<Value>();
   }
-  return BIOToStringOrBuffer(env, bio.get(), config.format_);
+  return BIOToStringOrBuffer(env, bio, config.format_);
 }
 
 Maybe<void> ExportJWKSecretKey(Environment* env,
@@ -1448,7 +1446,7 @@ WebCryptoKeyExportStatus PKEY_SPKI_Export(
   CHECK_EQ(key_data->GetKeyType(), kKeyTypePublic);
   ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
   Mutex::ScopedLock lock(*m_pkey.mutex());
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
   CHECK(bio);
   if (!i2d_PUBKEY_bio(bio.get(), m_pkey.get()))
     return WebCryptoKeyExportStatus::FAILED;
@@ -1464,7 +1462,7 @@ WebCryptoKeyExportStatus PKEY_PKCS8_Export(
   ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
   Mutex::ScopedLock lock(*m_pkey.mutex());
 
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
   CHECK(bio);
   PKCS8Pointer p8inf(EVP_PKEY2PKCS8(m_pkey.get()));
   if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio.get(), p8inf.get()))
