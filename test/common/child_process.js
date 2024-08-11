@@ -3,7 +3,6 @@
 const assert = require('assert');
 const { spawnSync, execFileSync } = require('child_process');
 const common = require('./');
-const os = require('os');
 const util = require('util');
 
 // Workaround for Windows Server 2008R2
@@ -44,13 +43,6 @@ function logAfterTime(time) {
 }
 
 function checkOutput(str, check) {
-  if (common.isWindows && typeof str === 'string') {
-    // Normalize the line endings for the output and the check strings.
-    str = str.replaceAll(os.EOL, '\n');
-    if (typeof check === 'string') {
-      check = check.replaceAll(os.EOL, '\n');
-    }
-  }
   if ((check instanceof RegExp && !check.test(str)) ||
     (typeof check === 'string' && check !== str)) {
     return { passed: false, reason: `did not match ${util.inspect(check)}` };

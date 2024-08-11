@@ -10,6 +10,7 @@ const {
 } = require('../common/child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 tmpdir.refresh();
 common.allowGlobals(global.require);
@@ -166,6 +167,6 @@ for (const extraSnapshotArgs of [
     {
       status: 9,
       signal: null,
-      stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv\n`,
+      stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv${os.EOL}`,
     });
 }
