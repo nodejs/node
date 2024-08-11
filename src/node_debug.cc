@@ -41,8 +41,7 @@ void GetV8FastApiCallCount(const FunctionCallbackInfo<Value>& args) {
     env->ThrowError("getV8FastApiCallCount must be called with a string");
     return;
   }
-  Local<String> key = args[0].As<String>();
-  Utf8Value utf8_key(env->isolate(), key);
+  Utf8Value utf8_key(env->isolate(), args[0]);
   args.GetReturnValue().Set(GetV8FastApiCallCount(utf8_key.ToString()));
 }
 
