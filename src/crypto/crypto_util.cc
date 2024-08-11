@@ -355,8 +355,7 @@ MaybeLocal<Uint8Array> ByteSource::ToBuffer(Environment* env) {
 
 ByteSource ByteSource::FromBIO(const BIOPointer& bio) {
   CHECK(bio);
-  BUF_MEM* bptr;
-  BIO_get_mem_ptr(bio.get(), &bptr);
+  BUF_MEM* bptr = bio;
   ByteSource::Builder out(bptr->length);
   memcpy(out.data<void>(), bptr->data, bptr->length);
   return std::move(out).release();

@@ -736,7 +736,7 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
         CHECK_EQ(1, EC_KEY_set_public_key(ec.get(), uncompressed.get()));
         EVPKeyPointer pkey(EVP_PKEY_new());
         CHECK_EQ(1, EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()));
-        BIOPointer bio(BIO_new(BIO_s_mem()));
+        auto bio = BIOPointer::NewMem();
         CHECK(bio);
         if (!i2d_PUBKEY_bio(bio.get(), pkey.get()))
           return WebCryptoKeyExportStatus::FAILED;

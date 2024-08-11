@@ -963,4 +963,57 @@ X509Pointer X509Pointer::IssuerFrom(const SSL_CTX* ctx, const X509View& cert) {
 X509Pointer X509Pointer::PeerFrom(const SSLPointer& ssl) {
   return X509Pointer(SSL_get_peer_certificate(ssl.get()));
 }
+// ============================================================================
+// BIOPointer
+
+BIOPointer::BIOPointer(BIO* bio) : bio_(bio) {}
+
+BIOPointer::BIOPointer(BIOPointer&& other) noexcept : bio_(other.release()) {}
+
+BIOPointer& BIOPointer::operator=(BIOPointer&& other) noexcept {
+  if (this == &other) return *this;
+  this->~BIOPointer();
+  return *new (this) BIOPointer(std::move(other));
+}
+
+BIOPointer::~BIOPointer() { reset(); }
+
+void BIOPointer::reset(BIO* bio) { bio_.reset(bio); }
+
+BIO* BIOPointer::release() { return bio_.release(); }
+
+bool BIOPointer::resetBio() const {
+  if (!bio_) return 0;
+  return BIO_reset(bio_.get()) == 1;
+}
+
+BIOPointer BIOPointer::NewMem() {
+  return BIOPointer(BIO_new(BIO_s_mem()));
+}
+
+BIOPointer BIOPointer::NewSecMem() {
+  return BIOPointer(BIO_new(BIO_s_secmem()));
+}
+
+BIOPointer BIOPointer::New(const BIO_METHOD* method) {
+  return BIOPointer(BIO_new(method));
+}
+
+BIOPointer BIOPointer::New(const void* data, size_t len) {
+  return BIOPointer(BIO_new_mem_buf(data, len));
+}
+
+BIOPointer BIOPointer::NewFile(std::string_view filename, std::string_view mode) {
+  return BIOPointer(BIO_new_file(filename.data(), mode.data()));
+}
+
+BIOPointer BIOPointer::NewFp(FILE* fd, int close_flag) {
+  return BIOPointer(BIO_new_fp(fd, close_flag));
+}
+
+int BIOPointer::Write(BIOPointer* bio, std::string_view message) {
+  if (bio == nullptr || !*bio) return 0;
+  return BIO_write(bio->get(), message.data(), message.size());
+}
+
 }  // namespace ncrypto
