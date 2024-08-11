@@ -918,7 +918,7 @@ class SourceCode extends TokenStore {
     }
 
     /**
-     * Returns the locatin of the given node or token.
+     * Returns the location of the given node or token.
      * @param {ASTNode|Token} nodeOrToken The node or token to get the location of.
      * @returns {SourceLocation} The location of the node or token.
      */

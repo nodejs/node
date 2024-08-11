@@ -1042,11 +1042,12 @@ function isStartOfExpressionStatement(node) {
 
 /**
  * Determines whether an opening parenthesis `(`, bracket `[` or backtick ``` ` ``` needs to be preceded by a semicolon.
- * This opening parenthesis or bracket should be at the start of an `ExpressionStatement` or at the start of the body of an `ArrowFunctionExpression`.
+ * This opening parenthesis or bracket should be at the start of an `ExpressionStatement`, a `MethodDefinition` or at
+ * the start of the body of an `ArrowFunctionExpression`.
  * @type {(sourceCode: SourceCode, node: ASTNode) => boolean}
  * @param {SourceCode} sourceCode The source code object.
  * @param {ASTNode} node A node at the position where an opening parenthesis or bracket will be inserted.
- * @returns {boolean} Whether a semicolon is required before the opening parenthesis or braket.
+ * @returns {boolean} Whether a semicolon is required before the opening parenthesis or bracket.
  */
 let needsPrecedingSemicolon;
 
@@ -1106,7 +1107,7 @@ let needsPrecedingSemicolon;
 
         if (isClosingBraceToken(prevToken)) {
             return (
-                prevNode.type === "BlockStatement" && prevNode.parent.type === "FunctionExpression" ||
+                prevNode.type === "BlockStatement" && prevNode.parent.type === "FunctionExpression" && prevNode.parent.parent.type !== "MethodDefinition" ||
                 prevNode.type === "ClassBody" && prevNode.parent.type === "ClassExpression" ||
                 prevNode.type === "ObjectExpression"
             );

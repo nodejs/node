@@ -82,11 +82,11 @@ function generateFilter(sign, version) {
   version = parseFloat(version)
   if (sign === '>') {
     return function (v) {
-      return parseFloat(v) > version
+      return parseLatestFloat(v) > version
     }
   } else if (sign === '>=') {
     return function (v) {
-      return parseFloat(v) >= version
+      return parseLatestFloat(v) >= version
     }
   } else if (sign === '<') {
     return function (v) {
@@ -96,6 +96,10 @@ function generateFilter(sign, version) {
     return function (v) {
       return parseFloat(v) <= version
     }
+  }
+
+  function parseLatestFloat(v) {
+    return parseFloat(v.split('-')[1] || v)
   }
 }
 

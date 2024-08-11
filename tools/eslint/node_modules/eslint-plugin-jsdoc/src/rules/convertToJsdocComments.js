@@ -2,7 +2,11 @@ import iterateJsdoc from '../iterateJsdoc.js';
 import {
   getSettings,
 } from '../iterateJsdoc.js';
-import jsdocUtils from '../jsdocUtils.js';
+import {
+  getIndent,
+  getContextObject,
+  enforcedContexts,
+} from '../jsdocUtils.js';
 import {
   getNonJsdocComment,
   getDecorator,
@@ -114,7 +118,7 @@ export default {
           );
         }
 
-        const indent = jsdocUtils.getIndent({
+        const indent = getIndent({
           text: sourceCode.getText(
             /** @type {import('eslint').Rule.Node} */ (baseNode),
             /** @type {import('eslint').AST.SourceLocation} */
@@ -255,17 +259,17 @@ export default {
 
     // Todo: add contexts to check after (and handle if want both before and after)
     return {
-      ...jsdocUtils.getContextObject(
-        jsdocUtils.enforcedContexts(context, true, settings),
+      ...getContextObject(
+        enforcedContexts(context, true, settings),
         checkNonJsdoc,
       ),
-      ...jsdocUtils.getContextObject(
+      ...getContextObject(
         contextsAfter,
         (_info, _handler, node) => {
           checkNonJsdocAfter(node, contextsAfter);
         },
       ),
-      ...jsdocUtils.getContextObject(
+      ...getContextObject(
         contextsBeforeAndAfter,
         (_info, _handler, node) => {
           checkNonJsdoc({}, null, node);

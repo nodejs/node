@@ -340,16 +340,17 @@ const cli = {
     /**
      * Calculates the command string for the --inspect-config operation.
      * @param {string} configFile The path to the config file to inspect.
+     * @param {boolean} hasUnstableTSConfigFlag `true` if the `unstable_ts_config` flag is enabled, `false` if it's not.
      * @returns {Promise<string>} The command string to execute.
      */
-    async calculateInspectConfigFlags(configFile) {
+    async calculateInspectConfigFlags(configFile, hasUnstableTSConfigFlag) {
 
         // find the config file
         const {
             configFilePath,
             basePath,
             error
-        } = await locateConfigFileToUse({ cwd: process.cwd(), configFile });
+        } = await locateConfigFileToUse({ cwd: process.cwd(), configFile }, hasUnstableTSConfigFlag);
 
         if (error) {
             throw error;
@@ -454,7 +455,7 @@ const cli = {
             try {
                 const flatOptions = await translateOptions(options, "flat");
                 const spawn = require("cross-spawn");
-                const flags = await cli.calculateInspectConfigFlags(flatOptions.overrideConfigFile);
+                const flags = await cli.calculateInspectConfigFlags(flatOptions.overrideConfigFile, flatOptions.flags ? flatOptions.flags.includes("unstable_ts_config") : false);
 
                 spawn.sync("npx", ["@eslint/config-inspector@latest", ...flags], { encoding: "utf8", stdio: "inherit" });
             } catch (error) {

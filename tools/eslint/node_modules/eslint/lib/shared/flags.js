@@ -9,7 +9,8 @@
  * @type {Map<string, string>}
  */
 const activeFlags = new Map([
-    ["test_only", "Used only for testing."]
+    ["test_only", "Used only for testing."],
+    ["unstable_ts_config", "Enable TypeScript configuration files."]
 ]);
 
 /**

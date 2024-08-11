@@ -55,6 +55,7 @@ const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, colum
 const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 const { LATEST_ECMA_VERSION } = require("../../conf/ecma-version");
 const { VFile } = require("./vfile");
+const { ParserService } = require("../services/parser-service");
 const STEP_KIND_VISIT = 1;
 const STEP_KIND_CALL = 2;
 
@@ -923,43 +924,6 @@ function analyzeScope(ast, languageOptions, visitorKeys) {
 }
 
 /**
- * Parses file into an AST. Moved out here because the try-catch prevents
- * optimization of functions, so it's best to keep the try-catch as isolated
- * as possible
- * @param {VFile} file The file to parse.
- * @param {Language} language The language to use.
- * @param {LanguageOptions} languageOptions Options to pass to the parser
- * @returns {{success: false, error: LintMessage}|{success: true, sourceCode: SourceCode}}
- * An object containing the AST and parser services if parsing was successful, or the error if parsing failed
- * @private
- */
-function parse(file, language, languageOptions) {
-
-    const result = language.parse(file, { languageOptions });
-
-    if (result.ok) {
-        return {
-            success: true,
-            sourceCode: language.createSourceCode(file, result, { languageOptions })
-        };
-    }
-
-    // if we made it to here there was an error
-    return {
-        success: false,
-        errors: result.errors.map(error => ({
-            ruleId: null,
-            nodeType: null,
-            fatal: true,
-            severity: 2,
-            message: `Parsing error: ${error.message}`,
-            line: error.line,
-            column: error.column
-        }))
-    };
-}
-
-/**
  * Runs a rule, and gets its listeners
  * @param {Rule} rule A rule object
  * @param {Context} ruleContext The context that should be passed to the rule
@@ -1407,10 +1371,13 @@ class Linter {
                 t = startTime();
             }
 
-            const parseResult = parse(
+            const parserService = new ParserService();
+            const parseResult = parserService.parseSync(
                 file,
-                jslang,
-                languageOptions
+                {
+                    language: jslang,
+                    languageOptions
+                }
             );
 
             if (options.stats) {
@@ -1420,7 +1387,7 @@ class Linter {
                 storeTime(time, timeOpts, slots);
             }
 
-            if (!parseResult.success) {
+            if (!parseResult.ok) {
                 return parseResult.errors;
             }
 
@@ -1712,10 +1679,10 @@ class Linter {
                 t = startTime();
             }
 
-            const parseResult = parse(
+            const parserService = new ParserService();
+            const parseResult = parserService.parseSync(
                 file,
-                config.language,
-                languageOptions
+                config
             );
 
             if (options.stats) {
@@ -1724,7 +1691,7 @@ class Linter {
                 storeTime(time, { type: "parse" }, slots);
             }
 
-            if (!parseResult.success) {
+            if (!parseResult.ok) {
                 return parseResult.errors;
             }
 

@@ -35,7 +35,7 @@ function getModuleName(rootOpts, pluginOpts) {
   let moduleName = moduleRoot != null ? moduleRoot + "/" : "";
   if (filenameRelative) {
     const sourceRootReplacer = sourceRoot != null ? new RegExp("^" + sourceRoot + "/?") : "";
-    moduleName += filenameRelative.replace(sourceRootReplacer, "").replace(/\.(\w*?)$/, "");
+    moduleName += filenameRelative.replace(sourceRootReplacer, "").replace(/\.\w*$/, "");
   }
   moduleName = moduleName.replace(/\\/g, "/");
   if (getModuleId) {

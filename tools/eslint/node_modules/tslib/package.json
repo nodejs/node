@@ -2,7 +2,7 @@
     "name": "tslib",
     "author": "Microsoft Corp.",
     "homepage": "https://www.typescriptlang.org/",
-    "version": "2.6.3",
+    "version": "2.7.0",
     "license": "0BSD",
     "description": "Runtime library for TypeScript helper functions",
     "keywords": [

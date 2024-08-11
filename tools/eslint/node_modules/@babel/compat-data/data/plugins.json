@@ -1,6 +1,7 @@
 {
   "transform-duplicate-named-capturing-groups-regex": {
     "chrome": "126",
+    "opera": "112",
     "edge": "126",
     "firefox": "129",
     "safari": "17.4",
@@ -22,7 +23,7 @@
     "chrome": "98",
     "opera": "84",
     "edge": "98",
-    "firefox": "95",
+    "firefox": "75",
     "safari": "15",
     "node": "12",
     "deno": "1.18",

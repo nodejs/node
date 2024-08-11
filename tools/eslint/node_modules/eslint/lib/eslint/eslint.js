@@ -63,6 +63,8 @@ const { Retrier } = require("@humanwhocodes/retry");
 /** @typedef {import("../shared/types").RuleConf} RuleConf */
 /** @typedef {import("../shared/types").Rule} Rule */
 /** @typedef {ReturnType<ConfigArray.extractConfig>} ExtractedConfig */
+/** @typedef {import('../cli-engine/cli-engine').CLIEngine} CLIEngine */
+/** @typedef {import('./legacy-eslint').CLIEngineLintReport} CLIEngineLintReport */
 
 /**
  * The options with which to configure the ESLint instance.
@@ -86,7 +88,7 @@ const { Retrier } = require("@humanwhocodes/retry");
  *      when a string.
  * @property {Record<string,Plugin>} [plugins] An array of plugin implementations.
  * @property {boolean} [stats] True enables added statistics on lint results.
- * @property {boolean} warnIgnored Show warnings when the file list includes ignored files
+ * @property {boolean} [warnIgnored] Show warnings when the file list includes ignored files
  * @property {boolean} [passOnNoPatterns=false] When set to true, missing patterns cause
  *      the linting operation to short circuit and not report any failures.
  */
@@ -100,8 +102,18 @@ const FLAT_CONFIG_FILENAMES = [
     "eslint.config.mjs",
     "eslint.config.cjs"
 ];
+const FLAT_CONFIG_FILENAMES_WITH_TS = [
+    ...FLAT_CONFIG_FILENAMES,
+    "eslint.config.ts",
+    "eslint.config.mts",
+    "eslint.config.cts"
+];
 const debug = require("debug")("eslint:eslint");
 const privateMembers = new WeakMap();
+
+/**
+ * @type {Map<string, string>}
+ */
 const importedConfigFileModificationTime = new Map();
 const removedFormatters = new Set([
     "checkstyle",
@@ -262,28 +274,59 @@ function compareResultsByFilePath(a, b) {
  * Searches from the current working directory up until finding the
  * given flat config filename.
  * @param {string} cwd The current working directory to search from.
+ * @param {boolean} hasUnstableTSConfigFlag `true` if the `unstable_ts_config` flag is enabled, `false` if it's not.
  * @returns {Promise<string|undefined>} The filename if found or `undefined` if not.
  */
-function findFlatConfigFile(cwd) {
+function findFlatConfigFile(cwd, hasUnstableTSConfigFlag) {
+    const filenames = hasUnstableTSConfigFlag ? FLAT_CONFIG_FILENAMES_WITH_TS : FLAT_CONFIG_FILENAMES;
+
     return findUp(
-        FLAT_CONFIG_FILENAMES,
+        filenames,
         { cwd }
     );
 }
 
 /**
+ * Check if the file is a TypeScript file.
+ * @param {string} filePath The file path to check.
+ * @returns {boolean} `true` if the file is a TypeScript file, `false` if it's not.
+ */
+function isFileTS(filePath) {
+    const fileExtension = path.extname(filePath);
+
+    return /^\.[mc]?ts$/u.test(fileExtension);
+}
+
+/**
+ * Check if ESLint is running in Bun.
+ * @returns {boolean} `true` if the ESLint is running Bun, `false` if it's not.
+ */
+function isRunningInBun() {
+    return !!globalThis.Bun;
+}
+
+/**
+ * Check if ESLint is running in Deno.
+ * @returns {boolean} `true` if the ESLint is running in Deno, `false` if it's not.
+ */
+function isRunningInDeno() {
+    return !!globalThis.Deno;
+}
+
+/**
  * Load the config array from the given filename.
  * @param {string} filePath The filename to load from.
+ * @param {boolean} hasUnstableTSConfigFlag `true` if the `unstable_ts_config` flag is enabled, `false` if it's not.
  * @returns {Promise<any>} The config loaded from the config file.
  */
-async function loadFlatConfigFile(filePath) {
+async function loadFlatConfigFile(filePath, hasUnstableTSConfigFlag) {
     debug(`Loading config from ${filePath}`);
 
     const fileURL = pathToFileURL(filePath);
 
     debug(`Config file URL is ${fileURL}`);
 
-    const mtime = (await fs.stat(filePath)).mtime.getTime();
+    const mtime = (await fs.stat(filePath)).mtime.getTime().toString();
 
     /*
      * Append a query with the config file's modification time (`mtime`) in order
@@ -314,7 +357,37 @@ async function loadFlatConfigFile(filePath) {
         delete require.cache[filePath];
     }
 
-    const config = (await import(fileURL)).default;
+    const isTS = isFileTS(filePath) && hasUnstableTSConfigFlag;
+
+    const isBun = isRunningInBun();
+
+    const isDeno = isRunningInDeno();
+
+    if (isTS && !isDeno && !isBun) {
+
+        const createJiti = await import("jiti").then(jitiModule => jitiModule.default, () => {
+            throw new Error("The 'jiti' library is required for loading TypeScript configuration files. Make sure to install it.");
+        });
+
+        /*
+         * Disabling `moduleCache` allows us to reload a
+         * config file when the last modified timestamp changes.
+         */
+
+        const jiti = createJiti(__filename, { moduleCache: false });
+
+        if (typeof jiti?.import !== "function") {
+            throw new Error("You are using an outdated version of the 'jiti' library. Please update to the latest version of 'jiti' to ensure compatibility and access to the latest features.");
+        }
+
+        const config = await jiti.import(fileURL.href);
+
+        importedConfigFileModificationTime.set(filePath, mtime);
+
+        return config?.default ?? config;
+    }
+
+    const config = (await import(fileURL.href)).default;
 
     importedConfigFileModificationTime.set(filePath, mtime);
 
@@ -326,11 +399,12 @@ async function loadFlatConfigFile(filePath) {
  * override config file was passed, and if so, using it; otherwise, as long
  * as override config file is not explicitly set to `false`, it will search
  * upwards from the cwd for a file named `eslint.config.js`.
- * @param {import("./eslint").ESLintOptions} options The ESLint instance options.
- * @returns {{configFilePath:string|undefined,basePath:string,error:Error|null}} Location information for
+ * @param {ESLintOptions} options The ESLint instance options.
+ * @param {boolean} hasUnstableTSConfigFlag `true` if the `unstable_ts_config` flag is enabled, `false` if it's not.
+ * @returns {Promise<{configFilePath:string|undefined;basePath:string;error:Error|null}>} Location information for
  *      the config file.
  */
-async function locateConfigFileToUse({ configFile, cwd }) {
+async function locateConfigFileToUse({ configFile, cwd }, hasUnstableTSConfigFlag) {
 
     // determine where to load config file from
     let configFilePath;
@@ -342,7 +416,7 @@ async function locateConfigFileToUse({ configFile, cwd }) {
         configFilePath = path.resolve(cwd, configFile);
     } else if (configFile !== false) {
         debug("Searching for eslint.config.js");
-        configFilePath = await findFlatConfigFile(cwd);
+        configFilePath = await findFlatConfigFile(cwd, hasUnstableTSConfigFlag);
 
         if (configFilePath) {
             basePath = path.resolve(path.dirname(configFilePath));
@@ -364,8 +438,8 @@ async function locateConfigFileToUse({ configFile, cwd }) {
 /**
  * Calculates the config array for this run based on inputs.
  * @param {ESLint} eslint The instance to create the config array for.
- * @param {import("./eslint").ESLintOptions} options The ESLint instance options.
- * @returns {FlatConfigArray} The config array for `eslint``.
+ * @param {ESLintOptions} options The ESLint instance options.
+ * @returns {Promise<typeof FlatConfigArray>} The config array for `eslint``.
  */
 async function calculateConfigArray(eslint, {
     cwd,
@@ -383,7 +457,9 @@ async function calculateConfigArray(eslint, {
         return slots.configs;
     }
 
-    const { configFilePath, basePath, error } = await locateConfigFileToUse({ configFile, cwd });
+    const hasUnstableTSConfigFlag = eslint.hasFlag("unstable_ts_config");
+
+    const { configFilePath, basePath, error } = await locateConfigFileToUse({ configFile, cwd }, hasUnstableTSConfigFlag);
 
     // config file is required to calculate config
     if (error) {
@@ -394,7 +470,7 @@ async function calculateConfigArray(eslint, {
 
     // load config file
     if (configFilePath) {
-        const fileConfig = await loadFlatConfigFile(configFilePath);
+        const fileConfig = await loadFlatConfigFile(configFilePath, hasUnstableTSConfigFlag);
 
         if (Array.isArray(fileConfig)) {
             configs.push(...fileConfig);
@@ -568,6 +644,23 @@ function shouldMessageBeFixed(message, config, fixTypes) {
  */
 function createExtraneousResultsError() {
     return new TypeError("Results object was not created from this ESLint instance.");
+}
+
+/**
+ * Creates a fixer function based on the provided fix, fixTypesSet, and config.
+ * @param {Function|boolean} fix The original fix option.
+ * @param {Set<string>} fixTypesSet A set of fix types to filter messages for fixing.
+ * @param {FlatConfig} config The config for the file that generated the message.
+ * @returns {Function|boolean} The fixer function or the original fix value.
+ */
+function getFixerForFixTypes(fix, fixTypesSet, config) {
+    if (!fix || !fixTypesSet) {
+        return fix;
+    }
+
+    const originalFix = (typeof fix === "function") ? fix : () => true;
+
+    return message => shouldMessageBeFixed(message, config, fixTypesSet) && originalFix(message);
 }
 
 //-----------------------------------------------------------------------------
@@ -918,16 +1011,7 @@ class ESLint {
 
 
                 // set up fixer for fixTypes if necessary
-                let fixer = fix;
-
-                if (fix && fixTypesSet) {
-
-                    // save original value of options.fix in case it's a function
-                    const originalFix = (typeof fix === "function")
-                        ? fix : () => true;
-
-                    fixer = message => shouldMessageBeFixed(message, config, fixTypesSet) && originalFix(message);
-                }
+                const fixer = getFixerForFixTypes(fix, fixTypesSet, config);
 
                 return retrier.retry(() => fs.readFile(filePath, { encoding: "utf8", signal: controller.signal })
                     .then(text => {
@@ -1032,13 +1116,18 @@ class ESLint {
             allowInlineConfig,
             cwd,
             fix,
+            fixTypes,
             warnIgnored: constructorWarnIgnored,
             ruleFilter,
             stats
         } = eslintOptions;
         const results = [];
         const startTime = Date.now();
+        const fixTypesSet = fixTypes ? new Set(fixTypes) : null;
         const resolvedFilename = path.resolve(cwd, filePath || "__placeholder__.js");
+        const config = configs.getConfig(resolvedFilename);
+
+        const fixer = getFixerForFixTypes(fix, fixTypesSet, config);
 
         // Clear the last used config arrays.
         if (resolvedFilename && await this.isPathIgnored(resolvedFilename)) {
@@ -1057,7 +1146,7 @@ class ESLint {
                 filePath: resolvedFilename.endsWith("__placeholder__.js") ? "<text>" : resolvedFilename,
                 configs,
                 cwd,
-                fix,
+                fix: fixer,
                 allowInlineConfig,
                 ruleFilter,
                 stats,
@@ -1144,7 +1233,7 @@ class ESLint {
 
             /**
              * The main formatter method.
-             * @param {LintResults[]} results The lint results to format.
+             * @param {LintResult[]} results The lint results to format.
              * @param {ResultsMeta} resultsMeta Warning count and max threshold.
              * @returns {string} The formatted lint results.
              */
@@ -1190,12 +1279,12 @@ class ESLint {
     /**
      * Finds the config file being used by this instance based on the options
      * passed to the constructor.
-     * @returns {string|undefined} The path to the config file being used or
+     * @returns {Promise<string|undefined>} The path to the config file being used or
      *      `undefined` if no config file is being used.
      */
     async findConfigFile() {
         const options = privateMembers.get(this).options;
-        const { configFilePath } = await locateConfigFileToUse(options);
+        const { configFilePath } = await locateConfigFileToUse(options, this.hasFlag("unstable_ts_config"));
 
         return configFilePath;
     }

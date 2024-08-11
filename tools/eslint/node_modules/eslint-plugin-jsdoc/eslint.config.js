@@ -9,15 +9,16 @@ const common = {
   },
   plugins: {
     jsdoc
-  }
+  },
 };
 
 export default [
   // canonical,
   // canonicalJsdoc,
+  ...jsdoc.configs['examples-and-default-expressions'],
   {
     // Must be by itself
-    ignores: ['dist/**/*.js', '.ignore/**/*.js'],
+    ignores: ['dist/**', '.ignore/**/*.js'],
   },
   {
     ...common,

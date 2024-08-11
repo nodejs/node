@@ -117,9 +117,8 @@ export default iterateJsdoc(({
 }) => {
   if (semver.gte(ESLint.version, '8.0.0')) {
     report(
-      'This rule cannot yet be supported for ESLint 8; you ' +
-        'should either downgrade to ESLint 7 or disable this rule. The ' +
-        'possibility for ESLint 8 support is being tracked at https://github.com/eslint/eslint/issues/14745',
+      'This rule does not work for ESLint 8+; you should disable this rule and use' +
+        'the processor mentioned in the docs.',
       null,
       {
         column: 1,

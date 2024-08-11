@@ -2,7 +2,15 @@ import exportParser from '../exportParser.js';
 import {
   getSettings,
 } from '../iterateJsdoc.js';
-import jsdocUtils from '../jsdocUtils.js';
+import {
+  exemptSpeciaMethods,
+  isConstructor,
+  getFunctionParameterNames,
+  hasReturnValue,
+  getIndent,
+  getContextObject,
+  enforcedContexts,
+} from '../jsdocUtils.js';
 import {
   getDecorator,
   getJSDocComment,
@@ -381,7 +389,7 @@ export default {
 
       // For those who have options configured against ANY constructors (or
       //  setters or getters) being reported
-      if (jsdocUtils.exemptSpeciaMethods(
+      if (exemptSpeciaMethods(
         {
           description: '',
           inlineTags: [],
@@ -405,10 +413,10 @@ export default {
 
         // Avoid reporting  param-less, return-less constructor methods (when
         //  `exemptEmptyConstructors` option is set)
-        exemptEmptyConstructors && jsdocUtils.isConstructor(node)
+        exemptEmptyConstructors && isConstructor(node)
       ) {
-        const functionParameterNames = jsdocUtils.getFunctionParameterNames(node);
-        if (!functionParameterNames.length && !jsdocUtils.hasReturnValue(node)) {
+        const functionParameterNames = getFunctionParameterNames(node);
+        if (!functionParameterNames.length && !hasReturnValue(node)) {
           return;
         }
       }
@@ -427,7 +435,7 @@ export default {
           baseNode = decorator;
         }
 
-        const indent = jsdocUtils.getIndent({
+        const indent = getIndent({
           text: sourceCode.getText(
             /** @type {import('eslint').Rule.Node} */ (baseNode),
             /** @type {import('eslint').AST.SourceLocation} */
@@ -516,8 +524,8 @@ export default {
     };
 
     return {
-      ...jsdocUtils.getContextObject(
-        jsdocUtils.enforcedContexts(context, [], settings),
+      ...getContextObject(
+        enforcedContexts(context, [], settings),
         checkJsDoc,
       ),
       ArrowFunctionExpression (node) {

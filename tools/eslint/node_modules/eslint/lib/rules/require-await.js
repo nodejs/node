@@ -42,8 +42,11 @@ module.exports = {
         schema: [],
 
         messages: {
-            missingAwait: "{{name}} has no 'await' expression."
-        }
+            missingAwait: "{{name}} has no 'await' expression.",
+            removeAsync: "Remove 'async'."
+        },
+
+        hasSuggestions: true
     },
 
     create(context) {
@@ -69,6 +72,33 @@ module.exports = {
          */
         function exitFunction(node) {
             if (!node.generator && node.async && !scopeInfo.hasAwait && !astUtils.isEmptyFunction(node)) {
+
+                /*
+                 * If the function belongs to a method definition or
+                 * property, then the function's range may not include the
+                 * `async` keyword and we should look at the parent instead.
+                 */
+                const nodeWithAsyncKeyword =
+                    (node.parent.type === "MethodDefinition" && node.parent.value === node) ||
+                    (node.parent.type === "Property" && node.parent.method && node.parent.value === node)
+                        ? node.parent
+                        : node;
+
+                const asyncToken = sourceCode.getFirstToken(nodeWithAsyncKeyword, token => token.value === "async");
+                const asyncRange = [asyncToken.range[0], sourceCode.getTokenAfter(asyncToken, { includeComments: true }).range[0]];
+
+                /*
+                 * Removing the `async` keyword can cause parsing errors if the current
+                 * statement is relying on automatic semicolon insertion. If ASI is currently
+                 * being used, then we should replace the `async` keyword with a semicolon.
+                 */
+                const nextToken = sourceCode.getTokenAfter(asyncToken);
+                const addSemiColon =
+                    nextToken.type === "Punctuator" &&
+                    (nextToken.value === "[" || nextToken.value === "(") &&
+                    (nodeWithAsyncKeyword.type === "MethodDefinition" || astUtils.isStartOfExpressionStatement(nodeWithAsyncKeyword)) &&
+                    astUtils.needsPrecedingSemicolon(sourceCode, nodeWithAsyncKeyword);
+
                 context.report({
                     node,
                     loc: astUtils.getFunctionHeadLoc(node, sourceCode),
@@ -77,7 +107,11 @@ module.exports = {
                         name: capitalizeFirstLetter(
                             astUtils.getFunctionNameWithKind(node)
                         )
-                    }
+                    },
+                    suggest: [{
+                        messageId: "removeAsync",
+                        fix: fixer => fixer.replaceTextRange(asyncRange, addSemiColon ? ";" : "")
+                    }]
                 });
             }
 
