@@ -33,6 +33,7 @@ NetworkAgent::NetworkAgent(NetworkInspector* inspector)
     : inspector_(inspector) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
+  event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
   event_notifier_map_["loadingFinished"] = &NetworkAgent::loadingFinished;
 }
 
@@ -115,6 +116,20 @@ void NetworkAgent::responseReceived(
       timestamp,
       type,
       createResponse(url, status, statusText, std::move(headers)));
+}
+
+void NetworkAgent::loadingFailed(
+    std::unique_ptr<protocol::DictionaryValue> params) {
+  String request_id;
+  params->getString("requestId", &request_id);
+  double timestamp;
+  params->getDouble("timestamp", &timestamp);
+  String type;
+  params->getString("type", &type);
+  String error_text;
+  params->getString("errorText", &error_text);
+
+  frontend_->loadingFailed(request_id, timestamp, type, error_text);
 }
 
 void NetworkAgent::loadingFinished(
