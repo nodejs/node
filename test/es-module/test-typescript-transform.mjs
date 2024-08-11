@@ -29,26 +29,14 @@ test('reconstruct error of a TypeScript file with transformation enabled and sou
   strictEqual(result.code, 1);
 });
 
-test('reconstruct error of a complex TypeScript file with transformation enabled and sourcemaps', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-transform-types',
-    '--no-warnings',
-    fixtures.path('typescript/ts/transformation/test-complex-stacktrace.ts'),
-  ]);
-  match(result.stderr, /test-complex-stacktrace\.ts:27:7/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
-});
-
-test('reconstruct error of a complex TypeScript file with transformation enabled without sourcemaps', async () => {
+test('reconstruct error of a TypeScript file with transformation enabled without sourcemaps', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-transform-types',
     '--no-enable-source-maps',
     '--no-warnings',
-    fixtures.path('typescript/ts/transformation/test-complex-stacktrace.ts'),
+    fixtures.path('typescript/ts/transformation/test-enum-stacktrace.ts'),
   ]);
-  // The stack trace is not reconstructed without sourcemaps.
-  match(result.stderr, /test-complex-stacktrace\.ts:33:7/);
+  match(result.stderr, /test-enum-stacktrace\.ts:5:7/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
@@ -112,4 +100,17 @@ test('execute a TypeScript file with modern typescript syntax', async () => {
   strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
+});
+
+test('execute a transpiled JavaScript file', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--enable-source-maps',
+    '--no-warnings',
+    fixtures.path('typescript/ts/transformation/test-transformed-typescript.js'),
+  ]);
+
+  match(result.stderr, /Stacktrace at line 28/);
+  match(result.stderr, /test-failing-arm64\.js:28:7/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 1);
 });
