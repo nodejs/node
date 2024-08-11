@@ -22,7 +22,6 @@ using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Number;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 thread_local std::unordered_map<std::string_view, int> v8_fast_api_call_counts;
