@@ -102,8 +102,7 @@ void Fingerprint(const FunctionCallbackInfo<Value>& args) {
 
 MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
   if (!bio) return {};
-  BUF_MEM* mem;
-  BIO_get_mem_ptr(bio.get(), &mem);
+  BUF_MEM* mem = bio;
   Local<Value> ret;
   if (!String::NewFromUtf8(context->GetIsolate(),
                            mem->data,
@@ -161,8 +160,7 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, const ASN1_STRING* str) {
 
 MaybeLocal<Value> ToV8Value(Local<Context> context, const BIOPointer& bio) {
   if (!bio) return {};
-  BUF_MEM* mem;
-  BIO_get_mem_ptr(bio.get(), &mem);
+  BUF_MEM* mem = bio;
   Local<Value> ret;
   if (!String::NewFromUtf8(context->GetIsolate(),
                            mem->data,
@@ -175,8 +173,7 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, const BIOPointer& bio) {
 
 MaybeLocal<Value> ToBuffer(Environment* env, BIOPointer* bio) {
   if (bio == nullptr || !*bio) return {};
-  BUF_MEM* mem;
-  BIO_get_mem_ptr(bio->get(), &mem);
+  BUF_MEM* mem = *bio;
   auto backing = ArrayBuffer::NewBackingStore(
       mem->data,
       mem->length,
@@ -664,14 +661,16 @@ MaybeLocal<Object> GetPubKey(Environment* env, OSSL3_CONST RSA* rsa) {
 }
 
 MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
+  if (!bio) return {};
   BN_print(bio.get(), n);
   return ToV8Value(env->context(), bio);
 }
 
 MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
   uint64_t exponent_word = static_cast<uint64_t>(BignumPointer::GetWord(e));
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
+  if (!bio) return {};
   BIO_printf(bio.get(), "0x%" PRIx64, exponent_word);
   return ToV8Value(env->context(), bio);
 }

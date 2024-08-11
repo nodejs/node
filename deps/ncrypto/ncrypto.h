@@ -6,8 +6,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <openssl/bio.h>
 #include <openssl/bn.h>
-#include <openssl/x509.h>
 #include <openssl/dh.h>
 #include <openssl/dsa.h>
 #include <openssl/ec.h>
@@ -17,6 +17,7 @@
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
+#include <openssl/x509.h>
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -192,7 +193,6 @@ template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
-using BIOPointer = DeleteFnPtr<BIO, BIO_free_all>;
 using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
 using DSAPointer = DeleteFnPtr<DSA, DSA_free>;
@@ -263,6 +263,53 @@ class DataPointer final {
  private:
   void* data_ = nullptr;
   size_t len_ = 0;
+};
+
+class BIOPointer final {
+public:
+  static BIOPointer NewMem();
+  static BIOPointer NewSecMem();
+  static BIOPointer New(const BIO_METHOD* method);
+  static BIOPointer New(const void* data, size_t len);
+  static BIOPointer NewFile(std::string_view filename, std::string_view mode);
+  static BIOPointer NewFp(FILE* fd, int flags);
+
+  BIOPointer() = default;
+  BIOPointer(std::nullptr_t) : bio_(nullptr) {}
+  explicit BIOPointer(BIO* bio);
+  BIOPointer(BIOPointer&& other) noexcept;
+  BIOPointer& operator=(BIOPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(BIOPointer)
+  ~BIOPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return bio_ == nullptr; }
+  inline operator bool() const { return bio_ != nullptr; }
+  inline BIO* get() const noexcept { return bio_.get(); }
+
+  inline operator BUF_MEM*() const {
+    BUF_MEM* mem = nullptr;
+    if (!bio_) return mem;
+    BIO_get_mem_ptr(bio_.get(), &mem);
+    return mem;
+  }
+
+  inline operator BIO*() const { return bio_.get(); }
+
+  void reset(BIO* bio = nullptr);
+  BIO* release();
+
+  bool resetBio() const;
+
+  static int Write(BIOPointer* bio, std::string_view message);
+
+  template <typename...Args>
+  static void Printf(BIOPointer* bio, const char* format, Args...args) {
+    if (bio == nullptr || !*bio) return;
+    BIO_printf(bio->get(), format, std::forward<Args...>(args...));
+  }
+
+private:
+  mutable DeleteFnPtr<BIO, BIO_free_all> bio_;
 };
 
 class BignumPointer final {
