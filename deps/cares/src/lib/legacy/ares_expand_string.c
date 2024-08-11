@@ -74,8 +74,7 @@ ares_status_t ares_expand_string_ex(const unsigned char *encoded,
   }
 
   start_len = ares__buf_len(buf);
-  status =
-    ares__buf_parse_dns_binstr(buf, ares__buf_len(buf), s, &len);
+  status    = ares__buf_parse_dns_binstr(buf, ares__buf_len(buf), s, &len);
   /* hrm, no way to pass back 'len' with the prototype */
   if (status != ARES_SUCCESS) {
     goto done;
