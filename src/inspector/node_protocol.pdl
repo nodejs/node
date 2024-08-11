@@ -180,6 +180,17 @@ experimental domain Network
       # Response data.
       Response response
 
+  event loadingFailed
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Resource type.
+      ResourceType type
+      # Error message.
+      string errorText
+
   event loadingFinished
     parameters
       # Request identifier.
