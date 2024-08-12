@@ -2714,7 +2714,6 @@ void Scope::AllocateScopeInfosRecursively(
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    DCHECK_GT(scope->UniqueIdInScript(), UniqueIdInScript());
     DCHECK_IMPLIES(scope->sibling_, scope->sibling_->UniqueIdInScript() !=
                                         scope->UniqueIdInScript());
     if (!scope->is_function_scope() ||
