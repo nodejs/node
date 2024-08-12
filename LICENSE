@@ -78,8 +78,6 @@ The externally maintained libraries used by Node.js are:
 
 - c-ares, located at deps/cares, is licensed as follows:
   """
-    MIT License
-
     Copyright (c) 1998 Massachusetts Institute of Technology
     Copyright (c) 2007 - 2023 Daniel Stenberg with many contributors, see AUTHORS
     file.
