@@ -1,3 +1,5 @@
+// Flags: --experimental-explicit-resource-management
+
 'use strict';
 process.env.NODE_TEST_KNOWN_GLOBALS = 0;
 const common = require('../common');

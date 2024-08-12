@@ -1,3 +1,5 @@
+// Flags: --experimental-explicit-resource-management
+
 import * as common from '../common/index.mjs';
 import * as events from 'node:events';
 import * as assert from 'node:assert';

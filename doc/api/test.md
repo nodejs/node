@@ -2276,6 +2276,8 @@ mock.timers.reset();
 
 ### `timers[Symbol.dispose]()`
 
+> Stability: 1 - Experimental
+
 Calls `timers.reset()`.
 
 ### `timers.tick([milliseconds])`

@@ -1,3 +1,5 @@
+// Flags: --experimental-explicit-resource-management
+
 import * as common from '../common/index.mjs';
 import assert from 'node:assert';
 import net from 'node:net';

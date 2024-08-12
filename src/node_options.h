@@ -264,6 +264,7 @@ class PerIsolateOptions : public Options {
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool experimental_shadow_realm = false;
+  bool experimental_explicit_resource_management = false;
   std::string report_signal = "SIGUSR2";
   bool build_snapshot = false;
   std::string build_snapshot_config;

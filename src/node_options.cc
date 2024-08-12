@@ -905,6 +905,19 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   Implies("--experimental-shadow-realm", "--harmony-shadow-realm");
   Implies("--harmony-shadow-realm", "--experimental-shadow-realm");
   ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
+
+  AddOption("--experimental-explicit-resource-management",
+            "",
+            &PerIsolateOptions::experimental_explicit_resource_management,
+            kAllowedInEnvvar);
+  AddOption("--js-explicit-resource-management", "", V8Option{});
+  Implies("--experimental-explicit-resource-management",
+          "--js-explicit-resource-management");
+  Implies("--js-explicit-resource-management",
+          "--experimental-explicit-resource-management");
+  ImpliesNot("--no-js-explicit-resource-management",
+             "--experimental-explicit-resource-management");
+
   AddOption("--build-snapshot",
             "Generate a snapshot blob when the process exits.",
             &PerIsolateOptions::build_snapshot,

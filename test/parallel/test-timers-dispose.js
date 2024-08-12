@@ -1,3 +1,5 @@
+// Flags: --experimental-explicit-resource-management
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');

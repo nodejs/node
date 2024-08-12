@@ -941,6 +941,14 @@ added: v22.3.0
 
 Enable exposition of [EventSource Web API][] on the global scope.
 
+### `--experimental-explicit-resource-management`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to enable [Explicit Resource Management][] support.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -2912,6 +2920,7 @@ one is included in the list below.
 * `--experimental-default-type`
 * `--experimental-detect-module`
 * `--experimental-eventsource`
+* `--experimental-explicit-resource-management`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -3364,6 +3373,8 @@ documented here:
 
 ### `--jitless`
 
+### `--js-explicit-resource-management`
+
 ### `--interpreted-frames-native-stack`
 
 ### `--prof`
@@ -3435,6 +3446,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ECMAScript module]: esm.md#modules-ecmascript-modules
 [EventSource Web API]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
+[Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
