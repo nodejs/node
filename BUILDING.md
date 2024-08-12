@@ -160,7 +160,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 
 | Binary package          | Platform and Toolchain                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 10                                                                         |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                                                                     |
 | darwin-x64              | macOS 11, Xcode 13 with -mmacosx-version-min=11.0                                                           |
 | darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 13 with -mmacosx-version-min=11.0                                                   |
 | linux-arm64             | RHEL 8 with GCC 10[^6]                                                                                      |
@@ -171,6 +171,9 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022                                                           |
 
 <!--lint disable final-definition-->
+
+[^5]: Binaries produced on these systems require libstdc++12, available
+    from the [AIX toolbox][].
 
 [^6]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
@@ -953,4 +956,5 @@ version of a dependency), please reserve and use a custom `NODE_MODULE_VERSION`
 by opening a pull request against the registry available at
 <https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
 
+[AIX toolbox]: https://www.ibm.com/support/pages/aix-toolbox-open-source-software-overview
 [Python versions]: https://devguide.python.org/versions/
