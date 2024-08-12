@@ -933,6 +933,17 @@ files with no extension will be treated as WebAssembly if they begin with the
 WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
 JavaScript.
 
+### `--experimental-transform-types`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enables the transformation of TypeScript-only syntax into JavaScript code.
+Implies `--experimental-strip-types` and `--enable-source-maps`.
+
 ### `--experimental-eventsource`
 
 <!-- YAML
@@ -2924,6 +2935,7 @@ one is included in the list below.
 * `--experimental-sqlite`
 * `--experimental-strip-types`
 * `--experimental-top-level-await`
+* `--experimental-transform-types`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`

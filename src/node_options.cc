@@ -789,6 +789,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Experimental type-stripping for TypeScript files.",
             &EnvironmentOptions::experimental_strip_types,
             kAllowedInEnvvar);
+  AddOption("--experimental-transform-types",
+            "enable transformation of TypeScript-only"
+            "syntax into JavaScript code",
+            &EnvironmentOptions::experimental_transform_types,
+            kAllowedInEnvvar);
+  Implies("--experimental-transform-types", "--experimental-strip-types");
+  Implies("--experimental-transform-types", "--enable-source-maps");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
