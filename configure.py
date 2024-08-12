@@ -1636,7 +1636,6 @@ def configure_v8(o, configs):
   o['variables']['v8_enable_javascript_promise_hooks'] = 1
   o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
-  o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
   o['variables']['dcheck_always_on'] = 1 if options.v8_with_dchecks else 0
   o['variables']['v8_enable_object_print'] = 0 if options.v8_disable_object_print else 1

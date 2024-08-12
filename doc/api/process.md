@@ -1101,7 +1101,6 @@ An example of the possible output looks like:
      node_shared_zlib: 'false',
      node_use_openssl: 'true',
      node_shared_openssl: 'false',
-     strict_aliasing: 'true',
      target_arch: 'x64',
      v8_use_snapshot: 1
    }
