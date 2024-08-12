@@ -7509,7 +7509,6 @@ added:
 
 Free blocks available to unprivileged users.
 
-**Example:**
 ```mjs
 import { statfs } from "fs/promises";
 
@@ -7534,7 +7533,6 @@ added:
 
 Free blocks in file system.
 
-**Example:**
 ```mjs
 import { statfs } from "fs/promises";
 
@@ -7559,7 +7557,6 @@ added:
 
 Total data blocks in file system.
 
-**Example:**
 ```mjs
 import { statfs } from "fs/promises";
 
