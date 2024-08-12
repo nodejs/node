@@ -5,6 +5,7 @@
     "ms-vsliveshare.vsliveshare",
     "vscode-icons-team.vscode-icons",
     "visualstudioexptteam.vscodeintellicode"
+    "new message"
   ],
   "image": "nodejs/devcontainer:nightly",
   "settings": {
