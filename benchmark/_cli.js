@@ -70,9 +70,9 @@ function CLI(usage, settings) {
     } else if (arg === 'coverage') {
       this.coverage = true;
       // TODO: add support to those benchmarks
-      const excludedBenchmarks = ['napi',  'http'];
+      const excludedBenchmarks = ['napi', 'http'];
       this.items = Object.keys(benchmarks)
-        .filter(b => !excludedBenchmarks.includes(b));
+        .filter((b) => !excludedBenchmarks.includes(b));
       // Run once
       this.optional.set = ['n=1'];
     } else if (['both', 'item'].includes(mode)) {

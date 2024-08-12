@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('node:fs');
 const path = require('node:path');
 const Mod = require('node:module');
@@ -16,10 +18,10 @@ function getCallSite() {
       return `${stack[2].getFileName()}:${stack[2].getLineNumber()}`;
     }
     return stack;
-  }
+  };
 
   const err = new Error();
-  err.stack;
+  err.stack; // eslint-disable-line no-unused-expressions
   Error.prepareStackTrace = originalStackFormatter;
   return err.stack;
 }
@@ -40,10 +42,10 @@ const skippedModules = [
   'node:stream/promises',
 ];
 
-function fetchModules (allModuleExports) {
+function fetchModules(allModuleExports) {
   for (const f of dir) {
     if (f.endsWith('.js') && !f.startsWith('_')) {
-      const moduleName = `node:${f.slice(0, f.length - 3)}`
+      const moduleName = `node:${f.slice(0, f.length - 3)}`;
       if (skippedModules.includes(moduleName)) {
         continue;
       }
@@ -60,7 +62,7 @@ function fetchModules (allModuleExports) {
             continue;
           }
           const originalFn = exports[fnKey];
-          allModuleExports[moduleName][fnKey] = function () {
+          allModuleExports[moduleName][fnKey] = function() {
             const callerStr = getCallSite();
             if (typeof callerStr === 'string' && callerStr.startsWith(benchmarkFolder) &&
               callerStr.replace(benchmarkFolder, '').match(/^\/.+\/.+/)) {
@@ -76,7 +78,7 @@ function fetchModules (allModuleExports) {
               allModuleExports[moduleName][fnKey]._calls.push(callerStr);
             }
             return originalFn.apply(exports, arguments);
-          }
+          };
         }
       }
     }
@@ -86,14 +88,14 @@ function fetchModules (allModuleExports) {
 fetchModules(allModuleExports);
 
 const req = Mod.prototype.require;
-Mod.prototype.require = function (id) {
+Mod.prototype.require = function(id) {
   let newId = id;
   if (!id.startsWith('node:')) {
     newId = `node:${id}`;
   }
-  const data = allModuleExports[newId]
+  const data = allModuleExports[newId];
   if (!data) {
-    return req.apply(this, arguments)
+    return req.apply(this, arguments);
   }
   return data;
 };
@@ -107,9 +109,9 @@ process.on('beforeExit', () => {
           type: 'coverage',
           module,
           fn,
-          times: _fn._called
+          times: _fn._called,
         });
       }
     }
   }
-})
+});

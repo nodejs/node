@@ -48,14 +48,14 @@ if (format === 'csv' && !cli.coverage) {
   console.log('"filename", "configuration", "rate", "time"');
 }
 
-function fetchModules () {
+function fetchModules() {
   const dir = fs.readdirSync(path.join(__dirname, '../lib'));
   const allModuleExports = {};
   for (const f of dir) {
     if (f.endsWith('.js') && !f.startsWith('_')) {
-      const moduleName = `node:${f.slice(0, f.length - 3)}`
+      const moduleName = `node:${f.slice(0, f.length - 3)}`;
       const exports = require(moduleName);
-      allModuleExports[moduleName] = {}
+      allModuleExports[moduleName] = {};
       for (const fnKey of Object.keys(exports)) {
         if (typeof exports[fnKey] === 'function' && !fnKey.startsWith('_')) {
           allModuleExports[moduleName] = {
@@ -170,21 +170,21 @@ if (cli.coverage) {
       if (skippedModules.includes(key)) continue;
       const tableData = [];
       for (const innerKey in allModuleExports[key]) {
-          if (
-            allModuleExports[key][innerKey].toString().match(/^class/) ||
+        if (
+          allModuleExports[key][innerKey].toString().match(/^class/) ||
             skippedFunctionClasses.includes(innerKey)
-          ) {
-            continue;
-          }
+        ) {
+          continue;
+        }
 
         tableData.push({
           [key]: innerKey,
-          Values: allModuleExports[key][innerKey]
+          Values: allModuleExports[key][innerKey],
         });
       }
-      if (tableData.length)  {
-        console.table(tableData)
+      if (tableData.length) {
+        console.table(tableData);
       }
     }
-  })
+  });
 }
