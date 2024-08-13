@@ -837,30 +837,6 @@ function skipIfDumbTerminal() {
   }
 }
 
-function gcUntil(name, condition) {
-  if (typeof name === 'function') {
-    condition = name;
-    name = undefined;
-  }
-  return new Promise((resolve, reject) => {
-    let count = 0;
-    function gcAndCheck() {
-      setImmediate(() => {
-        count++;
-        global.gc();
-        if (condition()) {
-          resolve();
-        } else if (count < 10) {
-          gcAndCheck();
-        } else {
-          reject(name === undefined ? undefined : 'Test ' + name + ' failed');
-        }
-      });
-    }
-    gcAndCheck();
-  });
-}
-
 function requireNoPackageJSONAbove(dir = __dirname) {
   let possiblePackage = path.join(dir, '..', 'package.json');
   let lastPackage = null;
@@ -966,7 +942,6 @@ const common = {
   expectsError,
   expectRequiredModule,
   expectWarning,
-  gcUntil,
   getArrayBufferViews,
   getBufferSources,
   getCallSite,
