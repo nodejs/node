@@ -45,12 +45,7 @@ describe('ESM type field errors', { concurrency: true }, () => {
   });
 
   it('--input-type=module disallowed for directories', () => {
-    try {
-      require('../fixtures/es-modules/package-type-module/index.js');
-      assert.fail('Expected CJS to fail loading from type: module package.');
-    } catch (e) {
-      assert.throws(() => { throw e; }, /ERR_REQUIRE_ESM/);
-    }
+    assert.throws(() => require('../fixtures/es-modules/package-type-module/index.js'), /ERR_REQUIRE_ESM/);
   });
 });
 
