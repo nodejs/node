@@ -223,7 +223,7 @@ Consult previous versions of this document for older versions of Node.js:
 
 ### Prerequisites
 
-* Python support: the Node.js project supports Python >= 3.6 for building and testing.
+* Python support: the Node.js project supports Python >= 3.8 for building and testing.
 * Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`)
 
 ### Unix and macOS
@@ -668,7 +668,7 @@ packages:
 
 * [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
   Unix tools added to the `PATH`
-* [Python 3.x](https://chocolatey.org/packages/python)
+* [Python 3.8+](https://chocolatey.org/packages/python)
 * [Visual Studio 2022 Build Tools](https://chocolatey.org/packages/visualstudio2022buildtools)
   with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2022-workload-vctools)
 * [NetWide Assembler](https://chocolatey.org/packages/nasm)
