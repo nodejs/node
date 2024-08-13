@@ -6,6 +6,16 @@ const common = require('../common');
 const gcTrackerMap = new WeakMap();
 const gcTrackerTag = 'NODE_TEST_COMMON_GC_TRACKER';
 
+
+/**
+ * Installs a garbage collection listener for the specified object.
+ * Uses async_hooks for GC tracking, which may affect test functionality.
+ * A full setImmediate() invocation passes between a global.gc() call and the listener being invoked.
+ *
+ * @param {Object} obj - The target object to track for garbage collection.
+ * @param {Object} gcListener - The listener object containing the ongc callback.
+ * @param {Function} gcListener.ongc - The function to call when the target object is garbage collected.
+ */
 function onGC(obj, gcListener) {
   const async_hooks = require('async_hooks');
 
@@ -30,6 +40,13 @@ function onGC(obj, gcListener) {
   obj = null;
 }
 
+/**
+ * Repeatedly triggers garbage collection until a specified condition is met or a maximum number of attempts is reached.
+ * 
+ * @param {string|function} [name] - Optional name for the test, used in the rejection message if the condition is not met.
+ * @param {function} condition - A function that returns true when the desired condition is met.
+ * @returns {Promise} A promise that resolves when the condition is met, or rejects after 10 failed attempts.
+ */
 function gcUntil(name, condition) {
   if (typeof name === 'function') {
     condition = name;
