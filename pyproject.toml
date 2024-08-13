@@ -7,7 +7,7 @@ exclude = [
   "tools/eslint/node_modules",
 ]
 line-length = 172
-target-version = "py37"
+target-version = "py38"
 
 [tool.ruff.lint]
 select = [
