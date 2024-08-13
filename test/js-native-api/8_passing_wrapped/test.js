@@ -16,6 +16,6 @@ async function runTest() {
   obj1 = null;
   obj2 = null;
   await gcUntil('8_passing_wrapped',
-                       () => (addon.finalizeCount() === 2));
+                () => (addon.finalizeCount() === 2));
 }
 runTest();

@@ -6,6 +6,7 @@
  */
 
 'use strict';
+require('../common');
 const { gcUntil } = require('../common/gc');
 const assert = require('node:assert');
 const { findSourceMap } = require('node:module');

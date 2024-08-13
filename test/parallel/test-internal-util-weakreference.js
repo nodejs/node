@@ -1,5 +1,6 @@
 // Flags: --expose-internals --expose-gc
 'use strict';
+require('../common');
 const { gcUntil } = require('../common/gc');
 const assert = require('assert');
 const { WeakReference } = require('internal/util');

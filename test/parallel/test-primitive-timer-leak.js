@@ -1,6 +1,6 @@
 'use strict';
 // Flags: --expose-gc
-const common = require('../common');
+require('../common');
 const { onGC } = require('../common/gc');
 
 // See https://github.com/nodejs/node/issues/53335

@@ -39,7 +39,7 @@ async function runAsyncTests() {
     test_finalizer.addFinalizerWithJS(obj, () => { js_is_called = true; });
   })();
   await gcUntil('ensure JS finalizer called',
-                       () => (test_finalizer.getFinalizerCallCount() === 2));
+                () => (test_finalizer.getFinalizerCallCount() === 2));
   assert(js_is_called);
 }
 runAsyncTests();

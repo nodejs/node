@@ -82,7 +82,7 @@ async function runGCTests() {
   (() => test_general.wrap({}))();
   await gcUntil('deref_item() was called upon garbage collecting a ' +
                        'wrapped object.',
-                       () => test_general.derefItemWasCalled());
+                () => test_general.derefItemWasCalled());
 
   // Ensure that removing a wrap and garbage collecting does not fire the
   // finalize callback.

@@ -32,6 +32,6 @@ async function testFinalizeAndWrap() {
   test_general.addFinalizerOnly(finalizeAndWrap, common.mustCall());
   finalizeAndWrap = null;
   await gcUntil('test finalize and wrap',
-                       () => test_general.derefItemWasCalled());
+                () => test_general.derefItemWasCalled());
 }
 testFinalizeAndWrap();
