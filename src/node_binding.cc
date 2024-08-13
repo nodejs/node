@@ -20,6 +20,12 @@
 #define NODE_BUILTIN_PROFILER_BINDINGS(V)
 #endif
 
+#ifdef DEBUG
+#define NODE_BUILTIN_DEBUG_BINDINGS(V) V(debug)
+#else
+#define NODE_BUILTIN_DEBUG_BINDINGS(V)
+#endif
+
 // A list of built-in bindings. In order to do binding registration
 // in node::Init(), need to add built-in bindings in the following list.
 // Then in binding::RegisterBuiltinBindings(), it calls bindings' registration
@@ -96,6 +102,7 @@
   NODE_BUILTIN_OPENSSL_BINDINGS(V)                                             \
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
+  NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
   NODE_BUILTIN_QUIC_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
