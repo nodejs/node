@@ -1,9 +1,58 @@
 'use strict';
 
 const wait = require('timers/promises').setTimeout;
+const assert = require('assert');
+const common = require('../common');
+const gcTrackerMap = new WeakMap();
+const gcTrackerTag = 'NODE_TEST_COMMON_GC_TRACKER';
 
-// TODO(joyeecheung): merge ongc.js and gcUntil from common/index.js
-// into this.
+function onGC(obj, gcListener) {
+  const async_hooks = require('async_hooks');
+
+  const onGcAsyncHook = async_hooks.createHook({
+    init: common.mustCallAtLeast(function(id, type) {
+      if (this.trackedId === undefined) {
+        assert.strictEqual(type, gcTrackerTag);
+        this.trackedId = id;
+      }
+    }),
+    destroy(id) {
+      assert.notStrictEqual(this.trackedId, -1);
+      if (id === this.trackedId) {
+        this.gcListener.ongc();
+        onGcAsyncHook.disable();
+      }
+    },
+  }).enable();
+  onGcAsyncHook.gcListener = gcListener;
+
+  gcTrackerMap.set(obj, new async_hooks.AsyncResource(gcTrackerTag));
+  obj = null;
+}
+
+function gcUntil(name, condition) {
+  if (typeof name === 'function') {
+    condition = name;
+    name = undefined;
+  }
+  return new Promise((resolve, reject) => {
+    let count = 0;
+    function gcAndCheck() {
+      setImmediate(() => {
+        count++;
+        global.gc();
+        if (condition()) {
+          resolve();
+        } else if (count < 10) {
+          gcAndCheck();
+        } else {
+          reject(name === undefined ? undefined : 'Test ' + name + ' failed');
+        }
+      });
+    }
+    gcAndCheck();
+  });
+}
 
 // This function can be used to check if an object factor leaks or not,
 // but it needs to be used with care:
@@ -124,4 +173,6 @@ module.exports = {
   checkIfCollectable,
   runAndBreathe,
   checkIfCollectableByCounting,
+  onGC,
+  gcUntil,
 };
