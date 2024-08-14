@@ -530,17 +530,6 @@ MaybeLocal<Object> New(Environment* env,
 
 namespace {
 
-void CreateFromString(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsInt32());
-
-  enum encoding enc = static_cast<enum encoding>(args[1].As<Int32>()->Value());
-  Local<Object> buf;
-  if (New(args.GetIsolate(), args[0].As<String>(), enc).ToLocal(&buf))
-    args.GetReturnValue().Set(buf);
-}
-
-
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1436,7 +1425,6 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "btoa", Btoa);
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
-  SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
 
   SetFastMethodNoSideEffect(context,
                             target,
@@ -1501,7 +1489,6 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
-  registry->Register(CreateFromString);
 
   registry->Register(SlowByteLengthUtf8);
   registry->Register(fast_byte_length_utf8.GetTypeInfo());
