@@ -11,6 +11,9 @@ import tmpdir from '../common/tmpdir.js';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
+
 let fixturePaths;
 
 // This test updates these files repeatedly,
@@ -54,6 +57,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
 
   const testUpdate = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
     const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
@@ -62,6 +67,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     clearInterval(interval);
     child.kill();
     await once(child, 'exit');
+
+    assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
       assert.match(run, /# tests 1/);
@@ -73,6 +80,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
 
   const testRename = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
     const interval = setInterval(() => renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000));
@@ -81,6 +90,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     clearInterval(interval);
     child.kill();
     await once(child, 'exit');
+
+    assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
       assert.match(run, /# tests 1/);
@@ -92,6 +103,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
 
   const testDelete = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const fileToDeletePath = tmpdir.resolve(fileToUpdate);
     const interval = setInterval(() => {
       if (existsSync(fileToDeletePath)) {
@@ -105,6 +118,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     clearInterval(interval);
     child.kill();
     await once(child, 'exit');
+
+    assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
       assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
