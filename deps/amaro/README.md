@@ -21,8 +21,17 @@ Stack traces are preserved, by replacing removed types with white spaces.
 
 ```javascript
 const amaro = require('amaro');
-const { code } = amaro.transformSync("const foo: string = 'bar';");
+const { code } = amaro.transformSync("const foo: string = 'bar';", { mode: "strip-only" });
 console.log(code); // "const foo         = 'bar';"
+```
+
+### Loader
+
+It is possible to use Amaro as an external loader to execute TypeScript files.
+This allows the installed Amaro to override the Amaro version used by Node.js.
+
+```bash
+node --experimental-strip-types --import="amaro/register" script.ts
 ```
 
 ### How to update SWC
