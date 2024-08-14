@@ -49,6 +49,8 @@ const customTypesMap = {
     'worker_threads.html#class-broadcastchannel-' +
     'extends-eventtarget',
 
+  'CallSite': 'https://v8.dev/docs/stack-trace-api#customizing-stack-traces',
+
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
   'Iterator':

@@ -254,12 +254,53 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(dotenv.ToObject(env));
 }
 
+static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  Local<StackTrace> stack =
+      StackTrace::CurrentStackTrace(isolate, env->stack_trace_limit());
+  Local<Array> callsites = Array::New(isolate);
+
+  // Frame 0 is node:util. It should be skipped.
+  for (int i = 1; i < stack->GetFrameCount(); ++i) {
+    Local<Object> obj = Object::New(isolate);
+    Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
+
+    Utf8Value function_name(isolate, stack_frame->GetFunctionName());
+    Utf8Value script_name(isolate, stack_frame->GetScriptName());
+
+    obj->Set(env->context(),
+             env->function_name_string(),
+             String::NewFromUtf8(isolate, *function_name).ToLocalChecked())
+        .Check();
+    obj->Set(env->context(),
+             env->script_name_string(),
+             String::NewFromUtf8(isolate, *script_name).ToLocalChecked())
+        .Check();
+    obj->Set(env->context(),
+             env->line_number_string(),
+             Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()))
+        .Check();
+    obj->Set(env->context(),
+             env->column_string(),
+             Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()))
+        .Check();
+    if (callsites->Set(env->context(), callsites->Length(), obj).IsNothing()) {
+      args.GetReturnValue().Set(Array::New(isolate));
+      return;
+    }
+  }
+  args.GetReturnValue().Set(callsites);
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
   registry->Register(GetCallerLocation);
   registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
+  registry->Register(GetCallSite);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
   registry->Register(GetExternalValue);
@@ -365,6 +406,7 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(
       context, target, "getConstructorName", GetConstructorName);
   SetMethodNoSideEffect(context, target, "getExternalValue", GetExternalValue);
+  SetMethod(context, target, "getCallSite", GetCallSite);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
 

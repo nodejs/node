@@ -364,6 +364,60 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 // when printed to a terminal.
 ```
 
+## `util.getCallSite()`
+
+> Stability: 1.1 - Active development
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object\[]} An array of stacktrace objects
+  * `functionName` {string} Returns the name of the function associated with this stack frame.
+  * `lineNumber` {string} Returns the number, 1-based, of the line for the associate function call.
+  * `lineNumber` {string} Returns the number, 1-based, of the line for the associate function call.
+  * `column` {number} Returns the 1-based column offset on the line for the associated function call.
+
+Returns an array of stacktrace objects containing the stack of
+the caller function.
+
+```js
+const util = require('node:util');
+
+function exampleFunction() {
+  const callSites = util.getCallSite();
+
+  console.log('Call Sites:');
+  callSites.forEach((callSite, index) => {
+    console.log(`CallSite ${index + 1}:`);
+    console.log(`Function Name: ${callSite.functionName}`);
+    console.log(`Script Name: ${callSite.scriptName}`);
+    console.log(`Line Number: ${callSite.lineNumer}`);
+    console.log(`Column Number: ${callSite.column}`);
+  });
+  // CallSite 1:
+  // Function Name: exampleFunction
+  // Script Name: /home/example.js
+  // Line Number: 5
+  // Column Number: 26
+
+  // CallSite 2:
+  // Function Name: anotherFunction
+  // Script Name: /home/example.js
+  // Line Number: 22
+  // Column Number: 3
+
+  // ...
+}
+
+// A function to simulate another stack layer
+function anotherFunction() {
+  exampleFunction();
+}
+
+anotherFunction();
+```
+
 ## `util.getSystemErrorName(err)`
 
 <!-- YAML
