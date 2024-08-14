@@ -132,18 +132,14 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(
     Isolate* isolate, Handle<Object> result, Handle<Object> reviver,
     Handle<String> source, MaybeHandle<Object> val_node) {
   DCHECK(IsCallable(*reviver));
-  JsonParseInternalizer internalizer(isolate, Handle<JSReceiver>::cast(reviver),
+  JsonParseInternalizer internalizer(isolate, Cast<JSReceiver>(reviver),
                                      source);
   Handle<JSObject> holder =
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<String> name = isolate->factory()->empty_string();
   JSObject::AddProperty(isolate, holder, name, result, NONE);
-  if (v8_flags.harmony_json_parse_with_source) {
-    return internalizer.InternalizeJsonProperty<kWithSource>(
-        holder, name, val_node.ToHandleChecked(), result);
-  }
-  return internalizer.InternalizeJsonProperty<kWithoutSource>(
-      holder, name, Handle<Object>(), Handle<Object>());
+  return internalizer.InternalizeJsonProperty<kWithSource>(
+      holder, name, val_node.ToHandleChecked(), result);
 }
 
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
@@ -156,8 +152,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   HandleScope outer_scope(isolate_);
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name),
-      Object);
+      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name));
 
   // When with_source == kWithSource, the source text is passed to the reviver
   // if the reviver has not mucked with the originally parsed value.
@@ -167,22 +162,21 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       with_source == kWithSource && Object::SameValue(*value, *snapshot);
 
   if (IsJSReceiver(*value)) {
-    Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
+    Handle<JSReceiver> object = Cast<JSReceiver>(value);
     Maybe<bool> is_array = Object::IsArray(object);
     if (is_array.IsNothing()) return MaybeHandle<Object>();
     if (is_array.FromJust()) {
       Handle<Object> length_object;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, length_object,
-          Object::GetLengthFromArrayLike(isolate_, object), Object);
-      double length = Object::Number(*length_object);
+          Object::GetLengthFromArrayLike(isolate_, object));
+      double length = Object::NumberValue(*length_object);
       if (pass_source_to_reviver) {
-        Handle<FixedArray> val_nodes_and_snapshots =
-            Handle<FixedArray>::cast(val_node);
+        auto val_nodes_and_snapshots = Cast<FixedArray>(val_node);
         int snapshot_length = val_nodes_and_snapshots->length() / 2;
         for (int i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
-          Handle<Object> index = isolate_->factory()->NewNumber(i);
+          DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
           Handle<String> index_name =
               isolate_->factory()->NumberToString(index);
           // Even if the array pointer snapshot matched, it's possible the
@@ -204,7 +198,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       } else {
         for (int i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
-          Handle<Object> index = isolate_->factory()->NewNumber(i);
+          DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
           Handle<String> index_name =
               isolate_->factory()->NumberToString(index);
           if (!RecurseAndApply<kWithoutSource>(
@@ -219,14 +213,12 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           isolate_, contents,
           KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS,
-                                  GetKeysConversion::kConvertToString),
-          Object);
+                                  GetKeysConversion::kConvertToString));
       if (pass_source_to_reviver) {
-        Handle<ObjectTwoHashTable> val_nodes_and_snapshots =
-            Handle<ObjectTwoHashTable>::cast(val_node);
+        auto val_nodes_and_snapshots = Cast<ObjectTwoHashTable>(val_node);
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
-          Handle<String> key_name(String::cast(contents->get(i)), isolate_);
+          Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
           auto property_val_node_and_snapshot =
               val_nodes_and_snapshots->Lookup(isolate_, key_name);
           Handle<Object> property_val_node(property_val_node_and_snapshot[0],
@@ -249,7 +241,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       } else {
         for (int i = 0; i < contents->length(); i++) {
           HandleScope inner_scope(isolate_);
-          Handle<String> key_name(String::cast(contents->get(i)), isolate_);
+          Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
           if (!RecurseAndApply<kWithoutSource>(
                   object, key_name, Handle<Object>(), Handle<Object>())) {
             return MaybeHandle<Object>();
@@ -259,8 +251,6 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     }
   }
 
-  Handle<Object> result;
-  if (v8_flags.harmony_json_parse_with_source) {
     Handle<JSObject> context =
         isolate_->factory()->NewJSObject(isolate_->object_function());
     if (pass_source_to_reviver && IsString(*val_node)) {
@@ -270,16 +260,10 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           .Check();
     }
     Handle<Object> argv[] = {name, value, context};
+    Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv),
-        Object);
-  } else {
-    Handle<Object> argv[] = {name, value};
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate_, result, Execution::Call(isolate_, reviver_, holder, 2, argv),
-        Object);
-  }
-  return outer_scope.CloseAndEscape(result);
+        isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv));
+    return outer_scope.CloseAndEscape(result);
 }
 
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
@@ -300,7 +284,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
                                                         LanguageMode::kSloppy);
   } else {
     PropertyDescriptor desc;
-    desc.set_value(result);
+    desc.set_value(Cast<JSAny>(result));
     desc.set_configurable(true);
     desc.set_enumerable(true);
     desc.set_writable(true);
@@ -321,11 +305,11 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   size_t length = source->length();
   PtrComprCageBase cage_base(isolate);
   if (IsSlicedString(*source, cage_base)) {
-    Tagged<SlicedString> string = SlicedString::cast(*source);
+    Tagged<SlicedString> string = Cast<SlicedString>(*source);
     start = string->offset();
     Tagged<String> parent = string->parent();
     if (IsThinString(parent, cage_base))
-      parent = ThinString::cast(parent)->actual();
+      parent = Cast<ThinString>(parent)->actual();
     source_ = handle(parent, isolate);
   } else {
     source_ = String::Flatten(isolate, source);
@@ -333,13 +317,13 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
 
   if (StringShape(*source_, cage_base).IsExternal()) {
     chars_ =
-        static_cast<const Char*>(SeqExternalString::cast(*source_)->GetChars());
+        static_cast<const Char*>(Cast<SeqExternalString>(*source_)->GetChars());
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;
     isolate->main_thread_local_heap()->AddGCEpilogueCallback(
         UpdatePointersCallback, this);
-    chars_ = SeqString::cast(*source_)->GetChars(no_gc);
+    chars_ = Cast<SeqString>(*source_)->GetChars(no_gc);
     chars_may_relocate_ = true;
   }
   cursor_ = chars_ + start;
@@ -351,7 +335,7 @@ bool JsonParser<Char>::IsSpecialString() {
   // The special cases are undefined, NaN, Infinity, and {} being passed to the
   // parse method
   int offset = IsSlicedString(*original_source_)
-                   ? SlicedString::cast(*original_source_)->offset()
+                   ? Cast<SlicedString>(*original_source_)->offset()
                    : 0;
   size_t length = original_source_->length();
 #define CASES(V)       \
@@ -447,7 +431,7 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
   int line_number = 1;
   const Char* start =
       chars_ + (IsSlicedString(*original_source_)
-                    ? SlicedString::cast(*original_source_)->offset()
+                    ? Cast<SlicedString>(*original_source_)->offset()
                     : 0);
   const Char* last_line_break = start;
   const Char* cursor = start;
@@ -478,7 +462,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
   // Parse failed. Current character is the unexpected token.
   Factory* factory = this->factory();
   int offset = IsSlicedString(*original_source_)
-                   ? SlicedString::cast(*original_source_)->offset()
+                   ? Cast<SlicedString>(*original_source_)->offset()
                    : 0;
   int pos = position() - offset;
   Handle<Object> arg(Smi::FromInt(pos), isolate());
@@ -498,7 +482,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
     script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
     if (IsScript(*summary.script())) {
       script->set_origin_options(
-          Script::cast(*summary.script())->origin_options());
+          Cast<Script>(*summary.script())->origin_options());
     }
   }
 
@@ -529,29 +513,26 @@ JsonParser<Char>::~JsonParser() {
   if (StringShape(*source_).IsExternal()) {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
-    SeqExternalString::cast(*source_);
+    Cast<SeqExternalString>(*source_);
   } else {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
-    SeqString::cast(*source_);
+    Cast<SeqString>(*source_);
     isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
         UpdatePointersCallback, this);
   }
 }
 
 template <typename Char>
-MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
+MaybeHandle<Object> JsonParser<Char>::ParseJson(DirectHandle<Object> reviver) {
   Handle<Object> result;
   // Only record the val node when reviver is callable.
   bool reviver_is_callable = IsCallable(*reviver);
-  bool should_track_json_source =
-      v8_flags.harmony_json_parse_with_source && reviver_is_callable;
-  if (should_track_json_source) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValue<true>(reviver),
-                               Object);
+  bool should_track_json_source = reviver_is_callable;
+  if (V8_UNLIKELY(should_track_json_source)) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValue<true>());
   } else {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                               ParseJsonValue<false>(reviver), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValueRecursive());
   }
 
   if (!Check(JsonToken::EOS)) {
@@ -700,12 +681,12 @@ class FoldedMutableHeapNumberAllocator {
               reinterpret_cast<Address>(raw_bytes_->begin()));
     Tagged<HeapObject> hn = HeapObject::FromAddress(mutable_double_address_);
     hn->set_map_after_allocation(roots.heap_number_map());
-    HeapNumber::cast(hn)->set_value_as_bits(value.get_bits());
+    Cast<HeapNumber>(hn)->set_value_as_bits(value.get_bits());
     mutable_double_address_ +=
         ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(HeapNumber));
     DCHECK_LE(mutable_double_address_,
               reinterpret_cast<Address>(raw_bytes_->end()));
-    return HeapNumber::cast(hn);
+    return Cast<HeapNumber>(hn);
   }
 
  private:
@@ -735,10 +716,9 @@ class FoldedMutableHeapNumberAllocator {
 //      entry in the DescriptorArray of the final map; if yes, then we don't
 //      need to do any map transitions.
 //   2. When given a property key, it looks for whether there is exactly one
-//      transition away from the current map ("ExpectedTransitionTarget").
-//      If yes, it tries to match against the key for this transition. The
-//      expected key is passed as a hint to the current property key getter,
-//      for e.g. faster internalised string materialisation.
+//      transition away from the current map ("ExpectedTransition").
+//      The expected key is passed as a hint to the current property key
+//      getter, for e.g. faster internalised string materialisation.
 //   3. Otherwise, it searches for whether there is any transition in the
 //      current map that matches the key.
 //   4. For all of the above, it checks whether the field represntation of the
@@ -791,12 +771,13 @@ class JSDataObjectBuilder {
   //   ValueIterator RevisitValues();
   // }
   template <typename PropertyIterator>
-  Handle<Object> BuildFromIterator(
+  Handle<JSObject> BuildFromIterator(
       PropertyIterator&& it, MaybeHandle<FixedArrayBase> maybe_elements = {}) {
     Handle<String> failed_property_add_key;
     for (; !it.Done(); it.Advance()) {
       Handle<String> property_key;
       if (!TryAddFastPropertyForValue(
+              it.GetKeyChars(),
               [&](Handle<String> expected_key) {
                 return property_key = it.GetKey(expected_key);
               },
@@ -831,17 +812,19 @@ class JSDataObjectBuilder {
     return object();
   }
 
-  template <typename GetKeyFunction, typename GetValueFunction>
-  V8_INLINE bool TryAddFastPropertyForValue(GetKeyFunction&& get_key,
+  template <typename Char, typename GetKeyFunction, typename GetValueFunction>
+  V8_INLINE bool TryAddFastPropertyForValue(base::Vector<const Char> key_chars,
+                                            GetKeyFunction&& get_key,
                                             GetValueFunction&& get_value) {
     // The fast path is only valid as long as we haven't allocated an object
     // yet.
     DCHECK(object_.is_null());
 
     Handle<String> key;
-    bool existing_map_found = TryFastTransitionToPropertyKey(get_key, &key);
+    bool existing_map_found =
+        TryFastTransitionToPropertyKey(key_chars, get_key, &key);
     // Unconditionally get the value after getting the transition result.
-    Handle<Object> value = get_value();
+    DirectHandle<Object> value = get_value();
     if (existing_map_found) {
       // We found a map with a field for our value -- now make sure that field
       // is compatible with our value.
@@ -891,8 +874,8 @@ class JSDataObjectBuilder {
   }
 
   template <typename ValueIterator>
-  V8_INLINE void CreateAndInitialiseObject(ValueIterator value_it,
-                                           Handle<FixedArrayBase> elements) {
+  V8_INLINE void CreateAndInitialiseObject(
+      ValueIterator value_it, DirectHandle<FixedArrayBase> elements) {
     // We've created a map for the first `i` property stack values (which might
     // be all of them). We need to write these properties to a newly allocated
     // object.
@@ -967,7 +950,7 @@ class JSDataObjectBuilder {
         PropertyDetails details = descriptors->GetDetails(descriptor_index);
         if (details.representation().IsDouble()) {
           value = hn_allocator.AllocateNext(
-              roots, Float64(static_cast<double>(Smi::cast(value).value())));
+              roots, Float64(static_cast<double>(Cast<Smi>(value).value())));
         }
       }
 
@@ -994,34 +977,42 @@ class JSDataObjectBuilder {
     JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE).Check();
   }
 
-  Handle<Object> object() {
+  Handle<JSObject> object() {
     DCHECK(!object_.is_null());
     return object_;
   }
 
  private:
-  template <typename GetKeyFunction>
-  V8_INLINE bool TryFastTransitionToPropertyKey(GetKeyFunction&& get_key,
-                                                Handle<String>* key_out) {
+  template <typename Char, typename GetKeyFunction>
+  V8_INLINE bool TryFastTransitionToPropertyKey(
+      base::Vector<const Char> key_chars, GetKeyFunction&& get_key,
+      Handle<String>* key_out) {
     Handle<String> expected_key;
     Handle<Map> target_map;
 
     InternalIndex descriptor_index(current_property_index_);
     if (IsOnExpectedFinalMapFastPath()) {
       expected_key = handle(
-          String::cast(
+          Cast<String>(
               expected_final_map_->instance_descriptors(isolate_)->GetKey(
                   descriptor_index)),
           isolate_);
       target_map = expected_final_map_;
     } else {
       TransitionsAccessor transitions(isolate_, *map_);
-      expected_key = transitions.ExpectedTransitionKey();
-      if (!expected_key.is_null()) {
+      auto expected_transition = transitions.ExpectedTransition(key_chars);
+      if (!expected_transition.first.is_null()) {
         // Directly read out the target while reading out the key, otherwise it
         // might die if `get_key` can allocate.
-        target_map =
-            TransitionsAccessor(isolate_, *map_).ExpectedTransitionTarget();
+        target_map = expected_transition.second;
+
+        // We were successful and we are done.
+        DCHECK_EQ(target_map->instance_descriptors()
+                      ->GetDetails(descriptor_index)
+                      .location(),
+                  PropertyLocation::kField);
+        map_ = target_map;
+        return true;
       }
     }
 
@@ -1052,7 +1043,7 @@ class JSDataObjectBuilder {
     return true;
   }
 
-  V8_INLINE bool TryGeneralizeFieldToValue(Handle<Object> value) {
+  V8_INLINE bool TryGeneralizeFieldToValue(DirectHandle<Object> value) {
     DCHECK_LT(current_property_index_, map_->NumberOfOwnDescriptors());
 
     InternalIndex descriptor_index(current_property_index_);
@@ -1180,7 +1171,7 @@ class JSDataObjectBuilder {
                   isolate_);
   }
 
-  V8_INLINE void RegisterFieldNeedsFreshHeapNumber(Handle<Object> value) {
+  V8_INLINE void RegisterFieldNeedsFreshHeapNumber(DirectHandle<Object> value) {
     // We need to allocate a new HeapNumber for double representation fields if
     // the HeapNumber values is not guaranteed to be uniquely owned by this
     // object (and therefore can't be made mutable), or if the value is a Smi
@@ -1265,6 +1256,9 @@ class JsonParser<Char>::NamedPropertyIterator {
     return it_ == end_;
   }
 
+  base::Vector<const Char> GetKeyChars() {
+    return parser_.GetKeyChars(it_->string);
+  }
   Handle<String> GetKey(Handle<String> expected_key_hint) {
     return parser_.MakeString(it_->string, expected_key_hint);
   }
@@ -1285,12 +1279,14 @@ class JsonParser<Char>::NamedPropertyIterator {
 };
 
 template <typename Char>
-Handle<Object> JsonParser<Char>::BuildJsonObject(
-    const JsonContinuation& cont,
-    const SmallVector<JsonProperty>& property_stack, Handle<Map> feedback) {
+Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
+                                                   Handle<Map> feedback) {
+  if (!feedback.is_null() && feedback->is_deprecated()) {
+    feedback = Map::Update(isolate_, feedback);
+  }
   size_t start = cont.index;
-  DCHECK_LE(start, property_stack.size());
-  int length = static_cast<int>(property_stack.size() - start);
+  DCHECK_LE(start, property_stack_.size());
+  int length = static_cast<int>(property_stack_.size() - start);
   int named_length = length - cont.elements;
   DCHECK_LE(0, named_length);
 
@@ -1304,7 +1300,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       Handle<NumberDictionary> elms =
           NumberDictionary::New(isolate_, cont.elements);
       for (int i = 0; i < length; i++) {
-        const JsonProperty& property = property_stack[start + i];
+        const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
         Handle<Object> value = property.value;
@@ -1322,10 +1318,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       WriteBarrierMode mode = raw_elements->GetWriteBarrierMode(no_gc);
 
       for (int i = 0; i < length; i++) {
-        const JsonProperty& property = property_stack[start + i];
+        const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
-        Handle<Object> value = property.value;
+        DirectHandle<Object> value = property.value;
         raw_elements->set(static_cast<int>(index), *value, mode);
       }
       elements = elms;
@@ -1338,24 +1334,21 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       isolate_, elements_kind, named_length, feedback,
       JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
 
-  NamedPropertyIterator it(*this, property_stack.begin() + start,
-                           property_stack.end());
+  NamedPropertyIterator it(*this, property_stack_.begin() + start,
+                           property_stack_.end());
 
   return js_data_object_builder.BuildFromIterator(it, elements);
 }
 
 template <typename Char>
-Handle<Object> JsonParser<Char>::BuildJsonArray(
-    const JsonContinuation& cont,
-    const SmallVector<Handle<Object>>& element_stack) {
-  size_t start = cont.index;
-  int length = static_cast<int>(element_stack.size() - start);
+Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
+  int length = static_cast<int>(element_stack_.size() - start);
 
   ElementsKind kind = PACKED_SMI_ELEMENTS;
-  for (size_t i = start; i < element_stack.size(); i++) {
-    Tagged<Object> value = *element_stack[i];
+  for (size_t i = start; i < element_stack_.size(); i++) {
+    Tagged<Object> value = *element_stack_[i];
     if (IsHeapObject(value)) {
-      if (IsHeapNumber(HeapObject::cast(value))) {
+      if (IsHeapNumber(Cast<HeapObject>(value))) {
         kind = PACKED_DOUBLE_ELEMENTS;
       } else {
         kind = PACKED_ELEMENTS;
@@ -1368,18 +1361,18 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
   if (kind == PACKED_DOUBLE_ELEMENTS) {
     DisallowGarbageCollection no_gc;
     Tagged<FixedDoubleArray> elements =
-        FixedDoubleArray::cast(array->elements());
+        Cast<FixedDoubleArray>(array->elements());
     for (int i = 0; i < length; i++) {
-      elements->set(i, Object::Number(*element_stack[start + i]));
+      elements->set(i, Object::NumberValue(*element_stack_[start + i]));
     }
   } else {
     DisallowGarbageCollection no_gc;
-    Tagged<FixedArray> elements = FixedArray::cast(array->elements());
+    Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
     WriteBarrierMode mode = kind == PACKED_SMI_ELEMENTS
                                 ? SKIP_WRITE_BARRIER
                                 : elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
-      elements->set(i, *element_stack[start + i], mode);
+      elements->set(i, *element_stack_[start + i], mode);
     }
   }
   return array;
@@ -1429,13 +1422,130 @@ bool JsonParser<Char>::ParseRawJson() {
   return true;
 }
 
+template <typename Char>
+V8_INLINE MaybeHandle<Object> JsonParser<Char>::ParseJsonValueRecursive(
+    Handle<Map> feedback) {
+  SkipWhitespace();
+  switch (peek()) {
+    case JsonToken::NUMBER:
+      return ParseJsonNumber();
+    case JsonToken::STRING:
+      Consume(JsonToken::STRING);
+      return MakeString(ScanJsonString(false));
+
+    case JsonToken::TRUE_LITERAL:
+      ScanLiteral("true");
+      return factory()->true_value();
+    case JsonToken::FALSE_LITERAL:
+      ScanLiteral("false");
+      return factory()->false_value();
+    case JsonToken::NULL_LITERAL:
+      ScanLiteral("null");
+      return factory()->null_value();
+
+    case JsonToken::LBRACE:
+      return ParseJsonObject(feedback);
+    case JsonToken::LBRACK:
+      return ParseJsonArray();
+
+    case JsonToken::COLON:
+    case JsonToken::COMMA:
+    case JsonToken::ILLEGAL:
+    case JsonToken::RBRACE:
+    case JsonToken::RBRACK:
+    case JsonToken::EOS:
+      ReportUnexpectedCharacter(CurrentCharacter());
+      // Pop the continuation stack to correctly tear down handle scopes.
+      return MaybeHandle<Object>();
+
+    case JsonToken::WHITESPACE:
+      UNREACHABLE();
+  }
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
+  {
+    StackLimitCheck check(isolate_);
+    if (V8_UNLIKELY(check.HasOverflowed())) {
+      return ParseJsonValue<false>();
+    }
+  }
+
+  Consume(JsonToken::LBRACE);
+  if (Check(JsonToken::RBRACE)) {
+    return factory()->NewJSObject(object_constructor_);
+  }
+
+  JsonContinuation cont(isolate_, JsonContinuation::kObjectProperty,
+                        property_stack_.size());
+  bool first = true;
+  do {
+    ExpectNext(
+        JsonToken::STRING,
+        first ? MessageTemplate::kJsonParseExpectedPropNameOrRBrace
+              : MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName);
+    JsonString key = ScanJsonPropertyKey(&cont);
+    ExpectNext(JsonToken::COLON,
+               MessageTemplate::kJsonParseExpectedColonAfterPropertyName);
+    Handle<Object> value;
+    if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return {};
+    property_stack_.emplace_back(key, value);
+    first = false;
+  } while (Check(JsonToken::COMMA));
+
+  Expect(JsonToken::RBRACE, MessageTemplate::kJsonParseExpectedCommaOrRBrace);
+  Handle<Object> result = BuildJsonObject(cont, feedback);
+  property_stack_.resize_no_init(cont.index);
+  return cont.scope.CloseAndEscape(result);
+}
+
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
+  {
+    StackLimitCheck check(isolate_);
+    if (V8_UNLIKELY(check.HasOverflowed())) {
+      return ParseJsonValue<false>();
+    }
+  }
+
+  Consume(JsonToken::LBRACK);
+  if (Check(JsonToken::RBRACK)) {
+    return factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
+  }
+
+  HandleScope handle_scope(isolate_);
+  size_t start = element_stack_.size();
+  Handle<Object> value;
+  if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return {};
+  element_stack_.emplace_back(value);
+  while (Check(JsonToken::COMMA)) {
+    Handle<Map> feedback;
+    if (IsJSObject(*value)) {
+      Tagged<Map> maybe_feedback = Cast<JSObject>(*value)->map();
+      // Don't consume feedback from objects with a map that's detached
+      // from the transition tree.
+      if (!maybe_feedback->IsDetached(isolate_)) {
+        feedback = handle(maybe_feedback, isolate_);
+      }
+    }
+    if (V8_UNLIKELY(!ParseJsonValueRecursive(feedback).ToHandle(&value))) {
+      return {};
+    }
+    element_stack_.emplace_back(value);
+  }
+
+  Expect(JsonToken::RBRACK, MessageTemplate::kJsonParseExpectedCommaOrRBrack);
+  Handle<Object> result = BuildJsonArray(start);
+  element_stack_.resize_no_init(start);
+  return handle_scope.CloseAndEscape(result);
+}
+
 // Parse any JSON value.
 template <typename Char>
 template <bool should_track_json_source>
-MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
+MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
   std::vector<JsonContinuation> cont_stack;
-  SmallVector<JsonProperty> property_stack;
-  SmallVector<Handle<Object>> element_stack;
 
   cont_stack.reserve(16);
 
@@ -1532,12 +1642,12 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           // Start parsing an object with properties.
           cont_stack.emplace_back(std::move(cont));
           cont = JsonContinuation(isolate_, JsonContinuation::kObjectProperty,
-                                  property_stack.size());
+                                  property_stack_.size());
 
           // Parse the property key.
           ExpectNext(JsonToken::STRING,
                      MessageTemplate::kJsonParseExpectedPropNameOrRBrace);
-          property_stack.emplace_back(ScanJsonPropertyKey(&cont));
+          property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
           if constexpr (should_track_json_source) {
             property_val_node_stack.emplace_back(Handle<Object>());
           }
@@ -1562,7 +1672,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           // Start parsing an array with elements.
           cont_stack.emplace_back(std::move(cont));
           cont = JsonContinuation(isolate_, JsonContinuation::kArrayElement,
-                                  element_stack.size());
+                                  element_stack_.size());
 
           // Continue to start producing the first array element.
           continue;
@@ -1632,7 +1742,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
 
         case JsonContinuation::kObjectProperty: {
           // Store the previous property value into its property info.
-          property_stack.back().value = value;
+          property_stack_.back().value = value;
           if constexpr (should_track_json_source) {
             property_val_node_stack.back() = val_node;
           }
@@ -1643,7 +1753,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
                 JsonToken::STRING,
                 MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName);
 
-            property_stack.emplace_back(ScanJsonPropertyKey(&cont));
+            property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
             if constexpr (should_track_json_source) {
               property_val_node_stack.emplace_back(Handle<Object>());
             }
@@ -1658,31 +1768,28 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           Handle<Map> feedback;
           if (cont_stack.size() > 0 &&
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
-              cont_stack.back().index < element_stack.size() &&
-              IsJSObject(*element_stack.back())) {
+              cont_stack.back().index < element_stack_.size() &&
+              IsJSObject(*element_stack_.back())) {
             Tagged<Map> maybe_feedback =
-                JSObject::cast(*element_stack.back())->map();
+                Cast<JSObject>(*element_stack_.back())->map();
             // Don't consume feedback from objects with a map that's detached
             // from the transition tree.
             if (!maybe_feedback->IsDetached(isolate_)) {
               feedback = handle(maybe_feedback, isolate_);
-              if (maybe_feedback->is_deprecated()) {
-                feedback = Map::Update(isolate_, feedback);
-              }
             }
           }
-          value = BuildJsonObject(cont, property_stack, feedback);
+          value = BuildJsonObject(cont, feedback);
           Expect(JsonToken::RBRACE,
                  MessageTemplate::kJsonParseExpectedCommaOrRBrace);
           // Return the object.
           if constexpr (should_track_json_source) {
             size_t start = cont.index;
             int num_properties =
-                static_cast<int>(property_stack.size() - start);
+                static_cast<int>(property_stack_.size() - start);
             Handle<ObjectTwoHashTable> table =
                 ObjectTwoHashTable::New(isolate(), num_properties);
             for (int i = 0; i < num_properties; i++) {
-              const JsonProperty& property = property_stack[start + i];
+              const JsonProperty& property = property_stack_[start + i];
               Handle<Object> property_val_node =
                   property_val_node_stack[start + i];
               Handle<Object> property_snapshot = property.value;
@@ -1704,7 +1811,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           } else {
             value = cont.scope.CloseAndEscape(value);
           }
-          property_stack.resize_no_init(cont.index);
+          property_stack_.resize_no_init(cont.index);
 
           // Pop the continuation.
           cont = std::move(cont_stack.back());
@@ -1715,21 +1822,21 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
 
         case JsonContinuation::kArrayElement: {
           // Store the previous element on the stack.
-          element_stack.emplace_back(value);
+          element_stack_.emplace_back(value);
           if constexpr (should_track_json_source) {
             element_val_node_stack.emplace_back(val_node);
           }
           // Break to start producing the subsequent element value.
           if (V8_LIKELY(Check(JsonToken::COMMA))) break;
 
-          value = BuildJsonArray(cont, element_stack);
+          value = BuildJsonArray(cont.index);
           Expect(JsonToken::RBRACK,
                  MessageTemplate::kJsonParseExpectedCommaOrRBrack);
           // Return the array.
           if constexpr (should_track_json_source) {
             size_t start = cont.index;
-            int num_elements = static_cast<int>(element_stack.size() - start);
-            Handle<FixedArray> val_node_and_snapshot_array =
+            int num_elements = static_cast<int>(element_stack_.size() - start);
+            DirectHandle<FixedArray> val_node_and_snapshot_array =
                 factory()->NewFixedArray(num_elements * 2);
             DisallowGarbageCollection no_gc;
             Tagged<FixedArray> raw_val_node_and_snapshot_array =
@@ -1738,7 +1845,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
               raw_val_node_and_snapshot_array->set(
                   i * 2, *element_val_node_stack[start + i]);
               raw_val_node_and_snapshot_array->set(i * 2 + 1,
-                                                   *element_stack[start + i]);
+                                                   *element_stack_[start + i]);
             }
             element_val_node_stack.resize_no_init(cont.index);
             value = cont.scope.CloseAndEscape(value);
@@ -1747,7 +1854,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           } else {
             value = cont.scope.CloseAndEscape(value);
           }
-          element_stack.resize_no_init(cont.index);
+          element_stack_.resize_no_init(cont.index);
           // Pop the continuation.
           cont = std::move(cont_stack.back());
           cont_stack.pop_back();
@@ -1911,7 +2018,7 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
       if (Matches(data, hint)) return hint;
     }
     if (chars_may_relocate_) {
-      return factory()->InternalizeString(Handle<SeqString>::cast(source_),
+      return factory()->InternalizeString(Cast<SeqString>(source_),
                                           string.start(), string.length(),
                                           string.needs_conversion());
     }

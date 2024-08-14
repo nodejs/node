@@ -108,7 +108,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   V8_EXPORT_PRIVATE bool HasInferredFunctionName() const;
 
-  void SetFunctionName(Tagged<Object> name);
+  void SetFunctionName(Tagged<UnionOf<Smi, String>> name);
   void SetInferredFunctionName(Tagged<String> name);
 
   // Does this scope belong to a function?
@@ -123,7 +123,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   inline bool HasSimpleParameters() const;
 
   // Return the function_name if present.
-  V8_EXPORT_PRIVATE Tagged<Object> FunctionName() const;
+  V8_EXPORT_PRIVATE Tagged<UnionOf<Smi, String>> FunctionName() const;
 
   // The function's name if it is non-empty, otherwise the inferred name or an
   // empty string.
@@ -137,6 +137,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int StartPosition() const;
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
+
+  int UniqueIdInScript() const;
 
   Tagged<SourceTextModuleInfo> ModuleDescriptorInfo() const;
 
@@ -274,26 +276,22 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // for a blocklist reserved.
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> RecreateWithBlockList(
       Isolate* isolate, Handle<ScopeInfo> original,
-      Handle<StringSet> blocklist);
+      DirectHandle<StringSet> blocklist);
 
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static Tagged<ScopeInfo> Empty(Isolate* isolate);
 
-#define FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(V) \
-  V(Flags)                                   \
-  V(ParameterCount)                          \
-  V(ContextLocalCount)
-
-#define FIELD_ACCESSORS(name)       \
-  inline int name() const;
-  FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
-#undef FIELD_ACCESSORS
+  inline uint32_t Flags() const;
+  inline int ParameterCount() const;
+  inline int ContextLocalCount() const;
 
   enum Fields {
-#define DECL_INDEX(name) k##name,
-    FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(DECL_INDEX)
-#undef DECL_INDEX
-        kVariablePartIndex
+    kFlags,
+    kParameterCount,
+    kContextLocalCount,
+    kPositionInfoStart,
+    kPositionInfoEnd,
+    kVariablePartIndex
   };
 
   static_assert(LanguageModeSize == 1 << LanguageModeBit::kSize);
@@ -318,14 +316,11 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int SavedClassVariableInfoIndex() const;
   int FunctionVariableInfoIndex() const;
   int InferredFunctionNameIndex() const;
-  int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
   V8_EXPORT_PRIVATE int LocalsBlockListIndex() const;
   int ModuleInfoIndex() const;
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
-
-  static bool NeedsPositionInfo(ScopeType type);
 
   // Raw access by slot index. These functions rely on the fact that everything
   // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is
@@ -375,8 +370,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   static const int kFunctionNameEntries =
       TorqueGeneratedFunctionVariableInfoOffsets::kSize / kTaggedSize;
-  static const int kPositionInfoEntries =
-      TorqueGeneratedPositionInfoOffsets::kSize / kTaggedSize;
   static const int kModuleVariableEntryLength =
       TorqueGeneratedModuleVariableOffsets::kSize / kTaggedSize;
 

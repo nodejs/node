@@ -86,6 +86,12 @@ def parse_args(cmd_args):
       action='store_true',
   )
 
+  parser.add_argument(
+      '--quiet',
+      help=('run silently, still display errors'),
+      action='store_true',
+  )
+
   return parser.parse_args(cmd_args)
 
 
@@ -110,7 +116,7 @@ def retrieve_version(args):
 
   version = '.'.join(version_tuple)
   if version_tuple[2] == version_tuple[3] == '0':
-    print(f'The version file specifies {version}, which has no profiles.')
+    log(args, f'The version file specifies {version}, which has no profiles.')
     sys.exit(0)
 
   return version
@@ -129,7 +135,7 @@ def download_profiles(version_path, requested_version, args):
   if profiles_version != requested_version:
     return True
 
-  print('Profiles already downloaded, use --force to overwrite.')
+  log(args, 'Profiles already downloaded, use --force to overwrite.')
   return False
 
 
@@ -192,6 +198,12 @@ def print_error(cmd, returncode, stdout, stderr, failure_hint):
     message += [f'{label}:', "  " + "\n  ".join(output.split("\n"))]
 
   print('\n'.join(message), file=sys.stderr)
+
+
+def log(args, message):
+  if args.quiet:
+    return
+  print(message)
 
 
 if __name__ == '__main__':

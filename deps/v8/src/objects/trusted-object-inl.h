@@ -15,7 +15,6 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(TrustedObject)
 OBJECT_CONSTRUCTORS_IMPL(TrustedObject, HeapObject)
 
 Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
@@ -76,7 +75,6 @@ void TrustedObject::VerifyProtectedPointerField(Isolate* isolate, int offset) {
 }
 #endif
 
-CAST_ACCESSOR(ExposedTrustedObject)
 OBJECT_CONSTRUCTORS_IMPL(ExposedTrustedObject, TrustedObject)
 
 void ExposedTrustedObject::init_self_indirect_pointer(

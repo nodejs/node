@@ -17,8 +17,21 @@ const int Deoptimizer::kLazyDeoptExitSize = 1 * kInstrSize;
 #endif
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
-  return Float32::FromBits(
-      static_cast<uint32_t>(double_registers_[n].get_bits()));
+  V8_ASSUME(n < arraysize(simd128_registers_));
+  return base::ReadUnalignedValue<Float32>(
+      reinterpret_cast<Address>(simd128_registers_ + n));
+}
+
+Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
+  V8_ASSUME(n < arraysize(simd128_registers_));
+  return base::ReadUnalignedValue<Float64>(
+      reinterpret_cast<Address>(simd128_registers_ + n));
+}
+
+void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
+  V8_ASSUME(n < arraysize(simd128_registers_));
+  base::WriteUnalignedValue(reinterpret_cast<Address>(simd128_registers_ + n),
+                            value);
 }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
@@ -37,10 +50,10 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
   UNREACHABLE();
 }
 
-void FrameDescription::SetPc(intptr_t pc) {
+void FrameDescription::SetPc(intptr_t pc, bool skip_validity_check) {
   // TODO(v8:10026): We need to sign pointers to the embedded blob, which are
   // stored in the isolate and code range objects.
-  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL && !skip_validity_check) {
     CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc),
                                             isolate_));
   }

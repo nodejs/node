@@ -36,10 +36,10 @@ namespace compiler {
 static_assert(std::is_convertible<TNode<Number>, TNode<Object>>::value,
               "test subtyping");
 static_assert(
-    std::is_convertible<TNode<Number>, TNode<UnionT<Smi, HeapObject>>>::value,
+    std::is_convertible<TNode<Number>, TNode<UnionOf<Smi, HeapObject>>>::value,
     "test subtyping");
 static_assert(
-    !std::is_convertible<TNode<UnionT<Smi, HeapObject>>, TNode<Number>>::value,
+    !std::is_convertible<TNode<UnionOf<Smi, HeapObject>>, TNode<Number>>::value,
     "test subtyping");
 
 CodeAssemblerState::CodeAssemblerState(
@@ -312,13 +312,17 @@ TNode<String> CodeAssembler::StringConstant(const char* str) {
 TNode<Boolean> CodeAssembler::BooleanConstant(bool value) {
   Handle<Boolean> object = isolate()->factory()->ToBoolean(value);
   return UncheckedCast<Boolean>(
-      jsgraph()->HeapConstantNoHole(Handle<HeapObject>::cast(object)));
+      jsgraph()->HeapConstantNoHole(i::Cast<HeapObject>(object)));
 }
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
     ExternalReference address) {
   return UncheckedCast<ExternalReference>(
       raw_assembler()->ExternalConstant(address));
+}
+
+TNode<ExternalReference> CodeAssembler::IsolateField(IsolateFieldId id) {
+  return ExternalConstant(ExternalReference::Create(id));
 }
 
 TNode<Float32T> CodeAssembler::Float32Constant(double value) {
@@ -496,6 +500,17 @@ void CodeAssembler::Return(TNode<WordT> value1, TNode<WordT> value2) {
   return raw_assembler()->Return(value1, value2);
 }
 
+void CodeAssembler::Return(TNode<Word32T> value1, TNode<Word32T> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineRepresentation::kWord32,
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  DCHECK_EQ(
+      MachineRepresentation::kWord32,
+      raw_assembler()->call_descriptor()->GetReturnType(1).representation());
+  return raw_assembler()->Return(value1, value2);
+}
+
 void CodeAssembler::Return(TNode<WordT> value1, TNode<Object> value2) {
   DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK_EQ(
@@ -583,9 +598,8 @@ TNode<RawPtrT> CodeAssembler::LoadStackPointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadStackPointer());
 }
 
-void CodeAssembler::SetStackPointer(TNode<RawPtrT> ptr,
-                                    wasm::FPRelativeScope fp_scope) {
-  raw_assembler()->SetStackPointer(ptr, fp_scope);
+void CodeAssembler::SetStackPointer(TNode<RawPtrT> ptr) {
+  raw_assembler()->SetStackPointer(ptr);
 }
 #endif
 
@@ -787,7 +801,7 @@ Node* CodeAssembler::PackMapWord(Node* value) {
 TNode<AnyTaggedT> CodeAssembler::LoadRootMapWord(RootIndex root_index) {
 #ifdef V8_MAP_PACKING
   Handle<Object> root = isolate()->root_handle(root_index);
-  Node* map = HeapConstantNoHole(Handle<Map>::cast(root));
+  Node* map = HeapConstantNoHole(Cast<Map>(root));
   map = PackMapWord(map);
   return ReinterpretCast<AnyTaggedT>(map);
 #else
@@ -799,9 +813,9 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
     Handle<Object> root = isolate()->root_handle(root_index);
     if (IsSmi(*root)) {
-      return SmiConstant(Smi::cast(*root));
+      return SmiConstant(i::Cast<Smi>(*root));
     } else {
-      return HeapConstantMaybeHole(Handle<HeapObject>::cast(root));
+      return HeapConstantMaybeHole(i::Cast<HeapObject>(root));
     }
   }
 
@@ -1111,7 +1125,7 @@ Node* CodeAssembler::CallRuntimeImpl(
       Builtins::RuntimeCEntry(result_size, switch_to_the_central_stack);
   TNode<Code> centry_code =
       HeapConstantNoHole(isolate()->builtins()->code_handle(centry));
-  constexpr size_t kMaxNumArgs = 6;
+  constexpr size_t kMaxNumArgs = 7;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(

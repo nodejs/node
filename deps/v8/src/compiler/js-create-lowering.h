@@ -81,6 +81,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
       ElementsKind elements_kind, AllocationType allocation,
       const SlackTrackingPrediction& slack_tracking_prediction);
   Reduction ReduceJSCreateObject(Node* node);
+  Reduction ReduceJSCreateStringWrapper(Node* node);
 
   // The following functions all return nullptr iff there are too many arguments
   // for inline allocation.

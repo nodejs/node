@@ -5,8 +5,16 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+// gcc 10 defines __cplusplus to "an unspecified value strictly larger than
+// 201703L" for its experimental -std=gnu++2a config.
+// TODO(leszeks): Change to `__cplusplus <= 202002L` once we only support
+// compilers with full C++20 support.
+#if __cplusplus <= 201703L
+#error "C++20 or later required."
+#endif
+
 #ifdef V8_GN_HEADER
-#if __cplusplus >= 201703L && !__has_include("v8-gn.h")
+#if !__has_include("v8-gn.h")
 #error Missing v8-gn.h. The configuration for v8 is missing from the include \
 path. Add it with -I<path> to the command line
 #endif
@@ -23,6 +31,8 @@ path. Add it with -I<path> to the command line
 # include <TargetConditionals.h>
 #elif defined(__linux__)
 # include <features.h>
+#elif defined(__MVS__)
+# include "zos-base.h"
 #endif
 
 
@@ -83,6 +93,7 @@ path. Add it with -I<path> to the command line
 //  V8_OS_STARBOARD     - Starboard (platform abstraction for Cobalt)
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
+//  V8_OS_ZOS           - z/OS
 
 #if defined(__ANDROID__)
 # define V8_OS_ANDROID 1
@@ -163,6 +174,11 @@ path. Add it with -I<path> to the command line
 #elif defined(_WIN32)
 # define V8_OS_WIN 1
 # define V8_OS_STRING "windows"
+
+#elif defined(__MVS__)
+# define V8_OS_POSIX 1
+# define V8_OS_ZOS 1
+# define V8_OS_STRING "zos"
 #endif
 
 // -----------------------------------------------------------------------------
@@ -477,22 +493,32 @@ path. Add it with -I<path> to the command line
 # define V8_INLINE inline
 #endif
 
+#if V8_HAS_BUILTIN_ASSUME
 #ifdef DEBUG
-// In debug mode, check assumptions instead of actually adding annotations.
-# define V8_ASSUME DCHECK
-#elif V8_HAS_BUILTIN_ASSUME
+// In debug mode, check assumptions in addition to adding annotations.
+// This helps GCC (and maybe other compilers) figure out that certain
+// situations are unreachable.
+# define V8_ASSUME(condition)    \
+  do {                           \
+    DCHECK(condition);           \
+    __builtin_assume(condition); \
+  } while (false)
+#else  // DEBUG
 # define V8_ASSUME __builtin_assume
+#endif  // DEBUG
 #elif V8_HAS_BUILTIN_UNREACHABLE
 # define V8_ASSUME(condition)                  \
   do {                                         \
+    DCHECK(condition);                         \
     if (!(condition)) __builtin_unreachable(); \
   } while (false)
 #else
 # define V8_ASSUME USE
 #endif
 
-// Prefer c++20 std::assume_aligned
-#if __cplusplus >= 202002L && defined(__cpp_lib_assume_aligned)
+// Prefer c++20 std::assume_aligned. Don't use it on MSVC though, because it's
+// not happy with our large 4GB alignment values.
+#if __cplusplus >= 202002L && defined(__cpp_lib_assume_aligned) && !V8_CC_MSVC
 # define V8_ASSUME_ALIGNED(ptr, alignment) \
   std::assume_aligned<(alignment)>(ptr)
 #elif V8_HAS_BUILTIN_ASSUME_ALIGNED

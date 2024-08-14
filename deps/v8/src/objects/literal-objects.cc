@@ -45,7 +45,7 @@ constexpr AccessorComponent ToAccessorComponent(
 
 template <typename IsolateT>
 void AddToDescriptorArrayTemplate(
-    IsolateT* isolate, Handle<DescriptorArray> descriptor_array_template,
+    IsolateT* isolate, DirectHandle<DescriptorArray> descriptor_array_template,
     Handle<Name> name, ClassBoilerplate::ValueKind value_kind,
     Handle<Object> value) {
   InternalIndex entry = descriptor_array_template->Search(
@@ -80,7 +80,7 @@ void AddToDescriptorArrayTemplate(
           descriptor_array_template->GetStrongValue(entry);
       Tagged<AccessorPair> pair;
       if (IsAccessorPair(raw_accessor)) {
-        pair = AccessorPair::cast(raw_accessor);
+        pair = Cast<AccessorPair>(raw_accessor);
       } else {
         Handle<AccessorPair> new_pair = isolate->factory()->NewAccessorPair();
         Descriptor d = Descriptor::AccessorConstant(name, new_pair, DONT_ENUM);
@@ -125,13 +125,13 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 
 template <typename Dictionary>
 void DictionaryUpdateMaxNumberKey(Handle<Dictionary> dictionary,
-                                  Handle<Name> name) {
+                                  DirectHandle<Name> name) {
   static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   // No-op for (ordered) name dictionaries.
 }
 
-void DictionaryUpdateMaxNumberKey(Handle<NumberDictionary> dictionary,
+void DictionaryUpdateMaxNumberKey(DirectHandle<NumberDictionary> dictionary,
                                   uint32_t element) {
   dictionary->UpdateMaxNumberKey(element, Handle<JSObject>());
   dictionary->set_requires_slow_elements();
@@ -209,7 +209,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
     if (value_kind == ClassBoilerplate::kData) {
       // Computed value is a normal method.
       if (IsAccessorPair(existing_value)) {
-        Tagged<AccessorPair> current_pair = AccessorPair::cast(existing_value);
+        Tagged<AccessorPair> current_pair = Cast<AccessorPair>(existing_value);
 
         int existing_getter_index =
             GetExistingValueIndex(current_pair->getter());
@@ -276,9 +276,9 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
 
         DCHECK_IMPLIES(!IsSmi(existing_value), IsAccessorInfo(existing_value));
         DCHECK_IMPLIES(!IsSmi(existing_value),
-                       AccessorInfo::cast(existing_value)->name() ==
+                       Cast<AccessorInfo>(existing_value)->name() ==
                                *isolate->factory()->length_string() ||
-                           AccessorInfo::cast(existing_value)->name() ==
+                           Cast<AccessorInfo>(existing_value)->name() ==
                                *isolate->factory()->name_string());
         if (!IsSmi(existing_value) || Smi::ToInt(existing_value) < key_index) {
           // Overwrite existing value because it was defined before the computed
@@ -310,7 +310,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
       AccessorComponent component = ToAccessorComponent(value_kind);
       if (IsAccessorPair(existing_value)) {
         // Update respective component of existing AccessorPair.
-        Tagged<AccessorPair> current_pair = AccessorPair::cast(existing_value);
+        Tagged<AccessorPair> current_pair = Cast<AccessorPair>(existing_value);
 
         int existing_component_index =
             GetExistingValueIndex(current_pair->get(component));
@@ -340,7 +340,8 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         if (!IsSmi(existing_value) || Smi::ToInt(existing_value) < key_index) {
           // Overwrite the existing data property because it was defined before
           // the computed accessor property.
-          Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
+          DirectHandle<AccessorPair> pair(
+              isolate->factory()->NewAccessorPair());
           pair->set(component, value);
           PropertyDetails details(
               PropertyKind::kAccessor, DONT_ENUM,
@@ -390,9 +391,8 @@ class ObjectDescriptor {
   }
 
   Handle<Object> properties_template() const {
-    return HasDictionaryProperties()
-               ? properties_dictionary_template_
-               : Handle<Object>::cast(descriptor_array_template_);
+    return HasDictionaryProperties() ? properties_dictionary_template_
+                                     : Cast<Object>(descriptor_array_template_);
   }
 
   Handle<NumberDictionary> elements_template() const {
@@ -533,11 +533,11 @@ class ObjectDescriptor {
 
  private:
   Handle<NameDictionary> properties_dictionary_template() const {
-    return Handle<NameDictionary>::cast(properties_dictionary_template_);
+    return Cast<NameDictionary>(properties_dictionary_template_);
   }
 
   Handle<SwissNameDictionary> properties_ordered_dictionary_template() const {
-    return Handle<SwissNameDictionary>::cast(properties_dictionary_template_);
+    return Cast<SwissNameDictionary>(properties_dictionary_template_);
   }
 
   const int property_slack_;
@@ -715,7 +715,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::New(IsolateT* isolate,
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
-  auto result = Handle<ClassBoilerplate>::cast(
+  auto result = Cast<ClassBoilerplate>(
       factory->NewStruct(CLASS_BOILERPLATE_TYPE, allocation));
 
   result->set_arguments_count(dynamic_argument_index);

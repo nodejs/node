@@ -57,7 +57,7 @@ class MemoryMeasurementResultBuilder {
   Handle<JSObject> Build() {
     if (detailed_) {
       int length = static_cast<int>(other_.size());
-      Handle<FixedArray> other = factory_->NewFixedArray(length);
+      DirectHandle<FixedArray> other = factory_->NewFixedArray(length);
       for (int i = 0; i < length; i++) {
         other->set(i, *other_[i]);
       }
@@ -84,9 +84,9 @@ class MemoryMeasurementResultBuilder {
     return factory_->NewJSObject(isolate_->object_function());
   }
   Handle<JSArray> NewRange(size_t lower_bound, size_t upper_bound) {
-    Handle<Object> lower = NewNumber(lower_bound);
-    Handle<Object> upper = NewNumber(upper_bound);
-    Handle<FixedArray> elements = factory_->NewFixedArray(2);
+    DirectHandle<Object> lower = NewNumber(lower_bound);
+    DirectHandle<Object> upper = NewNumber(upper_bound);
+    DirectHandle<FixedArray> elements = factory_->NewFixedArray(2);
     elements->set(0, *lower);
     elements->set(1, *upper);
     return factory_->NewJSArrayWithElements(elements);
@@ -106,8 +106,9 @@ class MemoryMeasurementResultBuilder {
 class V8_EXPORT_PRIVATE MeasureMemoryDelegate
     : public v8::MeasureMemoryDelegate {
  public:
-  MeasureMemoryDelegate(Isolate* isolate, Handle<NativeContext> context,
-                        Handle<JSPromise> promise, v8::MeasureMemoryMode mode);
+  MeasureMemoryDelegate(Isolate* isolate, DirectHandle<NativeContext> context,
+                        DirectHandle<JSPromise> promise,
+                        v8::MeasureMemoryMode mode);
   ~MeasureMemoryDelegate() override;
 
   // v8::MeasureMemoryDelegate overrides:
@@ -121,10 +122,9 @@ class V8_EXPORT_PRIVATE MeasureMemoryDelegate
   v8::MeasureMemoryMode mode_;
 };
 
-MeasureMemoryDelegate::MeasureMemoryDelegate(Isolate* isolate,
-                                             Handle<NativeContext> context,
-                                             Handle<JSPromise> promise,
-                                             v8::MeasureMemoryMode mode)
+MeasureMemoryDelegate::MeasureMemoryDelegate(
+    Isolate* isolate, DirectHandle<NativeContext> context,
+    DirectHandle<JSPromise> promise, v8::MeasureMemoryMode mode)
     : isolate_(isolate), mode_(mode) {
   context_ = isolate->global_handles()->Create(*context);
   promise_ = isolate->global_handles()->Create(*promise);
@@ -136,8 +136,7 @@ MeasureMemoryDelegate::~MeasureMemoryDelegate() {
 }
 
 bool MeasureMemoryDelegate::ShouldMeasure(v8::Local<v8::Context> context) {
-  Handle<NativeContext> native_context =
-      Handle<NativeContext>::cast(Utils::OpenHandle(*context));
+  auto native_context = Cast<NativeContext>(Utils::OpenDirectHandle(*context));
   return context_->security_token() == native_context->security_token();
 }
 
@@ -195,7 +194,7 @@ bool MemoryMeasurement::EnqueueRequest(
     v8::MeasureMemoryExecution execution,
     const std::vector<Handle<NativeContext>> contexts) {
   int length = static_cast<int>(contexts.size());
-  Handle<WeakFixedArray> weak_contexts =
+  DirectHandle<WeakFixedArray> weak_contexts =
       isolate_->factory()->NewWeakFixedArray(length);
   for (int i = 0; i < length; ++i) {
     weak_contexts->set(i, MakeWeak(*contexts[i]));
@@ -221,7 +220,7 @@ std::vector<Address> MemoryMeasurement::StartProcessing() {
   DCHECK(processing_.empty());
   processing_ = std::move(received_);
   for (const auto& request : processing_) {
-    Handle<WeakFixedArray> contexts = request.contexts;
+    DirectHandle<WeakFixedArray> contexts = request.contexts;
     for (int i = 0; i < contexts->length(); i++) {
       Tagged<HeapObject> context;
       if (contexts->get(i).GetHeapObject(&context)) {
@@ -385,10 +384,10 @@ void NativeContextStats::IncrementExternalSize(Address context, Tagged<Map> map,
   InstanceType instance_type = map->instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
-    external_size = JSArrayBuffer::cast(object)->GetByteLength();
+    external_size = Cast<JSArrayBuffer>(object)->GetByteLength();
   } else {
     DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
-    external_size = ExternalString::cast(object)->ExternalPayloadSize();
+    external_size = Cast<ExternalString>(object)->ExternalPayloadSize();
   }
   size_by_context_[context] += external_size;
 }

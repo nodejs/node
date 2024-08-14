@@ -21,10 +21,10 @@ namespace internal {
 template <typename T>
 class Signature;
 
-namespace wasm {
-
-// Type for holding simd values, defined in wasm-value.h.
+// Type for holding simd values, defined in simd128.h.
 class Simd128;
+
+namespace wasm {
 
 // Format: kind, log2Size, code, machineType, shortName, typeName
 //
@@ -38,7 +38,8 @@ class Simd128;
   V(F64, 3, F64, Float64, 'd', "f64")    \
   V(S128, 4, S128, Simd128, 's', "v128") \
   V(I8, 0, I8, Int8, 'b', "i8")          \
-  V(I16, 1, I16, Int16, 'h', "i16")
+  V(I16, 1, I16, Int16, 'h', "i16")      \
+  V(F16, 1, F16, Float16, 'p', "f16")
 
 #define FOREACH_VALUE_TYPE(V)                                      \
   V(Void, -1, Void, None, 'v', "<void>")                           \
@@ -443,6 +444,8 @@ constexpr bool is_numeric(ValueKind kind) {
   }
 }
 
+constexpr bool is_valid(ValueKind kind) { return kind <= kBottom; }
+
 constexpr bool is_reference(ValueKind kind) {
   return kind == kRef || kind == kRefNull || kind == kRtt;
 }
@@ -505,6 +508,11 @@ constexpr const char* name(ValueKind kind) {
   return kKindName[kind];
 }
 
+// Output operator, useful for DCHECKS and others.
+inline std::ostream& operator<<(std::ostream& oss, ValueKind kind) {
+  return oss << name(kind);
+}
+
 constexpr MachineType machine_type(ValueKind kind) {
   DCHECK_NE(kBottom, kind);
 
@@ -518,9 +526,11 @@ constexpr MachineType machine_type(ValueKind kind) {
   return kMachineType[kind];
 }
 
-constexpr bool is_packed(ValueKind kind) { return kind == kI8 || kind == kI16; }
+constexpr bool is_packed(ValueKind kind) {
+  return kind == kI8 || kind == kI16 || kind == kF16;
+}
 constexpr ValueKind unpacked(ValueKind kind) {
-  return is_packed(kind) ? kI32 : kind;
+  return is_packed(kind) ? (kind == kF16 ? kF32 : kI32) : kind;
 }
 
 constexpr bool is_rtt(ValueKind kind) { return kind == kRtt; }
@@ -543,7 +553,7 @@ class ValueType {
   /******************************* Constructors *******************************/
   constexpr ValueType() : bit_field_(KindField::encode(kVoid)) {}
   static constexpr ValueType Primitive(ValueKind kind) {
-    DCHECK(kind == kBottom || kind <= kI16);
+    DCHECK(kind == kBottom || kind <= kF16);
     return ValueType(KindField::encode(kind));
   }
   static constexpr ValueType Ref(uint32_t heap_type) {
@@ -763,12 +773,6 @@ class ValueType {
             return kArrayRefCode;
           case HeapType::kString:
             return kStringRefCode;
-          case HeapType::kStringViewWtf8:
-            return kStringViewWtf8Code;
-          case HeapType::kStringViewWtf16:
-            return kStringViewWtf16Code;
-          case HeapType::kStringViewIter:
-            return kStringViewIterCode;
           case HeapType::kNone:
             return kNoneCode;
           case HeapType::kNoExtern:
@@ -779,7 +783,18 @@ class ValueType {
             return kRefNullCode;
         }
       case kRef:
-        return kRefCode;
+        switch (heap_representation()) {
+          // String views are non-nullable references.
+          case HeapType::kStringViewWtf8:
+            return kStringViewWtf8Code;
+          case HeapType::kStringViewWtf16:
+            return kStringViewWtf16Code;
+          case HeapType::kStringViewIter:
+            return kStringViewIterCode;
+          // Currently, no other non-nullable shorthands exist.
+          default:
+            return kRefCode;
+        }
 #define NUMERIC_TYPE_CASE(kind, ...) \
   case k##kind:                      \
     return k##kind##Code;
@@ -816,7 +831,8 @@ class ValueType {
         buf << "(ref " << heap_type().name() << ")";
         break;
       case kRefNull:
-        if (heap_type().is_abstract_non_shared()) {
+        if (heap_type().is_abstract_non_shared() &&
+            !heap_type().is_string_view()) {
           switch (heap_type().representation()) {
             case HeapType::kNone:
               buf << "nullref";
@@ -915,6 +931,7 @@ constexpr ValueType kWasmF64 = ValueType::Primitive(kF64);
 constexpr ValueType kWasmS128 = ValueType::Primitive(kS128);
 constexpr ValueType kWasmI8 = ValueType::Primitive(kI8);
 constexpr ValueType kWasmI16 = ValueType::Primitive(kI16);
+constexpr ValueType kWasmF16 = ValueType::Primitive(kF16);
 constexpr ValueType kWasmVoid = ValueType::Primitive(kVoid);
 constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
 // Established reference-type and wasm-gc proposal shorthands.
@@ -933,11 +950,11 @@ constexpr ValueType kWasmRefNullExternString =
 constexpr ValueType kWasmRefExternString =
     ValueType::Ref(HeapType::kExternString);
 constexpr ValueType kWasmStringViewWtf8 =
-    ValueType::RefNull(HeapType::kStringViewWtf8);
+    ValueType::Ref(HeapType::kStringViewWtf8);
 constexpr ValueType kWasmStringViewWtf16 =
-    ValueType::RefNull(HeapType::kStringViewWtf16);
+    ValueType::Ref(HeapType::kStringViewWtf16);
 constexpr ValueType kWasmStringViewIter =
-    ValueType::RefNull(HeapType::kStringViewIter);
+    ValueType::Ref(HeapType::kStringViewIter);
 constexpr ValueType kWasmNullRef = ValueType::RefNull(HeapType::kNone);
 constexpr ValueType kWasmNullExternRef =
     ValueType::RefNull(HeapType::kNoExtern);
@@ -970,6 +987,7 @@ using FunctionSig = Signature<ValueType>;
   V(I64, 16U, Uint16)        \
   V(I64, 32S, Int32)         \
   V(I64, 32U, Uint32)        \
+  V(F32, F16, Float16)       \
   V(F32, , Float32)          \
   V(F64, , Float64)          \
   V(S128, , Simd128)
@@ -1008,13 +1026,15 @@ class LoadType {
         return is_signed ? kI32Load8S : kI32Load8U;
       case kI16:
         return is_signed ? kI32Load16S : kI32Load16U;
+      case kF16:
+        return kF32LoadF16;
       default:
         UNREACHABLE();
     }
   }
 
  private:
-  const LoadTypeValue val_;
+  LoadTypeValue val_;
 
   static constexpr uint8_t kLoadSize[] = {
   // MSVC wants a static_cast here.
@@ -1055,6 +1075,7 @@ class LoadType {
   V(I64, 8, Word8)            \
   V(I64, 16, Word16)          \
   V(I64, 32, Word32)          \
+  V(F32, F16, Float16)        \
   V(F32, , Float32)           \
   V(F64, , Float64)           \
   V(S128, , Simd128)
@@ -1093,13 +1114,15 @@ class StoreType {
         return kI32Store8;
       case kI16:
         return kI32Store16;
+      case kF16:
+        return kF32StoreF16;
       default:
         UNREACHABLE();
     }
   }
 
  private:
-  const StoreTypeValue val_;
+  StoreTypeValue val_;
 
   static constexpr uint8_t kStoreSizeLog2[] = {
   // MSVC wants a static_cast here.

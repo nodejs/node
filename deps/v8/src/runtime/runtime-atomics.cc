@@ -248,12 +248,12 @@ inline int32_t FromObject<int32_t>(Handle<Object> number) {
 
 template <>
 inline uint64_t FromObject<uint64_t>(Handle<Object> bigint) {
-  return Handle<BigInt>::cast(bigint)->AsUint64();
+  return Cast<BigInt>(bigint)->AsUint64();
 }
 
 template <>
 inline int64_t FromObject<int64_t>(Handle<Object> bigint) {
-  return Handle<BigInt>::cast(bigint)->AsInt64();
+  return Cast<BigInt>(bigint)->AsInt64();
 }
 
 inline Tagged<Object> ToObject(Isolate* isolate, int8_t t) {

@@ -22,6 +22,10 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class WasmCode;
+}
+
 enum class BuiltinContinuationMode;
 
 class DeoptimizedFrameInfo;
@@ -64,6 +68,7 @@ class Deoptimizer : public Malloced {
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
+  int output_count() const { return output_count_; }
 
   // Where the deopt exit occurred *in the outermost frame*, i.e in the
   // function we generated OSR'd code for. If the deopt occurred in an inlined
@@ -75,6 +80,10 @@ class Deoptimizer : public Malloced {
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
+
+  // Delete and deregister the deoptimizer from the current isolate. Returns the
+  // count of output (liftoff) frames that were constructed by the deoptimizer.
+  static size_t DeleteForWasm(Isolate* isolate);
 
   // The returned object with information on the optimized frame needs to be
   // freed before another one can be generated.
@@ -100,7 +109,7 @@ class Deoptimizer : public Malloced {
   // Deoptimizes all optimized code that implements the given function (whether
   // directly or inlined).
   static void DeoptimizeAllOptimizedCodeWithFunction(
-      Isolate* isolate, Handle<SharedFunctionInfo> function);
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> function);
 
   // Check the given address against a list of allowed addresses, to prevent a
   // potential attacker from using the frame creation process in the
@@ -159,6 +168,14 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
+
+#if V8_ENABLE_WEBASSEMBLY
+  void DoComputeOutputFramesWasmImpl();
+  FrameDescription* DoComputeWasmLiftoffFrame(
+      TranslatedFrame& frame, wasm::NativeModule* native_module,
+      Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index);
+#endif
+
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
   void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,
@@ -183,8 +200,7 @@ class Deoptimizer : public Malloced {
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
 
-  static unsigned ComputeIncomingArgumentSize(
-      Tagged<SharedFunctionInfo> shared);
+  static unsigned ComputeIncomingArgumentSize(Tagged<Code> code);
 
   // Tracing.
   bool tracing_enabled() const { return trace_scope_ != nullptr; }
@@ -208,6 +224,9 @@ class Deoptimizer : public Malloced {
   Isolate* isolate_;
   Tagged<JSFunction> function_;
   Tagged<Code> compiled_code_;
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCode* compiled_optimized_wasm_code_ = nullptr;
+#endif
   unsigned deopt_exit_index_;
   BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;

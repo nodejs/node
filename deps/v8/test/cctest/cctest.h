@@ -378,7 +378,7 @@ static inline i::Handle<T> GetGlobal(const char* name) {
   i::Handle<i::Object> value =
       i::Object::GetProperty(isolate, isolate->global_object(), str_name)
           .ToHandleChecked();
-  return i::Handle<T>::cast(value);
+  return i::Cast<T>(value);
 }
 
 static inline v8::Local<v8::Boolean> v8_bool(bool val) {
@@ -391,6 +391,10 @@ static inline v8::Local<v8::Value> v8_num(double x) {
 
 static inline v8::Local<v8::Integer> v8_int(int32_t x) {
   return v8::Integer::New(v8::Isolate::GetCurrent(), x);
+}
+
+static inline v8::Local<v8::Integer> v8_uint(uint32_t x) {
+  return v8::Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), x);
 }
 
 static inline v8::Local<v8::BigInt> v8_bigint(int64_t x) {

@@ -106,10 +106,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   void RegisterDeserializerFinished();
   bool has_active_deserializer() const;
 
-  template <typename T>
-  Handle<T> Throw(Handle<Object> exception) {
-    UNREACHABLE();
-  }
+  void Throw(Tagged<Object> exception) { UNREACHABLE(); }
   [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location) {
     UNREACHABLE();
   }
@@ -156,7 +153,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   int NextOptimizationId() { return isolate_->NextOptimizationId(); }
 
   template <typename Callback>
-  V8_INLINE void BlockMainThreadWhileParked(Callback callback);
+  V8_INLINE void ExecuteMainThreadWhileParked(Callback callback);
+
+  template <typename Callback>
+  V8_INLINE void ParkIfOnBackgroundAndExecute(Callback callback);
 
 #ifdef V8_INTL_SUPPORT
   // WARNING: This might be out-of-sync with the main-thread.
@@ -166,6 +166,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  private:
   friend class v8::internal::LocalFactory;
   friend class LocalIsolateFactory;
+  friend class IsolateForPointerCompression;
   friend class IsolateForSandbox;
 
   // See IsolateForSandbox.
