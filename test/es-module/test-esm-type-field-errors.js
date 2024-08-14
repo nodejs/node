@@ -45,7 +45,9 @@ describe('ESM type field errors', { concurrency: true }, () => {
   });
 
   it('--input-type=module disallowed for directories', () => {
-    assert.throws(() => require('../fixtures/es-modules/package-type-module/index.js'), /ERR_REQUIRE_ESM/);
+    assert.throws(() => require('../fixtures/es-modules/package-type-module/index.js'), {
+      code: 'ERR_REQUIRE_ESM'
+    });
   });
 });
 
