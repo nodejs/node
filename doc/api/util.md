@@ -1812,7 +1812,7 @@ added:
   - v20.12.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/54388
+    pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and colors environment variables
       such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
