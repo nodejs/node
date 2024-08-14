@@ -60,7 +60,7 @@ tmpdir.refresh();
     stderr(output) {
       let match = output.match(/Warning: test warning/g);
       assert.strictEqual(match.length, 1);
-      match = output.match(/Use `node --trace-warnings/g);
+      match = output.match(/Use the `--trace-warnings/g);
       assert.strictEqual(match.length, 1);
       return true;
     }
@@ -79,7 +79,7 @@ tmpdir.refresh();
       // Warnings should not be handled more than once.
       let match = output.match(/Warning: test warning/g);
       assert.strictEqual(match.length, 1);
-      match = output.match(/Use `node --trace-warnings/g);
+      match = output.match(/Use the `--trace-warnings/g);
       assert.strictEqual(match.length, 1);
       return true;
     }
@@ -114,7 +114,7 @@ tmpdir.refresh();
   console.log(warningFile1, ':', warnings1);
   let match = warnings1.match(/Warning: test warning/g);
   assert.strictEqual(match.length, 1);
-  match = warnings1.match(/Use `node --trace-warnings/g);
+  match = warnings1.match(/Use the `--trace-warnings/g);
   assert.strictEqual(match.length, 1);
   fs.rmSync(warningFile1, {
     maxRetries: 3, recursive: false, force: true
@@ -140,6 +140,6 @@ tmpdir.refresh();
   console.log(warningFile2, ':', warnings1);
   match = warnings2.match(/Warning: test warning/g);
   assert.strictEqual(match.length, 1);
-  match = warnings2.match(/Use `node --trace-warnings/g);
+  match = warnings2.match(/Use the `--trace-warnings/g);
   assert.strictEqual(match.length, 1);
 }

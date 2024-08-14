@@ -536,14 +536,9 @@ static void ReportFatalException(Environment* env,
     }
 
     if (!env->options()->trace_uncaught) {
-      std::string argv0;
-      if (!env->argv().empty()) argv0 = env->argv()[0];
-      if (argv0.empty()) argv0 = "node";
-      auto filesystem_path = std::filesystem::path(argv0).replace_extension();
       FPrintF(stderr,
-              "(Use `%s --trace-uncaught ...` to show where the exception "
-              "was thrown)\n",
-              filesystem_path.filename().string());
+              "(Use the `--trace-uncaught` flag to show where the exception "
+              "was thrown)\n");
     }
   }
 

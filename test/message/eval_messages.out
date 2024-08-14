@@ -63,7 +63,7 @@ Node.js *
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `* --trace-uncaught ...` to show where the exception was thrown)
+(Use the `--trace-uncaught ...` flag to show where the exception was thrown)
 
 Node.js *
 
@@ -71,7 +71,7 @@ Node.js *
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `* --trace-uncaught ...` to show where the exception was thrown)
+(Use the `--trace-uncaught` flag to show where the exception was thrown)
 
 Node.js *
 done

@@ -91,7 +91,7 @@ To allow access to the file system, use the [`--allow-fs-read`][] and
 $ node --experimental-permission --allow-fs-read=* --allow-fs-write=* index.js
 Hello world!
 (node:19836) ExperimentalWarning: Permission is an experimental feature
-(Use `node --trace-warnings ...` to show where the warning was created)
+(Use the `--trace-warnings` flag to show where the warning was created)
 ```
 
 The valid arguments for both flags are:
