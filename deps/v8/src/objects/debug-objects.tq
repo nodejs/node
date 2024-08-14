@@ -130,8 +130,3 @@ extern class ErrorStackData extends Struct {
   // stack traces.
   limit_or_stack_frame_infos: Smi|FixedArray;
 }
-
-extern class PromiseOnStack extends Struct {
-  prev: PromiseOnStack|Zero;
-  promise: Weak<JSObject>;
-}

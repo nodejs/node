@@ -62,6 +62,10 @@ V8_EXPORT_PRIVATE void float64_to_int64_sat_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void float64_to_uint64_sat_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void float32_to_float16_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float16_to_float32_wrapper(Address data);
+
 V8_EXPORT_PRIVATE int32_t int64_div_wrapper(Address data);
 
 V8_EXPORT_PRIVATE int32_t int64_mod_wrapper(Address data);
@@ -114,9 +118,9 @@ int32_t memory_fill_wrapper(Address instance_addr, uint32_t mem_index,
                             uintptr_t dst, uint8_t value, uintptr_t size);
 
 // Assumes copy ranges are in-bounds and length > 0.
-void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
-                        uint32_t dst_index, Address raw_src_array,
-                        uint32_t src_index, uint32_t length);
+void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
+                        Address raw_src_array, uint32_t src_index,
+                        uint32_t length);
 
 // The initial value is passed as an int64_t on the stack. Cannot handle s128
 // other than 0.
@@ -129,12 +133,15 @@ double flat_string_to_f64(Address string_address);
 // Update the stack limit after a stack switch,
 // and preserve pending interrupts.
 void sync_stack_limit(Isolate* isolate);
+// Return {continuation}'s stack memory to the stack pool after it has returned
+// and switched back to its parent, and update the stack limit.
+void return_switch(Isolate* isolate, Address continuation);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);
-intptr_t switch_to_the_central_stack_for_js(Address receiver,
+intptr_t switch_to_the_central_stack_for_js(Isolate* isolate,
                                             uintptr_t* stack_limit_slot);
-void switch_from_the_central_stack_for_js(Address receiver,
+void switch_from_the_central_stack_for_js(Isolate* isolate,
                                           uintptr_t stack_limit);
 
 }  // namespace wasm

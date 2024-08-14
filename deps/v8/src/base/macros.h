@@ -13,17 +13,35 @@
 #include "src/base/logging.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
-#define EXPAND(x) x
+#define EXPAND(X) X
 
 // This macro does nothing. That's all.
 #define NOTHING(...)
 
-#define CONCAT_(a, b) a##b
-#define CONCAT(a, b) CONCAT_(a, b)
+#define CONCAT_(a, ...) a##__VA_ARGS__
+#define CONCAT(a, ...) CONCAT_(a, __VA_ARGS__)
 // Creates an unique identifier. Useful for scopes to avoid shadowing names.
 #define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
 
+// UNPAREN(x) removes a layer of nested parentheses on x, if any. This means
+// that both UNPAREN(x) and UNPAREN((x)) expand to x. This is helpful for macros
+// that want to support multi argument templates with commas, e.g.
+//
+//   #define FOO(Type, Name) UNPAREN(Type) Name;
+//
+// will work with both
+//
+//   FOO(int, x);
+//   FOO((Foo<int, double, float>), x);
+#define UNPAREN(X) CONCAT(DROP_, UNPAREN_ X)
+#define UNPAREN_(...) UNPAREN_ __VA_ARGS__
+#define DROP_UNPAREN_
+
 #define OFFSET_OF(type, field) offsetof(type, field)
+
+// A comma, to be used in macro arguments where it would otherwise be
+// interpreted as separator of arguments.
+#define LITERAL_COMMA ,
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
@@ -31,13 +49,11 @@
 // a pointer by mistake, you will get a compile-time error.
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
-
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
 // use its type.
 template <typename T, size_t N>
 char (&ArraySizeHelper(T (&array)[N]))[N];
-
 
 #if !V8_CC_MSVC
 // That gcc wants both of these prototypes seems mysterious. VC, for
@@ -132,6 +148,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
+#endif
+#endif
+
 // Define V8_USE_MEMORY_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
@@ -164,6 +187,16 @@ V8_INLINE Dest bit_cast(Source const& source) {
   V8_CLANG_NO_SANITIZE("function")
 #endif
 
+// V8_PRETTY_FUNCTION_VALUE_OR(ELSE) emits a pretty function value, if
+// available for this compiler, otherwise it emits ELSE.
+#if defined(V8_CC_GNU)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __PRETTY_FUNCTION__
+#elif defined(V8_CC_MSVC)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __FUNCSIG__
+#else
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) ELSE
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -173,7 +206,7 @@ namespace base {
 // base::is_trivially_copyable will differ for these cases.
 template <typename T>
 struct is_trivially_copyable {
-#if V8_CC_MSVC || (__GNUC__ == 12 && __GNUC_MINOR__ <= 2)
+#if V8_CC_MSVC
   // Unfortunately, MSVC 2015 is broken in that std::is_trivially_copyable can
   // be false even though it should be true according to the standard.
   // (status at 2018-02-26, observed on the msvc waterfall bot).
@@ -181,11 +214,6 @@ struct is_trivially_copyable {
   // intended, so we reimplement this according to the standard.
   // See also https://developercommunity.visualstudio.com/content/problem/
   //          170883/msvc-type-traits-stdis-trivial-is-bugged.html.
-  //
-  // GCC 12.1 and 12.2 are broken too, they are shipped by some stable Linux
-  // distributions, so the same polyfill is also used.
-  // See
-  // https://gcc.gnu.org/git/?p=gcc.git;a=commitdiff;h=aeba3e009b0abfccaf01797556445dbf891cc8dc
   static constexpr bool value =
       // Copy constructor is trivial or deleted.
       (std::is_trivially_copy_constructible<T>::value ||
@@ -373,9 +401,9 @@ bool is_inbounds(float_t v) {
 // Setup for Windows shared library export.
 #define V8_EXPORT_ENUM
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
 #elif USING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define V8_EXPORT_PRIVATE
 #endif  // BUILDING_V8_SHARED
@@ -385,8 +413,8 @@ bool is_inbounds(float_t v) {
 // Setup for Linux shared library export.
 #if V8_HAS_ATTRIBUTE_VISIBILITY
 #ifdef BUILDING_V8_SHARED_PRIVATE
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define V8_EXPORT_ENUM V8_EXPORT_PRIVATE
 #else
 #define V8_EXPORT_PRIVATE
 #define V8_EXPORT_ENUM

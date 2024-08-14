@@ -16,7 +16,7 @@ namespace base {
 
 // These aliases are deprecated, use std::optional directly.
 template <typename T>
-using Optional = std::optional<T>;
+using Optional [[deprecated]] = std::optional<T>;
 
 using std::in_place;
 using std::make_optional;

@@ -120,6 +120,21 @@ void MaglevAssembler::JumpIfUndetectable(Register object, Register scratch,
   bind(&detectable);
 }
 
+void MaglevAssembler::JumpIfNotCallable(Register object, Register scratch,
+                                        CheckType check_type, Label* target,
+                                        Label::Distance distance) {
+  if (check_type == CheckType::kCheckHeapObject) {
+    JumpIfSmi(object, target, distance);
+  } else if (v8_flags.debug_code) {
+    AssertNotSmi(object);
+  }
+  LoadMap(scratch, object);
+  static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
+  LoadUnsignedField(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset), 1);
+  TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsCallableBit::kMask, target,
+                             distance);
+}
+
 void MaglevAssembler::EnsureWritableFastElements(
     RegisterSnapshot register_snapshot, Register elements, Register object,
     Register scratch) {
@@ -560,6 +575,34 @@ void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
   // will update the side data and invalidate DependentCode if needed.
   CompareTaggedAndJumpIf(data, ConstTrackingLetCell::kNonConstMarker, kEqual,
                          done, Label::kNear);
+}
+
+void MaglevAssembler::TryMigrateInstance(Register object,
+                                         RegisterSnapshot& register_snapshot,
+                                         Label* fail) {
+  Register return_val = Register::no_reg();
+  {
+    SaveRegisterStateForCall save_register_state(this, register_snapshot);
+
+    Push(object);
+    Move(kContextRegister, native_context().object());
+    CallRuntime(Runtime::kTryMigrateInstance);
+    save_register_state.DefineSafepoint();
+
+    // Make sure the return value is preserved across the live register
+    // restoring pop all.
+    return_val = kReturnRegister0;
+    MaglevAssembler::ScratchRegisterScope temps(this);
+    Register scratch = temps.GetDefaultScratchRegister();
+    if (register_snapshot.live_registers.has(return_val)) {
+      DCHECK(!register_snapshot.live_registers.has(scratch));
+      Move(scratch, return_val);
+      return_val = scratch;
+    }
+  }
+
+  // On failure, the returned value is Smi zero.
+  CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, fail);
 }
 
 }  // namespace maglev

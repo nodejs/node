@@ -552,11 +552,9 @@ FutexWaitListNode::FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
           GetWeakGlobal(isolate, Utils::ToLocal(isolate->native_context())))) {}
 
 template <typename T>
-Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
-                                         Handle<JSArrayBuffer> array_buffer,
-                                         size_t addr, T value, bool use_timeout,
-                                         int64_t rel_timeout_ns,
-                                         CallType call_type) {
+Tagged<Object> FutexEmulation::WaitAsync(
+    Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
+    T value, bool use_timeout, int64_t rel_timeout_ns, CallType call_type) {
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
@@ -653,7 +651,7 @@ Tagged<Object> FutexEmulation::WaitAsync(Isolate* isolate,
     case ResultKind::kAsync:
       // Add the Promise into the NativeContext's atomics_waitasync_promises
       // set, so that the list keeps it alive.
-      Handle<NativeContext> native_context(isolate->native_context());
+      DirectHandle<NativeContext> native_context(isolate->native_context());
       Handle<OrderedHashSet> promises(
           native_context->atomics_waitasync_promises(), isolate);
       promises = OrderedHashSet::Add(isolate, promises, promise_capability)
@@ -787,12 +785,12 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
   auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
   if (!node->async_state_->promise.IsEmpty()) {
-    Handle<JSPromise> promise = Handle<JSPromise>::cast(
-        Utils::OpenHandle(*node->async_state_->promise.Get(v8_isolate)));
+    auto promise = Cast<JSPromise>(
+        Utils::OpenDirectHandle(*node->async_state_->promise.Get(v8_isolate)));
     // Promise keeps the NativeContext alive.
     DCHECK(!node->async_state_->native_context.IsEmpty());
-    Handle<NativeContext> native_context = Handle<NativeContext>::cast(
-        Utils::OpenHandle(*node->async_state_->native_context.Get(v8_isolate)));
+    auto native_context = Cast<NativeContext>(Utils::OpenDirectHandle(
+        *node->async_state_->native_context.Get(v8_isolate)));
 
     // Remove the Promise from the NativeContext's set.
     Handle<OrderedHashSet> promises(
@@ -832,7 +830,7 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     Local<v8::Context> native_context =
         node->async_state_->native_context.Get(v8_isolate);
     v8::Context::Scope contextScope(native_context);
-    Handle<JSPromise> promise = Handle<JSPromise>::cast(
+    Handle<JSPromise> promise = Cast<JSPromise>(
         Utils::OpenHandle(*node->async_state_->promise.Get(v8_isolate)));
     Handle<String> result_string;
     // When waiters are notified, their timeout_time is reset. Having a
@@ -976,23 +974,6 @@ int FutexEmulation::NumWaitersForTesting(Tagged<JSArrayBuffer> array_buffer,
                 node->async_state_->backing_store.lock());
     }
     num_waiters++;
-  }
-
-  return num_waiters;
-}
-
-int FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
-  FutexWaitList* wait_list = GetWaitList();
-  NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
-
-  int num_waiters = 0;
-  for (const auto& it : wait_list->location_lists_) {
-    for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
-      if (!node->IsAsync()) continue;
-      if (!node->waiting_) continue;
-      if (node->async_state_->isolate_for_async_waiters != isolate) continue;
-      num_waiters++;
-    }
   }
 
   return num_waiters;

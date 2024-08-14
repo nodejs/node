@@ -38,6 +38,7 @@ class FlagValue {
                 std::is_same_v<const char*, T>);
 
  public:
+  using underlying_type = T;
   explicit constexpr FlagValue(T value) : value_(value) {}
 
   // Implicitly convert to a {T}. Not marked {constexpr} so we do not get

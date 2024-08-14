@@ -15,6 +15,7 @@
 #include "absl/algorithm/container.h"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -31,6 +32,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/memory/memory.h"
 #include "absl/types/span.h"
@@ -111,6 +113,11 @@ TEST_F(NonMutatingTest, FindReturnsCorrectType) {
   auto it = absl::c_find(container_, 3);
   EXPECT_EQ(3, *it);
   absl::c_find(absl::implicit_cast<const std::list<int>&>(sequence_), 3);
+}
+
+TEST_F(NonMutatingTest, Contains) {
+  EXPECT_TRUE(absl::c_contains(container_, 3));
+  EXPECT_FALSE(absl::c_contains(container_, 4));
 }
 
 TEST_F(NonMutatingTest, FindIf) { absl::c_find_if(container_, Predicate); }
@@ -303,6 +310,17 @@ TEST_F(NonMutatingTest, Search) {
 TEST_F(NonMutatingTest, SearchWithPredicate) {
   absl::c_search(sequence_, vector_, BinPredicate);
   absl::c_search(vector_, sequence_, BinPredicate);
+}
+
+TEST_F(NonMutatingTest, ContainsSubrange) {
+  EXPECT_TRUE(absl::c_contains_subrange(sequence_, vector_));
+  EXPECT_TRUE(absl::c_contains_subrange(vector_, sequence_));
+  EXPECT_TRUE(absl::c_contains_subrange(array_, sequence_));
+}
+
+TEST_F(NonMutatingTest, ContainsSubrangeWithPredicate) {
+  EXPECT_TRUE(absl::c_contains_subrange(sequence_, vector_, Equals));
+  EXPECT_TRUE(absl::c_contains_subrange(vector_, sequence_, Equals));
 }
 
 TEST_F(NonMutatingTest, SearchN) { absl::c_search_n(sequence_, 3, 1); }
@@ -1143,5 +1161,50 @@ TEST(MutatingTest, PermutationOperations) {
   absl::c_prev_permutation(permuted);
   EXPECT_EQ(initial, permuted);
 }
+
+#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
+    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+TEST(ConstexprTest, Distance) {
+  // Works at compile time with constexpr containers.
+  static_assert(absl::c_distance(std::array<int, 3>()) == 3);
+}
+
+TEST(ConstexprTest, MinElement) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_min_element(kArray) == 1);
+}
+
+TEST(ConstexprTest, MinElementWithPredicate) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_min_element(kArray, std::greater<int>()) == 3);
+}
+
+TEST(ConstexprTest, MaxElement) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_max_element(kArray) == 3);
+}
+
+TEST(ConstexprTest, MaxElementWithPredicate) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_max_element(kArray, std::greater<int>()) == 1);
+}
+
+TEST(ConstexprTest, MinMaxElement) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  constexpr auto kMinMaxPair = absl::c_minmax_element(kArray);
+  static_assert(*kMinMaxPair.first == 1);
+  static_assert(*kMinMaxPair.second == 3);
+}
+
+TEST(ConstexprTest, MinMaxElementWithPredicate) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  constexpr auto kMinMaxPair =
+      absl::c_minmax_element(kArray, std::greater<int>());
+  static_assert(*kMinMaxPair.first == 3);
+  static_assert(*kMinMaxPair.second == 1);
+}
+
+#endif  // defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&
+        //  ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 
 }  // namespace

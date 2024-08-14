@@ -40,7 +40,7 @@ void FeedbackCell::reset_feedback_vector(
 
   CHECK(IsFeedbackVector(value()));
   Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array =
-      FeedbackVector::cast(value())->closure_feedback_cell_array();
+      Cast<FeedbackVector>(value())->closure_feedback_cell_array();
   set_value(closure_feedback_cell_array, kReleaseStore);
   if (gc_notify_updated_slot) {
     (*gc_notify_updated_slot)(*this, RawField(FeedbackCell::kValueOffset),
@@ -52,6 +52,21 @@ void FeedbackCell::clear_interrupt_budget() {
   // This value is always reset to a proper budget before it's used.
   set_interrupt_budget(0);
 }
+
+#ifdef V8_ENABLE_LEAPTIERING
+void FeedbackCell::initialize_dispatch_handle(IsolateForSandbox isolate,
+                                              uint16_t parameter_count) {
+  InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count);
+}
+
+void FeedbackCell::clear_dispatch_handle() {
+  WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
+}
+
+JSDispatchHandle FeedbackCell::dispatch_handle() {
+  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+}
+#endif  // V8_ENABLE_LEAPTIERING
 
 void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
   ReadOnlyRoots r(isolate);

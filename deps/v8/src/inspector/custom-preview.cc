@@ -235,6 +235,10 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     reportError(context, tryCatch);
     return;
   }
+  if (formattedValue->IsNull()) {
+    info.GetReturnValue().Set(formattedValue);
+    return;
+  }
   if (!formattedValue->IsArray()) {
     reportError(context, tryCatch, "body should return an Array");
     return;

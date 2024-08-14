@@ -197,7 +197,7 @@ void LogFile::MessageBuilder::AppendSymbolName(Tagged<Symbol> symbol) {
   os << "symbol(";
   if (!IsUndefined(symbol->description())) {
     os << "\"";
-    AppendSymbolNameDetails(String::cast(symbol->description()), false);
+    AppendSymbolNameDetails(Cast<String>(symbol->description()), false);
     os << "\" ";
   }
   os << "hash " << std::hex << symbol->hash() << std::dec << ")";
@@ -292,9 +292,9 @@ template <>
 LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Name>>(
     Tagged<Name> name) {
   if (IsString(name)) {
-    this->AppendString(String::cast(name));
+    this->AppendString(Cast<String>(name));
   } else {
-    this->AppendSymbolName(Symbol::cast(name));
+    this->AppendSymbolName(Cast<Symbol>(name));
   }
   return *this;
 }
