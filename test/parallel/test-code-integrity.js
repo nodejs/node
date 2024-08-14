@@ -50,7 +50,7 @@ describe('cjs loader code integrity integration tests', () => {
        t.mock.method(ci, ci.isAllowedToExecuteFile.name, () => { return true; });
 
        assert.ok(
-        require('../fixtures/code_integrity_test.json')
+         require('../fixtures/code_integrity_test.json')
        );
      }
   );

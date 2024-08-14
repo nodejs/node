@@ -799,7 +799,7 @@ Feature has been disabled due to OS Code Integrity policy.
 
 ### `ERR_CODE_INTEGRITY_VIOLATION`
 
-Javascript code intended to be executed was rejected by system code integrity policy.
+JavaScript code intended to be executed was rejected by system code integrity policy.
 
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 
