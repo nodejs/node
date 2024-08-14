@@ -56,7 +56,7 @@ Looking for help? Check out the
   except in some special circumstances.
 * **Nightly**: Code from the Current branch built every 24-hours when there are
   changes. Use with caution.
-
+Note: Ensure that release type details (Current, LTS, Nightly) are consistently updated in both this section and the major release guide.
 Current and LTS releases follow [semantic versioning](https://semver.org). A
 member of the Release Team [signs](#release-keys) each Current and LTS release.
 For more information, see the
