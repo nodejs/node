@@ -13,6 +13,7 @@ declare namespace InternalHttpParserBinding {
     static kOnMessageComplete: 4;
     static kOnExecute: 5;
     static kOnTimeout: 6;
+    static kOnStreamAlloc: 7;
 
     static kLenientNone: number;
     static kLenientHeaders: number;

@@ -50,6 +50,8 @@ namespace node {
 namespace {  // NOLINT(build/namespaces)
 
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -57,6 +59,7 @@ using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
@@ -77,6 +80,7 @@ const uint32_t kOnBody = 3;
 const uint32_t kOnMessageComplete = 4;
 const uint32_t kOnExecute = 5;
 const uint32_t kOnTimeout = 6;
+const uint32_t kOnStreamAlloc = 7;
 // Any more fields than this will be flushed into JS
 const size_t kMaxHeaderFieldsCount = 32;
 // Maximum size of chunk extensions
@@ -473,7 +477,11 @@ class Parser : public AsyncWrap, public StreamListener {
     if (!cb->IsFunction())
       return 0;
 
-    Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
+    // Get user buffer or fallback to copy to new buffer
+    Local<Value> buffer = GetUserAllocBuffer(at, length);
+    if (buffer.IsEmpty()) {
+      buffer = Buffer::Copy(env, at, length).ToLocalChecked();
+    }
 
     MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 1, &buffer);
 
@@ -765,13 +773,26 @@ class Parser : public AsyncWrap, public StreamListener {
   static const size_t kAllocBufferSize = 64 * 1024;
 
   uv_buf_t OnStreamAlloc(size_t suggested_size) override {
+    HandleScope scope(env()->isolate());
+
+    // If a custom allocator callback is set, it is called to return the next
+    // buffer for the stream data, which are emitted to the kOnBody callback.
+    // Setting a custom allocator can be used to recycle buffers after the
+    // server processed their data, which improves server upload performance
+    // by reducing redundant memcpy and garbage collection work.
+
+    Local<Value> buf = CallJSOnStreamAlloc(suggested_size);
+    if (!buf.IsEmpty())
+      return uv_buf_init(Buffer::Data(buf), Buffer::Length(buf));
+
     // For most types of streams, OnStreamRead will be immediately after
     // OnStreamAlloc, and will consume all data, so using a static buffer for
     // reading is more efficient. For other streams, just use Malloc() directly.
+
     if (binding_data_->parser_buffer_in_use)
       return uv_buf_init(Malloc(suggested_size), suggested_size);
-    binding_data_->parser_buffer_in_use = true;
 
+    binding_data_->parser_buffer_in_use = true;
     if (binding_data_->parser_buffer.empty())
       binding_data_->parser_buffer.resize(kAllocBufferSize);
 
@@ -781,12 +802,19 @@ class Parser : public AsyncWrap, public StreamListener {
 
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override {
     HandleScope scope(env()->isolate());
+
+    const bool is_user_alloc_buffer =
+        !user_alloc_buffer_.IsEmpty() &&
+        buf.base == Buffer::Data(user_alloc_buffer_.Get(env()->isolate()));
+
     // Once we’re done here, either indicate that the HTTP parser buffer
     // is free for re-use, or free() the data if it didn’t come from there
     // in the first place.
     auto on_scope_leave = OnScopeLeave([&]() {
       if (buf.base == binding_data_->parser_buffer.data())
         binding_data_->parser_buffer_in_use = false;
+      else if (is_user_alloc_buffer)
+        user_alloc_buffer_.Reset();
       else
         free(buf.base);
     });
@@ -987,6 +1015,7 @@ class Parser : public AsyncWrap, public StreamListener {
     got_exception_ = false;
     headers_completed_ = false;
     max_http_header_size_ = max_http_header_size;
+    user_alloc_buffer_.Reset();
   }
 
 
@@ -1018,6 +1047,57 @@ class Parser : public AsyncWrap, public StreamListener {
     return true;
   }
 
+  // `CallJSOnStreamAlloc` calls the `kOnStreamAlloc` callback if it is set to
+  // provide the next buffer to use for `OnStreamAlloc`.
+  // This allows to read the data from the underlying stream directly to the
+  // user buffer, preventing unneeded memory copies, and the user can decide
+  // to recycle it when processing of onBody is done.
+  // The buffer is stored in a persistent reference so it can be retrieved
+  // during `OnStreamRead` -> `Execute` -> `on_body` by calling
+  // `GetUserAllocBuffer`, and the reference held by the parser is discarded
+  // at the end of `OnStreamRead`.
+  Local<Value> CallJSOnStreamAlloc(size_t suggested_size) {
+    if (!user_alloc_buffer_.IsEmpty()) return Local<Value>();
+
+    Local<Value> cb =
+        object()->Get(env()->context(), kOnStreamAlloc).ToLocalChecked();
+    if (!cb->IsFunction()) return Local<Value>();
+
+    Local<Value> arg =
+        Integer::NewFromUnsigned(env()->isolate(), kAllocBufferSize);
+    Local<Value> b =
+        MakeCallback(cb.As<Function>(), 1, &arg).FromMaybe(Local<Value>());
+    if (b.IsEmpty() || !Buffer::HasInstance(b)) return Local<Value>();
+
+    user_alloc_buffer_.Reset(env()->isolate(), b);
+    return b;
+  }
+
+  // `GetUserAllocBuffer` provides a buffer to `on_body` if it matches the
+  // buffer provided by the user `kOnStreamAlloc` callback.
+  // Partial match is also accepted by slicing the buffer.
+  Local<Value> GetUserAllocBuffer(const char* at, size_t length) {
+    if (user_alloc_buffer_.IsEmpty()) return Local<Value>();
+
+    Local<Value> b = user_alloc_buffer_.Get(env()->isolate());
+    DCHECK(Buffer::HasInstance(b));
+    const size_t alloc_len = Buffer::Length(b);
+    const char* alloc_start = Buffer::Data(b);
+    const char* alloc_end = alloc_start + alloc_len;
+
+    // exact match
+    if (alloc_start == at && alloc_len == length) return b;
+
+    // slice match
+    if (alloc_start <= at && alloc_end >= at + length) {
+      Local<ArrayBufferView> abv = b.As<ArrayBufferView>();
+      Local<ArrayBuffer> ab = abv->Buffer();
+      const size_t offset = abv->ByteOffset() + at - alloc_start;
+      return Buffer::New(env()->isolate(), ab, offset, length).ToLocalChecked();
+    }
+
+    return Local<Value>();
+  }
 
   llhttp_t parser_;
   StringPtr fields_[kMaxHeaderFieldsCount];  // header fields
@@ -1037,6 +1117,7 @@ class Parser : public AsyncWrap, public StreamListener {
   uint64_t max_http_header_size_;
   uint64_t last_message_start_;
   ConnectionsList* connectionsList_;
+  Global<Value> user_alloc_buffer_;
 
   BaseObjectPtr<BindingData> binding_data_;
 
@@ -1274,6 +1355,8 @@ void InitializeHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kOnExecute));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
          Integer::NewFromUnsigned(env->isolate(), kOnTimeout));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnStreamAlloc"),
+         Integer::NewFromUnsigned(env->isolate(), kOnStreamAlloc));
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientNone"),
          Integer::NewFromUnsigned(env->isolate(), kLenientNone));
