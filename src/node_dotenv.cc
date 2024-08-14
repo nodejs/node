@@ -13,33 +13,22 @@ using v8::String;
 
 std::vector<std::string> Dotenv::GetPathFromArgs(
     const std::vector<std::string>& args) {
-  const auto find_match = [](const std::string& arg) {
-    return arg == "--" || arg == "--env-file" || arg.starts_with("--env-file=");
-  };
   std::vector<std::string> paths;
-  auto path = std::find_if(args.begin(), args.end(), find_match);
+  for (size_t i = 1; i < args.size(); ++i) {
+    const auto& arg = args[i];
 
-  while (path != args.end()) {
-    if (*path == "--") {
-      return paths;
-    }
-    auto equal_char = path->find('=');
-
-    if (equal_char != std::string::npos) {
-      paths.push_back(path->substr(equal_char + 1));
-    } else {
-      auto next_path = std::next(path);
-
-      if (next_path == args.end()) {
-        return paths;
-      }
-
-      paths.push_back(*next_path);
+    if (arg == "--" || arg[0] != '-') {
+      break;
     }
 
-    path = std::find_if(++path, args.end(), find_match);
+    if (arg.starts_with("--env-file=")) {
+      paths.push_back(arg.substr(11));  // Directly extract the path
+    } else if (arg == "--env-file" && i + 1 < args.size()) {
+      paths.push_back(args[++i]);  // Advance to the next argument
+    } else if (arg[1] != '-') {
+      ++i;  // Skip short argument values (like `-e <...>`)
+    }
   }
-
   return paths;
 }
 
