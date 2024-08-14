@@ -1556,7 +1556,7 @@ lint-yaml-build:
 # Lints the YAML files with yamllint.
 lint-yaml:
 	@if [ -d "tools/pip/site-packages/yamllint" ]; then \
-                        $(info Running YAML linter...)
+                        $(info Running YAML linter...) \
 			PYTHONPATH=tools/pip $(PYTHON) -m yamllint .; \
 	else \
 		echo 'YAML linting with yamllint is not available'; \
