@@ -35,6 +35,7 @@
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
+#include <stdint.h>
 #include <climits>
 #include <cstring>
 #include "nbytes.h"
@@ -741,13 +742,40 @@ uint32_t FastByteLengthUtf8(Local<Value> receiver,
   if (source.length > 128) {
     return simdutf::utf8_length_from_latin1(source.data, source.length);
   }
+
   uint32_t length = source.length;
-  uint32_t result = length;
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(source.data);
-  for (uint32_t i = 0; i < length; ++i) {
-    result += (data[i] >> 7);
+  const auto input = reinterpret_cast<const uint8_t*>(source.data);
+
+  uint32_t answer = length;
+  uint32_t i = 0;
+
+  auto pop = [](uint64_t v) {
+    return static_cast<size_t>(((v >> 7) & UINT64_C(0x0101010101010101)) *
+                                   UINT64_C(0x0101010101010101) >>
+                               56);
+  };
+
+  for (; i + 32 <= length; i += 32) {
+    uint64_t v;
+    memcpy(&v, input + i, 8);
+    answer += pop(v);
+    memcpy(&v, input + i + 8, 8);
+    answer += pop(v);
+    memcpy(&v, input + i + 16, 8);
+    answer += pop(v);
+    memcpy(&v, input + i + 24, 8);
+    answer += pop(v);
   }
-  return result;
+  for (; i + 8 <= length; i += 8) {
+    uint64_t v;
+    memcpy(&v, input + i, 8);
+    answer += pop(v);
+  }
+  for (; i + 1 <= length; i += 1) {
+    answer += input[i] >> 7;
+  }
+
+  return answer;
 }
 
 static v8::CFunction fast_byte_length_utf8(
