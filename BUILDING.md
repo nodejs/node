@@ -668,7 +668,7 @@ packages:
 
 * [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
   Unix tools added to the `PATH`
-* [A supported version of Python][Python versions]
+* [Python 3.x](https://chocolatey.org/packages/python)
 * [Visual Studio 2022 Build Tools](https://chocolatey.org/packages/visualstudio2022buildtools)
   with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2022-workload-vctools)
 * [NetWide Assembler](https://chocolatey.org/packages/nasm)
