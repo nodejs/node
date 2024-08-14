@@ -1079,6 +1079,8 @@ Let the security release steward know the releases are available.
 
 _In whatever form you do this..._
 
+Note: Ensure that release type details (Current, LTS, Nightly) are consistently updated in both this section and the major release guide.
+
 ## LTS Releases
 
 ### Marking a release line as LTS
