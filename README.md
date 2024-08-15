@@ -43,7 +43,7 @@ Looking for help? Check out the
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
-  [v19.x](https://github.com/nodejs/node/tree/v19.x)). Node.js releases a new
+  [v22.x](https://github.com/nodejs/node/tree/v22.x)). Node.js releases a new
   major version every 6 months, allowing for breaking changes. This happens in
   April and October every year. Releases appearing each October have a support
   life of 8 months. Releases appearing each April convert to LTS (see below)
