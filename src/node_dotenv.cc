@@ -25,7 +25,7 @@ std::vector<std::string> Dotenv::GetPathFromArgs(
       paths.push_back(arg.substr(11));  // Directly extract the path
     } else if (arg == "--env-file" && i + 1 < args.size()) {
       paths.push_back(args[++i]);  // Advance to the next argument
-    } else if (arg[1] != '-') {
+    } else if (arg.length() == 2 && arg[1] != '-') {
       ++i;  // Skip short argument values (like `-e <...>`)
     }
   }

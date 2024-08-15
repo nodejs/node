@@ -12,7 +12,8 @@ using node::Dotenv;
     ASSERT_EQ(check_result.size(), expected.size());                           \
     for (size_t i = 0; i < check_result.size(); ++i) {                         \
       EXPECT_EQ(check_result[i], expected[i]);                                 \
-    }
+    }                                                                          \
+  }
 
 TEST(Dotenv, GetPathFromArgs) {
   CHECK_DOTENV(({"node", "--env-file=.env"}),
@@ -31,4 +32,10 @@ TEST(Dotenv, GetPathFromArgs) {
 
   CHECK_DOTENV(({"node", "-e", "...", "--env-file=after.env"}),
                (std::vector<std::string>{"after.env"}));
+
+  CHECK_DOTENV(({"node", "-too_long", "--env-file=.env"}),
+               (std::vector<std::string>{".env"}));
+
+  CHECK_DOTENV(({"node", "-", "--env-file=.env"}),
+               (std::vector<std::string>{".env"}));
 }
