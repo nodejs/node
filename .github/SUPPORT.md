@@ -42,11 +42,6 @@ Interact directly with the future of Node.js by browsing or reporting issues on 
 page. This allows for collaboration and problem-solving within the Node.js community, allowing users to report
 bugs, suggest enhancements, and engage in discussions with the rest of the community.
 
-#### StackOverflow
-
-[StackOverflow][] is ideal for troubleshooting specific issues, seeking solutions to common problems, and learning
-from the experiences of other Node.js users and developers.
-
 #### Libera.chat Channel
 
 <!-- lint disable prohibited-strings -->
