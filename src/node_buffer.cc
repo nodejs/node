@@ -1479,11 +1479,12 @@ uint32_t FastWriteString(Local<Value> receiver,
   CHECK(offset <= dst.length());
   CHECK(dst.length() - offset <= std::numeric_limits<uint32_t>::max());
 
-  max_length = std::min<uint32_t>(dst.length() - offset, max_length);
+  const auto size = std::min(
+      {static_cast<uint32_t>(dst.length() - offset), max_length, src.length});
 
-  memcpy(dst_data, src.data, max_length);
+  memcpy(dst_data + offset, src.data, size);
 
-  return max_length;
+  return size;
 }
 
 static v8::CFunction fast_write_string(v8::CFunction::Make(FastWriteString));
