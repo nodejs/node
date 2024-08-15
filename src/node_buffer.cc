@@ -1442,6 +1442,52 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   memcpy(dest, src, bytes_to_copy);
 }
 
+template <encoding encoding>
+void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_BUFFER_ARG(args[0], ts_obj);
+
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[1], "argument");
+
+  Local<String> str = args[1]->ToString(env->context()).ToLocalChecked();
+
+  size_t offset = 0;
+  size_t max_length = 0;
+
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &offset));
+  THROW_AND_RETURN_IF_OOB(
+      ParseArrayIndex(env, args[3], ts_obj_length - offset, &max_length));
+
+  max_length = std::min(ts_obj_length - offset, max_length);
+
+  if (max_length == 0) return args.GetReturnValue().Set(0);
+
+  uint32_t written = StringBytes::Write(
+      env->isolate(), ts_obj_data + offset, max_length, str, encoding);
+  args.GetReturnValue().Set(written);
+}
+
+uint32_t FastWriteString(Local<Value> receiver,
+                         const v8::FastApiTypedArray<uint8_t>& dst,
+                         const v8::FastOneByteString& src,
+                         uint32_t offset,
+                         uint32_t max_length) {
+  uint8_t* dst_data;
+  CHECK(dst.getStorageIfAligned(&dst_data));
+  CHECK(offset <= dst.length());
+  CHECK(dst.length() - offset <= std::numeric_limits<uint32_t>::max());
+
+  max_length = std::min<uint32_t>(dst.length() - offset, max_length);
+
+  memcpy(dst_data, src.data, max_length);
+
+  return max_length;
+}
+
+static v8::CFunction fast_write_string(v8::CFunction::Make(FastWriteString));
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1502,13 +1548,26 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "ucs2Slice", StringSlice<UCS2>);
   SetMethodNoSideEffect(context, target, "utf8Slice", StringSlice<UTF8>);
 
-  SetMethod(context, target, "asciiWrite", StringWrite<ASCII>);
   SetMethod(context, target, "base64Write", StringWrite<BASE64>);
   SetMethod(context, target, "base64urlWrite", StringWrite<BASE64URL>);
-  SetMethod(context, target, "latin1Write", StringWrite<LATIN1>);
   SetMethod(context, target, "hexWrite", StringWrite<HEX>);
   SetMethod(context, target, "ucs2Write", StringWrite<UCS2>);
-  SetMethod(context, target, "utf8Write", StringWrite<UTF8>);
+
+  SetFastMethod(context,
+                target,
+                "asciiWriteStatic",
+                SlowWriteString<ASCII>,
+                &fast_write_string);
+  SetFastMethod(context,
+                target,
+                "latin1WriteStatic",
+                SlowWriteString<LATIN1>,
+                &fast_write_string);
+  SetFastMethod(context,
+                target,
+                "utf8WriteStatic",
+                SlowWriteString<UTF8>,
+                &fast_write_string);
 
   SetMethod(context, target, "getZeroFillToggle", GetZeroFillToggle);
 }
@@ -1550,6 +1609,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringSlice<UCS2>);
   registry->Register(StringSlice<UTF8>);
 
+  registry->Register(SlowWriteString<ASCII>);
+  registry->Register(SlowWriteString<LATIN1>);
+  registry->Register(SlowWriteString<UTF8>);
+  registry->Register(fast_write_string.GetTypeInfo());
+  registry->Register(FastWriteString);
   registry->Register(StringWrite<ASCII>);
   registry->Register(StringWrite<BASE64>);
   registry->Register(StringWrite<BASE64URL>);
