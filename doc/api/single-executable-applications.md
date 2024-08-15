@@ -335,7 +335,7 @@ This method can be used to retrieve the assets configured to be bundled into the
 single-executable application at build time.
 An error is thrown when no matching asset can be found.
 
-Unlike `sea.getRawAsset()` or `sea.getAssetAsBlob()`, this method does not
+Unlike `sea.getAsset()` or `sea.getAssetAsBlob()`, this method does not
 return a copy. Instead, it returns the raw asset bundled inside the executable.
 
 For now, users should avoid writing to the returned array buffer. If the
