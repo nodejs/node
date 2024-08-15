@@ -9,11 +9,11 @@ These objects are available in all modules.
 The following variables may appear to be global but are not. They exist only in
 the scope of [CommonJS modules][]:
 
-- [`__dirname`][]
-- [`__filename`][]
-- [`exports`][]
-- [`module`][]
-- [`require()`][]
+* [`__dirname`][]
+* [`__filename`][]
+* [`exports`][]
+* [`module`][]
+* [`require()`][]
 
 The objects listed here are specific to Node.js. There are [built-in objects][]
 that are part of the JavaScript language itself, which are also globally
@@ -62,7 +62,7 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-- `reason` {any} An optional reason, retrievable on the `AbortSignal`'s
+* `reason` {any} An optional reason, retrievable on the `AbortSignal`'s
   `reason` property.
 
 Triggers the abort signal, causing the `abortController.signal` to emit
@@ -76,7 +76,7 @@ added:
   - v14.17.0
 -->
 
-- Type: {AbortSignal}
+* Type: {AbortSignal}
 
 ### Class: `AbortSignal`
 
@@ -86,7 +86,7 @@ added:
   - v14.17.0
 -->
 
-- Extends: {EventTarget}
+* Extends: {EventTarget}
 
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
@@ -105,8 +105,8 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-- `reason`: {any}
-- Returns: {AbortSignal}
+* `reason`: {any}
+* Returns: {AbortSignal}
 
 Returns a new already aborted `AbortSignal`.
 
@@ -118,7 +118,7 @@ added:
   - v16.14.0
 -->
 
-- `delay` {number} The number of milliseconds to wait before triggering
+* `delay` {number} The number of milliseconds to wait before triggering
   the AbortSignal.
 
 Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
@@ -131,7 +131,7 @@ added:
   - v18.17.0
 -->
 
-- `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
+* `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
 
 Returns a new `AbortSignal` which will be aborted if any of the provided
 signals are aborted. Its [`abortSignal.reason`][] will be set to whichever
@@ -186,7 +186,7 @@ added:
   - v14.17.0
 -->
 
-- Type: {boolean} True after the `AbortController` has been aborted.
+* Type: {boolean} True after the `AbortController` has been aborted.
 
 #### `abortSignal.onabort`
 
@@ -196,7 +196,7 @@ added:
   - v14.17.0
 -->
 
-- Type: {Function}
+* Type: {Function}
 
 An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
@@ -209,7 +209,7 @@ added:
   - v16.14.0
 -->
 
-- Type: {any}
+* Type: {any}
 
 An optional reason specified when the `AbortSignal` was triggered.
 
@@ -247,7 +247,7 @@ added: v0.1.103
 
 <!-- type=global -->
 
-- {Function}
+* {Function}
 
 Used to handle binary data. See the [buffer section][].
 
@@ -358,7 +358,7 @@ added: v0.1.100
 
 <!-- type=global -->
 
-- {Object}
+* {Object}
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
@@ -558,7 +558,7 @@ added: v0.1.27
 
 > Stability: 3 - Legacy. Use [`globalThis`][] instead.
 
-- {Object} The global namespace object.
+* {Object} The global namespace object.
 
 In browsers, the top-level scope has traditionally been the global scope. This
 means that `var something` will define a new global variable, except within
@@ -665,7 +665,7 @@ A partial implementation of [`window.navigator`][].
 added: v21.0.0
 -->
 
-- {number}
+* {number}
 
 The `navigator.hardwareConcurrency` read-only property returns the number of
 logical processors available to the current Node.js instance.
@@ -682,7 +682,7 @@ console.log(
 added: v21.2.0
 -->
 
-- {string}
+* {string}
 
 The `navigator.language` read-only property returns a string representing the
 preferred language of the Node.js instance. The language will be determined by
@@ -705,7 +705,7 @@ console.log(
 added: v21.2.0
 -->
 
-- {Array<string>}
+* {Array<string>}
 
 The `navigator.languages` read-only property returns an array of strings
 representing the preferred languages of the Node.js instance.
@@ -725,7 +725,7 @@ console.log(`The preferred languages are '${navigator.languages}'`);
 added: v21.2.0
 -->
 
-- {string}
+* {string}
 
 The `navigator.platform` read-only property returns a string identifying the
 platform on which the Node.js instance is running.
@@ -740,7 +740,7 @@ console.log(`This process is running on ${navigator.platform}`);
 added: v21.1.0
 -->
 
-- {string}
+* {string}
 
 The `navigator.userAgent` read-only property returns user agent
 consisting of the runtime name and major version number.
@@ -827,7 +827,7 @@ added: v0.1.7
 
 <!-- type=global -->
 
-- {Object}
+* {Object}
 
 The process object. See the [`process` object][] section.
 
@@ -839,7 +839,7 @@ added: v11.0.0
 
 <!-- type=global -->
 
-- `callback` {Function} Function to be queued.
+* `callback` {Function} Function to be queued.
 
 The `queueMicrotask()` method queues a microtask to invoke `callback`. If
 `callback` throws an exception, the [`process` object][] `'uncaughtException'`
@@ -1157,7 +1157,7 @@ added: v8.0.0
 
 <!-- type=global -->
 
-- {Object}
+* {Object}
 
 The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
