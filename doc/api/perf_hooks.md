@@ -502,13 +502,16 @@ changes:
 
 The type of the performance entry. It may be one of:
 
-* `'node'` (Node.js only)
-* `'mark'` (available on the Web)
-* `'measure'` (available on the Web)
-* `'gc'` (Node.js only)
+* `'dns'` (Node.js only)
 * `'function'` (Node.js only)
+* `'gc'` (Node.js only)
 * `'http2'` (Node.js only)
 * `'http'` (Node.js only)
+* `'mark'` (available on the Web)
+* `'measure'` (available on the Web)
+* `'net'` (Node.js only)
+* `'node'` (Node.js only)
+* `'resource'` (available on the Web)
 
 ### `performanceEntry.name`
 
