@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.20.4">18.20.4</a><br/>
 <a href="#18.20.3">18.20.3</a><br/>
 <a href="#18.20.2">18.20.2</a><br/>
 <a href="#18.20.1">18.20.1</a><br/>
@@ -71,6 +72,22 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.20.4"></a>
+
+## 2024-07-08, Version 18.20.4 'Hydrogen' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* CVE-2024-36138 - Bypass incomplete fix of CVE-2024-27980 (High)
+* CVE-2024-22020 - Bypass network import restriction via data URL (Medium)
+
+### Commits
+
+* \[[`85abedf1ff`](https://github.com/nodejs/node/commit/85abedf1ff)] - **lib,esm**: handle bypass network-import via data: (RafaelGSS) [nodejs-private/node-private#522](https://github.com/nodejs-private/node-private/pull/522)
+* \[[`eccd63b865`](https://github.com/nodejs/node/commit/eccd63b865)] - **src**: handle permissive extension on cmd check (RafaelGSS) [nodejs-private/node-private#596](https://github.com/nodejs-private/node-private/pull/596)
 
 <a id="18.20.3"></a>
 

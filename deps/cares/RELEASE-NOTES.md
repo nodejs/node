@@ -1,42 +1,33 @@
-## c-ares version 1.29.0 - May 24 2024
+## c-ares version 1.33.0 - August 2 2024
 
 This is a feature and bugfix release.
 
 Features:
-
-* When using `ARES_OPT_EVENT_THREAD`, automatically reload system configuration
-  when network conditions change. [PR #759](https://github.com/c-ares/c-ares/pull/759)
-* Apple: reimplement DNS configuration reading to more accurately pull DNS
-  settings. [PR #750](https://github.com/c-ares/c-ares/pull/750)
-* Add observability into DNS server health via a server state callback, invoked
-  whenever a query finishes. [PR #744](https://github.com/c-ares/c-ares/pull/744)
-* Add server failover retry behavior, where failed servers are retried with
-  small probability after a minimum delay. [PR #731](https://github.com/c-ares/c-ares/pull/731)
+* Add DNS cookie support (RFC7873 + RFC9018) to help prevent off-path cache
+  poisoning attacks. [PR #833](https://github.com/c-ares/c-ares/pull/833)
+* Implement TCP FastOpen (TFO) RFC7413, which will make TCP reconnects 0-RTT
+  on supported systems. [PR #840](https://github.com/c-ares/c-ares/pull/840)
 
 Changes:
-
-* Mark `ares_channel_t *` as const in more places in the public API. [PR #758](https://github.com/c-ares/c-ares/pull/758)
+* Reorganize source tree. [PR #822](https://github.com/c-ares/c-ares/pull/822)
+* Refactoring of connection handling to prevent code duplication.
+  [PR #839](https://github.com/c-ares/c-ares/pull/839)
+* New dynamic array data structure to prevent simple logic flaws in array
+  handling in various code paths.
+  [PR #841](https://github.com/c-ares/c-ares/pull/841)
 
 Bugfixes:
+* `ares_destroy()` race condition during shutdown due to missing lock.
+  [PR #831](https://github.com/c-ares/c-ares/pull/831)
+* Android: Preserve thread name after attaching it to JVM.
+  [PR #838](https://github.com/c-ares/c-ares/pull/838)
+* Windows UWP (Store) support fix.
+  [PR #845](https://github.com/c-ares/c-ares/pull/845)
 
-* Due to a logic flaw dns name compression writing was not properly implemented
-  which would result in the name prefix not being written for a partial match.
-  This could cause issues in various record types such as MX records when using
-  the deprecated API.  Regression introduced in 1.28.0. [Issue #757](https://github.com/c-ares/c-ares/issues/757)
-* Revert OpenBSD `SOCK_DNS` flag, it doesn't do what the docs say it does and
-  causes c-ares to become non-functional. [PR #754](https://github.com/c-ares/c-ares/pull/754)
-* `ares_getnameinfo()`: loosen validation on `salen` parameter. [Issue #752](https://github.com/c-ares/c-ares/issues/752)
-* cmake: Android requires C99. [PR #748](https://github.com/c-ares/c-ares/pull/748)
-* `ares_queue_wait_empty()` does not honor timeout_ms >= 0. [Issue #742](https://github.com/c-ares/c-ares/pull/742)
 
 Thanks go to these friendly people for their efforts and contributions for this
 release:
 
 * Brad House (@bradh352)
-* Daniel Stenberg (@bagder)
-* David Hotham (@dimbleby)
-* Jiwoo Park (@jimmy-park)
-* Oliver Welsh (@oliverwelsh)
-* Volker Schlecht (@VlkrS)
-
+* Yauheni Khnykin (@Hsilgos)
 

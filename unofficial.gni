@@ -148,10 +148,12 @@ template("node_gn_build") {
       "deps/cares",
       "deps/histogram",
       "deps/llhttp",
+      "deps/nbytes",
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
       "deps/simdutf",
+      "deps/sqlite",
       "deps/uvwasi",
       "//third_party/zlib",
       "$node_v8_path:v8_libplatform",
@@ -176,6 +178,7 @@ template("node_gn_build") {
       deps += [ "//third_party/icu" ]
     }
     if (node_use_openssl) {
+      deps += [ "deps/ncrypto" ]
       public_deps += [ "deps/openssl" ]
       sources += gypi_values.node_crypto_sources
     }
@@ -261,6 +264,7 @@ template("node_gn_build") {
   }
 
   action("generate_config_gypi") {
+    deps = [ "$node_v8_path:v8_generate_features_json" ]
     script = "tools/generate_config_gypi.py"
     outputs = [ "$target_gen_dir/config.gypi" ]
     depfile = "$target_gen_dir/$target_name.d"
@@ -330,11 +334,13 @@ template("node_gn_build") {
       ":libnode",
       "deps/googletest",
       "deps/googletest:gtest_main",
+      "deps/nbytes",
       "deps/simdutf",
     ]
 
     sources = gypi_values.node_cctest_sources
     if (node_use_openssl) {
+      deps += [ "deps/ncrypto" ]
       sources += gypi_values.node_cctest_openssl_sources
     }
     if (node_enable_inspector) {

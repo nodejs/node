@@ -88,6 +88,9 @@ class ModuleWrap : public BaseObject {
       std::optional<v8::ScriptCompiler::CachedData*> user_cached_data,
       bool* cache_rejected);
 
+  static void CreateRequiredModuleFacade(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
  private:
   ModuleWrap(Realm* realm,
              v8::Local<v8::Object> object,

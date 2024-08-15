@@ -715,7 +715,9 @@ as appropriate for the derived class).
 ### `zlib.crc32(data[, value])`
 
 <!-- YAML
-added: v22.2.0
+added:
+  - v22.2.0
+  - v20.15.0
 -->
 
 * `data` {string|Buffer|TypedArray|DataView} When `data` is a string,

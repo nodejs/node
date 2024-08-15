@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "6.18.2",
+  "version": "6.19.7",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -62,7 +62,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "build:node": "npx esbuild@0.19.4 index-fetch.js --bundle --platform=node --outfile=undici-fetch.js --define:esbuildDetection=1 --keep-names && node scripts/strip-comments.js",
+    "build:node": "npx esbuild@0.19.10 index-fetch.js --bundle --platform=node --outfile=undici-fetch.js --define:esbuildDetection=1 --keep-names && node scripts/strip-comments.js",
     "prebuild:wasm": "node build/wasm.js --prebuild",
     "build:wasm": "node build/wasm.js --docker",
     "lint": "standard | snazzy",
@@ -85,7 +85,7 @@
     "test:node-test": "borp -p \"test/node-test/**/*.js\"",
     "test:tdd": "borp --expose-gc -p \"test/*.js\"",
     "test:tdd:node-test": "borp -p \"test/node-test/**/*.js\" -w",
-    "test:typescript": "tsd && tsc --skipLibCheck test/imports/undici-import.ts",
+    "test:typescript": "tsd && tsc test/imports/undici-import.ts --typeRoots ./types && tsc ./types/*.d.ts --noEmit --typeRoots ./types",
     "test:webidl": "borp -p \"test/webidl/*.js\"",
     "test:websocket": "borp -p \"test/websocket/*.js\"",
     "test:websocket:autobahn": "node test/autobahn/client.js",
@@ -99,7 +99,7 @@
     "coverage:report:ci": "c8 report",
     "bench": "echo \"Error: Benchmarks have been moved to '/benchmarks'\" && exit 1",
     "serve:website": "echo \"Error: Documentation has been moved to '/docs'\" && exit 1",
-    "prepare": "husky install && node ./scripts/platform-shell.js"
+    "prepare": "husky && node ./scripts/platform-shell.js"
   },
   "devDependencies": {
     "@fastify/busboy": "2.1.1",
@@ -107,8 +107,8 @@
     "@sinonjs/fake-timers": "^11.1.0",
     "@types/node": "^18.0.3",
     "abort-controller": "^3.0.0",
-    "borp": "^0.14.0",
-    "c8": "^9.1.0",
+    "borp": "^0.15.0",
+    "c8": "^10.0.0",
     "cross-env": "^7.0.3",
     "dns-packet": "^5.4.0",
     "fast-check": "^3.17.1",

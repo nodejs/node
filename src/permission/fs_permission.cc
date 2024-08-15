@@ -17,20 +17,12 @@
 namespace {
 
 std::string WildcardIfDir(const std::string& res) noexcept {
-  uv_fs_t req;
-  int rc = uv_fs_stat(nullptr, &req, res.c_str(), nullptr);
-  if (rc == 0) {
-    const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    if ((s->st_mode & S_IFMT) == S_IFDIR) {
-      // add wildcard when directory
-      if (res.back() == node::kPathSeparator) {
-        return res + "*";
-      }
-      return res + node::kPathSeparator + "*";
-    }
+  auto path = std::filesystem::path(res);
+  auto file_status = std::filesystem::status(path);
+  if (file_status.type() == std::filesystem::file_type::directory) {
+    path /= "*";
   }
-  uv_fs_req_cleanup(&req);
-  return res;
+  return path.string();
 }
 
 void FreeRecursivelyNode(
@@ -57,15 +49,18 @@ bool is_tree_granted(
     const std::string_view& param) {
   std::string resolved_param = node::PathResolve(env, {param});
 #ifdef _WIN32
-  // is UNC file path
-  if (resolved_param.rfind("\\\\", 0) == 0) {
-    // return lookup with normalized param
-    size_t starting_pos = 4;  // "\\?\"
-    if (resolved_param.rfind("\\\\?\\UNC\\") == 0) {
-      starting_pos += 4;  // "UNC\"
-    }
-    auto normalized = param.substr(starting_pos);
-    return granted_tree->Lookup(normalized, true);
+  // Remove leading "\\?\" from UNC path
+  if (resolved_param.substr(0, 4) == "\\\\?\\") {
+    resolved_param.erase(0, 4);
+  }
+
+  // Remove leading "UNC\" from UNC path
+  if (resolved_param.substr(0, 4) == "UNC\\") {
+    resolved_param.erase(0, 4);
+  }
+  // Remove leading "//" from UNC path
+  if (resolved_param.substr(0, 2) == "//") {
+    resolved_param.erase(0, 2);
   }
 #endif
   return granted_tree->Lookup(resolved_param, true);
@@ -177,7 +172,7 @@ FSPermission::RadixTree::~RadixTree() {
 bool FSPermission::RadixTree::Lookup(const std::string_view& s,
                                      bool when_empty_return) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
-  if (current_node->children.size() == 0) {
+  if (current_node->children.empty()) {
     return when_empty_return;
   }
   size_t parent_node_prefix_len = current_node->prefix.length();

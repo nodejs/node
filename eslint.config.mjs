@@ -16,7 +16,7 @@ import nodeCore from './tools/eslint/eslint-plugin-node-core.js';
 
 const js = requireEslintTool('@eslint/js');
 const babelEslintParser = requireEslintTool('@babel/eslint-parser');
-const babelPluginSyntaxImportAttributes = requireEslintTool('@babel/plugin-syntax-import-attributes');
+const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
 const jsdoc = requireEslintTool('eslint-plugin-jsdoc');
 const markdown = requireEslintTool('eslint-plugin-markdown');
 const stylisticJs = requireEslintTool('@stylistic/eslint-plugin-js');
@@ -346,31 +346,31 @@ export default [
       'error',
       {
         name: '__filename',
-        message: 'Use import.meta.url instead',
+        message: 'Use import.meta.url instead.',
       },
       {
         name: '__dirname',
-        message: 'Not available in ESM',
+        message: 'Not available in ESM.',
       },
       {
         name: 'exports',
-        message: 'Not available in ESM',
+        message: 'Not available in ESM.',
       },
       {
         name: 'module',
-        message: 'Not available in ESM',
+        message: 'Not available in ESM.',
       },
       {
         name: 'require',
-        message: 'Use import instead',
+        message: 'Use import instead.',
       },
       {
         name: 'Buffer',
-        message: 'Import Buffer instead of using the global',
+        message: "Import 'Buffer' instead of using the global.",
       },
       {
         name: 'process',
-        message: 'Import process instead of using the global',
+        message: "Import 'process' instead of using the global.",
       },
     ] },
   },

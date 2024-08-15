@@ -819,7 +819,7 @@ Git should stop to let you fix conflicts.
 Revert all changes that were made to `src/node_version.h`:
 
 ```bash
-git checkout --ours HEAD -- src/node_version.h
+git restore --source=upstream/main src/node_version.h
 ```
 
 <details>
@@ -1004,7 +1004,7 @@ release. However, the blog post is not yet fully automatic.
 Create a new blog post by running the [nodejs.org release-post.js script][]:
 
 ```bash
-node ./scripts/release-post/index.mjs x.y.z
+node ./apps/site/scripts/release-post/index.mjs x.y.z
 ```
 
 This script will use the promoted builds and changelog to generate the post. Run

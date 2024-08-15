@@ -25,15 +25,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
 #endif
-
-#include "ares.h"
-#include "ares_private.h"
-#include "ares_dns.h"
 
 struct search_query {
   /* Arguments passed to ares_search_dnsrec() */
@@ -57,7 +53,7 @@ struct search_query {
 static void squery_free(struct search_query *squery)
 {
   if (squery == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
   ares__strsplit_free(squery->names, squery->names_cnt);
   ares_dns_record_destroy(squery->dnsrec);
@@ -87,7 +83,7 @@ static ares_status_t ares_search_next(ares_channel_t      *channel,
 
   /* Misuse check */
   if (squery->next_name_idx >= squery->names_cnt) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   status = ares_dns_record_query_set_name(
@@ -97,7 +93,7 @@ static ares_status_t ares_search_next(ares_channel_t      *channel,
   }
 
   status =
-    ares_send_dnsrec(channel, squery->dnsrec, search_callback, squery, NULL);
+    ares_send_nolock(channel, squery->dnsrec, search_callback, squery, NULL);
 
   if (status != ARES_EFORMERR) {
     *skip_cleanup = ARES_TRUE;
@@ -200,8 +196,8 @@ ares_status_t ares__search_name_list(const ares_channel_t *channel,
     list_len = 1;
     list     = ares_malloc_zero(sizeof(*list) * list_len);
     if (list == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
     list[0] = alias;
     alias   = NULL;
@@ -215,12 +211,12 @@ ares_status_t ares__search_name_list(const ares_channel_t *channel,
     list_len = 1;
     list     = ares_malloc_zero(sizeof(*list) * list_len);
     if (list == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
     list[0] = ares_strdup(name);
     if (list[0] == NULL) {
-      status = ARES_ENOMEM;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     } else {
       status = ARES_SUCCESS;
     }
@@ -322,8 +318,8 @@ static ares_status_t ares_search_int(ares_channel_t          *channel,
    */
   squery = ares_malloc_zero(sizeof(*squery));
   if (squery == NULL) {
-    status = ARES_ENOMEM;
-    goto fail;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   squery->channel = channel;
@@ -331,8 +327,8 @@ static ares_status_t ares_search_int(ares_channel_t          *channel,
   /* Duplicate DNS record since, name will need to be rewritten */
   squery->dnsrec = ares_dns_record_duplicate(dnsrec);
   if (squery->dnsrec == NULL) {
-    status = ARES_ENOMEM;
-    goto fail;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto fail;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   squery->callback        = callback;
@@ -456,7 +452,7 @@ ares_status_t ares_search_dnsrec(ares_channel_t          *channel,
   ares_status_t status;
 
   if (channel == NULL || dnsrec == NULL || callback == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   ares__channel_lock(channel);
@@ -498,7 +494,7 @@ ares_status_t ares__lookup_hostaliases(const ares_channel_t *channel,
   ares__llist_node_t *node;
 
   if (channel == NULL || name == NULL || alias == NULL) {
-    return ARES_EFORMERR;
+    return ARES_EFORMERR; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   *alias = NULL;
@@ -521,8 +517,8 @@ ares_status_t ares__lookup_hostaliases(const ares_channel_t *channel,
 
   buf = ares__buf_create();
   if (buf == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
+    status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+    goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   status = ares__buf_load_file(hostaliases, buf);
@@ -581,8 +577,8 @@ ares_status_t ares__lookup_hostaliases(const ares_channel_t *channel,
 
     *alias = ares_strdup(fqdn);
     if (*alias == NULL) {
-      status = ARES_ENOMEM;
-      goto done;
+      status = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;            /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     /* Good! */

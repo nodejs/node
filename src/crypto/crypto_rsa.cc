@@ -19,6 +19,7 @@ using v8::BackingStore;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -48,9 +49,8 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
 
   // 0x10001 is the default RSA exponent.
   if (params->params.exponent != 0x10001) {
-    BignumPointer bn(BN_new());
-    CHECK_NOT_NULL(bn.get());
-    CHECK(BN_set_word(bn.get(), params->params.exponent));
+    auto bn = BignumPointer::New();
+    CHECK(bn.setWord(params->params.exponent));
     // EVP_CTX accepts ownership of bn on success.
     if (EVP_PKEY_CTX_set_rsa_keygen_pubexp(ctx.get(), bn.get()) <= 0)
       return EVPKeyCtxPointer();
@@ -359,10 +359,9 @@ WebCryptoCipherStatus RSACipherTraits::DoCipher(
   return WebCryptoCipherStatus::FAILED;
 }
 
-Maybe<bool> ExportJWKRsaKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
+Maybe<void> ExportJWKRsaKey(Environment* env,
+                            std::shared_ptr<KeyObjectData> key,
+                            Local<Object> target) {
   ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
   Mutex::ScopedLock lock(*m_pkey.mutex());
   int type = EVP_PKEY_id(m_pkey.get());
@@ -392,12 +391,12 @@ Maybe<bool> ExportJWKRsaKey(
           env->context(),
           env->jwk_kty_string(),
           env->jwk_rsa_string()).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (SetEncodedValue(env, target, env->jwk_n_string(), n).IsNothing() ||
       SetEncodedValue(env, target, env->jwk_e_string(), e).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (key->GetKeyType() == kKeyTypePrivate) {
@@ -409,11 +408,11 @@ Maybe<bool> ExportJWKRsaKey(
         SetEncodedValue(env, target, env->jwk_dp_string(), dp).IsNothing() ||
         SetEncodedValue(env, target, env->jwk_dq_string(), dq).IsNothing() ||
         SetEncodedValue(env, target, env->jwk_qi_string(), qi).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
@@ -441,7 +440,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
 
-  RsaPointer rsa(RSA_new());
+  RSAPointer rsa(RSA_new());
 
   ByteSource n = ByteSource::FromEncodedString(env, n_value.As<String>());
   ByteSource e = ByteSource::FromEncodedString(env, e_value.As<String>());
@@ -529,13 +528,11 @@ Maybe<bool> GetRsaKeyDetail(
 
   RSA_get0_key(rsa, &n, &e, nullptr);
 
-  size_t modulus_length = BN_num_bits(n);
-
   if (target
-          ->Set(
-              env->context(),
-              env->modulus_length_string(),
-              Number::New(env->isolate(), static_cast<double>(modulus_length)))
+          ->Set(env->context(),
+                env->modulus_length_string(),
+                Number::New(env->isolate(),
+                            static_cast<double>(BignumPointer::GetBitCount(n))))
           .IsNothing()) {
     return Nothing<bool>();
   }
@@ -543,13 +540,14 @@ Maybe<bool> GetRsaKeyDetail(
   std::unique_ptr<BackingStore> public_exponent;
   {
     NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    public_exponent =
-        ArrayBuffer::NewBackingStore(env->isolate(), BN_num_bytes(e));
+    public_exponent = ArrayBuffer::NewBackingStore(
+        env->isolate(), BignumPointer::GetByteCount(e));
   }
-  CHECK_EQ(BN_bn2binpad(e,
-                        static_cast<unsigned char*>(public_exponent->Data()),
-                        public_exponent->ByteLength()),
-           static_cast<int>(public_exponent->ByteLength()));
+  CHECK_EQ(BignumPointer::EncodePaddedInto(
+               e,
+               static_cast<unsigned char*>(public_exponent->Data()),
+               public_exponent->ByteLength()),
+           public_exponent->ByteLength());
 
   if (target
           ->Set(env->context(),

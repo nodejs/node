@@ -8953,9 +8953,6 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
 // static
 std::unique_ptr<BackingStore> v8::ArrayBuffer::NewResizableBackingStore(
     size_t byte_length, size_t max_byte_length) {
-  Utils::ApiCheck(i::v8_flags.harmony_rab_gsab,
-                  "v8::ArrayBuffer::NewResizableBackingStore",
-                  "Constructing resizable ArrayBuffers is not supported");
   Utils::ApiCheck(byte_length <= max_byte_length,
                   "v8::ArrayBuffer::NewResizableBackingStore",
                   "Cannot construct resizable ArrayBuffer, byte_length must be "

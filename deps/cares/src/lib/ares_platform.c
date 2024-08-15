@@ -25,13 +25,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#include "ares.h"
-#include "ares_platform.h"
 #include "ares_private.h"
+#include "ares_platform.h"
 
-#if defined(WIN32) && !defined(MSDOS)
+#if defined(_WIN32) && !defined(MSDOS)
 
 #  define V_PLATFORM_WIN32s        0
 #  define V_PLATFORM_WIN32_WINDOWS 1
@@ -78,7 +75,7 @@ win_platform ares__getplatform(void)
   }
 }
 
-#endif /* WIN32 && ! MSDOS */
+#endif /* _WIN32 && ! MSDOS */
 
 #if defined(_WIN32_WCE)
 

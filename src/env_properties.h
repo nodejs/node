@@ -43,6 +43,7 @@
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
   V(fs_use_promises_symbol, "fs_use_promises_symbol")                          \
   V(async_id_symbol, "async_id_symbol")                                        \
+  V(constructor_key_symbol, "constructor_key_symbol")                          \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
   V(messaging_deserialize_symbol, "messaging_deserialize_symbol")              \
@@ -255,6 +256,7 @@
   V(openssl_error_stack, "opensslErrorStack")                                  \
   V(options_string, "options")                                                 \
   V(order_string, "order")                                                     \
+  V(original_string, "original")                                               \
   V(output_string, "output")                                                   \
   V(overlapped_string, "overlapped")                                           \
   V(parse_error_string, "Parse Error")                                         \
@@ -288,6 +290,11 @@
   V(regexp_string, "regexp")                                                   \
   V(rename_string, "rename")                                                   \
   V(replacement_string, "replacement")                                         \
+  V(required_module_facade_url_string,                                         \
+    "node:internal/require_module_default_facade")                             \
+  V(required_module_facade_source_string,                                      \
+    "export * from 'original'; export { default } from 'original'; export "    \
+    "const __esModule = true;")                                                \
   V(require_string, "require")                                                 \
   V(resource_string, "resource")                                               \
   V(retry_string, "retry")                                                     \
@@ -395,6 +402,7 @@
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
   V(shutdown_wrap_template, v8::ObjectTemplate)                                \
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
+  V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(streambaseentry_ctor_template, v8::FunctionTemplate)                       \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(streamentry_ctor_template, v8::FunctionTemplate)                           \
@@ -440,7 +448,9 @@
   V(immediate_callback_function, v8::Function)                                 \
   V(inspector_console_extension_installer, v8::Function)                       \
   V(inspector_disable_async_hooks, v8::Function)                               \
+  V(inspector_disable_network_tracking, v8::Function)                          \
   V(inspector_enable_async_hooks, v8::Function)                                \
+  V(inspector_enable_network_tracking, v8::Function)                           \
   V(maybe_cache_generated_source_map, v8::Function)                            \
   V(messaging_deserialize_create_object, v8::Function)                         \
   V(message_port, v8::Object)                                                  \

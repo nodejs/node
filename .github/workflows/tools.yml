@@ -16,6 +16,7 @@ on:
           - acorn
           - acorn-walk
           - ada
+          - amaro
           - brotli
           - c-ares
           - cjs-module-lexer
@@ -31,6 +32,7 @@ on:
           - lint-md-dependencies
           - llhttp
           - minimatch
+          - nbytes
           - nghttp2
           - nghttp3
           - ngtcp2
@@ -38,6 +40,7 @@ on:
           - root-certificates
           - simdjson
           - simdutf
+          - sqlite
           - undici
           - uvwasi
           - zlib
@@ -77,6 +80,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-ada.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: amaro
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-amaro.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -174,7 +185,7 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          # libuv update was disabled because of Feb 14, 2024 security releas
+          # libuv update was disabled because of Feb 14, 2024 security release
           # modified the bundled version of libuv, we cannot automatically update
           # libuv without potentially undoing those changes.
           # - id: libuv
@@ -216,6 +227,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-minimatch.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: nbytes
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-nbytes.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -272,6 +291,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: sqlite
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-sqlite.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: undici
             subsystem: deps
             label: dependencies
@@ -297,13 +324,13 @@ jobs:
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: ${{ matrix.run }}
