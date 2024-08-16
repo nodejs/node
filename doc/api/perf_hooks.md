@@ -461,8 +461,16 @@ It returns the current set of event loop metrics.
 It's recommended to use this function inside a `setImmediate` to avoid
 collecting metrics before finishing all operations on current loop iteration.
 
-```js
+```cjs
 const { performance } = require('node:perf_hooks');
+
+setImmediate(() => {
+  console.log(performance.uvMetricsInfo());
+});
+```
+
+```mjs
+import { performance } from 'node:perf_hooks';
 
 setImmediate(() => {
   console.log(performance.uvMetricsInfo());
