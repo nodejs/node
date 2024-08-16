@@ -115,7 +115,7 @@ function child(section) {
   const tty = require('tty');
   // Make sure we check for colors, no matter of the stream's default.
   Object.defineProperty(process.stderr, 'hasColors', {
-    value: tty.WriteStream.prototype.hasColors
+    value: tty.hasColors
   });
   // eslint-disable-next-line no-restricted-syntax
   const debug = util.debuglog(section, common.mustCall((cb) => {

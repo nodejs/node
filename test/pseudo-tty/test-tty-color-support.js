@@ -1,33 +1,30 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert').strict;
-const { WriteStream } = require('tty');
+const tty = require('tty');
 const { inspect } = require('util');
 
-const fd = common.getTTYfd();
-const writeStream = new WriteStream(fd);
-
 {
-  const depth = writeStream.getColorDepth();
+  const depth = tty.getColorDepth();
   assert.strictEqual(typeof depth, 'number');
   assert(depth >= 1 && depth <= 24);
 
-  const support = writeStream.hasColors();
+  const support = tty.hasColors();
   assert.strictEqual(support, depth !== 1);
 }
 
 // Validate invalid input.
 [true, null, () => {}, Symbol(), 5n].forEach((input) => {
   assert.throws(
-    () => writeStream.hasColors(input),
+    () => tty.hasColors(input),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
 });
 
 [-1, 1].forEach((input) => {
   assert.throws(
-    () => writeStream.hasColors(input),
+    () => tty.hasColors(input),
     { code: 'ERR_OUT_OF_RANGE' },
   );
 });
@@ -73,7 +70,7 @@ const writeStream = new WriteStream(fd);
   [{ NO_COLOR: 'true', FORCE_COLOR: 0, COLORTERM: 'truecolor' }, 1],
   [{ TERM: 'xterm-256color', COLORTERM: 'truecolor' }, 24],
 ].forEach(([env, depth], i) => {
-  const actual = writeStream.getColorDepth(env);
+  const actual = tty.getColorDepth(env);
   assert.strictEqual(
     actual,
     depth,
@@ -81,9 +78,9 @@ const writeStream = new WriteStream(fd);
       `actual: ${actual}, env: ${inspect(env)}`,
   );
   const colors = 2 ** actual;
-  assert(writeStream.hasColors(colors, env));
-  assert(!writeStream.hasColors(colors + 1, env));
-  assert(depth >= 4 ? writeStream.hasColors(env) : !writeStream.hasColors(env));
+  assert(tty.hasColors(colors, env));
+  assert(!tty.hasColors(colors + 1, env));
+  assert(depth >= 4 ? tty.hasColors(env) : !tty.hasColors(env));
 });
 
 // OS settings
@@ -92,8 +89,8 @@ const writeStream = new WriteStream(fd);
   const [ value, depth1, depth2 ] = process.platform !== 'win32' ?
     ['win32', 1, 4] : ['linux', 4, 1];
 
-  assert.strictEqual(writeStream.getColorDepth({}), depth1);
+  assert.strictEqual(tty.getColorDepth({}), depth1);
   Object.defineProperty(process, 'platform', { value });
-  assert.strictEqual(writeStream.getColorDepth({}), depth2);
+  assert.strictEqual(tty.getColorDepth({}), depth2);
   Object.defineProperty(process, 'platform', platform);
 }

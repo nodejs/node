@@ -3711,6 +3711,20 @@ switch to its new provider model. The `clientCertEngine` option for
 the `privateKeyEngine` and `privateKeyIdentifier` for [`tls.createSecureContext()`][];
 and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
 
+### DEP0184: `tty.WriteStream.prototype.getColorDepth()`, `tty.WriteStream.prototype.hasColors()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54415
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`tty.WriteStream.prototype.getColorDepth()` and `tty.WriteStream.prototype.hasColors()`
+have been moved to `tty.getColorDepth()` and `tty.hasColors()`, respectively.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
