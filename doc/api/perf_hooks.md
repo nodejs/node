@@ -444,6 +444,31 @@ If the wrapped function returns a promise, a finally handler will be attached
 to the promise and the duration will be reported once the finally handler is
 invoked.
 
+### `performance.uvMetricsInfo()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+  * `loopCount` {number} Number of event loop iterations.
+  * `events` {number} Number of events that have been processed by the event handler.
+  * `events_waiting` {number} Number of events that were waiting to be processed when the event provider was called.
+
+This is an wrapper to the `uv_metrics_info`.
+It returns the current set of event loop metrics.
+
+It's recommended to use this function inside a `setImmediate` to avoid
+collecting metrics before finishing all operations on current loop iteration.
+
+```js
+const { performance } = require('node:perf_hooks');
+
+setImmediate(() => {
+  console.log(performance.uvMetricsInfo());
+});
+```
+
 ### `performance.toJSON()`
 
 <!-- YAML
