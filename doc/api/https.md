@@ -249,8 +249,8 @@ import { createServer } from 'node:https';
 import { readFileSync } from 'node:fs';
 
 const options = {
-  key: readFileSync('agent2-key.pem'),
-  cert: readFileSync('agent2-cert.pem'),
+  key: readFileSync('private-key.pem'),
+  cert: readFileSync('certificate.pem'),
 };
 
 createServer(options, (req, res) => {
@@ -265,8 +265,8 @@ const https = require('node:https');
 const fs = require('node:fs');
 
 const options = {
-  key: fs.readFileSync('agent2-key.pem'),
-  cert: fs.readFileSync('agent2-cert.pem'),
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem'),
 };
 
 https.createServer(options, (req, res) => {
@@ -311,14 +311,14 @@ To generate the certificate and key for this example, run:
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
-  -keyout agent2-key.pem -out agent2-cert.pem
+  -keyout private-key.pem -out certificate.pem
 ```
 
 Then, to generate the `pfx` certificate for this example, run:
 
 ```bash
 openssl pkcs12 -certpbe AES-256-CBC -export -out test_cert.pfx \
-  -inkey agent2-key.pem -in agent2-cert.pem -passout pass:sample
+  -inkey private-key.pem -in certificate.pem -passout pass:sample
 ```
 
 ## `https.get(options[, callback])`
@@ -517,8 +517,8 @@ const options = {
   port: 443,
   path: '/',
   method: 'GET',
-  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem'),
 };
 options.agent = new https.Agent(options);
 
@@ -535,8 +535,8 @@ const options = {
   port: 443,
   path: '/',
   method: 'GET',
-  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem'),
   agent: false,
 };
 
@@ -621,8 +621,6 @@ options.agent = new Agent(options);
 const req = request(options, (res) => {
   console.log('All OK. Server matched our pinned cert or public key');
   console.log('statusCode:', res.statusCode);
-  // Print the HPKP values
-  console.log('headers:', res.headers['strict-transport-security']);
 
   res.on('data', (d) => {});
 });
@@ -695,8 +693,6 @@ options.agent = new https.Agent(options);
 const req = https.request(options, (res) => {
   console.log('All OK. Server matched our pinned cert or public key');
   console.log('statusCode:', res.statusCode);
-  // Print the HPKP values
-  console.log('headers:', res.headers['strict-transport-security']);
 
   res.on('data', (d) => {});
 });
@@ -724,7 +720,6 @@ Subject Common Name: AAA Certificate Services
   Public key ping-sha256: vRU+17BDT2iGsXvOi76E7TQMcTLXAqj0+jGPdW7L1vM=
 All OK. Server matched our pinned cert or public key
 statusCode: 200
-headers: max-age=31536000; includeSubdomains; preload
 ```
 
 [`Agent`]: #class-httpsagent
