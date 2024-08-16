@@ -2999,10 +2999,12 @@ one is included in the list below.
 * `--snapshot-blob`
 * `--test-coverage-exclude`
 * `--test-coverage-include`
+* `--test-name-pattern`
 * `--test-only`
 * `--test-reporter-destination`
 * `--test-reporter`
 * `--test-shard`
+* `--test-skip-pattern`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
