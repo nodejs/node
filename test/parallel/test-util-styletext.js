@@ -50,6 +50,15 @@ assert.throws(() => {
   code: 'ERR_INVALID_ARG_VALUE',
 });
 
+assert.throws(() => {
+  util.styleText('red', 'text', { stream: {} });
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
+
+// does not throw
+util.styleText('red', 'text', { stream: {}, validateStream: false });
+
 assert.strictEqual(util.styleText('red', 'test'), styled);
 
 const originalEnv = process.env;

@@ -1831,14 +1831,34 @@ and act according to the configuration set via `NO_COLORS`,
 
 ```mjs
 import { styleText } from 'node:util';
-const errorMessage = styleText('red', 'Error! Error!');
-console.log(errorMessage);
+import { stderr } from 'node:process';
+
+const successMessage = styleText('green', 'Success!');
+console.log(successMessage);
+
+const errorMessage = styleText(
+  'red',
+  'Error! Error!',
+  // Validate if process.stderr has TTY
+  { stream: stderr },
+);
+console.error(successMessage);
 ```
 
 ```cjs
 const { styleText } = require('node:util');
-const errorMessage = styleText('red', 'Error! Error!');
-console.log(errorMessage);
+const { stderr } = require('node:process');
+
+const successMessage = styleText('green', 'Success!');
+console.log(successMessage);
+
+const errorMessage = styleText(
+  'red',
+  'Error! Error!',
+  // Validate if process.stderr has TTY
+  { stream: stderr },
+);
+console.error(successMessage);
 ```
 
 `util.inspect.colors` also provides text formats such as `italic`, and
