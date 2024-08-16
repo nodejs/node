@@ -8,7 +8,6 @@
     * [API Documentation](#api-documentation)
     * [Node.js Help Forum](#nodejs-help-forum)
     * [GitHub Issues](#github-issues)
-    * [StackOverflow](#stackoverflow)
     * [Libera.chat Channel](#liberachat-channel)
     * [Node.js Slack Community](#nodejs-slack-community)
   * [Before Seeking Support](#before-seeking-support)
