@@ -39,7 +39,7 @@ will be restricted.
 ```console
 $ node --experimental-permission index.js
 node:internal/modules/cjs/loader:171
-  const result = internalModuleStat(filename);
+  const result = internalModuleStat(receiver, filename);
                  ^
 
 Error: Access to this API has been restricted

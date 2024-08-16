@@ -16,7 +16,8 @@ using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
 using CFunctionCallbackReturnDouble =
     double (*)(v8::Local<v8::Object> receiver);
 using CFunctionCallbackReturnInt32 =
-    int32_t (*)(v8::Local<v8::Object> receiver,
+    int32_t (*)(v8::Local<v8::Object> unused,
+                v8::Local<v8::Object> receiver,
                 const v8::FastOneByteString& input,
                 // NOLINTNEXTLINE(runtime/references) This is V8 api.
                 v8::FastApiCallbackOptions& options);
