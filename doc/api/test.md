@@ -2050,7 +2050,7 @@ added: v22.3.0
 
 > Stability: 1.0 - Early development
 
-* `specifier` {string} A string identifying the module to mock.
+* `specifier` {string|URL} A string identifying the module to mock.
 * `options` {Object} Optional configuration options for the mock module. The
   following properties are supported:
   * `cache` {boolean} If `false`, each call to `require()` or `import()`
