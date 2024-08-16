@@ -21,12 +21,12 @@ function safeMetricsInfo(cb) {
 
 {
   const info = uvMetricsInfo();
-  assert.strictEqual(info.loop_count, 0);
+  assert.strictEqual(info.loopCount, 0);
   assert.strictEqual(info.events, 0);
   // This is the only part of the test that we test events waiting
   // Adding checks for this property will make the test flaky
   // as it can be highly influenced by race conditions.
-  assert.strictEqual(info.events_waiting, 0);
+  assert.strictEqual(info.eventsWaiting, 0);
 }
 
 {
@@ -34,14 +34,14 @@ function safeMetricsInfo(cb) {
   const fd = fs.openSync(filepath, 'r');
   fs.readFileSync(fd);
   const info = uvMetricsInfo();
-  assert.strictEqual(info.loop_count, 0);
+  assert.strictEqual(info.loopCount, 0);
   assert.strictEqual(info.events, 0);
-  assert.strictEqual(info.events_waiting, 0);
+  assert.strictEqual(info.eventsWaiting, 0);
 }
 
 {
   function openFile(info) {
-    assert.strictEqual(info.loop_count, 1);
+    assert.strictEqual(info.loopCount, 1);
     // 1. ? event
     assert.strictEqual(info.events, 1);
 
@@ -52,7 +52,7 @@ function safeMetricsInfo(cb) {
   }
 
   function afterOpenFile(info) {
-    assert.strictEqual(info.loop_count, 2);
+    assert.strictEqual(info.loopCount, 2);
     // 1. ? event
     // 2. uv_fs_open
     assert.strictEqual(info.events, 2);
@@ -64,7 +64,7 @@ function safeMetricsInfo(cb) {
   }
 
   function afterReadFile(info) {
-    assert.strictEqual(info.loop_count, 6);
+    assert.strictEqual(info.loopCount, 6);
     // 1. ? event
     assert.strictEqual(info.events, 6);
     // 1. ?

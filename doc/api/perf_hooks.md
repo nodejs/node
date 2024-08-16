@@ -453,7 +453,7 @@ added: REPLACEME
 * Returns: {Object}
   * `loopCount` {number} Number of event loop iterations.
   * `events` {number} Number of events that have been processed by the event handler.
-  * `events_waiting` {number} Number of events that were waiting to be processed when the event provider was called.
+  * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
 
 This is an wrapper to the `uv_metrics_info`.
 It returns the current set of event loop metrics.
