@@ -74,6 +74,9 @@ printAssemblyHeadersToStdErr(void);
 U_CAPI UBool U_EXPORT2
 checkAssemblyHeaderName(const char* optAssembly);
 
+U_CAPI UBool U_EXPORT2
+checkCpuArchitecture(const char* optCpuArch);
+
 U_CAPI void U_EXPORT2
 writeCCode(
     const char *filename,
@@ -99,6 +102,7 @@ writeObjectCode(
     const char *destdir,
     const char *optEntryPoint,
     const char *optMatchArch,
+    const char *optCpuArch,
     const char *optFilename,
     char *outFilePath,
     size_t outFilePathCapacity,

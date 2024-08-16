@@ -16,6 +16,9 @@
 #   define NOMCX
 #include <windows.h>
 #include <time.h>
+#   if defined(__clang__)
+#       include <exception>
+#   endif
 #   ifdef __GNUC__
 #       define WINDOWS_WITH_GNUC
 #   endif
@@ -292,6 +295,11 @@ checkAssemblyHeaderName(const char* optAssembly) {
     }
 
     return false;
+}
+
+U_CAPI UBool U_EXPORT2
+checkCpuArchitecture(const char* optCpuArch) {
+    return strcmp(optCpuArch, "x64") == 0 || strcmp(optCpuArch, "x86") == 0 || strcmp(optCpuArch, "arm64") == 0;
 }
 
 
@@ -799,7 +807,12 @@ getOutFilename(
 
 #ifdef CAN_GENERATE_OBJECTS
 static void
-getArchitecture(uint16_t *pCPU, uint16_t *pBits, UBool *pIsBigEndian, const char *optMatchArch) {
+getArchitecture(
+    uint16_t *pCPU,
+    uint16_t *pBits,
+    UBool *pIsBigEndian,
+    const char *optMatchArch,
+    [[maybe_unused]] const char *optCpuArch) {
     union {
         char        bytes[2048];
 #ifdef U_ELF
@@ -847,7 +860,25 @@ getArchitecture(uint16_t *pCPU, uint16_t *pBits, UBool *pIsBigEndian, const char
 #   if defined(_M_IX86)
         *pCPU = IMAGE_FILE_MACHINE_I386;
 #   else
-        *pCPU = IMAGE_FILE_MACHINE_UNKNOWN;
+        // Linker for ClangCL doesn't handle IMAGE_FILE_MACHINE_UNKNOWN the same as
+        // linker for MSVC. Because of this optCpuArch is used to define the CPU
+        // architecture in that case. While _M_AMD64 and _M_ARM64 could be used,
+        // this would potentially be problematic when cross-compiling as this code
+        // would most likely be ran on host machine to generate the .obj file for
+        // the target architecture.
+#       if defined(__clang__)
+            if (strcmp(optCpuArch, "x64") == 0) {
+                *pCPU = IMAGE_FILE_MACHINE_AMD64;
+            } else if (strcmp(optCpuArch, "x86") == 0) {
+                *pCPU = IMAGE_FILE_MACHINE_I386;
+            } else if (strcmp(optCpuArch, "arm64") == 0) {
+                *pCPU = IMAGE_FILE_MACHINE_ARM64;
+            } else {
+                std::terminate(); // Unreachable.
+            }
+#       else
+            *pCPU = IMAGE_FILE_MACHINE_UNKNOWN;
+#       endif
 #   endif
 #   if defined(_M_IA64) || defined(_M_AMD64) || defined (_M_ARM64)
         *pBits = 64; // Doesn't seem to be used for anything interesting though?
@@ -934,6 +965,7 @@ writeObjectCode(
         const char *destdir,
         const char *optEntryPoint,
         const char *optMatchArch,
+        const char *optCpuArch,
         const char *optFilename,
         char *outFilePath,
         size_t outFilePathCapacity,
@@ -1201,7 +1233,7 @@ writeObjectCode(
 #endif
 
     /* deal with options, files and the entry point name */
-    getArchitecture(&cpu, &bits, &makeBigEndian, optMatchArch);
+    getArchitecture(&cpu, &bits, &makeBigEndian, optMatchArch, optCpuArch);
     if (optMatchArch)
     {
         printf("genccode: --match-arch cpu=%hu bits=%hu big-endian=%d\n", cpu, bits, makeBigEndian);
