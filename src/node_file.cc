@@ -1051,6 +1051,14 @@ static int32_t FastInternalModuleStat(
     const FastOneByteString& input,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
     FastApiCallbackOptions& options) {
+  // This needs a HandleScope which needs an isolate.
+  Isolate* isolate = Isolate::TryGetCurrent();
+  if (!isolate) {
+    options.fallback = true;
+    return -1;
+  }
+
+  HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(recv->GetCreationContextChecked());
 
   auto path = std::filesystem::path(input.data, input.data + input.length);
