@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - lib/**/*.js
-      - Makefile
+      - vcbuild.bat
       - src/**/*.cc
       - src/**/*.h
       - test/**
@@ -18,7 +18,7 @@ on:
       - main
     paths:
       - lib/**/*.js
-      - Makefile
+      - vcbuild.bat
       - src/**/*.cc
       - src/**/*.h
       - test/**
