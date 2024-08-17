@@ -455,11 +455,12 @@ added: REPLACEME
   * `events` {number} Number of events that have been processed by the event handler.
   * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
 
-This is an wrapper to the `uv_metrics_info`.
+This is a wrapper to the `uv_metrics_info` function.
 It returns the current set of event loop metrics.
 
-It's recommended to use this function inside a `setImmediate` to avoid
-collecting metrics before finishing all operations on current loop iteration.
+It is recommended to use this function inside a function whose execution was
+scheduled using `setImmediate` to avoid collecting metrics before finishing all
+operations scheduled during the current loop iteration.
 
 ```cjs
 const { performance } = require('node:perf_hooks');
