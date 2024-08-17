@@ -272,6 +272,15 @@ process/bench-env.js operation="query" n=1000000: 3,625,787.2150573144
 process/bench-env.js operation="delete" n=1000000: 1,521,131.5742806569
 ```
 
+Benchmarks can also have groups, giving the developer greater flexibility in differentiating between test cases.
+By default, all groups are executed when running the benchmarks.
+However, it is possible to specify individual groups by setting the `NODE_RUN_BENCHMARK_GROUPS`
+environment variable when running `compare.js`:
+
+```bash
+NODE_RUN_BENCHMARK_GROUPS=fewHeaders,manyHeaders node http/headers.js
+```
+
 ### Comparing Node.js versions
 
 To compare the effect of a new Node.js version use the `compare.js` tool. This
@@ -493,7 +502,7 @@ The arguments of `createBenchmark` are:
   * `flags` {Array} Contains node-specific command line flags to pass to
     the child process.
 
-  * `byGroups` option for processing `configs` by groups:
+  * `byGroups` {Boolean} option for processing `configs` by groups:
     ```js
     const bench = common.createBenchmark(main, {
       groupA: {
