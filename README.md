@@ -74,8 +74,8 @@ Binaries, installers, and source tarballs are available at
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Current release. The latest-_codename_ directory is an
 alias for the latest release from an LTS line. For example, the
-[latest-hydrogen](https://nodejs.org/download/release/latest-hydrogen/)
-directory contains the latest Hydrogen (Node.js 18) release.
+[latest-iron](https://nodejs.org/download/release/latest-iron/)
+directory contains the latest Iron (Node.js 20) release.
 
 #### Nightly releases
 

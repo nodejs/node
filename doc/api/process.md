@@ -3117,6 +3117,7 @@ tarball.
   * `'Fermium'` for the 14.x LTS line beginning with 14.15.0.
   * `'Gallium'` for the 16.x LTS line beginning with 16.13.0.
   * `'Hydrogen'` for the 18.x LTS line beginning with 18.12.0.
+  * `'Iron'` for the 20.x LTS line beginning with 20.9.0.
     For other LTS Release code names, see [Node.js Changelog Archive](https://github.com/nodejs/node/blob/HEAD/doc/changelogs/CHANGELOG_ARCHIVE.md)
 
 <!-- eslint-skip -->
