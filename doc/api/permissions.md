@@ -15,6 +15,15 @@ be accessed by other modules.
   The resource can be entirely allowed or denied, or actions related to it can
   be controlled. For example, file system reads can be allowed while denying
   writes.
+  This feature does not protect against malicious code. According to the Node.js
+  [Security Policy][], Node.js trusts any code it is asked to run.
+
+The permission model implements a "seat belt" approach, which prevents trusted
+code from unintentionally changing files or using resources that access has
+not explicitly been granted to. It does not provide security guarantees in the
+presence of malicious code. Malicious code can bypass the permission model and
+execute arbitrary code without the restrictions imposed by the permission
+model.
 
 If you find a potential security vulnerability, please refer to our
 [Security Policy][].
