@@ -3180,9 +3180,6 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/54125
-    description: Corrected the description of the max header size to `maxHeaderSize`.
   - version:
      - v11.4.0
      - v10.15.0
