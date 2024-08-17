@@ -10,7 +10,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { relative } = require('node:path');
 const { test } = require('node:test');
-const { fileURLToPath, pathToFileURL } = require('node:url');
+const { pathToFileURL } = require('node:url');
 
 test('input validation', async (t) => {
   await t.test('throws if specifier is not a string', (t) => {
@@ -513,7 +513,7 @@ test('node:- core module mocks can be used by both module systems', async (t) =>
 
 test('CJS mocks can be used by both module systems', async (t) => {
   const cjsFixture = fixtures.path('module-mocking', 'basic-cjs.js');
-  const cjsFixtureURL = pathToFileURL(cjsFixture)
+  const cjsFixtureURL = pathToFileURL(cjsFixture);
   const cjsMock = t.mock.module(cjsFixtureURL, {
     namedExports: { fn() { return 42; } },
   });
