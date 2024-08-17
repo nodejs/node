@@ -12,10 +12,10 @@ Node.js-specific performance measurements.
 
 Node.js supports the following [Web Performance APIs][]:
 
-* [High Resolution Time][]
-* [Performance Timeline][]
-* [User Timing][]
 * [Resource Timing][]
+* [Performance Timeline][]
+* [High Resolution Time][]
+* [User Timing][]
 
 ```js
 const { PerformanceObserver, performance } = require('node:perf_hooks');
