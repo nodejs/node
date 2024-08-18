@@ -57,6 +57,7 @@ function testSpawn(filename, code) {
     }
     if (!e) throw new Error(`Exception expected for ${filename}`);
     assert.strictEqual(e.code, code);
+    assert.match(e.message, /"shell" must be "true"/);
   } else {
     return new Promise((resolve) => {
       cp.spawn(filename).once('error', common.mustCall(function(e) {
