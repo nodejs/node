@@ -31,10 +31,10 @@ function runBenchmark(name, env) {
     // that the benchmark file runs just one set of options. This helps keep the
     // benchmark tests from taking a long time to run. Therefore, each benchmark
     // file should result in three lines of output: a blank line, a line with
-    // the name of the benchmark file, and a line with the only results that we
-    // get from testing the benchmark file.
+    // the name of the benchmark file, and from 1 to N lines with the only results that we
+    // get from testing the benchmark file, depending on how many groups the benchmark has.
     assert.ok(
-      /^(?:\n.+?\n.+?\n)+$/.test(stdout),
+      /^(?:\n.+?\n.+?\n)+\n.+?$/gm.test(stdout),
       `benchmark file not running exactly one configuration in test: ${stdout}`,
     );
   });
