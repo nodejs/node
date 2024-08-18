@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -389,7 +389,7 @@ static int test_fromdata_rsa(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 32)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 8)
@@ -417,7 +417,10 @@ static int test_fromdata_rsa(void)
         ret = test_print_key_using_pem("RSA", pk)
               && test_print_key_using_encoder("RSA", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -602,7 +605,7 @@ static int test_fromdata_dh_named_group(void)
                                                       &len)))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
@@ -682,7 +685,10 @@ static int test_fromdata_dh_named_group(void)
         ret = test_print_key_using_pem("DH", pk)
               && test_print_key_using_encoder("DH", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -783,7 +789,7 @@ static int test_fromdata_dh_fips186_4(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
@@ -857,7 +863,10 @@ static int test_fromdata_dh_fips186_4(void)
         ret = test_print_key_using_pem("DH", pk)
               && test_print_key_using_encoder("DH", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -1090,7 +1099,7 @@ static int test_fromdata_ecx(int tst)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), bits)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), security_bits)
@@ -1130,6 +1139,12 @@ static int test_fromdata_ecx(int tst)
                /* This should succeed because there are no parameters to copy */
             || !TEST_true(EVP_PKEY_copy_parameters(copy_pk, pk)))
             goto err;
+        if (!TEST_ptr(ctx2 = EVP_PKEY_CTX_new_from_pkey(NULL, copy_pk, NULL))
+               /* This should fail because copy_pk has no pubkey */
+            || !TEST_int_le(EVP_PKEY_public_check(ctx2), 0))
+            goto err;
+        EVP_PKEY_CTX_free(ctx2);
+        ctx2 = NULL;
         EVP_PKEY_free(copy_pk);
         copy_pk = NULL;
 
@@ -1139,7 +1154,10 @@ static int test_fromdata_ecx(int tst)
             ret = test_print_key_using_pem(alg, pk)
                   && test_print_key_using_encoder(alg, pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -1256,7 +1274,7 @@ static int test_fromdata_ec(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 256)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 128)
@@ -1295,6 +1313,15 @@ static int test_fromdata_ec(void)
             || !TEST_BN_eq(group_b, b))
             goto err;
 
+        EC_GROUP_free(group);
+        group = NULL;
+        BN_free(group_p);
+        group_p = NULL;
+        BN_free(group_a);
+        group_a = NULL;
+        BN_free(group_b);
+        group_b = NULL;
+
         if (!EVP_PKEY_get_utf8_string_param(pk, OSSL_PKEY_PARAM_GROUP_NAME,
                                             out_curve_name,
                                             sizeof(out_curve_name),
@@ -1323,7 +1350,10 @@ static int test_fromdata_ec(void)
         ret = test_print_key_using_pem(alg, pk)
               && test_print_key_using_encoder(alg, pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);
@@ -1569,7 +1599,7 @@ static int test_fromdata_dsa_fips186_4(void)
                                           fromdata_params), 1))
         goto err;
 
-    while (dup_pk == NULL) {
+    for (;;) {
         ret = 0;
         if (!TEST_int_eq(EVP_PKEY_get_bits(pk), 2048)
             || !TEST_int_eq(EVP_PKEY_get_security_bits(pk), 112)
@@ -1618,12 +1648,12 @@ static int test_fromdata_dsa_fips186_4(void)
                                                  &pcounter_out))
             || !TEST_int_eq(pcounter, pcounter_out))
             goto err;
-        BN_free(p);
-        p = NULL;
-        BN_free(q);
-        q = NULL;
-        BN_free(g);
-        g = NULL;
+        BN_free(p_out);
+        p_out = NULL;
+        BN_free(q_out);
+        q_out = NULL;
+        BN_free(g_out);
+        g_out = NULL;
         BN_free(j_out);
         j_out = NULL;
         BN_free(pub_out);
@@ -1651,7 +1681,10 @@ static int test_fromdata_dsa_fips186_4(void)
         ret = test_print_key_using_pem("DSA", pk)
               && test_print_key_using_encoder("DSA", pk);
 
-        if (!ret || !TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
+        if (!ret || dup_pk != NULL)
+            break;
+
+        if (!TEST_ptr(dup_pk = EVP_PKEY_dup(pk)))
             goto err;
         ret = ret && TEST_int_eq(EVP_PKEY_eq(pk, dup_pk), 1);
         EVP_PKEY_free(pk);

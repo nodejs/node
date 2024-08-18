@@ -7,7 +7,7 @@ function replaceNodeVersion(str) {
   return str.replaceAll(process.version, '*');
 }
 
-describe('v8 output', { concurrency: true }, () => {
+describe('v8 output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
     .replaceAll(/:\d+/g, ':*')

@@ -488,11 +488,21 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
    * the struct's kf_structsize must be initialised beforehand
    * whether with the KINFO_FILE_SIZE constant or this way.
    */
+  struct stat statbuf;
   struct kinfo_file kf;
-  kf.kf_structsize = sizeof(kf);
 
-  if (fcntl(handle->event_watcher.fd, F_KINFO, &kf) == 0)
-    path = uv__basename_r(kf.kf_path);
+  if (handle->event_watcher.fd != -1 &&
+     (!uv__fstat(handle->event_watcher.fd, &statbuf) && !(statbuf.st_mode & S_IFDIR))) {
+     /* we are purposely not using KINFO_FILE_SIZE here
+      * as it is not available on non intl archs
+      * and here it gives 1392 too on intel.
+      * anyway, the man page also mentions we can proceed
+      * this way.
+      */
+     kf.kf_structsize = sizeof(kf);
+     if (fcntl(handle->event_watcher.fd, F_KINFO, &kf) == 0)
+       path = uv__basename_r(kf.kf_path);
+  }
 #endif
   handle->cb(handle, path, events, 0);
 

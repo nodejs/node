@@ -97,6 +97,7 @@ class CompactorTest : public testing::TestWithPlatform {
         SweepingConfig::SweepingType::kAtomic,
         SweepingConfig::CompactableSpaceHandling::kIgnore};
     heap()->sweeper().Start(sweeping_config);
+    heap()->sweeper().FinishIfRunning();
   }
 
   Heap* heap() { return Heap::From(heap_.get()); }
@@ -242,6 +243,14 @@ TEST_F(CompactorTest, InteriorSlotToNextObject) {
   EXPECT_EQ(1u, CompactableGCed::g_destructor_callcount);
   EXPECT_EQ(references[0], holder->objects[1]);
   EXPECT_EQ(references[1], holder->objects[1]->other);
+}
+
+TEST_F(CompactorTest, OnStackSlotShouldBeFiltered) {
+  StartGC();
+  const CompactableGCed* compactable_object =
+      MakeGarbageCollected<CompactableGCed>(GetAllocationHandle());
+  heap()->marker()->Visitor().RegisterMovableReference(&compactable_object);
+  EndGC();
 }
 
 }  // namespace internal

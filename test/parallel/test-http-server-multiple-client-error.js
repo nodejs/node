@@ -28,14 +28,14 @@ const httpServer = http.createServer(common.mustNotCall());
 
 httpServer.once('clientError', common.mustCall((err, socket) => {
   assert.strictEqual(err.code, 'HPE_INVALID_METHOD');
-  assert.strictEqual(err.rawPacket.toString(), 'Q');
+  assert.strictEqual(err.rawPacket.toString(), '1');
   socket.destroy();
 
   httpServer.once('clientError', common.mustCall((err) => {
     assert.strictEqual(err.code, 'HPE_INVALID_METHOD');
     assert.strictEqual(
       err.rawPacket.toString(),
-      'WE http://example.com HTTP/1.1\r\n\r\n'
+      '23 http://example.com HTTP/1.1\r\n\r\n'
     );
   }));
 }));
@@ -44,7 +44,11 @@ netServer.listen(0, common.mustCall(() => {
   const socket = net.createConnection(netServer.address().port);
 
   socket.on('connect', common.mustCall(() => {
-    socket.end('QWE http://example.com HTTP/1.1\r\n\r\n');
+    // Note: do not use letters here for the method.
+    // There is a very small chance that a method with that initial
+    // might be added in the future and thus this test might fail.
+    // Numbers will likely never have this issue.
+    socket.end('123 http://example.com HTTP/1.1\r\n\r\n');
   }));
 
   socket.on('close', () => {

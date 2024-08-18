@@ -14,8 +14,6 @@ using Address = uintptr_t;
 
 // Memory provides an interface to 'raw' memory. It encapsulates the casts
 // that typically are needed when incompatible pointer types are used.
-// Note that this class currently relies on undefined behaviour. There is a
-// proposal (http://wg21.link/p0593r2) to make it defined behaviour though.
 template <class T>
 inline T& Memory(Address addr) {
   DCHECK(IsAligned(addr, alignof(T)));
@@ -35,9 +33,19 @@ static inline V ReadUnalignedValue(Address p) {
 }
 
 template <typename V>
+static inline V ReadUnalignedValue(const char p[sizeof(V)]) {
+  return ReadUnalignedValue<V>(reinterpret_cast<Address>(p));
+}
+
+template <typename V>
 static inline void WriteUnalignedValue(Address p, V value) {
   ASSERT_TRIVIALLY_COPYABLE(V);
   memcpy(reinterpret_cast<void*>(p), &value, sizeof(V));
+}
+
+template <typename V>
+static inline void WriteUnalignedValue(char p[sizeof(V)], V value) {
+  return WriteUnalignedValue<V>(reinterpret_cast<Address>(p), value);
 }
 
 template <typename V>

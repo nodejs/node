@@ -23,16 +23,16 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#ifndef HEADER_CARES_SETUP_H
-#define HEADER_CARES_SETUP_H
+#ifndef __ARES_SETUP_H
+#define __ARES_SETUP_H
 
-/*
- * Define WIN32 when build target is Win32 API
+/* ============================================================================
+ * NOTE: This file is automatically included by ares_private.h and should not
+ *       typically be included directly.
+ *       All c-ares source files should include ares_private.h as the
+ *       first header.
+ * ============================================================================
  */
-
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#  define WIN32
-#endif
 
 /*
  * Include configuration script results or hand-crafted
@@ -42,62 +42,17 @@
 #ifdef HAVE_CONFIG_H
 #  include "ares_config.h"
 #else
-
-#  ifdef WIN32
+#  ifdef _WIN32
 #    include "config-win32.h"
 #  endif
-
 #endif /* HAVE_CONFIG_H */
-
-/* ================================================================ */
-/* Definition of preprocessor macros/symbols which modify compiler  */
-/* behaviour or generated code characteristics must be done here,   */
-/* as appropriate, before any system header file is included. It is */
-/* also possible to have them defined in the config file included   */
-/* before this point. As a result of all this we frown inclusion of */
-/* system header files in our config files, avoid this at any cost. */
-/* ================================================================ */
-
-/*
- * AIX 4.3 and newer needs _THREAD_SAFE defined to build
- * proper reentrant code. Others may also need it.
- */
-
-#ifdef NEED_THREAD_SAFE
-#  ifndef _THREAD_SAFE
-#    define _THREAD_SAFE
-#  endif
-#endif
-
-/*
- * Tru64 needs _REENTRANT set for a few function prototypes and
- * things to appear in the system header files. Unixware needs it
- * to build proper reentrant code. Others may also need it.
- */
-
-#ifdef NEED_REENTRANT
-#  ifndef _REENTRANT
-#    define _REENTRANT
-#  endif
-#endif
-
-/* ================================================================ */
-/*  If you need to include a system header file for your platform,  */
-/*  please, do it beyond the point further indicated in this file.  */
-/* ================================================================ */
 
 /*
  * c-ares external interface definitions are also used internally,
  * and might also include required system header files to define them.
  */
 
-#include <ares_build.h>
-
-/*
- * Compile time sanity checks must also be done when building the library.
- */
-
-#include <ares_rules.h>
+#include "ares_build.h"
 
 /* ================================================================= */
 /* No system header file shall be included in this file before this  */
@@ -115,6 +70,10 @@
  * neither HAVE_WS2TCPIP_H when __CYGWIN__ is defined.
  */
 
+#ifdef USE_WINSOCK
+#  undef USE_WINSOCK
+#endif
+
 #ifdef HAVE_WINDOWS_H
 #  ifndef WIN32_LEAN_AND_MEAN
 #    define WIN32_LEAN_AND_MEAN
@@ -122,52 +81,56 @@
 #  include <windows.h>
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
+#    define USE_WINSOCK 2
 #    ifdef HAVE_WS2TCPIP_H
 #      include <ws2tcpip.h>
 #    endif
 #  else
 #    ifdef HAVE_WINSOCK_H
 #      include <winsock.h>
+#      define USE_WINSOCK 1
 #    endif
 #  endif
 #endif
 
-/*
- * Define USE_WINSOCK to 2 if we have and use WINSOCK2 API, else
- * define USE_WINSOCK to 1 if we have and use WINSOCK  API, else
- * undefine USE_WINSOCK.
- */
 
-#ifdef USE_WINSOCK
-#  undef USE_WINSOCK
-#endif
-#ifdef HAVE_WINSOCK2_H
-#  define USE_WINSOCK 2
-#else
-#  ifdef HAVE_WINSOCK_H
-#    define USE_WINSOCK 1
-#  endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <ctype.h>
+
+#ifdef HAVE_ERRNO_H
+#  include <errno.h>
 #endif
 
-/*
- * Work-arounds for systems without configure support
- */
+#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
 
-#ifndef HAVE_CONFIG_H
+#ifdef HAVE_MALLOC_H
+#  include <malloc.h>
+#endif
 
-#  if !defined(HAVE_SYS_TIME_H) && !defined(_MSC_VER) && !defined(__WATCOMC__)
-#    define HAVE_SYS_TIME_H
-#  endif
+#ifdef HAVE_SYS_STAT_H
+#  include <sys/stat.h>
+#endif
 
-#  if !defined(HAVE_UNISTD_H) && !defined(_MSC_VER)
-#    define HAVE_UNISTD_H 1
-#  endif
+#ifdef HAVE_SYS_TIME_H
+#  include <sys/time.h>
+#endif
 
-#  if !defined(HAVE_SYS_UIO_H) && !defined(WIN32) && !defined(MSDOS)
-#    define HAVE_SYS_UIO_H
-#  endif
+#ifdef HAVE_TIME_H
+#  include <time.h>
+#endif
 
-#endif /* HAVE_CONFIG_H */
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+
+#ifdef HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
 
 /*
  * Arg 2 type for gethostname in case it hasn't been defined in config file.
@@ -235,12 +198,170 @@
 #  endif
 #endif
 
-/*
- * Include macros and defines that should only be processed once.
- */
 
-#ifndef __SETUP_ONCE_H
-#  include "setup_once.h"
+#ifdef __hpux
+#  if !defined(_XOPEN_SOURCE_EXTENDED) || defined(_KERNEL)
+#    ifdef _APP32_64BIT_OFF_T
+#      define OLD_APP32_64BIT_OFF_T _APP32_64BIT_OFF_T
+#      undef _APP32_64BIT_OFF_T
+#    else
+#      undef OLD_APP32_64BIT_OFF_T
+#    endif
+#  endif
 #endif
 
-#endif /* HEADER_CARES_SETUP_H */
+#ifdef __hpux
+#  if !defined(_XOPEN_SOURCE_EXTENDED) || defined(_KERNEL)
+#    ifdef OLD_APP32_64BIT_OFF_T
+#      define _APP32_64BIT_OFF_T OLD_APP32_64BIT_OFF_T
+#      undef OLD_APP32_64BIT_OFF_T
+#    endif
+#  endif
+#endif
+
+
+/*
+ * Definition of timeval struct for platforms that don't have it.
+ */
+
+#ifndef HAVE_STRUCT_TIMEVAL
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+#endif
+
+/*
+ * Function-like macro definition used to close a socket.
+ */
+
+#if defined(HAVE_CLOSESOCKET)
+#  define sclose(x) closesocket((x))
+#elif defined(HAVE_CLOSESOCKET_CAMEL)
+#  define sclose(x) CloseSocket((x))
+#elif defined(HAVE_CLOSE_S)
+#  define sclose(x) close_s((x))
+#else
+#  define sclose(x) close((x))
+#endif
+
+/*
+ * Macro used to include code only in debug builds.
+ */
+
+#ifdef DEBUGBUILD
+#  define DEBUGF(x) x
+#else
+#  define DEBUGF(x) \
+    do {            \
+    } while (0)
+#endif
+
+/*
+ * Macro SOCKERRNO / SET_SOCKERRNO() returns / sets the *socket-related* errno
+ * (or equivalent) on this platform to hide platform details to code using it.
+ */
+
+#ifdef USE_WINSOCK
+#  define SOCKERRNO        ((int)WSAGetLastError())
+#  define SET_SOCKERRNO(x) (WSASetLastError((int)(x)))
+#else
+#  define SOCKERRNO        (errno)
+#  define SET_SOCKERRNO(x) (errno = (x))
+#endif
+
+
+/*
+ * Macro ERRNO / SET_ERRNO() returns / sets the NOT *socket-related* errno
+ * (or equivalent) on this platform to hide platform details to code using it.
+ */
+
+#if defined(WIN32) && !defined(WATT32)
+#  define ERRNO        ((int)GetLastError())
+#  define SET_ERRNO(x) (SetLastError((DWORD)(x)))
+#else
+#  define ERRNO        (errno)
+#  define SET_ERRNO(x) (errno = (x))
+#endif
+
+
+/*
+ * Portable error number symbolic names defined to Winsock error codes.
+ */
+
+#ifdef USE_WINSOCK
+#  undef EBADF           /* override definition in errno.h */
+#  define EBADF WSAEBADF
+#  undef EINTR           /* override definition in errno.h */
+#  define EINTR WSAEINTR
+#  undef EINVAL          /* override definition in errno.h */
+#  define EINVAL WSAEINVAL
+#  undef EWOULDBLOCK     /* override definition in errno.h */
+#  define EWOULDBLOCK WSAEWOULDBLOCK
+#  undef EINPROGRESS     /* override definition in errno.h */
+#  define EINPROGRESS WSAEINPROGRESS
+#  undef EALREADY        /* override definition in errno.h */
+#  define EALREADY WSAEALREADY
+#  undef ENOTSOCK        /* override definition in errno.h */
+#  define ENOTSOCK WSAENOTSOCK
+#  undef EDESTADDRREQ    /* override definition in errno.h */
+#  define EDESTADDRREQ WSAEDESTADDRREQ
+#  undef EMSGSIZE        /* override definition in errno.h */
+#  define EMSGSIZE WSAEMSGSIZE
+#  undef EPROTOTYPE      /* override definition in errno.h */
+#  define EPROTOTYPE WSAEPROTOTYPE
+#  undef ENOPROTOOPT     /* override definition in errno.h */
+#  define ENOPROTOOPT WSAENOPROTOOPT
+#  undef EPROTONOSUPPORT /* override definition in errno.h */
+#  define EPROTONOSUPPORT WSAEPROTONOSUPPORT
+#  define ESOCKTNOSUPPORT WSAESOCKTNOSUPPORT
+#  undef EOPNOTSUPP /* override definition in errno.h */
+#  define EOPNOTSUPP   WSAEOPNOTSUPP
+#  define EPFNOSUPPORT WSAEPFNOSUPPORT
+#  undef EAFNOSUPPORT  /* override definition in errno.h */
+#  define EAFNOSUPPORT WSAEAFNOSUPPORT
+#  undef EADDRINUSE    /* override definition in errno.h */
+#  define EADDRINUSE WSAEADDRINUSE
+#  undef EADDRNOTAVAIL /* override definition in errno.h */
+#  define EADDRNOTAVAIL WSAEADDRNOTAVAIL
+#  undef ENETDOWN      /* override definition in errno.h */
+#  define ENETDOWN WSAENETDOWN
+#  undef ENETUNREACH   /* override definition in errno.h */
+#  define ENETUNREACH WSAENETUNREACH
+#  undef ENETRESET     /* override definition in errno.h */
+#  define ENETRESET WSAENETRESET
+#  undef ECONNABORTED  /* override definition in errno.h */
+#  define ECONNABORTED WSAECONNABORTED
+#  undef ECONNRESET    /* override definition in errno.h */
+#  define ECONNRESET WSAECONNRESET
+#  undef ENOBUFS       /* override definition in errno.h */
+#  define ENOBUFS WSAENOBUFS
+#  undef EISCONN       /* override definition in errno.h */
+#  define EISCONN WSAEISCONN
+#  undef ENOTCONN      /* override definition in errno.h */
+#  define ENOTCONN     WSAENOTCONN
+#  define ESHUTDOWN    WSAESHUTDOWN
+#  define ETOOMANYREFS WSAETOOMANYREFS
+#  undef ETIMEDOUT     /* override definition in errno.h */
+#  define ETIMEDOUT WSAETIMEDOUT
+#  undef ECONNREFUSED  /* override definition in errno.h */
+#  define ECONNREFUSED WSAECONNREFUSED
+#  undef ELOOP         /* override definition in errno.h */
+#  define ELOOP WSAELOOP
+#  ifndef ENAMETOOLONG /* possible previous definition in errno.h */
+#    define ENAMETOOLONG WSAENAMETOOLONG
+#  endif
+#  define EHOSTDOWN WSAEHOSTDOWN
+#  undef EHOSTUNREACH /* override definition in errno.h */
+#  define EHOSTUNREACH WSAEHOSTUNREACH
+#  ifndef ENOTEMPTY   /* possible previous definition in errno.h */
+#    define ENOTEMPTY WSAENOTEMPTY
+#  endif
+#  define EPROCLIM WSAEPROCLIM
+#  define EUSERS   WSAEUSERS
+#  define EDQUOT   WSAEDQUOT
+#  define ESTALE   WSAESTALE
+#  define EREMOTE  WSAEREMOTE
+#endif
+
+#endif /* __ARES_SETUP_H */

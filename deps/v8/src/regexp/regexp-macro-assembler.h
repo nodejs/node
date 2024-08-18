@@ -216,8 +216,7 @@ class RegExpMacroAssembler {
   //
   // Called from generated code.
   static uint32_t IsCharacterInRangeArray(uint32_t current_char,
-                                          Address raw_byte_array,
-                                          Isolate* isolate);
+                                          Address raw_byte_array);
 
   // Controls the generation of large inlined constants in the code.
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
@@ -299,7 +298,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   ~NativeRegExpMacroAssembler() override = default;
 
   // Returns a {Result} sentinel, or the number of successful matches.
-  static int Match(Handle<JSRegExp> regexp, Handle<String> subject,
+  static int Match(DirectHandle<JSRegExp> regexp, DirectHandle<String> subject,
                    int* offsets_vector, int offsets_vector_length,
                    int previous_index, Isolate* isolate);
 
@@ -332,7 +331,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                                   Address* return_address,
                                   Tagged<InstructionStream> re_code,
                                   Address* subject, const uint8_t** input_start,
-                                  const uint8_t** input_end);
+                                  const uint8_t** input_end, uintptr_t gap);
 
   static Address word_character_map_address() {
     return reinterpret_cast<Address>(&word_character_map[0]);

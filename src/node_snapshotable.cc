@@ -8,6 +8,7 @@
 #include "base_object-inl.h"
 #include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
+#include "embedded_data.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
 #include "json_parser.h"
@@ -40,7 +41,6 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ScriptCompiler;
@@ -599,16 +599,17 @@ std::vector<char> SnapshotData::ToBlob() const {
   size_t written_total = 0;
 
   // Metadata
-  w.Debug("Write magic %" PRIx32 "\n", kMagic);
+  w.Debug("0x%x: Write magic %" PRIx32 "\n", w.sink.size(), kMagic);
   written_total += w.WriteArithmetic<uint32_t>(kMagic);
-  w.Debug("Write metadata\n");
+  w.Debug("0x%x: Write metadata\n", w.sink.size());
   written_total += w.Write<SnapshotMetadata>(metadata);
-
+  w.Debug("0x%x: Write snapshot blob\n", w.sink.size());
   written_total += w.Write<v8::StartupData>(v8_snapshot_blob_data);
-  w.Debug("Write isolate_data_indices\n");
+  w.Debug("0x%x: Write IsolateDataSerializeInfo\n", w.sink.size());
   written_total += w.Write<IsolateDataSerializeInfo>(isolate_data_info);
+  w.Debug("0x%x: Write EnvSerializeInfo\n", w.sink.size());
   written_total += w.Write<EnvSerializeInfo>(env_info);
-  w.Debug("Write code_cache\n");
+  w.Debug("0x%x: Write CodeCacheInfo\n", w.sink.size());
   written_total += w.WriteVector<builtins::CodeCacheInfo>(code_cache);
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
 
@@ -746,35 +747,6 @@ static std::string FormatSize(size_t size) {
         buf, sizeof(buf), "%.2fMB", static_cast<double>(size / 1024 / 1024));
   }
   return buf;
-}
-
-std::string ToOctalString(const uint8_t ch) {
-  // We can print most printable characters directly. The exceptions are '\'
-  // (escape characters), " (would end the string), and ? (trigraphs). The
-  // latter may be overly conservative: we compile with C++17 which doesn't
-  // support trigraphs.
-  if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
-    return std::string(1, static_cast<char>(ch));
-  }
-  // All other characters are blindly output as octal.
-  const char c0 = '0' + ((ch >> 6) & 7);
-  const char c1 = '0' + ((ch >> 3) & 7);
-  const char c2 = '0' + (ch & 7);
-  return std::string("\\") + c0 + c1 + c2;
-}
-
-std::vector<std::string> GetOctalTable() {
-  size_t size = 1 << 8;
-  std::vector<std::string> code_table(size);
-  for (size_t i = 0; i < size; ++i) {
-    code_table[i] = ToOctalString(static_cast<uint8_t>(i));
-  }
-  return code_table;
-}
-
-const std::string& GetOctalCode(uint8_t index) {
-  static std::vector<std::string> table = GetOctalTable();
-  return table[index];
 }
 
 template <typename T>
@@ -1069,10 +1041,12 @@ ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
   Context::Scope context_scope(context);
   builtins::BuiltinLoader builtin_loader;
   // Regenerate all the code cache.
-  if (!builtin_loader.CompileAllBuiltins(context)) {
+  if (!builtin_loader.CompileAllBuiltinsAndCopyCodeCache(
+          context,
+          out->env_info.principal_realm.builtins,
+          &(out->code_cache))) {
     return ExitCode::kGenericUserError;
   }
-  builtin_loader.CopyCodeCache(&(out->code_cache));
   if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
     for (const auto& item : out->code_cache) {
       std::string size_str = FormatSize(item.data.length);
@@ -1098,6 +1072,9 @@ ExitCode SnapshotBuilder::Generate(
   }
 
   if (!WithoutCodeCache(snapshot_config)) {
+    per_process::Debug(
+        DebugCategory::CODE_CACHE,
+        "---\nGenerate code cache to complement snapshot\n---\n");
     // Deserialize the snapshot to recompile code cache. We need to do this in
     // the second pass because V8 requires the code cache to be compiled with a
     // finalized read-only space.
@@ -1156,6 +1133,14 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
         fprintf(stderr, "Environment = %p\n", env);
       }
 
+      // Clean up the states left by the inspector because V8 cannot serialize
+      // them. They don't need to be persisted and can be created from scratch
+      // after snapshot deserialization.
+      RunAtExit(env);
+#if HAVE_INSPECTOR
+      env->StopInspector();
+#endif
+
       // Serialize the native states
       out->isolate_data_info = setup->isolate_data()->Serialize(creator);
       out->env_info = env->Serialize(creator);
@@ -1171,8 +1156,11 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     CHECK_EQ(index, SnapshotData::kNodeVMContextIndex);
     index = creator->AddContext(base_context);
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
-    index = creator->AddContext(main_context,
-                                {SerializeNodeContextInternalFields, env});
+    index = creator->AddContext(
+        main_context,
+        v8::SerializeInternalFieldsCallback(SerializeNodeContextInternalFields,
+                                            env),
+        v8::SerializeContextDataCallback(SerializeNodeContextData, env));
     CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
   }
 
@@ -1268,6 +1256,59 @@ std::string SnapshotableObject::GetTypeName() const {
     SERIALIZABLE_OBJECT_TYPES(V)
 #undef V
     default: { UNREACHABLE(); }
+  }
+}
+
+void DeserializeNodeContextData(Local<Context> holder,
+                                int index,
+                                StartupData payload,
+                                void* callback_data) {
+  // We will reset all the pointers in Environment::AssignToContext()
+  // via the realm constructor.
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag: {
+      uint64_t index_64;
+      int size = sizeof(index_64);
+      CHECK_EQ(payload.raw_size, size);
+      memcpy(&index_64, payload.data, payload.raw_size);
+      CHECK_EQ(index_64, static_cast<uint64_t>(index));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+StartupData SerializeNodeContextData(Local<Context> holder,
+                                     int index,
+                                     void* callback_data) {
+  // For pointer values, we need to return some non-empty data so that V8
+  // does not serialize them verbatim, making the snapshot unreproducible.
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag: {
+      void* data = holder->GetAlignedPointerFromEmbedderData(index);
+      per_process::Debug(
+          DebugCategory::MKSNAPSHOT,
+          "Serialize context data, index=%d, holder=%p, ptr=%p\n",
+          static_cast<int>(index),
+          *holder,
+          data);
+      // We use uint64_t to avoid padding.
+      uint64_t index_64 = static_cast<uint64_t>(index);
+      // It must be allocated with new[] because V8 will call delete[] on it.
+      size_t size = sizeof(index_64);
+      char* startup_data = new char[size];
+      memcpy(startup_data, &index_64, size);
+      return {startup_data, static_cast<int>(size)};
+    }
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -1374,9 +1415,11 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
   // To serialize the type field, save data in a EmbedderTypeInfo.
   if (index == BaseObject::kEmbedderType) {
     int size = sizeof(EmbedderTypeInfo);
-    char* data = new char[size];
     // We need to use placement new because V8 calls delete[] on the returned
     // data.
+    // The () syntax at the end would zero-initialize the block and make
+    // the padding reproducible.
+    char* data = new char[size]();
     // TODO(joyeecheung): support cppgc objects.
     new (data) EmbedderTypeInfo(obj->type(),
                                 EmbedderTypeInfo::MemoryMode::kBaseObject);
@@ -1434,23 +1477,15 @@ void SerializeSnapshotableObjects(Realm* realm,
   });
 }
 
-static void RunEmbedderEntryPoint(const FunctionCallbackInfo<Value>& args) {
+void RunEmbedderPreload(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->embedder_preload());
+  CHECK_EQ(args.Length(), 2);
   Local<Value> process_obj = args[0];
   Local<Value> require_fn = args[1];
-  Local<Value> runcjs_fn = args[2];
   CHECK(process_obj->IsObject());
   CHECK(require_fn->IsFunction());
-  CHECK(runcjs_fn->IsFunction());
-
-  const node::StartExecutionCallback& callback = env->embedder_entry_point();
-  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
-                                        require_fn.As<Function>(),
-                                        runcjs_fn.As<Function>()};
-  MaybeLocal<Value> retval = callback(info);
-  if (!retval.IsEmpty()) {
-    args.GetReturnValue().Set(retval.ToLocalChecked());
-  }
+  env->embedder_preload()(env, process_obj, require_fn);
 }
 
 void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
@@ -1576,7 +1611,7 @@ void CreatePerContextProperties(Local<Object> target,
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  SetMethod(isolate, target, "runEmbedderEntryPoint", RunEmbedderEntryPoint);
+  SetMethod(isolate, target, "runEmbedderPreload", RunEmbedderPreload);
   SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
   SetMethod(isolate, target, "setSerializeCallback", SetSerializeCallback);
   SetMethod(isolate, target, "setDeserializeCallback", SetDeserializeCallback);
@@ -1589,7 +1624,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(RunEmbedderEntryPoint);
+  registry->Register(RunEmbedderPreload);
   registry->Register(CompileSerializeMain);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);

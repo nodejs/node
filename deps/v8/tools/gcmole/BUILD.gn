@@ -25,12 +25,12 @@ if (v8_gcmole) {
       # The following contains all relevant source and build files.
       "../debug_helper/debug-helper.h",
       "../../BUILD.gn",
-      "../../base/",
       "../../include/",
       "../../src/",
       "../../test/cctest/",
       "../../test/common/",
       "../../testing/gtest/include/gtest/gtest_prod.h",
+      "../../third_party/abseil-cpp/",
       "../../third_party/glibc/",
       "../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
       "../../third_party/icu/source/common/",
@@ -39,6 +39,8 @@ if (v8_gcmole) {
       "../../third_party/wasm-api/wasm.hh",
       "../../third_party/zlib/",
       "../../third_party/inspector_protocol/",
+      "../../third_party/fp16/",
+      "../../third_party/v8/codegen/",
       "$target_gen_dir/../../",
       "$target_gen_dir/../../torque-generated/",
 

@@ -13,6 +13,7 @@
 
 #include "src/base/optional.h"
 #include "src/common/message-template.h"
+#include "src/objects/code-kind.h"
 #include "src/wasm/wasm-value.h"
 #include "src/wasm/well-known-imports.h"
 
@@ -21,13 +22,16 @@ namespace internal {
 
 class FixedArray;
 class JSArrayBuffer;
+class WasmFunctionData;
 class WasmModuleObject;
 class WasmInstanceObject;
+class WasmTrustedInstanceData;
 class Zone;
 
 namespace wasm {
 class ErrorThrower;
-enum Suspend : bool;
+enum Suspend : int { kSuspend, kSuspendWithSuspender, kNoSuspend };
+enum Promise : int { kPromise, kPromiseWithSuspender, kNoPromise };
 struct WasmModule;
 
 // Calls to Wasm imports are handled in several different ways, depending on the
@@ -83,26 +87,36 @@ constexpr ImportCallKind kDefaultImportCallKind =
 // is why the ultimate target is provided as well.
 class WasmImportData {
  public:
-  V8_EXPORT_PRIVATE WasmImportData(Handle<WasmInstanceObject> instance,
-                                   int func_index, Handle<JSReceiver> callable,
-                                   const wasm::FunctionSig* sig,
-                                   uint32_t expected_canonical_type_index);
+  V8_EXPORT_PRIVATE WasmImportData(
+      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+      int func_index, Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
+      uint32_t expected_canonical_type_index, WellKnownImport preknown_import);
 
   ImportCallKind kind() const { return kind_; }
   WellKnownImport well_known_status() const { return well_known_status_; }
   Suspend suspend() const { return suspend_; }
   Handle<JSReceiver> callable() const { return callable_; }
+  // Avoid reading function data from the result of `callable()`, because it
+  // might have been corrupted in the meantime (in a compromised sandbox).
+  // Instead, use this cached copy.
+  Handle<WasmFunctionData> trusted_function_data() const {
+    return trusted_function_data_;
+  }
 
  private:
-  ImportCallKind ComputeKind(Handle<WasmInstanceObject> instance,
-                             int func_index,
-                             const wasm::FunctionSig* expected_sig,
-                             uint32_t expected_canonical_type_index);
+  void SetCallable(Isolate* isolate, Tagged<JSReceiver> callable);
+  void SetCallable(Isolate* isolate, Handle<JSReceiver> callable);
+
+  ImportCallKind ComputeKind(
+      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+      int func_index, const wasm::FunctionSig* expected_sig,
+      uint32_t expected_canonical_type_index, WellKnownImport preknown_import);
 
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};
-  Suspend suspend_{false};
+  Suspend suspend_{kNoSuspend};
   Handle<JSReceiver> callable_;
+  Handle<WasmFunctionData> trusted_function_data_;
 };
 
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
@@ -115,14 +129,26 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // {Optional} that contains the error message. Exits early if the segment is
 // already initialized.
 base::Optional<MessageTemplate> InitializeElementSegment(
-    Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
+    Zone* zone, Isolate* isolate,
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index);
 
-V8_EXPORT_PRIVATE void CreateMapForType(Isolate* isolate,
-                                        const WasmModule* module,
-                                        int type_index,
-                                        Handle<WasmInstanceObject> instance,
-                                        Handle<FixedArray> maps);
+V8_EXPORT_PRIVATE void CreateMapForType(
+    Isolate* isolate, const WasmModule* module, int type_index,
+    Handle<WasmTrustedInstanceData> trusted_data,
+    Handle<WasmInstanceObject> instance_object,
+    Handle<FixedArray> maybe_shared_maps);
+
+// Wrapper information required for graph building.
+struct WrapperCompilationInfo {
+  CodeKind code_kind;
+  StubCallMode stub_mode;
+  // For wasm-js wrappers only:
+  wasm::ImportCallKind import_kind = kDefaultImportCallKind;
+  int expected_arity = 0;
+  wasm::Suspend suspend = kNoSuspend;
+};
 
 }  // namespace wasm
 }  // namespace internal

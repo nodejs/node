@@ -23,6 +23,7 @@
 
 #ifdef _WIN32
 # include <fcntl.h>
+# define close _close
 #else
 # include <sys/socket.h>
 # include <unistd.h>
@@ -638,9 +639,9 @@ TEST_IMPL(poll_bad_fdtype) {
   int fd;
 
 #if defined(_WIN32)
-  fd = open("test/fixtures/empty_file", O_RDONLY);
+  fd = _open("test/fixtures/empty_file", UV_FS_O_RDONLY);
 #else
-  fd = open(".", O_RDONLY);
+  fd = open(".", UV_FS_O_RDONLY);
 #endif
   ASSERT_NE(fd, -1);
   ASSERT_NE(0, uv_poll_init(uv_default_loop(), &poll_handle, fd));

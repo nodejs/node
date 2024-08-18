@@ -24,7 +24,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyAttribute;
@@ -43,6 +42,7 @@ uint64_t performance_v8_start;
 
 PerformanceState::PerformanceState(Isolate* isolate,
                                    uint64_t time_origin,
+                                   double time_origin_timestamp,
                                    const PerformanceState::SerializeInfo* info)
     : root(isolate,
            sizeof(performance_state_internal),
@@ -63,7 +63,7 @@ PerformanceState::PerformanceState(Isolate* isolate,
     // For deserialized performance states, we will do the
     // initialization in the deserialize callback.
     ResetMilestones();
-    Initialize(time_origin);
+    Initialize(time_origin, time_origin_timestamp);
   }
 }
 
@@ -86,23 +86,27 @@ PerformanceState::SerializeInfo PerformanceState::Serialize(
   return info;
 }
 
-void PerformanceState::Initialize(uint64_t time_origin) {
-  // We are only reusing the milestone array to store the time origin, so do
-  // not use the Mark() method. The time origin milestone is not exposed
-  // to user land.
+void PerformanceState::Initialize(uint64_t time_origin,
+                                  double time_origin_timestamp) {
+  // We are only reusing the milestone array to store the time origin
+  // and time origin timestamp, so do not use the Mark() method.
+  // The time origin milestone is not exposed to user land.
   this->milestones[NODE_PERFORMANCE_MILESTONE_TIME_ORIGIN] =
       static_cast<double>(time_origin);
+  this->milestones[NODE_PERFORMANCE_MILESTONE_TIME_ORIGIN_TIMESTAMP] =
+      time_origin_timestamp;
 }
 
 void PerformanceState::Deserialize(v8::Local<v8::Context> context,
-                                   uint64_t time_origin) {
+                                   uint64_t time_origin,
+                                   double time_origin_timestamp) {
   // Resets the pointers.
   root.Deserialize(context);
   milestones.Deserialize(context);
   observers.Deserialize(context);
 
-  // Re-initialize the time origin i.e. the process start time.
-  Initialize(time_origin);
+  // Re-initialize the time origin and timestamp i.e. the process start time.
+  Initialize(time_origin, time_origin_timestamp);
 }
 
 std::ostream& operator<<(std::ostream& o,
@@ -254,7 +258,7 @@ void Notify(const FunctionCallbackInfo<Value>& args) {
 void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint64_t idle_time = uv_metrics_idle_time(env->event_loop());
-  args.GetReturnValue().Set(1.0 * idle_time / 1e6);
+  args.GetReturnValue().Set(1.0 * idle_time / NANOS_PER_MILLIS);
 }
 
 void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
@@ -276,12 +280,6 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
                       "stddev", histogram.Stddev());
       }, Histogram::Options { 1000 });
   args.GetReturnValue().Set(histogram->object());
-}
-
-void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(Number::New(
-      args.GetIsolate(), env->time_origin_timestamp() / MICROS_PER_MILLIS));
 }
 
 void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
@@ -324,7 +322,6 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
             RemoveGarbageCollectionTracking);
   SetMethod(isolate, target, "notify", Notify);
   SetMethod(isolate, target, "loopIdleTime", LoopIdleTime);
-  SetMethod(isolate, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
   SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
   SetMethod(isolate, target, "markBootstrapComplete", MarkBootstrapComplete);
   SetFastMethodNoSideEffect(
@@ -391,7 +388,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RemoveGarbageCollectionTracking);
   registry->Register(Notify);
   registry->Register(LoopIdleTime);
-  registry->Register(GetTimeOriginTimeStamp);
   registry->Register(CreateELDHistogram);
   registry->Register(MarkBootstrapComplete);
   registry->Register(SlowPerformanceNow);

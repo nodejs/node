@@ -212,7 +212,7 @@ for (const test of TEST_CASES) {
     cipher.update('01234567', 'hex');
     cipher.final();
     const tag = cipher.getAuthTag();
-    assert.strictEqual(tag.toString('hex'), fullTag.substr(0, 2 * e));
+    assert.strictEqual(tag.toString('hex'), fullTag.slice(0, 2 * e));
   }
 }
 

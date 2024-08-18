@@ -32,6 +32,7 @@ const net = require('net');
 const path = require('path');
 const { inspect } = require('util');
 const { isMainThread } = require('worker_threads');
+const { isModuleNamespaceObject } = require('util/types');
 
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
@@ -56,11 +57,24 @@ const noop = () => {};
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
-const hasOpenSSL3 = hasCrypto &&
-    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30000000;
+// Synthesize OPENSSL_VERSION_NUMBER format with the layout 0xMNN00PPSL
+const opensslVersionNumber = (major = 0, minor = 0, patch = 0) => {
+  assert(major >= 0 && major <= 0xf);
+  assert(minor >= 0 && minor <= 0xff);
+  assert(patch >= 0 && patch <= 0xff);
+  return (major << 28) | (minor << 20) | (patch << 4);
+};
 
-const hasOpenSSL31 = hasCrypto &&
-    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30100000;
+let OPENSSL_VERSION_NUMBER;
+const hasOpenSSL = (major = 0, minor = 0, patch = 0) => {
+  if (!hasCrypto) return false;
+  if (OPENSSL_VERSION_NUMBER === undefined) {
+    const regexp = /(?<m>\d+)\.(?<n>\d+)\.(?<p>\d+)/;
+    const { m, n, p } = process.versions.openssl.match(regexp).groups;
+    OPENSSL_VERSION_NUMBER = opensslVersionNumber(m, n, p);
+  }
+  return OPENSSL_VERSION_NUMBER >= opensslVersionNumber(major, minor, patch);
+};
 
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
@@ -127,8 +141,9 @@ const isSunOS = process.platform === 'sunos';
 const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
-const isOSX = process.platform === 'darwin';
-const isAsan = process.env.ASAN !== undefined;
+const isMacOS = process.platform === 'darwin';
+const isASan = process.config.variables.asan === 1;
+const isDebug = process.features.debug;
 const isPi = (() => {
   try {
     // Normal Raspberry Pi detection is to find the `Raspberry Pi` string in
@@ -146,12 +161,8 @@ const isPi = (() => {
 const isDumbTerminal = process.env.TERM === 'dumb';
 
 // When using high concurrency or in the CI we need much more time for each connection attempt
-const defaultAutoSelectFamilyAttemptTimeout = platformTimeout(2500);
-// Since this is also used by tools outside of the test suite,
-// make sure setDefaultAutoSelectFamilyAttemptTimeout
-if (typeof net.setDefaultAutoSelectFamilyAttemptTimeout === 'function') {
-  net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(defaultAutoSelectFamilyAttemptTimeout));
-}
+net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(net.getDefaultAutoSelectFamilyAttemptTimeout() * 10));
+const defaultAutoSelectFamilyAttemptTimeout = net.getDefaultAutoSelectFamilyAttemptTimeout();
 
 const buildType = process.config.target_defaults ?
   process.config.target_defaults.default_configuration :
@@ -192,7 +203,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       }
       initHandles[id] = {
         resource,
-        stack: inspect(new Error()).substr(6),
+        stack: inspect(new Error()).slice(6),
       };
     },
     before() { },
@@ -270,7 +281,7 @@ function platformTimeout(ms) {
   const multipliers = typeof ms === 'bigint' ?
     { two: 2n, four: 4n, seven: 7n } : { two: 2, four: 4, seven: 7 };
 
-  if (process.features.debug)
+  if (isDebug)
     ms = multipliers.two * ms;
 
   if (exports.isAIX || exports.isIBMi)
@@ -283,6 +294,7 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
+  AbortController,
   atob,
   btoa,
   clearImmediate,
@@ -294,15 +306,6 @@ let knownGlobals = [
   setTimeout,
   queueMicrotask,
 ];
-
-// TODO(@jasnell): This check can be temporary. AbortController is
-// not currently supported in either Node.js 12 or 10, making it
-// difficult to run tests comparatively on those versions. Once
-// all supported versions have AbortController as a global, this
-// check can be removed and AbortController can be added to the
-// knownGlobals list above.
-if (global.AbortController)
-  knownGlobals.push(global.AbortController);
 
 if (global.gc) {
   knownGlobals.push(global.gc);
@@ -334,6 +337,10 @@ if (global.PerformanceMeasure) {
 // can add this to the list above instead.
 if (global.structuredClone) {
   knownGlobals.push(global.structuredClone);
+}
+
+if (global.EventSource) {
+  knownGlobals.push(EventSource);
 }
 
 if (global.fetch) {
@@ -369,8 +376,13 @@ if (global.ReadableStream) {
     global.DecompressionStream,
   );
 }
-if (global.WebSocket) {
-  knownGlobals.push(WebSocket);
+
+if (global.Storage) {
+  knownGlobals.push(
+    global.localStorage,
+    global.sessionStorage,
+    global.Storage,
+  );
 }
 
 function allowGlobals(...allowlist) {
@@ -506,7 +518,7 @@ function hasMultiLocalhost() {
 
 function skipIfEslintMissing() {
   if (!fs.existsSync(
-    path.join(__dirname, '..', '..', 'tools', 'node_modules', 'eslint'),
+    path.join(__dirname, '..', '..', 'tools', 'eslint', 'node_modules', 'eslint'),
   )) {
     skip('missing ESLint');
   }
@@ -609,7 +621,8 @@ function printSkipMessage(msg) {
 
 function skip(msg) {
   printSkipMessage(msg);
-  process.exit(0);
+  // In known_issues test, skipping should produce a non-zero exit code.
+  process.exit(require.main?.filename.startsWith(path.resolve(__dirname, '../known_issues/')) ? 1 : 0);
 }
 
 // Returns true if the exit code "exitCode" and/or signal name "signal"
@@ -662,12 +675,12 @@ function _expectWarning(name, expected, code) {
     expected = [[expected, code]];
   } else if (!Array.isArray(expected)) {
     expected = Object.entries(expected).map(([a, b]) => [b, a]);
-  } else if (!(Array.isArray(expected[0]))) {
+  } else if (expected.length !== 0 && !Array.isArray(expected[0])) {
     expected = [[expected[0], expected[1]]];
   }
   // Deprecation codes are mandatory, everything else is not.
   if (name === 'DeprecationWarning') {
-    expected.forEach(([_, code]) => assert(code, expected));
+    expected.forEach(([_, code]) => assert(code, `Missing deprecation code: ${expected}`));
   }
   return mustCall((warning) => {
     const expectedProperties = expected.shift();
@@ -945,6 +958,23 @@ function getPrintedStackTrace(stderr) {
   return result;
 }
 
+/**
+ * Check the exports of require(esm).
+ * TODO(joyeecheung): use it in all the test-require-module-* tests to minimize changes
+ * if/when we change the layout of the result returned by require(esm).
+ * @param {object} mod result returned by require()
+ * @param {object} expectation shape of expected namespace.
+ */
+function expectRequiredModule(mod, expectation, checkESModule = true) {
+  const clone = { ...mod };
+  if (Object.hasOwn(mod, 'default') && checkESModule) {
+    assert.strictEqual(mod.__esModule, true);
+    delete clone.__esModule;
+  }
+  assert(isModuleNamespaceObject(mod));
+  assert.deepStrictEqual(clone, { ...expectation });
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -953,6 +983,7 @@ const common = {
   createZeroFilledFile,
   defaultAutoSelectFamilyAttemptTimeout,
   expectsError,
+  expectRequiredModule,
   expectWarning,
   gcUntil,
   getArrayBufferViews,
@@ -962,19 +993,19 @@ const common = {
   getTTYfd,
   hasIntl,
   hasCrypto,
-  hasOpenSSL3,
-  hasOpenSSL31,
+  hasOpenSSL,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,
   isAlive,
-  isAsan,
+  isASan,
+  isDebug,
   isDumbTerminal,
   isFreeBSD,
   isLinux,
   isMainThread,
   isOpenBSD,
-  isOSX,
+  isMacOS,
   isPi,
   isSunOS,
   isWindows,
@@ -1022,6 +1053,18 @@ const common = {
       return re.test(name) &&
              iFaces[name].some(({ family }) => family === 'IPv6');
     });
+  },
+
+  get hasOpenSSL3() {
+    return hasOpenSSL(3);
+  },
+
+  get hasOpenSSL31() {
+    return hasOpenSSL(3, 1);
+  },
+
+  get hasOpenSSL32() {
+    return hasOpenSSL(3, 2);
   },
 
   get inFreeBSDJail() {

@@ -26,8 +26,7 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
     TNode<Context> context, TNode<JSGeneratorObject> generator,
     TNode<Object> value, TNode<JSPromise> outer_promise,
     TNode<SharedFunctionInfo> on_resolve_sfi,
-    TNode<SharedFunctionInfo> on_reject_sfi,
-    TNode<Boolean> is_predicted_as_caught) {
+    TNode<SharedFunctionInfo> on_reject_sfi) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // We do the `PromiseResolve(%Promise%,value)` avoiding to unnecessarily
@@ -138,9 +137,9 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
   Goto(&if_instrumentation_done);
   BIND(&if_instrumentation);
   {
-    var_throwaway = CallRuntime(Runtime::kDebugAsyncFunctionSuspended,
-                                native_context, value, outer_promise, on_reject,
-                                generator, is_predicted_as_caught);
+    var_throwaway =
+        CallRuntime(Runtime::kDebugAsyncFunctionSuspended, native_context,
+                    value, outer_promise, on_reject, generator);
     Goto(&if_instrumentation_done);
   }
   BIND(&if_instrumentation_done);
@@ -178,11 +177,9 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   // contains a builtin index (as Smi), so there's no need to use
   // CodeStubAssembler::GetSharedFunctionInfoCode() helper here,
   // which almost doubles the size of `await` builtins (unnecessarily).
-  TNode<Smi> builtin_id = LoadObjectField<Smi>(
-      shared_info, SharedFunctionInfo::kFunctionDataOffset);
+  TNode<Smi> builtin_id = LoadSharedFunctionInfoBuiltinId(shared_info);
   TNode<Code> code = LoadBuiltin(builtin_id);
-  StoreMaybeIndirectPointerFieldNoWriteBarrier(
-      function, JSFunction::kCodeOffset, kCodeIndirectPointerTag, code);
+  StoreCodePointerFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(

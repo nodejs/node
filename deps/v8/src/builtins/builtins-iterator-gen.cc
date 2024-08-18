@@ -9,7 +9,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/heap/factory-inl.h"
 
@@ -120,7 +120,6 @@ void IteratorBuiltinsAssembler::IteratorComplete(
   }
 
   BIND(&return_result);
-  return;
 }
 
 TNode<Object> IteratorBuiltinsAssembler::IteratorValue(

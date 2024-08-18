@@ -28,16 +28,16 @@ assertTrue(fast_c_api.supports_fp_params);
     const arr = [-42, 45,
     Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER,
     max_safe_float * 0.5, Math.PI];
-    return fast_c_api.add_all_sequence(false /* should_fallback */, arr);
+    return fast_c_api.add_all_sequence(arr);
   }
   ExpectFastCall(add_all_sequence, add_all_result);
 })();
 
 const max_safe_as_bigint = BigInt(Number.MAX_SAFE_INTEGER);
 (function () {
-  function int64_test(should_fallback = false) {
+  function int64_test() {
     let typed_array = new BigInt64Array([-42n, 1n, max_safe_as_bigint]);
-    return fast_c_api.add_all_int64_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_int64_typed_array(
       typed_array);
   }
   const expected = Number(BigInt.asIntN(64, -42n + 1n + max_safe_as_bigint));
@@ -45,9 +45,9 @@ const max_safe_as_bigint = BigInt(Number.MAX_SAFE_INTEGER);
 })();
 
 (function () {
-  function uint64_test(should_fallback = false) {
+  function uint64_test() {
     let typed_array = new BigUint64Array([max_safe_as_bigint, 1n, 2n]);
-    return fast_c_api.add_all_uint64_typed_array(false /* should_fallback */,
+    return fast_c_api.add_all_uint64_typed_array(
       typed_array);
   }
   const expected = Number(BigInt.asUintN(64, max_safe_as_bigint + 1n + 2n));

@@ -5,7 +5,9 @@
 #include "src/heap/heap-write-barrier.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/marking-barrier.h"
+#include "src/heap/marking-barrier-inl.h"
+#include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/descriptor-array.h"
@@ -20,15 +22,23 @@ namespace {
 thread_local MarkingBarrier* current_marking_barrier = nullptr;
 }  // namespace
 
+bool HeapObjectInYoungGenerationSticky(MemoryChunk* chunk,
+                                       Tagged<HeapObject> object) {
+  DCHECK(v8_flags.sticky_mark_bits);
+  return !chunk->IsOnlyOldOrMajorMarkingOn() &&
+         !MarkingBitmap::MarkBitFromAddress(object.address())
+              .template Get<AccessMode::ATOMIC>();
+}
+
 MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(
     Tagged<HeapObject> verification_candidate) {
   MarkingBarrier* marking_barrier = current_marking_barrier;
   DCHECK_NOT_NULL(marking_barrier);
 #if DEBUG
   if (!verification_candidate.is_null() &&
-      !verification_candidate.InAnySharedSpace()) {
+      !InAnySharedSpace(verification_candidate)) {
     Heap* host_heap =
-        MemoryChunk::FromHeapObject(verification_candidate)->heap();
+        MutablePageMetadata::FromHeapObject(verification_candidate)->heap();
     LocalHeap* local_heap = LocalHeap::Current();
     if (!local_heap) local_heap = host_heap->main_thread_local_heap();
     DCHECK_EQ(marking_barrier, local_heap->marking_barrier());
@@ -56,10 +66,9 @@ void WriteBarrier::MarkingSlowFromGlobalHandle(Tagged<HeapObject> value) {
 }
 
 // static
-void WriteBarrier::MarkingSlowFromInternalFields(Heap* heap,
-                                                 Tagged<JSObject> host) {
+void WriteBarrier::MarkingSlowFromCppHeapWrappable(Heap* heap, void* object) {
   if (auto* cpp_heap = heap->cpp_heap()) {
-    CppHeap::From(cpp_heap)->WriteBarrier(host);
+    CppHeap::From(cpp_heap)->WriteBarrier(object);
   }
 }
 
@@ -75,9 +84,20 @@ void WriteBarrier::SharedSlow(Tagged<InstructionStream> host,
   MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::ProcessRelocInfo(host, reloc_info, value);
 
-  base::MutexGuard write_scope(info.memory_chunk->mutex());
-  RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
+  base::MutexGuard write_scope(info.page_metadata->mutex());
+  RememberedSet<OLD_TO_SHARED>::InsertTyped(info.page_metadata, info.slot_type,
                                             info.offset);
+}
+
+void WriteBarrier::Shared(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
+                          Tagged<TrustedObject> value) {
+  DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
+  if (!MemoryChunk::FromHeapObject(host)->InWritableSharedSpace()) {
+    MutablePageMetadata* host_chunk_metadata =
+        MutablePageMetadata::FromHeapObject(host);
+    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+        host_chunk_metadata, host_chunk_metadata->Offset(slot.address()));
+  }
 }
 
 void WriteBarrier::MarkingSlow(Tagged<JSArrayBuffer> host,
@@ -98,8 +118,15 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   marking_barrier->Write(host, slot);
 }
 
+void WriteBarrier::MarkingSlow(Tagged<TrustedObject> host,
+                               ProtectedPointerSlot slot,
+                               Tagged<TrustedObject> value) {
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  marking_barrier->Write(host, slot, value);
+}
+
 int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
-  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
+  Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address value = (*slot).ptr();
 
@@ -113,19 +140,19 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
 #endif
 
 #if DEBUG
-  Heap* heap = MemoryChunk::FromHeapObject(host)->heap();
+  Heap* heap = MutablePageMetadata::FromHeapObject(host)->heap();
   DCHECK(heap->incremental_marking()->IsMarking());
 
   // We will only reach local objects here while incremental marking in the
   // current isolate is enabled. However, we might still reach objects in the
   // shared space but only from the shared space isolate (= the main isolate).
   MarkingBarrier* barrier = CurrentMarkingBarrier(host);
-  DCHECK_IMPLIES(host.InWritableSharedSpace(),
+  DCHECK_IMPLIES(InWritableSharedSpace(host),
                  barrier->heap()->isolate()->is_shared_space_isolate());
   barrier->AssertMarkingIsActivated();
 #endif  // DEBUG
 
-  WriteBarrier::Marking(host, slot, MaybeObject(value));
+  WriteBarrier::Marking(host, slot, Tagged<MaybeObject>(value));
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;
 }
@@ -133,23 +160,18 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
 int WriteBarrier::IndirectPointerMarkingFromCode(Address raw_host,
                                                  Address raw_slot,
                                                  Address raw_tag) {
-  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
+  Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
   IndirectPointerTag tag = static_cast<IndirectPointerTag>(raw_tag);
   DCHECK(IsValidIndirectPointerTag(tag));
   IndirectPointerSlot slot(raw_slot, tag);
 
 #if DEBUG
-  Heap* heap = MemoryChunk::FromHeapObject(host)->heap();
-  DCHECK(heap->incremental_marking()->IsMarking());
-
-  // We will only reach local objects here while incremental marking in the
-  // current isolate is enabled. However, we might still reach objects in the
-  // shared space but only from the shared space isolate (= the main isolate).
+  DCHECK(!InWritableSharedSpace(host));
   MarkingBarrier* barrier = CurrentMarkingBarrier(host);
-  DCHECK_IMPLIES(host.InWritableSharedSpace(),
-                 barrier->heap()->isolate()->is_shared_space_isolate());
-  barrier->AssertMarkingIsActivated();
-#endif  // DEBUG
+  DCHECK(barrier->heap()->isolate()->isolate_data()->is_marking());
+
+  DCHECK(IsExposedTrustedObject(slot.load(barrier->heap()->isolate())));
+#endif
 
   WriteBarrier::Marking(host, slot);
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
@@ -157,15 +179,15 @@ int WriteBarrier::IndirectPointerMarkingFromCode(Address raw_host,
 }
 
 int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
-  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
+  Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address raw_value = (*slot).ptr();
-  MaybeObject value(raw_value);
+  Tagged<MaybeObject> value(raw_value);
 
-  DCHECK(host.InWritableSharedSpace());
+  DCHECK(InWritableSharedSpace(host));
 
 #if DEBUG
-  Heap* heap = MemoryChunk::FromHeapObject(host)->heap();
+  Heap* heap = MutablePageMetadata::FromHeapObject(host)->heap();
   DCHECK(heap->incremental_marking()->IsMajorMarking());
   Isolate* isolate = heap->isolate();
   DCHECK(isolate->is_shared_space_isolate());
@@ -177,16 +199,16 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   barrier->AssertSharedMarkingIsActivated();
 #endif  // DEBUG
 
-  WriteBarrier::Marking(host, slot, MaybeObject(value));
+  WriteBarrier::Marking(host, slot, Tagged<MaybeObject>(value));
 
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;
 }
 
 int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
-  Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
+  Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
 
-  if (!host.InWritableSharedSpace()) {
+  if (!InWritableSharedSpace(host)) {
     Heap::SharedHeapBarrierSlow(host, raw_slot);
   }
 
@@ -196,9 +218,9 @@ int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
 
 #ifdef ENABLE_SLOW_DCHECKS
 bool WriteBarrier::IsImmortalImmovableHeapObject(Tagged<HeapObject> object) {
-  BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   // All objects in readonly space are immortal and immovable.
-  return basic_chunk->InReadOnlySpace();
+  return chunk->InReadOnlySpace();
 }
 #endif
 

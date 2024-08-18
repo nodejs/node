@@ -141,24 +141,33 @@ int CallDescriptor::GetOffsetToReturns() const {
 
 uint32_t CallDescriptor::GetTaggedParameterSlots() const {
   uint32_t count = 0;
+  uint32_t untagged_count = 0;
   uint32_t first_offset = kMaxInt;
   for (size_t i = 0; i < InputCount(); ++i) {
     LinkageLocation operand = GetInputLocation(i);
-    if (!operand.IsRegister() && operand.GetType().IsTagged()) {
-      ++count;
-      // Caller frame slots have negative indices and start at -1. Flip it
-      // back to a positive offset (to be added to the frame's SP to find the
-      // slot).
-      int slot_offset = -operand.GetLocation() - 1;
-      DCHECK_GE(slot_offset, 0);
-      first_offset = std::min(first_offset, static_cast<uint32_t>(slot_offset));
+    if (!operand.IsRegister()) {
+      if (operand.GetType().IsTagged()) {
+        ++count;
+        // Caller frame slots have negative indices and start at -1. Flip it
+        // back to a positive offset (to be added to the frame's SP to find the
+        // slot).
+        int slot_offset = -operand.GetLocation() - 1;
+        DCHECK_GE(slot_offset, 0);
+        first_offset =
+            std::min(first_offset, static_cast<uint32_t>(slot_offset));
+      } else {
+        untagged_count += operand.GetSizeInPointers();
+      }
     }
   }
-  if (count > 0) {
-    DCHECK(first_offset != kMaxInt);
-    return (first_offset << 16) | (count & 0xFFFFu);
+  if (count == 0) {
+    // If we don't have any tagged parameter slots, still initialize the offset
+    // to point past the untagged parameter slots, so that
+    // offset + count == stack slot count.
+    first_offset = untagged_count;
   }
-  return 0;
+  DCHECK(first_offset != kMaxInt);
+  return (first_offset << 16) | (count & 0xFFFFu);
 }
 
 bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
@@ -200,8 +209,9 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
       return TypedFrameConstants::kFixedSlotCount;
 #if V8_ENABLE_WEBASSEMBLY
     case kCallWasmFunction:
-    case kCallWasmImportWrapper:
       return WasmFrameConstants::kFixedSlotCount;
+    case kCallWasmImportWrapper:
+      return WasmImportWrapperFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -222,7 +232,12 @@ EncodedCSignature CallDescriptor::ToEncodedCSignature() const {
   if (ReturnCount() > 0) {
     DCHECK_EQ(1, ReturnCount());
     if (IsFloatingPoint(GetReturnType(0).representation())) {
-      sig.SetFloat(EncodedCSignature::kReturnIndex);
+      if (GetReturnType(0).representation() ==
+          MachineRepresentation::kFloat64) {
+        sig.SetReturnFloat64();
+      } else {
+        sig.SetReturnFloat32();
+      }
     }
   }
   return sig;
@@ -250,11 +265,14 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
-    Tagged<SharedFunctionInfo> shared = info->closure()->shared();
-    return GetJSCallDescriptor(
-        zone, info->is_osr(),
-        shared->internal_formal_parameter_count_with_receiver(),
-        CallDescriptor::kCanUseRoots);
+    DCHECK(info->has_bytecode_array());
+    DCHECK_EQ(info->closure()
+                  ->shared()
+                  ->internal_formal_parameter_count_with_receiver(),
+              info->bytecode_array()->parameter_count());
+    return GetJSCallDescriptor(zone, info->is_osr(),
+                               info->bytecode_array()->parameter_count(),
+                               CallDescriptor::kCanUseRoots);
   }
   return nullptr;  // TODO(titzer): ?
 }
@@ -271,7 +289,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kCreateIterResultObject:
     case Runtime::kGrowableSharedArrayBufferByteLength:
     case Runtime::kIncBlockCounter:
-    case Runtime::kIsFunction:
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:
@@ -368,6 +385,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
   return zone->New<CallDescriptor>(     // --
       CallDescriptor::kCallCodeObject,  // kind
+      kDefaultCodeEntrypointTag,        // tag
       target_type,                      // target MachineType
       target_loc,                       // target location
       locations.Build(),                // location_sig
@@ -426,6 +444,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   CallDescriptor::Kind descriptor_kind = CallDescriptor::kCallJSFunction;
   return zone->New<CallDescriptor>(  // --
       descriptor_kind,               // kind
+      kJSEntrypointTag,              // tag
       target_type,                   // target MachineType
       target_loc,                    // target location
       locations.Build(),             // location_sig
@@ -526,6 +545,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   return zone->New<CallDescriptor>(          // --
       kind,                                  // kind
+      descriptor.tag(),                      // tag
       target_type,                           // target MachineType
       target_loc,                            // target location
       locations.Build(),                     // location_sig
@@ -571,16 +591,17 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   const CallDescriptor::Flags kFlags =
       CallDescriptor::kCanUseRoots | CallDescriptor::kFixedTargetRegister;
-  return zone->New<CallDescriptor>(  // --
-      CallDescriptor::kCallAddress,  // kind
-      target_type,                   // target MachineType
-      target_loc,                    // target location
-      locations.Build(),             // location_sig
-      stack_parameter_count,         // stack_parameter_count
-      Operator::kNoProperties,       // properties
-      kNoCalleeSaved,                // callee-saved registers
-      kNoCalleeSavedFp,              // callee-saved fp
-      kFlags,                        // flags
+  return zone->New<CallDescriptor>(   // --
+      CallDescriptor::kCallAddress,   // kind
+      kBytecodeHandlerEntrypointTag,  // tag
+      target_type,                    // target MachineType
+      target_loc,                     // target location
+      locations.Build(),              // location_sig
+      stack_parameter_count,          // stack_parameter_count
+      Operator::kNoProperties,        // properties
+      kNoCalleeSaved,                 // callee-saved registers
+      kNoCalleeSavedFp,               // callee-saved fp
+      kFlags,                         // flags
       descriptor.DebugName());
 }
 

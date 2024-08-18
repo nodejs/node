@@ -80,7 +80,9 @@ static void create_file(const char* name) {
   uv_file file;
   uv_fs_t req;
 
-  r = uv_fs_open(NULL, &req, name, O_WRONLY | O_CREAT, S_IWUSR | S_IRUSR, NULL);
+  r = uv_fs_open(NULL, &req, name, UV_FS_O_WRONLY | UV_FS_O_CREAT,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
   ASSERT_GE(r, 0);
   file = r;
   uv_fs_req_cleanup(&req);
@@ -95,7 +97,7 @@ static void touch_file(const char* name) {
   uv_fs_t req;
   uv_buf_t buf;
 
-  r = uv_fs_open(NULL, &req, name, O_RDWR, 0, NULL);
+  r = uv_fs_open(NULL, &req, name, UV_FS_O_RDWR, 0, NULL);
   ASSERT_GE(r, 0);
   file = r;
   uv_fs_req_cleanup(&req);

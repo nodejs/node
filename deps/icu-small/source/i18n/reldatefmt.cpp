@@ -1380,7 +1380,7 @@ ureldatefmt_formatNumericToResult(
     if (U_FAILURE(*status)) {
         return;
     }
-    auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
+    const auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
     auto* resultImpl = UFormattedRelativeDateTimeApiHelper::validate(result, *status);
     resultImpl->fImpl = fmt->formatNumericToValue(offset, unit, *status);
 }
@@ -1423,7 +1423,7 @@ ureldatefmt_formatToResult(
     if (U_FAILURE(*status)) {
         return;
     }
-    auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
+    const auto* fmt = reinterpret_cast<const RelativeDateTimeFormatter*>(reldatefmt);
     auto* resultImpl = UFormattedRelativeDateTimeApiHelper::validate(result, *status);
     resultImpl->fImpl = fmt->formatToValue(offset, unit, *status);
 }

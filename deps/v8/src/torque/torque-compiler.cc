@@ -59,7 +59,6 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.annotate_ir) {
     GlobalContext::SetAnnotateIR();
   }
-  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   TypeOracle::Scope type_oracle;
   CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
 
@@ -78,7 +77,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   std::string output_directory = options.output_directory;
 
   ImplementationVisitor implementation_visitor;
-  implementation_visitor.SetDryRun(output_directory.length() == 0);
+  implementation_visitor.SetDryRun(output_directory.empty());
 
   implementation_visitor.GenerateInstanceTypes(output_directory);
   implementation_visitor.BeginGeneratedFiles();
@@ -115,6 +114,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
 TorqueCompilerResult CompileTorque(const std::string& source,
                                    TorqueCompilerOptions options) {
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   SourceFileMap::Scope source_map_scope(options.v8_root);
   CurrentSourceFile::Scope no_file_scope(
       SourceFileMap::AddSource("dummy-filename.tq"));
@@ -140,6 +140,7 @@ TorqueCompilerResult CompileTorque(const std::string& source,
 
 TorqueCompilerResult CompileTorque(std::vector<std::string> files,
                                    TorqueCompilerOptions options) {
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   SourceFileMap::Scope source_map_scope(options.v8_root);
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope;
@@ -167,6 +168,7 @@ TorqueCompilerResult CompileTorque(std::vector<std::string> files,
 TorqueCompilerResult CompileTorqueForKythe(
     std::vector<TorqueCompilationUnit> units, TorqueCompilerOptions options,
     KytheConsumer* consumer) {
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   SourceFileMap::Scope source_map_scope(options.v8_root);
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope;

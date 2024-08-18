@@ -1,6 +1,6 @@
 {
   "name": "http-proxy-agent",
-  "version": "7.0.0",
+  "version": "7.0.2",
   "description": "An HTTP(s) proxy `http.Agent` implementation for HTTP",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

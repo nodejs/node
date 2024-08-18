@@ -41,7 +41,7 @@ try {
   skip('insufficient privileges for symlinks');
 }
 
-describe('Invoke the main file via a symlink.', { concurrency: true }, () => {
+describe('Invoke the main file via a symlink.', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should resolve relative imports in the main file', async () => {
     const { code } = await spawnPromisified(execPath, [
       '--preserve-symlinks',

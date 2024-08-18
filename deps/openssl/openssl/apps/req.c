@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -569,7 +569,7 @@ int req_main(int argc, char **argv)
         X509V3_CTX ctx;
 
         X509V3_set_ctx_test(&ctx);
-        X509V3_set_nconf(&ctx, addext_conf);
+        X509V3_set_nconf(&ctx, req_conf);
         if (!X509V3_EXT_add_nconf(addext_conf, &ctx, "default", NULL)) {
             BIO_printf(bio_err, "Error checking extensions defined using -addext\n");
             goto end;
@@ -733,7 +733,7 @@ int req_main(int argc, char **argv)
             }
             goto end;
         }
-        BIO_free(out);
+        BIO_free_all(out);
         out = NULL;
         BIO_printf(bio_err, "-----\n");
     }

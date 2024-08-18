@@ -5,12 +5,11 @@
 #ifndef V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 
+#include "src/codegen/code-factory.h"  // for enum AllocationSiteOverrideMode
 #include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-enum AllocationSiteOverrideMode;
 
 class ArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -34,7 +33,7 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
     TNode<ExternalReference> func = ExternalConstant(
         ExternalReference::jsarray_array_join_concat_to_sequential_string());
     TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+        ExternalConstant(ExternalReference::isolate_address());
     return UncheckedCast<String>(
         CallCFunction(func,
                       MachineType::AnyTagged(),  // <return> String
@@ -126,22 +125,40 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
 
 class ArrayBuiltins {
  public:
-  enum ArrayFromAsyncResolveContextSlots {
-    kArrayFromAsyncResolveResumeStateStepSlot = Context::MIN_CONTEXT_SLOTS,
-    kArrayFromAsyncResolveResumeStateAwaitedValueSlot,
-    kArrayFromAsyncResolveResumeStateLenSlot,
-    kArrayFromAsyncResolveResumeStateIndexSlot,
-    kArrayFromAsyncResolvePromiseSlot,
-    kArrayFromAsyncResolvePromiseFunctionSlot,
-    kArrayFromAsyncResolveOnFulfilledFunctionSlot,
-    kArrayFromAsyncResolveOnRejectedFunctionSlot,
-    kArrayFromAsyncResolveResultArraySlot,
-    kArrayFromAsyncResolveIteratorSlot,
-    kArrayFromAsyncResolveNextMethodSlot,
-    kArrayFromAsyncResolveErrorSlot,
-    kArrayFromAsyncResolveMapfnSlot,
-    kArrayFromAsyncResolveThisArgSlot,
-    kArrayFromAsyncResolveLength
+  enum ArrayFromAsyncIterableResolveContextSlots {
+    kArrayFromAsyncIterableResolveResumeStateStepSlot =
+        Context::MIN_CONTEXT_SLOTS,
+    kArrayFromAsyncIterableResolveResumeStateAwaitedValueSlot,
+    kArrayFromAsyncIterableResolveResumeStateIndexSlot,
+    kArrayFromAsyncIterableResolvePromiseSlot,
+    kArrayFromAsyncIterableResolvePromiseFunctionSlot,
+    kArrayFromAsyncIterableResolveOnFulfilledFunctionSlot,
+    kArrayFromAsyncIterableResolveOnRejectedFunctionSlot,
+    kArrayFromAsyncIterableResolveResultArraySlot,
+    kArrayFromAsyncIterableResolveIteratorSlot,
+    kArrayFromAsyncIterableResolveNextMethodSlot,
+    kArrayFromAsyncIterableResolveErrorSlot,
+    kArrayFromAsyncIterableResolveMapfnSlot,
+    kArrayFromAsyncIterableResolveThisArgSlot,
+    kArrayFromAsyncIterableResolveLength
+  };
+
+  enum ArrayFromAsyncArrayLikeResolveContextSlots {
+    kArrayFromAsyncArrayLikeResolveResumeStateStepSlot =
+        Context::MIN_CONTEXT_SLOTS,
+    kArrayFromAsyncArrayLikeResolveResumeStateAwaitedValueSlot,
+    kArrayFromAsyncArrayLikeResolveResumeStateLenSlot,
+    kArrayFromAsyncArrayLikeResolveResumeStateIndexSlot,
+    kArrayFromAsyncArrayLikeResolvePromiseSlot,
+    kArrayFromAsyncArrayLikeResolvePromiseFunctionSlot,
+    kArrayFromAsyncArrayLikeResolveOnFulfilledFunctionSlot,
+    kArrayFromAsyncArrayLikeResolveOnRejectedFunctionSlot,
+    kArrayFromAsyncArrayLikeResolveResultArraySlot,
+    kArrayFromAsyncArrayLikeResolveArrayLikeSlot,
+    kArrayFromAsyncArrayLikeResolveErrorSlot,
+    kArrayFromAsyncArrayLikeResolveMapfnSlot,
+    kArrayFromAsyncArrayLikeResolveThisArgSlot,
+    kArrayFromAsyncArrayLikeResolveLength
   };
 
   enum ArrayFromAsyncLabels {

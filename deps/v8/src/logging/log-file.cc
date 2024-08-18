@@ -113,12 +113,11 @@ void LogFile::MessageBuilder::AppendString(Tagged<String> str,
   if (str.is_null()) return;
 
   DisallowGarbageCollection no_gc;  // Ensure string stays valid.
-  PtrComprCageBase cage_base = GetPtrComprCageBase(str);
   SharedStringAccessGuardIfNeeded access_guard(str);
   int length = str->length();
   if (length_limit) length = std::min(length, *length_limit);
   for (int i = 0; i < length; i++) {
-    uint16_t c = str->Get(i, cage_base, access_guard);
+    uint16_t c = str->Get(i, access_guard);
     if (c <= 0xFF) {
       AppendCharacter(static_cast<char>(c));
     } else {
@@ -198,7 +197,7 @@ void LogFile::MessageBuilder::AppendSymbolName(Tagged<Symbol> symbol) {
   os << "symbol(";
   if (!IsUndefined(symbol->description())) {
     os << "\"";
-    AppendSymbolNameDetails(String::cast(symbol->description()), false);
+    AppendSymbolNameDetails(Cast<String>(symbol->description()), false);
     os << "\" ";
   }
   os << "hash " << std::hex << symbol->hash() << std::dec << ")";
@@ -293,9 +292,9 @@ template <>
 LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Name>>(
     Tagged<Name> name) {
   if (IsString(name)) {
-    this->AppendString(String::cast(name));
+    this->AppendString(Cast<String>(name));
   } else {
-    this->AppendSymbolName(Symbol::cast(name));
+    this->AppendSymbolName(Cast<Symbol>(name));
   }
   return *this;
 }

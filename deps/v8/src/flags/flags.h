@@ -38,6 +38,7 @@ class FlagValue {
                 std::is_same_v<const char*, T>);
 
  public:
+  using underlying_type = T;
   explicit constexpr FlagValue(T value) : value_(value) {}
 
   // Implicitly convert to a {T}. Not marked {constexpr} so we do not get
@@ -132,6 +133,10 @@ class V8_EXPORT_PRIVATE FlagList {
   static void PrintHelp();
 
   static void PrintValues();
+
+  // Reset some contradictory flags provided on the command line during
+  // fuzzing.
+  static void ResolveContradictionsWhenFuzzing();
 
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();

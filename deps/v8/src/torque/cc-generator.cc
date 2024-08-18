@@ -398,7 +398,7 @@ void CCGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
       // HeapObject|TaggedZeroPattern, which is output as "Object". TaggedField
       // requires HeapObject, so we need a cast.
       out() << "TaggedField<" << result_type
-            << ">::load(Tagged<HeapObject>::unchecked_cast(" << object
+            << ">::load(UncheckedCast<HeapObject>(" << object
             << "), static_cast<int>(" << offset << "));\n";
     } else {
       out() << "(" << object << ")->ReadField<" << result_type << ">(" << offset

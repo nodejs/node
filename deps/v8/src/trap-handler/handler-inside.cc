@@ -34,7 +34,7 @@ namespace trap_handler {
 
 // This function contains the platform independent portions of fault
 // classification.
-bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
+bool IsFaultAddressCovered(uintptr_t fault_addr) {
   // TODO(eholk): broad code range check
 
   // Taking locks in the trap handler is risky because a fault in the trap
@@ -62,8 +62,6 @@ bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
       for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
         if (data->instructions[j].instr_offset == offset) {
           // Hurray again, we found the actual instruction.
-          *landing_pad = data->instructions[j].landing_offset + base;
-
           gRecoveredTrapCount.store(
               gRecoveredTrapCount.load(std::memory_order_relaxed) + 1,
               std::memory_order_relaxed);
@@ -74,6 +72,16 @@ bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
     }
   }
   return false;
+}
+
+bool IsAccessedMemoryCovered(uintptr_t addr) {
+  // Check if the access is inside the V8 sandbox (if it is enabled) as all Wasm
+  // Memory objects must be located inside the sandbox.
+  if (gV8SandboxSize > 0) {
+    return addr >= gV8SandboxBase && addr < (gV8SandboxBase + gV8SandboxSize);
+  }
+
+  return true;
 }
 #endif  // V8_TRAP_HANDLER_SUPPORTED
 

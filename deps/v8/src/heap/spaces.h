@@ -14,14 +14,14 @@
 #include "src/heap/allocation-observer.h"
 #include "src/heap/base-space.h"
 #include "src/heap/base/active-system-pages.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/free-list.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/heap/list.h"
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk.h"
-#include "src/heap/page.h"
+#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/slot-set.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
@@ -41,7 +41,7 @@ class FreeList;
 class Heap;
 class Isolate;
 class LargeObjectSpace;
-class LargePage;
+class LargePageMetadata;
 class ObjectIterator;
 class PagedSpaceBase;
 class SemiSpace;
@@ -97,27 +97,34 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
 
-  virtual MemoryChunk* first_page() { return memory_chunk_list_.front(); }
-  virtual MemoryChunk* last_page() { return memory_chunk_list_.back(); }
-
-  virtual const MemoryChunk* first_page() const {
+  virtual MutablePageMetadata* first_page() {
     return memory_chunk_list_.front();
   }
-  virtual const MemoryChunk* last_page() const {
+  virtual MutablePageMetadata* last_page() { return memory_chunk_list_.back(); }
+
+  virtual const MutablePageMetadata* first_page() const {
+    return memory_chunk_list_.front();
+  }
+  virtual const MutablePageMetadata* last_page() const {
     return memory_chunk_list_.back();
   }
 
-  virtual heap::List<MemoryChunk>& memory_chunk_list() {
+  virtual heap::List<MutablePageMetadata>& memory_chunk_list() {
     return memory_chunk_list_;
   }
 
-  virtual Page* InitializePage(MemoryChunk* chunk) { UNREACHABLE(); }
+  virtual PageMetadata* InitializePage(MutablePageMetadata* chunk) {
+    UNREACHABLE();
+  }
+
+  virtual void NotifyBlackAreaCreated(size_t size) {}
+  virtual void NotifyBlackAreaDestroyed(size_t size) {}
 
   FreeList* free_list() { return free_list_.get(); }
 
   Address FirstPageAddress() const {
     DCHECK_NOT_NULL(first_page());
-    return first_page()->address();
+    return first_page()->ChunkAddress();
   }
 
 #ifdef DEBUG
@@ -126,7 +133,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
  protected:
   // The List manages the pages that belong to the given space.
-  heap::List<MemoryChunk> memory_chunk_list_;
+  heap::List<MutablePageMetadata> memory_chunk_list_;
   // Tracks off-heap memory used by this space.
   std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
@@ -149,181 +156,71 @@ class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
   virtual Tagged<HeapObject> Next() = 0;
 };
 
-template <class PAGE_TYPE>
+template <class PageType>
 class PageIteratorImpl
-    : public base::iterator<std::forward_iterator_tag, PAGE_TYPE> {
+    : public base::iterator<std::forward_iterator_tag, PageType> {
  public:
-  explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
-  PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
-  PAGE_TYPE* operator*() { return p_; }
-  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
+  explicit PageIteratorImpl(PageType* p) : p_(p) {}
+  PageIteratorImpl(const PageIteratorImpl&) V8_NOEXCEPT = default;
+  PageIteratorImpl& operator=(const PageIteratorImpl&) V8_NOEXCEPT = default;
+
+  PageType* operator*() { return p_; }
+  bool operator==(const PageIteratorImpl<PageType>& rhs) const {
     return rhs.p_ == p_;
   }
-  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
+  bool operator!=(const PageIteratorImpl<PageType>& rhs) const {
     return rhs.p_ != p_;
   }
-  inline PageIteratorImpl<PAGE_TYPE>& operator++();
-  inline PageIteratorImpl<PAGE_TYPE> operator++(int);
+  inline PageIteratorImpl<PageType>& operator++();
+  inline PageIteratorImpl<PageType> operator++(int);
 
  private:
-  PAGE_TYPE* p_;
+  PageType* p_;
 };
 
-using PageIterator = PageIteratorImpl<Page>;
-using ConstPageIterator = PageIteratorImpl<const Page>;
-using LargePageIterator = PageIteratorImpl<LargePage>;
-using ConstLargePageIterator = PageIteratorImpl<const LargePage>;
+using PageIterator = PageIteratorImpl<PageMetadata>;
+using ConstPageIterator = PageIteratorImpl<const PageMetadata>;
+using LargePageIterator = PageIteratorImpl<LargePageMetadata>;
+using ConstLargePageIterator = PageIteratorImpl<const LargePageMetadata>;
 
 class PageRange {
  public:
   using iterator = PageIterator;
-  PageRange(Page* begin, Page* end) : begin_(begin), end_(end) {}
-  inline explicit PageRange(Page* page);
+  PageRange(PageMetadata* begin, PageMetadata* end)
+      : begin_(begin), end_(end) {}
+  inline explicit PageRange(PageMetadata* page);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
  private:
-  Page* begin_;
-  Page* end_;
+  PageMetadata* begin_;
+  PageMetadata* end_;
 };
 
 class ConstPageRange {
  public:
   using iterator = ConstPageIterator;
-  ConstPageRange(const Page* begin, const Page* end)
+  ConstPageRange(const PageMetadata* begin, const PageMetadata* end)
       : begin_(begin), end_(end) {}
-  inline explicit ConstPageRange(const Page* page);
+  inline explicit ConstPageRange(const PageMetadata* page);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
  private:
-  const Page* begin_;
-  const Page* end_;
-};
-
-// -----------------------------------------------------------------------------
-// A space has a circular list of pages. The next page can be accessed via
-// Page::next_page() call.
-
-// LocalAllocationBuffer represents a linear allocation area that is created
-// from a given {AllocationResult} and can be used to allocate memory without
-// synchronization.
-//
-// The buffer is properly closed upon destruction and reassignment.
-// Example:
-//   {
-//     AllocationResult result = ...;
-//     LocalAllocationBuffer a(heap, result, size);
-//     LocalAllocationBuffer b = a;
-//     CHECK(!a.IsValid());
-//     CHECK(b.IsValid());
-//     // {a} is invalid now and cannot be used for further allocations.
-//   }
-//   // Since {b} went out of scope, the LAB is closed, resulting in creating a
-//   // filler object for the remaining area.
-class LocalAllocationBuffer {
- public:
-  // Indicates that a buffer cannot be used for allocations anymore. Can result
-  // from either reassigning a buffer, or trying to construct it from an
-  // invalid {AllocationResult}.
-  static LocalAllocationBuffer InvalidBuffer() {
-    return LocalAllocationBuffer(
-        nullptr, LinearAllocationArea(kNullAddress, kNullAddress));
-  }
-
-  // Creates a new LAB from a given {AllocationResult}. Results in
-  // InvalidBuffer if the result indicates a retry.
-  static inline LocalAllocationBuffer FromResult(Heap* heap,
-                                                 AllocationResult result,
-                                                 intptr_t size);
-
-  ~LocalAllocationBuffer() { CloseAndMakeIterable(); }
-
-  LocalAllocationBuffer(const LocalAllocationBuffer& other) = delete;
-  V8_EXPORT_PRIVATE LocalAllocationBuffer(LocalAllocationBuffer&& other)
-      V8_NOEXCEPT;
-
-  LocalAllocationBuffer& operator=(const LocalAllocationBuffer& other) = delete;
-  V8_EXPORT_PRIVATE LocalAllocationBuffer& operator=(
-      LocalAllocationBuffer&& other) V8_NOEXCEPT;
-
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
-      int size_in_bytes, AllocationAlignment alignment);
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
-      int size_in_bytes);
-
-  inline bool IsValid() { return allocation_info_.top() != kNullAddress; }
-
-  // Try to merge LABs, which is only possible when they are adjacent in memory.
-  // Returns true if the merge was successful, false otherwise.
-  inline bool TryMerge(LocalAllocationBuffer* other);
-
-  inline bool TryFreeLast(Tagged<HeapObject> object, int object_size);
-
-  // Close a LAB, effectively invalidating it. Returns the unused area.
-  V8_EXPORT_PRIVATE LinearAllocationArea CloseAndMakeIterable();
-  void MakeIterable();
-
-  Address top() const { return allocation_info_.top(); }
-  Address limit() const { return allocation_info_.limit(); }
-
- private:
-  V8_EXPORT_PRIVATE LocalAllocationBuffer(
-      Heap* heap, LinearAllocationArea allocation_info) V8_NOEXCEPT;
-
-  Heap* heap_;
-  LinearAllocationArea allocation_info_;
+  const PageMetadata* begin_;
+  const PageMetadata* end_;
 };
 
 class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
  public:
-  // Creates this space with a new MainAllocator instance.
-  SpaceWithLinearArea(
-      Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-      CompactionSpaceKind compaction_space_kind,
-      MainAllocator::SupportsExtendingLAB supports_extending_lab);
-
-  // Creates this space with a new MainAllocator instance and passes
-  // `allocation_info` to its constructor.
-  SpaceWithLinearArea(
-      Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-      CompactionSpaceKind compaction_space_kind,
-      MainAllocator::SupportsExtendingLAB supports_extending_lab,
-      LinearAllocationArea& allocation_info);
-
   // Creates this space and uses the existing `allocator`. It doesn't create a
   // new MainAllocator instance.
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
-                      std::unique_ptr<FreeList> free_list,
-                      CompactionSpaceKind compaction_space_kind,
-                      MainAllocator* allocator);
+                      std::unique_ptr<FreeList> free_list);
 
-  MainAllocator* main_allocator() { return allocator_; }
-
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
-              AllocationOrigin origin = AllocationOrigin::kRuntime);
-
- protected:
-  // Sets up a linear allocation area that fits the given number of bytes.
-  // Returns false if there is not enough space and the caller has to retry
-  // after collecting garbage.
-  // Writes to `max_aligned_size` the actual number of bytes used for checking
-  // that there is enough space.
-  virtual bool EnsureAllocation(int size_in_bytes,
-                                AllocationAlignment alignment,
-                                AllocationOrigin origin,
-                                int* out_max_aligned_size) = 0;
-
-  virtual void FreeLinearAllocationArea() = 0;
-
-  virtual void UpdateInlineAllocationLimit() = 0;
-
-  // TODO(chromium:1480975): Move the LAB out of the space.
-  MainAllocator* allocator_;
-  base::Optional<MainAllocator> owned_allocator_;
+  virtual AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) = 0;
 
   friend class MainAllocator;
 };
@@ -347,11 +244,11 @@ class MemoryChunkIterator {
   explicit MemoryChunkIterator(Heap* heap) : space_iterator_(heap) {}
 
   V8_INLINE bool HasNext();
-  V8_INLINE MemoryChunk* Next();
+  V8_INLINE MutablePageMetadata* Next();
 
  private:
   SpaceIterator space_iterator_;
-  MemoryChunk* current_chunk_ = nullptr;
+  MutablePageMetadata* current_chunk_ = nullptr;
 };
 
 }  // namespace internal

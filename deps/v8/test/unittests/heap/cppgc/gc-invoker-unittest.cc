@@ -21,20 +21,31 @@ class MockGarbageCollector : public GarbageCollector {
   MOCK_METHOD(void, CollectGarbage, (GCConfig), (override));
   MOCK_METHOD(void, StartIncrementalGarbageCollection, (GCConfig), (override));
   MOCK_METHOD(size_t, epoch, (), (const, override));
-  MOCK_METHOD(const EmbedderStackState*, override_stack_state, (),
+  MOCK_METHOD(std::optional<EmbedderStackState>, overridden_stack_state, (),
               (const, override));
+  MOCK_METHOD(void, set_override_stack_state, (EmbedderStackState), (override));
+  MOCK_METHOD(void, clear_overridden_stack_state, (), (override));
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  MOCK_METHOD(v8::base::Optional<int>, UpdateAllocationTimeout, (), (override));
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
 class MockTaskRunner : public cppgc::TaskRunner {
  public:
-  MOCK_METHOD(void, PostTask, (std::unique_ptr<cppgc::Task>), (override));
-  MOCK_METHOD(void, PostNonNestableTask, (std::unique_ptr<cppgc::Task>),
+  MOCK_METHOD(void, PostTaskImpl,
+              (std::unique_ptr<cppgc::Task>, const SourceLocation&),
               (override));
-  MOCK_METHOD(void, PostDelayedTask, (std::unique_ptr<cppgc::Task>, double),
+  MOCK_METHOD(void, PostNonNestableTaskImpl,
+              (std::unique_ptr<cppgc::Task>, const SourceLocation&),
               (override));
-  MOCK_METHOD(void, PostNonNestableDelayedTask,
-              (std::unique_ptr<cppgc::Task>, double), (override));
-  MOCK_METHOD(void, PostIdleTask, (std::unique_ptr<cppgc::IdleTask>),
+  MOCK_METHOD(void, PostDelayedTaskImpl,
+              (std::unique_ptr<cppgc::Task>, double, const SourceLocation&),
+              (override));
+  MOCK_METHOD(void, PostNonNestableDelayedTaskImpl,
+              (std::unique_ptr<cppgc::Task>, double, const SourceLocation&),
+              (override));
+  MOCK_METHOD(void, PostIdleTaskImpl,
+              (std::unique_ptr<cppgc::IdleTask>, const SourceLocation&),
               (override));
 
   bool IdleTasksEnabled() override { return true; }
@@ -96,7 +107,7 @@ TEST(GCInvokerTest, ConservativeGCIsScheduledAsPreciseGCViaPlatform) {
                     cppgc::Heap::StackSupport::kNoConservativeStackScan);
   EXPECT_CALL(gc, epoch).WillOnce(::testing::Return(0));
   EXPECT_CALL(*static_cast<MockTaskRunner*>(runner.get()),
-              PostNonNestableTask(::testing::_));
+              PostNonNestableTaskImpl(::testing::_, ::testing::_));
   invoker.CollectGarbage(GCConfig::ConservativeAtomicConfig());
 }
 

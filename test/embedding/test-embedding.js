@@ -4,6 +4,7 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const {
+  spawnSyncAndAssert,
   spawnSyncAndExit,
   spawnSyncAndExitWithoutError,
 } = require('../common/child_process');
@@ -23,7 +24,7 @@ function resolveBuiltBinary(binary) {
 
 const binary = resolveBuiltBinary('embedtest');
 
-spawnSyncAndExitWithoutError(
+spawnSyncAndAssert(
   binary,
   ['console.log(42)'],
   {
@@ -31,7 +32,7 @@ spawnSyncAndExitWithoutError(
     stdout: '42',
   });
 
-spawnSyncAndExitWithoutError(
+spawnSyncAndAssert(
   binary,
   ['console.log(embedVars.nön_ascıı)'],
   {
@@ -111,9 +112,8 @@ for (const extraSnapshotArgs of [
   spawnSyncAndExitWithoutError(
     binary,
     [ '--', ...buildSnapshotArgs ],
-    { cwd: tmpdir.path },
-    {});
-  spawnSyncAndExitWithoutError(
+    { cwd: tmpdir.path });
+  spawnSyncAndAssert(
     binary,
     [ '--', ...runSnapshotArgs ],
     { cwd: tmpdir.path },
@@ -145,11 +145,33 @@ for (const extraSnapshotArgs of [
   spawnSyncAndExitWithoutError(
     binary,
     [ '--', ...buildSnapshotArgs ],
-    { cwd: tmpdir.path },
-    {});
+    { cwd: tmpdir.path });
   spawnSyncAndExitWithoutError(
     binary,
     [ '--', ...runEmbeddedArgs ],
-    { cwd: tmpdir.path },
-    {});
+    { cwd: tmpdir.path });
+}
+
+// Skipping rest of the test on Windows because it fails in the CI
+// TODO(StefanStojanovic): Reenable rest of the test after fixing it
+if (common.isWindows) {
+  return;
+}
+
+// Guarantee NODE_REPL_EXTERNAL_MODULE won't bypass kDisableNodeOptionsEnv
+{
+  spawnSyncAndExit(
+    binary,
+    ['require("os")'],
+    {
+      env: {
+        ...process.env,
+        'NODE_REPL_EXTERNAL_MODULE': 'fs',
+      },
+    },
+    {
+      status: 9,
+      signal: null,
+      stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv\n`,
+    });
 }

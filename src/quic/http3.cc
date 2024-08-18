@@ -362,8 +362,12 @@ class Http3Application final : public Session::Application {
         return static_cast<int>(ret);
       } else {
         data->remaining = data->count = static_cast<size_t>(ret);
+        if (data->id > 0) {
+          data->stream = session().FindStream(data->id);
+        }
       }
     }
+    DCHECK_NOT_NULL(data->buf);
     return 0;
   }
 

@@ -6,6 +6,7 @@
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "openssl/ec.h"
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
@@ -39,11 +40,10 @@ bool ValidateDSAParameters(EVP_PKEY* key) {
 #endif
     const DSA* dsa = EVP_PKEY_get0_DSA(key);
     const BIGNUM* p;
-    DSA_get0_pqg(dsa, &p, nullptr, nullptr);
-    size_t L = BN_num_bits(p);
     const BIGNUM* q;
-    DSA_get0_pqg(dsa, nullptr, &q, nullptr);
-    size_t N = BN_num_bits(q);
+    DSA_get0_pqg(dsa, &p, &q, nullptr);
+    int L = BignumPointer::GetBitCount(p);
+    int N = BignumPointer::GetBitCount(q);
 
     return (L == 1024 && N == 160) ||
            (L == 2048 && N == 224) ||
@@ -99,10 +99,15 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
       EVP_PKEY_sign(pkctx.get(), static_cast<unsigned char*>(sig->Data()),
                     &sig_len, m, m_len)) {
     CHECK_LE(sig_len, sig->ByteLength());
-    if (sig_len == 0)
+    if (sig_len == 0) {
       sig = ArrayBuffer::NewBackingStore(env->isolate(), 0);
-    else
-      sig = BackingStore::Reallocate(env->isolate(), std::move(sig), sig_len);
+    } else if (sig_len != sig->ByteLength()) {
+      std::unique_ptr<BackingStore> old_sig = std::move(sig);
+      sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
+      memcpy(static_cast<char*>(sig->Data()),
+             static_cast<char*>(old_sig->Data()),
+             sig_len);
+    }
     return sig;
   }
 
@@ -120,7 +125,7 @@ unsigned int GetBytesOfRS(const ManagedEVPPKey& pkey) {
   if (base_id == EVP_PKEY_DSA) {
     const DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
     // Both r and s are computed mod q, so their width is limited by that of q.
-    bits = BN_num_bits(DSA_get0_q(dsa_key));
+    bits = BignumPointer::GetBitCount(DSA_get0_q(dsa_key));
   } else if (base_id == EVP_PKEY_EC) {
     const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
     const EC_GROUP* ec_group = EC_KEY_get0_group(ec_key);
@@ -141,10 +146,12 @@ bool ExtractP1363(
   if (!asn1_sig)
     return false;
 
-  const BIGNUM* pr = ECDSA_SIG_get0_r(asn1_sig.get());
-  const BIGNUM* ps = ECDSA_SIG_get0_s(asn1_sig.get());
+  const BIGNUM* pr;
+  const BIGNUM* ps;
+  ECDSA_SIG_get0(asn1_sig.get(), &pr, &ps);
 
-  return BN_bn2binpad(pr, out, n) > 0 && BN_bn2binpad(ps, out + n, n) > 0;
+  return BignumPointer::EncodePaddedInto(pr, out, n) > 0 &&
+         BignumPointer::EncodePaddedInto(ps, out + n, n) > 0;
 }
 
 // Returns the maximum size of each of the integers (r, s) of the DSA signature.
@@ -201,13 +208,11 @@ ByteSource ConvertSignatureToDER(
 
   ECDSASigPointer asn1_sig(ECDSA_SIG_new());
   CHECK(asn1_sig);
-  BIGNUM* r = BN_new();
-  CHECK_NOT_NULL(r);
-  BIGNUM* s = BN_new();
-  CHECK_NOT_NULL(s);
-  CHECK_EQ(r, BN_bin2bn(sig_data, n, r));
-  CHECK_EQ(s, BN_bin2bn(sig_data + n, n, s));
-  CHECK_EQ(1, ECDSA_SIG_set0(asn1_sig.get(), r, s));
+  BignumPointer r(sig_data, n);
+  CHECK(r);
+  BignumPointer s(sig_data + n, n);
+  CHECK(s);
+  CHECK_EQ(1, ECDSA_SIG_set0(asn1_sig.get(), r.release(), s.release()));
 
   unsigned char* data = nullptr;
   int len = i2d_ECDSA_SIG(asn1_sig.get(), &data);
@@ -366,7 +371,7 @@ void Sign::New(const FunctionCallbackInfo<Value>& args) {
 void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Sign* sign;
-  ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sign, args.This());
 
   const node::Utf8Value sign_type(args.GetIsolate(), args[0]);
   crypto::CheckThrow(env, sign->Init(*sign_type));
@@ -409,7 +414,7 @@ Sign::SignResult Sign::SignFinal(
 void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Sign* sign;
-  ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sign, args.This());
 
   ClearErrorOnReturn clear_error_on_return;
 
@@ -417,6 +422,11 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   ManagedEVPPKey key = ManagedEVPPKey::GetPrivateKeyFromJs(args, &offset, true);
   if (!key)
     return;
+
+  if (IsOneShot(key)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
 
   int padding = GetDefaultSignPadding(key);
   if (!args[offset]->IsUndefined()) {
@@ -482,7 +492,7 @@ void Verify::New(const FunctionCallbackInfo<Value>& args) {
 void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Verify* verify;
-  ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&verify, args.This());
 
   const node::Utf8Value verify_type(args.GetIsolate(), args[0]);
   crypto::CheckThrow(env, verify->Init(*verify_type));
@@ -535,13 +545,18 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   Verify* verify;
-  ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&verify, args.This());
 
   unsigned int offset = 0;
   ManagedEVPPKey pkey =
       ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
   if (!pkey)
     return;
+
+  if (IsOneShot(pkey)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
 
   ArrayBufferOrViewContents<char> hbuf(args[offset]);
   if (UNLIKELY(!hbuf.CheckSizeInt32()))

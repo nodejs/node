@@ -23,7 +23,7 @@ namespace internal {
         NewTypeError(MessageTemplate::kCallSiteMethod,                        \
                      isolate->factory()->NewStringFromAsciiChecked(method))); \
   }                                                                           \
-  Handle<CallSiteInfo> frame = Handle<CallSiteInfo>::cast(it.GetDataValue())
+  auto frame = Cast<CallSiteInfo>(it.GetDataValue())
 
 namespace {
 
@@ -80,7 +80,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
   if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
       (IsJSFunction(frame->function()) &&
        NativeContextIsForShadowRealm(
-           JSFunction::cast(frame->function())->native_context()))) {
+           Cast<JSFunction>(frame->function())->native_context()))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
@@ -89,7 +89,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
   }
   if (frame->IsStrict() ||
       (IsJSFunction(frame->function()) &&
-       JSFunction::cast(frame->function())->shared()->is_toplevel())) {
+       Cast<JSFunction>(frame->function())->shared()->is_toplevel())) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
@@ -152,7 +152,7 @@ BUILTIN(CallSitePrototypeGetThis) {
   if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
       (IsJSFunction(frame->function()) &&
        NativeContextIsForShadowRealm(
-           JSFunction::cast(frame->function())->native_context()))) {
+           Cast<JSFunction>(frame->function())->native_context()))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
@@ -163,7 +163,10 @@ BUILTIN(CallSitePrototypeGetThis) {
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->IsAsmJsWasm()) {
-    return frame->GetWasmInstance()->native_context()->global_proxy();
+    return frame->GetWasmInstance()
+        ->trusted_data(isolate)
+        ->native_context()
+        ->global_proxy();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return frame->receiver_or_instance();

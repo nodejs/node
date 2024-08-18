@@ -2,8 +2,8 @@
 
 'use strict'
 
-const assert = require('assert')
-const { Readable } = require('stream')
+const assert = require('node:assert')
+const { Readable } = require('node:stream')
 const { RequestAbortedError, NotSupportedError, InvalidArgumentError, AbortError } = require('../core/errors')
 const util = require('../core/util')
 const { ReadableStreamFrom } = require('../core/util')
@@ -11,16 +11,18 @@ const { ReadableStreamFrom } = require('../core/util')
 const kConsume = Symbol('kConsume')
 const kReading = Symbol('kReading')
 const kBody = Symbol('kBody')
-const kAbort = Symbol('abort')
+const kAbort = Symbol('kAbort')
 const kContentType = Symbol('kContentType')
+const kContentLength = Symbol('kContentLength')
 
 const noop = () => {}
 
-module.exports = class BodyReadable extends Readable {
+class BodyReadable extends Readable {
   constructor ({
     resume,
     abort,
     contentType = '',
+    contentLength,
     highWaterMark = 64 * 1024 // Same as nodejs fs streams.
   }) {
     super({
@@ -35,6 +37,7 @@ module.exports = class BodyReadable extends Readable {
     this[kConsume] = null
     this[kBody] = null
     this[kContentType] = contentType
+    this[kContentLength] = contentLength
 
     // Is stream being consumed through Readable API?
     // This is an optimization so that we avoid checking
@@ -60,11 +63,13 @@ module.exports = class BodyReadable extends Readable {
     // tick as it is created, then a user who is waiting for a
     // promise (i.e micro tick) for installing a 'error' listener will
     // never get a chance and will always encounter an unhandled exception.
-    // - tick => process.nextTick(fn)
-    // - micro tick => queueMicrotask(fn)
-    queueMicrotask(() => {
+    if (!this[kReading]) {
+      setImmediate(() => {
+        callback(err)
+      })
+    } else {
       callback(err)
-    })
+    }
   }
 
   on (ev, ...args) {
@@ -94,7 +99,7 @@ module.exports = class BodyReadable extends Readable {
   }
 
   push (chunk) {
-    if (this[kConsume] && chunk !== null && this.readableLength === 0) {
+    if (this[kConsume] && chunk !== null) {
       consumePush(this[kConsume], chunk)
       return this[kReading] ? super.push(chunk) : true
     }
@@ -146,7 +151,7 @@ module.exports = class BodyReadable extends Readable {
   }
 
   async dump (opts) {
-    let limit = Number.isFinite(opts?.limit) ? opts.limit : 262144
+    let limit = Number.isFinite(opts?.limit) ? opts.limit : 128 * 1024
     const signal = opts?.signal
 
     if (signal != null && (typeof signal !== 'object' || !('aborted' in signal))) {
@@ -160,6 +165,10 @@ module.exports = class BodyReadable extends Readable {
     }
 
     return await new Promise((resolve, reject) => {
+      if (this[kContentLength] > limit) {
+        this.destroy(new AbortError())
+      }
+
       const onAbort = () => {
         this.destroy(signal.reason ?? new AbortError())
       }
@@ -215,26 +224,28 @@ async function consume (stream, type) {
         reject(rState.errored ?? new TypeError('unusable'))
       }
     } else {
-      stream[kConsume] = {
-        type,
-        stream,
-        resolve,
-        reject,
-        length: 0,
-        body: []
-      }
+      queueMicrotask(() => {
+        stream[kConsume] = {
+          type,
+          stream,
+          resolve,
+          reject,
+          length: 0,
+          body: []
+        }
 
-      stream
-        .on('error', function (err) {
-          consumeFinish(this[kConsume], err)
-        })
-        .on('close', function () {
-          if (this[kConsume].body !== null) {
-            consumeFinish(this[kConsume], new RequestAbortedError())
-          }
-        })
+        stream
+          .on('error', function (err) {
+            consumeFinish(this[kConsume], err)
+          })
+          .on('close', function () {
+            if (this[kConsume].body !== null) {
+              consumeFinish(this[kConsume], new RequestAbortedError())
+            }
+          })
 
-      queueMicrotask(() => consumeStart(stream[kConsume]))
+        consumeStart(stream[kConsume])
+      })
     }
   })
 }
@@ -246,8 +257,16 @@ function consumeStart (consume) {
 
   const { _readableState: state } = consume.stream
 
-  for (const chunk of state.buffer) {
-    consumePush(consume, chunk)
+  if (state.bufferIndex) {
+    const start = state.bufferIndex
+    const end = state.buffer.length
+    for (let n = start; n < end; n++) {
+      consumePush(consume, state.buffer[n])
+    }
+  } else {
+    for (const chunk of state.buffer) {
+      consumePush(consume, chunk)
+    }
   }
 
   if (state.endEmitted) {
@@ -274,16 +293,17 @@ function chunksDecode (chunks, length) {
     return ''
   }
   const buffer = chunks.length === 1 ? chunks[0] : Buffer.concat(chunks, length)
+  const bufferLength = buffer.length
 
+  // Skip BOM.
   const start =
-   buffer.length >= 3 &&
-   // Skip BOM.
-      buffer[0] === 0xef &&
-      buffer[1] === 0xbb &&
-      buffer[2] === 0xbf
-     ? 3
-     : 0
-  return buffer.utf8Slice(start, buffer.length - start)
+    bufferLength > 2 &&
+    buffer[0] === 0xef &&
+    buffer[1] === 0xbb &&
+    buffer[2] === 0xbf
+      ? 3
+      : 0
+  return buffer.utf8Slice(start, bufferLength)
 }
 
 function consumeEnd (consume) {
@@ -337,3 +357,5 @@ function consumeFinish (consume, err) {
   consume.length = 0
   consume.body = null
 }
+
+module.exports = { Readable: BodyReadable, chunksDecode }

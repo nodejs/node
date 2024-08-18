@@ -41,8 +41,6 @@ struct SharedWasmMemoryData;
 // regions, etc. Instances of this classes *own* the underlying memory
 // when they are created through one of the {Allocate()} methods below,
 // and the destructor frees the memory (and page allocation if necessary).
-// Backing stores can also *wrap* embedder-allocated memory. In this case,
-// they do not own the memory, and upon destruction, they do not deallocate it.
 class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  public:
   ~BackingStore();
@@ -168,8 +166,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
                size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               bool is_wasm_memory, bool has_guard_regions, bool custom_deleter,
-               bool empty_deleter);
+               bool is_wasm_memory, bool is_wasm_memory64,
+               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
@@ -220,6 +218,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Backing stores for (Resizable|GrowableShared)ArrayBuffer
   const bool is_resizable_by_js_ : 1;
   const bool is_wasm_memory_ : 1;
+  const bool is_wasm_memory64_ : 1;
   bool holds_shared_ptr_to_allocator_ : 1;
   const bool has_guard_regions_ : 1;
   bool globally_registered_ : 1;

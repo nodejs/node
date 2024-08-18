@@ -28,6 +28,8 @@ added:
 A list of the names of all modules provided by Node.js. Can be used to verify
 if a module is maintained by a third party or not.
 
+Note: the list doesn't contain [prefix-only modules][] like `node:test`.
+
 `module` in this context isn't the same object that's provided
 by the [module wrapper][]. To access it, require the `Module` module:
 
@@ -274,8 +276,8 @@ It's possible to call `register` more than once:
 // entrypoint.mjs
 import { register } from 'node:module';
 
-register('./first.mjs', import.meta.url);
-register('./second.mjs', import.meta.url);
+register('./foo.mjs', import.meta.url);
+register('./bar.mjs', import.meta.url);
 await import('./my-app.mjs');
 ```
 
@@ -285,20 +287,23 @@ const { register } = require('node:module');
 const { pathToFileURL } = require('node:url');
 
 const parentURL = pathToFileURL(__filename);
-register('./first.mjs', parentURL);
-register('./second.mjs', parentURL);
+register('./foo.mjs', parentURL);
+register('./bar.mjs', parentURL);
 import('./my-app.mjs');
 ```
 
-In this example, the registered hooks will form chains. If both `first.mjs` and
-`second.mjs` define a `resolve` hook, both will be called, in the order they
-were registered. The same applies to all the other hooks.
+In this example, the registered hooks will form chains. These chains run
+last-in, first out (LIFO). If both `foo.mjs` and `bar.mjs` define a `resolve`
+hook, they will be called like so (note the right-to-left):
+node's default ← `./foo.mjs` ← `./bar.mjs`
+(starting with `./bar.mjs`, then `./foo.mjs`, then the Node.js default).
+The same applies to all the other hooks.
 
 The registered hooks also affect `register` itself. In this example,
-`second.mjs` will be resolved and loaded per the hooks registered by
-`first.mjs`. This allows for things like writing hooks in non-JavaScript
-languages, so long as an earlier registered loader is one that transpiles into
-JavaScript.
+`bar.mjs` will be resolved and loaded via the hooks registered by `foo.mjs`
+(because `foo`'s hooks will have already been added to the chain). This allows
+for things like writing hooks in non-JavaScript languages, so long as
+earlier registered hooks transpile into JavaScript.
 
 The `register` method cannot be called from within the module that defines the
 hooks.
@@ -324,6 +329,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   console.log(msg);
 });
+port1.unref();
 
 register('./my-hooks.mjs', {
   parentURL: import.meta.url,
@@ -344,6 +350,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   console.log(msg);
 });
+port1.unref();
 
 register('./my-hooks.mjs', {
   parentURL: pathToFileURL(__filename),
@@ -373,11 +380,11 @@ export async function load(url, context, nextLoad) {
 }
 ```
 
-Hooks are part of a chain, even if that chain consists of only one custom
-(user-provided) hook and the default hook, which is always present. Hook
+Hooks are part of a [chain][], even if that chain consists of only one
+custom (user-provided) hook and the default hook, which is always present. Hook
 functions nest: each one must always return a plain object, and chaining happens
 as a result of each function calling `next<hookName>()`, which is a reference to
-the subsequent loader's hook.
+the subsequent loader's hook (in LIFO order).
 
 A hook that returns a value lacking a required property triggers an exception. A
 hook that returns without calling `next<hookName>()` _and_ without returning
@@ -436,6 +443,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
+port1.unref();
 
 register('./path-to-my-hooks.js', {
   parentURL: import.meta.url,
@@ -458,6 +466,7 @@ const { port1, port2 } = new MessageChannel();
 port1.on('message', (msg) => {
   assert.strictEqual(msg, 'increment: 2');
 });
+port1.unref();
 
 register('./path-to-my-hooks.js', {
   parentURL: pathToFileURL(__filename),
@@ -598,17 +607,17 @@ changes:
   * `importAttributes` {Object}
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
-  * `specifier` {string}
+  * `url` {string}
   * `context` {Object}
 * Returns: {Object}
   * `format` {string}
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
-    terminate the chain of `resolve` hooks. **Default:** `false`
+    terminate the chain of `load` hooks. **Default:** `false`
   * `source` {string|ArrayBuffer|TypedArray} The source for Node.js to evaluate
 
 The `load` hook provides a way to define a custom method of determining how a
 URL should be interpreted, retrieved, and parsed. It is also in charge of
-validating the import assertion.
+validating the import attributes.
 
 The final value of `format` must be one of the following:
 
@@ -708,7 +717,7 @@ behaviors.
 #### Import from HTTPS
 
 In current Node.js, specifiers starting with `https://` are experimental (see
-[HTTPS and HTTP imports][]).
+\[HTTPS and HTTP imports]\[]).
 
 The hook below registers hooks to enable rudimentary support for such
 specifiers. While this may seem like a significant improvement to Node.js core
@@ -1020,16 +1029,16 @@ columnNumber)`
 
 * `lineNumber` {number} The 1-indexed line number of the call
   site in the generated source
-* `columnOffset` {number} The 1-indexed column number
+* `columnNumber` {number} The 1-indexed column number
   of the call site in the generated source
 * Returns: {Object}
 
-Given a 1-indexed lineNumber and columnNumber from a call site in
+Given a 1-indexed `lineNumber` and `columnNumber` from a call site in
 the generated source, find the corresponding call site location
 in the original source.
 
-If the lineNumber and columnNumber provided are not found in any
-source map, then an empty object is returned.  Otherwise, the
+If the `lineNumber` and `columnNumber` provided are not found in any
+source map, then an empty object is returned. Otherwise, the
 returned object contains the following keys:
 
 * name: {string | undefined} The name of the range in the
@@ -1045,7 +1054,6 @@ returned object contains the following keys:
 [Conditional exports]: packages.md#conditional-exports
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
-[HTTPS and HTTP imports]: esm.md#https-and-http-imports
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
 [`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
@@ -1060,9 +1068,11 @@ returned object contains the following keys:
 [`register`]: #moduleregisterspecifier-parenturl-options
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
+[chain]: #chaining
 [hooks]: #customization-hooks
 [load hook]: #loadurl-context-nextload
 [module wrapper]: modules.md#the-module-wrapper
+[prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
 [realm]: https://tc39.es/ecma262/#realm
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [transferrable objects]: worker_threads.md#portpostmessagevalue-transferlist

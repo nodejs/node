@@ -21,6 +21,7 @@
 
 #include "node.h"
 #include "node_dotenv.h"
+#include "node_task_runner.h"
 
 // ========== local headers ==========
 
@@ -46,6 +47,7 @@
 #include "node_version.h"
 
 #if HAVE_OPENSSL
+#include "ncrypto.h"
 #include "node_crypto.h"
 #endif
 
@@ -131,7 +133,10 @@
 
 namespace node {
 
+using v8::Array;
+using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Function;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -201,7 +206,17 @@ void Environment::InitializeInspector(
     return;
   }
 
+  if (should_wait_for_inspector_frontend()) {
+    WaitForInspectorFrontendByOptions();
+  }
+
   profiler::StartProfilers(this);
+}
+
+void Environment::WaitForInspectorFrontendByOptions() {
+  if (!inspector_agent_->WaitForConnectByOptions()) {
+    return;
+  }
 
   if (inspector_agent_->options().break_node_first_line) {
     inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
@@ -211,44 +226,6 @@ void Environment::InitializeInspector(
 }
 #endif  // HAVE_INSPECTOR
 
-#define ATOMIC_WAIT_EVENTS(V)                                               \
-  V(kStartWait,           "started")                                        \
-  V(kWokenUp,             "was woken up by another thread")                 \
-  V(kTimedOut,            "timed out")                                      \
-  V(kTerminatedExecution, "was stopped by terminated execution")            \
-  V(kAPIStopped,          "was stopped through the embedder API")           \
-  V(kNotEqual,            "did not wait because the values mismatched")     \
-
-static void AtomicsWaitCallback(Isolate::AtomicsWaitEvent event,
-                                Local<v8::SharedArrayBuffer> array_buffer,
-                                size_t offset_in_bytes, int64_t value,
-                                double timeout_in_ms,
-                                Isolate::AtomicsWaitWakeHandle* stop_handle,
-                                void* data) {
-  Environment* env = static_cast<Environment*>(data);
-
-  const char* message = "(unknown event)";
-  switch (event) {
-#define V(key, msg)                         \
-    case Isolate::AtomicsWaitEvent::key:    \
-      message = msg;                        \
-      break;
-    ATOMIC_WAIT_EVENTS(V)
-#undef V
-  }
-
-  fprintf(stderr,
-          "(node:%d) [Thread %" PRIu64 "] Atomics.wait(%p + %zx, %" PRId64
-          ", %.f) %s\n",
-          static_cast<int>(uv_os_getpid()),
-          env->thread_id(),
-          array_buffer->Data(),
-          offset_in_bytes,
-          value,
-          timeout_in_ms,
-          message);
-}
-
 void Environment::InitializeDiagnostics() {
   isolate_->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
       Environment::BuildEmbedderGraph, this);
@@ -257,17 +234,6 @@ void Environment::InitializeDiagnostics() {
   }
   if (options_->trace_uncaught)
     isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
-  if (options_->trace_atomics_wait) {
-    ProcessEmitDeprecationWarning(
-        Environment::GetCurrent(isolate_),
-        "The flag --trace-atomics-wait is deprecated.",
-        "DEP0165");
-    isolate_->SetAtomicsWaitCallback(AtomicsWaitCallback, this);
-    AddCleanupHook([](void* data) {
-      Environment* env = static_cast<Environment*>(data);
-      env->isolate()->SetAtomicsWaitCallback(nullptr, nullptr);
-    }, this);
-  }
   if (options_->trace_promises) {
     isolate_->SetPromiseHook(TracePromises);
   }
@@ -282,6 +248,37 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   return scope.EscapeMaybe(realm->ExecuteBootstrapper(main_script_id));
 }
 
+// Convert the result returned by an intermediate main script into
+// StartExecutionCallbackInfo. Currently the result is an array containing
+// [process, requireFunction, cjsRunner]
+std::optional<StartExecutionCallbackInfo> CallbackInfoFromArray(
+    Local<Context> context, Local<Value> result) {
+  CHECK(result->IsArray());
+  Local<Array> args = result.As<Array>();
+  CHECK_EQ(args->Length(), 3);
+  Local<Value> process_obj, require_fn, runcjs_fn;
+  if (!args->Get(context, 0).ToLocal(&process_obj) ||
+      !args->Get(context, 1).ToLocal(&require_fn) ||
+      !args->Get(context, 2).ToLocal(&runcjs_fn)) {
+    return std::nullopt;
+  }
+  CHECK(process_obj->IsObject());
+  CHECK(require_fn->IsFunction());
+  CHECK(runcjs_fn->IsFunction());
+  // TODO(joyeecheung): some support for running ESM as an entrypoint
+  // is needed. The simplest API would be to add a run_esm to
+  // StartExecutionCallbackInfo which compiles, links (to builtins)
+  // and evaluates a SourceTextModule.
+  // TODO(joyeecheung): the env pointer should be part of
+  // StartExecutionCallbackInfo, otherwise embedders are forced to use
+  // lambdas to pass it into the callback, which can make the code
+  // difficult to read.
+  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
+                                        require_fn.As<Function>(),
+                                        runcjs_fn.As<Function>()};
+  return info;
+}
+
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   InternalCallbackScope callback_scope(
       env,
@@ -289,19 +286,35 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
       { 1, 0 },
       InternalCallbackScope::kSkipAsyncHooks);
 
+  // Only snapshot builder or embedder applications set the
+  // callback.
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
-    // TODO(addaleax): pass the callback to the main script more directly,
-    // e.g. by making StartExecution(env, builtin) parametrizable
-    env->set_embedder_entry_point(std::move(cb));
-    auto reset_entry_point =
-        OnScopeLeave([&]() { env->set_embedder_entry_point({}); });
 
-    const char* entry = env->isolate_data()->is_building_snapshot()
-                            ? "internal/main/mksnapshot"
-                            : "internal/main/embedding";
+    Local<Value> result;
+    if (env->isolate_data()->is_building_snapshot()) {
+      if (!StartExecution(env, "internal/main/mksnapshot").ToLocal(&result)) {
+        return MaybeLocal<Value>();
+      }
+    } else {
+      if (!StartExecution(env, "internal/main/embedding").ToLocal(&result)) {
+        return MaybeLocal<Value>();
+      }
+    }
 
-    return scope.EscapeMaybe(StartExecution(env, entry));
+    auto info = CallbackInfoFromArray(env->context(), result);
+    if (!info.has_value()) {
+      MaybeLocal<Value>();
+    }
+#if HAVE_INSPECTOR
+    if (env->options()->debug_options().break_first_line) {
+      env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
+    }
+#endif
+
+    env->performance_state()->Mark(
+        performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
+    return scope.EscapeMaybe(cb(info.value()));
   }
 
   CHECK(!env->isolate_data()->is_building_snapshot());
@@ -317,7 +330,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   }
 #endif
 
-  if (env->options()->has_env_file_string) {
+  // Ignore env file if we're in watch mode.
+  // Without it env is not updated when restarting child process.
+  // Child process has --watch flag removed, so it will load the file.
+  if (env->options()->has_env_file_string && !env->options()->watch_mode) {
     per_process::dotenv_file.SetEnvironment(env);
   }
 
@@ -382,8 +398,9 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 typedef void (*sigaction_cb)(int signo, siginfo_t* info, void* ucontext);
 #endif
 #if NODE_USE_V8_WASM_TRAP_HANDLER
+static std::atomic<bool> is_wasm_trap_handler_configured{false};
 #if defined(_WIN32)
-static LONG TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
+static LONG WINAPI TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
   if (v8::TryHandleWebAssemblyTrapWindows(exception)) {
     return EXCEPTION_CONTINUE_EXECUTION;
   }
@@ -427,15 +444,17 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler) {
   CHECK_NOT_NULL(handler);
 #if NODE_USE_V8_WASM_TRAP_HANDLER
-  if (signal == SIGSEGV) {
+  // Stash the user-registered handlers for TrapWebAssemblyOrContinue
+  // to call out to when the signal is not coming from a WASM OOM.
+  if (signal == SIGSEGV && is_wasm_trap_handler_configured.load()) {
     CHECK(previous_sigsegv_action.is_lock_free());
     CHECK(!reset_handler);
     previous_sigsegv_action.store(handler);
     return;
   }
-// TODO(align behavior between macos and other in next major version)
+  // TODO(align behavior between macos and other in next major version)
 #if defined(__APPLE__)
-  if (signal == SIGBUS) {
+  if (signal == SIGBUS && is_wasm_trap_handler_configured.load()) {
     CHECK(previous_sigbus_action.is_lock_free());
     CHECK(!reset_handler);
     previous_sigbus_action.store(handler);
@@ -587,33 +606,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
     RegisterSignalHandler(SIGINT, SignalExit, true);
     RegisterSignalHandler(SIGTERM, SignalExit, true);
-
-#if NODE_USE_V8_WASM_TRAP_HANDLER
-#if defined(_WIN32)
-    {
-      constexpr ULONG first = TRUE;
-      per_process::old_vectored_exception_handler =
-          AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
-    }
-#else
-    // Tell V8 to disable emitting WebAssembly
-    // memory bounds checks. This means that we have
-    // to catch the SIGSEGV/SIGBUS in TrapWebAssemblyOrContinue
-    // and pass the signal context to V8.
-    {
-      struct sigaction sa;
-      memset(&sa, 0, sizeof(sa));
-      sa.sa_sigaction = TrapWebAssemblyOrContinue;
-      sa.sa_flags = SA_SIGINFO;
-      CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
-// TODO(align behavior between macos and other in next major version)
-#if defined(__APPLE__)
-      CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
-#endif
-    }
-#endif  // defined(_WIN32)
-    V8::EnableWebAssemblyTrapHandler(false);
-#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   }
 
   if (!(flags & ProcessInitializationFlags::kNoAdjustResourceLimits)) {
@@ -754,12 +746,6 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     return ExitCode::kInvalidCommandLineArgument2;
   }
 
-  // TODO(aduh95): remove this when the harmony-import-assertions flag
-  // is removed in V8.
-  if (std::find(v8_args.begin(), v8_args.end(),
-                "--no-harmony-import-assertions") == v8_args.end()) {
-    v8_args.emplace_back("--harmony-import-assertions");
-  }
   // TODO(aduh95): remove this when the harmony-import-attributes flag
   // is removed in V8.
   if (std::find(v8_args.begin(),
@@ -767,6 +753,9 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                 "--no-harmony-import-attributes") == v8_args.end()) {
     v8_args.emplace_back("--harmony-import-attributes");
   }
+  // TODO(nicolo-ribaudo): remove this once V8 doesn't enable it by default
+  // anymore.
+  v8_args.emplace_back("--no-harmony-import-assertions");
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
@@ -905,6 +894,15 @@ static ExitCode InitializeNodeWithArgsInternal(
           &env_argv, nullptr, errors, kAllowedInEnvvar);
       if (exit_code != ExitCode::kNoFailure) return exit_code;
     }
+  } else {
+    std::string node_repl_external_env = {};
+    if (credentials::SafeGetenv("NODE_REPL_EXTERNAL_MODULE",
+                                &node_repl_external_env) ||
+        !node_repl_external_env.empty()) {
+      errors->emplace_back("NODE_REPL_EXTERNAL_MODULE can't be used with "
+                           "kDisableNodeOptionsEnv");
+      return ExitCode::kInvalidCommandLineArgument;
+    }
   }
 #endif
 
@@ -982,17 +980,17 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       InitializeNodeWithArgsInternal(argv, exec_argv, errors, flags));
 }
 
-static std::unique_ptr<InitializationResultImpl>
+static std::shared_ptr<InitializationResultImpl>
 InitializeOncePerProcessInternal(const std::vector<std::string>& args,
                                  ProcessInitializationFlags::Flags flags =
                                      ProcessInitializationFlags::kNoFlags) {
-  auto result = std::make_unique<InitializationResultImpl>();
+  auto result = std::make_shared<InitializationResultImpl>();
   result->args_ = args;
 
   if (!(flags & ProcessInitializationFlags::kNoParseGlobalDebugVariables)) {
     // Initialized the enabled list for Debug() calls with system
     // environment variables.
-    per_process::enabled_debug_list.Parse();
+    per_process::enabled_debug_list.Parse(per_process::system_environment);
   }
 
   PlatformInit(flags);
@@ -1014,6 +1012,22 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     if (per_process::cli_options->use_largepages == "on" && lp_result != 0) {
       result->errors_.emplace_back(node::LargePagesError(lp_result));
     }
+  }
+
+  if (!per_process::cli_options->run.empty()) {
+    // TODO(@anonrig): Handle NODE_NO_WARNINGS, NODE_REDIRECT_WARNINGS,
+    //  --disable-warning and --redirect-warnings.
+    if (per_process::cli_options->per_isolate->per_env->warnings) {
+      fprintf(stderr,
+              "ExperimentalWarning: Task runner is an experimental feature and "
+              "might change at any time\n\n");
+    }
+
+    auto positional_args = task_runner::GetPositionalArgs(args);
+    result->early_return_ = true;
+    task_runner::RunTask(
+        result, per_process::cli_options->run, positional_args);
+    return result;
   }
 
   if (!(flags & ProcessInitializationFlags::kNoPrintHelpOrVersionOutput)) {
@@ -1041,7 +1055,8 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitOpenSSL)) {
-#if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
+#if HAVE_OPENSSL
+#ifndef OPENSSL_IS_BORINGSSL
     auto GetOpenSSLErrorString = []() -> std::string {
       std::string ret;
       ERR_print_errors_cb(
@@ -1131,23 +1146,23 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 
     // Ensure CSPRNG is properly seeded.
-    CHECK(crypto::CSPRNG(nullptr, 0).is_ok());
+    CHECK(ncrypto::CSPRNG(nullptr, 0));
 
     V8::SetEntropySource([](unsigned char* buffer, size_t length) {
       // V8 falls back to very weak entropy when this function fails
       // and /dev/urandom isn't available. That wouldn't be so bad if
       // the entropy was only used for Math.random() but it's also used for
       // hash table and address space layout randomization. Better to abort.
-      CHECK(crypto::CSPRNG(buffer, length).is_ok());
+      CHECK(ncrypto::CSPRNG(buffer, length));
       return true;
     });
-
+#endif  // !defined(OPENSSL_IS_BORINGSSL)
     {
       std::string extra_ca_certs;
       if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
         crypto::UseExtraCaCerts(extra_ca_certs);
     }
-#endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
+#endif  // HAVE_OPENSSL
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
@@ -1168,13 +1183,44 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     cppgc::InitializeProcess(allocator);
   }
 
+#if NODE_USE_V8_WASM_TRAP_HANDLER
+  bool use_wasm_trap_handler =
+      !per_process::cli_options->disable_wasm_trap_handler;
+  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling) &&
+      use_wasm_trap_handler) {
+#if defined(_WIN32)
+    constexpr ULONG first = TRUE;
+    per_process::old_vectored_exception_handler =
+        AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
+#else
+    // Tell V8 to disable emitting WebAssembly
+    // memory bounds checks. This means that we have
+    // to catch the SIGSEGV/SIGBUS in TrapWebAssemblyOrContinue
+    // and pass the signal context to V8.
+    {
+      struct sigaction sa;
+      memset(&sa, 0, sizeof(sa));
+      sa.sa_sigaction = TrapWebAssemblyOrContinue;
+      sa.sa_flags = SA_SIGINFO;
+      CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+      CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
+#endif
+    }
+#endif  // defined(_WIN32)
+    is_wasm_trap_handler_configured.store(true);
+    V8::EnableWebAssemblyTrapHandler(false);
+  }
+#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
+
   performance::performance_v8_start = PERFORMANCE_NOW();
   per_process::v8_initialized = true;
 
   return result;
 }
 
-std::unique_ptr<InitializationResult> InitializeOncePerProcess(
+std::shared_ptr<InitializationResult> InitializeOncePerProcess(
     const std::vector<std::string>& args,
     ProcessInitializationFlags::Flags flags) {
   return InitializeOncePerProcessInternal(args, flags);
@@ -1197,7 +1243,7 @@ void TearDownOncePerProcess() {
   }
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER && defined(_WIN32)
-  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
+  if (is_wasm_trap_handler_configured.load()) {
     RemoveVectoredExceptionHandler(per_process::old_vectored_exception_handler);
   }
 #endif
@@ -1264,18 +1310,24 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
       return exit_code;
     }
   } else {
+    std::optional<std::string> builder_script_content;
     // Otherwise, load and run the specified builder script.
     std::unique_ptr<SnapshotData> generated_data =
         std::make_unique<SnapshotData>();
-    std::string builder_script_content;
-    int r = ReadFileSync(&builder_script_content, builder_script.c_str());
-    if (r != 0) {
-      FPrintF(stderr,
-              "Cannot read builder script %s for building snapshot. %s: %s",
-              builder_script,
-              uv_err_name(r),
-              uv_strerror(r));
-      return ExitCode::kGenericUserError;
+    if (builder_script != "node:generate_default_snapshot") {
+      builder_script_content = std::string();
+      int r = ReadFileSync(&(builder_script_content.value()),
+                           builder_script.c_str());
+      if (r != 0) {
+        FPrintF(stderr,
+                "Cannot read builder script %s for building snapshot. %s: %s\n",
+                builder_script,
+                uv_err_name(r),
+                uv_strerror(r));
+        return ExitCode::kGenericUserError;
+      }
+    } else {
+      snapshot_config.builder_script_path = std::nullopt;
     }
 
     exit_code = node::SnapshotBuilder::Generate(generated_data.get(),
@@ -1380,7 +1432,7 @@ static ExitCode StartInternal(int argc, char** argv) {
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
-  std::unique_ptr<InitializationResultImpl> result =
+  std::shared_ptr<InitializationResultImpl> result =
       InitializeOncePerProcessInternal(
           std::vector<std::string>(argv, argv + argc));
   for (const std::string& error : result->errors()) {
@@ -1403,13 +1455,16 @@ static ExitCode StartInternal(int argc, char** argv) {
   });
 
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
-
   std::string sea_config = per_process::cli_options->experimental_sea_config;
   if (!sea_config.empty()) {
+#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
     return sea::BuildSingleExecutableBlob(
         sea_config, result->args(), result->exec_args());
+#else
+    fprintf(stderr, "Single executable application is disabled.\n");
+    return ExitCode::kGenericUserError;
+#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
   }
-
   // --build-snapshot indicates that we are in snapshot building mode.
   if (per_process::cli_options->per_isolate->build_snapshot) {
     if (per_process::cli_options->per_isolate->build_snapshot_config.empty() &&

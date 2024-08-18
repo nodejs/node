@@ -237,7 +237,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
     switch (frc->fr.type) {
     case NGTCP2_FRAME_STREAM:
       strm = ngtcp2_conn_find_stream(conn, fr->stream.stream_id);
-      if (strm == NULL) {
+      if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
         continue;
       }
 
@@ -339,24 +339,58 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
         return rv;
       }
 
-      break;
+      ++num_reclaimed;
+
+      nfrc->next = *pfrc;
+      *pfrc = nfrc;
+      pfrc = &nfrc->next;
+
+      continue;
     case NGTCP2_FRAME_DATAGRAM:
     case NGTCP2_FRAME_DATAGRAM_LEN:
       continue;
-    default:
-      rv = ngtcp2_frame_chain_objalloc_new(&nfrc, rtb->frc_objalloc);
-      if (rv != 0) {
-        return rv;
-      }
-
-      nfrc->fr = *fr;
-
-      rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
-      if (rv != 0) {
-        return rv;
+    case NGTCP2_FRAME_RESET_STREAM:
+      strm = ngtcp2_conn_find_stream(conn, fr->reset_stream.stream_id);
+      if (strm == NULL || !ngtcp2_strm_require_retransmit_reset_stream(strm)) {
+        continue;
       }
 
       break;
+    case NGTCP2_FRAME_STOP_SENDING:
+      strm = ngtcp2_conn_find_stream(conn, fr->stop_sending.stream_id);
+      if (strm == NULL || !ngtcp2_strm_require_retransmit_stop_sending(strm)) {
+        continue;
+      }
+
+      break;
+    case NGTCP2_FRAME_MAX_STREAM_DATA:
+      strm = ngtcp2_conn_find_stream(conn, fr->max_stream_data.stream_id);
+      if (strm == NULL || !ngtcp2_strm_require_retransmit_max_stream_data(
+                              strm, &fr->max_stream_data)) {
+        continue;
+      }
+
+      break;
+    case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
+      strm = ngtcp2_conn_find_stream(conn, fr->stream_data_blocked.stream_id);
+      if (strm == NULL || !ngtcp2_strm_require_retransmit_stream_data_blocked(
+                              strm, &fr->stream_data_blocked)) {
+        continue;
+      }
+
+      break;
+    }
+
+    rv = ngtcp2_frame_chain_objalloc_new(&nfrc, rtb->frc_objalloc);
+    if (rv != 0) {
+      return rv;
+    }
+
+    nfrc->fr = *fr;
+
+    rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
+    if (rv != 0) {
+      return rv;
     }
 
     ++num_reclaimed;
@@ -1006,7 +1040,9 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
     if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, (size_t)pkt_thres, ts)) {
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
-      last_lost_pkt_num = ent->hd.pkt_num;
+      /* +1 to pick this packet for persistent congestion in the
+         following loop. */
+      last_lost_pkt_num = ent->hd.pkt_num + 1;
       max_ack_delay = conn->remote.transport_params
                           ? conn->remote.transport_params->max_ack_delay
                           : 0;

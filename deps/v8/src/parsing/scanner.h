@@ -205,7 +205,7 @@ class Utf16CharacterStream {
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;
   size_t buffer_pos_;
-  RuntimeCallStats* runtime_call_stats_;
+  RuntimeCallStats* runtime_call_stats_ = nullptr;
   bool has_parser_error_ = false;
 };
 
@@ -242,13 +242,13 @@ class V8_EXPORT_PRIVATE Scanner {
   };
 
   // Sets the Scanner into an error state to stop further scanning and terminate
-  // the parsing by only returning ILLEGAL tokens after that.
+  // the parsing by only returning kIllegal tokens after that.
   V8_INLINE void set_parser_error() {
     if (!has_parser_error()) {
       c0_ = kEndOfInput;
       source_->set_parser_error();
       for (TokenDesc& desc : token_storage_) {
-        if (desc.token != Token::UNINITIALIZED) desc.token = Token::ILLEGAL;
+        if (desc.token != Token::kUninitialized) desc.token = Token::kIllegal;
       }
     }
   }
@@ -288,6 +288,8 @@ class V8_EXPORT_PRIVATE Scanner {
   Token::Value Next();
   // Returns the token following peek()
   Token::Value PeekAhead();
+  // Returns the token following PeekAhead()
+  Token::Value PeekAheadAhead();
   // Returns the current token again.
   Token::Value current_token() const { return current().token; }
 
@@ -404,6 +406,12 @@ class V8_EXPORT_PRIVATE Scanner {
     return next_next().after_line_terminator;
   }
 
+  bool HasLineTerminatorAfterNextNext() {
+    Token::Value ensure_next_next_next = PeekAheadAhead();
+    USE(ensure_next_next_next);
+    return next_next_next().after_line_terminator;
+  }
+
   // Scans the input as a regular expression pattern, next token must be /(=).
   // Returns true if a pattern is scanned.
   bool ScanRegExpPattern();
@@ -412,7 +420,7 @@ class V8_EXPORT_PRIVATE Scanner {
 
   // Scans the input as a template literal
   Token::Value ScanTemplateContinuation() {
-    DCHECK_EQ(next().token, Token::RBRACE);
+    DCHECK_EQ(next().token, Token::kRightBrace);
     DCHECK_EQ(source_pos() - 1, next().location.beg_pos);
     return ScanTemplateSpan();
   }
@@ -421,6 +429,10 @@ class V8_EXPORT_PRIVATE Scanner {
   Handle<String> SourceUrl(IsolateT* isolate) const;
   template <typename IsolateT>
   Handle<String> SourceMappingUrl(IsolateT* isolate) const;
+
+  bool SawSourceMappingUrlMagicCommentAtSign() const {
+    return saw_source_mapping_url_magic_comment_at_sign_;
+  }
 
   bool SawMagicCommentCompileHintsAll() const {
     return saw_magic_comment_compile_hints_all_;
@@ -436,12 +448,12 @@ class V8_EXPORT_PRIVATE Scanner {
   // escape sequences are allowed.
   class ErrorState;
 
-  // The current and look-ahead token.
+  // The current and look-ahead tokens.
   struct TokenDesc {
     Location location = {0, 0};
     LiteralBuffer literal_chars;
     LiteralBuffer raw_literal_chars;
-    Token::Value token = Token::UNINITIALIZED;
+    Token::Value token = Token::kUninitialized;
     MessageTemplate invalid_template_escape_message = MessageTemplate::kNone;
     Location invalid_template_escape_location;
     uint32_t smi_value_ = 0;
@@ -449,16 +461,16 @@ class V8_EXPORT_PRIVATE Scanner {
 
 #ifdef DEBUG
     bool CanAccessLiteral() const {
-      return token == Token::PRIVATE_NAME || token == Token::ILLEGAL ||
-             token == Token::ESCAPED_KEYWORD || token == Token::UNINITIALIZED ||
-             token == Token::REGEXP_LITERAL ||
-             base::IsInRange(token, Token::NUMBER, Token::STRING) ||
+      return token == Token::kPrivateName || token == Token::kIllegal ||
+             token == Token::kEscapedKeyword ||
+             token == Token::kUninitialized || token == Token::kRegExpLiteral ||
+             base::IsInRange(token, Token::kNumber, Token::kString) ||
              Token::IsAnyIdentifier(token) || Token::IsKeyword(token) ||
-             base::IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
+             base::IsInRange(token, Token::kTemplateSpan, Token::kTemplateTail);
     }
     bool CanAccessRawLiteral() const {
-      return token == Token::ILLEGAL || token == Token::UNINITIALIZED ||
-             base::IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
+      return token == Token::kIllegal || token == Token::kUninitialized ||
+             base::IsInRange(token, Token::kTemplateSpan, Token::kTemplateTail);
     }
 #endif  // DEBUG
   };
@@ -496,6 +508,7 @@ class V8_EXPORT_PRIVATE Scanner {
     current_ = &token_storage_[0];
     next_ = &token_storage_[1];
     next_next_ = &token_storage_[2];
+    next_next_next_ = &token_storage_[3];
 
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
@@ -594,21 +607,21 @@ class V8_EXPORT_PRIVATE Scanner {
   // Current usage of these functions is unfortunately a little undisciplined,
   // and is_literal_one_byte() + is_literal_one_byte_string() is also
   // requested for tokens that do not have a literal. Hence, we treat any
-  // token as a one-byte literal. E.g. Token::FUNCTION pretends to have a
+  // token as a one-byte literal. E.g. Token::kFunction pretends to have a
   // literal "function".
   base::Vector<const uint8_t> literal_one_byte_string() const {
     DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token) ||
-           current().token == Token::ESCAPED_KEYWORD);
+           current().token == Token::kEscapedKeyword);
     return current().literal_chars.one_byte_literal();
   }
   base::Vector<const uint16_t> literal_two_byte_string() const {
     DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token) ||
-           current().token == Token::ESCAPED_KEYWORD);
+           current().token == Token::kEscapedKeyword);
     return current().literal_chars.two_byte_literal();
   }
   bool is_literal_one_byte() const {
     DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token) ||
-           current().token == Token::ESCAPED_KEYWORD);
+           current().token == Token::kEscapedKeyword);
     return current().literal_chars.is_one_byte();
   }
   // Returns the literal string for the next token (the token that
@@ -658,8 +671,8 @@ class V8_EXPORT_PRIVATE Scanner {
   V8_INLINE Token::Value SkipWhiteSpace();
   Token::Value SkipSingleHTMLComment();
   Token::Value SkipSingleLineComment();
-  Token::Value SkipMagicComment();
-  void TryToParseMagicComment();
+  Token::Value SkipMagicComment(base::uc32 hash_or_at_sign);
+  void TryToParseMagicComment(base::uc32 hash_or_at_sign);
   Token::Value SkipMultiLineComment();
   // Scans a possible HTML comment -- begins with '<!'.
   Token::Value ScanHtmlComment();
@@ -708,7 +721,7 @@ class V8_EXPORT_PRIVATE Scanner {
   static bool LiteralContainsEscapes(const TokenDesc& token) {
     Location location = token.location;
     int source_length = (location.end_pos - location.beg_pos);
-    if (token.token == Token::STRING) {
+    if (token.token == Token::kString) {
       // Subtract delimiters.
       source_length -= 2;
     }
@@ -724,12 +737,15 @@ class V8_EXPORT_PRIVATE Scanner {
   const TokenDesc& current() const { return *current_; }
   const TokenDesc& next() const { return *next_; }
   const TokenDesc& next_next() const { return *next_next_; }
+  const TokenDesc& next_next_next() const { return *next_next_next_; }
 
   UnoptimizedCompileFlags flags_;
 
   TokenDesc* current_;    // desc for current token (as returned by Next())
   TokenDesc* next_;       // desc for next token (one token look-ahead)
-  TokenDesc* next_next_;  // desc for the token after next (after PeakAhead())
+  TokenDesc* next_next_;  // desc for the token after next (after peek())
+  TokenDesc* next_next_next_;  // desc for the token after next of next (after
+                               // PeekAhead())
 
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* const source_;
@@ -737,7 +753,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   base::uc32 c0_;
 
-  TokenDesc token_storage_[3];
+  TokenDesc token_storage_[4];
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
@@ -745,6 +761,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Values parsed from magic comments.
   LiteralBuffer source_url_;
   LiteralBuffer source_mapping_url_;
+  bool saw_source_mapping_url_magic_comment_at_sign_ = false;
   bool saw_magic_comment_compile_hints_all_ = false;
 
   // Last-seen positions of potentially problematic tokens.

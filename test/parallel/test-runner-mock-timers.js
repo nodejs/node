@@ -257,6 +257,13 @@ describe('Mock Timers Test Suite', () => {
 
         assert.strictEqual(fn.mock.callCount(), 0);
       });
+
+      it('clearTimeout does not throw on null and undefined', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+
+        nodeTimers.clearTimeout();
+        nodeTimers.clearTimeout(null);
+      });
     });
 
     describe('setInterval Suite', () => {
@@ -304,6 +311,13 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(200);
 
         assert.strictEqual(fn.mock.callCount(), 0);
+      });
+
+      it('clearInterval does not throw on null and undefined', (t) => {
+        t.mock.timers.enable({ apis: ['setInterval'] });
+
+        nodeTimers.clearInterval();
+        nodeTimers.clearInterval(null);
       });
     });
 
@@ -369,6 +383,15 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(100);
 
         assert.deepStrictEqual(order, ['f1', 'f2']);
+      });
+    });
+
+    describe('clearImmediate Suite', () => {
+      it('clearImmediate does not throw on null and undefined', (t) => {
+        t.mock.timers.enable({ apis: ['setImmediate'] });
+
+        nodeTimers.clearImmediate();
+        nodeTimers.clearImmediate(null);
       });
     });
 
@@ -531,6 +554,35 @@ describe('Mock Timers Test Suite', () => {
           t.mock.timers.runAll();
           await nodeTimersPromises.setImmediate(); // let promises settle
           assert.strictEqual(f2.mock.callCount(), 1);
+        });
+
+        it('should not affect other timers when clearing timeout inside own callback', (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const f = t.mock.fn();
+
+          const timer = nodeTimers.setTimeout(() => {
+            f();
+            // Clearing the already-expired timeout should do nothing
+            nodeTimers.clearTimeout(timer);
+          }, 50);
+          nodeTimers.setTimeout(f, 50);
+          nodeTimers.setTimeout(f, 50);
+
+          t.mock.timers.runAll();
+          assert.strictEqual(f.mock.callCount(), 3);
+        });
+
+        it('should allow clearing timeout inside own callback', (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const f = t.mock.fn();
+
+          const timer = nodeTimers.setTimeout(() => {
+            f();
+            nodeTimers.clearTimeout(timer);
+          }, 50);
+
+          t.mock.timers.runAll();
+          assert.strictEqual(f.mock.callCount(), 1);
         });
       });
 
@@ -826,6 +878,40 @@ describe('Mock Timers Test Suite', () => {
       assert.strictEqual(Date.now(), 1200);
       assert.strictEqual(fn.mock.callCount(), 0);
       clearTimeout(id);
+    });
+  });
+
+  describe('Api should have same public properties as original', () => {
+    it('should have hasRef', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.strictEqual(typeof timer.hasRef, 'function');
+      assert.strictEqual(timer.hasRef(), true);
+      clearTimeout(timer);
+    });
+
+    it('should have ref', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.ok(typeof timer.ref === 'function');
+      assert.deepStrictEqual(timer.ref(), timer);
+      clearTimeout(timer);
+    });
+
+    it('should have unref', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.ok(typeof timer.unref === 'function');
+      assert.deepStrictEqual(timer.unref(), timer);
+      clearTimeout(timer);
+    });
+
+    it('should have refresh', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.ok(typeof timer.refresh === 'function');
+      assert.deepStrictEqual(timer.refresh(), timer);
+      clearTimeout(timer);
     });
   });
 });

@@ -119,14 +119,6 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
   return ret;
 }
 
-void* NodeArrayBufferAllocator::Reallocate(
-    void* data, size_t old_size, size_t size) {
-  void* ret = allocator_->Reallocate(data, old_size, size);
-  if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
-    total_mem_usage_.fetch_add(size - old_size, std::memory_order_relaxed);
-  return ret;
-}
-
 void NodeArrayBufferAllocator::Free(void* data, size_t size) {
   total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
   allocator_->Free(data, size);
@@ -154,31 +146,6 @@ void DebuggingArrayBufferAllocator::Free(void* data, size_t size) {
   Mutex::ScopedLock lock(mutex_);
   UnregisterPointerInternal(data, size);
   NodeArrayBufferAllocator::Free(data, size);
-}
-
-void* DebuggingArrayBufferAllocator::Reallocate(void* data,
-                                                size_t old_size,
-                                                size_t size) {
-  Mutex::ScopedLock lock(mutex_);
-  void* ret = NodeArrayBufferAllocator::Reallocate(data, old_size, size);
-  if (ret == nullptr) {
-    if (size == 0) {  // i.e. equivalent to free().
-      // suppress coverity warning as data is used as key versus as pointer
-      // in UnregisterPointerInternal
-      // coverity[pass_freed_arg]
-      UnregisterPointerInternal(data, old_size);
-    }
-    return nullptr;
-  }
-
-  if (data != nullptr) {
-    auto it = allocations_.find(data);
-    CHECK_NE(it, allocations_.end());
-    allocations_.erase(it);
-  }
-
-  RegisterPointerInternal(ret, size);
-  return ret;
 }
 
 void DebuggingArrayBufferAllocator::RegisterPointer(void* data, size_t size) {
@@ -404,9 +371,8 @@ IsolateData* CreateIsolateData(
     MultiIsolatePlatform* platform,
     ArrayBufferAllocator* allocator,
     const EmbedderSnapshotData* embedder_snapshot_data) {
-  const SnapshotData* snapshot_data =
-      SnapshotData::FromEmbedderWrapper(embedder_snapshot_data);
-  return new IsolateData(isolate, loop, platform, allocator, snapshot_data);
+  return IsolateData::CreateIsolateData(
+      isolate, loop, platform, allocator, embedder_snapshot_data);
 }
 
 void FreeIsolateData(IsolateData* isolate_data) {
@@ -458,7 +424,13 @@ Environment* CreateEnvironment(
   if (use_snapshot) {
     context = Context::FromSnapshot(isolate,
                                     SnapshotData::kNodeMainContextIndex,
-                                    {DeserializeNodeInternalFields, env})
+                                    v8::DeserializeInternalFieldsCallback(
+                                        DeserializeNodeInternalFields, env),
+                                    nullptr,
+                                    MaybeLocal<Value>(),
+                                    nullptr,
+                                    v8::DeserializeContextDataCallback(
+                                        DeserializeNodeContextData, env))
                   .ToLocalChecked();
 
     CHECK(!context.IsEmpty());
@@ -538,25 +510,34 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 #endif
 }
 
-MaybeLocal<Value> LoadEnvironment(
-    Environment* env,
-    StartExecutionCallback cb) {
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  StartExecutionCallback cb,
+                                  EmbedderPreloadCallback preload) {
   env->InitializeLibuv();
   env->InitializeDiagnostics();
+  if (preload) {
+    env->set_embedder_preload(std::move(preload));
+  }
+  env->InitializeCompileCache();
 
   return StartExecution(env, cb);
 }
 
 MaybeLocal<Value> LoadEnvironment(Environment* env,
-                                  std::string_view main_script_source_utf8) {
-  CHECK_NOT_NULL(main_script_source_utf8.data());
+                                  std::string_view main_script_source_utf8,
+                                  EmbedderPreloadCallback preload) {
+  // It could be empty when it's used by SEA to load an empty script.
+  CHECK_IMPLIES(main_script_source_utf8.size() > 0,
+                main_script_source_utf8.data());
   return LoadEnvironment(
-      env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
+      env,
+      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         Local<Value> main_script =
             ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
-      });
+      },
+      std::move(preload));
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
@@ -802,6 +783,9 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
   thread_local builtins::BuiltinLoader builtin_loader;
+  // Primordials can always be just eagerly compiled.
+  builtin_loader.SetEagerCompile();
+
   for (const char** module = context_files; *module != nullptr; module++) {
     Local<Value> arguments[] = {exports, primordials};
     if (builtin_loader

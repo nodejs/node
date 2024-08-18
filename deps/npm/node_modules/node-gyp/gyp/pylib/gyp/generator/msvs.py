@@ -1778,11 +1778,9 @@ def _GetCopies(spec):
                 outer_dir = posixpath.split(src_bare)[1]
                 fixed_dst = _FixPath(dst)
                 full_dst = f'"{fixed_dst}\\{outer_dir}\\"'
-                cmd = 'mkdir {} 2>nul & cd "{}" && xcopy /e /f /y "{}" {}'.format(
-                    full_dst,
-                    _FixPath(base_dir),
-                    outer_dir,
-                    full_dst,
+                cmd = (
+                    f'mkdir {full_dst} 2>nul & cd "{_FixPath(base_dir)}" && '
+                    f'xcopy /e /f /y "{outer_dir}" {full_dst}'
                 )
                 copies.append(
                     (
@@ -1794,10 +1792,9 @@ def _GetCopies(spec):
                 )
             else:
                 fix_dst = _FixPath(cpy["destination"])
-                cmd = 'mkdir "{}" 2>nul & set ERRORLEVEL=0 & copy /Y "{}" "{}"'.format(
-                    fix_dst,
-                    _FixPath(src),
-                    _FixPath(dst),
+                cmd = (
+                    f'mkdir "{fix_dst}" 2>nul & set ERRORLEVEL=0 & '
+                    f'copy /Y "{_FixPath(src)}" "{_FixPath(dst)}"'
                 )
                 copies.append(([src], [dst], cmd, f"Copying {src} to {fix_dst}"))
     return copies
@@ -1899,9 +1896,8 @@ def _GetPlatformOverridesOfProject(spec):
     for config_name, c in spec["configurations"].items():
         config_fullname = _ConfigFullName(config_name, c)
         platform = c.get("msvs_target_platform", _ConfigPlatform(c))
-        fixed_config_fullname = "{}|{}".format(
-            _ConfigBaseName(config_name, _ConfigPlatform(c)),
-            platform,
+        fixed_config_fullname = (
+            f"{_ConfigBaseName(config_name, _ConfigPlatform(c))}|{platform}"
         )
         if spec["toolset"] == "host" and generator_supports_multiple_toolsets:
             fixed_config_fullname = f"{config_name}|x64"

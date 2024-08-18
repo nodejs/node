@@ -98,6 +98,14 @@ static void eof_timer_destroy(uv_pipe_t* pipe);
 static void eof_timer_close_cb(uv_handle_t* handle);
 
 
+/* Does the file path contain embedded nul bytes? */
+static int includes_nul(const char *s, size_t n) {
+  if (n == 0)
+    return 0;
+  return NULL != memchr(s, '\0', n);
+}
+
+
 static void uv__unique_pipe_name(char* ptr, char* name, size_t size) {
   snprintf(name, size, "\\\\?\\pipe\\uv\\%p-%lu", ptr, GetCurrentProcessId());
 }
@@ -191,7 +199,7 @@ static void close_pipe(uv_pipe_t* pipe) {
   if (pipe->u.fd == -1)
     CloseHandle(pipe->handle);
   else
-    close(pipe->u.fd);
+    _close(pipe->u.fd);
 
   pipe->u.fd = -1;
   pipe->handle = INVALID_HANDLE_VALUE;
@@ -705,6 +713,7 @@ int uv_pipe_bind2(uv_pipe_t* handle,
   uv_loop_t* loop = handle->loop;
   int i, err;
   uv_pipe_accept_t* req;
+  char* name_copy;
 
   if (flags & ~UV_PIPE_NO_TRUNCATE) {
     return UV_EINVAL;
@@ -718,14 +727,8 @@ int uv_pipe_bind2(uv_pipe_t* handle,
     return UV_EINVAL;
   }
 
-  if (*name == '\0') {
+  if (includes_nul(name, namelen)) {
     return UV_EINVAL;
-  }
-
-  if (flags & UV_PIPE_NO_TRUNCATE) {
-    if (namelen > 256) {
-      return UV_EINVAL;
-    }
   }
 
   if (handle->flags & UV_HANDLE_BOUND) {
@@ -736,14 +739,24 @@ int uv_pipe_bind2(uv_pipe_t* handle,
     return UV_EINVAL;
   }
 
+  name_copy = uv__malloc(namelen + 1);
+  if (name_copy == NULL) {
+    return UV_ENOMEM;
+  }
+
+  memcpy(name_copy, name, namelen);
+  name_copy[namelen] = '\0';
+
   if (!(handle->flags & UV_HANDLE_PIPESERVER)) {
     handle->pipe.serv.pending_instances = default_pending_pipe_instances;
   }
 
+  err = UV_ENOMEM;
   handle->pipe.serv.accept_reqs = (uv_pipe_accept_t*)
     uv__malloc(sizeof(uv_pipe_accept_t) * handle->pipe.serv.pending_instances);
-  if (!handle->pipe.serv.accept_reqs)
-    return UV_ENOMEM;
+  if (handle->pipe.serv.accept_reqs == NULL) {
+    goto error;
+  }
 
   for (i = 0; i < handle->pipe.serv.pending_instances; i++) {
     req = &handle->pipe.serv.accept_reqs[i];
@@ -753,9 +766,14 @@ int uv_pipe_bind2(uv_pipe_t* handle,
     req->next_pending = NULL;
   }
 
-  err = uv__convert_utf8_to_utf16(name, &handle->name);
-  if (err)
-    return err;
+  /* TODO(bnoordhuis) Add converters that take a |length| parameter. */
+  err = uv__convert_utf8_to_utf16(name_copy, &handle->name);
+  uv__free(name_copy);
+  name_copy = NULL;
+
+  if (err) {
+    goto error;
+  }
 
   /*
    * Attempt to create the first pipe with FILE_FLAG_FIRST_PIPE_INSTANCE.
@@ -767,9 +785,11 @@ int uv_pipe_bind2(uv_pipe_t* handle,
                          TRUE)) {
     err = GetLastError();
     if (err == ERROR_ACCESS_DENIED) {
-      err = WSAEADDRINUSE;  /* Translates to UV_EADDRINUSE. */
+      err = UV_EADDRINUSE;
     } else if (err == ERROR_PATH_NOT_FOUND || err == ERROR_INVALID_NAME) {
-      err = WSAEACCES;  /* Translates to UV_EACCES. */
+      err = UV_EACCES;
+    } else {
+      err = uv_translate_sys_error(err);
     }
     goto error;
   }
@@ -781,10 +801,13 @@ int uv_pipe_bind2(uv_pipe_t* handle,
   return 0;
 
 error:
+  uv__free(handle->pipe.serv.accept_reqs);
   uv__free(handle->name);
+  uv__free(name_copy);
+  handle->pipe.serv.accept_reqs = NULL;
   handle->name = NULL;
 
-  return uv_translate_sys_error(err);
+  return err;
 }
 
 
@@ -834,7 +857,19 @@ void uv_pipe_connect(uv_connect_t* req,
                     uv_pipe_t* handle,
                     const char* name,
                     uv_connect_cb cb) {
-  uv_pipe_connect2(req, handle, name, strlen(name), 0, cb);
+  uv_loop_t* loop;
+  int err;
+
+  err = uv_pipe_connect2(req, handle, name, strlen(name), 0, cb);
+
+  if (err) {
+    loop = handle->loop;
+    /* Make this req pending reporting an error. */
+    SET_REQ_ERROR(req, err);
+    uv__insert_pending_req(loop, (uv_req_t*) req);
+    handle->reqs_pending++;
+    REGISTER_HANDLE_REQ(loop, handle, req);
+  }
 }
 
 
@@ -844,11 +879,20 @@ int uv_pipe_connect2(uv_connect_t* req,
                      size_t namelen,
                      unsigned int flags,
                      uv_connect_cb cb) {
-  uv_loop_t* loop = handle->loop;
+  uv_loop_t* loop;
   int err;
   size_t nameSize;
   HANDLE pipeHandle = INVALID_HANDLE_VALUE;
   DWORD duplex_flags;
+  char* name_copy;
+
+  loop = handle->loop;
+  UV_REQ_INIT(req, UV_CONNECT);
+  req->handle = (uv_stream_t*) handle;
+  req->cb = cb;
+  req->u.connect.pipeHandle = INVALID_HANDLE_VALUE;
+  req->u.connect.duplex_flags = 0;
+  req->u.connect.name = NULL;
 
   if (flags & ~UV_PIPE_NO_TRUNCATE) {
     return UV_EINVAL;
@@ -862,22 +906,17 @@ int uv_pipe_connect2(uv_connect_t* req,
     return UV_EINVAL;
   }
 
-  if (*name == '\0') {
+  if (includes_nul(name, namelen)) {
     return UV_EINVAL;
   }
 
-  if (flags & UV_PIPE_NO_TRUNCATE) {
-    if (namelen > 256) {
-      return UV_EINVAL;
-    }
+  name_copy = uv__malloc(namelen + 1);
+  if (name_copy == NULL) {
+    return UV_ENOMEM;
   }
 
-  UV_REQ_INIT(req, UV_CONNECT);
-  req->handle = (uv_stream_t*) handle;
-  req->cb = cb;
-  req->u.connect.pipeHandle = INVALID_HANDLE_VALUE;
-  req->u.connect.duplex_flags = 0;
-  req->u.connect.name = NULL;
+  memcpy(name_copy, name, namelen);
+  name_copy[namelen] = '\0';
 
   if (handle->flags & UV_HANDLE_PIPESERVER) {
     err = ERROR_INVALID_PARAMETER;
@@ -889,7 +928,11 @@ int uv_pipe_connect2(uv_connect_t* req,
   }
   uv__pipe_connection_init(handle);
 
-  err = uv__convert_utf8_to_utf16(name, &handle->name);
+  /* TODO(bnoordhuis) Add converters that take a |length| parameter. */
+  err = uv__convert_utf8_to_utf16(name_copy, &handle->name);
+  uv__free(name_copy);
+  name_copy = NULL;
+
   if (err) {
     err = ERROR_NO_UNICODE_TRANSLATION;
     goto error;
@@ -935,6 +978,8 @@ int uv_pipe_connect2(uv_connect_t* req,
   return 0;
 
 error:
+  uv__free(name_copy);
+
   if (handle->name) {
     uv__free(handle->name);
     handle->name = NULL;

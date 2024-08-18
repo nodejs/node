@@ -76,13 +76,6 @@ class V8_EXPORT_PRIVATE NativeContextInferrer {
   V8_INLINE bool Infer(PtrComprCageBase cage_base, Tagged<Map> map,
                        Tagged<HeapObject> object, Address* native_context);
 
- private:
-  bool InferForContext(PtrComprCageBase cage_base, Tagged<Context> context,
-                       Address* native_context);
-  bool InferForJSFunction(PtrComprCageBase cage_base,
-                          Tagged<JSFunction> function, Address* native_context);
-  bool InferForJSObject(PtrComprCageBase cage_base, Tagged<Map> map,
-                        Tagged<JSObject> object, Address* native_context);
 };
 
 // Maintains mapping from native contexts to their sizes.

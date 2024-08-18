@@ -353,6 +353,7 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef BUILD_BLOCK_JS_CASE
       case IrOpcode::kCall:
+      case IrOpcode::kFastApiCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
         }
@@ -397,6 +398,7 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef CONNECT_BLOCK_JS_CASE
       case IrOpcode::kCall:
+      case IrOpcode::kFastApiCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
           ConnectCall(node);
@@ -710,7 +712,7 @@ class SpecialRPONumberer : public ZoneObject {
     return empty_;
   }
 
-  bool HasLoopBlocks() const { return loops_.size() != 0; }
+  bool HasLoopBlocks() const { return !loops_.empty(); }
 
  private:
   using Backedge = std::pair<BasicBlock*, size_t>;

@@ -253,7 +253,7 @@ Type OperationTyper::ConvertReceiver(Type type) {
     // ConvertReceiver maps null and undefined to the JSGlobalProxy of the
     // target function, and all other primitives are wrapped into a
     // JSPrimitiveWrapper.
-    type = Type::Union(type, Type::OtherObject(), zone());
+    type = Type::Union(type, Type::StringWrapperOrOtherObject(), zone());
   }
   return type;
 }

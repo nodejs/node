@@ -25,14 +25,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETDB_H
 #  include <netdb.h>
 #endif
-
-#include "ares.h"
-#include "ares_private.h"
 
 void ares__freeaddrinfo_cnames(struct ares_addrinfo_cname *head)
 {

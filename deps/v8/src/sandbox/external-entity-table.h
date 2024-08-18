@@ -12,6 +12,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -38,6 +39,11 @@ class Isolate;
  * logic for reclaiming entries such as garbage collection. This must be done
  * by the child classes.
  *
+ * For the purpose of memory management, the table is partitioned into Segments
+ * (for example 64kb memory chunks) that are grouped together in "Spaces". All
+ * segments in a space share a freelist, and so entry allocation and garbage
+ * collection happen on the level of spaces.
+ *
  * The Entry type defines how the freelist is represented. For that, it must
  * implement the following methods:
  * - void MakeFreelistEntry(uint32_t next_entry_index)
@@ -46,6 +52,7 @@ class Isolate;
 template <typename Entry, size_t size>
 class V8_EXPORT_PRIVATE ExternalEntityTable {
  protected:
+  static constexpr bool IsWriteProtected = Entry::IsWriteProtected;
   static constexpr int kEntrySize = sizeof(Entry);
   static constexpr size_t kReservationSize = size;
   static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
@@ -174,7 +181,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
 
 #ifdef DEBUG
     // Check whether this space belongs to the given external entity table.
-    bool BelongsTo(void* table) { return owning_table_ == table; }
+    bool BelongsTo(const void* table) const { return owning_table_ == table; }
 #endif  // DEBUG
 
    protected:
@@ -208,13 +215,57 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     base::Mutex mutex_;
   };
 
+  // A Space that supports black allocations.
+  struct SpaceWithBlackAllocationSupport : public Space {
+    bool allocate_black() { return allocate_black_; }
+    void set_allocate_black(bool allocate_black) {
+      allocate_black_ = allocate_black;
+    }
+
+   private:
+    bool allocate_black_ = false;
+  };
+
   ExternalEntityTable() = default;
   ExternalEntityTable(const ExternalEntityTable&) = delete;
   ExternalEntityTable& operator=(const ExternalEntityTable&) = delete;
 
+  // This Iterator also acts as a scope object to temporarily lift any
+  // write-protection (if IsWriteProtected is true).
+  class WriteIterator {
+   public:
+    explicit WriteIterator(Entry* base, uint32_t index);
+
+    uint32_t index() const { return index_; }
+    Entry* operator->() { return &base_[index_]; }
+    Entry& operator*() { return base_[index_]; }
+    WriteIterator& operator++() {
+      index_++;
+      DCHECK_LT(index_, size);
+      return *this;
+    }
+    WriteIterator& operator--() {
+      DCHECK_GT(index_, 0);
+      index_--;
+      return *this;
+    }
+
+   private:
+    Entry* base_;
+    uint32_t index_;
+    std::conditional_t<IsWriteProtected, CFIMetadataWriteScope,
+                       NopRwxMemoryWriteScope>
+        write_scope_;
+  };
+
   // Access the entry at the specified index.
   Entry& at(uint32_t index);
   const Entry& at(uint32_t index) const;
+
+  // Returns an iterator that can be used to perform multiple write operations
+  // without switching the write-protections all the time (if IsWriteProtected
+  // is true).
+  WriteIterator iter_at(uint32_t index);
 
   // Returns true if this table has been initialized.
   bool is_initialized() const;
@@ -274,6 +325,13 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   //
   // The memory of this segment will afterwards be inaccessible.
   void FreeTableSegment(Segment segment);
+
+  // Iterate over all entries in the given space.
+  //
+  // The callback function will be invoked for every entry and be passed the
+  // index of that entry as argument.
+  template <typename Callback>
+  void IterateEntriesIn(Space* space, Callback callback);
 
   // Marker value for the freelist_head_ member to indicate that entry
   // allocation is currently forbidden, for example because the table is being

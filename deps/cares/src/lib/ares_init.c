@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_SYS_PARAM_H
 #  include <sys/param.h>
@@ -61,15 +61,9 @@
 #  include <iphlpapi.h>
 #endif
 
-#include "ares.h"
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
-#include "ares_private.h"
-
-#ifdef WATT32
-#  undef WIN32 /* Redefined in MingW/MSVC headers */
-#endif
-
+#include "event/ares_event.h"
 
 int ares_init(ares_channel_t **channelptr)
 {
@@ -78,20 +72,20 @@ int ares_init(ares_channel_t **channelptr)
 
 static int ares_query_timeout_cmp_cb(const void *arg1, const void *arg2)
 {
-  const struct query *q1 = arg1;
-  const struct query *q2 = arg2;
+  const ares_query_t *q1 = arg1;
+  const ares_query_t *q2 = arg2;
 
-  if (q1->timeout.tv_sec > q2->timeout.tv_sec) {
+  if (q1->timeout.sec > q2->timeout.sec) {
     return 1;
   }
-  if (q1->timeout.tv_sec < q2->timeout.tv_sec) {
+  if (q1->timeout.sec < q2->timeout.sec) {
     return -1;
   }
 
-  if (q1->timeout.tv_usec > q2->timeout.tv_usec) {
+  if (q1->timeout.usec > q2->timeout.usec) {
     return 1;
   }
-  if (q1->timeout.tv_usec < q2->timeout.tv_usec) {
+  if (q1->timeout.usec < q2->timeout.usec) {
     return -1;
   }
 
@@ -100,8 +94,8 @@ static int ares_query_timeout_cmp_cb(const void *arg1, const void *arg2)
 
 static int server_sort_cb(const void *data1, const void *data2)
 {
-  const struct server_state *s1 = data1;
-  const struct server_state *s2 = data2;
+  const ares_server_t *s1 = data1;
+  const ares_server_t *s2 = data2;
 
   if (s1->consec_failures < s2->consec_failures) {
     return -1;
@@ -121,7 +115,7 @@ static int server_sort_cb(const void *data1, const void *data2)
 static void server_destroy_cb(void *data)
 {
   if (data == NULL) {
-    return;
+    return; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
   ares__destroy_server(data);
 }
@@ -133,6 +127,8 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
 #ifdef HAVE_GETHOSTNAME
   const char *dot;
 #endif
+  struct ares_addr addr;
+  ares__llist_t   *sconfig = NULL;
 
   /* Enable EDNS by default */
   if (!(channel->optmask & ARES_OPT_FLAGS)) {
@@ -150,27 +146,28 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
     channel->tries = DEFAULT_TRIES;
   }
 
-  if (channel->ndots == 0) {
-    channel->ndots = 1;
-  }
-
   if (ares__slist_len(channel->servers) == 0) {
-    struct ares_addr addr;
-    ares__llist_t   *sconfig = NULL;
+    /* Add a default local named server to the channel unless configured not
+     * to (in which case return an error).
+     */
+    if (channel->flags & ARES_FLAG_NO_DFLT_SVR) {
+      rc = ARES_ENOSERVER;
+      goto error;
+    }
 
     addr.family            = AF_INET;
     addr.addr.addr4.s_addr = htonl(INADDR_LOOPBACK);
 
     rc = ares__sconfig_append(&sconfig, &addr, 0, 0, NULL);
     if (rc != ARES_SUCCESS) {
-      return rc;
+      goto error; /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     rc = ares__servers_update(channel, sconfig, ARES_FALSE);
     ares__llist_destroy(sconfig);
 
     if (rc != ARES_SUCCESS) {
-      return rc;
+      goto error;
     }
   }
 
@@ -197,8 +194,8 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
 
     hostname = ares_malloc(len);
     if (!hostname) {
-      rc = ARES_ENOMEM;
-      goto error;
+      rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     do {
@@ -210,8 +207,8 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
         lenv *= 2;
         p     = ares_realloc(hostname, len);
         if (!p) {
-          rc = ARES_ENOMEM;
-          goto error;
+          rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+          goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
         }
         hostname = p;
         continue;
@@ -229,13 +226,13 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
       /* a dot was found */
       channel->domains = ares_malloc(sizeof(char *));
       if (!channel->domains) {
-        rc = ARES_ENOMEM;
-        goto error;
+        rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->domains[0] = ares_strdup(dot + 1);
       if (!channel->domains[0]) {
-        rc = ARES_ENOMEM;
-        goto error;
+        rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->ndomains = 1;
     }
@@ -249,36 +246,17 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
   if (!channel->lookups) {
     channel->lookups = ares_strdup("fb");
     if (!channel->lookups) {
-      rc = ARES_ENOMEM;
+      rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
     }
+  }
+
+  /* Set default fields for server failover behavior */
+  if (!(channel->optmask & ARES_OPT_SERVER_FAILOVER)) {
+    channel->server_retry_chance = DEFAULT_SERVER_RETRY_CHANCE;
+    channel->server_retry_delay  = DEFAULT_SERVER_RETRY_DELAY;
   }
 
 error:
-  if (rc) {
-    if (channel->domains && channel->domains[0]) {
-      ares_free(channel->domains[0]);
-    }
-    if (channel->domains) {
-      ares_free(channel->domains);
-      channel->domains = NULL;
-    }
-
-    if (channel->lookups) {
-      ares_free(channel->lookups);
-      channel->lookups = NULL;
-    }
-
-    if (channel->resolvconf_path) {
-      ares_free(channel->resolvconf_path);
-      channel->resolvconf_path = NULL;
-    }
-
-    if (channel->hosts_path) {
-      ares_free(channel->hosts_path);
-      channel->hosts_path = NULL;
-    }
-  }
-
   if (hostname) {
     ares_free(hostname);
   }
@@ -301,6 +279,12 @@ int ares_init_options(ares_channel_t           **channelptr,
     *channelptr = NULL;
     return ARES_ENOMEM;
   }
+
+  /* We are in a good state */
+  channel->sys_up = ARES_TRUE;
+
+  /* One option where zero is valid, so set default value here */
+  channel->ndots = 1;
 
   status = ares__channel_threading_init(channel);
   if (status != ARES_SUCCESS) {
@@ -363,12 +347,13 @@ int ares_init_options(ares_channel_t           **channelptr,
     goto done;
   }
 
-  if (channel->qcache_max_ttl > 0) {
-    status = ares__qcache_create(channel->rand_state, channel->qcache_max_ttl,
-                                 &channel->qcache);
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
+  /* Go ahead and let it initialize the query cache even if the ttl is 0 and
+   * completely unused.  This reduces the number of different code paths that
+   * might be followed even if there is a minor performance hit. */
+  status = ares__qcache_create(channel->rand_state, channel->qcache_max_ttl,
+                               &channel->qcache);
+  if (status != ARES_SUCCESS) {
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (status == ARES_SUCCESS) {
@@ -387,6 +372,26 @@ int ares_init_options(ares_channel_t           **channelptr,
   if (status != ARES_SUCCESS) {
     DEBUGF(fprintf(stderr, "Error: init_by_defaults failed: %s\n",
                    ares_strerror(status)));
+    goto done;
+  }
+
+  /* Initialize the event thread */
+  if (channel->optmask & ARES_OPT_EVENT_THREAD) {
+    ares_event_thread_t *e = NULL;
+
+    status = ares_event_thread_init(channel);
+    if (status != ARES_SUCCESS) {
+      goto done; /* LCOV_EXCL_LINE: UntestablePath */
+    }
+
+    /* Initialize monitor for configuration changes.  In some rare cases,
+     * ARES_ENOTIMP may occur (OpenWatcom), ignore this. */
+    e      = channel->sock_state_cb_data;
+    status = ares_event_configchg_init(&e->configchg, e);
+    if (status != ARES_SUCCESS && status != ARES_ENOTIMP) {
+      goto done; /* LCOV_EXCL_LINE: UntestablePath */
+    }
+    status = ARES_SUCCESS;
   }
 
 done:
@@ -399,9 +404,35 @@ done:
   return ARES_SUCCESS;
 }
 
+static void *ares_reinit_thread(void *arg)
+{
+  ares_channel_t *channel = arg;
+  ares_status_t   status;
+
+  /* ares__init_by_sysconfig() will lock when applying the config, but not
+   * when retrieving. */
+  status = ares__init_by_sysconfig(channel);
+  if (status != ARES_SUCCESS) {
+    DEBUGF(fprintf(stderr, "Error: init_by_sysconfig failed: %s\n",
+                   ares_strerror(status)));
+  }
+
+  ares__channel_lock(channel);
+
+  /* Flush cached queries on reinit */
+  if (status == ARES_SUCCESS && channel->qcache) {
+    ares__qcache_flush(channel->qcache);
+  }
+
+  channel->reinit_pending = ARES_FALSE;
+  ares__channel_unlock(channel);
+
+  return NULL;
+}
+
 ares_status_t ares_reinit(ares_channel_t *channel)
 {
-  ares_status_t status;
+  ares_status_t status = ARES_SUCCESS;
 
   if (channel == NULL) {
     return ARES_EFORMERR;
@@ -409,25 +440,45 @@ ares_status_t ares_reinit(ares_channel_t *channel)
 
   ares__channel_lock(channel);
 
-  status = ares__init_by_sysconfig(channel);
-  if (status != ARES_SUCCESS) {
-    DEBUGF(fprintf(stderr, "Error: init_by_sysconfig failed: %s\n",
-                   ares_strerror(status)));
+  /* If a reinit is already in process, lets not do it again. Or if we are
+   * shutting down, skip. */
+  if (!channel->sys_up || channel->reinit_pending) {
+    ares__channel_unlock(channel);
+    return ARES_SUCCESS;
   }
-
-  /* Flush cached queries on reinit */
-  if (channel->qcache) {
-    ares__qcache_flush(channel->qcache);
-  }
-
+  channel->reinit_pending = ARES_TRUE;
   ares__channel_unlock(channel);
+
+  if (ares_threadsafety()) {
+    /* clean up the prior reinit process's thread.  We know the thread isn't
+     * running since reinit_pending was false */
+    if (channel->reinit_thread != NULL) {
+      void *rv;
+      ares__thread_join(channel->reinit_thread, &rv);
+      channel->reinit_thread = NULL;
+    }
+
+    /* Spawn a new thread */
+    status =
+      ares__thread_create(&channel->reinit_thread, ares_reinit_thread, channel);
+    if (status != ARES_SUCCESS) {
+      /* LCOV_EXCL_START: UntestablePath */
+      ares__channel_lock(channel);
+      channel->reinit_pending = ARES_FALSE;
+      ares__channel_unlock(channel);
+      /* LCOV_EXCL_STOP */
+    }
+  } else {
+    /* Threading support not available, call directly */
+    ares_reinit_thread(channel);
+  }
 
   return status;
 }
 
 /* ares_dup() duplicates a channel handle with all its options and returns a
    new channel handle */
-int ares_dup(ares_channel_t **dest, ares_channel_t *src)
+int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
 {
   struct ares_options opts;
   ares_status_t       rc;
@@ -439,7 +490,6 @@ int ares_dup(ares_channel_t **dest, ares_channel_t *src)
 
   *dest = NULL; /* in case of failure return NULL explicitly */
 
-  ares__channel_lock(src);
   /* First get the options supported by the old ares_save_options() function,
      which is most of them */
   rc = (ares_status_t)ares_save_options(src, &opts, &optmask);
@@ -458,20 +508,23 @@ int ares_dup(ares_channel_t **dest, ares_channel_t *src)
     goto done;
   }
 
+  ares__channel_lock(src);
   /* Now clone the options that ares_save_options() doesn't support, but are
    * user-provided */
-  (*dest)->sock_create_cb      = src->sock_create_cb;
-  (*dest)->sock_create_cb_data = src->sock_create_cb_data;
-  (*dest)->sock_config_cb      = src->sock_config_cb;
-  (*dest)->sock_config_cb_data = src->sock_config_cb_data;
-  (*dest)->sock_funcs          = src->sock_funcs;
-  (*dest)->sock_func_cb_data   = src->sock_func_cb_data;
+  (*dest)->sock_create_cb       = src->sock_create_cb;
+  (*dest)->sock_create_cb_data  = src->sock_create_cb_data;
+  (*dest)->sock_config_cb       = src->sock_config_cb;
+  (*dest)->sock_config_cb_data  = src->sock_config_cb_data;
+  (*dest)->sock_funcs           = src->sock_funcs;
+  (*dest)->sock_func_cb_data    = src->sock_func_cb_data;
+  (*dest)->server_state_cb      = src->server_state_cb;
+  (*dest)->server_state_cb_data = src->server_state_cb_data;
 
   ares_strcpy((*dest)->local_dev_name, src->local_dev_name,
               sizeof((*dest)->local_dev_name));
   (*dest)->local_ip4 = src->local_ip4;
   memcpy((*dest)->local_ip6, src->local_ip6, sizeof(src->local_ip6));
-
+  ares__channel_unlock(src);
 
   /* Servers are a bit unique as ares_init_options() only allows ipv4 servers
    * and not a port per server, but there are other user specified ways, that
@@ -486,24 +539,27 @@ int ares_dup(ares_channel_t **dest, ares_channel_t *src)
   if (optmask & ARES_OPT_SERVERS) {
     char *csv = ares_get_servers_csv(src);
     if (csv == NULL) {
+      /* LCOV_EXCL_START: OutOfMemory */
       ares_destroy(*dest);
       *dest = NULL;
       rc    = ARES_ENOMEM;
       goto done;
+      /* LCOV_EXCL_STOP */
     }
 
     rc = (ares_status_t)ares_set_servers_ports_csv(*dest, csv);
     ares_free_string(csv);
     if (rc != ARES_SUCCESS) {
+      /* LCOV_EXCL_START: OutOfMemory */
       ares_destroy(*dest);
       *dest = NULL;
       goto done;
+      /* LCOV_EXCL_STOP */
     }
   }
 
   rc = ARES_SUCCESS;
 done:
-  ares__channel_unlock(src);
   return (int)rc; /* everything went fine */
 }
 

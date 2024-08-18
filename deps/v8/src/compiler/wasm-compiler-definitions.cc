@@ -5,7 +5,6 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 
 #include "src/base/strings.h"
-#include "src/codegen/signature.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"
@@ -21,7 +20,11 @@ base::Vector<const char> GetDebugName(Zone* zone,
       wire_bytes->GetModuleBytes();
   if (module_bytes.has_value() &&
       (v8_flags.trace_turbo || v8_flags.trace_turbo_scheduled ||
-       v8_flags.trace_turbo_graph || v8_flags.print_wasm_code)) {
+       v8_flags.trace_turbo_graph || v8_flags.print_wasm_code
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+       || v8_flags.trace_wasm_revectorize
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+       )) {
     wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
         module_bytes.value(), index);
     if (!name.is_empty()) {
@@ -41,14 +44,6 @@ base::Vector<const char> GetDebugName(Zone* zone,
   char* index_name = zone->AllocateArray<char>(name_len);
   memcpy(index_name, name_vector.begin(), name_len);
   return base::Vector<const char>(index_name, name_len);
-}
-
-MachineRepresentation GetMachineRepresentation(wasm::ValueType type) {
-  return type.machine_representation();
-}
-
-MachineRepresentation GetMachineRepresentation(MachineType type) {
-  return type.representation();
 }
 
 // General code uses the above configuration data.
@@ -87,6 +82,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
                                     : CallDescriptor::kNoFlags;
   return zone->New<CallDescriptor>(       // --
       descriptor_kind,                    // kind
+      kWasmEntrypointTag,                 // tag
       target_type,                        // target MachineType
       target_loc,                         // target location
       location_sig,                       // location_sig

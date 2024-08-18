@@ -128,6 +128,7 @@ declare namespace primordials {
   export const ArrayPrototypeSlice: UncurryThis<typeof Array.prototype.slice>
   export const ArrayPrototypeSort: UncurryThis<typeof Array.prototype.sort>
   export const ArrayPrototypeSplice: UncurryThis<typeof Array.prototype.splice>
+  export const ArrayPrototypeToSorted: UncurryThis<typeof Array.prototype.toSorted>
   export const ArrayPrototypeIncludes: UncurryThis<typeof Array.prototype.includes>
   export const ArrayPrototypeIndexOf: UncurryThis<typeof Array.prototype.indexOf>
   export const ArrayPrototypeJoin: UncurryThis<typeof Array.prototype.join>

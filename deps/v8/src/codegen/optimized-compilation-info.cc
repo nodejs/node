@@ -5,6 +5,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 
 #include "src/api/api.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/source-position.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -53,12 +54,16 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 }
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
-    base::Vector<const char> debug_name, Zone* zone, CodeKind code_kind)
+    base::Vector<const char> debug_name, Zone* zone, CodeKind code_kind,
+    Builtin builtin)
     : isolate_unsafe_(nullptr),
       code_kind_(code_kind),
+      builtin_(builtin),
       zone_(zone),
       optimization_id_(kNoOptimizationId),
       debug_name_(debug_name) {
+  DCHECK_IMPLIES(builtin_ != Builtin::kNoBuiltinId,
+                 code_kind_ == CodeKind::BUILTIN);
   SetTracingFlags(
       PassesFilter(debug_name, base::CStrVector(v8_flags.trace_turbo_filter)));
   ConfigureFlags();
@@ -80,12 +85,13 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
       if (v8_flags.turbo_splitting) set_splitting();
+      if (v8_flags.enable_allocation_folding) set_allocation_folding();
       break;
     case CodeKind::BUILTIN:
 #ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
       set_switch_jump_table();
 #endif  // V8_TARGET_ARCH_X64
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case CodeKind::FOR_TESTING:
       if (v8_flags.turbo_splitting) set_splitting();
       if (v8_flags.enable_allocation_folding) set_allocation_folding();
@@ -98,7 +104,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       set_switch_jump_table();
       break;
     case CodeKind::C_WASM_ENTRY:
-    case CodeKind::JS_TO_JS_FUNCTION:
     case CodeKind::JS_TO_WASM_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
       break;

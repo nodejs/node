@@ -33,6 +33,8 @@
 #include "src/codegen/arm64/register-arm64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/codegen/x64/register-x64.h"
+#elif V8_TARGET_ARCH_S390X
+#include "src/codegen/s390/register-s390.h"
 #else
 #error "Maglev does not supported this architecture."
 #endif
@@ -68,9 +70,15 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
   // If the node is a Jump, it may be a hole, but only if it is not a
   // fallthrough (jump to the immediately next block). Otherwise, it will point
   // to the nearest post-dominating hole in its own "next" field.
-  if (Jump* jump = node->TryCast<Jump>()) {
-    if (IsTargetOfNodeFallthrough(jump, jump->target())) {
-      return jump->next_post_dominating_hole();
+  if (node->Is<Jump>() || node->Is<CheckpointedJump>()) {
+    BasicBlock* target;
+    if (auto jmp = node->TryCast<Jump>()) {
+      target = jmp->target();
+    } else {
+      target = node->Cast<CheckpointedJump>()->target();
+    }
+    if (IsTargetOfNodeFallthrough(node, target)) {
+      return node->next_post_dominating_hole();
     }
   }
 
@@ -182,8 +190,10 @@ void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT>& registers,
 }
 
 bool IsDeadNodeToSkip(Node* node) {
-  return node->Is<ValueNode>() && node->Cast<ValueNode>()->has_no_more_uses() &&
-         !node->properties().is_required_when_unused();
+  if (!node->Is<ValueNode>()) return false;
+  ValueNode* value = node->Cast<ValueNode>();
+  return value->has_no_more_uses() &&
+         !value->properties().is_required_when_unused();
 }
 
 }  // namespace
@@ -368,6 +378,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     USE(value);
   }
   for (const auto& [value, constant] : graph_->int32()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
+  for (const auto& [value, constant] : graph_->uint32()) {
     constant->SetConstantLocation();
     USE(value);
   }
@@ -651,6 +665,7 @@ void StraightForwardRegisterAllocator::AllocateEagerDeopt(
     const EagerDeoptInfo& deopt_info) {
   detail::DeepForEachInput(
       &deopt_info, [&](ValueNode* node, InputLocation* input) {
+        DCHECK(!node->Is<Identity>());
         // We might have dropped this node without spilling it. Spill it now.
         if (!node->has_register() && !node->is_loadable()) {
           Spill(node);
@@ -664,6 +679,7 @@ void StraightForwardRegisterAllocator::AllocateLazyDeopt(
     const LazyDeoptInfo& deopt_info) {
   detail::DeepForEachInput(&deopt_info,
                            [&](ValueNode* node, InputLocation* input) {
+                             DCHECK(!node->Is<Identity>());
                              // Lazy deopts always need spilling, and should
                              // always be loaded from their loadable slot.
                              Spill(node);
@@ -732,7 +748,8 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     // spilled so they can properly be merged after the catch block.
     if (node->properties().can_throw()) {
       ExceptionHandlerInfo* info = node->exception_handler_info();
-      if (info->HasExceptionHandler() && !node->properties().is_call()) {
+      if (info->HasExceptionHandler() && !info->ShouldLazyDeopt() &&
+          !node->properties().is_call()) {
         BasicBlock* block = info->catch_block.block_ptr();
         auto spill = [&](auto reg, ValueNode* node) {
           if (node->live_range().end < block->first_id()) return;
@@ -745,6 +762,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     AllocateLazyDeopt(*node->lazy_deopt_info());
   }
 
+  // Make sure to save snapshot after allocate eager deopt registers.
   if (node->properties().needs_register_snapshot()) SaveRegisterSnapshot(node);
 
   if (v8_flags.trace_maglev_regalloc) {
@@ -1145,7 +1163,7 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
           << PrintNodeLabel(graph_labeller(), node) << std::endl;
     }
     gap_move =
-        Node::New<ConstantGapMove>(compilation_info_->zone(), {}, node, target);
+        Node::New<ConstantGapMove>(compilation_info_->zone(), 0, node, target);
   } else {
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->os() << "  gap move: " << target << " ← "
@@ -1153,7 +1171,7 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
                               << source << std::endl;
     }
     gap_move =
-        Node::New<GapMove>(compilation_info_->zone(), {},
+        Node::New<GapMove>(compilation_info_->zone(), 0,
                            compiler::AllocatedOperand::cast(source), target);
   }
   if (compilation_info_->has_graph_labeller()) {
@@ -1573,6 +1591,25 @@ void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
       snapshot.live_registers.clear(reg);
       snapshot.live_tagged_registers.clear(reg);
     }
+  }
+  if (node->properties().can_eager_deopt()) {
+    // If we eagerly deopt after a deferred call, the registers saved by the
+    // runtime call might not include the inputs into the eager deopt. Here, we
+    // make sure that all the eager deopt registers are included in the
+    // snapshot.
+    detail::DeepForEachInput(
+        node->eager_deopt_info(), [&](ValueNode* node, InputLocation* input) {
+          if (!input->IsAnyRegister()) return;
+          if (input->IsDoubleRegister()) {
+            snapshot.live_double_registers.set(input->AssignedDoubleRegister());
+          } else {
+            snapshot.live_registers.set(input->AssignedGeneralRegister());
+            if (node->is_tagged()) {
+              snapshot.live_tagged_registers.set(
+                  input->AssignedGeneralRegister());
+            }
+          }
+        });
   }
   node->set_register_snapshot(snapshot);
 }

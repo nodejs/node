@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.18.1](https://github.com/nodejs/gyp-next/compare/v0.18.0...v0.18.1) (2024-05-26)
+
+
+### Bug Fixes
+
+* **ci:** add Python 3.13 pre-release to test matrix ([#257](https://github.com/nodejs/gyp-next/issues/257)) ([8597203](https://github.com/nodejs/gyp-next/commit/8597203b687325c7516367135e026586279d0583))
+
+
+### Documentation
+
+* vendor docs from gyp.gsrc.io ([#254](https://github.com/nodejs/gyp-next/issues/254)) ([8d7ba6e](https://github.com/nodejs/gyp-next/commit/8d7ba6e784dedf1122a0456150c739d2a09ecf57))
+
+## [0.18.0](https://github.com/nodejs/gyp-next/compare/v0.17.0...v0.18.0) (2024-05-08)
+
+
+### Features
+
+* support language standard keys in msvs_settings ([#252](https://github.com/nodejs/gyp-next/issues/252)) ([322f6d5](https://github.com/nodejs/gyp-next/commit/322f6d5d5233967522f3e55c623a8e7d7281e024))
+
+## [0.17.0](https://github.com/nodejs/gyp-next/compare/v0.16.2...v0.17.0) (2024-04-29)
+
+
+### Features
+
+* generate compile_commands.json with ninja ([#228](https://github.com/nodejs/gyp-next/issues/228)) ([7b20b46](https://github.com/nodejs/gyp-next/commit/7b20b4673d8cf46ff61898eb19569007d55c854a))
+
+
+### Bug Fixes
+
+* failed to detect flavor if compiler path include white spaces ([#240](https://github.com/nodejs/gyp-next/issues/240)) ([f3b9753](https://github.com/nodejs/gyp-next/commit/f3b9753e7526377020e7d40e66b624db771cf84a))
+* support cross compiling for wasm with make generator ([#222](https://github.com/nodejs/gyp-next/issues/222)) ([de0e1c9](https://github.com/nodejs/gyp-next/commit/de0e1c9a5791d1bf4bc3103f878ab74814864ab4))
+* support empty dictionary keys in input ([#245](https://github.com/nodejs/gyp-next/issues/245)) ([178459f](https://github.com/nodejs/gyp-next/commit/178459ff343a2771d5f30f04467d2f032d6b3565))
+* update Ruff to 0.3.1 ([876ccaf](https://github.com/nodejs/gyp-next/commit/876ccaf5629e1b95e13aaa2b0eb6cbd08fa80593))
+
+## [0.16.2](https://github.com/nodejs/gyp-next/compare/v0.16.1...v0.16.2) (2024-03-07)
+
+
+### Bug Fixes
+
+* avoid quoting cflag name and parameter with space separator ([#223](https://github.com/nodejs/gyp-next/issues/223)) ([2b9703d](https://github.com/nodejs/gyp-next/commit/2b9703dbd5b3b8a935faf257c6103033b47bf8bf))
+
 ## [0.16.1](https://github.com/nodejs/gyp-next/compare/v0.16.0...v0.16.1) (2023-10-25)
 
 

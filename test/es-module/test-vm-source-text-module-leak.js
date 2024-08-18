@@ -1,4 +1,4 @@
-// Flags: --expose-internals --experimental-vm-modules --max-old-space-size=16 --trace-gc
+// Flags: --experimental-vm-modules --max-old-space-size=16 --trace-gc
 'use strict';
 
 // This tests that vm.SourceTextModule() does not leak.

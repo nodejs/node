@@ -10,12 +10,12 @@ const { describe, it } = require('node:test');
 
 const requiringCjsAsEsm = path.resolve(fixtures.path('/es-modules/cjs-esm.js'));
 const requiringEsm = path.resolve(fixtures.path('/es-modules/cjs-esm-esm.js'));
-const pjson = path.resolve(
+const pjson = path.toNamespacedPath(
   fixtures.path('/es-modules/package-type-module/package.json')
 );
 
 
-describe('CJS ↔︎ ESM interop warnings', { concurrency: true }, () => {
+describe('CJS ↔︎ ESM interop warnings', { concurrency: !process.env.TEST_PARALLEL }, () => {
 
   it(async () => {
     const required = path.resolve(

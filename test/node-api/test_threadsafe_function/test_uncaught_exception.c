@@ -16,18 +16,6 @@ static void ThreadSafeFunctionFinalize(napi_env env,
   NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, js_func_ref));
 }
 
-static void ThreadSafeFunctionNogcFinalize(node_api_nogc_env env,
-                                           void* data,
-                                           void* hint) {
-#ifdef NAPI_EXPERIMENTAL
-  NODE_API_NOGC_CALL_RETURN_VOID(
-      env,
-      node_api_post_finalizer(env, ThreadSafeFunctionFinalize, data, hint));
-#else
-  ThreadSafeFunctionFinalize(env, data, hint);
-#endif
-}
-
 // Testing calling into JavaScript
 static napi_value CallIntoModule(napi_env env, napi_callback_info info) {
   size_t argc = 4;
@@ -46,7 +34,7 @@ static napi_value CallIntoModule(napi_env env, napi_callback_info info) {
                                                 0,
                                                 1,
                                                 finalize_func,
-                                                ThreadSafeFunctionNogcFinalize,
+                                                ThreadSafeFunctionFinalize,
                                                 NULL,
                                                 NULL,
                                                 &tsfn));

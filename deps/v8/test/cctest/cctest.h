@@ -378,7 +378,7 @@ static inline i::Handle<T> GetGlobal(const char* name) {
   i::Handle<i::Object> value =
       i::Object::GetProperty(isolate, isolate->global_object(), str_name)
           .ToHandleChecked();
-  return i::Handle<T>::cast(value);
+  return i::Cast<T>(value);
 }
 
 static inline v8::Local<v8::Boolean> v8_bool(bool val) {
@@ -391,6 +391,10 @@ static inline v8::Local<v8::Value> v8_num(double x) {
 
 static inline v8::Local<v8::Integer> v8_int(int32_t x) {
   return v8::Integer::New(v8::Isolate::GetCurrent(), x);
+}
+
+static inline v8::Local<v8::Integer> v8_uint(uint32_t x) {
+  return v8::Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), x);
 }
 
 static inline v8::Local<v8::BigInt> v8_bigint(int64_t x) {
@@ -442,7 +446,7 @@ static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, v8::Local<v8::String> origin_url,
     bool is_shared_cross_origin) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::ScriptOrigin origin(isolate, origin_url, 0, 0, is_shared_cross_origin);
+  v8::ScriptOrigin origin(origin_url, 0, 0, is_shared_cross_origin);
   v8::ScriptCompiler::Source script_source(source, origin);
   return v8::ScriptCompiler::Compile(isolate->GetCurrentContext(),
                                      &script_source)
@@ -519,8 +523,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::ScriptOrigin origin(isolate, v8_str(origin_url), line_number,
-                          column_number);
+  v8::ScriptOrigin origin(v8_str(origin_url), line_number, column_number);
   v8::ScriptCompiler::Source script_source(v8_str(source), origin);
   return CompileRun(context, &script_source,
                     v8::ScriptCompiler::CompileOptions());
@@ -532,7 +535,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptCompiler::Source script_source(
-      source, v8::ScriptOrigin(isolate, v8_str(origin_url)));
+      source, v8::ScriptOrigin(v8_str(origin_url)));
   return CompileRun(context, &script_source,
                     v8::ScriptCompiler::CompileOptions());
 }
@@ -698,15 +701,15 @@ class TestPlatform : public v8::Platform {
   int NumberOfWorkerThreads() override;
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;
-  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override;
-  void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                 double delay_in_seconds) override;
-  std::unique_ptr<v8::JobHandle> PostJob(
-      v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override;
-  std::unique_ptr<v8::JobHandle> CreateJob(
-      v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override;
+  void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                  std::unique_ptr<v8::Task> task,
+                                  const v8::SourceLocation& location) override;
+  void PostDelayedTaskOnWorkerThreadImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+      double delay_in_seconds, const v8::SourceLocation& location) override;
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) override;
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;

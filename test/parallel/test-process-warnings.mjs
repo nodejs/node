@@ -9,7 +9,7 @@ const dep1Message = /\(node:\d+\) \[DEP1\] DeprecationWarning/;
 const dep2Message = /\(node:\d+\) \[DEP2\] DeprecationWarning/;
 const experimentalWarningMessage = /\(node:\d+\) ExperimentalWarning/;
 
-describe('process warnings', { concurrency: true }, () => {
+describe('process warnings', { concurrency: !process.env.TEST_PARALLEL }, () => {
 
   it('should emit all warnings by default', async () => {
     const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
@@ -24,7 +24,7 @@ describe('process warnings', { concurrency: true }, () => {
     assert.strictEqual(signal, null);
   });
 
-  describe('--no-warnings', { concurrency: true }, () => {
+  describe('--no-warnings', { concurrency: !process.env.TEST_PARALLEL }, () => {
     it('should silence all warnings by default', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--no-warnings',
@@ -40,7 +40,7 @@ describe('process warnings', { concurrency: true }, () => {
     });
   });
 
-  describe('--no-deprecation', { concurrency: true }, () => {
+  describe('--no-deprecation', { concurrency: !process.env.TEST_PARALLEL }, () => {
     it('should silence all deprecation warnings', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--no-deprecation',
@@ -56,7 +56,7 @@ describe('process warnings', { concurrency: true }, () => {
     });
   });
 
-  describe('--disable-warning', { concurrency: true }, () => {
+  describe('--disable-warning', { concurrency: !process.env.TEST_PARALLEL }, () => {
     it('should silence deprecation warning DEP1', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--disable-warning=DEP1',

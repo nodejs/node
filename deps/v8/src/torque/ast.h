@@ -189,15 +189,21 @@ struct NamespaceDeclaration : Declaration {
 };
 
 struct EnumDescription {
+  struct Entry {
+    std::string name;
+    std::string alias_entry;
+    Entry(std::string name, std::string alias_entry)
+        : name(std::move(name)), alias_entry(std::move(alias_entry)) {}
+  };
   SourcePosition pos;
   std::string name;
   std::string constexpr_generates;
   bool is_open;
-  std::vector<std::string> entries;
+  std::vector<Entry> entries;
 
   EnumDescription(SourcePosition pos, std::string name,
                   std::string constexpr_generates, bool is_open,
-                  std::vector<std::string> entries = {})
+                  std::vector<Entry> entries = {})
       : pos(std::move(pos)),
         name(std::move(name)),
         constexpr_generates(std::move(constexpr_generates)),
@@ -735,7 +741,7 @@ struct DebugStatement : Statement {
 
 struct AssertStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AssertStatement)
-  enum class AssertKind { kDcheck, kCheck, kStaticAssert };
+  enum class AssertKind { kDcheck, kCheck, kSbxCheck, kStaticAssert };
   AssertStatement(SourcePosition pos, AssertKind kind, Expression* expression,
                   std::string source)
       : Statement(kKind, pos),

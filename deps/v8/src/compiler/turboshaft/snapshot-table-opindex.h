@@ -10,7 +10,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 // A Wrapper around a SnapshotTable, which takes care of mapping OpIndex to Key.
-// It uses a ZoneUnorderedMap to store this mapping, and is thus more
+// It uses a ZoneAbslFlatHashMap to store this mapping, and is thus more
 // appropriate for cases where not many OpIndex have a corresponding key.
 template <class Value, class KeyData = NoKeyData>
 class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
@@ -26,6 +26,12 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
     auto it = indices_to_keys_.find(idx);
     if (it == indices_to_keys_.end()) return Value{};
     return Base::Get(it->second);
+  }
+
+  Value GetPredecessorValue(OpIndex idx, int predecessor_index) {
+    auto it = indices_to_keys_.find(idx);
+    if (it == indices_to_keys_.end()) return Value{};
+    return Base::GetPredecessorValue(it->second, predecessor_index);
   }
 
   using Base::Set;
@@ -60,7 +66,7 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
     indices_to_keys_.insert({idx, key});
     return key;
   }
-  ZoneUnorderedMap<OpIndex, Key> indices_to_keys_;
+  ZoneAbslFlatHashMap<OpIndex, Key> indices_to_keys_;
 };
 
 }  // namespace v8::internal::compiler::turboshaft

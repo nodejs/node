@@ -74,7 +74,8 @@ static void touch_file(const char* name, unsigned int size) {
   int r;
   unsigned int i;
 
-  r = uv_fs_open(NULL, &req, name, O_WRONLY | O_CREAT | O_TRUNC,
+  r = uv_fs_open(NULL, &req, name,
+                 UV_FS_O_WRONLY | UV_FS_O_CREAT | UV_FS_O_TRUNC,
                  S_IWUSR | S_IRUSR, NULL);
   uv_fs_req_cleanup(&req);
   ASSERT_GE(r, 0);

@@ -1120,12 +1120,12 @@ ngtcp2_ssize ngtcp2_pkt_encode_datagram_frame(uint8_t *out, size_t outlen,
 
 /*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
- * |pkt_num|, which is expected to be least significant |n| bits.  The
+ * |pkt_num|, which is encoded in |pkt_numlen| bytes.  The
  * |max_pkt_num| is the highest successfully authenticated packet
  * number.
  */
 int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
-                                  size_t n);
+                                  size_t pkt_numlen);
 
 /*
  * ngtcp2_pkt_validate_ack checks that ack is malformed or not.

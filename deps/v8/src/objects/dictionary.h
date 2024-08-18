@@ -32,7 +32,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using DerivedHashTable = HashTable<Derived, Shape>;
 
  public:
-  using Key = typename Shape::Key;
+  using TodoShape = Shape;
+  using Key = typename TodoShape::Key;
   inline Tagged<Object> ValueAt(InternalIndex entry);
   inline Tagged<Object> ValueAt(PtrComprCageBase cage_base,
                                 InternalIndex entry);
@@ -95,7 +96,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                                        : AllocationType::kOld>
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
       IsolateT* isolate, Handle<Derived> dictionary, Key key,
-      Handle<Object> value, PropertyDetails details,
+      DirectHandle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
   // This method is only safe to use when it is guaranteed that the dictionary
@@ -107,7 +108,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                                        ? AllocationType::kYoung
                                        : AllocationType::kOld>
   static void UncheckedAdd(IsolateT* isolate, Handle<Derived> dictionary,
-                           Key key, Handle<Object> value,
+                           Key key, DirectHandle<Object> value,
                            PropertyDetails details);
 
   static Handle<Derived> ShallowCopy(
@@ -125,7 +126,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                              Key key, Handle<Object> value,
                              PropertyDetails details);
 
-  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>);
+  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, TodoShape>);
 };
 
 #define EXTERN_DECLARE_DICTIONARY(DERIVED, SHAPE)                  \
@@ -148,8 +149,8 @@ class BaseDictionaryShape : public BaseShape<Key> {
 
 class BaseNameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
-  static inline bool IsMatch(Handle<Name> key, Tagged<Object> other);
-  static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
+  static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
+  static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
   template <AllocationType allocation = AllocationType::kYoung>
@@ -229,7 +230,6 @@ class V8_EXPORT_PRIVATE NameDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(NameDictionary)
   DECL_PRINTER(NameDictionary)
 
   static const int kFlagsIndex = kObjectHashIndex + 1;
@@ -265,7 +265,7 @@ class V8_EXPORT_PRIVATE NameDictionary
 
 class V8_EXPORT_PRIVATE GlobalDictionaryShape : public BaseNameDictionaryShape {
  public:
-  static inline bool IsMatch(Handle<Name> key, Tagged<Object> other);
+  static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
 
@@ -291,7 +291,6 @@ class V8_EXPORT_PRIVATE GlobalDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(GlobalDictionary)
   DECL_PRINTER(GlobalDictionary)
 
   inline Tagged<Object> ValueAt(InternalIndex entry);
@@ -309,7 +308,7 @@ class V8_EXPORT_PRIVATE GlobalDictionary
 
   base::Optional<Tagged<PropertyCell>>
   TryFindPropertyCellForConcurrentLookupIterator(Isolate* isolate,
-                                                 Handle<Name> name,
+                                                 DirectHandle<Name> name,
                                                  RelaxedLoadTag tag);
 
   OBJECT_CONSTRUCTORS(
@@ -365,7 +364,6 @@ class SimpleNumberDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary>
   Set(Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
@@ -387,7 +385,6 @@ class NumberDictionary
  public:
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
-  DECL_CAST(NumberDictionary)
   DECL_PRINTER(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).

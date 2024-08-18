@@ -30,8 +30,10 @@ TargetArchitecture::TargetArchitecture(bool force_32bit)
                                      : kSmiShiftSize)),
       external_ptr_size_(force_32bit ? sizeof(int32_t)
                                      : kExternalPointerSlotSize),
-      indirect_ptr_size_(force_32bit ? sizeof(int32_t)
-                                     : kIndirectPointerSlotSize) {}
+      cppheap_ptr_size_(force_32bit ? sizeof(int32_t)
+                                    : kCppHeapPointerSlotSize),
+      indirect_ptr_size_(force_32bit ? sizeof(int32_t) : kIndirectPointerSize) {
+}
 
 }  // namespace torque
 }  // namespace internal

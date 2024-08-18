@@ -1,7 +1,7 @@
 'use strict'
 
 const { kClients } = require('../core/symbols')
-const Agent = require('../agent')
+const Agent = require('../dispatcher/agent')
 const {
   kAgent,
   kMockAgentSet,
@@ -17,7 +17,7 @@ const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
 const { matchValue, buildMockOptions } = require('./mock-utils')
 const { InvalidArgumentError, UndiciError } = require('../core/errors')
-const Dispatcher = require('../dispatcher')
+const Dispatcher = require('../dispatcher/dispatcher')
 const Pluralizer = require('./pluralizer')
 const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
 
@@ -29,10 +29,10 @@ class MockAgent extends Dispatcher {
     this[kIsMockActive] = true
 
     // Instantiate Agent and encapsulate
-    if ((opts && opts.agent && typeof opts.agent.dispatch !== 'function')) {
+    if ((opts?.agent && typeof opts.agent.dispatch !== 'function')) {
       throw new InvalidArgumentError('Argument opts.agent must implement Agent')
     }
-    const agent = opts && opts.agent ? opts.agent : new Agent(opts)
+    const agent = opts?.agent ? opts.agent : new Agent(opts)
     this[kAgent] = agent
 
     this[kClients] = agent[kClients]

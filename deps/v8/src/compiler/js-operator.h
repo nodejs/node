@@ -955,6 +955,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateStringIterator();
   const Operator* CreateKeyValueArray();
   const Operator* CreateObject();
+  const Operator* CreateStringWrapper();
   const Operator* CreatePromise();
   const Operator* CreateTypedArray();
   const Operator* CreateLiteralArray(ArrayBoilerplateDescriptionRef constant,
@@ -1021,6 +1022,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ConstructWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource());
+  const Operator* ConstructForwardAllArgs(
+      CallFrequency const& frequency = CallFrequency(),
+      FeedbackSource const& feedback = FeedbackSource());
 
   const Operator* LoadProperty(FeedbackSource const& feedback);
   const Operator* LoadNamed(NameRef name, FeedbackSource const& feedback);
@@ -1058,6 +1062,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* HasContextExtension(size_t depth);
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
+  const Operator* StoreScriptContext(size_t depth, size_t index);
 
   const Operator* LoadModule(int32_t cell_index);
   const Operator* StoreModule(int32_t cell_index);
@@ -1435,7 +1440,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
            node->opcode() == IrOpcode::kJSCallWithSpread ||
            node->opcode() == IrOpcode::kJSConstruct ||
            node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-           node->opcode() == IrOpcode::kJSConstructWithSpread
+           node->opcode() == IrOpcode::kJSConstructWithSpread ||
+           node->opcode() == IrOpcode::kJSConstructForwardAllArgs
 #if V8_ENABLE_WEBASSEMBLY
            || node->opcode() == IrOpcode::kJSWasmCall
 #endif     // V8_ENABLE_WEBASSEMBLY
@@ -1552,6 +1558,8 @@ using JSConstructWithSpreadNode =
     JSConstructNodeBase<IrOpcode::kJSConstructWithSpread>;
 using JSConstructWithArrayLikeNode =
     JSConstructNodeBase<IrOpcode::kJSConstructWithArrayLike>;
+using JSConstructForwardAllArgsNode =
+    JSConstructNodeBase<IrOpcode::kJSConstructForwardAllArgs>;
 
 class JSLoadNamedNode final : public JSNodeWrapperBase {
  public:

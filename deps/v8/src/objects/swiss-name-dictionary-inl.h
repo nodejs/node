@@ -15,6 +15,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-collection-iterator.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/swiss-name-dictionary.h"
 
@@ -26,7 +27,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/swiss-name-dictionary-tq-inl.inc"
 
-CAST_ACCESSOR(SwissNameDictionary)
 OBJECT_CONSTRUCTORS_IMPL(SwissNameDictionary, HeapObject)
 
 swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
@@ -150,7 +150,7 @@ void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
                                              Tagged<Object> key) {
-  Tagged<Name> name = Name::cast(key);
+  Tagged<Name> name = Cast<Name>(key);
   DCHECK(IsUniqueName(name));
   uint32_t hash = name->hash();
 
@@ -215,7 +215,7 @@ InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
 
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate,
-                                             Handle<Object> key) {
+                                             DirectHandle<Object> key) {
   return FindEntry(isolate, *key);
 }
 
@@ -295,7 +295,7 @@ Tagged<Object> SwissNameDictionary::KeyAt(InternalIndex entry) {
 }
 
 Tagged<Name> SwissNameDictionary::NameAt(InternalIndex entry) {
-  return Name::cast(KeyAt(entry));
+  return Cast<Name>(KeyAt(entry));
 }
 
 // This version can be called on empty buckets.
@@ -444,9 +444,8 @@ void SwissNameDictionary::SetMetaTableField(Tagged<ByteArray> meta_table,
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
   DCHECK_LE(value, std::numeric_limits<T>::max());
-  DCHECK_LT(meta_table->GetDataStartAddress() + field_index * sizeof(T),
-            meta_table->GetDataEndAddress());
-  T* raw_data = reinterpret_cast<T*>(meta_table->GetDataStartAddress());
+  DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
+  T* raw_data = reinterpret_cast<T*>(meta_table->begin());
   raw_data[field_index] = value;
 }
 
@@ -457,9 +456,8 @@ int SwissNameDictionary::GetMetaTableField(Tagged<ByteArray> meta_table,
   static_assert((std::is_same<T, uint8_t>::value) ||
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
-  DCHECK_LT(meta_table->GetDataStartAddress() + field_index * sizeof(T),
-            meta_table->GetDataEndAddress());
-  T* raw_data = reinterpret_cast<T*>(meta_table->GetDataStartAddress());
+  DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
+  T* raw_data = reinterpret_cast<T*>(meta_table->begin());
   return raw_data[field_index];
 }
 
@@ -512,7 +510,7 @@ bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 template <typename IsolateT>
 Handle<SwissNameDictionary> SwissNameDictionary::Add(
     IsolateT* isolate, Handle<SwissNameDictionary> original_table,
-    Handle<Name> key, Handle<Object> value, PropertyDetails details,
+    DirectHandle<Name> key, DirectHandle<Object> value, PropertyDetails details,
     InternalIndex* entry_out) {
   DCHECK(original_table->FindEntry(isolate, *key).is_not_found());
 
@@ -684,7 +682,7 @@ constexpr int SwissNameDictionary::MaxCapacity() {
       // Enumeration table entry size at maximum capacity:
       sizeof(uint32_t);
 
-  int result = (FixedArray::kMaxSize - const_size) / per_entry_size;
+  int result = (FixedArrayBase::kMaxSize - const_size) / per_entry_size;
   DCHECK_GE(Smi::kMaxValue, result);
 
   return result;
@@ -764,5 +762,7 @@ ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, Tagged<ByteArray>,
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_SWISS_NAME_DICTIONARY_INL_H_

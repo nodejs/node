@@ -69,6 +69,9 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kJSToWasmBuiltinContinuation:
       os << "JS_TO_WASM_BUILTIN_CONTINUATION_FRAME";
       break;
+    case FrameStateType::kLiftoffFunction:
+      os << "LIFTOFF_FRAME";
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
       os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
@@ -129,11 +132,11 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
       signature ? common->CreateJSToWasmFrameStateFunctionInfo(
                       frame_type, parameter_count, 0, shared, signature)
                 : common->CreateFrameStateFunctionInfo(
-                      frame_type, parameter_count, 0, shared);
+                      frame_type, parameter_count, 0, 0, shared);
 #else
   DCHECK_NULL(signature);
   const FrameStateFunctionInfo* state_info =
-      common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
+      common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0, 0,
                                            shared);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -216,7 +219,7 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
   DCHECK_EQ(Builtins::GetStackParameterCount(name),
             stack_parameter_count + DeoptimizerParameterCountFor(mode));
 
-  Node* argc = jsgraph->Constant(Builtins::GetStackParameterCount(name));
+  Node* argc = jsgraph->ConstantNoHole(Builtins::GetStackParameterCount(name));
 
   // Stack parameters first. They must be first because the receiver is expected
   // to be the second value in the translation when creating stack crawls
@@ -261,9 +264,7 @@ Node* CreateInlinedApiFunctionFrameState(JSGraph* graph,
                                          Node* target, Node* context,
                                          Node* receiver,
                                          Node* outer_frame_state) {
-  if (!v8_flags.experimental_stack_trace_frames) return outer_frame_state;
-  return CreateGenericLazyDeoptContinuationFrameState(
-      graph, shared, target, context, receiver, outer_frame_state);
+  return outer_frame_state;
 }
 
 FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,

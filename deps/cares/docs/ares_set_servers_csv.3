@@ -1,18 +1,5 @@
 .\"
 .\" Copyright 2010 by Ben Greear <greearb@candelatech.com>
-.\"
-.\" Permission to use, copy, modify, and distribute this
-.\" software and its documentation for any purpose and without
-.\" fee is hereby granted, provided that the above copyright
-.\" notice appear in all copies and that both that copyright
-.\" notice and this permission notice appear in supporting
-.\" documentation, and that the name of M.I.T. not be used in
-.\" advertising or publicity pertaining to distribution of the
-.\" software without specific, written prior permission.
-.\" M.I.T. makes no representations about the suitability of
-.\" this software for any purpose.  It is provided "as is"
-.\" without express or implied warranty.
-.\"
 .\" SPDX-License-Identifier: MIT
 .\"
 .TH ARES_SET_SERVERS_CSV 3 "5 Dec 2023"
@@ -27,7 +14,7 @@ int ares_set_servers_csv(ares_channel_t *\fIchannel\fP, const char* \fIservers\f
 
 int ares_set_servers_ports_csv(ares_channel_t *\fIchannel\fP, const char* \fIservers\fP)
 
-char *ares_get_servers_csv(ares_channel_t *\fIchannel\fP)
+char *ares_get_servers_csv(const ares_channel_t *\fIchannel\fP)
 .fi
 .SH DESCRIPTION
 The \fBares_set_servers_csv\fP and \fBares_set_servers_ports_csv\fP functions set
@@ -94,5 +81,3 @@ returns a string representing the servers configured which must be freed with
 \fBares_set_servers_csv\fP was added in c-ares 1.7.2
 \fBares_set_servers_ports_csv\fP was added in c-ares 1.11.0.
 \fBares_get_servers_csv\fP was added in c-ares 1.24.0.
-.SH AUTHOR
-Ben Greear

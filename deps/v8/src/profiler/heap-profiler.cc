@@ -83,6 +83,11 @@ v8::EmbedderGraph::Node::Detachedness HeapProfiler::GetDetachedness(
       get_detachedness_callback_.second);
 }
 
+const char* HeapProfiler::CopyNameForHeapSnapshot(const char* name) {
+  CHECK(is_taking_snapshot_);
+  return names_->GetCopy(name);
+}
+
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     const v8::HeapProfiler::HeapSnapshotOptions options) {
   is_taking_snapshot_ = true;
@@ -137,27 +142,37 @@ class FileOutputStream : public v8::OutputStream {
 
 // Precondition: only call this if you have just completed a full GC cycle.
 void HeapProfiler::WriteSnapshotToDiskAfterGC() {
-  int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
-  std::string filename = "v8-heap-" + std::to_string(time) + ".heapsnapshot";
-  v8::HeapProfiler::HeapSnapshotOptions options;
-  std::unique_ptr<HeapSnapshot> result(
-      new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode));
-  HeapSnapshotGenerator generator(result.get(), options.control,
-                                  options.global_object_name_resolver, heap(),
-                                  options.stack_state);
-  if (!generator.GenerateSnapshotAfterGC()) return;
+  // We need to set a stack marker for the stack walk performed by the
+  // snapshot generator to work.
+  heap()->stack().SetMarkerIfNeededAndCallback([this]() {
+    int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
+    std::string filename = "v8-heap-" + std::to_string(time) + ".heapsnapshot";
+    v8::HeapProfiler::HeapSnapshotOptions options;
+    std::unique_ptr<HeapSnapshot> result(
+        new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode));
+    HeapSnapshotGenerator generator(result.get(), options.control,
+                                    options.global_object_name_resolver, heap(),
+                                    options.stack_state);
+    if (!generator.GenerateSnapshotAfterGC()) return;
+    FileOutputStream stream(filename.c_str());
+    HeapSnapshotJSONSerializer serializer(result.get());
+    serializer.Serialize(&stream);
+    PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
+  });
+}
+
+void HeapProfiler::TakeSnapshotToFile(
+    const v8::HeapProfiler::HeapSnapshotOptions options, std::string filename) {
+  HeapSnapshot* snapshot = TakeSnapshot(options);
   FileOutputStream stream(filename.c_str());
-  HeapSnapshotJSONSerializer serializer(result.get());
+  HeapSnapshotJSONSerializer serializer(snapshot);
   serializer.Serialize(&stream);
-  PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
 }
 
 bool HeapProfiler::StartSamplingHeapProfiler(
     uint64_t sample_interval, int stack_depth,
     v8::HeapProfiler::SamplingFlags flags) {
-  if (sampling_heap_profiler_.get()) {
-    return false;
-  }
+  if (sampling_heap_profiler_) return false;
   sampling_heap_profiler_.reset(new SamplingHeapProfiler(
       heap(), names_.get(), sample_interval, stack_depth, flags));
   return true;
@@ -169,7 +184,7 @@ void HeapProfiler::StopSamplingHeapProfiler() {
 }
 
 v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
-  if (sampling_heap_profiler_.get()) {
+  if (sampling_heap_profiler_) {
     return sampling_heap_profiler_->GetAllocationProfile();
   } else {
     return nullptr;
@@ -214,9 +229,9 @@ HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
   return snapshots_.at(index).get();
 }
 
-SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
+SnapshotObjectId HeapProfiler::GetSnapshotObjectId(DirectHandle<Object> obj) {
   if (!IsHeapObject(*obj)) return v8::HeapProfiler::kUnknownObjectId;
-  return ids_->FindEntry(HeapObject::cast(*obj).address());
+  return ids_->FindEntry(Cast<HeapObject>(*obj).address());
 }
 
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(NativeObject obj) {
@@ -282,7 +297,7 @@ Heap* HeapProfiler::heap() const { return ids_->heap(); }
 
 Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 
-void HeapProfiler::QueryObjects(Handle<Context> context,
+void HeapProfiler::QueryObjects(DirectHandle<Context> context,
                                 v8::QueryObjectPredicate* predicate,
                                 std::vector<v8::Global<v8::Object>>* objects) {
   // We need a stack marker here to allow deterministic passes over the stack.
@@ -297,13 +312,13 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
       for (Tagged<HeapObject> heap_obj = heap_iterator.Next();
            !heap_obj.is_null(); heap_obj = heap_iterator.Next()) {
         if (IsFeedbackVector(heap_obj)) {
-          FeedbackVector::cast(heap_obj)->ClearSlots(isolate());
+          Cast<FeedbackVector>(heap_obj)->ClearSlots(isolate());
         } else if (IsJSTypedArray(heap_obj) &&
-                   JSTypedArray::cast(heap_obj)->is_on_heap()) {
+                   Cast<JSTypedArray>(heap_obj)->is_on_heap()) {
           // Cannot call typed_array->GetBuffer() here directly because it may
           // trigger GC. Defer that call by collecting the object in a vector.
           on_heap_typed_arrays.push_back(
-              handle(JSTypedArray::cast(heap_obj), isolate()));
+              handle(Cast<JSTypedArray>(heap_obj), isolate()));
         }
       }
       for (auto& typed_array : on_heap_typed_arrays) {
@@ -324,7 +339,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
           IsJSExternalObject(heap_obj, cage_base))
         continue;
       v8::Local<v8::Object> v8_obj(
-          Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
+          Utils::ToLocal(handle(Cast<JSObject>(heap_obj), isolate())));
       if (!predicate->Filter(v8_obj)) continue;
       objects->emplace_back(reinterpret_cast<v8::Isolate*>(isolate()), v8_obj);
     }

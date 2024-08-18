@@ -25,9 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-#include <assert.h>
-#include "ares.h"
+#include "ares_private.h"
 
 const char *ares_strerror(int code)
 {
@@ -85,6 +83,8 @@ const char *ares_strerror(int code)
       return "DNS query cancelled";
     case ARES_ESERVICE:
       return "Invalid service name or number";
+    case ARES_ENOSERVER:
+      return "No DNS servers were configured";
   }
 
   return "unknown";

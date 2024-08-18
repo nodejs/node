@@ -8,10 +8,10 @@ ACLOCAL_AMFLAGS = -I m4 --install
 # being currently built and tested are searched before the library which
 # might possibly already be installed in the system.
 
-AM_CPPFLAGS = -I$(top_builddir)/include \
-              -I$(top_builddir)/src/lib \
-              -I$(top_srcdir)/include \
-              -I$(top_srcdir)/src/lib
+AM_CPPFLAGS += -I$(top_builddir)/include \
+               -I$(top_builddir)/src/lib \
+               -I$(top_srcdir)/include \
+               -I$(top_srcdir)/src/lib
 
 lib_LTLIBRARIES = libcares.la
 

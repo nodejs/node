@@ -7,10 +7,9 @@
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-call-gen.h"
 #include "src/builtins/builtins-constructor.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
@@ -21,20 +20,30 @@ namespace v8 {
 namespace internal {
 
 void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructVarargs(masm,
-                                  BUILTIN_CODE(masm->isolate(), Construct));
+  Generate_CallOrConstructVarargs(masm, Builtin::kConstruct);
 }
 
 void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructForwardVarargs(
-      masm, CallOrConstructMode::kConstruct,
-      BUILTIN_CODE(masm->isolate(), Construct));
+  Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kConstruct,
+                                         Builtin::kConstruct);
 }
 
 void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructForwardVarargs(
-      masm, CallOrConstructMode::kConstruct,
-      BUILTIN_CODE(masm->isolate(), ConstructFunction));
+  Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kConstruct,
+                                         Builtin::kConstructFunction);
+}
+
+// static
+void Builtins::Generate_InterpreterForwardAllArgsThenConstruct(
+    MacroAssembler* masm) {
+  return Generate_ConstructForwardAllArgsImpl(masm,
+                                              ForwardWhichFrame::kParentFrame);
+}
+
+// static
+void Builtins::Generate_ConstructForwardAllArgs(MacroAssembler* masm) {
+  return Generate_ConstructForwardAllArgsImpl(masm,
+                                              ForwardWhichFrame::kCurrentFrame);
 }
 
 TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
@@ -71,9 +80,11 @@ void CallOrConstructBuiltinsAssembler::BuildConstruct(
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   TNode<Context> eager_context = context();
+  // TODO(42200059): Propagate TaggedIndex usage.
   CollectConstructFeedback(eager_context, target, new_target, feedback_vector(),
-                           slot, mode, &if_construct_generic,
-                           &if_construct_array, &allocation_site);
+                           IntPtrToTaggedIndex(Signed(slot)), mode,
+                           &if_construct_generic, &if_construct_array,
+                           &allocation_site);
 
   BIND(&if_construct_generic);
   TailCallBuiltin(Builtin::kConstruct, eager_context, target, new_target, argc);
@@ -88,29 +99,6 @@ TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
-  CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
-}
-
-TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
-           CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
-  auto context = Parameter<Context>(Descriptor::kContext);
-  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
-
-  TVARIABLE(AllocationSite, allocation_site);
-  Label if_construct_generic(this), if_construct_array(this);
-  CollectConstructFeedback(context, target, new_target, feedback_vector, slot,
-                           UpdateFeedbackMode::kOptionalFeedback,
-                           &if_construct_generic, &if_construct_array,
-                           &allocation_site);
-
-  BIND(&if_construct_array);
-  Goto(&if_construct_generic);  // Not implemented.
-
-  BIND(&if_construct_generic);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
@@ -130,7 +118,7 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
   auto spread = Parameter<Object>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
   return BuildConstructWithSpread(
       target, new_target, spread, args_count,
       [=] { return LoadContextFromBaseline(); },
@@ -145,8 +133,8 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto feedback_vector = Parameter<HeapObject>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto feedback_vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
 
   return BuildConstructWithSpread(
       target, new_target, spread, args_count, [=] { return context; },
@@ -157,7 +145,7 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
 void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
     TNode<Object> target, TNode<Object> new_target, TNode<Object> spread,
     TNode<Int32T> argc, const LazyNode<Context>& context,
-    const LazyNode<HeapObject>& feedback_vector, TNode<UintPtrT> slot,
+    const LazyNode<HeapObject>& feedback_vector, TNode<TaggedIndex> slot,
     UpdateFeedbackMode mode) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
@@ -172,6 +160,46 @@ void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
 
   BIND(&if_construct_generic);
   CallOrConstructWithSpread(target, new_target, spread, argc, eager_context);
+}
+
+TF_BUILTIN(ConstructForwardAllArgs_Baseline, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
+
+  return BuildConstructForwardAllArgs(
+      target, new_target, [=] { return LoadContextFromBaseline(); },
+      [=] { return LoadFeedbackVectorFromBaseline(); }, slot);
+}
+
+TF_BUILTIN(ConstructForwardAllArgs_WithFeedback,
+           CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
+  auto feedback_vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  return BuildConstructForwardAllArgs(
+      target, new_target, [=] { return context; },
+      [=] { return feedback_vector; }, slot);
+}
+
+void CallOrConstructBuiltinsAssembler::BuildConstructForwardAllArgs(
+    TNode<Object> target, TNode<Object> new_target,
+    const LazyNode<Context>& context,
+    const LazyNode<HeapObject>& feedback_vector, TNode<TaggedIndex> slot) {
+  TVARIABLE(AllocationSite, allocation_site);
+  TNode<Context> eager_context = context();
+
+  Label construct(this);
+  CollectConstructFeedback(eager_context, target, new_target, feedback_vector(),
+                           slot, UpdateFeedbackMode::kGuaranteedFeedback,
+                           &construct, &construct, &allocation_site);
+
+  BIND(&construct);
+  TailCallBuiltin(Builtin::kConstructForwardAllArgs, eager_context, target,
+                  new_target);
 }
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
@@ -252,9 +280,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  TNode<Code> lazy_builtin = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
-  StoreMaybeIndirectPointerField(result, JSFunction::kCodeOffset,
-                                 kCodeIndirectPointerTag, lazy_builtin);
+  TNode<Code> lazy_builtin =
+      HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
+  StoreCodePointerField(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
 }
 
@@ -323,12 +351,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
   BIND(&allocate_properties);
   {
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      properties =
-          AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
-    } else {
-      properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
-    }
+    properties =
+        AllocatePropertyDictionary(PropertyDictionary::kInitialCapacity);
     Goto(&instantiate_map);
   }
 
@@ -460,9 +484,6 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
     TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
     TNode<Context> context, AllocationSiteMode allocation_site_mode,
     Label* call_runtime) {
-  Label zero_capacity(this), cow_elements(this), fast_elements(this),
-      return_result(this);
-
   TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIfNot(HasBoilerplate(maybe_allocation_site), call_runtime);
@@ -534,6 +555,12 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
 
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSObject> boilerplate = LoadBoilerplate(allocation_site);
+  return CreateShallowObjectLiteral(allocation_site, boilerplate, call_runtime);
+}
+
+TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
+    TNode<AllocationSite> allocation_site, TNode<JSObject> boilerplate,
+    Label* call_runtime, bool bailout_if_dictionary_properties) {
   TNode<Map> boilerplate_map = LoadMap(boilerplate);
   CSA_DCHECK(this, IsJSObjectMap(boilerplate_map));
 
@@ -547,20 +574,25 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
            &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
-      Comment("Copy dictionary properties");
-      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        var_properties =
-            CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+      if (bailout_if_dictionary_properties) {
+        Goto(call_runtime);
       } else {
-        var_properties = CopyNameDictionary(
-            CAST(LoadSlowProperties(boilerplate)), call_runtime);
+        Comment("Copy dictionary properties");
+        if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+          var_properties =
+              CopySwissNameDictionary(CAST(LoadSlowProperties(boilerplate)));
+        } else {
+          var_properties = CopyNameDictionary(
+              CAST(LoadSlowProperties(boilerplate)), call_runtime);
+        }
+        // Slow objects have no in-object properties.
+        Goto(&done);
       }
-      // Slow objects have no in-object properties.
-      Goto(&done);
     }
     BIND(&if_fast);
     {
       // TODO(cbruni): support copying out-of-object properties.
+      // (CreateObjectFromSlowBoilerplate needs to handle them, too.)
       TNode<HeapObject> boilerplate_properties =
           LoadFastProperties(boilerplate);
       GotoIfNot(IsEmptyFixedArray(boilerplate_properties), call_runtime);

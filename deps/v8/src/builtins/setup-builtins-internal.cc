@@ -4,14 +4,17 @@
 
 #include <fstream>
 
-#include "src/builtins/builtins.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/reloc-info-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/code-assembler.h"
+#include "src/compiler/pipeline.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
@@ -22,6 +25,10 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-builtin-list.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -41,6 +48,14 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   CHECK(!options.isolate_independent_code);
   CHECK(!options.collect_win64_unwind_info);
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin) ||
+      builtin == Builtin::kJSToWasmWrapper ||
+      builtin == Builtin::kJSToWasmHandleReturns ||
+      builtin == Builtin::kWasmToJsWrapperCSA) {
+    options.is_wasm = true;
+  }
+#endif
   if (!isolate->IsGeneratingEmbeddedBuiltins()) {
     return options;
   }
@@ -78,6 +93,9 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
 
 using MacroAssemblerGenerator = void (*)(MacroAssembler*);
 using CodeAssemblerGenerator = void (*)(compiler::CodeAssemblerState*);
+using TurboshaftAssemblerGenerator =
+    void (*)(compiler::turboshaft::PipelineData*, Isolate*,
+             compiler::turboshaft::Graph&, Zone*);
 
 Handle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
   HandleScope scope(isolate);
@@ -101,9 +119,9 @@ Handle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
   return scope.CloseAndEscape(code);
 }
 
-Tagged<Code> BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
-                                     MacroAssemblerGenerator generator,
-                                     const char* s_name) {
+V8_NOINLINE Tagged<Code> BuildWithMacroAssembler(
+    Isolate* isolate, Builtin builtin, MacroAssemblerGenerator generator,
+    const char* s_name) {
   HandleScope scope(isolate);
   uint8_t buffer[kBufferSize];
 
@@ -126,8 +144,9 @@ Tagged<Code> BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
     HandlerTable::EmitReturnEntry(
         &masm, 0, isolate->builtins()->js_entry_handler_offset());
   }
-#if V8_ENABLE_WEBASSEMBLY && (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
-  // TODO(v8:12191): Enable on all platforms once the builtin has been ported.
+#if V8_ENABLE_WEBASSEMBLY &&                                              \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64)
   if (builtin == Builtin::kWasmReturnPromiseOnSuspendAsm) {
     handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
     HandlerTable::EmitReturnEntry(
@@ -139,10 +158,11 @@ Tagged<Code> BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
   masm.GetCode(isolate->main_thread_local_isolate(), &desc,
                MacroAssembler::kNoSafepointTable, handler_table_offset);
 
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-                          .set_self_reference(masm.CodeObject())
-                          .set_builtin(builtin)
-                          .Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+          .set_self_reference(masm.CodeObject())
+          .set_builtin(builtin)
+          .Build();
 #if defined(V8_OS_WIN64)
   isolate->SetBuiltinUnwindData(builtin, masm.GetUnwindInfo());
 #endif  // V8_OS_WIN64
@@ -161,33 +181,75 @@ Tagged<Code> BuildAdaptor(Isolate* isolate, Builtin builtin,
   Builtins::Generate_Adaptor(&masm, builtin_address);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-                          .set_self_reference(masm.CodeObject())
-                          .set_builtin(builtin)
-                          .Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+          .set_self_reference(masm.CodeObject())
+          .set_builtin(builtin)
+          .Build();
   return *code;
 }
 
 // Builder for builtins implemented in TurboFan with JS linkage.
-Tagged<Code> BuildWithCodeStubAssemblerJS(Isolate* isolate, Builtin builtin,
-                                          CodeAssemblerGenerator generator,
-                                          int argc, const char* name) {
+V8_NOINLINE Tagged<Code> BuildWithCodeStubAssemblerJS(
+    Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
+    int argc, const char* name) {
   HandleScope scope(isolate);
 
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   compiler::CodeAssemblerState state(isolate, &zone, argc, CodeKind::BUILTIN,
                                      name, builtin);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+  DirectHandle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
       ProfileDataFromFile::TryRead(name));
   return *code;
 }
 
+inline constexpr char kTempZoneName[] = "temp-zone";
+inline constexpr char kBuiltinCompilationZoneName[] =
+    "builtin-compilation-zone";
+
+// Builder for builtins implemented in Turboshaft with CallStub linkage.
+V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerCS(
+    Isolate* isolate, Builtin builtin, TurboshaftAssemblerGenerator generator,
+    CallDescriptors::Key interface_descriptor, const char* name) {
+  HandleScope scope(isolate);
+  using namespace compiler::turboshaft;  // NOLINT(build/namespaces)
+
+  compiler::ZoneStats zone_stats(isolate->allocator());
+  ZoneWithName<kBuiltinCompilationZoneName> zone(&zone_stats,
+                                                 kBuiltinCompilationZoneName);
+  OptimizedCompilationInfo info(base::CStrVector(name), zone, CodeKind::BUILTIN,
+                                builtin);
+
+  PipelineData data(&zone_stats, TurboshaftPipelineKind::kTSABuiltin, isolate,
+                    &info, BuiltinAssemblerOptions(isolate, builtin));
+  data.InitializeGraphComponent(nullptr);
+  ZoneWithName<kTempZoneName> temp_zone(&zone_stats, kTempZoneName);
+  generator(&data, isolate, data.graph(), temp_zone);
+
+  CallInterfaceDescriptor descriptor(interface_descriptor);
+  DCHECK_LE(0, descriptor.GetRegisterParameterCount());
+  compiler::CallDescriptor* call_descriptor =
+      compiler::Linkage::GetStubCallDescriptor(
+          zone, descriptor, descriptor.GetStackParameterCount(),
+          compiler::CallDescriptor::kNoFlags,
+          compiler::Operator::kNoProperties);
+
+  Handle<Code> code = compiler::Pipeline::GenerateCodeForTurboshaftBuiltin(
+                          &data, call_descriptor, builtin, name,
+                          ProfileDataFromFile::TryRead(name))
+                          .ToHandleChecked();
+  return *code;
+}
+
 // Builder for builtins implemented in TurboFan with CallStub linkage.
-Tagged<Code> BuildWithCodeStubAssemblerCS(
+V8_NOINLINE Tagged<Code> BuildWithCodeStubAssemblerCS(
     Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
     CallDescriptors::Key interface_descriptor, const char* name) {
+  // TODO(nicohartmann): Remove this once `BuildWithTurboshaftAssemblerCS` has
+  // an actual use.
+  USE(&BuildWithTurboshaftAssemblerCS);
   HandleScope scope(isolate);
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   // The interface descriptor with given key must be initialized at this point
@@ -198,7 +260,7 @@ Tagged<Code> BuildWithCodeStubAssemblerCS(
   compiler::CodeAssemblerState state(isolate, &zone, descriptor,
                                      CodeKind::BUILTIN, name, builtin);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+  DirectHandle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
       ProfileDataFromFile::TryRead(name));
   return *code;
@@ -222,7 +284,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   HandleScope scope(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Handle<Code> placeholder = BuildPlaceholder(isolate, builtin);
+    DirectHandle<Code> placeholder = BuildPlaceholder(isolate, builtin);
     AddBuiltin(builtins, builtin, *placeholder);
   }
 }
@@ -264,7 +326,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Tagged<Object> object = rinfo->target_object(cage_base);
         if (!IsCode(object, cage_base)) continue;
-        Tagged<Code> target = Code::cast(object);
+        Tagged<Code> target = Cast<Code>(object);
         if (!target->is_builtin()) continue;
         Tagged<Code> new_target = builtins->code(target->builtin_id());
         rinfo->set_target_object(istream, new_target, UPDATE_WRITE_BARRIER,
@@ -281,11 +343,11 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
 
 namespace {
 
-Tagged<Code> GenerateBytecodeHandler(Isolate* isolate, Builtin builtin,
-                                     interpreter::OperandScale operand_scale,
-                                     interpreter::Bytecode bytecode) {
+V8_NOINLINE Tagged<Code> GenerateBytecodeHandler(
+    Isolate* isolate, Builtin builtin, interpreter::OperandScale operand_scale,
+    interpreter::Bytecode bytecode) {
   DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
-  Handle<Code> code = interpreter::GenerateBytecodeHandler(
+  DirectHandle<Code> code = interpreter::GenerateBytecodeHandler(
       isolate, Builtins::name(builtin), bytecode, operand_scale, builtin,
       BuiltinAssemblerOptions(isolate, builtin));
   return *code;
@@ -320,6 +382,14 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   code = BuildWithCodeStubAssemblerJS(                                     \
       isolate, Builtin::k##Name, &Builtins::Generate_##Name, Argc, #Name); \
   AddBuiltin(builtins, Builtin::k##Name, code);                            \
+  index++;
+
+#define BUILD_TSC(Name, InterfaceDescriptor)                      \
+  /* Return size is from the provided CallInterfaceDescriptor. */ \
+  code = BuildWithTurboshaftAssemblerCS(                          \
+      isolate, Builtin::k##Name, &Builtins::Generate_##Name,      \
+      CallDescriptors::InterfaceDescriptor, #Name);               \
+  AddBuiltin(builtins, Builtin::k##Name, code);                   \
   index++;
 
 #define BUILD_TFC(Name, InterfaceDescriptor)                      \
@@ -358,11 +428,12 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   AddBuiltin(builtins, Builtin::k##Name, code);                     \
   index++;
 
-  BUILTIN_LIST(BUILD_CPP, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH, BUILD_BCH,
-               BUILD_ASM);
+  BUILTIN_LIST(BUILD_CPP, BUILD_TFJ, BUILD_TSC, BUILD_TFC, BUILD_TFS, BUILD_TFH,
+               BUILD_BCH, BUILD_ASM);
 
 #undef BUILD_CPP
 #undef BUILD_TFJ
+#undef BUILD_TSC
 #undef BUILD_TFC
 #undef BUILD_TFS
 #undef BUILD_TFH

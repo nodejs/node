@@ -116,8 +116,12 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   // Used for naming generated code.
   virtual std::string SimpleName() const;
 
+  enum class HandleKind { kIndirect, kDirect };
+  std::string GetHandleTypeName(HandleKind kind,
+                                const std::string& type_name) const;
+
   std::string TagglifiedCppTypeName() const;
-  std::string HandlifiedCppTypeName() const;
+  std::string HandlifiedCppTypeName(HandleKind kind) const;
 
   const Type* parent() const { return parent_; }
   bool IsVoid() const { return IsAbstractName(VOID_TYPE_STRING); }
@@ -137,7 +141,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   }
   virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const { return this; }
-  std::string GetConstexprGeneratedTypeName() const;
+  virtual std::string GetConstexprGeneratedTypeName() const;
   base::Optional<const ClassType*> ClassSupertype() const;
   base::Optional<const StructType*> StructSupertype() const;
   base::Optional<const AggregateType*> AggregateSupertype() const;
@@ -392,10 +396,9 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
     return "TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;
-  std::string GetRuntimeType() const override {
-    return parent()->GetRuntimeType();
-  }
-  std::string GetDebugType() const override { return parent()->GetDebugType(); }
+  std::string GetRuntimeType() const override;
+  std::string GetDebugType() const override;
+  std::string GetConstexprGeneratedTypeName() const override;
 
   friend size_t hash_value(const UnionType& p) {
     size_t result = 0;
@@ -483,6 +486,9 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
   explicit UnionType(const Type* t) : Type(Kind::kUnionType, t), types_({t}) {}
   void RecomputeParent();
   std::string SimpleNameImpl() const override;
+
+  static void InsertConstexprGeneratedTypeName(std::set<std::string>& names,
+                                               const Type* t);
 
   std::set<const Type*, TypeLess> types_;
 };
@@ -673,18 +679,21 @@ class ClassType final : public AggregateType {
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
   bool ShouldGeneratePrint() const {
     if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
     if (!IsExtern()) return true;
     if (!ShouldGenerateCppClassDefinitions()) return false;
     return !IsAbstract() && !HasUndefinedLayout();
   }
   bool ShouldGenerateVerify() const {
     if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
     if (!IsExtern()) return true;
     if (!ShouldGenerateCppClassDefinitions()) return false;
     return !HasUndefinedLayout() && !IsShape();
   }
   bool ShouldGenerateBodyDescriptor() const {
     if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
     if (flags_ & ClassFlag::kGenerateBodyDescriptor) return true;
     return !IsAbstract() && !IsExtern();
   }
@@ -693,15 +702,23 @@ class ClassType final : public AggregateType {
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
+  bool IsLayoutDefinedInCpp() const {
+    return flags_ & ClassFlag::kCppObjectLayoutDefinition;
+  }
   bool HasSameInstanceTypeAsParent() const {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
   bool ShouldGenerateCppClassDefinitions() const {
     if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
     return (flags_ & ClassFlag::kGenerateCppClassDefinitions) || !IsExtern();
   }
   bool ShouldGenerateCppObjectDefinitionAsserts() const {
     return flags_ & ClassFlag::kCppObjectDefinition;
+  }
+  bool ShouldGenerateCppObjectLayoutDefinitionAsserts() const {
+    return flags_ & ClassFlag::kCppObjectLayoutDefinition &&
+           flags_ & ClassFlag::kGenerateCppClassDefinitions;
   }
   bool ShouldGenerateFullClassDefinition() const { return !IsExtern(); }
   bool ShouldGenerateUniqueMap() const {

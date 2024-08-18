@@ -81,10 +81,6 @@ void ValidateCodeObjects() {
     for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
       TH_DCHECK(data->instructions[j].instr_offset >= 0);
       TH_DCHECK(data->instructions[j].instr_offset < data->size);
-      TH_DCHECK(data->instructions[j].landing_offset >= 0);
-      TH_DCHECK(data->instructions[j].landing_offset < data->size);
-      TH_DCHECK(data->instructions[j].landing_offset >
-                data->instructions[j].instr_offset);
     }
   }
 
@@ -235,6 +231,13 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
+void SetV8SandboxBaseAndSize(uintptr_t base, size_t size) {
+  TH_DCHECK(gV8SandboxBase == 0 && base != 0);
+  TH_DCHECK(gV8SandboxSize == 0 && size != 0);
+  gV8SandboxBase = base;
+  gV8SandboxSize = size;
+}
+
 int* GetThreadInWasmThreadLocalAddress() { return &g_thread_in_wasm_code; }
 
 size_t GetRecoveredTrapCount() {
@@ -262,7 +265,6 @@ bool EnableTrapHandler(bool use_v8_handler) {
       g_can_enable_trap_handler.exchange(false, std::memory_order_relaxed);
   // EnableTrapHandler called twice, or after IsTrapHandlerEnabled.
   TH_CHECK(can_enable);
-
   if (!V8_TRAP_HANDLER_SUPPORTED) {
     return false;
   }
@@ -273,6 +275,8 @@ bool EnableTrapHandler(bool use_v8_handler) {
   g_is_trap_handler_enabled = true;
   return true;
 }
+
+void SetLandingPad(uintptr_t landing_pad) { gLandingPad.store(landing_pad); }
 
 }  // namespace trap_handler
 }  // namespace internal

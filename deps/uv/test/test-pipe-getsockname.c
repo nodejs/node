@@ -60,8 +60,8 @@ static void pipe_client_connect_cb(uv_connect_t* req, int status) {
 
   if (*buf == '\0') {  /* Linux abstract socket. */
     const char expected[] = "\0" TEST_PIPENAME;
-    ASSERT_GE(len, sizeof(expected));
-    ASSERT_MEM_EQ(buf, expected, sizeof(expected));
+    ASSERT_EQ(len, sizeof(expected) - 1);
+    ASSERT_MEM_EQ(buf, expected, len);
   } else {
     ASSERT_NE(0, buf[len - 1]);
     ASSERT_MEM_EQ(buf, TEST_PIPENAME, len);
@@ -91,15 +91,23 @@ TEST_IMPL(pipe_getsockname) {
   RETURN_SKIP(NO_SELF_CONNECT);
 #endif
   uv_loop_t* loop;
+  char namebuf[256];
   char buf[1024];
+  size_t namelen;
   size_t len;
   int r;
+
+  snprintf(namebuf, sizeof(namebuf), "%s-oob", TEST_PIPENAME);
+  namelen = sizeof(TEST_PIPENAME) - 1;
 
   loop = uv_default_loop();
   ASSERT_NOT_NULL(loop);
 
   r = uv_pipe_init(loop, &pipe_server, 0);
   ASSERT_OK(r);
+
+  r = uv_pipe_bind2(&pipe_server, "bad\0path", 8, 0);
+  ASSERT_EQ(r, UV_EINVAL);
 
   len = sizeof buf;
   r = uv_pipe_getsockname(&pipe_server, buf, &len);
@@ -109,8 +117,12 @@ TEST_IMPL(pipe_getsockname) {
   r = uv_pipe_getpeername(&pipe_server, buf, &len);
   ASSERT_EQ(r, UV_EBADF);
 
-  r = uv_pipe_bind(&pipe_server, TEST_PIPENAME);
+  r = uv_pipe_bind2(&pipe_server, namebuf, namelen, 0);
   ASSERT_OK(r);
+
+#ifndef _WIN32
+  ASSERT_STR_EQ(pipe_server.pipe_fname, TEST_PIPENAME);
+#endif
 
   len = sizeof buf;
   r = uv_pipe_getsockname(&pipe_server, buf, &len);
@@ -138,7 +150,13 @@ TEST_IMPL(pipe_getsockname) {
   r = uv_pipe_getpeername(&pipe_client, buf, &len);
   ASSERT_EQ(r, UV_EBADF);
 
-  uv_pipe_connect(&connect_req, &pipe_client, TEST_PIPENAME, pipe_client_connect_cb);
+  r = uv_pipe_connect2(&connect_req,
+                       &pipe_client,
+                       namebuf,
+                       namelen,
+                       0,
+                       pipe_client_connect_cb);
+  ASSERT_OK(r);
 
   len = sizeof buf;
   r = uv_pipe_getsockname(&pipe_client, buf, &len);
@@ -171,9 +189,10 @@ TEST_IMPL(pipe_getsockname_abstract) {
   buflen = sizeof(buf);
   memset(buf, 0, sizeof(buf));
   ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_server, 0));
-  ASSERT_OK(uv_pipe_bind2(&pipe_server, name, sizeof(name), 0));
+  ASSERT_OK(uv_pipe_bind2(&pipe_server, name, sizeof(name) - 1, 0));
   ASSERT_OK(uv_pipe_getsockname(&pipe_server, buf, &buflen));
-  ASSERT_MEM_EQ(name, buf, sizeof(name));
+  ASSERT_UINT64_EQ(sizeof(name) - 1, buflen);
+  ASSERT_MEM_EQ(name, buf, buflen);
   ASSERT_OK(uv_listen((uv_stream_t*) &pipe_server,
                       0,
                       pipe_server_connection_cb));
@@ -181,7 +200,7 @@ TEST_IMPL(pipe_getsockname_abstract) {
   ASSERT_OK(uv_pipe_connect2(&connect_req,
                              &pipe_client,
                              name,
-                             sizeof(name),
+                             sizeof(name) - 1,
                              0,
                              pipe_client_connect_cb));
   ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));

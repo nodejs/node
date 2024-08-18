@@ -1,4 +1,4 @@
-/* auto-generated on 2023-12-01 13:59:01 -0500. Do not edit! */
+/* auto-generated on 2024-08-09 09:52:29 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -130,9 +130,9 @@
 #include <iso646.h>
 #endif
 
-#if defined(__x86_64__) || defined(_M_AMD64)
+#if (defined(__x86_64__) || defined(_M_AMD64)) && !defined(_M_ARM64EC)
 #define SIMDUTF_IS_X86_64 1
-#elif defined(__aarch64__) || defined(_M_ARM64)
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #define SIMDUTF_IS_ARM64 1
 #elif defined(__PPC64__) || defined(_M_PPC64)
 //#define SIMDUTF_IS_PPC64 1
@@ -142,6 +142,30 @@
 // s390 IBM system. Big endian.
 #elif (defined(__riscv) || defined(__riscv__)) && __riscv_xlen == 64
 // RISC-V 64-bit
+#define SIMDUTF_IS_RISCV64 1
+
+#if __clang_major__ >= 19
+// Does the compiler support target regions for RISC-V
+#define SIMDUTF_HAS_RVV_TARGET_REGION 1
+#endif
+
+#if __riscv_v_intrinsic >= 11000
+#define SIMDUTF_HAS_RVV_INTRINSICS 1
+#endif
+
+#define SIMDUTF_HAS_ZVBB_INTRINSICS 0 // there is currently no way to detect this
+
+#if SIMDUTF_HAS_RVV_INTRINSICS && __riscv_vector && __riscv_v_min_vlen >= 128 && __riscv_v_elen >= 64
+// RISC-V V extension
+#define SIMDUTF_IS_RVV 1
+#if SIMDUTF_HAS_ZVBB_INTRINSICS && __riscv_zvbb >= 1000000
+// RISC-V Vector Basic Bit-manipulation
+#define SIMDUTF_IS_ZVBB 1
+#endif
+#endif
+
+#elif defined(__loongarch_lp64)
+// LoongArch 64-bit
 #else
 // The simdutf library is designed
 // for 64-bit processors and it seems that you are not
@@ -409,8 +433,11 @@
   #define SIMDUTF_POP_DISABLE_WARNINGS __pragma(warning( pop ))
 
 #else // SIMDUTF_REGULAR_VISUAL_STUDIO
-
+#if defined(__OPTIMIZE__) || defined(NDEBUG)
   #define simdutf_really_inline inline __attribute__((always_inline))
+#else
+  #define simdutf_really_inline inline
+#endif
   #define simdutf_never_inline inline __attribute__((noinline))
 
   #define simdutf_unused __attribute__((unused))
@@ -540,6 +567,9 @@ enum error_code {
   SURROGATE,    // The decoded character must be not be in U+D800...DFFF (UTF-8 or UTF-32) OR
                 // a high surrogate must be followed by a low surrogate and a low surrogate must be preceded by a high surrogate (UTF-16) OR
                 // there must be no surrogate at all (Latin1)
+  INVALID_BASE64_CHARACTER, // Found a character that cannot be part of a valid base64 string.
+  BASE64_INPUT_REMAINDER, // The base64 input terminates with a single character, excluding padding (=).
+  OUTPUT_BUFFER_TOO_SMALL, // The provided buffer is too small.
   OTHER         // Not related to validation/transcoding.
 };
 
@@ -547,9 +577,9 @@ struct result {
   error_code error;
   size_t count;     // In case of error, indicates the position of the error. In case of success, indicates the number of code units validated/written.
 
-  simdutf_really_inline result();
+  simdutf_really_inline result() : error{error_code::SUCCESS}, count{0} {}
 
-  simdutf_really_inline result(error_code, size_t);
+  simdutf_really_inline result(error_code _err, size_t _pos) : error{_err}, count{_pos} {}
 };
 
 }
@@ -567,22 +597,22 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "4.0.8"
+#define SIMDUTF_VERSION "5.3.4"
 
 namespace simdutf {
 enum {
   /**
    * The major version (MAJOR.minor.revision) of simdutf being used.
    */
-  SIMDUTF_VERSION_MAJOR = 4,
+  SIMDUTF_VERSION_MAJOR = 5,
   /**
    * The minor version (major.MINOR.revision) of simdutf being used.
    */
-  SIMDUTF_VERSION_MINOR = 0,
+  SIMDUTF_VERSION_MINOR = 3,
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 8
+  SIMDUTF_VERSION_REVISION = 4
 };
 } // namespace simdutf
 
@@ -654,6 +684,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <cpuid.h>
 #endif
 
+
+// RISC-V ISA detection utilities
+#if SIMDUTF_IS_RISCV64 && defined(__linux__)
+#include <unistd.h> // for syscall
+// We define these ourselves, for backwards compatibility
+struct simdutf_riscv_hwprobe { int64_t key; uint64_t value; };
+#define simdutf_riscv_hwprobe(...) syscall(258, __VA_ARGS__)
+#define SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0 4
+#define SIMDUTF_RISCV_HWPROBE_IMA_V    (1 << 2)
+#define SIMDUTF_RISCV_HWPROBE_EXT_ZVBB (1 << 17)
+#endif // SIMDUTF_IS_RISCV64 && defined(__linux__)
+
 namespace simdutf {
 namespace internal {
 
@@ -675,7 +717,9 @@ enum instruction_set {
   AVX512BW = 0x4000,
   AVX512VL = 0x8000,
   AVX512VBMI2 = 0x10000,
-  AVX512VPOPCNTDQ = 0x2000
+  AVX512VPOPCNTDQ = 0x2000,
+  RVV = 0x4000,
+  ZVBB = 0x8000,
 };
 
 #if defined(__PPC64__)
@@ -684,7 +728,35 @@ static inline uint32_t detect_supported_architectures() {
   return instruction_set::ALTIVEC;
 }
 
-#elif defined(__aarch64__) || defined(_M_ARM64)
+#elif SIMDUTF_IS_RISCV64
+
+static inline uint32_t detect_supported_architectures() {
+  uint32_t host_isa = instruction_set::DEFAULT;
+#if SIMDUTF_IS_RVV
+  host_isa |= instruction_set::RVV;
+#endif
+#if SIMDUTF_IS_ZVBB
+  host_isa |= instruction_set::ZVBB;
+#endif
+#if defined(__linux__)
+  simdutf_riscv_hwprobe probes[] = { { SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0, 0 } };
+  long ret = simdutf_riscv_hwprobe(&probes, sizeof probes/sizeof *probes, 0, nullptr, 0);
+  if (ret == 0) {
+    uint64_t extensions = probes[0].value;
+    if (extensions & SIMDUTF_RISCV_HWPROBE_IMA_V)
+      host_isa |= instruction_set::RVV;
+    if (extensions & SIMDUTF_RISCV_HWPROBE_EXT_ZVBB)
+      host_isa |= instruction_set::ZVBB;
+  }
+#endif
+#if defined(RUN_IN_SPIKE_SIMULATOR)
+  // Proxy Kernel does not implement yet hwprobe syscall
+  host_isa |= instruction_set::RVV;
+#endif
+  return host_isa;
+}
+
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 
 static inline uint32_t detect_supported_architectures() {
   return instruction_set::NEON;
@@ -874,7 +946,7 @@ simdutf_really_inline simdutf_warn_unused simdutf::encoding_type autodetect_enco
  * E.g., if the input might be UTF-16LE or UTF-8, this function returns
  * the value (simdutf::encoding_type::UTF8 | simdutf::encoding_type::UTF16_LE).
  *
- * Overriden by each implementation.
+ * Overridden by each implementation.
  *
  * @param input the string to analyze.
  * @param length the length of the string in bytes.
@@ -1106,7 +1178,7 @@ simdutf_warn_unused result validate_utf32_with_errors(const char32_t *buf, size_
    * @param input         the UTF-8 string to convert
    * @param length        the length of the string in bytes
    * @param latin1_output  the pointer to buffer that can hold conversion result
-   * @return the number of written char; 0 if the input was not valid UTF-8 string
+   * @return the number of written char; 0 if the input was not valid UTF-8 string or if it cannot be represented as Latin1
    */
   simdutf_warn_unused size_t convert_utf8_to_latin1(const char * input, size_t length, char* latin1_output) noexcept;
 
@@ -1163,6 +1235,8 @@ simdutf_warn_unused size_t convert_utf8_to_utf16be(const char * input, size_t le
 
   /**
    * Convert possibly broken UTF-8 string into latin1 string with errors.
+   * If the string cannot be represented as Latin1, an error
+   * code is returned.
    *
    * During the conversion also validation of the input string is done.
    * This function is suitable to work with inputs from untrusted sources.
@@ -1243,7 +1317,7 @@ simdutf_warn_unused result convert_utf8_to_utf32_with_errors(const char * input,
     /**
    * Convert valid UTF-8 string into latin1 string.
    *
-   * This function assumes that the input string is valid UTF-8.
+   * This function assumes that the input string is valid UTF-8 and that it can be represented as Latin1.
    *
    * This function is not BOM-aware.
    *
@@ -1316,7 +1390,8 @@ simdutf_warn_unused size_t utf8_length_from_latin1(const char * input, size_t le
 /**
  * Compute the number of bytes that this UTF-8 string would require in Latin1 format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-8 strings but in such cases
+   * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -1329,7 +1404,8 @@ simdutf_warn_unused size_t latin1_length_from_utf8(const char * input, size_t le
 /**
  * Compute the number of 2-byte code units that this UTF-8 string would require in UTF-16LE format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-8 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -1344,7 +1420,8 @@ simdutf_warn_unused size_t utf16_length_from_utf8(const char * input, size_t len
  *
  * This function is equivalent to count_utf8
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-8 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -1382,12 +1459,14 @@ simdutf_warn_unused size_t convert_utf16_to_utf8(const char16_t * input, size_t 
  * @param input         the UTF-16 string to convert
  * @param length        the length of the string in 2-byte code units (char16_t)
  * @param latin1_buffer   the pointer to buffer that can hold conversion result
- * @return number of written code units; 0 if input is not a valid UTF-16LE string
+ * @return number of written code units; 0 if input is not a valid UTF-16 string  or if it cannot be represented as Latin1
  */
 simdutf_warn_unused size_t convert_utf16_to_latin1(const char16_t * input, size_t length, char* latin1_buffer) noexcept;
 
 /**
  * Convert possibly broken UTF-16LE string into Latin1 string.
+ * If the string cannot be represented as Latin1, an error
+ * is returned.
  *
  * During the conversion also validation of the input string is done.
  * This function is suitable to work with inputs from untrusted sources.
@@ -1397,7 +1476,7 @@ simdutf_warn_unused size_t convert_utf16_to_latin1(const char16_t * input, size_
  * @param input         the UTF-16LE string to convert
  * @param length        the length of the string in 2-byte code units (char16_t)
  * @param latin1_buffer   the pointer to buffer that can hold conversion result
- * @return number of written code units; 0 if input is not a valid UTF-16LE string
+ * @return number of written code units; 0 if input is not a valid UTF-16LE string or if it cannot be represented as Latin1
  */
 simdutf_warn_unused size_t convert_utf16le_to_latin1(const char16_t * input, size_t length, char* latin1_buffer) noexcept;
 
@@ -1412,7 +1491,7 @@ simdutf_warn_unused size_t convert_utf16le_to_latin1(const char16_t * input, siz
  * @param input         the UTF-16BE string to convert
  * @param length        the length of the string in 2-byte code units (char16_t)
  * @param latin1_buffer   the pointer to buffer that can hold conversion result
- * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and either position of the error (in the input in code units) if any, or the number of char written if successful.
+ * @return number of written code units; 0 if input is not a valid UTF-16BE string or if it cannot be represented as Latin1
  */
 simdutf_warn_unused size_t convert_utf16be_to_latin1(const char16_t * input, size_t length, char* latin1_buffer) noexcept;
 
@@ -1477,6 +1556,8 @@ simdutf_warn_unused result convert_utf16le_to_latin1_with_errors(const char16_t 
 
 /**
  * Convert possibly broken UTF-16BE string into Latin1 string.
+ * If the string cannot be represented as Latin1, an error
+ * is returned.
  *
  * During the conversion also validation of the input string is done.
  * This function is suitable to work with inputs from untrusted sources.
@@ -1553,7 +1634,7 @@ simdutf_warn_unused size_t convert_valid_utf16_to_utf8(const char16_t * input, s
 /**
  * Using native endianness, convert UTF-16 string into Latin1 string.
  *
- * This function assumes that the input string is valid UTF-8.
+ * This function assumes that the input string is valid UTF-16 and that it can be represented as Latin1.
  *
  * This function is not BOM-aware.
  *
@@ -1567,7 +1648,7 @@ simdutf_warn_unused size_t convert_valid_utf16_to_latin1(const char16_t * input,
 /**
  * Convert valid UTF-16LE string into Latin1 string.
  *
- * This function assumes that the input string is valid UTF-16LE.
+ * This function assumes that the input string is valid UTF-16LE and that it can be represented as Latin1.
  *
  * This function is not BOM-aware.
  *
@@ -1581,7 +1662,7 @@ simdutf_warn_unused size_t convert_valid_utf16le_to_latin1(const char16_t * inpu
 /**
  * Convert valid UTF-16BE string into Latin1 string.
  *
- * This function assumes that the input string is valid UTF-16BE.
+ * This function assumes that the input string is valid UTF-16BE and that it can be represented as Latin1.
  *
  * This function is not BOM-aware.
  *
@@ -1596,7 +1677,7 @@ simdutf_warn_unused size_t convert_valid_utf16be_to_latin1(const char16_t * inpu
 /**
  * Convert valid UTF-16LE string into UTF-8 string.
  *
- * This function assumes that the input string is valid UTF-16LE.
+ * This function assumes that the input string is valid UTF-16LE and that it can be represented as Latin1.
  *
  * This function is not BOM-aware.
  *
@@ -1758,7 +1839,8 @@ simdutf_warn_unused size_t convert_valid_utf16be_to_utf32(const char16_t * input
 /*
  * Compute the number of bytes that this UTF-16LE/BE string would require in Latin1 format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -1772,7 +1854,8 @@ simdutf_warn_unused size_t latin1_length_from_utf16(size_t length) noexcept;
  * Using native endianness; Compute the number of bytes that this UTF-16
  * string would require in UTF-8 format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * @param input         the UTF-16 string to convert
  * @param length        the length of the string in 2-byte code units (char16_t)
@@ -1783,7 +1866,8 @@ simdutf_warn_unused size_t utf8_length_from_utf16(const char16_t * input, size_t
 /**
  * Compute the number of bytes that this UTF-16LE string would require in UTF-8 format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * @param input         the UTF-16LE string to convert
  * @param length        the length of the string in 2-byte code units (char16_t)
@@ -1794,7 +1878,8 @@ simdutf_warn_unused size_t utf8_length_from_utf16le(const char16_t * input, size
 /**
  * Compute the number of bytes that this UTF-16BE string would require in UTF-8 format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * @param input         the UTF-16BE string to convert
  * @param length        the length of the string in 2-byte code units (char16_t)
@@ -1887,13 +1972,14 @@ simdutf_warn_unused size_t convert_utf32_to_utf16le(const char32_t * input, size
  * @param input         the UTF-32 string to convert
  * @param length        the length of the string in 4-byte code units (char32_t)
  * @param latin1_buffer   the pointer to buffer that can hold conversion result
- * @return number of written code units; 0 if input is not a valid UTF-32 string
+ * @return number of written code units; 0 if input is not a valid UTF-32 string or if it cannot be represented as Latin1
  */
 simdutf_warn_unused size_t convert_utf32_to_latin1(const char32_t * input, size_t length, char* latin1_buffer) noexcept;
 
 
 /**
  * Convert possibly broken UTF-32 string into Latin1 string and stop on error.
+ * If the string cannot be represented as Latin1, an error is returned.
  *
  * During the conversion also validation of the input string is done.
  * This function is suitable to work with inputs from untrusted sources.
@@ -1910,7 +1996,7 @@ simdutf_warn_unused result convert_utf32_to_latin1_with_errors(const char32_t * 
 /**
  * Convert valid UTF-32 string into Latin1 string.
  *
- * This function assumes that the input string is valid UTF-32.
+ * This function assumes that the input string is valid UTF-32 and that it can be represented as Latin1.
  *
  * This function is not BOM-aware.
  *
@@ -2041,7 +2127,8 @@ void change_endianness_utf16(const char16_t * input, size_t length, char16_t * o
 /**
  * Compute the number of bytes that this UTF-32 string would require in UTF-8 format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-32 strings but in such cases
+ * the result is implementation defined.
  *
  * @param input         the UTF-32 string to convert
  * @param length        the length of the string in 4-byte code units (char32_t)
@@ -2052,7 +2139,8 @@ simdutf_warn_unused size_t utf8_length_from_utf32(const char32_t * input, size_t
 /**
  * Compute the number of two-byte code units that this UTF-32 string would require in UTF-16 format.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-32 strings but in such cases
+ * the result is implementation defined.
  *
  * @param input         the UTF-32 string to convert
  * @param length        the length of the string in 4-byte code units (char32_t)
@@ -2066,7 +2154,8 @@ simdutf_warn_unused size_t utf16_length_from_utf32(const char32_t * input, size_
  *
  * This function is equivalent to count_utf16.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -2081,7 +2170,8 @@ simdutf_warn_unused size_t utf32_length_from_utf16(const char16_t * input, size_
  *
  * This function is equivalent to count_utf16le.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -2096,7 +2186,8 @@ simdutf_warn_unused size_t utf32_length_from_utf16le(const char16_t * input, siz
  *
  * This function is equivalent to count_utf16be.
  *
- * This function does not validate the input.
+ * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -2111,6 +2202,8 @@ simdutf_warn_unused size_t utf32_length_from_utf16be(const char16_t * input, siz
  * it is valid.
  *
  * This function assumes that the input string is valid UTF-16 (native endianness).
+ * It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -2125,6 +2218,8 @@ simdutf_warn_unused size_t count_utf16(const char16_t * input, size_t length) no
  * it is valid.
  *
  * This function assumes that the input string is valid UTF-16LE.
+ * It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -2139,6 +2234,8 @@ simdutf_warn_unused size_t count_utf16le(const char16_t * input, size_t length) 
  * it is valid.
  *
  * This function assumes that the input string is valid UTF-16BE.
+ * It is acceptable to pass invalid UTF-16 strings but in such cases
+ * the result is implementation defined.
  *
  * This function is not BOM-aware.
  *
@@ -2153,6 +2250,8 @@ simdutf_warn_unused size_t count_utf16be(const char16_t * input, size_t length) 
  * it is valid.
  *
  * This function assumes that the input string is valid UTF-8.
+ * It is acceptable to pass invalid UTF-8 strings but in such cases
+ * the result is implementation defined.
  *
  * @param input         the UTF-8 string to process
  * @param length        the length of the string in bytes
@@ -2222,6 +2321,177 @@ simdutf_warn_unused size_t trim_partial_utf16le(const char16_t* input, size_t le
  */
 simdutf_warn_unused size_t trim_partial_utf16(const char16_t* input, size_t length);
 
+// base64_options are used to specify the base64 encoding options.
+using base64_options = uint64_t;
+using base64_options = uint64_t;
+enum : base64_options {
+  base64_default = 0, /* standard base64 format (with padding) */
+  base64_url = 1, /* base64url format (no padding) */
+  base64_reverse_padding = 2, /* modifier for base64_default and base64_url */
+  base64_default_no_padding = base64_default | base64_reverse_padding, /* standard base64 format without padding */
+  base64_url_with_padding = base64_url | base64_reverse_padding, /* base64url with padding */
+};
+
+/**
+ * Provide the maximal binary length in bytes given the base64 input.
+ * In general, if the input contains ASCII spaces, the result will be less than
+ * the maximum length.
+ *
+ * @param input         the base64 input to process
+ * @param length        the length of the base64 input in bytes
+ * @return maximum number of binary bytes
+ */
+simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input, size_t length) noexcept;
+
+/**
+ * Provide the maximal binary length in bytes given the base64 input.
+ * In general, if the input contains ASCII spaces, the result will be less than
+ * the maximum length.
+ *
+ * @param input         the base64 input to process, in ASCII stored as 16-bit units
+ * @param length        the length of the base64 input in 16-bit units
+ * @return maximal number of binary bytes
+ */
+simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) noexcept;
+
+/**
+ * Convert a base64 input to a binary ouput.
+ *
+ * This function follows the WHATWG forgiving-base64 format, which means that it will
+ * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
+ * equal signs at the end) or an unpadded input (without any equal signs at the end).
+ *
+ * See https://infra.spec.whatwg.org/#forgiving-base64-decode
+ *
+ * This function will fail in case of invalid input. There are two possible reasons for
+ * failure: the input contains a number of base64 characters that when divided by 4, leaves
+ * a single remainder character (BASE64_INPUT_REMAINDER), or the input contains a character
+ * that is not a valid base64 character (INVALID_BASE64_CHARACTER).
+ *
+ * When the error is INVALID_BASE64_CHARACTER, r.count contains the index in the input
+ * where the invalid character was found. When the error is BASE64_INPUT_REMAINDER, then
+ * r.count contains the number of bytes decoded.
+ *
+ * The default option (simdutf::base64_default) expects the characters `+` and `/` as part of its alphabet.
+ * The URL option (simdutf::base64_url) expects the characters `-` and `_` as part of its alphabet.
+ *
+ * The padding (`=`) is validated if present. There may be at most two padding characters at the end of the input.
+ * If there are any padding characters, the total number of characters (excluding spaces but including padding characters) must be divisible by four.
+ *
+ * You should call this function with a buffer that is at least maximal_binary_length_from_base64(input, length) bytes long.
+ * If you fail to provide that much space, the function may cause a buffer overflow.
+ *
+ * @param input         the base64 string to process
+ * @param length        the length of the string in bytes
+ * @param output        the pointer to buffer that can hold the conversion result (should be at least maximal_binary_length_from_base64(input, length) bytes long).
+ * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+ * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and either position of the error (in the input in bytes) if any, or the number of bytes written if successful.
+ */
+simdutf_warn_unused result base64_to_binary(const char * input, size_t length, char* output, base64_options options = base64_default) noexcept;
+
+/**
+ * Provide the base64 length in bytes given the length of a binary input.
+ *
+ * @param length        the length of the input in bytes
+ * @return number of base64 bytes
+ */
+simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options = base64_default) noexcept;
+
+/**
+ * Convert a binary input to a base64 ouput.
+ *
+ * The default option (simdutf::base64_default) uses the characters `+` and `/` as part of its alphabet.
+ * Further, it adds padding (`=`) at the end of the output to ensure that the output length is a multiple of four.
+ *
+ * The URL option (simdutf::base64_url) uses the characters `-` and `_` as part of its alphabet. No padding
+ * is added at the end of the output.
+ *
+ * This function always succeeds.
+ *
+ * @param input         the binary to process
+ * @param length        the length of the input in bytes
+ * @param output        the pointer to buffer that can hold the conversion result (should be at least base64_length_from_binary(length) bytes long)
+ * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+ * @return number of written bytes, will be equal to base64_length_from_binary(length, options)
+ */
+size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options = base64_default) noexcept;
+
+/**
+ * Convert a base64 input to a binary ouput.
+ *
+ * This function follows the WHATWG forgiving-base64 format, which means that it will
+ * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
+ * equal signs at the end) or an unpadded input (without any equal signs at the end).
+ *
+ * See https://infra.spec.whatwg.org/#forgiving-base64-decode
+ *
+ * This function will fail in case of invalid input. There are two possible reasons for
+ * failure: the input contains a number of base64 characters that when divided by 4, leaves
+ * a single remainder character (BASE64_INPUT_REMAINDER), or the input contains a character
+ * that is not a valid base64 character (INVALID_BASE64_CHARACTER).
+ *
+ * When the error is INVALID_BASE64_CHARACTER, r.count contains the index in the input
+ * where the invalid character was found. When the error is BASE64_INPUT_REMAINDER, then
+ * r.count contains the number of bytes decoded.
+ *
+ * The default option (simdutf::base64_default) expects the characters `+` and `/` as part of its alphabet.
+ * The URL option (simdutf::base64_url) expects the characters `-` and `_` as part of its alphabet.
+ *
+ * The padding (`=`) is validated if present. There may be at most two padding characters at the end of the input.
+ * If there are any padding characters, the total number of characters (excluding spaces but including padding characters) must be divisible by four.
+ *
+ * You should call this function with a buffer that is at least maximal_binary_length_from_utf6_base64(input, length) bytes long.
+ * If you fail to provide that much space, the function may cause a buffer overflow.
+ *
+ * @param input         the base64 string to process, in ASCII stored as 16-bit units
+ * @param length        the length of the string in 16-bit units
+ * @param output        the pointer to buffer that can hold the conversion result (should be at least maximal_binary_length_from_base64(input, length) bytes long).
+ * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+ * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and position of the INVALID_BASE64_CHARACTER error (in the input in units) if any, or the number of bytes written if successful.
+ */
+simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options = base64_default)  noexcept;
+
+/**
+ * Convert a base64 input to a binary ouput.
+ *
+ * This function follows the WHATWG forgiving-base64 format, which means that it will
+ * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
+ * equal signs at the end) or an unpadded input (without any equal signs at the end).
+ *
+ * See https://infra.spec.whatwg.org/#forgiving-base64-decode
+ *
+ * This function will fail in case of invalid input. There are three possible reasons for
+ * failure: the input contains a number of base64 characters that when divided by 4, leaves
+ * a single remainder character (BASE64_INPUT_REMAINDER), the input contains a character
+ * that is not a valid base64 character (INVALID_BASE64_CHARACTER), or the output buffer
+ * is too small (OUTPUT_BUFFER_TOO_SMALL).
+ *
+ * When OUTPUT_BUFFER_TOO_SMALL, we return both the number of bytes written
+ * and the number of units processed, see description of the parameters and returned value.
+ *
+ * When the error is INVALID_BASE64_CHARACTER, r.count contains the index in the input
+ * where the invalid character was found. When the error is BASE64_INPUT_REMAINDER, then
+ * r.count contains the number of bytes decoded.
+ *
+ * The default option (simdutf::base64_default) expects the characters `+` and `/` as part of its alphabet.
+ * The URL option (simdutf::base64_url) expects the characters `-` and `_` as part of its alphabet.
+ *
+ * The padding (`=`) is validated if present. There may be at most two padding characters at the end of the input.
+ * If there are any padding characters, the total number of characters (excluding spaces but including padding characters) must be divisible by four.
+ *
+ * The INVALID_BASE64_CHARACTER cases are considered fatal and you are expected to discard
+ * the output.
+ *
+ * @param input         the base64 string to process, in ASCII stored as 8-bit or 16-bit units
+ * @param length        the length of the string in 8-bit or 16-bit units.
+ * @param output        the pointer to buffer that can hold the conversion result.
+ * @param outlen        the number of bytes that can be written in the output buffer. Upon return, it is modified to reflect how many bytes were written.
+ * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+ * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and position of the INVALID_BASE64_CHARACTER error (in the input in units) if any, or the number of units processed if successful.
+ */
+simdutf_warn_unused result base64_to_binary_safe(const char * input, size_t length, char* output, size_t& outlen, base64_options options = base64_default) noexcept;
+simdutf_warn_unused result base64_to_binary_safe(const char16_t * input, size_t length, char* output, size_t& outlen, base64_options options = base64_default) noexcept;
+
 /**
  * An implementation of simdutf for a particular CPU architecture.
  *
@@ -2239,7 +2509,7 @@ public:
    *
    * @return the name of the implementation, e.g. "haswell", "westmere", "arm64"
    */
-  virtual const std::string &name() const { return _name; }
+  virtual std::string name() const { return std::string(_name); }
 
   /**
    * The description of this implementation.
@@ -2249,7 +2519,7 @@ public:
    *
    * @return the name of the implementation, e.g. "haswell", "westmere", "arm64"
    */
-  virtual const std::string &description() const { return _description; }
+  virtual std::string description() const { return std::string(_description); }
 
   /**
    * The instruction sets this implementation is compiled against
@@ -2473,12 +2743,14 @@ public:
    * @param input         the UTF-8 string to convert
    * @param length        the length of the string in bytes
    * @param latin1_output  the pointer to buffer that can hold conversion result
-   * @return the number of written char; 0 if the input was not valid UTF-8 string
+   * @return the number of written char; 0 if the input was not valid UTF-8 string or if it cannot be represented as Latin1
    */
   simdutf_warn_unused virtual size_t convert_utf8_to_latin1(const char * input, size_t length, char* latin1_output) const noexcept = 0;
 
   /**
-   * Convert possibly broken UTF-8 string into latin1 string with errors
+   * Convert possibly broken UTF-8 string into latin1 string with errors.
+   * If the string cannot be represented as Latin1, an error
+   * code is returned.
    *
    * During the conversion also validation of the input string is done.
    * This function is suitable to work with inputs from untrusted sources.
@@ -2490,10 +2762,10 @@ public:
    */
   simdutf_warn_unused virtual result convert_utf8_to_latin1_with_errors(const char * input, size_t length, char* latin1_output) const noexcept = 0;
 
-    /**
+  /**
    * Convert valid UTF-8 string into latin1 string.
    *
-   * This function assumes that the input string is valid UTF-8.
+   * This function assumes that the input string is valid UTF-8 and that it can be represented as Latin1.
    *
    * This function is not BOM-aware.
    *
@@ -2622,7 +2894,8 @@ public:
   /**
    * Compute the number of 2-byte code units that this UTF-8 string would require in UTF-16LE format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-8 strings but in such cases
+   * the result is implementation defined.
    *
    * @param input         the UTF-8 string to process
    * @param length        the length of the string in bytes
@@ -2633,7 +2906,8 @@ public:
    /**
    * Compute the number of 4-byte code units that this UTF-8 string would require in UTF-32 format.
    *
-   * This function is equivalent to count_utf8.
+   * This function is equivalent to count_utf8. It is acceptable to pass invalid UTF-8 strings but in such cases
+   * the result is implementation defined.
    *
    * This function does not validate the input.
    *
@@ -2654,7 +2928,7 @@ public:
    * @param input         the UTF-16LE string to convert
    * @param length        the length of the string in 2-byte code units (char16_t)
    * @param latin1_buffer   the pointer to buffer that can hold conversion result
-   * @return number of written code units; 0 if input is not a valid UTF-16LE string
+   * @return number of written code units; 0 if input is not a valid UTF-16LE string or if it cannot be represented as Latin1
    */
   simdutf_warn_unused virtual size_t convert_utf16le_to_latin1(const char16_t * input, size_t length, char* latin1_buffer) const noexcept = 0;
 
@@ -2669,12 +2943,14 @@ public:
    * @param input         the UTF-16BE string to convert
    * @param length        the length of the string in 2-byte code units (char16_t)
    * @param latin1_buffer   the pointer to buffer that can hold conversion result
-   * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and either position of the error (in the input in code units) if any, or the number of char written if successful.
+   * @return number of written code units; 0 if input is not a valid UTF-16BE string or if it cannot be represented as Latin1
    */
   simdutf_warn_unused virtual size_t convert_utf16be_to_latin1(const char16_t * input, size_t length, char* latin1_buffer) const noexcept = 0;
 
   /**
    * Convert possibly broken UTF-16LE string into Latin1 string.
+   * If the string cannot be represented as Latin1, an error
+   * is returned.
    *
    * During the conversion also validation of the input string is done.
    * This function is suitable to work with inputs from untrusted sources.
@@ -2689,6 +2965,8 @@ public:
 
   /**
    * Convert possibly broken UTF-16BE string into Latin1 string.
+   * If the string cannot be represented as Latin1, an error
+   * is returned.
    *
    * During the conversion also validation of the input string is done.
    * This function is suitable to work with inputs from untrusted sources.
@@ -2704,7 +2982,7 @@ public:
   /**
    * Convert valid UTF-16LE string into Latin1 string.
    *
-   * This function assumes that the input string is valid UTF-8.
+   * This function assumes that the input string is valid UTF-L16LE and that it can be represented as Latin1.
 
    * This function is not BOM-aware.
    *
@@ -2718,7 +2996,7 @@ public:
   /**
    * Convert valid UTF-16BE string into Latin1 string.
    *
-   * This function assumes that the input string is valid UTF-8.
+   * This function assumes that the input string is valid UTF16-BE and that it can be represented as Latin1.
    *
    * This function is not BOM-aware.
    *
@@ -2908,7 +3186,8 @@ public:
   /**
    * Compute the number of bytes that this UTF-16LE string would require in UTF-8 format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+   * the result is implementation defined.
    *
    * This function is not BOM-aware.
    *
@@ -2921,7 +3200,8 @@ public:
   /**
    * Compute the number of bytes that this UTF-16BE string would require in UTF-8 format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+   * the result is implementation defined.
    *
    * This function is not BOM-aware.
    *
@@ -2949,6 +3229,7 @@ public:
 
   /**
    * Convert possibly broken UTF-32 string into Latin1 string and stop on error.
+   * If the string cannot be represented as Latin1, an error is returned.
    *
    * During the conversion also validation of the input string is done.
    * This function is suitable to work with inputs from untrusted sources.
@@ -2960,7 +3241,6 @@ public:
    * @param latin1_buffer   the pointer to buffer that can hold conversion result
    * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and either position of the error (in the input in code units) if any, or the number of char written if successful.
    */
-
   simdutf_warn_unused virtual result convert_utf32_to_latin1_with_errors(const char32_t * input, size_t length, char* latin1_buffer) const noexcept = 0;
 
   /**
@@ -3022,7 +3302,7 @@ public:
   simdutf_warn_unused virtual size_t convert_valid_utf32_to_utf8(const char32_t * input, size_t length, char* utf8_buffer) const noexcept = 0;
 
 
-    /**
+  /**
    * Return the number of bytes that this UTF-16 string would require in Latin1 format.
    *
    *
@@ -3146,7 +3426,8 @@ public:
   /**
    * Compute the number of bytes that this UTF-32 string would require in UTF-8 format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-32 strings but in such cases
+   * the result is implementation defined.
    *
    * @param input         the UTF-32 string to convert
    * @param length        the length of the string in 4-byte code units (char32_t)
@@ -3157,7 +3438,8 @@ public:
   /**
    * Compute the number of bytes that this UTF-32 string would require in Latin1 format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-32 strings but in such cases
+   * the result is implementation defined.
    *
    * @param length        the length of the string in 4-byte code units (char32_t)
    * @return the number of bytes required to encode the UTF-32 string as Latin1
@@ -3167,7 +3449,8 @@ public:
   /**
    * Compute the number of bytes that this UTF-8 string would require in Latin1 format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-8 strings but in such cases
+   * the result is implementation defined.
    *
    * @param input         the UTF-8 string to convert
    * @param length        the length of the string in byte
@@ -3178,7 +3461,8 @@ public:
   /*
    * Compute the number of bytes that this UTF-16LE/BE string would require in Latin1 format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+   * the result is implementation defined.
    *
    * This function is not BOM-aware.
    *
@@ -3191,7 +3475,8 @@ public:
   /**
    * Compute the number of two-byte code units that this UTF-32 string would require in UTF-16 format.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-32 strings but in such cases
+   * the result is implementation defined.
    *
    * @param input         the UTF-32 string to convert
    * @param length        the length of the string in 4-byte code units (char32_t)
@@ -3200,10 +3485,8 @@ public:
   simdutf_warn_unused virtual size_t utf16_length_from_utf32(const char32_t * input, size_t length) const noexcept = 0;
 
 
-    /**
+  /**
    * Return the number of bytes that this UTF-32 string would require in Latin1 format.
-   *
-   * This function does not validate the input.
    *
    * @param input         the UTF-32 string to convert
    * @param length        the length of the string in 4-byte code units (char32_t)
@@ -3216,7 +3499,8 @@ public:
    *
    * This function is equivalent to count_utf16le.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+   * the result is implementation defined.
    *
    * This function is not BOM-aware.
    *
@@ -3231,7 +3515,8 @@ public:
    *
    * This function is equivalent to count_utf16be.
    *
-   * This function does not validate the input.
+   * This function does not validate the input. It is acceptable to pass invalid UTF-16 strings but in such cases
+   * the result is implementation defined.
    *
    * This function is not BOM-aware.
    *
@@ -3246,6 +3531,8 @@ public:
    * it is valid.
    *
    * This function assumes that the input string is valid UTF-16LE.
+   * It is acceptable to pass invalid UTF-16 strings but in such cases
+   * the result is implementation defined.
    *
    * This function is not BOM-aware.
    *
@@ -3260,6 +3547,8 @@ public:
    * it is valid.
    *
    * This function assumes that the input string is valid UTF-16BE.
+   * It is acceptable to pass invalid UTF-16 strings but in such cases
+   * the result is implementation defined.
    *
    * This function is not BOM-aware.
    *
@@ -3275,6 +3564,8 @@ public:
    * it is valid.
    *
    * This function assumes that the input string is valid UTF-8.
+   * It is acceptable to pass invalid UTF-8 strings but in such cases
+   * the result is implementation defined.
    *
    * @param input         the UTF-8 string to process
    * @param length        the length of the string in bytes
@@ -3282,13 +3573,114 @@ public:
    */
   simdutf_warn_unused virtual size_t count_utf8(const char * input, size_t length) const noexcept = 0;
 
+  /**
+   * Provide the maximal binary length in bytes given the base64 input.
+   * In general, if the input contains ASCII spaces, the result will be less than
+   * the maximum length. It is acceptable to pass invalid base64 strings but in such cases
+   * the result is implementation defined.
+   *
+   * @param input         the base64 input to process
+   * @param length        the length of the base64 input in bytes
+   * @return maximal number of binary bytes
+   */
+  simdutf_warn_unused virtual size_t maximal_binary_length_from_base64(const char * input, size_t length) const noexcept = 0;
+
+  /**
+   * Provide the maximal binary length in bytes given the base64 input.
+   * In general, if the input contains ASCII spaces, the result will be less than
+   * the maximum length. It is acceptable to pass invalid base64 strings but in such cases
+   * the result is implementation defined.
+   *
+   * @param input         the base64 input to process, in ASCII stored as 16-bit units
+   * @param length        the length of the base64 input in 16-bit units
+   * @return maximal number of binary bytes
+   */
+  simdutf_warn_unused virtual size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept = 0;
+
+  /**
+   * Convert a base64 input to a binary ouput.
+   *
+   * This function follows the WHATWG forgiving-base64 format, which means that it will
+   * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
+   * equal signs at the end) or an unpadded input (without any equal signs at the end).
+   *
+   * See https://infra.spec.whatwg.org/#forgiving-base64-decode
+   *
+   * This function will fail in case of invalid input. There are two possible reasons for
+   * failure: the input contains a number of base64 characters that when divided by 4, leaves
+   * a single remainder character (BASE64_INPUT_REMAINDER), or the input contains a character
+   * that is not a valid base64 character (INVALID_BASE64_CHARACTER).
+   *
+   * You should call this function with a buffer that is at least maximal_binary_length_from_base64(input, length) bytes long.
+   * If you fail to provide that much space, the function may cause a buffer overflow.
+   *
+   * @param input         the base64 string to process
+   * @param length        the length of the string in bytes
+   * @param output        the pointer to buffer that can hold the conversion result (should be at least maximal_binary_length_from_base64(input, length) bytes long).
+   * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+   * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and either position of the error (in the input in bytes) if any, or the number of bytes written if successful.
+   */
+  simdutf_warn_unused virtual result base64_to_binary(const char * input, size_t length, char* output, base64_options options = base64_default) const noexcept = 0;
+
+  /**
+   * Convert a base64 input to a binary ouput.
+   *
+   * This function follows the WHATWG forgiving-base64 format, which means that it will
+   * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
+   * equal signs at the end) or an unpadded input (without any equal signs at the end).
+   *
+   * See https://infra.spec.whatwg.org/#forgiving-base64-decode
+   *
+   * This function will fail in case of invalid input. There are two possible reasons for
+   * failure: the input contains a number of base64 characters that when divided by 4, leaves
+   * a single remainder character (BASE64_INPUT_REMAINDER), or the input contains a character
+   * that is not a valid base64 character (INVALID_BASE64_CHARACTER).
+   *
+   * You should call this function with a buffer that is at least maximal_binary_length_from_utf6_base64(input, length) bytes long.
+   * If you fail to provide that much space, the function may cause a buffer overflow.
+   *
+   * @param input         the base64 string to process, in ASCII stored as 16-bit units
+   * @param length        the length of the string in 16-bit units
+   * @param output        the pointer to buffer that can hold the conversion result (should be at least maximal_binary_length_from_base64(input, length) bytes long).
+   * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+   * @return a result pair struct (of type simdutf::error containing the two fields error and count) with an error code and position of the INVALID_BASE64_CHARACTER error (in the input in units) if any, or the number of bytes written if successful.
+   */
+  simdutf_warn_unused virtual result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options = base64_default) const noexcept = 0;
+
+  /**
+   * Provide the base64 length in bytes given the length of a binary input.
+   *
+   * @param length        the length of the input in bytes
+   * @parem options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+   * @return number of base64 bytes
+   */
+  simdutf_warn_unused virtual size_t base64_length_from_binary(size_t length, base64_options options = base64_default) const noexcept = 0;
+
+  /**
+   * Convert a binary input to a base64 ouput.
+   *
+   * The default option (simdutf::base64_default) uses the characters `+` and `/` as part of its alphabet.
+   * Further, it adds padding (`=`) at the end of the output to ensure that the output length is a multiple of four.
+   *
+   * The URL option (simdutf::base64_url) uses the characters `-` and `_` as part of its alphabet. No padding
+   * is added at the end of the output.
+   *
+   * This function always succeeds.
+   *
+   * @param input         the binary to process
+   * @param length        the length of the input in bytes
+   * @param output        the pointer to buffer that can hold the conversion result (should be at least base64_length_from_binary(length) bytes long)
+   * @param options       the base64 options to use, can be base64_default or base64_url, is base64_default by default.
+   * @return number of written bytes, will be equal to base64_length_from_binary(length, options)
+   */
+  virtual size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options = base64_default) const noexcept = 0;
 
 
 protected:
   /** @private Construct an implementation with the given name and description. For subclasses. */
   simdutf_really_inline implementation(
-    std::string name,
-    std::string description,
+    const char* name,
+    const char* description,
     uint32_t required_instruction_sets
   ) :
     _name(name),
@@ -3296,18 +3688,18 @@ protected:
     _required_instruction_sets(required_instruction_sets)
   {
   }
-  virtual ~implementation()=default;
-
+protected:
+  ~implementation() = default;
 private:
   /**
    * The name of this implementation.
    */
-  const std::string _name;
+  const char* _name;
 
   /**
    * The description of this implementation.
    */
-  const std::string _description;
+  const char* _description;
 
   /**
    * Instruction sets required for this implementation.

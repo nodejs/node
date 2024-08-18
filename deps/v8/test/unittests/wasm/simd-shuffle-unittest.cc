@@ -15,48 +15,75 @@ namespace wasm {
 // Helper to make calls to private wasm shuffle functions.
 class SimdShuffleTest : public ::testing::Test {
  public:
-  using Shuffle = std::array<uint8_t, kSimd128Size>;
+  template <int Size, typename = std::enable_if_t<Size == kSimd128Size ||
+                                                  Size == kSimd256Size>>
+  using Shuffle = std::array<uint8_t, Size>;
 
+  template <int Size, typename = std::enable_if_t<Size == kSimd128Size ||
+                                                  Size == kSimd256Size>>
   struct TestShuffle {
-    Shuffle non_canonical;
-    Shuffle canonical;
+    Shuffle<Size> non_canonical;
+    Shuffle<Size> canonical;
     bool needs_swap;
     bool is_swizzle;
   };
 
   // Call testing members in wasm.
-  static void CanonicalizeShuffle(bool inputs_equal, Shuffle* shuffle,
+  static void CanonicalizeShuffle(bool inputs_equal,
+                                  Shuffle<kSimd128Size>* shuffle,
                                   bool* needs_swap, bool* is_swizzle) {
     SimdShuffle::CanonicalizeShuffle(inputs_equal, &(*shuffle)[0], needs_swap,
                                      is_swizzle);
   }
 
-  static bool TryMatchIdentity(const Shuffle& shuffle) {
+  static bool TryMatchIdentity(const Shuffle<kSimd128Size>& shuffle) {
     return SimdShuffle::TryMatchIdentity(&shuffle[0]);
   }
   template <int LANES>
-  static bool TryMatchSplat(const Shuffle& shuffle, int* index) {
+  static bool TryMatchSplat(const Shuffle<kSimd128Size>& shuffle, int* index) {
     return SimdShuffle::TryMatchSplat<LANES>(&shuffle[0], index);
   }
-  static bool TryMatch32x4Shuffle(const Shuffle& shuffle,
+  static bool TryMatch32x4Shuffle(const Shuffle<kSimd128Size>& shuffle,
                                   uint8_t* shuffle32x4) {
     return SimdShuffle::TryMatch32x4Shuffle(&shuffle[0], shuffle32x4);
   }
-  static bool TryMatch16x8Shuffle(const Shuffle& shuffle,
+  static bool TryMatch32x8Shuffle(const Shuffle<kSimd256Size>& shuffle,
+                                  uint8_t* shuffle32x8) {
+    return SimdShuffle::TryMatch32x8Shuffle(&shuffle[0], shuffle32x8);
+  }
+  static bool TryMatch32x4Reverse(const uint8_t* shuffle32x4) {
+    return SimdShuffle::TryMatch32x4Reverse(shuffle32x4);
+  }
+  static bool TryMatch32x4OneLaneSwizzle(const uint8_t* shuffle32x4,
+                                         uint8_t* from, uint8_t* to) {
+    return SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4, from, to);
+  }
+  static bool TryMatch16x8Shuffle(const Shuffle<kSimd128Size>& shuffle,
                                   uint8_t* shuffle16x8) {
     return SimdShuffle::TryMatch16x8Shuffle(&shuffle[0], shuffle16x8);
   }
-  static bool TryMatchConcat(const Shuffle& shuffle, uint8_t* offset) {
+  static bool TryMatchConcat(const Shuffle<kSimd128Size>& shuffle,
+                             uint8_t* offset) {
     return SimdShuffle::TryMatchConcat(&shuffle[0], offset);
   }
-  static bool TryMatchBlend(const Shuffle& shuffle) {
+  static bool TryMatchBlend(const Shuffle<kSimd128Size>& shuffle) {
     return SimdShuffle::TryMatchBlend(&shuffle[0]);
   }
+#ifdef V8_TARGET_ARCH_X64
+  static bool TryMatchVpshufd(const uint8_t* shuffle32x8, uint8_t* control) {
+    return SimdShuffle::TryMatchVpshufd(shuffle32x8, control);
+  }
+  static bool TryMatchShufps256(const uint8_t* shuffle32x8, uint8_t* control) {
+    return SimdShuffle::TryMatchShufps256(shuffle32x8, control);
+  }
+#endif  // V8_TARGET_ARCH_X64
 };
 
-bool operator==(const SimdShuffleTest::Shuffle& a,
-                const SimdShuffleTest::Shuffle& b) {
-  for (int i = 0; i < kSimd128Size; ++i) {
+template <int Size, typename = std::enable_if_t<Size == kSimd128Size ||
+                                                Size == kSimd256Size>>
+bool operator==(const SimdShuffleTest::Shuffle<Size>& a,
+                const SimdShuffleTest::Shuffle<Size>& b) {
+  for (int i = 0; i < Size; ++i) {
     if (a[i] != b[i]) return false;
   }
   return true;
@@ -71,7 +98,7 @@ TEST_F(SimdShuffleTest, CanonicalizeShuffle) {
   bool is_swizzle;
 
   // Test canonicalization driven by input shuffle.
-  TestShuffle test_shuffles[] = {
+  TestShuffle<kSimd128Size> test_shuffles[] = {
       // Identity is canonical.
       {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
        {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
@@ -94,7 +121,7 @@ TEST_F(SimdShuffleTest, CanonicalizeShuffle) {
        !kIsSwizzle},
   };
   for (size_t i = 0; i < arraysize(test_shuffles); ++i) {
-    Shuffle shuffle = test_shuffles[i].non_canonical;
+    Shuffle<kSimd128Size> shuffle = test_shuffles[i].non_canonical;
     CanonicalizeShuffle(!kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
     EXPECT_EQ(shuffle, test_shuffles[i].canonical);
     EXPECT_EQ(needs_swap, test_shuffles[i].needs_swap);
@@ -102,7 +129,7 @@ TEST_F(SimdShuffleTest, CanonicalizeShuffle) {
   }
 
   // Test canonicalization when inputs are equal (explicit swizzle).
-  TestShuffle test_swizzles[] = {
+  TestShuffle<kSimd128Size> test_swizzles[] = {
       // Identity is canonical.
       {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
        {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
@@ -125,7 +152,7 @@ TEST_F(SimdShuffleTest, CanonicalizeShuffle) {
        kIsSwizzle},
   };
   for (size_t i = 0; i < arraysize(test_swizzles); ++i) {
-    Shuffle shuffle = test_swizzles[i].non_canonical;
+    Shuffle<kSimd128Size> shuffle = test_swizzles[i].non_canonical;
     CanonicalizeShuffle(kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
     EXPECT_EQ(shuffle, test_swizzles[i].canonical);
     EXPECT_EQ(needs_swap, test_swizzles[i].needs_swap);
@@ -219,6 +246,98 @@ TEST_F(SimdShuffleTest, TryMatch32x4Shuffle) {
       shuffle32x4));
 }
 
+TEST_F(SimdShuffleTest, TryMatch32x8Shuffle) {
+  uint8_t shuffle32x8[8];
+  // Match if each group of 4 bytes is from the same 32 bit lane.
+  EXPECT_TRUE(TryMatch32x8Shuffle(
+      {{12, 13, 14, 15, 8,  9,  10, 11, 4,  5,  6,  7,  16, 17, 18, 19,
+        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0,  1,  2,  3}},
+      shuffle32x8));
+  EXPECT_EQ(3, shuffle32x8[0]);
+  EXPECT_EQ(2, shuffle32x8[1]);
+  EXPECT_EQ(1, shuffle32x8[2]);
+  EXPECT_EQ(4, shuffle32x8[3]);
+  EXPECT_EQ(5, shuffle32x8[4]);
+  EXPECT_EQ(6, shuffle32x8[5]);
+  EXPECT_EQ(7, shuffle32x8[6]);
+  EXPECT_EQ(0, shuffle32x8[7]);
+  // Bytes must be in order in the 32 bit lane.
+  EXPECT_FALSE(TryMatch32x8Shuffle(
+      {{12, 13, 14, 14, 8,  9,  10, 11, 4,  5,  6,  7,  16, 17, 18, 19,
+        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0,  1,  2,  3}},
+      shuffle32x8));
+  // Each group must start with the first byte in the 32 bit lane.
+  EXPECT_FALSE(TryMatch32x8Shuffle(
+      {{13, 14, 15, 12, 8,  9,  10, 11, 4,  5,  6,  7,  16, 17, 18, 19,
+        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0,  1,  2,  3}},
+      shuffle32x8));
+}
+
+TEST_F(SimdShuffleTest, TryMatch32x4Reverse) {
+  uint8_t shuffle32x4[4];
+  // low
+  EXPECT_TRUE(TryMatch32x4Shuffle(
+      {{12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3}}, shuffle32x4));
+  EXPECT_EQ(3, shuffle32x4[0]);
+  EXPECT_EQ(2, shuffle32x4[1]);
+  EXPECT_EQ(1, shuffle32x4[2]);
+  EXPECT_EQ(0, shuffle32x4[3]);
+  EXPECT_TRUE(TryMatch32x4Reverse(shuffle32x4));
+
+  // high
+  Shuffle<kSimd128Size> high_rev = {28, 29, 30, 31, 24, 25, 26, 27,
+                                    20, 21, 22, 23, 16, 17, 18, 19};
+  EXPECT_TRUE(TryMatch32x4Shuffle(high_rev, shuffle32x4));
+  EXPECT_EQ(7, shuffle32x4[0]);
+  EXPECT_EQ(6, shuffle32x4[1]);
+  EXPECT_EQ(5, shuffle32x4[2]);
+  EXPECT_EQ(4, shuffle32x4[3]);
+
+  bool needs_swap = false;
+  bool is_swizzle = false;
+  CanonicalizeShuffle(false, &high_rev, &needs_swap, &is_swizzle);
+  EXPECT_TRUE(needs_swap);
+  EXPECT_TRUE(is_swizzle);
+  EXPECT_TRUE(TryMatch32x4Shuffle(high_rev, shuffle32x4));
+  EXPECT_TRUE(TryMatch32x4Reverse(shuffle32x4));
+}
+
+TEST_F(SimdShuffleTest, TryMatch32x4OneLaneSwizzle) {
+  uint8_t shuffle32x4[4];
+  uint8_t from = 0;
+  uint8_t to = 0;
+  // low
+  EXPECT_TRUE(TryMatch32x4Shuffle(
+      {{12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+      shuffle32x4));
+  EXPECT_EQ(3, shuffle32x4[0]);
+  EXPECT_EQ(1, shuffle32x4[1]);
+  EXPECT_EQ(2, shuffle32x4[2]);
+  EXPECT_EQ(3, shuffle32x4[3]);
+  EXPECT_TRUE(TryMatch32x4OneLaneSwizzle(shuffle32x4, &from, &to));
+  EXPECT_EQ(from, 3);
+  EXPECT_EQ(to, 0);
+
+  // high
+  Shuffle<kSimd128Size> high_one = {16, 17, 18, 19, 20, 21, 22, 23,
+                                    20, 21, 22, 23, 28, 29, 30, 31};
+  EXPECT_TRUE(TryMatch32x4Shuffle(high_one, shuffle32x4));
+  EXPECT_EQ(4, shuffle32x4[0]);
+  EXPECT_EQ(5, shuffle32x4[1]);
+  EXPECT_EQ(5, shuffle32x4[2]);
+  EXPECT_EQ(7, shuffle32x4[3]);
+
+  bool needs_swap = false;
+  bool is_swizzle = false;
+  CanonicalizeShuffle(false, &high_one, &needs_swap, &is_swizzle);
+  EXPECT_TRUE(needs_swap);
+  EXPECT_TRUE(is_swizzle);
+  EXPECT_TRUE(TryMatch32x4Shuffle(high_one, shuffle32x4));
+  EXPECT_TRUE(TryMatch32x4OneLaneSwizzle(shuffle32x4, &from, &to));
+  EXPECT_EQ(from, 1);
+  EXPECT_EQ(to, 2);
+}
+
 TEST_F(SimdShuffleTest, TryMatch16x8Shuffle) {
   uint8_t shuffle16x8[8];
   // Match if each group of 2 bytes is from the same 16 bit lane.
@@ -282,6 +401,50 @@ TEST(SimdShufflePackTest, Pack16Lanes) {
   EXPECT_THAT(imms,
               ElementsAre(0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c));
 }
+
+#ifdef V8_TARGET_ARCH_X64
+TEST_F(SimdShuffleTest, TryMatchVpshufd) {
+  uint8_t shuffle32x8[8];
+  EXPECT_TRUE(TryMatch32x8Shuffle(
+      {{12, 13, 14, 15, 8,  9,  10, 11, 4,  5,  6,  7,  0,  1,  2,  3,
+        28, 29, 30, 31, 24, 25, 26, 27, 20, 21, 22, 23, 16, 17, 18, 19}},
+      shuffle32x8));
+
+  EXPECT_EQ(shuffle32x8[0], 3);
+  EXPECT_EQ(shuffle32x8[1], 2);
+  EXPECT_EQ(shuffle32x8[2], 1);
+  EXPECT_EQ(shuffle32x8[3], 0);
+  EXPECT_EQ(shuffle32x8[4], 7);
+  EXPECT_EQ(shuffle32x8[5], 6);
+  EXPECT_EQ(shuffle32x8[6], 5);
+  EXPECT_EQ(shuffle32x8[7], 4);
+
+  uint8_t control;
+  EXPECT_TRUE(TryMatchVpshufd(shuffle32x8, &control));
+  EXPECT_EQ(control, 0b00'01'10'11);
+}
+
+TEST_F(SimdShuffleTest, TryMatchShufps256) {
+  uint8_t shuffle32x8[8];
+  EXPECT_TRUE(TryMatch32x8Shuffle(
+      {{12, 13, 14, 15, 8,  9,  10, 11, 36, 37, 38, 39, 32, 33, 34, 35,
+        28, 29, 30, 31, 24, 25, 26, 27, 52, 53, 54, 55, 48, 49, 50, 51}},
+      shuffle32x8));
+  EXPECT_EQ(shuffle32x8[0], 3);
+  EXPECT_EQ(shuffle32x8[1], 2);
+  EXPECT_EQ(shuffle32x8[2], 9);
+  EXPECT_EQ(shuffle32x8[3], 8);
+  EXPECT_EQ(shuffle32x8[4], 7);
+  EXPECT_EQ(shuffle32x8[5], 6);
+  EXPECT_EQ(shuffle32x8[6], 13);
+  EXPECT_EQ(shuffle32x8[7], 12);
+
+  uint8_t control;
+  EXPECT_TRUE(TryMatchShufps256(shuffle32x8, &control));
+  EXPECT_EQ(control, 0b00'01'10'11);
+}
+
+#endif  // V8_TARGET_ARCH_X64
 
 }  // namespace wasm
 }  // namespace internal

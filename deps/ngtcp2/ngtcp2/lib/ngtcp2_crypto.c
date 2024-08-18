@@ -124,6 +124,25 @@ static uint8_t *write_varint_param(uint8_t *p, ngtcp2_transport_param_id id,
 }
 
 /*
+ * zero_paramlen returns the length of a single transport parameter
+ * which has zero length value in its parameter.
+ */
+static size_t zero_paramlen(ngtcp2_transport_param_id id) {
+  return ngtcp2_put_uvarintlen(id) + 1;
+}
+
+/*
+ * write_zero_param writes parameter |id| that has zero length value.
+ * It returns p + the number of bytes written.
+ */
+static uint8_t *write_zero_param(uint8_t *p, ngtcp2_transport_param_id id) {
+  p = ngtcp2_put_uvarint(p, id);
+  *p++ = 0;
+
+  return p;
+}
+
+/*
  * cid_paramlen returns the length of a single transport parameter
  * which has |cid| as value.
  */
@@ -235,9 +254,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
                            params->ack_delay_exponent);
   }
   if (params->disable_active_migration) {
-    len +=
-        ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION) +
-        ngtcp2_put_uvarintlen(0);
+    len += zero_paramlen(NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION);
   }
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY,
@@ -258,8 +275,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
                            params->max_datagram_frame_size);
   }
   if (params->grease_quic_bit) {
-    len += ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
-           ngtcp2_put_uvarintlen(0);
+    len += zero_paramlen(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT);
   }
   if (params->version_info_present) {
     version_infolen =
@@ -377,8 +393,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
   }
 
   if (params->disable_active_migration) {
-    p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION);
-    p = ngtcp2_put_uvarint(p, 0);
+    p = write_zero_param(p, NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION);
   }
 
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
@@ -404,8 +419,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
   }
 
   if (params->grease_quic_bit) {
-    p = ngtcp2_put_uvarint(p, NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT);
-    p = ngtcp2_put_uvarint(p, 0);
+    p = write_zero_param(p, NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT);
   }
 
   if (params->version_info_present) {
@@ -478,6 +492,22 @@ static int decode_varint_param(uint64_t *pdest, const uint8_t **pp,
   }
 
   *pp = ngtcp2_get_uvarint(pdest, p);
+
+  return 0;
+}
+
+/*
+ * decode_zero_param decodes zero length value from the buffer pointed
+ * by |*pp| of length |end - *pp|.  The length is encoded in varint
+ * form.  If it decodes zero length value successfully, it increments
+ * |*pp| by 1, and returns 0.  Otherwise it returns -1.
+ */
+static int decode_zero_param(const uint8_t **pp, const uint8_t *end) {
+  if (*pp == end || **pp != 0) {
+    return -1;
+  }
+
+  ++*pp;
 
   return 0;
 }
@@ -701,10 +731,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       params->preferred_addr_present = 1;
       break;
     case NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION:
-      if (decode_varint(&valuelen, &p, end) != 0) {
-        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
-      }
-      if (valuelen != 0) {
+      if (decode_zero_param(&p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       params->disable_active_migration = 1;
@@ -751,10 +778,7 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       }
       break;
     case NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT:
-      if (decode_varint(&valuelen, &p, end) != 0) {
-        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
-      }
-      if (valuelen != 0) {
+      if (decode_zero_param(&p, end) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       params->grease_quic_bit = 1;
