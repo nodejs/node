@@ -1,4 +1,4 @@
-/* auto-generated on 2024-08-09 09:52:29 -0400. Do not edit! */
+/* auto-generated on 2024-08-17 15:52:42 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -398,6 +398,8 @@
 #define SIMDUTF_ISALIGNED_N(ptr, n) (((uintptr_t)(ptr) & ((n)-1)) == 0)
 
 #if defined(SIMDUTF_REGULAR_VISUAL_STUDIO)
+  #define SIMDUTF_DEPRECATED __declspec(deprecated)
+
 
   #define simdutf_really_inline __forceinline
   #define simdutf_never_inline __declspec(noinline)
@@ -438,6 +440,8 @@
 #else
   #define simdutf_really_inline inline
 #endif
+
+  #define SIMDUTF_DEPRECATED __attribute__((deprecated))
   #define simdutf_never_inline inline __attribute__((noinline))
 
   #define simdutf_unused __attribute__((unused))
@@ -597,7 +601,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "5.3.4"
+#define SIMDUTF_VERSION "5.3.8"
 
 namespace simdutf {
 enum {
@@ -612,7 +616,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 4
+  SIMDUTF_VERSION_REVISION = 8
 };
 } // namespace simdutf
 
@@ -1314,19 +1318,23 @@ simdutf_warn_unused size_t convert_utf8_to_utf32(const char * input, size_t leng
  */
 simdutf_warn_unused result convert_utf8_to_utf32_with_errors(const char * input, size_t length, char32_t* utf32_output) noexcept;
 
-    /**
-   * Convert valid UTF-8 string into latin1 string.
-   *
-   * This function assumes that the input string is valid UTF-8 and that it can be represented as Latin1.
-   *
-   * This function is not BOM-aware.
-   *
-   * @param input         the UTF-8 string to convert
-   * @param length        the length of the string in bytes
-   * @param latin1_output  the pointer to buffer that can hold conversion result
-   * @return the number of written char; 0 if the input was not valid UTF-8 string
-   */
-  simdutf_warn_unused size_t convert_valid_utf8_to_latin1(const char * input, size_t length, char* latin1_output) noexcept;
+/**
+ * Convert valid UTF-8 string into latin1 string.
+ *
+ * This function assumes that the input string is valid UTF-8 and that it can be represented as Latin1.
+ * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+ *
+ * This function is for expert users only and not part of our public API. Use convert_utf8_to_latin1 instead.
+ * The function may be removed from the library in the future.
+ *
+ * This function is not BOM-aware.
+ *
+ * @param input         the UTF-8 string to convert
+ * @param length        the length of the string in bytes
+ * @param latin1_output  the pointer to buffer that can hold conversion result
+ * @return the number of written char; 0 if the input was not valid UTF-8 string
+ */
+simdutf_warn_unused size_t convert_valid_utf8_to_latin1(const char * input, size_t length, char* latin1_output) noexcept;
 
 
 /**
@@ -1635,6 +1643,10 @@ simdutf_warn_unused size_t convert_valid_utf16_to_utf8(const char16_t * input, s
  * Using native endianness, convert UTF-16 string into Latin1 string.
  *
  * This function assumes that the input string is valid UTF-16 and that it can be represented as Latin1.
+ * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+ *
+ * This function is for expert users only and not part of our public API. Use convert_utf16_to_latin1 instead.
+ * The function may be removed from the library in the future.
  *
  * This function is not BOM-aware.
  *
@@ -1649,6 +1661,10 @@ simdutf_warn_unused size_t convert_valid_utf16_to_latin1(const char16_t * input,
  * Convert valid UTF-16LE string into Latin1 string.
  *
  * This function assumes that the input string is valid UTF-16LE and that it can be represented as Latin1.
+ * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+ *
+ * This function is for expert users only and not part of our public API. Use convert_utf16le_to_latin1 instead.
+ * The function may be removed from the library in the future.
  *
  * This function is not BOM-aware.
  *
@@ -1663,6 +1679,10 @@ simdutf_warn_unused size_t convert_valid_utf16le_to_latin1(const char16_t * inpu
  * Convert valid UTF-16BE string into Latin1 string.
  *
  * This function assumes that the input string is valid UTF-16BE and that it can be represented as Latin1.
+ * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+ *
+ * This function is for expert users only and not part of our public API. Use convert_utf16be_to_latin1 instead.
+ * The function may be removed from the library in the future.
  *
  * This function is not BOM-aware.
  *
@@ -1997,6 +2017,10 @@ simdutf_warn_unused result convert_utf32_to_latin1_with_errors(const char32_t * 
  * Convert valid UTF-32 string into Latin1 string.
  *
  * This function assumes that the input string is valid UTF-32 and that it can be represented as Latin1.
+ * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+ *
+ * This function is for expert users only and not part of our public API. Use convert_utf32_to_latin1 instead.
+ * The function may be removed from the library in the future.
  *
  * This function is not BOM-aware.
  *
@@ -2323,7 +2347,6 @@ simdutf_warn_unused size_t trim_partial_utf16(const char16_t* input, size_t leng
 
 // base64_options are used to specify the base64 encoding options.
 using base64_options = uint64_t;
-using base64_options = uint64_t;
 enum : base64_options {
   base64_default = 0, /* standard base64 format (with padding) */
   base64_url = 1, /* base64url format (no padding) */
@@ -2355,7 +2378,7 @@ simdutf_warn_unused size_t maximal_binary_length_from_base64(const char * input,
 simdutf_warn_unused size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) noexcept;
 
 /**
- * Convert a base64 input to a binary ouput.
+ * Convert a base64 input to a binary output.
  *
  * This function follows the WHATWG forgiving-base64 format, which means that it will
  * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
@@ -2398,7 +2421,7 @@ simdutf_warn_unused result base64_to_binary(const char * input, size_t length, c
 simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_options options = base64_default) noexcept;
 
 /**
- * Convert a binary input to a base64 ouput.
+ * Convert a binary input to a base64 output.
  *
  * The default option (simdutf::base64_default) uses the characters `+` and `/` as part of its alphabet.
  * Further, it adds padding (`=`) at the end of the output to ensure that the output length is a multiple of four.
@@ -2417,7 +2440,7 @@ simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_optio
 size_t binary_to_base64(const char * input, size_t length, char* output, base64_options options = base64_default) noexcept;
 
 /**
- * Convert a base64 input to a binary ouput.
+ * Convert a base64 input to a binary output.
  *
  * This function follows the WHATWG forgiving-base64 format, which means that it will
  * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
@@ -2452,7 +2475,7 @@ size_t binary_to_base64(const char * input, size_t length, char* output, base64_
 simdutf_warn_unused result base64_to_binary(const char16_t * input, size_t length, char* output, base64_options options = base64_default)  noexcept;
 
 /**
- * Convert a base64 input to a binary ouput.
+ * Convert a base64 input to a binary output.
  *
  * This function follows the WHATWG forgiving-base64 format, which means that it will
  * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
@@ -2766,6 +2789,9 @@ public:
    * Convert valid UTF-8 string into latin1 string.
    *
    * This function assumes that the input string is valid UTF-8 and that it can be represented as Latin1.
+   * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+   *
+   * This function is for expert users only and not part of our public API. Use convert_utf8_to_latin1 instead.
    *
    * This function is not BOM-aware.
    *
@@ -2983,7 +3009,10 @@ public:
    * Convert valid UTF-16LE string into Latin1 string.
    *
    * This function assumes that the input string is valid UTF-L16LE and that it can be represented as Latin1.
-
+   * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+   *
+   * This function is for expert users only and not part of our public API. Use convert_utf16le_to_latin1 instead.
+   *
    * This function is not BOM-aware.
    *
    * @param input         the UTF-16LE string to convert
@@ -2997,6 +3026,9 @@ public:
    * Convert valid UTF-16BE string into Latin1 string.
    *
    * This function assumes that the input string is valid UTF16-BE and that it can be represented as Latin1.
+   * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+   *
+   * This function is for expert users only and not part of our public API. Use convert_utf16be_to_latin1 instead.
    *
    * This function is not BOM-aware.
    *
@@ -3246,7 +3278,10 @@ public:
   /**
    * Convert valid UTF-32 string into Latin1 string.
    *
-   * This function assumes that the input string is valid UTF-32.
+   * This function assumes that the input string is valid UTF-32 and can be represented as Latin1.
+   * If you violate this assumption, the result is implementation defined and may include system-dependent behavior such as crashes.
+   *
+   * This function is for expert users only and not part of our public API. Use convert_utf32_to_latin1 instead.
    *
    * This function is not BOM-aware.
    *
@@ -3598,7 +3633,7 @@ public:
   simdutf_warn_unused virtual size_t maximal_binary_length_from_base64(const char16_t * input, size_t length) const noexcept = 0;
 
   /**
-   * Convert a base64 input to a binary ouput.
+   * Convert a base64 input to a binary output.
    *
    * This function follows the WHATWG forgiving-base64 format, which means that it will
    * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
@@ -3623,7 +3658,7 @@ public:
   simdutf_warn_unused virtual result base64_to_binary(const char * input, size_t length, char* output, base64_options options = base64_default) const noexcept = 0;
 
   /**
-   * Convert a base64 input to a binary ouput.
+   * Convert a base64 input to a binary output.
    *
    * This function follows the WHATWG forgiving-base64 format, which means that it will
    * ignore any ASCII spaces in the input. You may provide a padded input (with one or two
@@ -3657,7 +3692,7 @@ public:
   simdutf_warn_unused virtual size_t base64_length_from_binary(size_t length, base64_options options = base64_default) const noexcept = 0;
 
   /**
-   * Convert a binary input to a base64 ouput.
+   * Convert a binary input to a base64 output.
    *
    * The default option (simdutf::base64_default) uses the characters `+` and `/` as part of its alphabet.
    * Further, it adds padding (`=`) at the end of the output to ensure that the output length is a multiple of four.
