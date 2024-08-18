@@ -713,12 +713,11 @@ v8::MaybeLocal<v8::Value> EncodeBignum(
     int size,
     v8::Local<v8::Value>* error);
 
-v8::Maybe<bool> SetEncodedValue(
-    Environment* env,
-    v8::Local<v8::Object> target,
-    v8::Local<v8::String> name,
-    const BIGNUM* bn,
-    int size = 0);
+v8::Maybe<void> SetEncodedValue(Environment* env,
+                                v8::Local<v8::Object> target,
+                                v8::Local<v8::String> name,
+                                const BIGNUM* bn,
+                                int size = 0);
 
 bool SetRsaOaepLabel(const EVPKeyCtxPointer& rsa, const ByteSource& label);
 
