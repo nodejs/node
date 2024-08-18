@@ -1425,8 +1425,10 @@ changes:
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
     * `default` {string | boolean | string\[] | boolean\[]} The default option
-      value when it is not set by args. It must be of the same type as the
-      `type` property. When `multiple` is `true`, it must be an array.
+      value when this argument is not passed. It must be of the same type as the
+      `type` property. When `multiple` is `true`, it must be an array. For
+      `string` arguments, if the argument is passed it must still be followed by
+      a value.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
