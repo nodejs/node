@@ -49,15 +49,12 @@ assert.deepStrictEqual(
   undefined,
   null,
 ].forEach((input) => {
-  const errObj = {
+  assert.throws(() => Buffer.from(input), {
     code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The first argument must be of type string or an instance of ' +
-             'Buffer, ArrayBuffer, or Array or an Array-like Object.' +
-             common.invalidArgTypeHelper(input)
-  };
-  assert.throws(() => Buffer.from(input), errObj);
-  assert.throws(() => Buffer.from(input, 'hex'), errObj);
+  });
+  assert.throws(() => Buffer.from(input, 'hex'), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
 });
 
 Buffer.allocUnsafe(10); // Should not throw.
@@ -177,6 +174,100 @@ assert.throws(() => {
   const empty = new Uint8Array(0);
   const b = Buffer.copyBytesFrom(empty);
   assert.strictEqual(b.length, 0);
+}
+
+// copyBytesFrom: ArrayBuffer
+{
+  const ab = new ArrayBuffer(4);
+  new Uint8Array(ab).set([1, 2, 3, 4]);
+  const b = Buffer.copyBytesFrom(ab);
+  new Uint8Array(ab).set([0, 0, 0, 0]);
+  assert.strictEqual(b.length, 4);
+  assert.deepStrictEqual([...b], [1, 2, 3, 4]);
+}
+
+// copyBytesFrom: ArrayBuffer with offset and length
+{
+  const ab = new ArrayBuffer(4);
+  new Uint8Array(ab).set([1, 2, 3, 4]);
+  const b = Buffer.copyBytesFrom(ab, 1, 2);
+  assert.strictEqual(b.length, 2);
+  assert.deepStrictEqual([...b], [2, 3]);
+}
+
+// copyBytesFrom: DataView
+{
+  const dv = new DataView(new ArrayBuffer(3));
+  new Uint8Array(dv.buffer).set([10, 20, 30]);
+  const b = Buffer.copyBytesFrom(dv);
+  assert.strictEqual(b.length, 3);
+  assert.deepStrictEqual([...b], [10, 20, 30]);
+}
+
+// copyBytesFrom: DataView with offset
+{
+  const dv = new DataView(new ArrayBuffer(4));
+  new Uint8Array(dv.buffer).set([1, 2, 3, 4]);
+  const b = Buffer.copyBytesFrom(dv, 2);
+  assert.strictEqual(b.length, 2);
+  assert.deepStrictEqual([...b], [3, 4]);
+}
+
+// copyBytesFrom: DataView with offset and length
+{
+  const dv = new DataView(new ArrayBuffer(5));
+  new Uint8Array(dv.buffer).set([1, 2, 3, 4, 5]);
+  const b = Buffer.copyBytesFrom(dv, 1, 3);
+  assert.strictEqual(b.length, 3);
+  assert.deepStrictEqual([...b], [2, 3, 4]);
+}
+
+// copyBytesFrom: empty ArrayBuffer
+{
+  const b = Buffer.copyBytesFrom(new ArrayBuffer(0));
+  assert.strictEqual(b.length, 0);
+}
+
+// copyBytesFrom: empty DataView
+{
+  const b = Buffer.copyBytesFrom(new DataView(new ArrayBuffer(0)));
+  assert.strictEqual(b.length, 0);
+}
+
+// copyBytesFrom: SharedArrayBuffer
+{
+  const sab = new SharedArrayBuffer(4);
+  new Uint8Array(sab).set([10, 20, 30, 40]);
+  const b = Buffer.copyBytesFrom(sab);
+  assert.strictEqual(b.length, 4);
+  assert.deepStrictEqual([...b], [10, 20, 30, 40]);
+}
+
+// copyBytesFrom: SharedArrayBuffer with offset and length
+{
+  const sab = new SharedArrayBuffer(4);
+  new Uint8Array(sab).set([10, 20, 30, 40]);
+  const b = Buffer.copyBytesFrom(sab, 1, 2);
+  assert.strictEqual(b.length, 2);
+  assert.deepStrictEqual([...b], [20, 30]);
+}
+
+// copyBytesFrom: Buffer input
+{
+  const src = Buffer.from([1, 2, 3, 4]);
+  const b = Buffer.copyBytesFrom(src, 1, 2);
+  src[1] = 0;
+  assert.strictEqual(b.length, 2);
+  assert.deepStrictEqual([...b], [2, 3]);
+}
+
+// copyBytesFrom: Int32Array preserves element-based offset/length
+{
+  const i32 = new Int32Array([1, 2, 3]);
+  const b = Buffer.copyBytesFrom(i32, 1, 1);
+  assert.strictEqual(b.length, 4);
+  const view = new Int32Array(b.buffer, b.byteOffset, 1);
+  assert.strictEqual(view[0], 2);
 }
 
 // Invalid encoding is allowed

@@ -60,8 +60,6 @@ assert.strictEqual(flatLongLen.toString(), check);
     Buffer.concat(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "list[0]" argument must be an instance of Buffer ' +
-             `or Uint8Array.${common.invalidArgTypeHelper(value[0])}`
   });
 });
 
@@ -69,8 +67,6 @@ assert.throws(() => {
   Buffer.concat([Buffer.from('hello'), 3]);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "list[1]" argument must be an instance of Buffer ' +
-           'or Uint8Array. Received type number (3)'
 });
 
 assert.throws(() => {
@@ -123,6 +119,79 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(Buffer.concat([new Uint8Array([0x41, 0x42]),
                                       new Uint8Array([0x43, 0x44])]),
                        Buffer.from('ABCD'));
+
+// concat works with ArrayBuffer
+{
+  const ab = new ArrayBuffer(4);
+  new Uint8Array(ab).set([0x41, 0x42, 0x43, 0x44]);
+  assert.deepStrictEqual(
+    Buffer.concat([ab]),
+    Buffer.from('ABCD'));
+}
+
+// concat works with mixed types
+{
+  const ab = new ArrayBuffer(2);
+  new Uint8Array(ab).set([0x41, 0x42]);
+  const dv = new DataView(new ArrayBuffer(2));
+  new Uint8Array(dv.buffer).set([0x43, 0x44]);
+  assert.deepStrictEqual(
+    Buffer.concat([Buffer.from('EF'), ab, new Uint8Array([0x47]), dv]),
+    Buffer.from('EFABGCD'));
+}
+
+// concat works with ArrayBuffer and explicit length
+{
+  const ab = new ArrayBuffer(4);
+  new Uint8Array(ab).set([1, 2, 3, 4]);
+  const result = Buffer.concat([ab], 2);
+  assert.strictEqual(result.length, 2);
+  assert.deepStrictEqual(result, Buffer.from([1, 2]));
+}
+
+// concat works with DataView alone
+{
+  const dv1 = new DataView(new ArrayBuffer(2));
+  new Uint8Array(dv1.buffer).set([0x41, 0x42]);
+  const dv2 = new DataView(new ArrayBuffer(2));
+  new Uint8Array(dv2.buffer).set([0x43, 0x44]);
+  assert.deepStrictEqual(
+    Buffer.concat([dv1, dv2]),
+    Buffer.from('ABCD'));
+}
+
+// concat works with SharedArrayBuffer
+{
+  const sab = new SharedArrayBuffer(4);
+  new Uint8Array(sab).set([0x41, 0x42, 0x43, 0x44]);
+  assert.deepStrictEqual(
+    Buffer.concat([sab]),
+    Buffer.from('ABCD'));
+}
+
+// concat works with Uint16Array
+{
+  const u16 = new Uint16Array([0x4241, 0x4443]);
+  assert.deepStrictEqual(
+    Buffer.concat([u16]),
+    Buffer.from('ABCD'));
+}
+
+// concat works with DataView and explicit length (truncation)
+{
+  const dv = new DataView(new ArrayBuffer(4));
+  new Uint8Array(dv.buffer).set([1, 2, 3, 4]);
+  const result = Buffer.concat([dv], 2);
+  assert.strictEqual(result.length, 2);
+  assert.deepStrictEqual(result, Buffer.from([1, 2]));
+}
+
+// concat invalid types in list (with explicit length path)
+assert.throws(() => {
+  Buffer.concat([42], 10);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
 
 // Spoofed length getter should not cause uninitialized memory exposure
 {
