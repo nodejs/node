@@ -101,6 +101,7 @@ const tests = [
   { name: 'test-runner/output/eval_dot.js', transform: specTransform },
   { name: 'test-runner/output/eval_spec.js', transform: specTransform },
   { name: 'test-runner/output/eval_tap.js' },
+  { name: 'test-runner/output/filtered-suite-throws.js' },
   { name: 'test-runner/output/hooks.js' },
   { name: 'test-runner/output/hooks_spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/skip-each-hooks.js', transform: specTransform },
