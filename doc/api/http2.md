@@ -4516,10 +4516,9 @@ const server = http2.createServer((req, res) => {
 * `headers` {Headers|Map}
 
 Sets multiple header values for implicit headers.
-`headers` must be an instance of [`Headers`][] or `Map`.
+`headers` must be an instance of \[`Headers`]\[] or `Map`.
 If a header already exists in the to-be-sent headers,
 its value will be replaced.
-
 
 #### `response.setTimeout(msecs[, callback])`
 
