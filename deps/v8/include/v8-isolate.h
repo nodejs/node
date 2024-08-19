@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "cppgc/common.h"
@@ -1710,6 +1711,12 @@ class V8_EXPORT Isolate {
    * the performance of locale operations.
    */
   void LocaleConfigurationChangeNotification();
+
+  /**
+   * Returns the default locale in a string if Intl support is enabled.
+   * Otherwise returns an empty string.
+   */
+  std::string GetDefaultLocale();
 
   Isolate() = delete;
   ~Isolate() = delete;
