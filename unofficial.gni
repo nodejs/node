@@ -212,6 +212,7 @@ template("node_gn_build") {
     ]
     if (node_use_node_snapshot) {
       sources += [ "$target_gen_dir/node_snapshot.cc" ]
+      configs += [ ":node_internal_config" ]
       deps += [ ":run_node_mksnapshot" ]
       if (is_clang || !is_win) {
         cflags_cc = [
