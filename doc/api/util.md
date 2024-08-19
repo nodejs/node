@@ -1424,11 +1424,10 @@ changes:
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
-    * `default` {string | boolean | string\[] | boolean\[]} The default option
-      value when this argument is not passed. It must be of the same type as the
-      `type` property. When `multiple` is `true`, it must be an array. For
-      `string` arguments, if the option is passed it must still be followed by
-      a value.
+    * `default` {string | boolean | string\[] | boolean\[]} The default value to
+      be used if (and only if) the option does not appear in the arguments to be
+      parsed. It must be of the same type as the `type` property. When `multiple`
+      is `true`, it must be an array.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
