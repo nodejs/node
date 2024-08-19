@@ -1022,7 +1022,9 @@ following permissions are restricted:
 ### `--experimental-require-module`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.17.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1847,7 +1849,9 @@ Identical to `-e` but prints the result.
 ### `--experimental-print-required-tla`
 
 <!-- YAML
-added: v22.0.0
+added:
+  - v22.0.0
+  - v20.17.0
 -->
 
 This flag is only useful when `--experimental-require-module` is enabled.
