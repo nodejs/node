@@ -6,7 +6,7 @@ const dns = require('dns');
 const { mock } = require('node:test');
 
 if (!common.hasIPv6) {
-  common.printSkipMessage('ipv6 part of test, no IPv6 support');
+  common.printSkipMessage('IPv6 support is required for this test');
   return;
 }
 
