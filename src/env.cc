@@ -1118,15 +1118,36 @@ void Environment::InitializeCompileCache() {
       dir_from_env.empty()) {
     return;
   }
-  auto handler = std::make_unique<CompileCacheHandler>(this);
-  if (handler->InitializeDirectory(this, dir_from_env)) {
-    compile_cache_handler_ = std::move(handler);
-    AtExit(
-        [](void* env) {
-          static_cast<Environment*>(env)->compile_cache_handler()->Persist();
-        },
-        this);
+  EnableCompileCache(dir_from_env);
+}
+
+CompileCacheEnableResult Environment::EnableCompileCache(
+    const std::string& cache_dir) {
+  CompileCacheEnableResult result;
+
+  if (!compile_cache_handler_) {
+    std::unique_ptr<CompileCacheHandler> handler =
+        std::make_unique<CompileCacheHandler>(this);
+    result = handler->Enable(this, cache_dir);
+    if (result.status == CompileCacheEnableStatus::kEnabled) {
+      compile_cache_handler_ = std::move(handler);
+      AtExit(
+          [](void* env) {
+            static_cast<Environment*>(env)->compile_cache_handler()->Persist();
+          },
+          this);
+    }
+    if (!result.message.empty()) {
+      Debug(this,
+            DebugCategory::COMPILE_CACHE,
+            "[compile cache] %s\n",
+            result.message);
+    }
+  } else {
+    result.status = CompileCacheEnableStatus::kAlreadyEnabled;
+    result.cache_directory = compile_cache_handler_->cache_dir();
   }
+  return result;
 }
 
 void Environment::ExitEnv(StopFlags::Flags flags) {
