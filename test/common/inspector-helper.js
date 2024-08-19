@@ -271,6 +271,14 @@ class InspectorSession {
         `break on ${url}:${line}`);
   }
 
+  waitForPauseOnStart() {
+    return this
+      .waitForNotification(
+        (notification) =>
+          notification.method === 'Debugger.paused' && notification.params.reason === 'Break on start',
+        'break on start');
+  }
+
   pausedDetails() {
     return this._pausedDetails;
   }

@@ -34,7 +34,9 @@ async function runTest() {
   // Verify that the script has a sourceURL, hinting that it is a generated source.
   assert(scriptParsed.params.hasSourceURL);
 
-  session.disconnect();
+  await session.waitForPauseOnStart();
+  await session.runToCompletion();
+
   assert.strictEqual((await child.expectShutdown()).exitCode, 0);
 }
 
