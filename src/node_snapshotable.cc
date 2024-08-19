@@ -43,7 +43,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::ScriptCompiler;
 using v8::SnapshotCreator;
 using v8::StartupData;
 using v8::String;
