@@ -272,10 +272,11 @@ process/bench-env.js operation="query" n=1000000: 3,625,787.2150573144
 process/bench-env.js operation="delete" n=1000000: 1,521,131.5742806569
 ```
 
-Benchmarks can also have groups, giving the developer greater flexibility in differentiating between test cases.
-By default, all groups are executed when running the benchmarks.
-However, it is possible to specify individual groups by setting the `NODE_RUN_BENCHMARK_GROUPS`
-environment variable when running `compare.js`:
+#### Grouping benchmarks
+
+Benchmarks can also have groups, giving the developer greater flexibility in differentiating between test cases and also helping reduce the time to run the combination of benchmark parameters.
+
+By default, all groups are executed when running the benchmark. However, it is possible to specify individual groups by setting the `NODE_RUN_BENCHMARK_GROUPS` environment variable when running `compare.js`:
 
 ```bash
 NODE_RUN_BENCHMARK_GROUPS=fewHeaders,manyHeaders node http/headers.js
