@@ -618,7 +618,7 @@ added: v16.5.0
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v20.17.0
     pr-url: https://github.com/nodejs/node/pull/54044
     description: Added `min` option.
 -->

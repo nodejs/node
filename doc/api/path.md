@@ -282,7 +282,7 @@ path.format({
 ## `path.matchesGlob(path, pattern)`
 
 <!-- YAML
-added: REPLACEME
+added: v20.17.0
 -->
 
 > Stability: 1 - Experimental

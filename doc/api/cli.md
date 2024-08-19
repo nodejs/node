@@ -977,7 +977,7 @@ Use the specified file as a security policy.
 ### `--experimental-require-module`
 
 <!-- YAML
-added: REPLACEME
+added: v20.17.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1714,7 +1714,7 @@ Identical to `-e` but prints the result.
 ### `--experimental-print-required-tla`
 
 <!-- YAML
-added: REPLACEME
+added: v20.17.0
 -->
 
 This flag is only useful when `--experimental-require-module` is enabled.
