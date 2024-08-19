@@ -125,37 +125,43 @@ When running on Windows, `.bat` and `.cmd` files can be invoked using
 [`child_process.exec()`][] do). In any case, if the script filename contains
 spaces it needs to be quoted.
 
-```js
-const { spawn } = require('node:child_process');
-const spawned = spawn('my_command', ['arguments']);
+```cjs
+// OR...
+const { exec, spawn } = require('node:child_process');
 
-spawned.stdout.on('data', (data) => {
-  console.log(data.toString());
+exec('my.bat', (err, stdout, stderr) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  console.log(stdout);
 });
 
-spawned.stderr.on('data', (data) => {
-  console.error(data.toString());
-});
-
-spawned.on('exit', (code) => {
-  console.log(`Child exited with code ${code}`);
+// Script with spaces in the filename:
+const bat = spawn('"my script.cmd"', ['a', 'b'], { shell: true });
+// or:
+exec('"my script.cmd" a b', (err, stdout, stderr) => {
+  // ...
 });
 ```
 
 ```mjs
-import { spawn } from 'node:child_process';
-const spawned = spawn('my_command', ['arguments']);
+// OR...
+import { exec, spawn } from 'node:child_process';
 
-spawned.stdout.on('data', (data) => {
-  console.log(data.toString());
+exec('my.bat', (err, stdout, stderr) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  console.log(stdout);
 });
 
-spawned.stderr.on('data', (data) => {
-  console.error(data.toString());
-});
-
-spawned.on('exit', (code) => {
-  console.log(`Child exited with code ${code}`);
+// Script with spaces in the filename:
+const bat = spawn('"my script.cmd"', ['a', 'b'], { shell: true });
+// or:
+exec('"my script.cmd" a b', (err, stdout, stderr) => {
+  // ...
 });
 ```
 
