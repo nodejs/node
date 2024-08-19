@@ -561,7 +561,7 @@ HTTP request has finished loading.
 
 <!-- YAML
 added:
- - REPLACEME
+ - v22.7.0
 -->
 
 > Stability: 1 - Experimental
