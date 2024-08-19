@@ -1425,7 +1425,8 @@ changes:
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
     * `default` {string | boolean | string\[] | boolean\[]} The default option
-      value when it is not set by args. It must be of the same type as the
+      value when it is not set by args. It must be of the same type as the.
+      If the argument is passed *without value*, the function **won't use the `default` value**.
       `type` property. When `multiple` is `true`, it must be an array.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
