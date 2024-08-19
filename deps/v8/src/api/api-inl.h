@@ -17,37 +17,37 @@
 
 namespace v8 {
 
-template <typename T>
+template <typename T, internal::ExternalPointerTag tag>
 inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Foreign::cast(obj)->foreign_address());
+      v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>());
 }
 
-template <>
+template <internal::ExternalPointerTag tag>
 inline v8::internal::Address ToCData(
     v8::internal::Tagged<v8::internal::Object> obj) {
   if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
-  return v8::internal::Foreign::cast(obj)->foreign_address();
+  return v8::internal::Cast<v8::internal::Foreign>(obj)->foreign_address<tag>();
 }
 
-template <typename T>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
+template <internal::ExternalPointerTag tag, typename T>
+inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, T obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == nullptr) return handle(v8::internal::Smi::zero(), isolate);
-  return isolate->factory()->NewForeign(
+  return isolate->factory()->NewForeign<tag>(
       reinterpret_cast<v8::internal::Address>(obj));
 }
 
-template <>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
+template <internal::ExternalPointerTag tag>
+inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, v8::internal::Address obj) {
   if (obj == v8::internal::kNullAddress) {
     return handle(v8::internal::Smi::zero(), isolate);
   }
-  return isolate->factory()->NewForeign(obj);
+  return isolate->factory()->NewForeign<tag>(obj);
 }
 
 template <class From, class To>
@@ -186,7 +186,7 @@ class V8_NODISCARD CallDepthScope {
   }
   ~CallDepthScope() {
     i::MicrotaskQueue* microtask_queue =
-        i::NativeContext::cast(isolate_->context())->microtask_queue();
+        i::Cast<i::NativeContext>(isolate_->context())->microtask_queue();
 
     isolate_->thread_local_top()->DecrementCallDepth(this);
     // Clear the exception when exiting V8 to avoid memory leaks.
@@ -271,7 +271,8 @@ template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
                                   i::Tagged<i::FixedArray> elements) {
   for (uint32_t i = 0; i < length; ++i) {
-    double value = i::Object::Number(elements->get(static_cast<int>(i)));
+    double value = i::Object::NumberValue(
+        i::Cast<i::Smi>(elements->get(static_cast<int>(i))));
     // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
     // avoid int->double->int conversions to boost performance.
     dst[i] = i::ConvertDouble<T>(value);
@@ -313,11 +314,12 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
   i::Tagged<i::FixedArrayBase> elements = obj->elements();
   switch (obj->GetElementsKind()) {
     case i::PACKED_SMI_ELEMENTS:
-      CopySmiElementsToTypedBuffer(dst, length, i::FixedArray::cast(elements));
+      CopySmiElementsToTypedBuffer(dst, length,
+                                   i::Cast<i::FixedArray>(elements));
       return true;
     case i::PACKED_DOUBLE_ELEMENTS:
       CopyDoubleElementsToTypedBuffer(dst, length,
-                                      i::FixedDoubleArray::cast(elements));
+                                      i::Cast<i::FixedDoubleArray>(elements));
       return true;
     default:
       return false;

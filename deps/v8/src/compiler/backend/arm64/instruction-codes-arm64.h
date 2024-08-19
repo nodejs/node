@@ -46,6 +46,7 @@ namespace compiler {
   V(Arm64StrWPair)                                         \
   V(Arm64LdrDecompressTaggedSigned)                        \
   V(Arm64LdrDecompressTagged)                              \
+  V(Arm64LdrDecompressProtected)                           \
   V(Arm64StrCompressTagged)                                \
   V(Arm64Word64AtomicLoadUint64)                           \
   V(Arm64Word64AtomicStoreWord64)

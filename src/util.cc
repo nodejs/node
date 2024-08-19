@@ -320,7 +320,7 @@ std::vector<char> ReadFileSync(FILE* fp) {
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
 #ifdef _WIN32
   GetLocalTime(tm_struct);
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   struct timeval time_val;
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, tm_struct);
@@ -343,7 +343,7 @@ std::string DiagnosticFilename::MakeFilename(
   oss << "." << std::setfill('0') << std::setw(2) << tm_struct.wHour;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wMinute;
   oss << std::setfill('0') << std::setw(2) << tm_struct.wSecond;
-#else  // UNIX, OSX
+#else  // UNIX, macOS
   oss << "."
             << std::setfill('0')
             << std::setw(4)

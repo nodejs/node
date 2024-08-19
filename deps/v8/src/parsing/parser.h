@@ -131,7 +131,7 @@ struct ParserTypes<Parser> {
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  public:
-  Parser(LocalIsolate* local_isolate, ParseInfo* info, Handle<Script> script);
+  Parser(LocalIsolate* local_isolate, ParseInfo* info);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = nullptr;
@@ -141,8 +141,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Sets the literal on |info| if parsing succeeded.
   void ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
-                         int start_position, int end_position,
-                         int function_literal_id);
+                         Handle<Script> script, int start_position,
+                         int end_position, int function_literal_id);
 
   // Initializes an empty scope chain for top-level scripts, or scopes which
   // consist of only the native context.
@@ -163,13 +163,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  Scope::DeserializationMode::kScopesOnly);
 
   // Move statistics to Isolate
-  void UpdateStatistics(Isolate* isolate, Handle<Script> script);
+  void UpdateStatistics(Isolate* isolate, DirectHandle<Script> script);
   void UpdateStatistics(
-      Handle<Script> script,
+      DirectHandle<Script> script,
       base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
       int* preparse_skipped);
   template <typename IsolateT>
-  void HandleSourceURLComments(IsolateT* isolate, Handle<Script> script);
+  void HandleSourceURLComments(IsolateT* isolate, DirectHandle<Script> script);
 
  private:
   friend class ParserBase<Parser>;
@@ -221,12 +221,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void PrepareGeneratorVariables();
 
   // Sets the literal on |info| if parsing succeeded.
-  void ParseProgram(Isolate* isolate, Handle<Script> script, ParseInfo* info,
+  void ParseProgram(Isolate* isolate, DirectHandle<Script> script,
+                    ParseInfo* info,
                     MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
   // Sets the literal on |info| if parsing succeeded.
   void ParseFunction(Isolate* isolate, ParseInfo* info,
-                     Handle<SharedFunctionInfo> shared_info);
+                     DirectHandle<SharedFunctionInfo> shared_info);
 
   template <typename IsolateT>
   void PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
@@ -238,7 +239,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    const AstRawString* raw_name);
 
   FunctionLiteral* ParseClassForMemberInitialization(
-      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
       FunctionKind initalizer_kind, int initializer_pos, int initializer_id,
       int initializer_end_pos, const AstRawString* class_name);
 
@@ -323,12 +323,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              FunctionLiteral* function, VariableMode mode,
                              VariableKind kind, int beg_pos, int end_pos,
                              ZonePtrList<const AstRawString>* names);
-  Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
-  Variable* CreatePrivateNameVariable(ClassScope* scope, VariableMode mode,
-                                      IsStaticFlag is_static_flag,
-                                      const AstRawString* name);
+  VariableProxy* CreateSyntheticContextVariable(
+      const AstRawString* synthetic_name);
+  VariableProxy* CreatePrivateNameVariable(ClassScope* scope, VariableMode mode,
+                                           IsStaticFlag is_static_flag,
+                                           const AstRawString* name);
   FunctionLiteral* CreateInitializerFunction(const AstRawString* class_name,
                                              DeclarationScope* scope,
+                                             int function_literal_id,
                                              Statement* initializer_stmt);
 
   bool IdentifierEquals(const AstRawString* identifier,
@@ -362,9 +364,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                          bool is_computed_name, bool is_private,
                          ClassInfo* class_info);
   void AddClassStaticBlock(Block* block, ClassInfo* class_info);
+  FunctionLiteral* CreateStaticElementsInitializer(const AstRawString* name,
+                                                   ClassInfo* class_info);
+  FunctionLiteral* CreateInstanceMembersInitializer(const AstRawString* name,
+                                                    ClassInfo* class_info);
   Expression* RewriteClassLiteral(ClassScope* block_scope,
                                   const AstRawString* name,
-                                  ClassInfo* class_info, int pos, int end_pos);
+                                  ClassInfo* class_info, int pos);
   Statement* DeclareNative(const AstRawString* name, int pos);
 
   Block* IgnoreCompletion(Statement* statement);
@@ -427,7 +433,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
-                                      int pos, int end_pos);
+                                      int pos);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
@@ -503,8 +509,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
 
-  ArrayLiteral* ArrayLiteralFromListWithSpread(
-      const ScopedPtrList<Expression>& list);
   Expression* RewriteSuperCall(Expression* call_expression);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
@@ -521,8 +525,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewThrowError(Runtime::FunctionId function_id,
                             MessageTemplate message, const AstRawString* arg,
                             int pos);
-
-  Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,
                                 Expression* return_value,
@@ -587,10 +589,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE bool IsConstructor(const AstRawString* identifier) const {
     return identifier == ast_value_factory()->constructor_string();
-  }
-
-  V8_INLINE bool IsName(const AstRawString* identifier) const {
-    return identifier == ast_value_factory()->name_string();
   }
 
   V8_INLINE static bool IsBoilerplateProperty(
@@ -706,21 +704,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                          ast_value_factory()->empty_string(), pos);
   }
 
-  // Generate AST node that throws a SyntaxError with the given
-  // type. The first argument may be null (in the handle sense) in
-  // which case no arguments are passed to the constructor.
-  V8_INLINE Expression* NewThrowSyntaxError(MessageTemplate message,
-                                            const AstRawString* arg, int pos) {
-    return NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
-  }
-
-  // Generate AST node that throws a TypeError with the given
-  // type. Both arguments must be non-null (in the handle sense).
-  V8_INLINE Expression* NewThrowTypeError(MessageTemplate message,
-                                          const AstRawString* arg, int pos) {
-    return NewThrowError(Runtime::kNewTypeError, message, arg, pos);
-  }
-
   // Dummy implementation. The parser should never have a unidentifiable
   // error.
   V8_INLINE void ReportUnidentifiableError() { UNREACHABLE(); }
@@ -770,6 +753,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Non-null empty string.
   V8_INLINE const AstRawString* EmptyIdentifierString() const {
     return ast_value_factory()->empty_string();
+  }
+  V8_INLINE bool IsEmptyIdentifier(const AstRawString* subject) const {
+    DCHECK_NOT_NULL(subject);
+    return subject->IsEmpty();
   }
 
   // Producing data during the recursive descent.
@@ -903,6 +890,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
+  void ReindexArrowFunctionFormalParameters(ParserFormalParameters* parameters);
   void DeclareArrowFunctionFormalParameters(
       ParserFormalParameters* parameters, Expression* params,
       const Scanner::Location& params_loc);
@@ -1117,12 +1105,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   LocalIsolate* local_isolate_;
   ParseInfo* info_;
-  Handle<Script> script_;
   Scanner scanner_;
   Zone preparser_zone_;
   PreParser* reusable_preparser_;
   Mode mode_;
-  bool overall_parse_is_parked_ = false;
 
   MaybeHandle<FixedArray> maybe_wrapped_arguments_;
 

@@ -138,6 +138,8 @@ into a tarball (b).
 
     * `-D, --save-dev`: Package will appear in your `devDependencies`.
 
+    * `--save-peer`: Package will appear in your `peerDependencies`.
+
     * `-O, --save-optional`: Package will appear in your
       `optionalDependencies`.
 

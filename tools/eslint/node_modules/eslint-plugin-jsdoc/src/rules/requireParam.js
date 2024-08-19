@@ -220,10 +220,10 @@ export default iterateJsdoc(({
     functionParameterIdx,
     functionParameterName,
   ] of functionParameterNames.entries()) {
+
     let inc;
     if (Array.isArray(functionParameterName)) {
-      const matchedJsdoc = shallowJsdocParameterNames[functionParameterIdx - thisOffset] ||
-        jsdocParameterNames[functionParameterIdx - thisOffset];
+      const matchedJsdoc = shallowJsdocParameterNames[functionParameterIdx - thisOffset];
 
       /** @type {string} */
       let rootName;
@@ -237,12 +237,12 @@ export default iterateJsdoc(({
       } else {
         rootName = nextRootName;
         inc = incremented;
-        [
-          nextRootName,
-          incremented,
-          namer,
-        ] = namer();
       }
+      [
+        nextRootName,
+        incremented,
+        namer,
+      ] = namer();
 
       const {
         hasRestElement,

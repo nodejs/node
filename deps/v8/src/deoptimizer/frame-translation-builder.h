@@ -29,6 +29,7 @@ class FrameTranslationBuilder {
 
   Handle<DeoptimizationFrameTranslation> ToFrameTranslation(
       LocalFactory* factory);
+  base::Vector<const uint8_t> ToFrameTranslationWasm();
 
   int BeginTranslation(int frame_count, int jsframe_count,
                        bool update_feedback);
@@ -47,6 +48,8 @@ class FrameTranslationBuilder {
       base::Optional<wasm::ValueKind> return_kind);
   void BeginWasmInlinedIntoJSFrame(BytecodeOffset bailout_id, int literal_id,
                                    unsigned height);
+  void BeginLiftoffFrame(BytecodeOffset bailout_id, unsigned height,
+                         uint32_t wasm_function_index);
 #endif  // V8_ENABLE_WEBASSEMBLY
   void BeginJavaScriptBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                int literal_id, unsigned height);
@@ -54,6 +57,7 @@ class FrameTranslationBuilder {
       BytecodeOffset bailout_id, int literal_id, unsigned height);
   void ArgumentsElements(CreateArgumentsType type);
   void ArgumentsLength();
+  void RestLength();
   void BeginCapturedObject(int length);
   void AddUpdateFeedback(int vector_literal, int slot);
   void DuplicateObject(int object_index);
@@ -68,6 +72,7 @@ class FrameTranslationBuilder {
   void StoreFloatRegister(FloatRegister reg);
   void StoreDoubleRegister(DoubleRegister reg);
   void StoreHoleyDoubleRegister(DoubleRegister reg);
+  void StoreSimd128Register(Simd128Register reg);
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreInt64StackSlot(int index);
@@ -77,6 +82,7 @@ class FrameTranslationBuilder {
   void StoreBoolStackSlot(int index);
   void StoreFloatStackSlot(int index);
   void StoreDoubleStackSlot(int index);
+  void StoreSimd128StackSlot(int index);
   void StoreHoleyDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreOptimizedOut();
@@ -85,7 +91,7 @@ class FrameTranslationBuilder {
  private:
   struct Instruction {
     template <typename... T>
-    Instruction(TranslationOpcode opcode, T... operands)
+    explicit Instruction(TranslationOpcode opcode, T... operands)
         : opcode(opcode),
           operands{operands.value()...}
 #ifdef ENABLE_SLOW_DCHECKS
@@ -138,6 +144,7 @@ class FrameTranslationBuilder {
   Zone* zone() const { return zone_; }
 
   void FinishPendingInstructionIfNeeded();
+  void ValidateBytes(DeoptTranslationIterator& iter) const;
 
   ZoneVector<uint8_t> contents_;
   ZoneVector<int32_t> contents_for_compression_;

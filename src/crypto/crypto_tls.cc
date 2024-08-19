@@ -20,12 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "crypto/crypto_tls.h"
-#include "crypto/crypto_context.h"
-#include "crypto/crypto_common.h"
-#include "crypto/crypto_util.h"
+#include <cstdio>
+#include "async_wrap-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_clienthello-inl.h"
-#include "async_wrap-inl.h"
+#include "crypto/crypto_common.h"
+#include "crypto/crypto_context.h"
+#include "crypto/crypto_util.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -64,6 +65,26 @@ using v8::Value;
 namespace crypto {
 
 namespace {
+
+// Our custom implementation of the certificate verify callback
+// used when establishing a TLS handshake. Because we cannot perform
+// I/O quickly enough with X509_STORE_CTX_ APIs in this callback,
+// we ignore preverify_ok errors here and let the handshake continue.
+// In other words, this VerifyCallback is a non-op. It is imperative
+// that the user user Connection::VerifyError after the `secure`
+// callback has been made.
+int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
+  // From https://www.openssl.org/docs/man1.1.1/man3/SSL_verify_cb:
+  //
+  //   If VerifyCallback returns 1, the verification process is continued. If
+  //   VerifyCallback always returns 1, the TLS/SSL handshake will not be
+  //   terminated with respect to verification failures and the connection will
+  //   be established. The calling process can however retrieve the error code
+  //   of the last verification error using SSL_get_verify_result(3) or by
+  //   maintaining its own error storage managed by VerifyCallback.
+  return 1;
+}
+
 SSL_SESSION* GetSessionCallback(
     SSL* s,
     const unsigned char* key,
@@ -1224,7 +1245,7 @@ void TLSWrap::EnableTrace(const FunctionCallbackInfo<Value>& args) {
 
 #if HAVE_SSL_TRACE
   if (wrap->ssl_) {
-    wrap->bio_trace_.reset(BIO_new_fp(stderr,  BIO_NOCLOSE | BIO_FP_TEXT));
+    wrap->bio_trace_ = BIOPointer::NewFp(stderr, BIO_NOCLOSE | BIO_FP_TEXT);
     SSL_set_msg_callback(wrap->ssl_.get(), [](int write_p, int version, int
           content_type, const void* buf, size_t len, SSL* ssl, void* arg)
         -> void {
@@ -1592,6 +1613,33 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
         protos.data(), protos.data() + protos.length());
     SSL_CTX* ssl_ctx = SSL_get_SSL_CTX(ssl);
     SSL_CTX_set_alpn_select_cb(ssl_ctx, SelectALPNCallback, nullptr);
+  }
+}
+
+void TLSWrap::SetKeyCert(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+
+  if (w->is_client()) return;
+
+  if (args.Length() < 1 || !args[0]->IsObject())
+    return env->ThrowTypeError("Must give a SecureContext as first argument");
+
+  Local<Value> ctx = args[0];
+  if (UNLIKELY(ctx.IsEmpty())) return;
+
+  Local<FunctionTemplate> cons = env->secure_context_constructor_template();
+  if (cons->HasInstance(ctx)) {
+    SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
+    CHECK_NOT_NULL(sc);
+    if (!UseSNIContext(w->ssl_, BaseObjectPtr<SecureContext>(sc)) ||
+        !w->SetCACerts(sc)) {
+      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+      return ThrowCryptoError(env, err, "SetKeyCert");
+    }
+  } else {
+    return env->ThrowTypeError("Must give a SecureContext as first argument");
   }
 }
 
@@ -2130,6 +2178,7 @@ void TLSWrap::Initialize(
   SetProtoMethod(isolate, t, "renegotiate", Renegotiate);
   SetProtoMethod(isolate, t, "requestOCSP", RequestOCSP);
   SetProtoMethod(isolate, t, "setALPNProtocols", SetALPNProtocols);
+  SetProtoMethod(isolate, t, "setKeyCert", SetKeyCert);
   SetProtoMethod(isolate, t, "setOCSPResponse", SetOCSPResponse);
   SetProtoMethod(isolate, t, "setServername", SetServername);
   SetProtoMethod(isolate, t, "setSession", SetSession);

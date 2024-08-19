@@ -5,7 +5,6 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 
 #include "src/base/strings.h"
-#include "src/codegen/signature.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"
@@ -45,14 +44,6 @@ base::Vector<const char> GetDebugName(Zone* zone,
   char* index_name = zone->AllocateArray<char>(name_len);
   memcpy(index_name, name_vector.begin(), name_len);
   return base::Vector<const char>(index_name, name_len);
-}
-
-MachineRepresentation GetMachineRepresentation(wasm::ValueType type) {
-  return type.machine_representation();
-}
-
-MachineRepresentation GetMachineRepresentation(MachineType type) {
-  return type.representation();
 }
 
 // General code uses the above configuration data.

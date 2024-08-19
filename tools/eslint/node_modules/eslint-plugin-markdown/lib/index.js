@@ -70,15 +70,18 @@ const plugin = {
 
 plugin.configs.recommended = [
     {
+        name: "markdown/recommended/plugin",
         plugins: {
             markdown: plugin
         }
     },
     {
+        name: "markdown/recommended/processor",
         files: ["**/*.md"],
         processor: "markdown/markdown"
     },
     {
+        name: "markdown/recommended/code-blocks",
         files: ["**/*.md/**"],
         languageOptions: {
             parserOptions: {

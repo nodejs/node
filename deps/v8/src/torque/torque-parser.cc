@@ -10,11 +10,14 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#include "include/v8config.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/torque/ast.h"
 #include "src/torque/constants.h"
 #include "src/torque/declarations.h"
 #include "src/torque/earley-parser.h"
+#include "src/torque/global-context.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -45,7 +48,7 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
  public:
   BuildFlags() {
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
-    build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
+    build_flags_["TAGGED_SIZE_8_BYTES"] = TargetArchitecture::TaggedSize() == 8;
 #ifdef V8_INTL_SUPPORT
     build_flags_["V8_INTL_SUPPORT"] = true;
 #else
@@ -76,6 +79,7 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
     build_flags_["V8_ENABLE_WEBASSEMBLY"] = false;
 #endif
     build_flags_["V8_ENABLE_SANDBOX"] = V8_ENABLE_SANDBOX_BOOL;
+    build_flags_["V8_ENABLE_LEAPTIERING"] = V8_ENABLE_LEAPTIERING_BOOL;
     build_flags_["DEBUG"] = DEBUG_BOOL;
   }
   static bool GetFlag(const std::string& name, const char* production) {
@@ -540,6 +544,12 @@ base::Optional<ParseResult> MakeAssertStatement(
     kind = AssertStatement::AssertKind::kDcheck;
   } else if (kind_string == "check") {
     kind = AssertStatement::AssertKind::kCheck;
+  } else if (kind_string == "sbxcheck") {
+#ifdef V8_ENABLE_SANDBOX
+    kind = AssertStatement::AssertKind::kSbxCheck;
+#else
+    kind = AssertStatement::AssertKind::kDcheck;
+#endif  // V8_ENABLE_SANDBOX
   } else if (kind_string == "static_assert") {
     kind = AssertStatement::AssertKind::kStaticAssert;
   } else {
@@ -664,36 +674,6 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
     if (export_to_csa) ReportError("Cannot export generics to CSA.");
-    result =
-        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
-  }
-  return ParseResult{result};
-}
-
-base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
-    ParseResultIterator* child_results) {
-  const bool has_custom_interface_descriptor = HasAnnotation(
-      child_results, ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR, "builtin");
-  auto transitioning = child_results->NextAs<bool>();
-  auto javascript_linkage = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<Identifier*>();
-  if (!IsUpperCamelCase(name->value)) {
-    NamingConventionError("Builtin", name, "UpperCamelCase");
-  }
-
-  auto generic_parameters = child_results->NextAs<GenericParameters>();
-  LintGenericParameters(generic_parameters);
-
-  auto args = child_results->NextAs<ParameterList>();
-  auto return_type = child_results->NextAs<TypeExpression*>();
-  auto body = child_results->NextAs<base::Optional<Statement*>>();
-  CallableDeclaration* declaration = MakeNode<TorqueBuiltinDeclaration>(
-      transitioning, javascript_linkage, name, args, return_type,
-      has_custom_interface_descriptor, body);
-  Declaration* result = declaration;
-  if (generic_parameters.empty()) {
-    if (!body) ReportError("A non-generic declaration needs a body.");
-  } else {
     result =
         MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
   }
@@ -959,6 +939,46 @@ int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
                        int default_value) {
   auto opt_value = annotations.GetIntParam(name);
   return opt_value.has_value() ? *opt_value : default_value;
+}
+
+base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
+    ParseResultIterator* child_results) {
+  AnnotationSet annotations(
+      child_results, {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR}, {ANNOTATION_IF});
+  const bool has_custom_interface_descriptor =
+      annotations.Contains(ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR);
+  auto transitioning = child_results->NextAs<bool>();
+  auto javascript_linkage = child_results->NextAs<bool>();
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsUpperCamelCase(name->value)) {
+    NamingConventionError("Builtin", name, "UpperCamelCase");
+  }
+
+  auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
+  auto args = child_results->NextAs<ParameterList>();
+  auto return_type = child_results->NextAs<TypeExpression*>();
+  auto body = child_results->NextAs<base::Optional<Statement*>>();
+  CallableDeclaration* declaration = MakeNode<TorqueBuiltinDeclaration>(
+      transitioning, javascript_linkage, name, args, return_type,
+      has_custom_interface_descriptor, body);
+  Declaration* result = declaration;
+  if (generic_parameters.empty()) {
+    if (!body) ReportError("A non-generic declaration needs a body.");
+  } else {
+    result =
+        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
+  }
+  std::vector<Declaration*> results;
+  if (base::Optional<std::string> condition =
+          annotations.GetStringParam(ANNOTATION_IF)) {
+    if (!BuildFlags::GetFlag(*condition, ANNOTATION_IF)) {
+      return ParseResult{std::move(results)};
+    }
+  }
+  results.push_back(result);
+  return ParseResult{std::move(results)};
 }
 
 InstanceTypeConstraints MakeInstanceTypeConstraints(
@@ -2757,7 +2777,7 @@ struct TorqueGrammar : Grammar {
           MakeTypeswitchStatement),
       Rule({Token("try"), &block, List<TryHandler*>(&tryHandler)},
            MakeTryLabelExpression),
-      Rule({OneOf({"dcheck", "check", "static_assert"}), Token("("),
+      Rule({OneOf({"dcheck", "check", "sbxcheck", "static_assert"}), Token("("),
             &expressionWithSource, Token(")"), Token(";")},
            MakeAssertStatement),
       Rule({Token("while"), Token("("), expression, Token(")"), &statement},
@@ -2863,7 +2883,7 @@ struct TorqueGrammar : Grammar {
             CheckIf(Token("javascript")), Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListAllowVararg, &returnType, &optionalBody},
-           AsSingletonVector<Declaration*, MakeTorqueBuiltinDeclaration>()),
+           MakeTorqueBuiltinDeclaration),
       Rule({CheckIf(Token("transitioning")), &name,
             &genericSpecializationTypeList, &parameterListAllowVararg,
             &returnType, optionalLabelList, &block},

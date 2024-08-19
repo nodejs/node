@@ -1,0 +1,16 @@
+# Copyright 2024 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+include_rules = [
+  # TSA builtins require assembler macros
+  "+src/compiler/turboshaft/define-assembler-macros.inc",
+  "+src/compiler/turboshaft/undef-assembler-macros.inc",
+]
+
+specific_include_rules = {
+  "setup-builtins-internal.cc": [
+    "+src/compiler/pipeline.h",
+    "+src/compiler/turboshaft/phase.h",
+  ],
+}

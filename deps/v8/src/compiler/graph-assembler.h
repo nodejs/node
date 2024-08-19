@@ -332,15 +332,19 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* UniqueIntPtrConstant(intptr_t value);
   Node* Float64Constant(double value);
   Node* ExternalConstant(ExternalReference ref);
+  Node* IsolateField(IsolateFieldId id);
 
   Node* Projection(int index, Node* value, Node* ctrl = nullptr);
 
   Node* Parameter(int index);
 
   Node* LoadFramePointer();
+
+  Node* LoadRootRegister();
+
 #if V8_ENABLE_WEBASSEMBLY
   Node* LoadStackPointer();
-  Node* SetStackPointer(Node* sp, wasm::FPRelativeScope fp_scope);
+  Node* SetStackPointer(Node* sp);
 #endif
 
   Node* LoadHeapNumberValue(Node* heap_number);
@@ -1028,6 +1032,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
                 const FeedbackSource& feedback = {});
   Node* Assert(Node* cond, const char* condition_string = "",
                const char* file = "", int line = -1);
+  void Assert(TNode<Word32T> cond, const char* condition_string = "",
+              const char* file = "", int line = -1);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);
   TNode<Object> ConvertTaggedHoleToUndefined(TNode<Object> value);

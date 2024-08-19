@@ -5,6 +5,7 @@
 #ifndef V8_SANDBOX_CODE_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_CODE_POINTER_TABLE_INL_H_
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-entity-table-inl.h"
 
@@ -110,12 +111,14 @@ void CodePointerTable::SetEntrypoint(CodePointerHandle handle, Address value,
                                      CodeEntrypointTag tag) {
   DCHECK_NE(kNullCodePointerHandle, handle);
   uint32_t index = HandleToIndex(handle);
+  CFIMetadataWriteScope write_scope("CodePointerTable write");
   at(index).SetEntrypoint(value, tag);
 }
 
 void CodePointerTable::SetCodeObject(CodePointerHandle handle, Address value) {
   DCHECK_NE(kNullCodePointerHandle, handle);
   uint32_t index = HandleToIndex(handle);
+  CFIMetadataWriteScope write_scope("CodePointerTable write");
   at(index).SetCodeObject(value);
 }
 
@@ -123,6 +126,7 @@ CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(
     Space* space, Address code, Address entrypoint, CodeEntrypointTag tag) {
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
+  CFIMetadataWriteScope write_scope("CodePointerTable write");
   at(index).MakeCodePointerEntry(code, entrypoint, tag,
                                  space->allocate_black());
   return IndexToHandle(index);
@@ -136,6 +140,7 @@ void CodePointerTable::Mark(Space* space, CodePointerHandle handle) {
   uint32_t index = HandleToIndex(handle);
   DCHECK(space->Contains(index));
 
+  CFIMetadataWriteScope write_scope("CodePointerTable write");
   at(index).Mark();
 }
 

@@ -125,8 +125,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
-        "sys",   // Deprecated.
-        "wasi",  // Experimental.
+        "sqlite",  // Experimental.
+        "sys",     // Deprecated.
+        "wasi",    // Experimental.
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
   };
@@ -486,6 +487,14 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
   }
   Local<Value> undefined = Undefined(context->GetIsolate());
   return fn->Call(context, undefined, argc, argv);
+}
+
+MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
+    Local<Context> context,
+    const char* id,
+    std::vector<Local<String>>* parameters,
+    Realm* optional_realm) {
+  return LookupAndCompileInternal(context, id, parameters, optional_realm);
 }
 
 bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(

@@ -175,7 +175,8 @@ with-code-cache test-code-cache:
 out/Makefile: config.gypi common.gypi node.gyp \
 	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
 	deps/simdutf/simdutf.gyp deps/ada/ada.gyp deps/nbytes/nbytes.gyp \
-	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
+	tools/v8_gypfiles/toolchain.gypi \
+	tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
 
@@ -253,7 +254,7 @@ coverage: coverage-test ## Run the tests and generate a coverage report.
 .PHONY: coverage-build
 coverage-build: all
 	-$(MAKE) coverage-build-js
-	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==4.2; fi
+	if [ ! -d gcovr ]; then $(PYTHON) -m pip install -t gcovr gcovr==7.2; fi
 	$(MAKE)
 
 .PHONY: coverage-build-js
@@ -269,9 +270,10 @@ coverage-test: coverage-build
 	-NODE_V8_COVERAGE=coverage/tmp \
 		TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
-	-(cd out && PYTHONPATH=../gcovr $(PYTHON) -m gcovr \
-		--gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
-		-r ../src/ --object-directory Release/obj.target \
+	-(PYTHONPATH=./gcovr $(PYTHON) -m gcovr \
+		--object-directory=out \
+		--filter src -v \
+		--root ./ \
 		--html --html-details -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@printf "Javascript coverage %%: "
@@ -1003,7 +1005,7 @@ else
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 endif
 BINARYTAR=$(BINARYNAME).tar
-# OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
+# macOS doesn't have xz installed by default, http://macpkg.sourceforge.net/
 HAS_XZ ?= $(shell command -v xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 # Supply SKIP_XZ=1 to explicitly skip .tar.xz creation
 SKIP_XZ ?= 0
@@ -1527,8 +1529,8 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.4.5 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.4.5
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.5.2 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.5.2
 
 .PHONY: lint-py
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")

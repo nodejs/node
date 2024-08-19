@@ -61,7 +61,7 @@ void MemoryReducer::TimerTask::RunInternal() {
       false,
       low_allocation_rate || optimize_for_memory,
       heap->incremental_marking()->IsStopped() &&
-          heap->incremental_marking()->CanBeStarted(),
+          heap->incremental_marking()->CanAndShouldBeStarted(),
   };
   memory_reducer_->NotifyTimer(event);
 }

@@ -86,7 +86,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   int GetSnapshotsCount() const;
   bool IsTakingSnapshot() const;
   HeapSnapshot* GetSnapshot(int index);
-  SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
+  SnapshotObjectId GetSnapshotObjectId(DirectHandle<Object> obj);
   SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
@@ -115,6 +115,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   v8::EmbedderGraph::Node::Detachedness GetDetachedness(
       const v8::Local<v8::Value> v8_value, uint16_t class_id);
 
+  const char* CopyNameForHeapSnapshot(const char* name);
+
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
@@ -122,7 +124,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   Isolate* isolate() const;
 
-  void QueryObjects(Handle<Context> context, QueryObjectPredicate* predicate,
+  void QueryObjects(DirectHandle<Context> context,
+                    QueryObjectPredicate* predicate,
                     std::vector<v8::Global<v8::Object>>* objects);
   void set_native_move_listener(
       std::unique_ptr<HeapProfilerNativeMoveListener> listener) {

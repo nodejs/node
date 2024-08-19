@@ -63,6 +63,7 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
   __ j(greater_equal, &done, Label::Distance::kNear);
   __ Move(length, 0);
   __ bind(&done);
+  __ UncheckedSmiTagInt32(length);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {
@@ -108,7 +109,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   __ LoadBoundedSizeFromObject(byte_length, object,
                                JSDataView::kRawByteLengthOffset);
 
-  int element_size = ExternalArrayElementSize(element_type_);
+  int element_size = compiler::ExternalArrayElementSize(element_type_);
   if (element_size > 1) {
     __ subq(byte_length, Immediate(element_size - 1));
     __ EmitEagerDeoptIf(negative, DeoptimizeReason::kOutOfBounds, this);
@@ -137,47 +138,23 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   Register result_string = ToRegister(result());
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value();
+    int32_t char_code = constant->value() & 0xFFFF;
     if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
       __ movw(
           FieldOperand(result_string, OFFSET_OF_DATA_START(SeqTwoByteString)),
-          Immediate(char_code & 0xFFFF));
+          Immediate(char_code));
     }
   } else {
     MaglevAssembler::ScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     Register char_code = ToRegister(code_input());
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,
-                          char_code, scratch);
+                          char_code, scratch,
+                          MaglevAssembler::CharCodeMaskMode::kMustApplyMask);
   }
-}
-
-int BuiltinStringPrototypeCharCodeOrCodePointAt::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(Runtime::kStringCharCodeAt)->nargs, 2);
-  return 2;
-}
-void BuiltinStringPrototypeCharCodeOrCodePointAt::
-    SetValueLocationConstraints() {
-  UseAndClobberRegister(string_input());
-  UseAndClobberRegister(index_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-
-void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register string = ToRegister(string_input());
-  Register index = ToRegister(index_input());
-  ZoneLabelRef done(masm);
-  RegisterSnapshot save_registers = register_snapshot();
-  __ StringCharCodeOrCodePointAt(mode_, save_registers, ToRegister(result()),
-                                 string, index, scratch, *done);
-  __ bind(*done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
@@ -524,6 +501,17 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
+void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register value = ToRegister(result());
+  Label done;
+  __ cmpl(value, Immediate(0));
+  __ j(greater_equal, &done);
+  __ negl(value);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+  __ bind(&done);
+}
+
 void Int32BitwiseNot::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineSameAsFirst(this);
@@ -638,6 +626,12 @@ void Float64Negate::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   __ Negpd(value, value, kScratchRegister);
+}
+
+void Float64Abs::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister out = ToDoubleRegister(result());
+  __ Abspd(out, out, kScratchRegister);
 }
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,
@@ -832,8 +826,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 
   __ bind(&drop_dynamic_arg_size);
   // Drop receiver + arguments according to dynamic arguments size.
-  __ DropArguments(actual_params_size, r9, MacroAssembler::kCountIsInteger,
-                   MacroAssembler::kCountIncludesReceiver);
+  __ DropArguments(actual_params_size, r9);
   __ Ret();
 }
 

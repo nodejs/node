@@ -56,6 +56,7 @@ class Truncation final {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }
   bool IsUsedAsWord64() const {
+    DCHECK(Is64());
     return LessGeneral(kind_, TruncationKind::kWord64);
   }
   bool TruncatesOddballAndBigIntToNumber() const {
@@ -194,6 +195,7 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
   }
   static UseInfo CheckedBigIntTruncatingWord64(const FeedbackSource& feedback) {
+    DCHECK(Is64());
     // Note that Trunction::Word64() can safely use kIdentifyZero, because
     // TypeCheckKind::kBigInt will make sure we deopt for anything other than
     // type BigInt anyway.
@@ -201,6 +203,7 @@ class UseInfo {
                    TypeCheckKind::kBigInt, feedback);
   }
   static UseInfo CheckedBigInt64AsWord64(const FeedbackSource& feedback) {
+    DCHECK(Is64());
     return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
                    TypeCheckKind::kBigInt64, feedback);
   }

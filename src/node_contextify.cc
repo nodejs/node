@@ -614,7 +614,6 @@ Intercepted ContextifyContext::PropertySetterCallback(
     // property
     if (desc_obj->HasOwnProperty(context, env->get_string()).FromMaybe(false) ||
         desc_obj->HasOwnProperty(context, env->set_string()).FromMaybe(false)) {
-      args.GetReturnValue().Set(value);
       return Intercepted::kYes;
     }
   }

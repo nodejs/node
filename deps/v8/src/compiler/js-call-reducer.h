@@ -147,6 +147,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceRegExpPrototypeTest(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
 
+  Reduction ReduceStringConstructor(Node* node, JSFunctionRef constructor);
   enum class StringIndexOfIncludesVariant { kIncludes, kIndexOf };
   Reduction ReduceStringPrototypeIndexOfIncludes(
       Node* node, StringIndexOfIncludesVariant variant);
@@ -238,6 +239,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   base::Optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
   Reduction ReduceJSCallMathMinMaxWithArrayLike(Node* node, Builtin builtin);
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  Reduction ReduceGetContinuationPreservedEmbedderData(Node* node);
+  Reduction ReduceSetContinuationPreservedEmbedderData(Node* node);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);

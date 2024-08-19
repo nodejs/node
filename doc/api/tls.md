@@ -445,6 +445,47 @@ The first three are enabled by default. The two `CCM`-based suites are supported
 by TLSv1.3 because they may be more performant on constrained systems, but they
 are not enabled by default since they offer less security.
 
+## OpenSSL security level
+
+The OpenSSL library enforces security levels to control the minimum acceptable
+level of security for cryptographic operations. OpenSSL's security levels range
+from 0 to 5, with each level imposing stricter security requirements. The default
+security level is 1, which is generally suitable for most modern applications.
+However, some legacy features and protocols, such as TLSv1, require a lower
+security level (`SECLEVEL=0`) to function properly. For more detailed information,
+please refer to the [OpenSSL documentation on security levels][].
+
+### Setting security levels
+
+To adjust the security level in your Node.js application, you can include `@SECLEVEL=X`
+within a cipher string, where `X` is the desired security level. For example,
+to set the security level to 0 while using the default OpenSSL cipher list, you could use:
+
+```js
+const tls = require('node:tls');
+const port = 443;
+
+tls.createServer({ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1'}, function (socket) {
+  console.log('Client connected with protocol:', socket.getProtocol());
+  socket.end();
+  this.close();
+}).
+listen(port, () => {
+  tls.connect(port, {ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1'});
+});
+```
+
+This approach sets the security level to 0, allowing the use of legacy features while still
+leveraging the default OpenSSL ciphers.
+
+### Using [`--tls-cipher-list`][]
+
+You can also set the security level and ciphers from the command line using the
+`--tls-cipher-list=DEFAULT@SECLEVEL=X` as described in [Modifying the default TLS cipher suite][].
+However, it is generally discouraged to use the command line option for setting ciphers and it is
+preferable to configure the ciphers for individual contexts within your application code,
+as this approach provides finer control and reduces the risk of globally downgrading the security level.
+
 ## X509 certificate error codes
 
 Multiple functions can fail due to certificate errors that are reported by
@@ -1533,6 +1574,20 @@ When running as the server, the socket will be destroyed with an error after
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
 
+### `tlsSocket.setKeyCert(context)`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+* `context` {Object|tls.SecureContext} An object containing at least `key` and
+  `cert` properties from the [`tls.createSecureContext()`][] `options`, or a
+  TLS context object created with [`tls.createSecureContext()`][] itself.
+
+The `tlsSocket.setKeyCert()` method sets the private key and certificate to use
+for the socket. This is mainly useful if you wish to select a server certificate
+from a TLS server's `ALPNCallback`.
+
 ### `tlsSocket.setMaxSendFragment(size)`
 
 <!-- YAML
@@ -1799,7 +1854,9 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: v22.4.0
+  - version:
+    - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53329
     description: The `clientCertEngine`, `privateKeyEngine` and
                  `privateKeyIdentifier` options depend on custom engine
@@ -1932,7 +1989,7 @@ changes:
     of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option; use one or the other. Avoid
     setting to less than TLSv1.2, but it may be required for
-    interoperability.
+    interoperability. Versions before TLSv1.2 may require downgrading the [OpenSSL Security Level][].
     **Default:** [`tls.DEFAULT_MIN_VERSION`][].
   * `passphrase` {string} Shared passphrase used for a single private key and/or
     a PFX.
@@ -2060,7 +2117,9 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: v22.4.0
+  - version:
+    - v22.4.0
+    - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53329
     description: The `clientCertEngine` option depends on custom engine
                  support in OpenSSL which is deprecated in OpenSSL 3.
@@ -2263,6 +2322,7 @@ added: v11.4.0
 * {string} The default value of the `minVersion` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
+  Versions before TLSv1.2 may require downgrading the [OpenSSL Security Level][].
   **Default:** `'TLSv1.2'`, unless changed using CLI options. Using
   `--tls-min-v1.0` sets the default to `'TLSv1'`. Using `--tls-min-v1.1` sets
   the default to `'TLSv1.1'`. Using `--tls-min-v1.3` sets the default to
@@ -2291,6 +2351,8 @@ added:
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.md#openssl-options
+[OpenSSL Security Level]: #openssl-security-level
+[OpenSSL documentation on security levels]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_security_level.html#DEFAULT-CALLBACK-BEHAVIOUR
 [Pre-shared keys]: #pre-shared-keys
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 4086]: https://tools.ietf.org/html/rfc4086

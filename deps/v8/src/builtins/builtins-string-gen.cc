@@ -58,7 +58,7 @@ TNode<IntPtrT> StringBuiltinsAssembler::CallSearchStringRaw(
   const TNode<ExternalReference> function_addr = ExternalConstant(
       ExternalReference::search_string_raw<SubjectChar, PatternChar>());
   const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
 
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_intptr = MachineType::IntPtr();
@@ -935,6 +935,9 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
                                      StringComparison::kGreaterThanOrEqual);
 }
 
+#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+
+// NOTE: This needs to be kept in sync with the Turboshaft implementation.
 TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
   auto receiver = Parameter<String>(Descriptor::kReceiver);
   auto position = UncheckedParameter<IntPtrT>(Descriptor::kPosition);
@@ -948,6 +951,8 @@ TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
   TNode<String> result = StringFromSingleUTF16EncodedCodePoint(code);
   Return(result);
 }
+
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects

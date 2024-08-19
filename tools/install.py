@@ -285,6 +285,7 @@ def headers(options, action):
       'include/v8-promise.h',
       'include/v8-proxy.h',
       'include/v8-regexp.h',
+      'include/v8-sandbox.h',
       'include/v8-script.h',
       'include/v8-snapshot.h',
       'include/v8-source-location.h',

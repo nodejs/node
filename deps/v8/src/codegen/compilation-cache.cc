@@ -33,7 +33,7 @@ Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
   if (IsUndefined(table_, isolate())) {
     return CompilationCacheTable::New(isolate(), kInitialCacheSize);
   }
-  return handle(CompilationCacheTable::cast(table_), isolate());
+  return handle(Cast<CompilationCacheTable>(table_), isolate());
 }
 
 Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
@@ -44,7 +44,7 @@ Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
     tables_[generation] = *result;
   } else {
     Tagged<CompilationCacheTable> table =
-        CompilationCacheTable::cast(tables_[generation]);
+        Cast<CompilationCacheTable>(tables_[generation]);
     result = Handle<CompilationCacheTable>(table, isolate());
   }
   return result;
@@ -65,7 +65,7 @@ void CompilationCacheRegExp::Age() {
 void CompilationCacheScript::Age() {
   DisallowGarbageCollection no_gc;
   if (IsUndefined(table_, isolate())) return;
-  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
+  Tagged<CompilationCacheTable> table = Cast<CompilationCacheTable>(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
     Tagged<Object> key;
@@ -74,7 +74,7 @@ void CompilationCacheScript::Age() {
 
     Tagged<Object> value = table->PrimaryValueAt(entry);
     if (!IsUndefined(value, isolate())) {
-      Tagged<SharedFunctionInfo> info = SharedFunctionInfo::cast(value);
+      Tagged<SharedFunctionInfo> info = Cast<SharedFunctionInfo>(value);
       // Clear entries after Bytecode was flushed from SFI.
       if (!info->HasBytecodeArray()) {
         table->SetPrimaryValueAt(entry,
@@ -88,7 +88,7 @@ void CompilationCacheScript::Age() {
 void CompilationCacheEval::Age() {
   DisallowGarbageCollection no_gc;
   if (IsUndefined(table_, isolate())) return;
-  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
+  Tagged<CompilationCacheTable> table = Cast<CompilationCacheTable>(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
     Tagged<Object> key;
@@ -115,7 +115,7 @@ void CompilationCacheEval::Age() {
       DCHECK(IsFixedArray(key));
       // The ageing mechanism for eval caches.
       Tagged<SharedFunctionInfo> info =
-          SharedFunctionInfo::cast(table->PrimaryValueAt(entry));
+          Cast<SharedFunctionInfo>(table->PrimaryValueAt(entry));
       // Clear entries after Bytecode was flushed from SFI.
       if (!info->HasBytecodeArray()) {
         table->RemoveEntry(entry);
@@ -145,9 +145,9 @@ void CompilationCacheRegExp::Clear() {
 }
 
 void CompilationCacheEvalOrScript::Remove(
-    Handle<SharedFunctionInfo> function_info) {
+    DirectHandle<SharedFunctionInfo> function_info) {
   if (IsUndefined(table_, isolate())) return;
-  CompilationCacheTable::cast(table_)->Remove(*function_info);
+  Cast<CompilationCacheTable>(table_)->Remove(*function_info);
 }
 
 CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
@@ -159,7 +159,7 @@ CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
   // into the caller's handle scope.
   {
     HandleScope scope(isolate());
-    Handle<CompilationCacheTable> table = GetTable();
+    DirectHandle<CompilationCacheTable> table = GetTable();
     LookupResult probe = CompilationCacheTable::LookupScript(
         table, source, script_details, isolate());
     raw_result_for_escaping_handle_scope = probe.GetRawObjects();
@@ -185,8 +185,8 @@ CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
   return result;
 }
 
-void CompilationCacheScript::Put(Handle<String> source,
-                                 Handle<SharedFunctionInfo> function_info) {
+void CompilationCacheScript::Put(
+    Handle<String> source, DirectHandle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetTable();
   table_ = *CompilationCacheTable::PutScript(table, source, kNullMaybeHandle,
@@ -195,7 +195,7 @@ void CompilationCacheScript::Put(Handle<String> source,
 
 InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
                                           Handle<SharedFunctionInfo> outer_info,
-                                          Handle<Context> native_context,
+                                          DirectHandle<Context> native_context,
                                           LanguageMode language_mode,
                                           int position) {
   HandleScope scope(isolate());
@@ -203,7 +203,7 @@ InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
   InfoCellPair result;
-  Handle<CompilationCacheTable> table = GetTable();
+  DirectHandle<CompilationCacheTable> table = GetTable();
   result = CompilationCacheTable::LookupEval(
       table, source, outer_info, native_context, language_mode, position);
   if (result.has_shared()) {
@@ -216,9 +216,9 @@ InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
 
 void CompilationCacheEval::Put(Handle<String> source,
                                Handle<SharedFunctionInfo> outer_info,
-                               Handle<SharedFunctionInfo> function_info,
-                               Handle<Context> native_context,
-                               Handle<FeedbackCell> feedback_cell,
+                               DirectHandle<SharedFunctionInfo> function_info,
+                               DirectHandle<Context> native_context,
+                               DirectHandle<FeedbackCell> feedback_cell,
                                int position) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetTable();
@@ -236,12 +236,12 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
   Handle<Object> result = isolate()->factory()->undefined_value();
   int generation;
   for (generation = 0; generation < kGenerations; generation++) {
-    Handle<CompilationCacheTable> table = GetTable(generation);
+    DirectHandle<CompilationCacheTable> table = GetTable(generation);
     result = table->LookupRegExp(source, flags);
     if (IsFixedArray(*result)) break;
   }
   if (IsFixedArray(*result)) {
-    Handle<FixedArray> data = Handle<FixedArray>::cast(result);
+    Handle<FixedArray> data = Cast<FixedArray>(result);
     if (generation != 0) {
       Put(source, flags, data);
     }
@@ -254,14 +254,14 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
 }
 
 void CompilationCacheRegExp::Put(Handle<String> source, JSRegExp::Flags flags,
-                                 Handle<FixedArray> data) {
+                                 DirectHandle<FixedArray> data) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetTable(0);
   tables_[0] =
       *CompilationCacheTable::PutRegExp(isolate(), table, source, flags, data);
 }
 
-void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
+void CompilationCache::Remove(DirectHandle<SharedFunctionInfo> function_info) {
   if (!IsEnabledScriptAndEval()) return;
 
   eval_global_.Remove(function_info);
@@ -278,7 +278,7 @@ CompilationCacheScript::LookupResult CompilationCache::LookupScript(
 
 InfoCellPair CompilationCache::LookupEval(Handle<String> source,
                                           Handle<SharedFunctionInfo> outer_info,
-                                          Handle<Context> context,
+                                          DirectHandle<Context> context,
                                           LanguageMode language_mode,
                                           int position) {
   InfoCellPair result;
@@ -293,7 +293,7 @@ InfoCellPair CompilationCache::LookupEval(Handle<String> source,
 
   } else {
     DCHECK_NE(position, kNoSourcePosition);
-    Handle<Context> native_context(context->native_context(), isolate());
+    DirectHandle<Context> native_context(context->native_context(), isolate());
     result = eval_contextual_.Lookup(source, outer_info, native_context,
                                      language_mode, position);
     cache_type = "eval-contextual";
@@ -323,7 +323,7 @@ void CompilationCache::PutScript(Handle<String> source,
 void CompilationCache::PutEval(Handle<String> source,
                                Handle<SharedFunctionInfo> outer_info,
                                Handle<Context> context,
-                               Handle<SharedFunctionInfo> function_info,
+                               DirectHandle<SharedFunctionInfo> function_info,
                                Handle<FeedbackCell> feedback_cell,
                                int position) {
   if (!IsEnabledScriptAndEval()) return;
@@ -345,7 +345,7 @@ void CompilationCache::PutEval(Handle<String> source,
 }
 
 void CompilationCache::PutRegExp(Handle<String> source, JSRegExp::Flags flags,
-                                 Handle<FixedArray> data) {
+                                 DirectHandle<FixedArray> data) {
   reg_exp_.Put(source, flags, data);
 }
 
