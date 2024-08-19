@@ -10768,6 +10768,17 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 #endif  // V8_INTL_SUPPORT
 }
 
+std::string Isolate::GetDefaultLocale() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+
+#ifdef V8_INTL_SUPPORT
+  return i_isolate->DefaultLocale();
+#else
+  return std::string();
+#endif
+}
+
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
 void Isolate::SetFilterETWSessionByURLCallback(
     FilterETWSessionByURLCallback callback) {
