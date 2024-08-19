@@ -879,7 +879,7 @@ It is possible to run code containing inline types by passing
 ### `--experimental-async-context-frame`
 
 <!-- YAML
-added: REPLACEME
+added: v22.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -926,7 +926,7 @@ JavaScript.
 ### `--experimental-transform-types`
 
 <!-- YAML
-added: REPLACEME
+added: v22.7.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1596,7 +1596,7 @@ added:
   - v20.10.0
 changes:
   - version:
-    - REPLACEME
+    - v22.7.0
     pr-url: https://github.com/nodejs/node/pull/53619
     description: Syntax detection is enabled by default.
 -->

@@ -123,7 +123,7 @@ added:
   - v20.10.0
 changes:
   - version:
-    - REPLACEME
+    - v22.7.0
     pr-url: https://github.com/nodejs/node/pull/53619
     description: Syntax detection is enabled by default.
 -->
