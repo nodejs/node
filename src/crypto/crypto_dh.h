@@ -14,48 +14,19 @@
 
 namespace node {
 namespace crypto {
-class DiffieHellman : public BaseObject {
+class DiffieHellman final : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
-  bool Init(int primeLength, int g);
-  bool Init(BignumPointer&& bn_p, int g);
-  bool Init(const char* p, int p_len, int g);
-  bool Init(const char* p, int p_len, const char* g, int g_len);
-
-  static void Stateless(const v8::FunctionCallbackInfo<v8::Value>& args);
-
- protected:
-  static void DiffieHellmanGroup(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPrime(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetGenerator(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void VerifyErrorGetter(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  DiffieHellman(Environment* env, v8::Local<v8::Object> wrap);
+  DiffieHellman(Environment* env, v8::Local<v8::Object> wrap, DHPointer dh);
+  operator DHPointer&() { return dh_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(DiffieHellman)
   SET_SELF_SIZE(DiffieHellman)
 
  private:
-  static void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
-                       const BIGNUM* (*get_field)(const DH*),
-                       const char* err_if_null);
-  static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
-                     int (*set_field)(DH*, BIGNUM*), const char* what);
-  bool VerifyContext();
-
-  int verifyError_;
   DHPointer dh_;
 };
 
