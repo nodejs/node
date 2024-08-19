@@ -194,7 +194,6 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
 using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
-using DHPointer = DeleteFnPtr<DH, DH_free>;
 using DSAPointer = DeleteFnPtr<DSA, DSA_free>;
 using DSASigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
 using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
@@ -354,8 +353,86 @@ class BignumPointer final {
   static unsigned long GetWord(const BIGNUM* bn);
   static const BIGNUM* One();
 
+  BignumPointer clone();
+
  private:
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
+};
+
+class DHPointer final {
+public:
+
+  enum class FindGroupOption {
+    NONE,
+    // There are known and documented security issues with prime groups smaller
+    // than 2048 bits. When the NO_SMALL_PRIMES option is set, these small prime
+    // groups will not be supported.
+    NO_SMALL_PRIMES,
+  };
+
+  static BignumPointer GetStandardGenerator();
+
+  static BignumPointer FindGroup(const std::string_view name,
+                                 FindGroupOption option = FindGroupOption::NONE);
+  static DHPointer FromGroup(const std::string_view name,
+                             FindGroupOption option = FindGroupOption::NONE);
+
+  static DHPointer New(BignumPointer&& p, BignumPointer&& g);
+  static DHPointer New(size_t bits, unsigned int generator);
+
+  DHPointer() = default;
+  explicit DHPointer(DH* dh);
+  DHPointer(DHPointer&& other) noexcept;
+  DHPointer& operator=(DHPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(DHPointer)
+  ~DHPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return dh_ == nullptr; }
+  inline operator bool() const { return dh_ != nullptr; }
+  inline DH* get() const { return dh_.get(); }
+  void reset(DH* dh = nullptr);
+  DH* release();
+
+  enum class CheckResult {
+    NONE,
+    P_NOT_PRIME = DH_CHECK_P_NOT_PRIME,
+    P_NOT_SAFE_PRIME = DH_CHECK_P_NOT_SAFE_PRIME,
+    UNABLE_TO_CHECK_GENERATOR = DH_UNABLE_TO_CHECK_GENERATOR,
+    NOT_SUITABLE_GENERATOR = DH_NOT_SUITABLE_GENERATOR,
+    Q_NOT_PRIME = DH_CHECK_Q_NOT_PRIME,
+    INVALID_Q = DH_CHECK_INVALID_Q_VALUE,
+    INVALID_J = DH_CHECK_INVALID_J_VALUE,
+    CHECK_FAILED = 512,
+  };
+  CheckResult check();
+
+  enum class CheckPublicKeyResult {
+    NONE,
+    TOO_SMALL = DH_R_CHECK_PUBKEY_TOO_SMALL,
+    TOO_LARGE = DH_R_CHECK_PUBKEY_TOO_LARGE,
+    INVALID = DH_R_CHECK_PUBKEY_INVALID,
+    CHECK_FAILED = 512,
+  };
+  // Check to see if the given public key is suitable for this DH instance.
+  CheckPublicKeyResult checkPublicKey(const BignumPointer& pub_key);
+
+  DataPointer getPrime() const;
+  DataPointer getGenerator() const;
+  DataPointer getPublicKey() const;
+  DataPointer getPrivateKey() const;
+  DataPointer generateKeys() const;
+  DataPointer computeSecret(const BignumPointer& peer) const;
+
+  bool setPublicKey(BignumPointer&& key);
+  bool setPrivateKey(BignumPointer&& key);
+
+  size_t size() const;
+
+  static DataPointer stateless(const EVPKeyPointer& ourKey,
+                               const EVPKeyPointer& theirKey);
+
+private:
+  DeleteFnPtr<DH, DH_free> dh_;
 };
 
 class X509Pointer;
