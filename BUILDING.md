@@ -123,7 +123,7 @@ platforms. This is true regardless of entries in the table below.
 
 <!--lint disable final-definition-->
 
-[^1]: Older kernel versions may work. However official Node.js release
+[^1]: Older kernel versions may work. However, official Node.js release
     binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
     with kernel 4.18.
 
