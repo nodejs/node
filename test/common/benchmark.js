@@ -27,7 +27,7 @@ function runBenchmark(name, env) {
   child.on('exit', (code, signal) => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    
+
     // This bit makes sure that each benchmark file is being sent settings such
     // that the benchmark file runs just one set of options. This helps keep the
     // benchmark tests from taking a long time to run. Therefore, stdout should be composed as follows:
