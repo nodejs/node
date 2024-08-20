@@ -34,10 +34,10 @@ typedef HRESULT(WINAPI* pfnWldpCanExecuteFile)(
 typedef HRESULT(WINAPI* pfnWldpCanExecuteBuffer)(
     _In_ REFGUID host,
     _In_ WLDP_EXECUTION_EVALUATION_OPTIONS options,
-    _In_reads_(bufferSize) const BYTE *buffer,
+    _In_reads_(bufferSize) const BYTE* buffer,
     _In_ ULONG bufferSize,
     _In_opt_ PCWSTR auditInfo,
-    _Out_ WLDP_EXECUTION_POLICY *result);
+    _Out_ WLDP_EXECUTION_POLICY* result);
 
 typedef HRESULT(WINAPI* pfnWldpGetApplicationSettingBoolean)(
     _In_ PCWSTR id,
@@ -77,7 +77,7 @@ typedef HRESULT(WINAPI* pfnWldpQuerySecurityPolicy)(
 const WCHAR _var ## _buffer[] = _string; \
 const UNICODE_STRING _var = \
 { sizeof(_string) - sizeof(WCHAR), sizeof(_string), (PWCH) _var ## _buffer }
-#endif      
+#endif
 
 #ifndef E_NOTFOUND
 #define E_NOTFOUND 0x80070490

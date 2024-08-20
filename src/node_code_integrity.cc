@@ -24,9 +24,7 @@ static PCWSTR NODEJS = L"Node.js";
 static PCWSTR ENFORCE_CODE_INTEGRITY_SETTING_NAME = L"EnforceCodeIntegrity";
 
 void InitWldp(Environment* env) {
-
-  if (isWldpInitialized)
-  {
+  if (isWldpInitialized) {
     return;
   }
 
@@ -53,7 +51,7 @@ void InitWldp(Environment* env) {
     (pfnWldpQuerySecurityPolicy)GetProcAddress(
       wldp_module,
       "WldpQuerySecurityPolicy");
-  
+
   isWldpInitialized = true;
 }
 
@@ -113,8 +111,7 @@ static void IsSystemEnforcingCodeIntegrity(
     InitWldp(env);
   }
 
-  if (WldpGetApplicationSettingBoolean != nullptr)
-  {
+  if (WldpGetApplicationSettingBoolean != nullptr) {
     BOOL ret;
     HRESULT hr = WldpGetApplicationSettingBoolean(
       NODEJS,
@@ -125,14 +122,15 @@ static void IsSystemEnforcingCodeIntegrity(
       args.GetReturnValue().Set(
         Boolean::New(env->isolate(), ret));
       return;
-    } else if (hr != E_NOTFOUND) {  
-      // If the setting is not found, continue through to attempt WldpQuerySecurityPolicy,
-      // as the setting may be defined in the old settings format
+    } else if (hr != E_NOTFOUND) {
+      // If the setting is not found, continue through to attempt
+      // WldpQuerySecurityPolicy, as the setting may be defined
+      // in the old settings format
       args.GetReturnValue().Set(Boolean::New(env->isolate(), false));
       return;
     }
-  } 
-  
+  }
+
   // WldpGetApplicationSettingBoolean is the preferred way for applications to
   // query security policy values. However, this method only exists on Windows
   // versions going back to circa Win10 2023H2. In order to support systems
@@ -162,7 +160,7 @@ static void IsSystemEnforcingCodeIntegrity(
         Boolean::New(env->isolate(), static_cast<bool>(ret)));
   }
 }
-#endif // _WIN32
+#endif  // _WIN32
 
 #ifndef _WIN32
 static void IsFileTrustedBySystemCodeIntegrityPolicy(
@@ -174,7 +172,7 @@ static void IsSystemEnforcingCodeIntegrity(
   const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(false);
 }
-#endif // ifndef _WIN32
+#endif  // ifndef _WIN32
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -194,14 +192,13 @@ void Initialize(Local<Object> target,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  //BindingData::RegisterExternalReferences(registry);
-
   registry->Register(IsFileTrustedBySystemCodeIntegrityPolicy);
   registry->Register(IsSystemEnforcingCodeIntegrity);
 }
 
 }  // namespace codeintegrity
 }  // namespace node
+
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(code_integrity,
                                     node::codeintegrity::Initialize)
 NODE_BINDING_EXTERNAL_REFERENCE(code_integrity,
