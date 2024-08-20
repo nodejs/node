@@ -1,6 +1,11 @@
 'use strict';
 const common = require('../common');
 
+//
+// This test ensures Node.js doesn't crash on linux when reading from /dev/stdin in the CLI
+// ref: https://github.com/nodejs/node/issues/54200
+//
+
 if (!common.isLinux) {
     common.skip('Linux only test');
 }
