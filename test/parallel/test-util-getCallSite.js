@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const fixtures = require('../common/fixtures');
 const file = fixtures.path('get-call-site.js');
@@ -19,6 +19,54 @@ const assert = require('node:assert');
   );
 }
 
+{
+  const callsite = getCallSite(3);
+  assert.strictEqual(callsite.length, 3);
+  assert.match(
+    callsite[0].scriptName,
+    /test-util-getCallSite/,
+    'node:util should be ignored',
+  );
+}
+
+{
+  const callsite = getCallSite(3.6);
+  assert.strictEqual(callsite.length, 3);
+}
+
+{
+  const callsite = getCallSite(3.4);
+  assert.strictEqual(callsite.length, 3);
+}
+
+{
+  assert.throws(() => {
+    // Max than kDefaultMaxCallStackSizeToCapture
+    getCallSite(201);
+  }, common.expectsError({
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  assert.throws(() => {
+    getCallSite(-1);
+  }, common.expectsError({
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  assert.throws(() => {
+    getCallSite({});
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+}
+
+{
+  const callsite = getCallSite(1);
+  assert.strictEqual(callsite.length, 1);
+  assert.match(
+    callsite[0].scriptName,
+    /test-util-getCallSite/,
+    'node:util should be ignored',
+  );
+}
 
 {
   const { status, stderr, stdout } = spawnSync(

@@ -258,8 +258,12 @@ static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  Local<StackTrace> stack =
-      StackTrace::CurrentStackTrace(isolate, env->stack_trace_limit());
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+  const uint32_t frames = args[0].As<Uint32>()->Value();
+
+  // +1 for disregarding node:util
+  Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames + 1);
   Local<Array> callsites = Array::New(isolate);
 
   // Frame 0 is node:util. It should be skipped.
