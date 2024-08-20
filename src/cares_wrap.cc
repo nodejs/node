@@ -1572,15 +1572,15 @@ void ConvertIpv6StringToBuffer(const FunctionCallbackInfo<Value>& args) {
   unsigned char dst[16];  // IPv6 addresses are 128 bits (16 bytes)
 
   if (uv_inet_pton(AF_INET6, *ip, dst) != 0) {
-    isolate->ThrowException(
-      v8::Exception::Error(
+    isolate->ThrowException(v8::Exception::Error(
         String::NewFromUtf8(isolate, "Invalid IPv6 address").ToLocalChecked()));
     return;
   }
 
-  Local<Object> buffer = node::Buffer::Copy(
-    isolate,
-    reinterpret_cast<const char*>(dst), sizeof(dst)).ToLocalChecked();
+  Local<Object> buffer =
+      node::Buffer::Copy(
+          isolate, reinterpret_cast<const char*>(dst), sizeof(dst))
+          .ToLocalChecked();
   args.GetReturnValue().Set(buffer);
 }
 
@@ -1920,10 +1920,8 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getaddrinfo", GetAddrInfo);
   SetMethod(context, target, "getnameinfo", GetNameInfo);
   SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
-  SetMethodNoSideEffect(context,
-    target,
-    "convertIpv6StringToBuffer",
-    ConvertIpv6StringToBuffer);
+  SetMethodNoSideEffect(
+      context, target, "convertIpv6StringToBuffer", ConvertIpv6StringToBuffer);
 
   SetMethod(context, target, "strerror", StrError);
 
