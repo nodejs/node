@@ -17,7 +17,7 @@ describe('cjs loader code integrity integration tests', () => {
            require('../fixtures/code_integrity_test.js');
          },
          {
-           code: 'ERR_INTEGRITY_VIOLATION',
+           code: 'ERR_CODE_INTEGRITY_VIOLATION',
          },
        );
      }
@@ -40,7 +40,7 @@ describe('cjs loader code integrity integration tests', () => {
            require('../fixtures/code_integrity_test.json');
          },
          {
-           code: 'ERR_INTEGRITY_VIOLATION',
+           code: 'ERR_CODE_INTEGRITY_VIOLATION',
          },
        );
      }
@@ -63,7 +63,7 @@ describe('cjs loader code integrity integration tests', () => {
            require('../fixtures/code_integrity_test.node');
          },
          {
-           code: 'ERR_INTEGRITY_VIOLATION',
+           code: 'ERR_CODE_INTEGRITY_VIOLATION',
          },
        );
      }
