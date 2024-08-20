@@ -36,10 +36,24 @@ assert.throws(() => {
   code: 'ERR_INVALID_ARG_VALUE',
 });
 
-assert.strictEqual(util.styleText('red', 'test'), '\u001b[31mtest\u001b[39m');
+assert.strictEqual(
+  util.styleText('red', 'test', { validateStream: false }),
+  '\u001b[31mtest\u001b[39m',
+);
 
-assert.strictEqual(util.styleText(['bold', 'red'], 'test'), '\u001b[1m\u001b[31mtest\u001b[39m\u001b[22m');
-assert.strictEqual(util.styleText(['bold', 'red'], 'test'), util.styleText('bold', util.styleText('red', 'test')));
+assert.strictEqual(
+  util.styleText(['bold', 'red'], 'test', { validateStream: false }),
+  '\u001b[1m\u001b[31mtest\u001b[39m\u001b[22m',
+);
+
+assert.strictEqual(
+  util.styleText(['bold', 'red'], 'test', { validateStream: false }),
+  util.styleText(
+    'bold',
+    util.styleText('red', 'test', { validateStream: false }),
+    { validateStream: false },
+  ),
+);
 
 assert.throws(() => {
   util.styleText(['invalid'], 'text');
@@ -56,7 +70,10 @@ assert.throws(() => {
 // does not throw
 util.styleText('red', 'text', { stream: {}, validateStream: false });
 
-assert.strictEqual(util.styleText('red', 'test'), styled);
+assert.strictEqual(
+  util.styleText('red', 'test', { validateStream: false }),
+  styled,
+);
 
 const fd = common.getTTYfd();
 if (fd !== -1) {
