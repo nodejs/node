@@ -149,6 +149,8 @@ expected failures.
 
 ## Format of a status JSON file
 
+<!--lint disable fenced-code-flag remark-lint-->
+
 ```jsonc
 {
   "something.scope.js": {  // the file name
@@ -172,6 +174,8 @@ expected failures.
   }
 }
 ```
+
+<!--lint enable fenced-code-flag remark-lint-->
 
 A test may have to be skipped because it depends on another irrelevant
 Web API, or certain harness has not been ported in our test runner yet.
