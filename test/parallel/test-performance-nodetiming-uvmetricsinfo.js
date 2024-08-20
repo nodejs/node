@@ -10,17 +10,17 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const { performance } = require('node:perf_hooks');
 
-const { uvMetricsInfo } = performance;
+const { nodeTiming } = performance;
 
 function safeMetricsInfo(cb) {
   setImmediate(() => {
-    const info = uvMetricsInfo();
+    const info = nodeTiming.uvMetricsInfo;
     cb(info);
   });
 }
 
 {
-  const info = uvMetricsInfo();
+  const info = nodeTiming.uvMetricsInfo;
   assert.strictEqual(info.loopCount, 0);
   assert.strictEqual(info.events, 0);
   // This is the only part of the test that we test events waiting
@@ -33,7 +33,7 @@ function safeMetricsInfo(cb) {
   // The synchronous call should obviously not affect the uv metrics
   const fd = fs.openSync(filepath, 'r');
   fs.readFileSync(fd);
-  const info = uvMetricsInfo();
+  const info = nodeTiming.uvMetricsInfo;
   assert.strictEqual(info.loopCount, 0);
   assert.strictEqual(info.events, 0);
   assert.strictEqual(info.eventsWaiting, 0);
