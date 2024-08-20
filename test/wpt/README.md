@@ -149,7 +149,7 @@ expected failures.
 
 ## Format of a status JSON file
 
-```json
+```jsonc
 {
   "something.scope.js": {  // the file name
     // Optional: If the requirement is not met, this test will be skipped
