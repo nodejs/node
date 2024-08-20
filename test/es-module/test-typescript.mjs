@@ -313,3 +313,14 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts with require
        match(result.stdout, /Hello, TypeScript!/);
        strictEqual(result.code, 0);
      });
+
+test('execute a JavaScript file importing a cjs TypeScript file', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--no-warnings',
+    fixtures.path('typescript/ts/issue-54457.mjs'),
+  ]);
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
