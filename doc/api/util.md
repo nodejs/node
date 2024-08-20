@@ -364,7 +364,7 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 // when printed to a terminal.
 ```
 
-## `util.getCallSite()`
+## `util.getCallSite(frames)`
 
 > Stability: 1.1 - Active development
 
@@ -372,10 +372,14 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 added: REPLACEME
 -->
 
+* `frames` {number} Number of frames returned in the stacktrace.
+  **Default:** `10`.
+
 * Returns: {Object\[]} An array of stacktrace objects
   * `functionName` {string} Returns the name of the function associated with this stack frame.
-  * `lineNumber` {string} Returns the number, 1-based, of the line for the associate function call.
-  * `lineNumber` {string} Returns the number, 1-based, of the line for the associate function call.
+  * `scriptName` {string} Returns the name of the resource that contains the script for the
+    function for this StackFrame.
+  * `lineNumber` {number} Returns the number, 1-based, of the line for the associate function call.
   * `column` {number} Returns the 1-based column offset on the line for the associated function call.
 
 Returns an array of stacktrace objects containing the stack of
