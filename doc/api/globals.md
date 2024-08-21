@@ -666,9 +666,7 @@ The `navigator.hardwareConcurrency` read-only property returns the number of
 logical processors available to the current Node.js instance.
 
 ```js
-console.log(
-  `This process is running on ${navigator.hardwareConcurrency} logical processors`
-);
+console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
 ```
 
 ### `navigator.language`
