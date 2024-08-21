@@ -155,13 +155,9 @@ const ac = new AbortController();
 ac.signal.onabort = () => console.log('aborted!');
 
 // Or the EventTarget API...
-ac.signal.addEventListener(
-  "abort",
-  (event) => {
-    console.log(event.type); // Prints 'abort'
-  },
-  { once: true }
-);
+ac.signal.addEventListener('abort', (event) => {
+  console.log(event.type);  // Prints 'abort'
+}, { once: true });
 
 ac.abort();
 ```
