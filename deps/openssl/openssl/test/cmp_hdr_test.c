@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -71,30 +71,25 @@ static int test_HDR_set_get_pvno(void)
 
 static int execute_HDR_get0_senderNonce_test(CMP_HDR_TEST_FIXTURE *fixture)
 {
-    int res = 0;
     X509_NAME *sender = X509_NAME_new();
     ASN1_OCTET_STRING *sn;
 
     if (!TEST_ptr(sender))
-        goto err;
+        return 0;
 
     X509_NAME_ADD(sender, "CN", "A common sender name");
     if (!TEST_int_eq(OSSL_CMP_CTX_set1_subjectName(fixture->cmp_ctx, sender),
                      1))
-        goto err;
+        return 0;
     if (!TEST_int_eq(ossl_cmp_hdr_init(fixture->cmp_ctx, fixture->hdr),
                      1))
-        goto err;
+        return 0;
     sn = ossl_cmp_hdr_get0_senderNonce(fixture->hdr);
     if (!TEST_int_eq(ASN1_OCTET_STRING_cmp(fixture->cmp_ctx->senderNonce, sn),
                      0))
-        goto err;
-
-    res = 1;
-err:
+        return 0;
     X509_NAME_free(sender);
-
-    return res;
+    return 1;
 }
 
 static int test_HDR_get0_senderNonce(void)
@@ -107,28 +102,23 @@ static int test_HDR_get0_senderNonce(void)
 
 static int execute_HDR_set1_sender_test(CMP_HDR_TEST_FIXTURE *fixture)
 {
-    int res = 0;
     X509_NAME *x509name = X509_NAME_new();
 
     if (!TEST_ptr(x509name))
-        goto err;
+        return 0;
 
     X509_NAME_ADD(x509name, "CN", "A common sender name");
     if (!TEST_int_eq(ossl_cmp_hdr_set1_sender(fixture->hdr, x509name), 1))
-        goto err;
-
+        return 0;
     if (!TEST_int_eq(fixture->hdr->sender->type, GEN_DIRNAME))
-        goto err;
+        return 0;
 
     if (!TEST_int_eq(X509_NAME_cmp(fixture->hdr->sender->d.directoryName,
                                    x509name), 0))
-        goto err;
+        return 0;
 
-    res = 1;
-err:
     X509_NAME_free(x509name);
-
-    return res;
+    return 1;
 }
 
 static int test_HDR_set1_sender(void)
@@ -141,28 +131,24 @@ static int test_HDR_set1_sender(void)
 
 static int execute_HDR_set1_recipient_test(CMP_HDR_TEST_FIXTURE *fixture)
 {
-    int res = 0;
     X509_NAME *x509name = X509_NAME_new();
 
     if (!TEST_ptr(x509name))
-        goto err;
+        return 0;
 
     X509_NAME_ADD(x509name, "CN", "A common recipient name");
     if (!TEST_int_eq(ossl_cmp_hdr_set1_recipient(fixture->hdr, x509name), 1))
-        goto err;
+        return 0;
 
     if (!TEST_int_eq(fixture->hdr->recipient->type, GEN_DIRNAME))
-        goto err;
+        return 0;
 
     if (!TEST_int_eq(X509_NAME_cmp(fixture->hdr->recipient->d.directoryName,
                                    x509name), 0))
-        goto err;
+        return 0;
 
-    res = 1;
-err:
     X509_NAME_free(x509name);
-
-    return res;
+    return 1;
 }
 
 static int test_HDR_set1_recipient(void)
@@ -217,7 +203,7 @@ static int execute_HDR_set1_senderKID_test(CMP_HDR_TEST_FIXTURE *fixture)
     int res = 0;
 
     if (!TEST_ptr(senderKID))
-        goto err;
+        return 0;
 
     if (!TEST_int_eq(ASN1_OCTET_STRING_set(senderKID, rand_data,
                                            sizeof(rand_data)), 1))
@@ -279,7 +265,7 @@ static int execute_HDR_push1_freeText_test(CMP_HDR_TEST_FIXTURE *fixture)
     int res = 0;
 
     if (!TEST_ptr(text))
-        goto err;
+        return 0;
 
     if (!ASN1_STRING_set(text, "A free text", -1))
         goto err;
@@ -294,7 +280,6 @@ static int execute_HDR_push1_freeText_test(CMP_HDR_TEST_FIXTURE *fixture)
     res = 1;
  err:
     ASN1_UTF8STRING_free(text);
-
     return res;
 }
 
