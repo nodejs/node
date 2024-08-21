@@ -266,7 +266,7 @@ void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
   uv_metrics_t metrics;
 
   // uv_metrics_info always return 0
-  uv_metrics_info(env->event_loop(), &metrics);
+  CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
 
   Local<Object> obj = Object::New(env->isolate());
   obj->Set(env->context(),
