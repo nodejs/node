@@ -93,7 +93,12 @@ function expectNoWorker(opt, want, command, wantsError) {
 function expect(
   opt, want, command = 'console.log("B")', wantsError = false, testWorker = true
 ) {
-  const argv = ['-e', command];
+  const argv = [
+    // --perf-basic-prof and --perf-basic-prof-only-functions write to /tmp by default.
+    `--perf-basic-prof-path=${tmpdir.path}`,
+    '-e',
+    command,
+  ];
   const opts = {
     cwd: tmpdir.path,
     env: Object.assign({}, process.env, { NODE_OPTIONS: opt }),
