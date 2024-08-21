@@ -428,3 +428,16 @@ test('coverage with included and excluded files', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
   assert(!findCoverageFileForPid(result.pid));
 });
+
+test('properly accounts for line endings in source maps', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'source-map-line-lengths', 'index.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = 'index.ts | 100.00 |   100.00 |  100.00 |';
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+});
