@@ -152,7 +152,7 @@ single `type` property set to `'abort'`:
 const ac = new AbortController();
 
 // Use either the onabort property...
-ac.signal.onabort = () => console.log("aborted!");
+ac.signal.onabort = () => console.log('aborted!');
 
 // Or the EventTarget API...
 ac.signal.addEventListener(
