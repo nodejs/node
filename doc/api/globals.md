@@ -855,7 +855,7 @@ DataHandler.prototype.load = async function load(key) {
   const hit = this._cache.get(key);
   if (hit !== undefined) {
     queueMicrotask(() => {
-      this.emit("load", hit);
+      this.emit('load', hit);
     });
     return;
   }
