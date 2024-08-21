@@ -14,7 +14,7 @@ body:
     attributes:
       label: Version
       description: |
-        Output of `node -v`. 
+        Output of `node -v`.
         Please verify that you are reproducing the issue in a currently-supported version of Node.js.
   - type: textarea
     attributes:
