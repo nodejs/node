@@ -39,9 +39,8 @@ The API is based on the Web API [`AbortController`][].
 ```js
 const ac = new AbortController();
 
-ac.signal.addEventListener("abort", () => console.log("Aborted!"), {
-  once: true,
-});
+ac.signal.addEventListener('abort', () => console.log('Aborted!'),
+                           { once: true });
 
 ac.abort();
 
