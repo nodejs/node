@@ -689,9 +689,7 @@ The value is representing the language version as defined in [RFC 5646][].
 The fallback value on builds without ICU is `'en-US'`.
 
 ```js
-console.log(
-  `The preferred language of the Node.js instance has the tag '${navigator.language}'`
-);
+console.log(`The preferred language of the Node.js instance has the tag '${navigator.language}'`);
 ```
 
 ### `navigator.languages`
