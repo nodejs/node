@@ -3,6 +3,9 @@ const common = require('../common.js');
 const url = require('url');
 
 const inputs = {
+  ipV6: 'http://[::1]:3000',
+  ipV4: 'http://127.0.0.1:3000',
+  withPort: 'http://foo.bar:3000',
   normal: 'http://foo.com/bar',
   escaped: 'https://foo.bar/{}^`/abcd',
 };
