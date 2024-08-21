@@ -210,8 +210,8 @@ An optional reason specified when the `AbortSignal` was triggered.
 
 ```js
 const ac = new AbortController();
-ac.abort(new Error("boom!"));
-console.log(ac.signal.reason); // Error: boom!
+ac.abort(new Error('boom!'));
+console.log(ac.signal.reason);  // Error: boom!
 ```
 
 #### `abortSignal.throwIfAborted()`
