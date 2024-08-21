@@ -862,7 +862,7 @@ DataHandler.prototype.load = async function load(key) {
 
   const data = await fetchData(key);
   this._cache.set(key, data);
-  this.emit("load", data);
+  this.emit('load', data);
 };
 ```
 
