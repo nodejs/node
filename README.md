@@ -2,9 +2,11 @@
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
-For information on using Node.js, see the [Node.js website][].
+For information on using Node.js, see the [Node.js website][[zkmerkle_cex_20240305.tar.gz](https://github.com/user-attachments/files/16685598/zkmerkle_cex_20240305.tar.gz)
+].
 
-The Node.js project uses an [open governance model](./GOVERNANCE.md). The
+The Node.js project uses an [open governance model]([GOVERNANCE.md](https://github.com/user-attachments/files/16685603/GOVERNANCE.md)
+./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
 
 Contributors are expected to act in a collaborative manner to move
@@ -22,7 +24,8 @@ that discourage, exhaust, or otherwise negatively affect other participants.
   * [Download](#download)
     * [Current and LTS releases](#current-and-lts-releases)
     * [Nightly releases](#nightly-releases)
-    * [API documentation](#api-documentation)
+    * [API documentation](#api-[README.md](https://github.com/user-attachments/files/16685604/README.md)
+documentation)
   * [Verifying binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
 * [Security](#security)
@@ -60,7 +63,8 @@ Looking for help? Check out the
 Current and LTS releases follow [semantic versioning](https://semver.org). A
 member of the Release Team [signs](#release-keys) each Current and LTS release.
 For more information, see the
-[Release README](https://github.com/nodejs/Release#readme).
+[[schedule.json](https://github.com/user-attachments/files/16685613/schedule.json)
+]
 
 ### Download
 
@@ -71,7 +75,8 @@ Binaries, installers, and source tarballs are available at
 
 <https://nodejs.org/download/release/>
 
-The [latest](https://nodejs.org/download/release/latest/) directory is an
+The [[2024-02-08.md](https://github.com/user-attachments/files/16685621/2024-02-08.md)
+]) directory is an
 alias for the latest Current release. The latest-_codename_ directory is an
 alias for the latest release from an LTS line. For example, the
 [latest-hydrogen](https://nodejs.org/download/release/latest-hydrogen/)
@@ -96,10 +101,11 @@ _docs_ subdirectory. Version-specific documentation is also at
 Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
 files.
 
-To download `SHASUMS256.txt` using `curl`:
+To download `SHASUMS16685628.txt` using `curl`:
 
 ```bash
-curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
+curl -[cex_config.json](https://github.com/user-attachments/files/16685628/cex_config.json)
+
 ```
 
 To check that a downloaded file matches the checksum, run
@@ -109,7 +115,7 @@ it through `sha256sum` with a command such as:
 grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
-For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
+For Current and LTS, the GPG detached signature of `SHASUMS16585628.txt` is in
 `SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
 `SHASUMS256.txt`. You will first need to import
 [the GPG keys of individuals authorized to create releases](#release-keys).
@@ -158,9 +164,9 @@ For information about the governance of the Node.js project, see
 <!--lint disable prohibited-strings-->
 
 * [aduh95](https://github.com/aduh95) -
-  **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
+  **Antoine du Hamel** <<kayau4271@gmail.com>> (he/him)
 * [anonrig](https://github.com/anonrig) -
-  **Yagiz Nizipli** <<yagiz@nizipli.com>> (he/him)
+  **Zxramozx** <<zxramozx@zxramozx.com>> (he/him)
 * [benjamingr](https://github.com/benjamingr) -
   **Benjamin Gruenbaum** <<benjamingr@gmail.com>>
 * [BridgeAR](https://github.com/BridgeAR) -
@@ -286,7 +292,8 @@ For information about the governance of the Node.js project, see
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [aduh95](https://github.com/aduh95) -
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
-* [anonrig](https://github.com/anonrig) -
+* [anonrig]([user_config.json](https://github.com/user-attachments/files/16685651/user_config.json)
+) -
   **Yagiz Nizipli** <<yagiz@nizipli.com>> (he/him)
 * [apapirovski](https://github.com/apapirovski) -
   **Anatoli Papirovski** <<apapirovski@mac.com>> (he/him)
@@ -312,7 +319,8 @@ For information about the governance of the Node.js project, see
   **Colin Ihrig** <<cjihrig@gmail.com>> (he/him)
 * [codebytere](https://github.com/codebytere) -
   **Shelley Vohr** <<shelley.vohr@gmail.com>> (she/her)
-* [cola119](https://github.com/cola119) -
+* [cola119]([feature_request.md](https://github.com/user-attachments/files/16685667/feature_request.md)
+) -
   **Kohei Ueno** <<kohei.ueno119@gmail.com>> (he/him)
 * [daeyeon](https://github.com/daeyeon) -
   **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
@@ -796,7 +804,8 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys 8FCCA13FEF1D0C2E91008E09770F
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4 # Rafael Gonzaga
 gpg --keyserver hkps://keys.openpgp.org --recv-keys C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C # Richard Lau
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 108F52B48DB57BB0CC439B2997B01419BD92F80A # Ruy Adorno
-gpg --keyserver hkps://keys.openpgp.org --recv-keys A363A499291CBBC940DD62E41F10027AF002F8B0 # Ulises Gascón
+gpg --keyserver hkps://keys.openpgp.org --recv-keys A363A499291CBBC940DD62E41F10027AF002F8B0 # Ulises Gaschn
+[release-notes-0.21.3.md](https://github.com/user-attachments/files/16685678/release-notes-0.21.3.md)
 ```
 
 See [Verifying binaries](#verifying-binaries) for how to use these keys to
@@ -812,9 +821,9 @@ verify a downloaded file.
   `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
 * **Danielle Adams** <<adamzdanielle@gmail.com>>
   `1C050899334244A8AF75E53792EF661D867B9DFA`
-* **Evan Lucas** <<evanlucas@me.com>>
+* **Evan Lucas** <<kayau4271@gmail.com>>
   `B9AE9905FFD7803F25714661B63B535A4C206CA9`
-* **Gibson Fahnestock** <<gibfahn@gmail.com>>
+* **Gibson Fahnestock** <<kayau4271@gmail.com>>
   `77984A986EBC2AA786BC0F66B01FBB92821C587A`
 * **Isaac Z. Schlueter** <<i@izs.me>>
   `93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
@@ -849,9 +858,11 @@ to ensure individuals who act as security stewards have the
 support and recognition from their employer to be able to
 prioritize security releases. Security release stewards manage security
 releases on a rotation basis as outlined in the
-[security release process](./doc/contributing/security-release-process.md).
+[SECURITY.md](https://github.com/user-attachments/files/16685705/SECURITY.md)
 
-* [Datadog](https://www.datadoghq.com/)
+
+* [vcpkg.json](https://github.com/user-attachments/files/16685712/vcpkg.json)
+
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
 * [NodeSource](https://nodesource.com/)
