@@ -35,7 +35,7 @@ TEST(WeakReferencesBasic) {
       CcTest::heap());
   HandleScope outer_scope(isolate);
 
-  Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
+  IndirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
 
   if (!v8_flags.single_generation) CHECK(Heap::InYoungGeneration(*lh));
 
@@ -53,7 +53,7 @@ TEST(WeakReferencesBasic) {
     assm.nop();  // supported on all architectures
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
+    IndirectHandle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
     CHECK(IsCode(*code));
 
@@ -88,12 +88,12 @@ TEST(WeakReferencesOldToOld) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh =
+  DirectHandle<LoadHandler> lh =
       CreateLoadHandlerForTest(factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*lh));
 
   // Create a new FixedArray which the LoadHandler will point to.
-  Handle<FixedArray> fixed_array =
+  DirectHandle<FixedArray> fixed_array =
       factory->NewFixedArray(1, AllocationType::kOld);
   CHECK(heap->InOldSpace(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
@@ -118,12 +118,12 @@ TEST(WeakReferencesOldToNew) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh =
+  DirectHandle<LoadHandler> lh =
       CreateLoadHandlerForTest(factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*lh));
 
   // Create a new FixedArray which the LoadHandler will point to.
-  Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
   CHECK(Heap::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
@@ -144,12 +144,12 @@ TEST(WeakReferencesOldToNewScavenged) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh =
+  DirectHandle<LoadHandler> lh =
       CreateLoadHandlerForTest(factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*lh));
 
   // Create a new FixedArray which the LoadHandler will point to.
-  Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
   CHECK(Heap::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
@@ -172,7 +172,7 @@ TEST(WeakReferencesOldToCleared) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh =
+  DirectHandle<LoadHandler> lh =
       CreateLoadHandlerForTest(factory, AllocationType::kOld);
   CHECK(heap->InOldSpace(*lh));
   lh->set_data1(ClearedValue(isolate));
@@ -194,13 +194,13 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
+  IndirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(InCorrectGeneration(*lh));
   Address lh_object_location = lh->address();
   {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the LoadHandler will point to.
-    Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
     CHECK(Heap::InYoungGeneration(*fixed_array));
     lh->set_data1(MakeWeak(*fixed_array));
     // inner_scope will go out of scope, so when marking the next time,
@@ -233,12 +233,12 @@ TEST(ObjectWithWeakFieldDies) {
 
   {
     HandleScope outer_scope(isolate);
-    Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
+    DirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
     CHECK(InCorrectGeneration(*lh));
     {
       HandleScope inner_scope(isolate);
       // Create a new FixedArray which the LoadHandler will point to.
-      Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+      DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
       CHECK(InCorrectGeneration(*fixed_array));
       lh->set_data1(MakeWeak(*fixed_array));
       // inner_scope will go out of scope, so when marking the next time,
@@ -265,11 +265,11 @@ TEST(ObjectWithWeakReferencePromoted) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
+  DirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(Heap::InYoungGeneration(*lh));
 
   // Create a new FixedArray which the LoadHandler will point to.
-  Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
   CHECK(Heap::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
@@ -290,7 +290,7 @@ TEST(ObjectWithClearedWeakReferencePromoted) {
   Heap* heap = isolate->heap();
 
   HandleScope outer_scope(isolate);
-  Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
+  DirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(Heap::InYoungGeneration(*lh));
 
   lh->set_data1(ClearedValue(isolate));
@@ -324,13 +324,13 @@ TEST(WeakReferenceWriteBarrier) {
     HandleScope inner_scope(isolate);
 
     // Create a new FixedArray which the LoadHandler will point to.
-    Handle<FixedArray> fixed_array1 = factory->NewFixedArray(1);
+    DirectHandle<FixedArray> fixed_array1 = factory->NewFixedArray(1);
     CHECK(InCorrectGeneration(*fixed_array1));
     lh->set_data1(MakeWeak(*fixed_array1));
 
     SimulateIncrementalMarking(heap, true);
 
-    Handle<FixedArray> fixed_array2 = factory->NewFixedArray(1);
+    DirectHandle<FixedArray> fixed_array2 = factory->NewFixedArray(1);
     CHECK(InCorrectGeneration(*fixed_array2));
     // This write will trigger the write barrier.
     lh->set_data1(MakeWeak(*fixed_array2));
@@ -348,7 +348,7 @@ TEST(EmptyWeakArray) {
   Factory* factory = isolate->factory();
   HandleScope outer_scope(isolate);
 
-  Handle<WeakFixedArray> array = factory->empty_weak_fixed_array();
+  DirectHandle<WeakFixedArray> array = factory->empty_weak_fixed_array();
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
   CHECK_EQ(array->length(), 0);
@@ -366,7 +366,7 @@ TEST(WeakArraysBasic) {
   HandleScope outer_scope(isolate);
 
   const int length = 4;
-  Handle<WeakFixedArray> array = factory->NewWeakFixedArray(length);
+  IndirectHandle<WeakFixedArray> array = factory->NewWeakFixedArray(length);
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
   CHECK_EQ(array->length(), length);
@@ -379,17 +379,17 @@ TEST(WeakArraysBasic) {
     CHECK_EQ(heap_object, ReadOnlyRoots(heap).undefined_value());
   }
 
-  Handle<HeapObject> saved;
+  IndirectHandle<HeapObject> saved;
   {
     HandleScope inner_scope(isolate);
-    Handle<FixedArray> index0 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index0 = factory->NewFixedArray(1);
     index0->set(0, Smi::FromInt(2016));
-    Handle<FixedArray> index1 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index1 = factory->NewFixedArray(1);
     index1->set(0, Smi::FromInt(2017));
 
-    Handle<FixedArray> index2 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index2 = factory->NewFixedArray(1);
     index2->set(0, Smi::FromInt(2018));
-    Handle<FixedArray> index3 = factory->NewFixedArray(1);
+    IndirectHandle<FixedArray> index3 = factory->NewFixedArray(1);
     index3->set(0, Smi::FromInt(2019));
 
     array->set(0, MakeWeak(*index0));
@@ -408,21 +408,21 @@ TEST(WeakArraysBasic) {
   heap::InvokeMinorGC(heap);
   Tagged<HeapObject> heap_object;
   CHECK(array->get(0).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2016);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2016);
   CHECK(array->get(1).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK(array->get(2).GetHeapObjectIfStrong(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2018);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2018);
   CHECK(array->get(3).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2019);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2019);
 
   heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*array));
   CHECK(array->get(0).IsCleared());
   CHECK(array->get(1).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK(array->get(2).GetHeapObjectIfStrong(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2018);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2018);
   CHECK(array->get(3).IsCleared());
 }
 
@@ -447,7 +447,6 @@ TEST(WeakArrayListBasic) {
   Handle<FixedArray> index2 = factory->NewFixedArray(1);
   index2->set(0, Smi::FromInt(2017));
 
-  Handle<HeapObject> saved;
   {
     HandleScope inner_scope(isolate);
     Handle<FixedArray> index0 = factory->NewFixedArray(1);
@@ -506,19 +505,19 @@ TEST(WeakArrayListBasic) {
   Tagged<HeapObject> heap_object;
   CHECK_EQ(array->length(), 8);
   CHECK(array->get(0).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2016);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2016);
   CHECK_EQ(array->get(1).ToSmi().value(), 1);
 
   CHECK(array->get(2).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK_EQ(array->get(3).ToSmi().value(), 3);
 
   CHECK(array->get(4).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2018);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2018);
   CHECK_EQ(array->get(5).ToSmi().value(), 5);
 
   CHECK(array->get(6).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2019);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2019);
   CHECK_EQ(array->get(7).ToSmi().value(), 7);
 
   heap::InvokeMajorGC(heap);
@@ -528,7 +527,7 @@ TEST(WeakArrayListBasic) {
   CHECK_EQ(array->get(1).ToSmi().value(), 1);
 
   CHECK(array->get(2).GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0)).value(), 2017);
+  CHECK_EQ(Cast<Smi>(Cast<FixedArray>(heap_object)->get(0)).value(), 2017);
   CHECK_EQ(array->get(3).ToSmi().value(), 3);
 
   CHECK(array->get(4).IsCleared());
@@ -645,7 +644,7 @@ TEST(PrototypeUsersBasic) {
   // Add some objects into the array.
   int index = -1;
   {
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
     CHECK_EQ(array->length(), index + 1);
@@ -659,7 +658,7 @@ TEST(PrototypeUsersBasic) {
   int last_index = index;
   int old_capacity = array->capacity();
   while (!array->IsFull()) {
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
     CHECK_EQ(index, last_index + 1);
@@ -669,7 +668,7 @@ TEST(PrototypeUsersBasic) {
 
   // The next addition will fill the empty slot.
   {
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
   }
@@ -677,7 +676,7 @@ TEST(PrototypeUsersBasic) {
 
   // The next addition will make the arrow grow again.
   {
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
     CHECK_EQ(array->length(), index + 1);
@@ -694,7 +693,7 @@ TEST(PrototypeUsersBasic) {
   // Fill the array (still adding to the end)
   old_capacity = array->capacity();
   while (!array->IsFull()) {
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
     CHECK_EQ(index, last_index + 1);
@@ -704,14 +703,14 @@ TEST(PrototypeUsersBasic) {
 
   // Make sure we use the empty slots in (reverse) order.
   {
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
   }
   CHECK_EQ(index, empty_index2);
 
   {
-    Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, map, &index);
   }
@@ -746,18 +745,20 @@ TEST(PrototypeUsersCompacted) {
 
   // Add some objects into the array.
   int index = -1;
-  Handle<Map> map_cleared_by_user = factory->NewContextfulMapForCurrentContext(
-      JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  DirectHandle<Map> map_cleared_by_user =
+      factory->NewContextfulMapForCurrentContext(JS_OBJECT_TYPE,
+                                                 JSObject::kHeaderSize);
   array = PrototypeUsers::Add(isolate, array, map_cleared_by_user, &index);
   CHECK_EQ(index, 1);
-  Handle<Map> live_map = factory->NewContextfulMapForCurrentContext(
+  DirectHandle<Map> live_map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
   array = PrototypeUsers::Add(isolate, array, live_map, &index);
   CHECK_EQ(index, 2);
   {
     HandleScope inner_scope(isolate);
-    Handle<Map> soon_dead_map = factory->NewContextfulMapForCurrentContext(
-        JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    DirectHandle<Map> soon_dead_map =
+        factory->NewContextfulMapForCurrentContext(JS_OBJECT_TYPE,
+                                                   JSObject::kHeaderSize);
     array = PrototypeUsers::Add(isolate, array, soon_dead_map, &index);
     CHECK_EQ(index, 3);
 

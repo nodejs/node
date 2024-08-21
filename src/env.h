@@ -139,12 +139,22 @@ struct PerIsolateWrapperData {
 };
 
 class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
- public:
+ private:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
-              MultiIsolatePlatform* platform = nullptr,
-              ArrayBufferAllocator* node_allocator = nullptr,
-              const SnapshotData* snapshot_data = nullptr);
+              MultiIsolatePlatform* platform,
+              ArrayBufferAllocator* node_allocator,
+              const SnapshotData* snapshot_data,
+              std::shared_ptr<PerIsolateOptions> options);
+
+ public:
+  static IsolateData* CreateIsolateData(
+      v8::Isolate* isolate,
+      uv_loop_t* event_loop,
+      MultiIsolatePlatform* platform = nullptr,
+      ArrayBufferAllocator* node_allocator = nullptr,
+      const EmbedderSnapshotData* embedder_snapshot_data = nullptr,
+      std::shared_ptr<PerIsolateOptions> options = nullptr);
   ~IsolateData();
 
   SET_MEMORY_INFO_NAME(IsolateData)
@@ -165,15 +175,10 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   uint16_t* embedder_id_for_cppgc() const;
   uint16_t* embedder_id_for_non_cppgc() const;
 
-  static inline void SetCppgcReference(v8::Isolate* isolate,
-                                       v8::Local<v8::Object> object,
-                                       void* wrappable);
-
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
   inline const SnapshotData* snapshot_data() const;
   inline std::shared_ptr<PerIsolateOptions> options();
-  inline void set_options(std::shared_ptr<PerIsolateOptions> options);
 
   inline NodeArrayBufferAllocator* node_allocator() const;
 
@@ -1019,6 +1024,9 @@ class Environment final : public MemoryRetainer {
   inline CompileCacheHandler* compile_cache_handler();
   inline bool use_compile_cache() const;
   void InitializeCompileCache();
+  // Enable built-in compile cache if it has not yet been enabled.
+  // The cache will be persisted to disk on exit.
+  CompileCacheEnableResult EnableCompileCache(const std::string& cache_dir);
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();

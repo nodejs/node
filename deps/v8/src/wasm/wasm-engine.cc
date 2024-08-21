@@ -46,59 +46,116 @@ namespace v8::internal::wasm {
     if (v8_flags.trace_wasm_code_gc) PrintF("[wasm-gc] " __VA_ARGS__); \
   } while (false)
 
-namespace {
-// A task to log a set of {WasmCode} objects in an isolate. It does not own any
-// data itself, since it is owned by the platform, so lifetime is not really
-// bound to the wasm engine.
-class LogCodesTask : public Task {
+// This class exists in order to solve a shutdown ordering problem.
+// The basic situation is that the process-global WasmEngine has, for each
+// Isolate that it knows about, a map from NativeModule to Script, using
+// WeakScriptHandles to make sure that the NativeModules, which are shared
+// across the process, don't keep the (Isolate-specific) Scripts alive.
+// In the other direction, the Scripts keep the NativeModule alive, IOW
+// usually the Scripts die first, and the WeakScriptHandles are cleared
+// before being freed.
+// In case of asm.js modules and in case of Isolate shutdown, it can happen
+// that the NativeModule dies first, so the WeakScriptHandles are no longer
+// needed and should be destroyed. That can only happen on the main thread of
+// the Isolate they belong to, whereas the last thread that releases a
+// NativeModule might be any other thread, so we post a
+// ClearWeakScriptHandleTask to that isolate's foreground task runner.
+// In case of Isolate shutdown at an inconvenient moment, this task runner can
+// destroy all waiting tasks; and *afterwards* global handles are freed, which
+// writes to the memory location backing the handle, so this bit of memory must
+// not be owned by (and die with) the ClearWeakScriptHandleTask.
+// The solution is this class here: its instances form a linked list owned by
+// the Isolate to which the referenced Scripts belong. Its name refers to the
+// fact that it stores global handles that used to have a purpose but are now
+// just waiting for the right thread to destroy them.
+// If the ClearWeakScriptHandleTask gets to run (i.e. in the regular case),
+// it destroys the weak global handle and then the WasmOrphanedGlobalHandle
+// container, removing it from the isolate's list.
+// If the ClearWeakScriptHandleTask is destroyed before it runs, the isolate's
+// list of WasmOrphanedGlobalHandles isn't modified, so the indirection cell
+// is still around when all remaining global handles are freed; nevertheless
+// it won't leak because the Isolate owns it and will free it.
+class WasmOrphanedGlobalHandle {
  public:
-  LogCodesTask(std::atomic<LogCodesTask*>* task_slot, Isolate* isolate,
-               WasmEngine* engine)
-      : task_slot_(task_slot), isolate_(isolate), engine_(engine) {
-    DCHECK_NOT_NULL(task_slot);
-    DCHECK_NOT_NULL(isolate);
+  WasmOrphanedGlobalHandle() = default;
+
+  void InitializeLocation(std::unique_ptr<Address*> location) {
+    location_ = std::move(location);
   }
 
-  ~LogCodesTask() override {
-    // If the platform deletes this task before executing it, we also deregister
-    // it to avoid use-after-free from still-running background threads.
-    if (!cancelled()) DeregisterTask();
-  }
-
-  void Run() override {
-    if (cancelled()) return;
-    DeregisterTask();
-    engine_->LogOutstandingCodesForIsolate(isolate_);
-  }
-
-  void Cancel() {
-    // Cancel will only be called on Isolate shutdown, which happens on the
-    // Isolate's foreground thread. Thus no synchronization needed.
-    isolate_ = nullptr;
-  }
-
-  bool cancelled() const { return isolate_ == nullptr; }
-
-  void DeregisterTask() {
-    // The task will only be deregistered from the foreground thread (executing
-    // this task or calling its destructor), thus we do not need synchronization
-    // on this field access.
-    if (task_slot_ == nullptr) return;  // already deregistered.
-    // Remove this task from the {IsolateInfo} in the engine. The next
-    // logging request will allocate and schedule a new task.
-    LogCodesTask* old_task = task_slot_->exchange(nullptr);
-    CHECK(old_task == nullptr || old_task == this);
-    task_slot_ = nullptr;
+  static void Destroy(WasmOrphanedGlobalHandle* that) {
+    // Destroy the global handle if it still exists.
+    Address** location = that->location_.get();
+    if (location) GlobalHandles::Destroy(*location);
+    that->location_.reset();
+    // Unlink and free the container.
+    *that->prev_ptr_ = that->next_;
+    if (that->next_ != nullptr) that->next_->prev_ptr_ = that->prev_ptr_;
+    // This function could be a non-static method, but then the next line
+    // would read "delete this", which is UB.
+    delete that;
   }
 
  private:
-  // The slot in the WasmEngine where this LogCodesTask is stored. This is
-  // cleared by this task before execution or on task destruction.
-  std::atomic<LogCodesTask*>* task_slot_;
-  Isolate* isolate_;
-  WasmEngine* const engine_;
+  friend class WasmEngine;
+
+  // This is a doubly linked list with a twist: the {next_} pointer is just
+  // what you would expect, whereas {prev_ptr_} points at the slot inside
+  // the previous element that's pointing at the current element. The purpose
+  // of this design is to make it possible for the previous element to be
+  // the {Isolate::wasm_orphaned_handle_} field, without requiring any
+  // special-casing in the insert and delete operations.
+  WasmOrphanedGlobalHandle* next_ = nullptr;
+  WasmOrphanedGlobalHandle** prev_ptr_ = nullptr;
+  std::unique_ptr<Address*> location_;
 };
 
+// static
+WasmOrphanedGlobalHandle* WasmEngine::NewOrphanedGlobalHandle(
+    WasmOrphanedGlobalHandle** pointer) {
+  // No need for additional locking: this is only ever called indirectly
+  // from {WasmEngine::ClearWeakScriptHandle()}, which holds the engine-wide
+  // {mutex_}.
+  WasmOrphanedGlobalHandle* orphan = new WasmOrphanedGlobalHandle();
+  orphan->next_ = *pointer;
+  orphan->prev_ptr_ = pointer;
+  if (orphan->next_ != nullptr) orphan->next_->prev_ptr_ = &orphan->next_;
+  *pointer = orphan;
+  return orphan;
+}
+
+// static
+void WasmEngine::FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start) {
+  // This is meant to be called from ~Isolate, so we no longer care about
+  // maintaining invariants: the only task is to free memory to prevent leaks.
+  while (start != nullptr) {
+    WasmOrphanedGlobalHandle* next = start->next_;
+    delete start;
+    start = next;
+  }
+}
+
+// A task to log a set of {WasmCode} objects in an isolate. It does not own any
+// data itself, since it is owned by the platform, so lifetime is not really
+// bound to the wasm engine.
+class WasmEngine::LogCodesTask : public CancelableTask {
+  friend class WasmEngine;
+
+ public:
+  LogCodesTask(Isolate* isolate) : CancelableTask(isolate), isolate_(isolate) {}
+
+  ~LogCodesTask() override { GetWasmEngine()->DeregisterCodeLoggingTask(this); }
+
+  void RunInternal() override {
+    GetWasmEngine()->DeregisterCodeLoggingTask(this);
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
+  }
+
+ private:
+  Isolate* const isolate_;
+};
+
+namespace {
 void CheckNoArchivedThreads(Isolate* isolate) {
   class ArchivedThreadsVisitor : public ThreadVisitor {
     void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
@@ -130,8 +187,10 @@ class ClearWeakScriptHandleTask : public CancelableTask {
  public:
   explicit ClearWeakScriptHandleTask(Isolate* isolate,
                                      std::unique_ptr<Address*> location)
-      : CancelableTask(isolate->cancelable_task_manager()),
-        location_(std::move(location)) {}
+      : CancelableTask(isolate->cancelable_task_manager()) {
+    handle_ = isolate->NewWasmOrphanedGlobalHandle();
+    handle_->InitializeLocation(std::move(location));
+  }
 
   // We don't override the destructor, because there is nothing to do:
   // if the task is deleted before it was run, then everything is shutting
@@ -139,13 +198,13 @@ class ClearWeakScriptHandleTask : public CancelableTask {
   // it might well be too late to do that safely).
 
   void RunInternal() override {
-    Address** location = location_.get();
-    if (location) GlobalHandles::Destroy(*location);
-    location_.reset();
+    WasmOrphanedGlobalHandle::Destroy(handle_);
+    handle_ = nullptr;
   }
 
  private:
-  std::unique_ptr<Address*> location_;
+  // This is owned by the Isolate to ensure correct shutdown ordering.
+  WasmOrphanedGlobalHandle* handle_;
 };
 
 class WeakScriptHandle {
@@ -154,7 +213,7 @@ class WeakScriptHandle {
       : script_id_(script->id()), isolate_(isolate) {
     DCHECK(IsString(script->name()) || IsUndefined(script->name()));
     if (IsString(script->name())) {
-      source_url_ = String::cast(script->name())->ToCString();
+      source_url_ = Cast<String>(script->name())->ToCString();
     }
     auto global_handle =
         script->GetIsolate()->global_handles()->Create(*script);
@@ -220,7 +279,7 @@ std::vector<std::shared_ptr<NativeModule>>* native_modules_kept_alive_for_pgo;
 
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-    CompileTimeImports compile_imports) {
+    const CompileTimeImports& compile_imports) {
   if (!v8_flags.wasm_native_module_cache_enabled) return nullptr;
   if (origin != kWasmOrigin) return nullptr;
   base::MutexGuard lock(&mutex_);
@@ -245,7 +304,9 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     }
     if (it->second.has_value()) {
       if (auto shared_native_module = it->second.value().lock()) {
-        DCHECK_EQ(shared_native_module->compile_imports(), compile_imports);
+        DCHECK_EQ(
+            shared_native_module->compile_imports().compare(compile_imports),
+            0);
         DCHECK_EQ(shared_native_module->wire_bytes(), wire_bytes);
         return shared_native_module;
       }
@@ -257,7 +318,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
 }
 
 bool NativeModuleCache::GetStreamingCompilationOwnership(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   base::MutexGuard lock(&mutex_);
   auto it = map_.lower_bound(Key{prefix_hash, compile_imports, {}});
   if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
@@ -272,7 +333,7 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(
 }
 
 void NativeModuleCache::StreamingCompilationFailed(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   base::MutexGuard lock(&mutex_);
   Key key{prefix_hash, compile_imports, {}};
   map_.erase(key);
@@ -288,7 +349,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
   DCHECK(!wire_bytes.empty());
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
   base::MutexGuard lock(&mutex_);
-  CompileTimeImports compile_imports = native_module->compile_imports();
+  const CompileTimeImports& compile_imports = native_module->compile_imports();
   map_.erase(Key{prefix_hash, compile_imports, {}});
   const Key key{prefix_hash, compile_imports, wire_bytes};
   auto it = map_.find(key);
@@ -422,7 +483,7 @@ struct WasmEngine::IsolateInfo {
   bool log_codes;
 
   // The currently scheduled LogCodesTask.
-  std::atomic<LogCodesTask*> log_codes_task = nullptr;
+  LogCodesTask* log_codes_task = nullptr;
 
   // Maps script ID to vector of code objects that still need to be logged, and
   // the respective source URL.
@@ -513,7 +574,7 @@ WasmEngine::~WasmEngine() {
   DCHECK(native_module_cache_.empty());
 }
 
-bool WasmEngine::SyncValidate(Isolate* isolate, WasmFeatures enabled,
+bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
                               CompileTimeImports compile_imports,
                               ModuleWireBytes bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
@@ -534,7 +595,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
     Handle<Script> script,
     base::Vector<const uint8_t> asm_js_offset_table_bytes,
-    Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
+    DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompileTranslatedAsmJs", "id",
                compilation_id);
@@ -545,10 +606,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // the context id in here.
   v8::metrics::Recorder::ContextId context_id =
       v8::metrics::Recorder::ContextId::Empty();
-  ModuleResult result =
-      DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.module_bytes(), false,
-                       origin, isolate->counters(), isolate->metrics_recorder(),
-                       context_id, DecodingMethod::kSync);
+  ModuleResult result = DecodeWasmModule(
+      WasmEnabledFeatures::ForAsmjs(), bytes.module_bytes(), false, origin,
+      isolate->counters(), isolate->metrics_recorder(), context_id,
+      DecodingMethod::kSync);
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -563,7 +624,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // in {CompileToNativeModule}.
   constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-      isolate, WasmFeatures::ForAsmjs(), CompileTimeImports{}, thrower,
+      isolate, WasmEnabledFeatures::ForAsmjs(), CompileTimeImports{}, thrower,
       std::move(result).value(), bytes, compilation_id, context_id,
       kNoProfileInformation);
   if (!native_module) return {};
@@ -586,8 +647,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 }
 
 Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
-    Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
-    Handle<Script> script) {
+    Isolate* isolate, DirectHandle<AsmWasmData> asm_wasm_data,
+    DirectHandle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
       asm_wasm_data->managed_native_module()->get();
   Handle<WasmModuleObject> module_object =
@@ -596,8 +657,9 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 }
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    ErrorThrower* thrower, ModuleWireBytes bytes) {
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, ErrorThrower* thrower,
+    ModuleWireBytes bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -614,9 +676,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     module = std::move(result).value();
     if (WasmError error = ValidateAndSetBuiltinImports(
             module.get(), bytes.module_bytes(), compile_imports)) {
-      // TODO(14179): When we have the offset, include it in the message.
-      DCHECK_EQ(0, error.offset());
-      thrower->LinkError("%s", error.message().c_str());
+      thrower->LinkError("%s @+%u", error.message().c_str(), error.offset());
       return {};
     }
   }
@@ -630,8 +690,8 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-      isolate, enabled, compile_imports, thrower, std::move(module), bytes,
-      compilation_id, context_id, pgo_info.get());
+      isolate, enabled, std::move(compile_imports), thrower, std::move(module),
+      bytes, compilation_id, context_id, pgo_info.get());
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -707,7 +767,8 @@ void WasmEngine::AsyncInstantiate(
 }
 
 void WasmEngine::AsyncCompile(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports,
     std::shared_ptr<CompilationResultResolver> resolver, ModuleWireBytes bytes,
     bool is_shared, const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -721,12 +782,12 @@ void WasmEngine::AsyncCompile(
       std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
       memcpy(copy.get(), bytes.start(), bytes.length());
       ModuleWireBytes bytes_copy(copy.get(), copy.get() + bytes.length());
-      module_object =
-          SyncCompile(isolate, enabled, compile_imports, &thrower, bytes_copy);
+      module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
+                                  &thrower, bytes_copy);
     } else {
       // The wire bytes are not shared, OK to use them directly.
-      module_object =
-          SyncCompile(isolate, enabled, compile_imports, &thrower, bytes);
+      module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
+                                  &thrower, bytes);
     }
     if (thrower.error()) {
       resolver->OnCompilationFailed(thrower.Reify());
@@ -739,7 +800,7 @@ void WasmEngine::AsyncCompile(
 
   if (v8_flags.wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        StartStreamingCompilation(isolate, enabled, compile_imports,
+        StartStreamingCompilation(isolate, enabled, std::move(compile_imports),
                                   handle(isolate->context(), isolate),
                                   api_method_name_for_errors,
                                   std::move(resolver));
@@ -773,27 +834,28 @@ void WasmEngine::AsyncCompile(
       base::OwnedVector<const uint8_t>::Of(bytes.module_bytes());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, compile_imports, std::move(copy),
+      isolate, enabled, std::move(compile_imports), std::move(copy),
       isolate->native_context(), api_method_name_for_errors,
       std::move(resolver), compilation_id);
   job->Start();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    Handle<Context> context, const char* api_method_name,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, Handle<Context> context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.StartStreamingCompilation", "id",
                compilation_id);
   if (v8_flags.wasm_async_compilation) {
     AsyncCompileJob* job = CreateAsyncCompileJob(
-        isolate, enabled, compile_imports, {}, context, api_method_name,
-        std::move(resolver), compilation_id);
+        isolate, enabled, std::move(compile_imports), {}, context,
+        api_method_name, std::move(resolver), compilation_id);
     return job->CreateStreamingDecoder();
   }
   return StreamingDecoder::CreateSyncStreamingDecoder(
-      isolate, enabled, compile_imports, context, api_method_name,
+      isolate, enabled, std::move(compile_imports), context, api_method_name,
       std::move(resolver));
 }
 
@@ -801,7 +863,7 @@ void WasmEngine::CompileFunction(Counters* counters,
                                  NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
   // Note we assume that "one-off" compilations can discard detected features.
-  WasmFeatures detected = WasmFeatures::None();
+  WasmDetectedFeatures detected;
   WasmCompilationUnit::CompileWasmFunction(
       counters, native_module, &detected,
       &native_module->module()->functions[function_index], tier);
@@ -824,6 +886,7 @@ void WasmEngine::EnterDebuggingForIsolate(Isolate* isolate) {
       native_module->SetDebugState(kDebugging);
     }
   }
+  WasmCodeRefScope ref_scope;
   for (auto& native_module : native_modules) {
     native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
@@ -866,15 +929,11 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
       native_module->GetDebugInfo()->RemoveIsolate(isolate);
     }
     if (remove_debug_code) {
+      WasmCodeRefScope ref_scope;
       native_module->RemoveCompiledCode(
           NativeModule::RemoveFilter::kRemoveDebugCode);
     }
   }
-}
-
-std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
-    Handle<WasmModuleObject> module_object) {
-  return module_object->shared_native_module();
 }
 
 namespace {
@@ -945,9 +1004,9 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   size_t memory_estimate =
       code_size_estimate +
       wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-  Handle<Managed<wasm::NativeModule>> managed_native_module =
-      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
-                                                 std::move(native_module));
+  DirectHandle<Managed<wasm::NativeModule>> managed_native_module =
+      Managed<wasm::NativeModule>::From(isolate, memory_estimate,
+                                        std::move(native_module));
 
   Handle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->undefined_value());
@@ -1010,12 +1069,27 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   return module_object;
 }
 
-void WasmEngine::FlushCode() {
-  for (auto& entry : native_modules_) {
-    NativeModule* native_module = entry.first;
-    native_module->RemoveCompiledCode(
+std::pair<size_t, size_t> WasmEngine::FlushLiftoffCode() {
+  WasmCodeRefScope ref_scope;
+  base::MutexGuard guard(&mutex_);
+  size_t removed_code_size = 0;
+  size_t removed_metadata_size = 0;
+  for (auto& [native_module, info] : native_modules_) {
+    auto [code_size, metadata_size] = native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveLiftoffCode);
+    removed_code_size += code_size;
+    removed_metadata_size += metadata_size;
   }
+  return {removed_code_size, removed_metadata_size};
+}
+
+size_t WasmEngine::GetLiftoffCodeSizeForTesting() {
+  base::MutexGuard guard(&mutex_);
+  size_t codesize_liftoff = 0;
+  for (auto& [native_module, info] : native_modules_) {
+    codesize_liftoff += native_module->SumLiftoffCodeSizeForTesting();
+  }
+  return codesize_liftoff;
 }
 
 std::shared_ptr<CompilationStatistics>
@@ -1053,13 +1127,14 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 }
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
-    base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
-    const char* api_method_name,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
+    DirectHandle<Context> context, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
-  Handle<NativeContext> incumbent_context = isolate->GetIncumbentContext();
+  DirectHandle<NativeContext> incumbent_context =
+      isolate->GetIncumbentContext();
   AsyncCompileJob* job = new AsyncCompileJob(
-      isolate, enabled, compile_imports, std::move(bytes), context,
+      isolate, enabled, std::move(compile_imports), std::move(bytes), context,
       incumbent_context, api_method_name, std::move(resolver), compilation_id);
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
@@ -1153,9 +1228,15 @@ OperationsBarrier::Token WasmEngine::StartWrapperCompilation(Isolate* isolate) {
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {
-  base::MutexGuard guard(&mutex_);
-  DCHECK_EQ(0, isolates_.count(isolate));
-  isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
+  // Create the IsolateInfo.
+  {
+    // Create the IsolateInfo outside the mutex to reduce the size of the
+    // critical section and to avoid lock-order-inversion issues.
+    auto isolate_info = std::make_unique<IsolateInfo>(isolate);
+    base::MutexGuard guard(&mutex_);
+    DCHECK_EQ(0, isolates_.count(isolate));
+    isolates_.emplace(isolate, std::move(isolate_info));
+  }
 
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
@@ -1174,6 +1255,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
                                          nullptr);
+
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
   if (gdb_server_) {
     gdb_server_->AddIsolate(isolate);
@@ -1233,8 +1315,7 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
 
-  // Cancel outstanding code logging and clear the {code_to_log} vector.
-  if (auto* task = isolate_info->log_codes_task.load()) task->Cancel();
+  // Clear the {code_to_log} vector.
   for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
     for (WasmCode* code : code_to_log.code) {
       // Keep a reference in the {code_ref_scope_for_dead_code} such that the
@@ -1291,10 +1372,9 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
         code->IncRef();
       }
 
-      if (info->log_codes_task.load() == nullptr) {
-        std::unique_ptr<LogCodesTask> new_task = std::make_unique<LogCodesTask>(
-            &info->log_codes_task, isolate, this);
-        CHECK_NULL(info->log_codes_task.exchange(new_task.get()));
+      if (info->log_codes_task == nullptr) {
+        auto new_task = std::make_unique<LogCodesTask>(isolate);
+        info->log_codes_task = new_task.get();
         // Store the LogCodeTasks to post them outside the WasmEngine::mutex_.
         // Posting the task in the mutex can cause the following deadlock (only
         // in d8): When d8 shuts down, it sets a terminate to the task runner.
@@ -1354,8 +1434,20 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
   }
 }
 
+void WasmEngine::DeregisterCodeLoggingTask(LogCodesTask* task) {
+  base::MutexGuard engine_mutex_guard(&mutex_);
+  Isolate* isolate = task->isolate_;
+  auto it = isolates_.find(isolate);
+  // If the isolate died already, the IsolateInfo can not be found.
+  if (it == isolates_.end()) return;
+  IsolateInfo* info = it->second.get();
+  DCHECK(info->log_codes_task == nullptr || info->log_codes_task == task);
+  info->log_codes_task = nullptr;
+}
+
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
-    Isolate* isolate, WasmFeatures enabled, CompileTimeImports compile_imports,
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.NewNativeModule");
@@ -1367,9 +1459,9 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::shared_ptr<NativeModule> native_module =
-      GetWasmCodeManager()->NewNativeModule(isolate, enabled, compile_imports,
-                                            code_size_estimate,
-                                            std::move(module));
+      GetWasmCodeManager()->NewNativeModule(
+          isolate, enabled, std::move(compile_imports), code_size_estimate,
+          std::move(module));
   base::MutexGuard lock(&mutex_);
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
     if (!native_modules_kept_alive_for_pgo) {
@@ -1411,7 +1503,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-    CompileTimeImports compile_imports, Isolate* isolate) {
+    const CompileTimeImports& compile_imports, Isolate* isolate) {
   TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
                wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
@@ -1437,6 +1529,7 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     }
   }
   if (remove_all_code) {
+    WasmCodeRefScope ref_scope;
     native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
@@ -1469,6 +1562,7 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
     }
   }
   if (remove_all_code) {
+    WasmCodeRefScope ref_scope;
     native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
@@ -1476,7 +1570,7 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   TRACE_EVENT0("v8.wasm", "wasm.GetStreamingCompilationOwnership");
   if (native_module_cache_.GetStreamingCompilationOwnership(prefix_hash,
                                                             compile_imports)) {
@@ -1490,7 +1584,7 @@ bool WasmEngine::GetStreamingCompilationOwnership(
 }
 
 void WasmEngine::StreamingCompilationFailed(
-    size_t prefix_hash, CompileTimeImports compile_imports) {
+    size_t prefix_hash, const CompileTimeImports& compile_imports) {
   native_module_cache_.StreamingCompilationFailed(prefix_hash, compile_imports);
 }
 
@@ -1592,22 +1686,17 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   wasm::WasmCodeRefScope code_ref_scope;
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
 
-  wasm::StackMemory* current = isolate->wasm_stacks();
-
-  if (current != nullptr) {
-      do {
-        if (current->IsActive()) {
-        // The active stack's jump buffer does not match the current state, use
-        // the thread info below instead.
-        current = current->next();
-        continue;
-        }
-      for (StackFrameIterator it(isolate, current); !it.done(); it.Advance()) {
-        StackFrame* const frame = it.frame();
-        ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);
-      }
-      current = current->next();
-      } while (current != isolate->wasm_stacks());
+  for (const std::unique_ptr<StackMemory>& stack : isolate->wasm_stacks()) {
+    if (stack->IsActive()) {
+      // The active stack's jump buffer does not match the current state, use
+      // the thread info below instead.
+      continue;
+    }
+    for (StackFrameIterator it(isolate, stack.get()); !it.done();
+         it.Advance()) {
+      StackFrame* const frame = it.frame();
+      ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);
+    }
   }
 
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
@@ -1802,7 +1891,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 720);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 760);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 192);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 144);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
@@ -1843,6 +1932,15 @@ size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
     PrintF("WasmEngine: %zu\n", result);
   }
   return result;
+}
+
+int WasmEngine::GetDeoptsExecutedCount() const {
+  return deopts_executed_.load(std::memory_order::relaxed);
+}
+
+int WasmEngine::IncrementDeoptsExecutedCount() {
+  int previous_value = deopts_executed_.fetch_add(1, std::memory_order_relaxed);
+  return previous_value + 1;
 }
 
 namespace {

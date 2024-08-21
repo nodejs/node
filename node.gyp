@@ -107,6 +107,7 @@
       'src/node_constants.cc',
       'src/node_contextify.cc',
       'src/node_credentials.cc',
+      'src/node_debug.cc',
       'src/node_dir.cc',
       'src/node_dotenv.cc',
       'src/node_env_var.cc',
@@ -229,6 +230,7 @@
       'src/node_constants.h',
       'src/node_context_data.h',
       'src/node_contextify.h',
+      'src/node_debug.h',
       'src/node_dir.h',
       'src/node_dotenv.h',
       'src/node_errors.h',
@@ -1402,6 +1404,12 @@
         'src/node_snapshot_stub.cc',
         'tools/snapshot/node_mksnapshot.cc',
       ],
+
+      'msvs_settings': {
+        'VCLinkerTool': {
+          'EnableCOMDATFolding': '1', # /OPT:NOICF
+        },
+      },
 
       'conditions': [
         ['node_write_snapshot_as_array_literals=="true"', {

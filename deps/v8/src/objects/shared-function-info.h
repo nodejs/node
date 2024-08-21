@@ -14,6 +14,7 @@
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
+#include "src/objects/name.h"
 #include "src/objects/objects.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
@@ -188,6 +189,8 @@ class InterpreterData
   TQ_OBJECT_CONSTRUCTORS(InterpreterData)
 };
 
+using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
+
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
 class SharedFunctionInfo
@@ -305,6 +308,11 @@ class SharedFunctionInfo
   // For subclass constructors, also includes new.target.
   // The size of function's frame is
   // internal_formal_parameter_count_with_receiver.
+  //
+  // NOTE: this API should be considered DEPRECATED. Please obtain the
+  // parameter count from the Code/BytecodeArray or another trusted source
+  // instead. See also crbug.com/40931165.
+  // TODO(saelo): mark as V8_DEPRECATE_SOON once the remaining users are fixed.
   inline void set_internal_formal_parameter_count(int value);
   inline uint16_t internal_formal_parameter_count_with_receiver() const;
   inline uint16_t internal_formal_parameter_count_without_receiver() const;
@@ -333,6 +341,9 @@ class SharedFunctionInfo
   //  - a UncompiledDataWithPreparseData for lazy compilation
   //    [HasUncompiledDataWithPreparseData()]
   //  - a WasmExportedFunctionData for Wasm [HasWasmExportedFunctionData()]
+  //  - a WasmJSFunctionData for functions created with WebAssembly.Function
+  //  - a WasmCapiFunctionData for Wasm C-API functions
+  //  - a WasmResumeData for JSPI Wasm functions
   //
   // If the (expected) type of data is known, prefer to use the specialized
   // accessors (e.g. bytecode_array(), uncompiled_data(), etc.).
@@ -482,7 +493,7 @@ class SharedFunctionInfo
   // The function's name if it is non-empty, otherwise the inferred name.
   std::unique_ptr<char[]> DebugNameCStr() const;
   static Handle<String> DebugName(Isolate* isolate,
-                                  Handle<SharedFunctionInfo> shared);
+                                  DirectHandle<SharedFunctionInfo> shared);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -533,10 +544,10 @@ class SharedFunctionInfo
   DECL_BOOLEAN_ACCESSORS(is_sparkplug_compiling)
   DECL_BOOLEAN_ACCESSORS(maglev_compilation_failed)
 
-  DECL_BOOLEAN_ACCESSORS(sparkplug_compiled)
-
   CachedTieringDecision cached_tiering_decision();
   void set_cached_tiering_decision(CachedTieringDecision decision);
+
+  DECL_BOOLEAN_ACCESSORS(function_context_independent_compiled)
 
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
@@ -586,6 +597,8 @@ class SharedFunctionInfo
 
   inline FunctionKind kind() const;
 
+  int UniqueIdInScript() const;
+
   // Defines the index in a native context of closure's map instantiated using
   // this shared function info.
   DECL_INT_ACCESSORS(function_map_index)
@@ -618,9 +631,9 @@ class SharedFunctionInfo
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
   static Handle<Object> GetSourceCode(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> shared);
-  static Handle<Object> GetSourceCodeHarmony(Isolate* isolate,
-                                             Handle<SharedFunctionInfo> shared);
+                                      DirectHandle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCodeHarmony(
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 
   // Tells whether this function should be subject to debugging, e.g. for
   // - scope inspection
@@ -639,7 +652,7 @@ class SharedFunctionInfo
   // Flush compiled data from this function, setting it back to CompileLazy and
   // clearing any compiled metadata.
   V8_EXPORT_PRIVATE static void DiscardCompiled(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info);
 
   // Discard the compiled metadata. If called during GC then
   // |gc_notify_updated_slot| should be used to record any slot updates.
@@ -685,12 +698,10 @@ class SharedFunctionInfo
   // literal.
   template <typename IsolateT>
   static void InitFromFunctionLiteral(IsolateT* isolate,
-                                      Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit, bool is_toplevel);
 
   template <typename IsolateT>
   static void CreateAndSetUncompiledData(IsolateT* isolate,
-                                         Handle<SharedFunctionInfo> shared_info,
                                          FunctionLiteral* lit);
 
   // Updates the expected number of properties based on estimate from parser.
@@ -749,7 +760,7 @@ class SharedFunctionInfo
   class ScriptIterator {
    public:
     V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Tagged<Script> script);
-    explicit ScriptIterator(Handle<WeakFixedArray> shared_function_infos);
+    explicit ScriptIterator(Handle<WeakFixedArray> infos);
     ScriptIterator(const ScriptIterator&) = delete;
     ScriptIterator& operator=(const ScriptIterator&) = delete;
     V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> Next();
@@ -759,7 +770,7 @@ class SharedFunctionInfo
     void Reset(Isolate* isolate, Tagged<Script> script);
 
    private:
-    Handle<WeakFixedArray> shared_function_infos_;
+    Handle<WeakFixedArray> infos_;
     int index_;
   };
 
@@ -783,7 +794,7 @@ class SharedFunctionInfo
   // Sets the bytecode in {shared}'s DebugInfo as the bytecode to
   // be returned by following calls to GetActiveBytecodeArray. Stores a
   // reference to the original bytecode in the DebugInfo.
-  static void InstallDebugBytecode(Handle<SharedFunctionInfo> shared,
+  static void InstallDebugBytecode(DirectHandle<SharedFunctionInfo> shared,
                                    Isolate* isolate);
   // Removes the debug bytecode and restores the original bytecode to be
   // returned by following calls to GetActiveBytecodeArray.
@@ -803,7 +814,7 @@ class SharedFunctionInfo
 
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(name_or_scope_info, Tagged<Object>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(name_or_scope_info, Tagged<NameOrScopeInfoT>)
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
@@ -828,6 +839,29 @@ class SharedFunctionInfo
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
+};
+
+// A SharedFunctionInfoWrapper wraps a SharedFunctionInfo from trusted space.
+// It can be useful when a protected pointer reference to a SharedFunctionInfo
+// is needed, for example for a ProtectedFixedArray.
+class SharedFunctionInfoWrapper : public TrustedObject {
+ public:
+  DECL_ACCESSORS(shared_info, Tagged<SharedFunctionInfo>)
+
+  DECL_PRINTER(SharedFunctionInfoWrapper)
+  DECL_VERIFIER(SharedFunctionInfoWrapper)
+
+#define FIELD_LIST(V)               \
+  V(kSharedInfoOffset, kTaggedSize) \
+  V(kHeaderSize, 0)                 \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(SharedFunctionInfoWrapper, TrustedObject);
 };
 
 #ifdef V8_ENABLE_SANDBOX

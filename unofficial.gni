@@ -237,12 +237,29 @@ template("node_gn_build") {
   if (node_use_node_snapshot) {
     if (current_toolchain == v8_snapshot_toolchain) {
       executable("node_mksnapshot") {
-        configs += [ ":node_internal_config" ]
+        configs += [ ":node_internal_config", ":disable_icf" ]
         sources = [
           "src/node_snapshot_stub.cc",
           "tools/snapshot/node_mksnapshot.cc",
         ]
         deps = [ ":libnode" ]
+      }
+
+      # This config disables a link time optimization "ICF", which may merge
+      # different functions into one if the function signature and body of them are
+      # identical.
+      #
+      # ICF breaks 1:1 mappings of the external references for V8 snapshot, so we
+      # disable it while taking a V8 snapshot.
+      config("disable_icf") {
+        visibility = [ ":*" ]  # Only targets in this file can depend on this.
+        if (is_win) {
+          ldflags = [ "/OPT:NOICF" ]  # link.exe, but also lld-link.exe.
+        } else if (is_apple && !use_lld) {
+          ldflags = [ "-Wl,-no_deduplicate" ]  # ld64.
+        } else if (use_gold || use_lld) {
+          ldflags = [ "-Wl,--icf=none" ]
+        }
       }
     }
 

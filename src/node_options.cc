@@ -658,7 +658,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_runner_snapshots);
   AddOption("--test-name-pattern",
             "run tests whose name matches this regular expression",
-            &EnvironmentOptions::test_name_pattern);
+            &EnvironmentOptions::test_name_pattern,
+            kAllowedInEnvvar);
   AddOption("--test-reporter",
             "report test output using the given reporter",
             &EnvironmentOptions::test_reporter,
@@ -677,7 +678,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--test-skip-pattern",
             "run tests whose name do not match this regular expression",
-            &EnvironmentOptions::test_skip_pattern);
+            &EnvironmentOptions::test_skip_pattern,
+            kAllowedInEnvvar);
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_include_pattern,
@@ -789,6 +791,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Experimental type-stripping for TypeScript files.",
             &EnvironmentOptions::experimental_strip_types,
             kAllowedInEnvvar);
+  AddOption("--experimental-transform-types",
+            "enable transformation of TypeScript-only"
+            "syntax into JavaScript code",
+            &EnvironmentOptions::experimental_transform_types,
+            kAllowedInEnvvar);
+  Implies("--experimental-transform-types", "--experimental-strip-types");
+  Implies("--experimental-transform-types", "--enable-source-maps");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",

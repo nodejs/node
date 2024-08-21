@@ -394,10 +394,10 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
 
 void OS::AdjustSchedulingParams() {}
 
-std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
     size_t alignment) {
-  return {};
+  return std::nullopt;
 }
 
 Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(

@@ -69,6 +69,12 @@ const Entry& ExternalEntityTable<Entry, size>::at(uint32_t index) const {
 }
 
 template <typename Entry, size_t size>
+typename ExternalEntityTable<Entry, size>::WriteIterator
+ExternalEntityTable<Entry, size>::iter_at(uint32_t index) {
+  return WriteIterator(base_, index);
+}
+
+template <typename Entry, size_t size>
 bool ExternalEntityTable<Entry, size>::is_initialized() const {
   DCHECK(!base_ || reinterpret_cast<Address>(base_) == vas_->base());
   return base_ != nullptr;
@@ -339,11 +345,15 @@ ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment) {
 #endif  // DEBUG
     first = kInternalNullEntryIndex + 1;
   }
-  for (uint32_t i = first; i < last; i++) {
-    uint32_t next_free_entry = i + 1;
-    at(i).MakeFreelistEntry(next_free_entry);
+
+  {
+    WriteIterator it = iter_at(first);
+    while (it.index() != last) {
+      it->MakeFreelistEntry(it.index() + 1);
+      ++it;
+    }
+    it->MakeFreelistEntry(0);
   }
-  at(last).MakeFreelistEntry(0);
 
   // This must be a release store to prevent reordering of the preceeding
   // stores to the freelist from being reordered past this store. See
@@ -374,6 +384,7 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
   uint32_t current_freelist_head = 0;
   uint32_t current_freelist_length = 0;
   std::vector<Segment> segments_to_deallocate;
+
   for (auto segment : base::Reversed(space->segments_)) {
     // Remember the state of the freelist before this segment in case this
     // segment turns out to be completely empty and we deallocate it.
@@ -381,13 +392,14 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
     uint32_t previous_freelist_length = current_freelist_length;
 
     // Process every entry in this segment, again going top to bottom.
-    for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
-      if (!at(i).IsMarked()) {
-        at(i).MakeFreelistEntry(current_freelist_head);
-        current_freelist_head = i;
+    for (WriteIterator it = iter_at(segment.last_entry());
+         it.index() >= segment.first_entry(); --it) {
+      if (!it->IsMarked()) {
+        it->MakeFreelistEntry(current_freelist_head);
+        current_freelist_head = it.index();
         current_freelist_length++;
       } else {
-        at(i).Unmark();
+        it->Unmark();
       }
     }
 
@@ -452,6 +464,11 @@ void ExternalEntityTable<Entry, size>::IterateEntriesIn(Space* space,
     }
   }
 }
+
+template <typename Entry, size_t size>
+ExternalEntityTable<Entry, size>::WriteIterator::WriteIterator(Entry* base,
+                                                               uint32_t index)
+    : base_(base), index_(index), write_scope_("pointer table write") {}
 
 }  // namespace internal
 }  // namespace v8

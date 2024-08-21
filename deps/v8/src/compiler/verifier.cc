@@ -734,6 +734,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSCreateObject:
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreateStringWrapper:
+      CheckTypeIs(node, Type::StringWrapper());
+      break;
     case IrOpcode::kJSCreatePromise:
       CheckTypeIs(node, Type::OtherObject());
       break;

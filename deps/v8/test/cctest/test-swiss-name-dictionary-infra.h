@@ -195,7 +195,7 @@ class TestSequence {
     }
 
     if (actual_index.is_found()) {
-      Handle<FixedArray> data = runner_.GetData(actual_index);
+      DirectHandle<FixedArray> data = runner_.GetData(actual_index);
       CHECK_EQ(*key, data->get(0));
 
       if (expected_value_opt) {

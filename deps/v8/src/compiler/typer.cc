@@ -1491,6 +1491,10 @@ Type Typer::Visitor::TypeJSCreateObject(Node* node) {
   return Type::OtherObject();
 }
 
+Type Typer::Visitor::TypeJSCreateStringWrapper(Node* node) {
+  return Type::StringWrapper();
+}
+
 Type Typer::Visitor::TypeJSCreatePromise(Node* node) {
   return Type::OtherObject();
 }

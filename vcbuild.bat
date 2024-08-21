@@ -41,6 +41,7 @@ set msi=
 set upload=
 set licensertf=
 set lint_js=
+set lint_js_fix=
 set lint_cpp=
 set lint_md=
 set lint_md_build=
@@ -115,6 +116,7 @@ if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&g
 if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="lint-cpp"      set lint_cpp=1&goto arg-ok
 if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
+if /i "%1"=="lint-js-fix"   set lint_js_fix=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
 if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
@@ -730,10 +732,17 @@ goto lint-js
 goto lint-js
 
 :lint-js
-if not defined lint_js goto lint-md-build
+if not defined lint_js goto lint-js-fix
 if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js
 %node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools
+goto lint-js-fix
+
+:lint-js-fix
+if not defined lint_js_fix goto lint-md-build
+if not exist tools\eslint\node_modules\eslint goto no-lint
+echo running lint-js-fix
+%node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools --fix
 goto lint-md-build
 
 :no-lint

@@ -12,6 +12,9 @@ import { join } from 'node:path';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
+
 // This test updates these files repeatedly,
 // Reading them from disk is unreliable due to race conditions.
 const fixtureContent = {
@@ -60,6 +63,8 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
 
   const testUpdate = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
     const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
@@ -68,6 +73,9 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     clearInterval(interval);
     child.kill();
     await once(child, 'exit');
+
+    assert.strictEqual(runs.length, 2);
+
     for (const run of runs) {
       assert.doesNotMatch(run, /run\(\) is being called recursively/);
       assert.match(run, /# tests 1/);
@@ -79,6 +87,8 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
 
   const testRename = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
     const interval = setInterval(() => renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000));
@@ -88,22 +98,31 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     child.kill();
     await once(child, 'exit');
 
-    for (const run of runs) {
-      assert.doesNotMatch(run, /run\(\) is being called recursively/);
-      if (action === 'rename2') {
-        assert.match(run, /MODULE_NOT_FOUND/);
-      } else {
-        assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
-      }
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
+    assert.strictEqual(runs.length, 2);
+
+    const [firstRun, secondRun] = runs;
+    assert.match(firstRun, /# tests 1/);
+    assert.match(firstRun, /# pass 1/);
+    assert.match(firstRun, /# fail 0/);
+    assert.match(firstRun, /# cancelled 0/);
+    assert.doesNotMatch(firstRun, /run\(\) is being called recursively/);
+
+    if (action === 'rename2') {
+      assert.match(secondRun, /MODULE_NOT_FOUND/);
+      return;
     }
+
+    assert.match(secondRun, /# tests 1/);
+    assert.match(secondRun, /# pass 1/);
+    assert.match(secondRun, /# fail 0/);
+    assert.match(secondRun, /# cancelled 0/);
+    assert.doesNotMatch(secondRun, /run\(\) is being called recursively/);
   };
 
   const testDelete = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const fileToDeletePath = tmpdir.resolve(fileToUpdate);
     const interval = setInterval(() => {
       if (existsSync(fileToDeletePath)) {
@@ -117,6 +136,8 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     clearInterval(interval);
     child.kill();
     await once(child, 'exit');
+
+    assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
       assert.doesNotMatch(run, /MODULE_NOT_FOUND/);

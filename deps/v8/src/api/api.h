@@ -48,20 +48,22 @@ class Script;
 class EphemeronTable;
 }  // namespace debug
 
-template <typename T>
+template <typename T, internal::ExternalPointerTag tag>
 inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj);
 
-template <>
+template <internal::ExternalPointerTag tag>
 inline v8::internal::Address ToCData(
     v8::internal::Tagged<v8::internal::Object> obj);
 
-template <typename T>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
-    v8::internal::Isolate* isolate, T obj);
+template <internal::ExternalPointerTag tag, typename T>
+inline v8::internal::Handle<
+    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
+FromCData(v8::internal::Isolate* isolate, T obj);
 
-template <>
-inline v8::internal::Handle<v8::internal::Object> FromCData(
-    v8::internal::Isolate* isolate, v8::internal::Address obj);
+template <internal::ExternalPointerTag tag>
+inline v8::internal::Handle<
+    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
+FromCData(v8::internal::Isolate* isolate, v8::internal::Address obj);
 
 class ApiFunction {
  public:
@@ -127,7 +129,8 @@ class RegisteredExtension {
   V(ToLocalPrimitive, Object, Primitive)                 \
   V(FixedArrayToLocal, FixedArray, FixedArray)           \
   V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)   \
-  V(ToLocal, ScriptOrModule, ScriptOrModule)
+  V(ToLocal, ScriptOrModule, ScriptOrModule)             \
+  IF_WASM(V, ToLocal, WasmModuleObject, WasmModuleObject)
 
 #define OPEN_HANDLE_LIST(V)                     \
   V(Template, TemplateInfo)                     \
@@ -136,6 +139,7 @@ class RegisteredExtension {
   V(DictionaryTemplate, DictionaryTemplateInfo) \
   V(Signature, FunctionTemplateInfo)            \
   V(Data, Object)                               \
+  V(Number, Number)                             \
   V(RegExp, JSRegExp)                           \
   V(Object, JSReceiver)                         \
   V(Array, JSArray)                             \
@@ -164,6 +168,7 @@ class RegisteredExtension {
   V(UnboundScript, SharedFunctionInfo)          \
   V(Module, Module)                             \
   V(Function, JSReceiver)                       \
+  V(CompileHintsCollector, Script)              \
   V(Message, JSMessageObject)                   \
   V(Context, NativeContext)                     \
   V(External, Object)                           \

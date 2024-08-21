@@ -2,6 +2,7 @@ import { AsyncWrapBinding } from './internalBinding/async_wrap';
 import { BlobBinding } from './internalBinding/blob';
 import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
+import { DebugBinding } from './internalBinding/debug';
 import { HttpParserBinding } from './internalBinding/http_parser';
 import { FsBinding } from './internalBinding/fs';
 import { FsDirBinding } from './internalBinding/fs_dir';
@@ -35,6 +36,7 @@ interface InternalBindingMap {
   blob: BlobBinding;
   config: ConfigBinding;
   constants: ConstantsBinding;
+  debug: DebugBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
   http_parser: HttpParserBinding;

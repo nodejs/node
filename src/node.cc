@@ -330,7 +330,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   }
 #endif
 
-  if (env->options()->has_env_file_string) {
+  // Ignore env file if we're in watch mode.
+  // Without it env is not updated when restarting child process.
+  // Child process has --watch flag removed, so it will load the file.
+  if (env->options()->has_env_file_string && !env->options()->watch_mode) {
     per_process::dotenv_file.SetEnvironment(env);
   }
 

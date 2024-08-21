@@ -3189,7 +3189,7 @@ changes:
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 8 KiB of HTTP header data is received then
+malconfigured clients, if more than `maxHeaderSize` of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
@@ -4020,7 +4020,7 @@ An error occurred trying to allocate memory. This should never happen.
 #### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
 
 <!-- YAML
-added: REPLACEME
+added: v22.6.0
 -->
 
 Type stripping is not supported for files descendent of a `node_modules` directory.

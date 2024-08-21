@@ -475,7 +475,7 @@ function allowOOM(fn) {
   instance.exports.store(kOffset1, kValue);
   assertEquals(kValue, instance.exports.load(kOffset1));
   let worker = new Worker(function() {
-    onmessage = function([mem, module]) {
+    onmessage = function({data:[mem, module]}) {
       function workerAssert(condition, message) {
         if (!condition) postMessage(`Check failed: ${message}`);
       }
@@ -608,7 +608,7 @@ function InstantiatingWorkerCode() {
     if (!condition) postMessage(`Check failed: ${message}`);
   }
 
-  onmessage = function([mem, module]) {
+  onmessage = function({data:[mem, module]}) {
     workerAssert(mem instanceof WebAssembly.Memory, 'Wasm memory');
     workerAssert(mem.buffer instanceof SharedArrayBuffer, 'SAB');
     try {

@@ -148,6 +148,18 @@ class FlagsContinuationT final {
   using node_t = typename Adapter::node_t;
   using id_t = typename Adapter::id_t;
 
+  struct ConditionalCompare {
+    InstructionCode code;
+    FlagsCondition compare_condition;
+    FlagsCondition default_flags;
+    node_t lhs;
+    node_t rhs;
+  };
+  // This limit covered almost all the opportunities when compiling the debug
+  // builtins.
+  static constexpr size_t kMaxCompareChainSize = 4;
+  using compare_chain_t = std::array<ConditionalCompare, kMaxCompareChainSize>;
+
   FlagsContinuationT() : mode_(kFlags_none) {}
 
   // Creates a new flags continuation from the given condition and true/false
@@ -156,6 +168,16 @@ class FlagsContinuationT final {
                                       block_t true_block, block_t false_block) {
     return FlagsContinuationT(kFlags_branch, condition, true_block,
                               false_block);
+  }
+
+  // Creates a new flags continuation from the given conditional compare chain
+  // and true/false blocks.
+  static FlagsContinuationT ForConditionalBranch(
+      compare_chain_t& compares, uint32_t num_conditional_compares,
+      FlagsCondition branch_condition, block_t true_block,
+      block_t false_block) {
+    return FlagsContinuationT(compares, num_conditional_compares,
+                              branch_condition, true_block, false_block);
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
@@ -180,6 +202,15 @@ class FlagsContinuationT final {
     return FlagsContinuationT(condition, result);
   }
 
+  // Creates a new flags continuation for a conditional boolean value.
+  static FlagsContinuationT ForConditionalSet(compare_chain_t& compares,
+                                              uint32_t num_conditional_compares,
+                                              FlagsCondition set_condition,
+                                              node_t result) {
+    return FlagsContinuationT(compares, num_conditional_compares, set_condition,
+                              result);
+  }
+
   // Creates a new flags continuation for a wasm trap.
   static FlagsContinuationT ForTrap(FlagsCondition condition, TrapId trap_id) {
     return FlagsContinuationT(condition, trap_id);
@@ -192,13 +223,21 @@ class FlagsContinuationT final {
 
   bool IsNone() const { return mode_ == kFlags_none; }
   bool IsBranch() const { return mode_ == kFlags_branch; }
+  bool IsConditionalBranch() const {
+    return mode_ == kFlags_conditional_branch;
+  }
   bool IsDeoptimize() const { return mode_ == kFlags_deoptimize; }
   bool IsSet() const { return mode_ == kFlags_set; }
+  bool IsConditionalSet() const { return mode_ == kFlags_conditional_set; }
   bool IsTrap() const { return mode_ == kFlags_trap; }
   bool IsSelect() const { return mode_ == kFlags_select; }
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
+  }
+  FlagsCondition final_condition() const {
+    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    return final_condition_;
   }
   DeoptimizeReason reason() const {
     DCHECK(IsDeoptimize());
@@ -217,7 +256,7 @@ class FlagsContinuationT final {
     return frame_state_or_result_;
   }
   node_t result() const {
-    DCHECK(IsSet() || IsSelect());
+    DCHECK(IsSet() || IsConditionalSet() || IsSelect());
     return frame_state_or_result_;
   }
   TrapId trap_id() const {
@@ -225,11 +264,11 @@ class FlagsContinuationT final {
     return trap_id_;
   }
   block_t true_block() const {
-    DCHECK(IsBranch());
+    DCHECK(IsBranch() || IsConditionalBranch());
     return true_block_;
   }
   block_t false_block() const {
-    DCHECK(IsBranch());
+    DCHECK(IsBranch() || IsConditionalBranch());
     return false_block_;
   }
   node_t true_value() const {
@@ -240,27 +279,42 @@ class FlagsContinuationT final {
     DCHECK(IsSelect());
     return false_value_;
   }
+  const compare_chain_t& compares() const {
+    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    return compares_;
+  }
+  uint32_t num_conditional_compares() const {
+    DCHECK(IsConditionalSet() || IsConditionalBranch());
+    return num_conditional_compares_;
+  }
 
   void Negate() {
     DCHECK(!IsNone());
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     condition_ = NegateFlagsCondition(condition_);
   }
 
   void Commute() {
     DCHECK(!IsNone());
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     condition_ = CommuteFlagsCondition(condition_);
   }
 
-  void Overwrite(FlagsCondition condition) { condition_ = condition; }
+  void Overwrite(FlagsCondition condition) {
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
+    condition_ = condition;
+  }
 
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {
     DCHECK(condition_ == kEqual || condition_ == kNotEqual);
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     bool negate = condition_ == kEqual;
     condition_ = condition;
     if (negate) Negate();
   }
 
   void OverwriteUnsignedIfSigned() {
+    DCHECK(!IsConditionalSet() && !IsConditionalBranch());
     switch (condition_) {
       case kSignedLessThan:
         condition_ = kUnsignedLessThan;
@@ -300,6 +354,21 @@ class FlagsContinuationT final {
     DCHECK_NOT_NULL(false_block);
   }
 
+  FlagsContinuationT(compare_chain_t& compares,
+                     uint32_t num_conditional_compares,
+                     FlagsCondition branch_condition, block_t true_block,
+                     block_t false_block)
+      : mode_(kFlags_conditional_branch),
+        condition_(compares.front().compare_condition),
+        final_condition_(branch_condition),
+        num_conditional_compares_(num_conditional_compares),
+        compares_(compares),
+        true_block_(true_block),
+        false_block_(false_block) {
+    DCHECK_NOT_NULL(true_block);
+    DCHECK_NOT_NULL(false_block);
+  }
+
   FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
                      DeoptimizeReason reason, id_t node_id,
                      FeedbackSource const& feedback, node_t frame_state)
@@ -316,6 +385,18 @@ class FlagsContinuationT final {
   FlagsContinuationT(FlagsCondition condition, node_t result)
       : mode_(kFlags_set),
         condition_(condition),
+        frame_state_or_result_(result) {
+    DCHECK(Adapter::valid(result));
+  }
+
+  FlagsContinuationT(compare_chain_t& compares,
+                     uint32_t num_conditional_compares,
+                     FlagsCondition set_condition, node_t result)
+      : mode_(kFlags_conditional_set),
+        condition_(compares.front().compare_condition),
+        final_condition_(set_condition),
+        num_conditional_compares_(num_conditional_compares),
+        compares_(compares),
         frame_state_or_result_(result) {
     DCHECK(Adapter::valid(result));
   }
@@ -337,6 +418,11 @@ class FlagsContinuationT final {
 
   FlagsMode const mode_;
   FlagsCondition condition_;
+  FlagsCondition final_condition_;     // Only valid if mode_ ==
+                                       // kFlags_conditional_set.
+  uint32_t num_conditional_compares_;  // Only valid if mode_ ==
+                                       // kFlags_conditional_set.
+  compare_chain_t compares_;  // Only valid if mode_ == kFlags_conditional_set.
   DeoptimizeReason reason_;         // Only valid if mode_ == kFlags_deoptimize*
   id_t node_id_;                    // Only valid if mode_ == kFlags_deoptimize*
   FeedbackSource feedback_;         // Only valid if mode_ == kFlags_deoptimize*
@@ -982,6 +1068,9 @@ class InstructionSelectorT final : public Adapter {
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
                                      node_t node);
 
+  void ConsumeEqualZero(turboshaft::OpIndex* user, turboshaft::OpIndex* value,
+                        FlagsContinuation* cont);
+
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
@@ -1026,6 +1115,13 @@ class InstructionSelectorT final : public Adapter {
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void VisitSimd256LoadTransform(node_t node);
+
+#ifdef V8_TARGET_ARCH_X64
+  void VisitSimd256Shufd(node_t node);
+  void VisitSimd256Shufps(node_t node);
+  void VisitSimd256Unpack(node_t node);
+  void VisitSimdPack128To256(node_t node);
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #endif  // V8_ENABLE_WEBASSEMBLY

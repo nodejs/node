@@ -868,7 +868,7 @@ export USERNAME="nodejs" # will result in `nodejs` as the value.
 <!-- YAML
 added: v0.5.2
 changes:
-  - version: REPLACEME
+  - version: v22.6.0
     pr-url: https://github.com/nodejs/node/pull/53725
     description: Eval now supports experimental type-stripping.
   - version: v5.11.0
@@ -894,8 +894,8 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Enables the use of AsyncLocalStorage backed by AsyncContextFrame rather than
-the default implementation which relies on async\_hooks. This new model is
+Enables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` rather
+than the default implementation which relies on async\_hooks. This new model is
 implemented very differently and so could have differences in how context data
 flows within the application. As such, it is presently recommended to be sure
 your application behaviour is unaffected by this change before using it in
@@ -932,6 +932,17 @@ Under `--experimental-default-type=module` and `--experimental-wasm-modules`,
 files with no extension will be treated as WebAssembly if they begin with the
 WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
 JavaScript.
+
+### `--experimental-transform-types`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enables the transformation of TypeScript-only syntax into JavaScript code.
+Implies `--experimental-strip-types` and `--enable-source-maps`.
 
 ### `--experimental-eventsource`
 
@@ -984,7 +995,7 @@ Specify the `module` containing exported [module customization hooks][].
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.6.0
 -->
 
 > Stability: 1 - Experimental
@@ -1053,7 +1064,7 @@ Enable the experimental [`node:sqlite`][] module.
 ### `--experimental-strip-types`
 
 <!-- YAML
-added: REPLACEME
+added: v22.6.0
 -->
 
 > Stability: 1.0 - Early development
@@ -2727,6 +2738,12 @@ when the option is used on a platform that does not support it.
 
 ### `--watch-preserve-output`
 
+<!-- YAML
+added:
+  - v19.3.0
+  - v18.13.0
+-->
+
 Disable the clearing of the console when watch mode restarts the process.
 
 ```bash
@@ -2924,6 +2941,7 @@ one is included in the list below.
 * `--experimental-sqlite`
 * `--experimental-strip-types`
 * `--experimental-top-level-await`
+* `--experimental-transform-types`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
@@ -2981,10 +2999,12 @@ one is included in the list below.
 * `--snapshot-blob`
 * `--test-coverage-exclude`
 * `--test-coverage-include`
+* `--test-name-pattern`
 * `--test-only`
 * `--test-reporter-destination`
 * `--test-reporter`
 * `--test-shard`
+* `--test-skip-pattern`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
@@ -3472,6 +3492,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
+[`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #node_optionsoptions

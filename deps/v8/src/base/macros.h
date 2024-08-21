@@ -13,17 +13,35 @@
 #include "src/base/logging.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
-#define EXPAND(x) x
+#define EXPAND(X) X
 
 // This macro does nothing. That's all.
 #define NOTHING(...)
 
-#define CONCAT_(a, b) a##b
-#define CONCAT(a, b) CONCAT_(a, b)
+#define CONCAT_(a, ...) a##__VA_ARGS__
+#define CONCAT(a, ...) CONCAT_(a, __VA_ARGS__)
 // Creates an unique identifier. Useful for scopes to avoid shadowing names.
 #define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
 
+// UNPAREN(x) removes a layer of nested parentheses on x, if any. This means
+// that both UNPAREN(x) and UNPAREN((x)) expand to x. This is helpful for macros
+// that want to support multi argument templates with commas, e.g.
+//
+//   #define FOO(Type, Name) UNPAREN(Type) Name;
+//
+// will work with both
+//
+//   FOO(int, x);
+//   FOO((Foo<int, double, float>), x);
+#define UNPAREN(X) CONCAT(DROP_, UNPAREN_ X)
+#define UNPAREN_(...) UNPAREN_ __VA_ARGS__
+#define DROP_UNPAREN_
+
 #define OFFSET_OF(type, field) offsetof(type, field)
+
+// A comma, to be used in macro arguments where it would otherwise be
+// interpreted as separator of arguments.
+#define LITERAL_COMMA ,
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
@@ -31,13 +49,11 @@
 // a pointer by mistake, you will get a compile-time error.
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
-
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
 // use its type.
 template <typename T, size_t N>
 char (&ArraySizeHelper(T (&array)[N]))[N];
-
 
 #if !V8_CC_MSVC
 // That gcc wants both of these prototypes seems mysterious. VC, for
@@ -132,6 +148,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
+#endif
+#endif
+
 // Define V8_USE_MEMORY_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
@@ -162,6 +185,16 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_CFI_ICALL           \
   V8_CLANG_NO_SANITIZE("cfi-icall") \
   V8_CLANG_NO_SANITIZE("function")
+#endif
+
+// V8_PRETTY_FUNCTION_VALUE_OR(ELSE) emits a pretty function value, if
+// available for this compiler, otherwise it emits ELSE.
+#if defined(V8_CC_GNU)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __PRETTY_FUNCTION__
+#elif defined(V8_CC_MSVC)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __FUNCSIG__
+#else
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) ELSE
 #endif
 
 namespace v8 {

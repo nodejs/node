@@ -1,4 +1,5 @@
 #include "compile_cache.h"
+#include <string>
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_file.h"
@@ -27,15 +28,19 @@ uint32_t GetHash(const char* data, size_t size) {
   return crc32(crc, reinterpret_cast<const Bytef*>(data), size);
 }
 
-uint32_t GetCacheVersionTag() {
-  std::string_view node_version(NODE_VERSION);
-  uint32_t v8_tag = v8::ScriptCompiler::CachedDataVersionTag();
-  uLong crc = crc32(0L, Z_NULL, 0);
-  crc = crc32(crc, reinterpret_cast<const Bytef*>(&v8_tag), sizeof(uint32_t));
-  crc = crc32(crc,
-              reinterpret_cast<const Bytef*>(node_version.data()),
-              node_version.size());
-  return crc;
+std::string GetCacheVersionTag() {
+  // On platforms where uids are available, use different folders for
+  // different users to avoid cache miss due to permission incompatibility.
+  // On platforms where uids are not available, bare with the cache miss.
+  // This should be fine on Windows, as there local directories tend to be
+  // user-specific.
+  std::string tag = std::string(NODE_VERSION) + '-' + std::string(NODE_ARCH) +
+                    '-' +
+                    Uint32ToHex(v8::ScriptCompiler::CachedDataVersionTag());
+#ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
+  tag += '-' + std::to_string(getuid());
+#endif
+  return tag;
 }
 
 uint32_t GetCacheKey(std::string_view filename, CachedCodeType type) {
@@ -62,6 +67,10 @@ v8::ScriptCompiler::CachedData* CompileCacheEntry::CopyCache() const {
   return new v8::ScriptCompiler::CachedData(
       data, cache_size, v8::ScriptCompiler::CachedData::BufferOwned);
 }
+
+// Used for identifying and verifying a file is a compile cache file.
+// See comments in CompileCacheHandler::Persist().
+constexpr uint32_t kCacheMagicNumber = 0x8adfdbb2;
 
 void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
   Debug("[compile cache] reading cache from %s for %s %s...",
@@ -100,11 +109,19 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     return;
   }
 
-  Debug("[%d %d %d %d]...",
+  Debug("[%d %d %d %d %d]...",
+        headers[kMagicNumberOffset],
         headers[kCodeSizeOffset],
         headers[kCacheSizeOffset],
         headers[kCodeHashOffset],
         headers[kCacheHashOffset]);
+
+  if (headers[kMagicNumberOffset] != kCacheMagicNumber) {
+    Debug("magic number mismatch: expected %d, actual %d\n",
+          kCacheMagicNumber,
+          headers[kMagicNumberOffset]);
+    return;
+  }
 
   // Check the code size and hash which are already computed.
   if (headers[kCodeSizeOffset] != entry->code_size) {
@@ -202,11 +219,14 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(
       compiler_cache_store_.emplace(key, std::make_unique<CompileCacheEntry>());
   auto* result = emplaced.first->second.get();
 
+  std::u8string cache_filename_u8 =
+      (compile_cache_dir_ / Uint32ToHex(key)).u8string();
   result->code_hash = code_hash;
   result->code_size = code_utf8.length();
   result->cache_key = key;
   result->cache_filename =
-      (compile_cache_dir_ / Uint32ToHex(result->cache_key)).string();
+      std::string(cache_filename_u8.begin(), cache_filename_u8.end()) +
+      ".cache";
   result->source_filename = filename_utf8.ToString();
   result->cache = nullptr;
   result->type = type;
@@ -264,6 +284,7 @@ void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
 }
 
 // Layout of a cache file:
+// [uint32_t] magic number
 // [uint32_t] code size
 // [uint32_t] code hash
 // [uint32_t] cache size
@@ -301,14 +322,16 @@ void CompileCacheHandler::Persist() {
 
     // Generating headers.
     std::vector<uint32_t> headers(kHeaderCount);
+    headers[kMagicNumberOffset] = kCacheMagicNumber;
     headers[kCodeSizeOffset] = entry->code_size;
     headers[kCacheSizeOffset] = cache_size;
     headers[kCodeHashOffset] = entry->code_hash;
     headers[kCacheHashOffset] = cache_hash;
 
-    Debug("[compile cache] writing cache for %s in %s [%d %d %d %d]...",
+    Debug("[compile cache] writing cache for %s in %s [%d %d %d %d %d]...",
           entry->source_filename,
           entry->cache_filename,
+          headers[kMagicNumberOffset],
           headers[kCodeSizeOffset],
           headers[kCacheSizeOffset],
           headers[kCodeHashOffset],
@@ -335,53 +358,63 @@ CompileCacheHandler::CompileCacheHandler(Environment* env)
 
 // Directory structure:
 // - Compile cache directory (from NODE_COMPILE_CACHE)
-//   - <cache_version_tag_1>: hash of CachedDataVersionTag + NODE_VERESION
-//   - <cache_version_tag_2>
-//   - <cache_version_tag_3>
-//     - <cache_file_1>: a hash of filename + module type
-//     - <cache_file_2>
-//     - <cache_file_3>
-bool CompileCacheHandler::InitializeDirectory(Environment* env,
-                                              const std::string& dir) {
-  compiler_cache_key_ = GetCacheVersionTag();
-  std::string compiler_cache_key_string = Uint32ToHex(compiler_cache_key_);
-  std::vector<std::string_view> paths = {dir, compiler_cache_key_string};
-  std::string cache_dir = PathResolve(env, paths);
-
+//   - $NODE_VERION-$ARCH-$CACHE_DATA_VERSION_TAG-$UID
+//     - $FILENAME_AND_MODULE_TYPE_HASH.cache: a hash of filename + module type
+CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
+                                                     const std::string& dir) {
+  std::string cache_tag = GetCacheVersionTag();
+  std::string absolute_cache_dir_base = PathResolve(env, {dir});
+  std::filesystem::path cache_dir_with_tag =
+      std::filesystem::path(absolute_cache_dir_base) / cache_tag;
+  std::u8string cache_dir_with_tag_u8 = cache_dir_with_tag.u8string();
+  std::string cache_dir_with_tag_str(cache_dir_with_tag_u8.begin(),
+                                     cache_dir_with_tag_u8.end());
+  CompileCacheEnableResult result;
   Debug("[compile cache] resolved path %s + %s -> %s\n",
         dir,
-        compiler_cache_key_string,
-        cache_dir);
+        cache_tag,
+        cache_dir_with_tag_str);
 
   if (UNLIKELY(!env->permission()->is_granted(
-          env, permission::PermissionScope::kFileSystemWrite, cache_dir))) {
-    Debug("[compile cache] skipping cache because write permission for %s "
-          "is not granted\n",
-          cache_dir);
-    return false;
+          env,
+          permission::PermissionScope::kFileSystemWrite,
+          cache_dir_with_tag_str))) {
+    result.message = "Skipping compile cache because write permission for " +
+                     cache_dir_with_tag_str + " is not granted";
+    result.status = CompileCacheEnableStatus::kFailed;
+    return result;
   }
 
   if (UNLIKELY(!env->permission()->is_granted(
-          env, permission::PermissionScope::kFileSystemRead, cache_dir))) {
-    Debug("[compile cache] skipping cache because read permission for %s "
-          "is not granted\n",
-          cache_dir);
-    return false;
+          env,
+          permission::PermissionScope::kFileSystemRead,
+          cache_dir_with_tag_str))) {
+    result.message = "Skipping compile cache because read permission for " +
+                     cache_dir_with_tag_str + " is not granted";
+    result.status = CompileCacheEnableStatus::kFailed;
+    return result;
   }
 
   fs::FSReqWrapSync req_wrap;
-  int err = fs::MKDirpSync(nullptr, &(req_wrap.req), cache_dir, 0777, nullptr);
+  int err = fs::MKDirpSync(
+      nullptr, &(req_wrap.req), cache_dir_with_tag_str, 0777, nullptr);
   if (is_debug_) {
     Debug("[compile cache] creating cache directory %s...%s\n",
-          cache_dir,
+          cache_dir_with_tag_str,
           err < 0 ? uv_strerror(err) : "success");
   }
   if (err != 0 && err != UV_EEXIST) {
-    return false;
+    result.message =
+        "Cannot create cache directory: " + std::string(uv_strerror(err));
+    result.status = CompileCacheEnableStatus::kFailed;
+    return result;
   }
 
-  compile_cache_dir_ = std::filesystem::path(cache_dir);
-  return true;
+  compile_cache_dir_str_ = absolute_cache_dir_base;
+  result.cache_directory = absolute_cache_dir_base;
+  compile_cache_dir_ = cache_dir_with_tag;
+  result.status = CompileCacheEnableStatus::kEnabled;
+  return result;
 }
 
 }  // namespace node

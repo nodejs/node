@@ -101,6 +101,9 @@ const tests = [
   { name: 'test-runner/output/eval_dot.js', transform: specTransform },
   { name: 'test-runner/output/eval_spec.js', transform: specTransform },
   { name: 'test-runner/output/eval_tap.js' },
+  { name: 'test-runner/output/filtered-suite-delayed-build.js' },
+  { name: 'test-runner/output/filtered-suite-order.mjs' },
+  { name: 'test-runner/output/filtered-suite-throws.js' },
   { name: 'test-runner/output/hooks.js' },
   { name: 'test-runner/output/hooks_spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/skip-each-hooks.js', transform: specTransform },
@@ -147,6 +150,7 @@ const tests = [
   },
   { name: 'test-runner/output/test-runner-plan.js' },
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
+  { name: 'test-runner/output/test-diagnostic-warning-without-test-only-flag.js' },
 ]
 .filter(Boolean)
 .map(({ name, tty, transform }) => ({

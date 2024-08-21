@@ -94,6 +94,11 @@ class DebugOptions : public Options {
     break_first_line = true;
   }
 
+  void DisableWaitOrBreakFirstLine() {
+    inspect_wait = false;
+    break_first_line = false;
+  }
+
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line || inspect_wait;
   }
@@ -234,6 +239,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool experimental_strip_types = false;
+  bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
 
@@ -251,6 +257,9 @@ class EnvironmentOptions : public Options {
 
 class PerIsolateOptions : public Options {
  public:
+  PerIsolateOptions() = default;
+  PerIsolateOptions(PerIsolateOptions&&) = default;
+
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
@@ -262,6 +271,11 @@ class PerIsolateOptions : public Options {
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+
+  inline std::shared_ptr<PerIsolateOptions> Clone() const;
+
+ private:
+  PerIsolateOptions(const PerIsolateOptions&) = default;
 };
 
 class PerProcessOptions : public Options {

@@ -86,10 +86,10 @@ void* OS::RemapShared(void* old_address, void* new_address, size_t size) {
   return result;
 }
 
-std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
     size_t alignment) {
-  std::vector<OS::MemoryRange> result = {};
+  std::optional<OS::MemoryRange> result;
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // and the lines are arranged in increasing order of address.
@@ -119,7 +119,8 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
           RoundDown(std::min(gap_end, boundary_end), alignment);
       if (overlap_start < overlap_end &&
           overlap_end - overlap_start >= minimum_size) {
-        result.push_back({overlap_start, overlap_end});
+        result = {overlap_start, overlap_end};
+        break;
       }
     }
     // Continue to visit the next gap.
