@@ -44,7 +44,7 @@ ac.signal.addEventListener('abort', () => console.log('Aborted!'),
 
 ac.abort();
 
-console.log(ac.signal.aborted); // Prints true
+console.log(ac.signal.aborted);  // Prints true
 ```
 
 ### `abortController.abort([reason])`
