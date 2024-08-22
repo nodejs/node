@@ -7,6 +7,7 @@ const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
+common.skipIfInspectorDisabled();
 tmpdir.refresh();
 
 function findCoverageFileForPid(pid) {
