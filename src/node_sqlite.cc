@@ -9,8 +9,10 @@
 #include "path.h"
 #include "sqlite3.h"
 #include "util-inl.h"
+#include "util.h"
 
 #include <cinttypes>
+#include <string_view>
 
 namespace node {
 namespace sqlite {
@@ -91,12 +93,11 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
 
 DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
-                           Local<String> location,
+                           const std::string_view location,
                            bool open)
     : BaseObject(env, object) {
   MakeWeak();
-  Utf8Value utf8_location(env->isolate(), location);
-  location_ = utf8_location.ToString();
+  location_ = std::string(location);
   connection_ = nullptr;
 
   if (open) {
@@ -191,7 +192,10 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  new DatabaseSync(env, args.This(), args[0].As<String>(), open);
+  BufferValue location(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*location);
+  ToNamespacedPath(env, &location);
+  new DatabaseSync(env, args.This(), location.ToStringView(), open);
 }
 
 void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
@@ -388,7 +392,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
     double val = value.As<Number>()->Value();
     r = sqlite3_bind_double(statement_, index, val);
   } else if (value->IsString()) {
-    auto val = Utf8Value(env()->isolate(), value.As<String>());
+    Utf8Value val(env()->isolate(), value.As<String>());
     r = sqlite3_bind_text(
         statement_, index, *val, val.length(), SQLITE_TRANSIENT);
   } else if (value->IsNull()) {

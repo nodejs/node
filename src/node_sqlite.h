@@ -9,6 +9,7 @@
 #include "util.h"
 
 #include <map>
+#include <string_view>
 #include <unordered_set>
 
 namespace node {
@@ -20,7 +21,7 @@ class DatabaseSync : public BaseObject {
  public:
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
-               v8::Local<v8::String> location,
+               std::string_view location,
                bool open);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
