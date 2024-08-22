@@ -405,7 +405,7 @@ class Reference : public RefTracker {
   virtual void ResetFinalizer() {}
   virtual void* Data() { return nullptr; }
 
-  uint32_t refcount() { return refcount_; }
+  uint32_t refcount() const { return refcount_; }
   ReferenceOwnership ownership() { return ownership_; }
 
  protected:
