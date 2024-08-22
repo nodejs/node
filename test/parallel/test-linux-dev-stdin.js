@@ -31,7 +31,8 @@ describe('Test reading SourceCode from stdin and it\'s symlinks', () => {
   });
 
   it('Test reading sourcecode from a symlink to the `readlink /dev/stdin`', () => {
-    const cp3 = child_process.execSync(`printf 'console.log(3)' | "${process.execPath}" $(readlink /dev/stdin)`, { stdio: 'pipe' });
+    const devStdin = fs.readlinkSync('/dev/stdin');
+    const cp3 = child_process.execSync(`printf 'console.log(3)' | "${process.execPath}" "${devStdin}"`, { stdio: 'pipe' });
     assert.strictEqual(cp3.toString(), '3\n');
   });
 });
