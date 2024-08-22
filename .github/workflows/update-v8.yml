@@ -54,4 +54,4 @@ jobs:
           delete-branch: true
           title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
           body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
-          labels: v8 engine
+          labels: dependencies, v8 engine

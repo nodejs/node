@@ -85,7 +85,7 @@ jobs:
               rm temp-output
           - id: amaro
             subsystem: deps
-            label: dependencies
+            label: dependencies, strip-types
             run: |
               ./tools/dep_updaters/update-amaro.sh > temp-output
               cat temp-output
@@ -93,7 +93,7 @@ jobs:
               rm temp-output
           - id: brotli
             subsystem: deps
-            label: dependencies
+            label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-brotli.sh > temp-output
               cat temp-output
@@ -101,7 +101,7 @@ jobs:
               rm temp-output
           - id: c-ares
             subsystem: deps
-            label: dependencies
+            label: dependencies, cares
             run: |
               ./tools/dep_updaters/update-c-ares.sh > temp-output
               cat temp-output
@@ -163,7 +163,7 @@ jobs:
               rm temp-output
           - id: gyp-next
             subsystem: tools
-            label: tools
+            label: tools, gyp
             run: |
               ./tools/dep_updaters/update-gyp-next.sh > temp-output
               cat temp-output
@@ -179,7 +179,7 @@ jobs:
               rm temp-output
           - id: icu
             subsystem: deps
-            label: dependencies, test
+            label: dependencies, test, icu
             run: |
               ./tools/dep_updaters/update-icu.sh > temp-output
               cat temp-output
@@ -293,7 +293,7 @@ jobs:
               rm temp-output
           - id: sqlite
             subsystem: deps
-            label: dependencies
+            label: dependencies, sqlite
             run: |
               ./tools/dep_updaters/update-sqlite.sh > temp-output
               cat temp-output
@@ -317,7 +317,7 @@ jobs:
               rm temp-output
           - id: zlib
             subsystem: deps
-            label: dependencies
+            label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-zlib.sh > temp-output
               cat temp-output
