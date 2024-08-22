@@ -14,6 +14,7 @@ const WASM_CC = process.env.WASM_CC || 'clang'
 let WASM_CFLAGS = process.env.WASM_CFLAGS || '--sysroot=/usr/share/wasi-sysroot -target wasm32-unknown-wasi'
 let WASM_LDFLAGS = process.env.WASM_LDFLAGS || ''
 const WASM_LDLIBS = process.env.WASM_LDLIBS || ''
+const WASM_OPT = process.env.WASM_OPT || './wasm-opt'
 
 // For compatibility with Node.js' `configure --shared-builtin-undici/undici-path ...`
 const EXTERNAL_PATH = process.env.EXTERNAL_PATH
@@ -77,7 +78,7 @@ const hasApk = (function () {
   try { execSync('command -v apk'); return true } catch (error) { return false }
 })()
 const hasOptimizer = (function () {
-  try { execSync('./wasm-opt --version'); return true } catch (error) { return false }
+  try { execSync(`${WASM_OPT} --version`); return true } catch (error) { return false }
 })()
 if (hasApk) {
   // Gather information about the tools used for the build
@@ -97,7 +98,7 @@ ${join(WASM_SRC, 'src')}/*.c \
 ${WASM_LDLIBS}`, { stdio: 'inherit' })
 
 if (hasOptimizer) {
-  execSync(`./wasm-opt ${WASM_OPT_FLAGS} -o ${join(WASM_OUT, 'llhttp.wasm')} ${join(WASM_OUT, 'llhttp.wasm')}`, { stdio: 'inherit' })
+  execSync(`${WASM_OPT} ${WASM_OPT_FLAGS} -o ${join(WASM_OUT, 'llhttp.wasm')} ${join(WASM_OUT, 'llhttp.wasm')}`, { stdio: 'inherit' })
 }
 writeWasmChunk('llhttp.wasm', 'llhttp-wasm.js')
 
@@ -109,7 +110,7 @@ ${join(WASM_SRC, 'src')}/*.c \
 ${WASM_LDLIBS}`, { stdio: 'inherit' })
 
 if (hasOptimizer) {
-  execSync(`./wasm-opt ${WASM_OPT_FLAGS} --enable-simd -o ${join(WASM_OUT, 'llhttp_simd.wasm')} ${join(WASM_OUT, 'llhttp_simd.wasm')}`, { stdio: 'inherit' })
+  execSync(`${WASM_OPT} ${WASM_OPT_FLAGS} --enable-simd -o ${join(WASM_OUT, 'llhttp_simd.wasm')} ${join(WASM_OUT, 'llhttp_simd.wasm')}`, { stdio: 'inherit' })
 }
 writeWasmChunk('llhttp_simd.wasm', 'llhttp_simd-wasm.js')
 
