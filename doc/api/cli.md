@@ -3397,6 +3397,7 @@ documented here:
 ### `--perf-prof-unwinding-info`
 
 <!-- Anchor to make sure old links find a target -->
+
 <a id="--max-old-space-sizesize-in-megabytes"></a>
 
 ### `--max-old-space-size=SIZE` (in MiB)
@@ -3413,6 +3414,7 @@ node --max-old-space-size=1536 index.js
 ```
 
 <!-- Anchor to make sure old links find a target -->
+
 <a id="--max-semi-space-sizesize-in-megabytes"></a>
 
 ### `--max-semi-space-size=SIZE` (in MiB)
