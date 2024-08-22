@@ -5210,11 +5210,24 @@ var require_body = __commonJS({
     var { webidl } = require_webidl();
     var { Blob: Blob2 } = require("node:buffer");
     var assert = require("node:assert");
-    var { isErrored } = require_util();
+    var { isErrored, isDisturbed } = require("node:stream");
     var { isArrayBuffer } = require("node:util/types");
     var { serializeAMimeType } = require_data_url();
     var { multipartFormDataParser } = require_formdata_parser();
     var textEncoder = new TextEncoder();
+    function noop() {
+    }
+    __name(noop, "noop");
+    var hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf("v18") !== 0;
+    var streamRegistry;
+    if (hasFinalizationRegistry) {
+      streamRegistry = new FinalizationRegistry((weakRef) => {
+        const stream = weakRef.deref();
+        if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
+          stream.cancel("Response object has been garbage collected").catch(noop);
+        }
+      });
+    }
     function extractBody(object, keepalive = false) {
       let stream = null;
       if (object instanceof ReadableStream) {
@@ -5359,8 +5372,11 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       return extractBody(object, keepalive);
     }
     __name(safelyExtractBody, "safelyExtractBody");
-    function cloneBody(body) {
+    function cloneBody(instance, body) {
       const [out1, out2] = body.stream.tee();
+      if (hasFinalizationRegistry) {
+        streamRegistry.register(instance, new WeakRef(out1));
+      }
       body.stream = out1;
       return {
         stream: out2,
@@ -5443,7 +5459,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
     __name(mixinBody, "mixinBody");
     async function consumeBody(object, convertBytesToJSValue, instance) {
       webidl.brandCheck(object, instance);
-      if (bodyUnusable(object[kState].body)) {
+      if (bodyUnusable(object)) {
         throw new TypeError("Body is unusable: Body has already been read");
       }
       throwIfAborted(object[kState]);
@@ -5464,7 +5480,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       return promise.promise;
     }
     __name(consumeBody, "consumeBody");
-    function bodyUnusable(body) {
+    function bodyUnusable(object) {
+      const body = object[kState].body;
       return body != null && (body.stream.locked || util.isDisturbed(body.stream));
     }
     __name(bodyUnusable, "bodyUnusable");
@@ -5485,7 +5502,10 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       extractBody,
       safelyExtractBody,
       cloneBody,
-      mixinBody
+      mixinBody,
+      streamRegistry,
+      hasFinalizationRegistry,
+      bodyUnusable
     };
   }
 });
@@ -8719,7 +8739,7 @@ var require_response = __commonJS({
   "lib/web/fetch/response.js"(exports2, module2) {
     "use strict";
     var { Headers, HeadersList, fill, getHeadersGuard, setHeadersGuard, setHeadersList } = require_headers();
-    var { extractBody, cloneBody, mixinBody } = require_body();
+    var { extractBody, cloneBody, mixinBody, hasFinalizationRegistry, streamRegistry, bodyUnusable } = require_body();
     var util = require_util();
     var nodeUtil = require("node:util");
     var { kEnumerableProperty } = util;
@@ -8744,21 +8764,7 @@ var require_response = __commonJS({
     var { kConstruct } = require_symbols();
     var assert = require("node:assert");
     var { types } = require("node:util");
-    var { isDisturbed, isErrored } = require("node:stream");
     var textEncoder = new TextEncoder("utf-8");
-    var hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf("v18") !== 0;
-    var registry;
-    if (hasFinalizationRegistry) {
-      registry = new FinalizationRegistry((weakRef) => {
-        const stream = weakRef.deref();
-        if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
-          stream.cancel("Response object has been garbage collected").catch(noop);
-        }
-      });
-    }
-    function noop() {
-    }
-    __name(noop, "noop");
     var Response = class _Response {
       static {
         __name(this, "Response");
@@ -8873,7 +8879,7 @@ var require_response = __commonJS({
       // Returns a clone of response.
       clone() {
         webidl.brandCheck(this, _Response);
-        if (this.bodyUsed || this.body?.locked) {
+        if (bodyUnusable(this)) {
           throw webidl.errors.exception({
             header: "Response.clone",
             message: "Body has already been consumed."
@@ -8932,7 +8938,7 @@ var require_response = __commonJS({
       }
       const newResponse = makeResponse({ ...response, body: null });
       if (response.body != null) {
-        newResponse.body = cloneBody(response.body);
+        newResponse.body = cloneBody(newResponse, response.body);
       }
       return newResponse;
     }
@@ -9065,7 +9071,7 @@ var require_response = __commonJS({
       setHeadersList(response[kHeaders], innerResponse.headersList);
       setHeadersGuard(response[kHeaders], guard);
       if (hasFinalizationRegistry && innerResponse.body?.stream) {
-        registry.register(response, new WeakRef(innerResponse.body.stream));
+        streamRegistry.register(response, new WeakRef(innerResponse.body.stream));
       }
       return response;
     }
@@ -9187,7 +9193,7 @@ var require_dispatcher_weakref = __commonJS({
 var require_request2 = __commonJS({
   "lib/web/fetch/request.js"(exports2, module2) {
     "use strict";
-    var { extractBody, mixinBody, cloneBody } = require_body();
+    var { extractBody, mixinBody, cloneBody, bodyUnusable } = require_body();
     var { Headers, fill: fillHeaders, HeadersList, setHeadersGuard, getHeadersGuard, setHeadersList, getHeadersList } = require_headers();
     var { FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
     var util = require_util();
@@ -9513,7 +9519,7 @@ var require_request2 = __commonJS({
         }
         let finalBody = inputOrInitBody;
         if (initBody == null && inputBody != null) {
-          if (util.isDisturbed(inputBody.stream) || inputBody.stream.locked) {
+          if (bodyUnusable(input)) {
             throw new TypeError(
               "Cannot construct a Request with a Request object that has already been used."
             );
@@ -9648,7 +9654,7 @@ var require_request2 = __commonJS({
       // Returns a clone of request.
       clone() {
         webidl.brandCheck(this, _Request);
-        if (this.bodyUsed || this.body?.locked) {
+        if (bodyUnusable(this)) {
           throw new TypeError("unusable");
         }
         const clonedRequest = cloneRequest(this[kState]);
@@ -9742,7 +9748,7 @@ var require_request2 = __commonJS({
     function cloneRequest(request) {
       const newRequest = makeRequest({ ...request, body: null });
       if (request.body != null) {
-        newRequest.body = cloneBody(request.body);
+        newRequest.body = cloneBody(newRequest, request.body);
       }
       return newRequest;
     }
