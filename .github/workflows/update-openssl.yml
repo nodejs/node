@@ -36,7 +36,7 @@ jobs:
           body: This is an automated update of OpenSSL to ${{ env.NEW_VERSION }}.
           branch: actions/tools-update-openssl  # Custom branch *just* for this Action.
           commit-message: 'deps: upgrade openssl sources to quictls/openssl-${{ env.NEW_VERSION }}'
-          labels: dependencies
+          labels: dependencies, openssl
           title: 'deps: update OpenSSL to ${{ env.NEW_VERSION }}'
           path: deps/openssl
           update-pull-request-title-and-body: true
