@@ -151,14 +151,14 @@ const tests = [
   { name: 'test-runner/output/test-runner-plan.js' },
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
   { name: 'test-runner/output/test-diagnostic-warning-without-test-only-flag.js' },
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-80.js' } : false,
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-100.js' } : false,
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-150.js' } : false,
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-infinity.js' } : false,
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-80-uncovered-lines.js' } : false,
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-100-uncovered-lines.js' } : false,
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-150-uncovered-lines.js' } : false,
-  process.features.inspector ? { name: 'test-runner/output/coverage-width-infinity-uncovered-lines.js' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-80.mjs' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-100.mjs' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-150.mjs' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-infinity.mjs' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-80-uncovered-lines.mjs' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-100-uncovered-lines.mjs' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-150-uncovered-lines.mjs' } : false,
+  process.features.inspector ? { name: 'test-runner/output/coverage-width-infinity-uncovered-lines.mjs' } : false,
 ]
 .filter(Boolean)
 .map(({ name, tty, transform }) => ({
