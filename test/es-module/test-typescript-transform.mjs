@@ -114,3 +114,15 @@ test('execute a transpiled JavaScript file', async () => {
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
+
+test('execute TypeScript file with import = require', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-transform-types',
+    '--no-warnings',
+    fixtures.path('typescript/cts/test-import-require.cts'),
+  ]);
+
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
