@@ -979,7 +979,7 @@ memory, with a storage quota of 10 MB. `sessionStorage` data persists only withi
 the currently running process, and is not shared between workers.
 [`--experimental-webstorage`][] CLI flag. `sessionStorage` data is not stored per
 user or per request when used in the context of a server, it is specific to
-a single session.
+a single context.
 
 ## `setImmediate(callback[, ...args])`
 
