@@ -1564,11 +1564,12 @@ void Initialize(Local<Object> target,
                 "latin1WriteStatic",
                 SlowWriteString<LATIN1>,
                 &fast_write_string);
-  SetFastMethod(context,
-                target,
-                "utf8WriteStatic",
-                SlowWriteString<UTF8>,
-                &fast_write_string);
+  // SetFastMethod(context,
+  //               target,
+  //               "utf8WriteStatic",
+  //               SlowWriteString<UTF8>,
+  //               &fast_write_string);
+  SetMethod(context, target, "utf8WriteStatic", SlowWriteString<UTF8>);
 
   SetMethod(context, target, "getZeroFillToggle", GetZeroFillToggle);
 }
