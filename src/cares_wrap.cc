@@ -1566,6 +1566,24 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(val);
 }
 
+void ConvertIpv6StringToBuffer(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+  unsigned char dst[16];  // IPv6 addresses are 128 bits (16 bytes)
+
+  if (uv_inet_pton(AF_INET6, *ip, dst) != 0) {
+    isolate->ThrowException(v8::Exception::Error(
+        String::NewFromUtf8(isolate, "Invalid IPv6 address").ToLocalChecked()));
+    return;
+  }
+
+  Local<Object> buffer =
+      node::Buffer::Copy(
+          isolate, reinterpret_cast<const char*>(dst), sizeof(dst))
+          .ToLocalChecked();
+  args.GetReturnValue().Set(buffer);
+}
+
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1902,6 +1920,8 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getaddrinfo", GetAddrInfo);
   SetMethod(context, target, "getnameinfo", GetNameInfo);
   SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
+  SetMethodNoSideEffect(
+      context, target, "convertIpv6StringToBuffer", ConvertIpv6StringToBuffer);
 
   SetMethod(context, target, "strerror", StrError);
 
@@ -1995,6 +2015,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetAddrInfo);
   registry->Register(GetNameInfo);
   registry->Register(CanonicalizeIP);
+  registry->Register(ConvertIpv6StringToBuffer);
   registry->Register(StrError);
   registry->Register(ChannelWrap::New);
 
