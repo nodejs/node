@@ -342,10 +342,10 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
     result->MakeWeak();
   }
 
-  Local<Object> referrer =
+  Local<Object> wrapper_holder =
       sandbox_obj.IsEmpty() ? new_context_global : sandbox_obj;
-  if (!referrer.IsEmpty() &&
-      referrer
+  if (!wrapper_holder.IsEmpty() &&
+      wrapper_holder
           ->SetPrivate(
               v8_context, env->contextify_context_private_symbol(), wrapper)
           .IsNothing()) {
@@ -453,9 +453,9 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
 
 // static
 ContextifyContext* ContextifyContext::ContextFromContextifiedSandbox(
-    Environment* env, const Local<Object>& referrer) {
+    Environment* env, const Local<Object>& wrapper_holder) {
   Local<Value> contextify;
-  if (referrer
+  if (wrapper_holder
           ->GetPrivate(env->context(), env->contextify_context_private_symbol())
           .ToLocal(&contextify) &&
       contextify->IsObject()) {

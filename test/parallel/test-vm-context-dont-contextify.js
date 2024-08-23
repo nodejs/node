@@ -10,7 +10,7 @@ const fixtures = require('../common/fixtures');
 
 {
   // Check identity of the returned object.
-  const context = new vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
   // The globalThis in the new context should be reference equal to the returned object.
   assert.strictEqual(vm.runInContext('globalThis', context), context);
   assert(vm.isContext(context));
@@ -20,14 +20,14 @@ const fixtures = require('../common/fixtures');
 
 {
   // Check that vm.createContext can return the original context if re-passed.
-  const context = new vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
   const context2 = new vm.createContext(context);
   assert.strictEqual(context, context2);
 }
 
 {
   // Check that the context is vanilla and that Script.runInContext works.
-  const context = new vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
   const result =
     new vm.Script('globalThis.hey = 1; Object.freeze(globalThis); globalThis.process')
       .runInContext(context);
@@ -55,7 +55,7 @@ const fixtures = require('../common/fixtures');
 
 {
   // Check that the global object of vanilla contexts work as expected.
-  const context = new vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
 
   // Check mutation via globalThis.
   vm.runInContext('globalThis.foo = 1;', context);
@@ -155,7 +155,7 @@ function checkFrozen(context) {
 
 {
   // Check freezing the vanilla context's global object from within the context.
-  const context = new vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
   // Only vanilla contexts' globals can be freezed. Contextified global objects cannot be freezed
   // due to the presence of interceptors.
   vm.runInContext('Object.freeze(globalThis)', context);
@@ -164,7 +164,7 @@ function checkFrozen(context) {
 
 {
   // Check freezing the vanilla context's global object from outside the context.
-  const context = new vm.createContext(vm.constants.DONT_CONTEXTIFY);
+  const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
   Object.freeze(context);
   checkFrozen(context);
 }
@@ -175,7 +175,7 @@ function checkFrozen(context) {
     const moduleUrl = fixtures.fileURL('es-modules', 'message.mjs');
     const namespace = await import(moduleUrl.href);
     // Check dynamic import works
-    const context = new vm.createContext(vm.constants.DONT_CONTEXTIFY);
+    const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
     const script = new vm.Script(`import('${encodeURI(moduleUrl.href)}')`, {
       importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
     });
