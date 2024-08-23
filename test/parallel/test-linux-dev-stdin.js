@@ -5,7 +5,7 @@ const fs = require('fs');
 
 //
 // This test ensures Node.js doesn't crash when reading from /dev/stdin as an input.
-// ref: https://github.com/nodejs/node/issues/54200
+// Ref: https://github.com/nodejs/node/issues/54200
 //
 
 if (!fs.existsSync('/dev/stdin')) {
