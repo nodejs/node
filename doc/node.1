@@ -450,11 +450,20 @@ Starts the Node.js command line test runner.
 The maximum number of test files that the test runner CLI will execute
 concurrently.
 .
+.It Fl -test-coverage-branches Ns = Ns Ar threshold
+Require a minimum threshold for branch coverage (0 - 100).
+.
 .It Fl -test-coverage-exclude
 A glob pattern that excludes matching files from the coverage report
 .
+.It Fl -test-coverage-functions Ns = Ns Ar threshold
+Require a minimum threshold for function coverage (0 - 100).
+.
 .It Fl -test-coverage-include
 A glob pattern that only includes matching files in the coverage report
+.
+.It Fl -test-coverage-lines Ns = Ns Ar threshold
+Require a minimum threshold for line coverage (0 - 100).
 .
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have

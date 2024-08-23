@@ -2218,6 +2218,17 @@ concurrently. If `--experimental-test-isolation` is set to `'none'`, this flag
 is ignored and concurrency is one. Otherwise, concurrency defaults to
 `os.availableParallelism() - 1`.
 
+### `--test-coverage-branches=threshold`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Require a minimum percent of covered branches. If code coverage does not reach
+the threshold specified, the process will exit with code `1`.
+
 ### `--test-coverage-exclude`
 
 <!-- YAML
@@ -2235,6 +2246,17 @@ This option may be specified multiple times to exclude multiple glob patterns.
 If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
 files must meet **both** criteria to be included in the coverage report.
 
+### `--test-coverage-functions=threshold`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Require a minimum percent of covered functions. If code coverage does not reach
+the threshold specified, the process will exit with code `1`.
+
 ### `--test-coverage-include`
 
 <!-- YAML
@@ -2251,6 +2273,17 @@ This option may be specified multiple times to include multiple glob patterns.
 
 If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
 files must meet **both** criteria to be included in the coverage report.
+
+### `--test-coverage-lines=threshold`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Require a minimum percent of covered lines. If code coverage does not reach
+the threshold specified, the process will exit with code `1`.
 
 ### `--test-force-exit`
 
@@ -3047,8 +3080,11 @@ one is included in the list below.
 * `--secure-heap-min`
 * `--secure-heap`
 * `--snapshot-blob`
+* `--test-coverage-branches`
 * `--test-coverage-exclude`
+* `--test-coverage-functions`
 * `--test-coverage-include`
+* `--test-coverage-lines`
 * `--test-name-pattern`
 * `--test-only`
 * `--test-reporter-destination`
