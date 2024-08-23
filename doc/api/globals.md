@@ -979,7 +979,7 @@ memory, with a storage quota of 10 MB. `sessionStorage` data persists only withi
 the currently running process, and is not shared between workers.
 [`--experimental-webstorage`][] CLI flag. `sessionStorage` data is not stored per
 user or per request when used in the context of a server, it is specific to
-a single context.
+a single session.
 
 ## `setImmediate(callback[, ...args])`
 
@@ -1278,4 +1278,5 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [timers]: timers.md
+[webassembly-org]: https://webassembly.org
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
