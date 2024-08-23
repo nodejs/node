@@ -30,7 +30,7 @@ describe('Test reading SourceCode from stdin and it\'s symlinks', () => {
     assert.strictEqual(cp2.toString(), '2\n');
   });
 
-  it('Test reading sourcecode from a symlink to the `readlink /dev/stdin`', () => {
+  it('Test reading sourcecode from a symlink to the `readlink -f /dev/stdin`', () => {
     const devStdin = fs.readlinkSync('/dev/stdin');
     const cp3 = child_process.execSync(`printf 'console.log(3)' | "${process.execPath}" "${devStdin}"`, { stdio: 'pipe' });
     assert.strictEqual(cp3.toString(), '3\n');
