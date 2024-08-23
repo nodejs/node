@@ -549,8 +549,6 @@ struct SnapshotMetadata {
   std::string node_version;
   std::string node_arch;
   std::string node_platform;
-  // Result of v8::ScriptCompiler::CachedDataVersionTag().
-  uint32_t v8_cache_version_tag;
   SnapshotFlags flags;
 };
 
