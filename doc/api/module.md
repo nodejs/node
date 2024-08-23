@@ -162,6 +162,14 @@ be inheritend into the child workers. The directory can be obtained either from 
 
 #### Module compile cache
 
+<!-- YAML
+added: v22.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54501
+    description: add initial JavaScript APIs for runtime access.
+-->
+
 The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
 method or the [`NODE_COMPILE_CACHE=dir`][] environemnt variable. After it's enabled,
 whenever Node.js compiles a CommonJS or a ECMAScript Module, it will use on-disk
@@ -200,7 +208,7 @@ added: REPLACEME
 > Stability: 1.1 - Active Development
 
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
-  or undefined otherwise.
+  or `undefined` otherwise.
 
 ### `module.isBuiltin(moduleName)`
 

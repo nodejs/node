@@ -2808,7 +2808,7 @@ added: v22.1.0
 
 > Stability: 1.1 - Active Development
 
-Enable the [module compile cache][] for the Node.js instance. See the documentatoin of
+Enable the [module compile cache][] for the Node.js instance. See the documentation of
 [module compile cache][] for details.
 
 ### `NODE_DEBUG=module[,…]`
@@ -2839,7 +2839,7 @@ added: REPLACEME
 
 > Stability: 1.1 - Active Development
 
-Disable the [module compile cache][] for the Node.js instance. See the documentatoin of
+Disable the [module compile cache][] for the Node.js instance. See the documentation of
 [module compile cache][] for details.
 
 ### `NODE_EXTRA_CA_CERTS=file`
