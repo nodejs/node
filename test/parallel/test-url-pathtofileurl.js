@@ -88,6 +88,12 @@ const windowsTestCases = [
   { path: 'C:\\foo;bar', expected: 'file:///C:/foo;bar' },
   // percent
   { path: 'C:\\foo%bar', expected: 'file:///C:/foo%25bar' },
+  // caret
+  { path: 'C:\\foo^bar', expected: 'file:///C:/foo%5Ebar' },
+  // left bracket
+  { path: 'C:\\foo[bar', expected: 'file:///C:/foo%5Bbar' },
+  // right bracket
+  { path: 'C:\\foo]bar', expected: 'file:///C:/foo%5Dbar' },
   // backslash
   { path: 'C:\\foo\\bar', expected: 'file:///C:/foo/bar' },
   // backspace
@@ -138,6 +144,12 @@ const posixTestCases = [
   { path: '/foo;bar', expected: 'file:///foo;bar' },
   // percent
   { path: '/foo%bar', expected: 'file:///foo%25bar' },
+  // caret
+  { path: '/foo^bar', expected: 'file:///foo%5Ebar' },
+  // left bracket
+  { path: '/foo[bar', expected: 'file:///foo%5Bbar' },
+  // right bracket
+  { path: '/foo]bar', expected: 'file:///foo%5Dbar' },
   // backslash
   { path: '/foo\\bar', expected: 'file:///foo%5Cbar' },
   // backspace
