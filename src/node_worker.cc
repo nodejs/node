@@ -531,8 +531,12 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   } else if (args[1]->IsObject()) {
     // User provided env.
     env_vars = KVStore::CreateMapKVStore();
-    env_vars->AssignFromObject(isolate->GetCurrentContext(),
-                               args[1].As<Object>());
+    if (env_vars
+            ->AssignFromObject(isolate->GetCurrentContext(),
+                               args[1].As<Object>())
+            .IsNothing()) {
+      return;
+    }
   } else {
     // Env is shared.
     env_vars = env->env_vars();
@@ -542,21 +546,21 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     per_isolate_opts.reset(new PerIsolateOptions());
 
     HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
-      return env_vars->Get(name).FromMaybe("");
+      return env_vars->Get(name).value_or("");
     });
 
 #ifndef NODE_WITHOUT_NODE_OPTIONS
-    std::string node_options;
-    if (env_vars->Get("NODE_OPTIONS").To(&node_options)) {
+    std::optional<std::string> node_options = env_vars->Get("NODE_OPTIONS");
+    if (node_options.has_value()) {
       std::vector<std::string> errors{};
       std::vector<std::string> env_argv =
-          ParseNodeOptionsEnvVar(node_options, &errors);
+          ParseNodeOptionsEnvVar(node_options.value(), &errors);
       // [0] is expected to be the program name, add dummy string.
       env_argv.insert(env_argv.begin(), "");
       std::vector<std::string> invalid_args{};
 
-      std::string parent_node_options;
-      USE(env->env_vars()->Get("NODE_OPTIONS").To(&parent_node_options));
+      std::optional<std::string> parent_node_options =
+          env->env_vars()->Get("NODE_OPTIONS");
 
       // If the worker code passes { env: { ...process.env, ... } } or
       // the NODE_OPTIONS is otherwise character-for-character equal to the
