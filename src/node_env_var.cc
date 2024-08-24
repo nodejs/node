@@ -240,7 +240,7 @@ std::optional<std::string> MapKVStore::Get(const char* key) const {
 MaybeLocal<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
   Utf8Value str(isolate, key);
   std::optional<std::string> value = Get(*str);
-  if (value.has_value()) return MaybeLocal<String>();
+  if (!value.has_value()) return MaybeLocal<String>();
   std::string val = value.value();
   return String::NewFromUtf8(
       isolate, val.data(), NewStringType::kNormal, val.size());
