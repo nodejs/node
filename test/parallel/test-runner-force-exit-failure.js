@@ -8,6 +8,7 @@ const fixture = fixtures.path('test-runner/throws_sync_and_async.js');
 for (const isolation of ['none', 'process']) {
   const args = [
     '--test',
+    '--test-reporter=spec',
     '--test-force-exit',
     `--experimental-test-isolation=${isolation}`,
     fixture,
@@ -19,6 +20,6 @@ for (const isolation of ['none', 'process']) {
   strictEqual(r.stderr.toString(), '');
 
   const stdout = r.stdout.toString();
-  match(stdout, /error: 'fails'/);
+  match(stdout, /Error: fails/);
   doesNotMatch(stdout, /this should not have a chance to be thrown/);
 }

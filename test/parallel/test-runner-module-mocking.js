@@ -571,7 +571,7 @@ test('node_modules can be used by both module systems', async (t) => {
 
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
-  assert.match(stdout, /# pass 1/);
+  assert.match(stdout, /pass 1/);
 });
 
 test('file:// imports are supported in ESM only', async (t) => {
