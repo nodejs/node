@@ -1000,11 +1000,12 @@ flags for the test runner to use a specific reporter.
 
 The following built-reporters are supported:
 
+* `spec`
+  The `spec` reporter outputs the test results in a human-readable format. This
+  is the default reporter.
+
 * `tap`
   The `tap` reporter outputs the test results in the [TAP][] format.
-
-* `spec`
-  The `spec` reporter outputs the test results in a human-readable format.
 
 * `dot`
   The `dot` reporter outputs the test results in a compact format,
@@ -1017,9 +1018,6 @@ The following built-reporters are supported:
 * `lcov`
   The `lcov` reporter outputs test coverage when used with the
   [`--experimental-test-coverage`][] flag.
-
-When `stdout` is a [TTY][], the `spec` reporter is used by default.
-Otherwise, the `tap` reporter is used by default.
 
 The exact output of these reporters is subject to change between versions of
 Node.js, and should not be relied on programmatically. If programmatic access
@@ -3505,7 +3503,6 @@ added:
 Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
-[TTY]: tty.md
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-snapshots`]: cli.md#--experimental-test-snapshots
 [`--import`]: cli.md#--importmodule
