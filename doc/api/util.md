@@ -1802,7 +1802,7 @@ console.log(util.stripVTControlCharacters('\u001B[4mvalue\u001B[0m'));
 // Prints "value"
 ```
 
-## `util.styleText(format, text)`
+## `util.styleText(format, text[, options])`
 
 > Stability: 1.1 - Active development
 
