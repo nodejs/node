@@ -355,11 +355,6 @@
             '<(V8_ROOT)/src/builtins/mips64/builtins-mips64.cc',
           ],
         }],
-        ['v8_target_arch=="ppc"', {
-          'sources': [
-            '<(V8_ROOT)/src/builtins/ppc/builtins-ppc.cc',
-          ],
-        }],
         ['v8_target_arch=="ppc64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/ppc/builtins-ppc.cc',
@@ -761,11 +756,6 @@
               }],
             ],
           }],
-          ['v8_target_arch=="ppc"', {
-            'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?v8_current_cpu == \\"ppc\\".*?sources \\+= ")',
-            ],
-          }],
           ['v8_target_arch=="ppc64"', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
@@ -847,11 +837,6 @@
           ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_current_cpu == \\"mips64\\".*?v8_compiler_sources \\+= ")',
-            ],
-          }],
-          ['v8_target_arch=="ppc"', {
-            'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_current_cpu == \\"ppc\\".*?v8_compiler_sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="ppc64"', {
@@ -1066,13 +1051,6 @@
             '<(V8_ROOT)/src/wasm/fuzzing/random-module-generation.cc',
           ],
         }],
-        ['v8_enable_third_party_heap==1', {
-          # TODO(targos): add values from v8_third_party_heap_files to sources
-        }, {
-          'sources': [
-            '<(V8_ROOT)/src/heap/third-party/heap-api-stub.cc',
-          ],
-        }],
         ['v8_enable_heap_snapshot_verify==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_heap_snapshot_verify.*?sources \\+= ")',
@@ -1152,11 +1130,6 @@
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"mips64\\".*?sources \\+= ")',
-          ],
-        }],
-        ['v8_target_arch=="ppc"', {
-          'sources': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"ppc\\".*?sources \\+= ")',
           ],
         }],
         ['v8_target_arch=="ppc64"', {
@@ -1245,12 +1218,9 @@
         ['v8_postmortem_support', {
           'dependencies': ['postmortem-metadata#target'],
         }],
-        ['v8_enable_third_party_heap', {
-          # TODO(targos): add values from v8_third_party_heap_libs to link_settings.libraries
-        }],
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access
-        ['v8_current_cpu in ["mips64", "mips64el", "ppc", "arm", "riscv64", "loong64"]', {
+        ['v8_current_cpu in ["mips64", "mips64el", "arm", "riscv64", "loong64"]', {
           'link_settings': {
             'libraries': ['-latomic', ],
           },
