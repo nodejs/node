@@ -472,7 +472,7 @@ void StartProfilers(Environment* env) {
   }, env);
 
   std::string coverage_str =
-      env->env_vars()->Get("NODE_V8_COVERAGE").FromMaybe(std::string());
+      env->env_vars()->Get("NODE_V8_COVERAGE").value_or(std::string());
   if (!coverage_str.empty() || env->options()->test_runner_coverage) {
     CHECK_NULL(env->coverage_connection());
     env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
