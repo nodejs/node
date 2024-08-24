@@ -106,7 +106,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
 
 #define V(code, type)                                                          \
   template <typename... Args>                                                  \
-  inline v8::Local<v8::Value> code(                                            \
+  inline v8::Local<v8::Object> code(                                           \
       v8::Isolate* isolate, const char* format, Args&&... args) {              \
     std::string message = SPrintF(format, std::forward<Args>(args)...);        \
     v8::Local<v8::String> js_code = OneByteString(isolate, #code);             \
@@ -206,17 +206,15 @@ ERRORS_WITH_CODE(V)
     "Accessing Object.prototype.__proto__ has been "                           \
     "disallowed with --disable-proto=throw")
 
-#define V(code, message)                                                     \
-  inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
-    return code(isolate, message);                                           \
-  }                                                                          \
-  inline void THROW_ ## code(v8::Isolate* isolate) {                         \
-    isolate->ThrowException(code(isolate, message));                         \
-  }                                                                          \
-  inline void THROW_ ## code(Environment* env) {                             \
-    THROW_ ## code(env->isolate());                                          \
-  }
-  PREDEFINED_ERROR_MESSAGES(V)
+#define V(code, message)                                                       \
+  inline v8::Local<v8::Object> code(v8::Isolate* isolate) {                    \
+    return code(isolate, message);                                             \
+  }                                                                            \
+  inline void THROW_##code(v8::Isolate* isolate) {                             \
+    isolate->ThrowException(code(isolate, message));                           \
+  }                                                                            \
+  inline void THROW_##code(Environment* env) { THROW_##code(env->isolate()); }
+PREDEFINED_ERROR_MESSAGES(V)
 #undef V
 
 // Errors with predefined non-static messages
@@ -228,7 +226,7 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
 }
 
-inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
+inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   char message[128];
   snprintf(message, sizeof(message),
       "Cannot create a Buffer larger than 0x%zx bytes",
@@ -236,7 +234,7 @@ inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
   return ERR_BUFFER_TOO_LARGE(isolate, message);
 }
 
-inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
+inline v8::Local<v8::Object> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
   char message[128];
   snprintf(message, sizeof(message),
       "Cannot create a string longer than 0x%x characters",
