@@ -241,8 +241,10 @@ coverage-clean:
 	$(RM) -r node_modules
 	$(RM) -r gcovr
 	$(RM) -r coverage/tmp
-	$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
-		-type f -exec $(RM) {} \;
+	@if [ -d "out/Release/obj.target" ]; then \
+		$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
+			-type f -exec $(RM) {};\
+	fi
 
 .PHONY: coverage
 # Build and test with code coverage reporting. HTML coverage reports will be
@@ -266,7 +268,9 @@ coverage-build-js:
 
 .PHONY: coverage-test
 coverage-test: coverage-build
-	$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -exec $(RM) {} \;
+	@if [ -d "out/Release/obj.target" ]; then \
+		$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f -exec $(RM) {}; \
+	fi
 	-NODE_V8_COVERAGE=coverage/tmp \
 		TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
