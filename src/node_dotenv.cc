@@ -52,7 +52,7 @@ void Dotenv::SetEnvironment(node::Environment* env) {
 
     auto existing = env->env_vars()->Get(key.data());
 
-    if (existing.IsNothing()) {
+    if (!existing.has_value()) {
       env->env_vars()->Set(
           isolate,
           v8::String::NewFromUtf8(
