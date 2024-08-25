@@ -1096,7 +1096,7 @@ report is not generated. See the documentation on
 ### `--experimental-test-isolation=mode`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.0 - Early development
@@ -2221,7 +2221,7 @@ is ignored and concurrency is one. Otherwise, concurrency defaults to
 ### `--test-coverage-branches=threshold`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -2249,7 +2249,7 @@ files must meet **both** criteria to be included in the coverage report.
 ### `--test-coverage-functions=threshold`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -2277,7 +2277,7 @@ files must meet **both** criteria to be included in the coverage report.
 ### `--test-coverage-lines=threshold`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -2867,7 +2867,7 @@ When set, colors will not be used in the REPL.
 ### `NODE_DISABLE_COMPILE_CACHE=1`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development

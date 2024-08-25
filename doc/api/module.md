@@ -67,7 +67,7 @@ const siblingModule = require('./sibling-module');
 ### `module.constants.compileCacheStatus`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -120,7 +120,7 @@ The following constants are returned as the `status` field in the object returne
 ### `module.enableCompileCache([cacheDir])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -165,7 +165,7 @@ be inheritend into the child workers. The directory can be obtained either from 
 <!-- YAML
 added: v22.1.0
 changes:
-  - version: REPLACEME
+  - version: v22.8.0
     pr-url: https://github.com/nodejs/node/pull/54501
     description: add initial JavaScript APIs for runtime access.
 -->
@@ -202,7 +202,7 @@ separately if the same base directory is used to persist the cache, so they can 
 ### `module.getCompileCacheDir()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development

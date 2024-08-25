@@ -1811,7 +1811,7 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v22.8.0
     pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and environment variables
       such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
