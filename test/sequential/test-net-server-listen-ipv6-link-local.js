@@ -15,7 +15,7 @@ if (!common.hasIPv6) {
   mock.method(dns, 'lookup', (hostname, options, callback) => {
     callback(new Error('Mocked error'));
   });
-  const host = 'ipv6_link_local';
+  const host = 'ipv6-link-local';
 
   const server = net.createServer();
 
@@ -30,13 +30,13 @@ if (!common.hasIPv6) {
 // Test on IPv6 Server, server.listen throws an error
 {
   mock.method(dns, 'lookup', (hostname, options, callback) => {
-    if (hostname === 'ipv6_link_local') {
+    if (hostname === 'ipv6-link-local') {
       callback(null, [{ address: 'fe80::1', family: 6 }]);
     } else {
       dns.lookup.wrappedMethod(hostname, options, callback);
     }
   });
-  const host = 'ipv6_link_local';
+  const host = 'ipv6-link-local';
 
   const server = net.createServer();
 
@@ -52,7 +52,7 @@ if (!common.hasIPv6) {
 {
 
   mock.method(dns, 'lookup', (hostname, options, callback) => {
-    if (hostname === 'ipv6_link_local_with_many_entries') {
+    if (hostname === 'ipv6-link-local-with-many-entries') {
       callback(null, [
         { address: 'fe80::1', family: 6 },
         { address: 'fe80::abcd:1234', family: 6 },
@@ -84,7 +84,7 @@ if (!common.hasIPv6) {
     }
   });
 
-  const host = 'ipv6_link_local_with_many_entries';
+  const host = 'ipv6-link-local-with-many-entries';
 
   const server = net.createServer();
 
@@ -103,11 +103,11 @@ if (!common.hasIPv6) {
 // Test on IPv6 Server, picks ::1 because the other address is a link-local address
 {
 
-  const host = 'ipv6_link_local_with_double_entry';
+  const host = 'ipv6-link-local-with-double-entry';
   const validIpv6Address = '::1';
 
   mock.method(dns, 'lookup', (hostname, options, callback) => {
-    if (hostname === 'ipv6_link_local_with_double_entry') {
+    if (hostname === 'ipv6-link-local-with-double-entry') {
       callback(null, [
         { address: 'fe80::1', family: 6 },
         { address: validIpv6Address, family: 6 },
