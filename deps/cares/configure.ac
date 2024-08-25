@@ -2,10 +2,10 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.33.0],
+AC_INIT([c-ares], [1.33.1],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="20:0:18"
+CARES_VERSION_INFO="20:1:18"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -153,8 +153,6 @@ _EOF
 ])
 
 AX_CODE_COVERAGE
-AX_CHECK_USER_NAMESPACE
-AX_CHECK_UTS_NAMESPACE
 AC_SYS_LARGEFILE
 
 case $host_os in
@@ -818,6 +816,12 @@ if test "x$build_tests" != "xno" ; then
       build_tests=no
     else
       AC_MSG_ERROR([tests require gmock])
+    fi
+  else
+    PKG_CHECK_MODULES([GMOCK112], [gmock >= 1.12.0], [ have_gmock_v112=yes ], [ have_gmock_v112=no ])
+    if test "x$have_gmock_v112" = "xyes" ; then
+      AX_CHECK_USER_NAMESPACE
+      AX_CHECK_UTS_NAMESPACE
     fi
   fi
 fi
