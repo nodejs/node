@@ -58,7 +58,7 @@ uint64_t ngtcp2_range_len(const ngtcp2_range *r);
 
 /*
  * ngtcp2_range_eq returns nonzero if |a| equals |b|, such that
- * a->begin == b->begin, and a->end == b->end hold.
+ * a->begin == b->begin and a->end == b->end hold.
  */
 int ngtcp2_range_eq(const ngtcp2_range *a, const ngtcp2_range *b);
 

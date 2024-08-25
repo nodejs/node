@@ -39,7 +39,10 @@ typedef struct ngtcp2_memblock_hd ngtcp2_memblock_hd;
  * ngtcp2_memblock_hd is the header of memory block.
  */
 struct ngtcp2_memblock_hd {
-  ngtcp2_memblock_hd *next;
+  union {
+    ngtcp2_memblock_hd *next;
+    uint64_t pad;
+  };
 };
 
 /*

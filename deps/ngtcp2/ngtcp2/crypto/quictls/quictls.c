@@ -973,8 +973,7 @@ static int flush_flight(SSL *ssl) {
   return 1;
 }
 
-static int send_alert(SSL *ssl, enum ssl_encryption_level_t level,
-                      uint8_t alert) {
+static int send_alert(SSL *ssl, OSSL_ENCRYPTION_LEVEL level, uint8_t alert) {
   ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
   ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
   (void)level;

@@ -540,7 +540,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_generate_stateless_reset_token(
  * `ngtcp2_crypto_generate_retry_token` or
  * `ngtcp2_crypto_generate_regular_token`.
  */
-#define NGTCP2_CRYPTO_TOKEN_RAND_DATALEN 32
+#define NGTCP2_CRYPTO_TOKEN_RAND_DATALEN 16
 
 /**
  * @macro

@@ -39,8 +39,9 @@
  * ngtcp2_gaptr maintains the gap in the range [0, UINT64_MAX).
  */
 typedef struct ngtcp2_gaptr {
-  /* gap maintains the range of offset which is not received
-     yet. Initially, its range is [0, UINT64_MAX). */
+  /* gap maintains the range of offset which is not pushed
+     yet. Initially, its range is [0, UINT64_MAX).  "gap" is the range
+     that is not pushed yet. */
   ngtcp2_ksl gap;
   /* mem is custom memory allocator */
   const ngtcp2_mem *mem;
@@ -57,8 +58,7 @@ void ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem);
 void ngtcp2_gaptr_free(ngtcp2_gaptr *gaptr);
 
 /*
- * ngtcp2_gaptr_push adds new data of length |datalen| at the stream
- * offset |offset|.
+ * ngtcp2_gaptr_push pushes the range [offset, offset + datalen).
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -76,7 +76,7 @@ uint64_t ngtcp2_gaptr_first_gap_offset(ngtcp2_gaptr *gaptr);
 
 /*
  * ngtcp2_gaptr_get_first_gap_after returns the first gap which
- * overlaps or comes after |offset|.
+ * includes or comes after |offset|.
  */
 ngtcp2_range ngtcp2_gaptr_get_first_gap_after(ngtcp2_gaptr *gaptr,
                                               uint64_t offset);

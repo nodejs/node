@@ -51,6 +51,7 @@ typedef struct ngtcp2_rs {
   uint64_t prior_lost;
   ngtcp2_duration send_elapsed;
   ngtcp2_duration ack_elapsed;
+  int64_t last_end_seq;
   int is_app_limited;
 } ngtcp2_rs;
 
@@ -58,7 +59,7 @@ void ngtcp2_rs_init(ngtcp2_rs *rs);
 
 /*
  * ngtcp2_rst implements delivery rate estimation described in
- * https://tools.ietf.org/html/draft-cheng-iccrg-delivery-rate-estimation-00
+ * https://ietf-wg-ccwg.github.io/draft-cardwell-ccwg-bbr/draft-cardwell-ccwg-bbr.html
  */
 typedef struct ngtcp2_rst {
   ngtcp2_rs rs;
@@ -70,6 +71,11 @@ typedef struct ngtcp2_rst {
   uint64_t next_round_delivered;
   uint64_t round_count;
   uint64_t lost;
+  /* last_seq is the sequence number of packets across all packet
+     number spaces.  If we would adopt single packet number sequence
+     across all packet number spaces, we can replace this with a
+     packet number. */
+  int64_t last_seq;
   int is_cwnd_limited;
 } ngtcp2_rst;
 

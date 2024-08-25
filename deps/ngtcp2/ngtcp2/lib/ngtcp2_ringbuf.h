@@ -115,9 +115,8 @@ void *ngtcp2_ringbuf_get(ngtcp2_ringbuf *rb, size_t offset);
 int ngtcp2_ringbuf_full(ngtcp2_ringbuf *rb);
 
 /* ngtcp2_static_ringbuf_def defines ngtcp2_ringbuf struct wrapper
-   which uses a statically allocated buffer that is suitable for a
-   usage that does not change buffer size with ngtcp2_ringbuf_resize.
-   ngtcp2_ringbuf_free should never be called for rb field. */
+   which uses a statically allocated buffer.  ngtcp2_ringbuf_free
+   should never be called for rb field. */
 #define ngtcp2_static_ringbuf_def(NAME, NMEMB, SIZE)                           \
   typedef struct ngtcp2_static_ringbuf_##NAME {                                \
     ngtcp2_ringbuf rb;                                                         \

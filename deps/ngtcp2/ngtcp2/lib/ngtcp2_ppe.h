@@ -36,11 +36,17 @@
 #include "ngtcp2_crypto.h"
 
 /*
- * ngtcp2_ppe is the Protected Packet Encoder.
+ * ngtcp2_ppe is the QUIC Packet Encoder.
  */
 typedef struct ngtcp2_ppe {
+  /* buf is the buffer where a QUIC packet is written. */
   ngtcp2_buf buf;
+  /* cc is the encryption context that includes callback functions to
+     encrypt a QUIC packet, and AEAD cipher, etc. */
   ngtcp2_crypto_cc *cc;
+  /* dgram_offset is the offset in UDP datagram payload that this QUIC
+     packet is positioned at. */
+  size_t dgram_offset;
   /* hdlen is the number of bytes for packet header written in buf. */
   size_t hdlen;
   /* len_offset is the offset to Length field. */
@@ -53,7 +59,7 @@ typedef struct ngtcp2_ppe {
   /* pkt_num is the packet number written in buf. */
   int64_t pkt_num;
   /* nonce is the buffer to store nonce.  It should be equal or longer
-     than then length of IV. */
+     than the length of IV. */
   uint8_t nonce[32];
 } ngtcp2_ppe;
 
@@ -61,7 +67,7 @@ typedef struct ngtcp2_ppe {
  * ngtcp2_ppe_init initializes |ppe| with the given buffer.
  */
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
-                     ngtcp2_crypto_cc *cc);
+                     size_t dgram_offset, ngtcp2_crypto_cc *cc);
 
 /*
  * ngtcp2_ppe_encode_hd encodes |hd|.
@@ -86,7 +92,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd);
 int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr);
 
 /*
- * ngtcp2_ppe_final encrypts QUIC packet payload.  If |**ppkt| is not
+ * ngtcp2_ppe_final encrypts QUIC packet payload.  If |ppkt| is not
  * NULL, the pointer to the packet is assigned to it.
  *
  * This function returns the length of QUIC packet, including header,
@@ -110,13 +116,26 @@ size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe);
  */
 size_t ngtcp2_ppe_pktlen(ngtcp2_ppe *ppe);
 
-/**
- * @function
+/*
+ * ngtcp2_ppe_dgram_padding is equivalent to call
+ * ngtcp2_ppe_dgram_padding_size(ppe, NGTCP2_MAX_UDP_PAYLOAD_SIZE).
+ * This function should be called just before calling
+ * ngtcp2_ppe_final().
  *
- * `ngtcp2_ppe_padding` encodes PADDING frames to the end of the
- * buffer.  This function returns the number of bytes padded.
+ * This function returns the number of bytes padded.
  */
-size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe);
+size_t ngtcp2_ppe_dgram_padding(ngtcp2_ppe *ppe);
+
+/*
+ * ngtcp2_ppe_dgram_padding_size adds PADDING frame so that the size
+ * of a UDP datagram payload is at least |n| bytes long.  If it is
+ * unable to add PADDING in that way, this function still adds PADDING
+ * frame as much as possible.  This function should be called just
+ * before calling ngtcp2_ppe_final().
+ *
+ * This function returns the number of bytes added as padding.
+ */
+size_t ngtcp2_ppe_dgram_padding_size(ngtcp2_ppe *ppe, size_t n);
 
 /*
  * ngtcp2_ppe_padding_hp_sample adds PADDING frame if the current

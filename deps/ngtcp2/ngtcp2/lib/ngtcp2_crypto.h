@@ -41,33 +41,6 @@
 /* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
 #define NGTCP2_MAX_AEAD_OVERHEAD 16
 
-/* ngtcp2_transport_param_id is the registry of QUIC transport
-   parameter ID. */
-typedef uint64_t ngtcp2_transport_param_id;
-
-#define NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID 0x00
-#define NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT 0x01
-#define NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN 0x02
-#define NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE 0x03
-#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA 0x04
-#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL 0x05
-#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE 0x06
-#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI 0x07
-#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI 0x08
-#define NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI 0x09
-#define NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT 0x0a
-#define NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY 0x0b
-#define NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION 0x0c
-#define NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS 0x0d
-#define NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT 0x0e
-#define NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID 0x0f
-#define NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID 0x10
-/* https://datatracker.ietf.org/doc/html/rfc9221 */
-#define NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE 0x20
-#define NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT 0x2ab2
-/* https://datatracker.ietf.org/doc/html/rfc9368 */
-#define NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION 0x11
-
 /* NGTCP2_CRYPTO_KM_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_CRYPTO_KM_FLAG_NONE 0x00u
 /* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
@@ -126,22 +99,5 @@ typedef struct ngtcp2_crypto_cc {
 
 void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
                                 int64_t pkt_num);
-
-/*
- * ngtcp2_transport_params_copy_new makes a copy of |src|, and assigns
- * it to |*pdest|.  If |src| is NULL, NULL is assigned to |*pdest|.
- *
- * Caller is responsible to call ngtcp2_transport_params_del to free
- * the memory assigned to |*pdest|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_transport_params_copy_new(ngtcp2_transport_params **pdest,
-                                     const ngtcp2_transport_params *src,
-                                     const ngtcp2_mem *mem);
 
 #endif /* NGTCP2_CRYPTO_H */

@@ -184,8 +184,7 @@ static uint8_t *write_pair_cid_impl(uint8_t *p, const uint8_t *name,
   write_pair_cid_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1,       \
                       (VALUE))
 
-#define ngtcp2_make_vec_lit(S)                                                 \
-  { (uint8_t *)(S), sizeof((S)) - 1 }
+#define ngtcp2_make_vec_lit(S) {(uint8_t *)(S), sizeof((S)) - 1}
 
 static uint8_t *write_common_fields(uint8_t *p, const ngtcp2_cid *odcid) {
   p = write_verbatim(

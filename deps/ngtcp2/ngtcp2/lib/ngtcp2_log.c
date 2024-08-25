@@ -296,7 +296,7 @@ static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                     const ngtcp2_connection_close *fr,
                                     const char *dir) {
   char reason[256];
-  size_t reasonlen = ngtcp2_min(sizeof(reason) - 1, fr->reasonlen);
+  size_t reasonlen = ngtcp2_min_size(sizeof(reason) - 1, fr->reasonlen);
 
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT " CONNECTION_CLOSE(0x%02" PRIx64

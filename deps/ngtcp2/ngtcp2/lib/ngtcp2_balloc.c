@@ -66,7 +66,7 @@ int ngtcp2_balloc_get(ngtcp2_balloc *balloc, void **pbuf, size_t n) {
 
   if (ngtcp2_buf_left(&balloc->buf) < n) {
     p = ngtcp2_mem_malloc(balloc->mem,
-                          sizeof(ngtcp2_memblock_hd) + 0x10u + balloc->blklen);
+                          sizeof(ngtcp2_memblock_hd) + 0x8u + balloc->blklen);
     if (p == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
