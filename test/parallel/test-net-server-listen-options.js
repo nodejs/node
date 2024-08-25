@@ -15,6 +15,10 @@ function close() { this.close(); }
   // Test listen({port})
   net.createServer().listen({ port: 0 })
     .on('listening', common.mustCall(close));
+  // Test listen(host, port}) on ipv4
+  net.createServer().listen({ host: '127.0.0.1', port: '3000' }).on('listening', common.mustCall(close));
+  // Test listen(host, port}) on ipv6
+  net.createServer().listen({ host: '::', port: '3001' }).on('listening', common.mustCall(close));
 }
 
 // Test listen(port, cb) and listen({ port }, cb) combinations
@@ -66,6 +70,13 @@ const listenOnPort = [
                       name: 'TypeError',
                       message: /^The argument 'options' must have the property "port" or "path"\. Received .+$/,
                     });
+    } else if (typeof options.host === 'string' && !options.host.match(/^[a-zA-Z0-9-:%.]+$/)) {
+      assert.throws(fn,
+                    {
+                      code: 'ERR_INVALID_ARG_VALUE',
+                      name: 'TypeError',
+                      message: /^The argument 'host' is invalid\. Received .+$/,
+                    });
     } else {
       assert.throws(fn,
                     {
@@ -91,4 +102,5 @@ const listenOnPort = [
   shouldFailToListen({ host: 'localhost:3000' });
   shouldFailToListen({ host: { port: 3000 } });
   shouldFailToListen({ exclusive: true });
+  shouldFailToListen({ host: '[::]', port: 3000 });
 }
