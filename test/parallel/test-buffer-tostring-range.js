@@ -98,3 +98,8 @@ assert.throws(() => {
   name: 'TypeError',
   message: 'Unknown encoding: null'
 });
+
+
+const largeBuffer = Buffer.alloc(2 ** 32);
+// Must not throw when start and end are within kMaxLength
+largeBuffer.toString('utf8', 2 ** 31 + 1, 2 ** 31 + 10);
