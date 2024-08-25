@@ -1,4 +1,4 @@
-/* auto-generated on 2024-08-17 15:52:42 -0400. Do not edit! */
+/* auto-generated on 2024-08-23 15:38:16 -0400. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -14891,14 +14891,14 @@ size_t convert_masked_utf8_to_utf32(const char *input,
   // This results in more instructions but, potentially, also higher speeds.
   //
   // We first try a few fast paths.
-  if((utf8_end_of_code_point_mask & 0xffff) == 0xffff) {
-    // We process in chunks of 16 bytes.
+  if(utf8_end_of_code_point_mask == 0xfff) {
+    // We process in chunks of 12 bytes.
     // use fast implementation in src/simdutf/arm64/simd.h
     // Ideally the compiler can keep the tables in registers.
     simd8<int8_t> temp{vreinterpretq_s8_u8(in)};
     temp.store_ascii_as_utf32_tbl(utf32_out);
-    utf32_output += 16; // We wrote 16 32-bit characters.
-    return 16; // We consumed 16 bytes.
+    utf32_output += 12; // We wrote 12 32-bit characters.
+    return 12; // We consumed 12 bytes.
   }
   if(input_utf8_end_of_code_point_mask == 0x924) {
     // We want to take 4 3-byte UTF-8 code units and turn them into 4 4-byte UTF-32 code units.
@@ -15067,11 +15067,11 @@ size_t convert_masked_utf8_to_latin1(const char *input,
 
   // We first try a few fast paths.
   // The obvious first test is ASCII, which actually consumes the full 16.
-  if((utf8_end_of_code_point_mask & 0xFFFF) == 0xffff) {
-    // We process in chunks of 16 bytes
+  if(utf8_end_of_code_point_mask == 0xfff) {
+    // We process in chunks of 12 bytes
     vst1q_u8(reinterpret_cast<uint8_t*>(latin1_output), in);
-    latin1_output += 16; // We wrote 16 18-bit characters.
-    return 16; // We consumed 16 bytes.
+    latin1_output += 12; // We wrote 12 18-bit characters.
+    return 12; // We consumed 12 bytes.
   }
   /// We do not have a fast path available, or the fast path is unimportant, so we fallback.
   const uint8_t idx =
@@ -17691,6 +17691,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -17765,14 +17768,14 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             // rewind_and_convert_with_errors will seek a potential error from in+pos onward,
             // with the ability to go back up to pos bytes, and read size-pos bytes forward.
             result res = scalar::utf8_to_utf16::rewind_and_convert_with_errors<endian>(pos, in + pos, size - pos, utf16_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -18010,10 +18013,10 @@ using namespace simd;
       size_t pos = 0;
       char32_t* start{utf32_output};
       // In the worst case, we have the haswell kernel which can cause an overflow of
-      // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
+      // 8 words when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 16 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
@@ -18043,6 +18046,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // we have an error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -18116,12 +18122,12 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             result res = scalar::utf8_to_utf32::rewind_and_convert_with_errors(pos, in + pos, size - pos, utf32_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -25087,12 +25093,12 @@ size_t convert_masked_utf8_to_utf32(const char *input,
   const __m128i in = _mm_loadu_si128((__m128i *)input);
   const uint16_t input_utf8_end_of_code_point_mask =
       utf8_end_of_code_point_mask & 0xfff;
-  if(((utf8_end_of_code_point_mask & 0xffff) == 0xffff)) {
-    // We process the data in chunks of 16 bytes.
+  if(utf8_end_of_code_point_mask == 0xfff) {
+    // We process the data in chunks of 12 bytes.
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output), _mm256_cvtepu8_epi32(in));
     _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output+8), _mm256_cvtepu8_epi32(_mm_srli_si128(in,8)));
-    utf32_output += 16; // We wrote 16 32-bit characters.
-    return 16; // We consumed 16 bytes.
+    utf32_output += 12; // We wrote 12 32-bit characters.
+    return 12; // We consumed 12 bytes.
   }
   if(((utf8_end_of_code_point_mask & 0xffff) == 0xaaaa)) {
     // We want to take 8 2-byte UTF-8 code units and turn them into 8 4-byte UTF-32 code units.
@@ -26726,11 +26732,11 @@ size_t convert_masked_utf8_to_latin1(const char *input,
   const uint16_t input_utf8_end_of_code_point_mask =
       utf8_end_of_code_point_mask & 0xfff; // we are only processing 12 bytes in case it is not all ASCII
 
-  if(((utf8_end_of_code_point_mask & 0xffff) == 0xffff)) {
-    // We process the data in chunks of 16 bytes.
+  if(utf8_end_of_code_point_mask == 0xfff) {
+    // We process the data in chunks of 12 bytes.
     _mm_storeu_si128(reinterpret_cast<__m128i *>(latin1_output), in);
-    latin1_output += 16; // We wrote 16 characters.
-    return 16; // We consumed 16 bytes.
+    latin1_output += 12; // We wrote 12 characters.
+    return 12; // We consumed 1 bytes.
   }
   /// We do not have a fast path available, so we fallback.
   const uint8_t idx =
@@ -28001,6 +28007,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -28075,14 +28084,14 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             // rewind_and_convert_with_errors will seek a potential error from in+pos onward,
             // with the ability to go back up to pos bytes, and read size-pos bytes forward.
             result res = scalar::utf8_to_utf16::rewind_and_convert_with_errors<endian>(pos, in + pos, size - pos, utf16_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -28320,10 +28329,10 @@ using namespace simd;
       size_t pos = 0;
       char32_t* start{utf32_output};
       // In the worst case, we have the haswell kernel which can cause an overflow of
-      // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
+      // 8 words when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 16 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
@@ -28353,6 +28362,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // we have an error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -28426,12 +28438,12 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             result res = scalar::utf8_to_utf32::rewind_and_convert_with_errors(pos, in + pos, size - pos, utf32_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -30428,6 +30440,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -30502,14 +30517,14 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             // rewind_and_convert_with_errors will seek a potential error from in+pos onward,
             // with the ability to go back up to pos bytes, and read size-pos bytes forward.
             result res = scalar::utf8_to_utf16::rewind_and_convert_with_errors<endian>(pos, in + pos, size - pos, utf16_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -30747,10 +30762,10 @@ using namespace simd;
       size_t pos = 0;
       char32_t* start{utf32_output};
       // In the worst case, we have the haswell kernel which can cause an overflow of
-      // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
+      // 8 words when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 16 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
@@ -30780,6 +30795,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // we have an error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -30853,12 +30871,12 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             result res = scalar::utf8_to_utf32::rewind_and_convert_with_errors(pos, in + pos, size - pos, utf32_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -31662,10 +31680,11 @@ simdutf_really_inline static result rvv_validate_utf16_with_errors(const char16_
       break;
     }
   }
-  if (last - 0xD800u < 0x400u)
+  if (last - 0xD800u < 0x400u) {
     return result(error_code::SURROGATE, src - beg - 1); /* end on high surrogate */
-  else
+  } else {
     return result(error_code::SUCCESS, src - beg);
+  }
 }
 
 simdutf_warn_unused result implementation::validate_utf16le_with_errors(const char16_t *src, size_t len) const noexcept {
@@ -31701,11 +31720,14 @@ simdutf_warn_unused result implementation::validate_utf32_with_errors(const char
     vl = __riscv_vsetvl_e32m8(len);
     vuint32m8_t v = __riscv_vle32_v_u32m8((uint32_t*)src, vl);
     vuint32m8_t off = __riscv_vadd_vx_u32m8(v, 0xFFFF2000, vl);
-    long idx;
-    idx = __riscv_vfirst_m_b4(__riscv_vmsgtu_vx_u32m8_b4(v, 0x10FFFF, vl), vl);
-    if (idx >= 0) return result(error_code::TOO_LARGE, src - beg + idx);
-    idx = __riscv_vfirst_m_b4(__riscv_vmsgtu_vx_u32m8_b4(off, 0xFFFFF7FF, vl), vl);
-    if (idx >= 0) return result(error_code::SURROGATE, src - beg + idx);
+    long idx1 = __riscv_vfirst_m_b4(__riscv_vmsgtu_vx_u32m8_b4(v, 0x10FFFF, vl), vl);
+    long idx2 = __riscv_vfirst_m_b4(__riscv_vmsgtu_vx_u32m8_b4(off, 0xFFFFF7FF, vl), vl);
+    if(idx1 >= 0 && idx2 >= 0) {
+      if(idx1 <= idx2) { return result(error_code::TOO_LARGE, src - beg + idx1); }
+      else { return result(error_code::SURROGATE, src - beg + idx2); }
+    }
+    if (idx1 >= 0) { return result(error_code::TOO_LARGE, src - beg + idx1); }
+    if (idx2 >= 0) { return result(error_code::SURROGATE, src - beg + idx2); }
   }
   return result(error_code::SUCCESS, src - beg);
 }
@@ -32139,7 +32161,7 @@ simdutf_really_inline static result rvv_utf16_to_latin1_with_errors(const char16
     v = simdutf_byteflip<bflip>(v, vl);
     long idx = __riscv_vfirst_m_b2(__riscv_vmsgtu_vx_u16m8_b2(v, 255, vl), vl);
     if (idx >= 0)
-      return result(error_code::TOO_LARGE, beg - src + idx);
+      return result(error_code::TOO_LARGE, src - beg + idx);
     __riscv_vse8_v_u8m4((uint8_t*)dst, __riscv_vncvt_x_x_w_u8m4(v, vl), vl);
   }
   return result(error_code::SUCCESS, src - beg);
@@ -32391,7 +32413,11 @@ simdutf_really_inline static result rvv_utf16_to_utf32_with_errors(const char16_
         const vbool8_t diff = __riscv_vmxor_mm_b8(surhi, surlo, vl);
         const long idx = __riscv_vfirst_m_b8(diff, vl);
         if (idx >= 0) {
-          return result(error_code::SURROGATE, src - srcBeg + idx + 1);
+          uint16_t word = simdutf_byteflip<bflip>(src[idx]);
+          if(word < 0xD800 || word > 0xDBFF) {
+            return result(error_code::SURROGATE, src - srcBeg + idx + 1);
+          }
+          return result(error_code::SURROGATE, src - srcBeg + idx);
         }
     }
 
@@ -32541,10 +32567,15 @@ simdutf_warn_unused result implementation::convert_utf32_to_utf8_with_errors(con
       n -= vl, src += vl, dst += vlOut;
       continue;
     }
-
+    long idx1 = __riscv_vfirst_m_b8(__riscv_vmsgtu_vx_u32m4_b8(v, 0x10FFFF, vl), vl);
     vbool8_t sur = __riscv_vmseq_vx_u32m4_b8(__riscv_vand_vx_u32m4(v, 0xFFFFF800, vl), 0xD800, vl);
-    long idx = __riscv_vfirst_m_b8(sur, vl);
-    if (idx >= 0) return result(error_code::SURROGATE, src - srcBeg + idx);
+    long idx2 = __riscv_vfirst_m_b8(sur, vl);
+    if(idx1 >= 0 && idx2 >= 0) {
+      if(idx1 <= idx2) { return result(error_code::TOO_LARGE, src - srcBeg + idx1); }
+      else { return result(error_code::SURROGATE, src - srcBeg + idx2); }
+    }
+    if (idx1 >= 0) { return result(error_code::TOO_LARGE, src - srcBeg + idx1); }
+    if (idx2 >= 0) { return result(error_code::SURROGATE, src - srcBeg + idx2); }
 
     vbool8_t m4 = __riscv_vmsgtu_vx_u32m4_b8(v, 0x10000-1, vl);
     long first = __riscv_vfirst_m_b8(m4, vl);
@@ -32619,18 +32650,21 @@ simdutf_really_inline static result rvv_convert_utf32_to_utf16_with_errors(const
     vl = __riscv_vsetvl_e32m4(len);
     vuint32m4_t v = __riscv_vle32_v_u32m4((uint32_t*)src, vl);
     vuint32m4_t off = __riscv_vadd_vx_u32m4(v, 0xFFFF2000, vl);
-    long idx;
-    idx = __riscv_vfirst_m_b8(__riscv_vmsgtu_vx_u32m4_b8(off, 0xFFFFF7FF, vl), vl);
-    if (idx >= 0) return result(error_code::SURROGATE, src - srcBeg + idx);
-    idx = __riscv_vfirst_m_b8(__riscv_vmsgtu_vx_u32m4_b8(v, 0xFFFF, vl), vl);
+    long idx1 = __riscv_vfirst_m_b8(__riscv_vmsgtu_vx_u32m4_b8(v, 0x10FFFF, vl), vl);
+    long idx2 = __riscv_vfirst_m_b8(__riscv_vmsgtu_vx_u32m4_b8(off, 0xFFFFF7FF, vl), vl);
+    if (idx1 >= 0 && idx2 >= 0) {
+      if (idx1 <= idx2) return result(error_code::TOO_LARGE, src - srcBeg + idx1);
+      return result(error_code::SURROGATE, src - srcBeg + idx2);
+    }
+    if (idx1 >= 0) return result(error_code::TOO_LARGE, src - srcBeg + idx1);
+    if (idx2 >= 0) return result(error_code::SURROGATE, src - srcBeg + idx2);
+    long idx = __riscv_vfirst_m_b8(__riscv_vmsgtu_vx_u32m4_b8(v, 0xFFFF, vl), vl);
     if (idx < 0) {
       vlOut = vl;
       vuint16m2_t n = simdutf_byteflip<bflip>(__riscv_vncvt_x_x_w_u16m2(v, vlOut), vlOut);
       __riscv_vse16_v_u16m2((uint16_t*)dst, n, vlOut);
       continue;
     }
-    idx = __riscv_vfirst_m_b8(__riscv_vmsgtu_vx_u32m4_b8(v, 0x10FFFF, vl), vl);
-    if (idx >= 0) return result(error_code::TOO_LARGE, src - srcBeg + idx);
     vlOut = rvv_utf32_store_utf16_m4<bflip>((uint16_t*)dst, v, vl, m4even);
   }
   return result(error_code::SUCCESS, dst - dstBeg);
@@ -33555,14 +33589,14 @@ size_t convert_masked_utf8_to_utf32(const char *input,
   const __m128i in = _mm_loadu_si128((__m128i *)input);
   const uint16_t input_utf8_end_of_code_point_mask =
       utf8_end_of_code_point_mask & 0xfff;
-  if(((utf8_end_of_code_point_mask & 0xffff) == 0xffff)) {
-    // We process the data in chunks of 16 bytes.
+  if(utf8_end_of_code_point_mask == 0xfff) {
+    // We process the data in chunks of 12 bytes.
     _mm_storeu_si128(reinterpret_cast<__m128i *>(utf32_output), _mm_cvtepu8_epi32(in));
     _mm_storeu_si128(reinterpret_cast<__m128i *>(utf32_output+4), _mm_cvtepu8_epi32(_mm_srli_si128(in,4)));
     _mm_storeu_si128(reinterpret_cast<__m128i *>(utf32_output+8), _mm_cvtepu8_epi32(_mm_srli_si128(in,8)));
     _mm_storeu_si128(reinterpret_cast<__m128i *>(utf32_output+12), _mm_cvtepu8_epi32(_mm_srli_si128(in,12)));
-    utf32_output += 16; // We wrote 16 32-bit characters.
-    return 16; // We consumed 16 bytes.
+    utf32_output += 12; // We wrote 12 32-bit characters.
+    return 12; // We consumed 12 bytes.
   }
   if(((utf8_end_of_code_point_mask & 0xffff) == 0xaaaa)) {
     // We want to take 8 2-byte UTF-8 code units and turn them into 8 4-byte UTF-32 code units.
@@ -33684,11 +33718,11 @@ size_t convert_masked_utf8_to_latin1(const char *input,
   const __m128i in = _mm_loadu_si128((__m128i *)input);
   const uint16_t input_utf8_end_of_code_point_mask =
       utf8_end_of_code_point_mask & 0xfff; // we are only processing 12 bytes in case it is not all ASCII
-  if(((utf8_end_of_code_point_mask & 0xffff) == 0xffff)) {
-    // We process the data in chunks of 16 bytes.
+  if(utf8_end_of_code_point_mask == 0xfff) {
+    // We process the data in chunks of 12 bytes.
     _mm_storeu_si128(reinterpret_cast<__m128i *>(latin1_output), in);
-    latin1_output += 16; // We wrote 16 characters.
-    return 16; // We consumed 16 bytes.
+    latin1_output += 12; // We wrote 12 characters.
+    return 12; // We consumed 12 bytes.
   }
   /// We do not have a fast path available, so we fallback.
   const uint8_t idx =
@@ -36357,6 +36391,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -36431,14 +36468,14 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             // rewind_and_convert_with_errors will seek a potential error from in+pos onward,
             // with the ability to go back up to pos bytes, and read size-pos bytes forward.
             result res = scalar::utf8_to_utf16::rewind_and_convert_with_errors<endian>(pos, in + pos, size - pos, utf16_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -36676,10 +36713,10 @@ using namespace simd;
       size_t pos = 0;
       char32_t* start{utf32_output};
       // In the worst case, we have the haswell kernel which can cause an overflow of
-      // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
+      // 8 words when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 16 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
@@ -36709,6 +36746,9 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
           uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if(utf8_continuation_mask & 1) {
+            return 0; // we have an error
+          }
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
@@ -36782,12 +36822,12 @@ using namespace simd;
             this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
             this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
           }
-          if (errors()) {
+          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
+          if (errors() || (utf8_continuation_mask & 1)) {
             result res = scalar::utf8_to_utf32::rewind_and_convert_with_errors(pos, in + pos, size - pos, utf32_output);
             res.count += pos;
             return res;
           }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
           uint64_t utf8_leading_mask = ~utf8_continuation_mask;
           uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
           // We process in blocks of up to 12 bytes except possibly
