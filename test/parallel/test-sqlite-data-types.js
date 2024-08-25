@@ -49,6 +49,7 @@ suite('data binding and mapping', () => {
 
     const query = db.prepare('SELECT * FROM types WHERE key = ?');
     t.assert.deepStrictEqual(query.get(1), {
+      __proto__: null,
       key: 1,
       int: 42,
       double: 3.14159,
@@ -56,6 +57,7 @@ suite('data binding and mapping', () => {
       buf: u8a,
     });
     t.assert.deepStrictEqual(query.get(2), {
+      __proto__: null,
       key: 2,
       int: null,
       double: null,
@@ -63,6 +65,7 @@ suite('data binding and mapping', () => {
       buf: null,
     });
     t.assert.deepStrictEqual(query.get(3), {
+      __proto__: null,
       key: 3,
       int: 8,
       double: 2.718,
@@ -70,6 +73,7 @@ suite('data binding and mapping', () => {
       buf: new TextEncoder().encode('x☃y☃'),
     });
     t.assert.deepStrictEqual(query.get(4), {
+      __proto__: null,
       key: 4,
       int: 99,
       double: 0xf,
@@ -151,7 +155,7 @@ suite('data binding and mapping', () => {
     );
     t.assert.deepStrictEqual(
       db.prepare('SELECT * FROM data ORDER BY key').all(),
-      [{ key: 1, val: 5 }, { key: 2, val: null }],
+      [{ __proto__: null, key: 1, val: 5 }, { __proto__: null, key: 2, val: null }],
     );
   });
 });
