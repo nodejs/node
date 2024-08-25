@@ -66,8 +66,8 @@ int nghttp3_balloc_get(nghttp3_balloc *balloc, void **pbuf, size_t n) {
   assert(n <= balloc->blklen);
 
   if (nghttp3_buf_left(&balloc->buf) < n) {
-    p = nghttp3_mem_malloc(balloc->mem, sizeof(nghttp3_memblock_hd) + 0x10u +
-                                            balloc->blklen);
+    p = nghttp3_mem_malloc(balloc->mem,
+                           sizeof(nghttp3_memblock_hd) + 0x8u + balloc->blklen);
     if (p == NULL) {
       return NGHTTP3_ERR_NOMEM;
     }

@@ -59,7 +59,7 @@ uint64_t nghttp3_range_len(const nghttp3_range *r);
 
 /*
  * nghttp3_range_eq returns nonzero if |a| equals |b|, such that
- * a->begin == b->begin, and a->end == b->end hold.
+ * a->begin == b->begin and a->end == b->end hold.
  */
 int nghttp3_range_eq(const nghttp3_range *a, const nghttp3_range *b);
 

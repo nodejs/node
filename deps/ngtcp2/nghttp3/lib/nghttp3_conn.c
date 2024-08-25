@@ -273,7 +273,7 @@ static int conn_new(nghttp3_conn **pconn, int server, int callbacks_version,
     nghttp3_pq_init(&conn->sched[i].spq, cycle_less, mem);
   }
 
-  nghttp3_idtr_init(&conn->remote.bidi.idtr, server, mem);
+  nghttp3_idtr_init(&conn->remote.bidi.idtr, mem);
 
   conn->callbacks = *callbacks;
   conn->local.settings = *settings;
@@ -368,7 +368,7 @@ void nghttp3_conn_del(nghttp3_conn *conn) {
   nghttp3_qpack_encoder_free(&conn->qenc);
   nghttp3_qpack_decoder_free(&conn->qdec);
 
-  nghttp3_map_each_free(&conn->streams, free_stream, NULL);
+  nghttp3_map_each(&conn->streams, free_stream, NULL);
   nghttp3_map_free(&conn->streams);
 
   nghttp3_objalloc_free(&conn->stream_objalloc);

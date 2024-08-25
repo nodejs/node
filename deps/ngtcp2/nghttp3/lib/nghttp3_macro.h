@@ -35,7 +35,7 @@
 #include <nghttp3/nghttp3.h>
 
 #define nghttp3_struct_of(ptr, type, member)                                   \
-  ((type *)(void *)((char *)(ptr)-offsetof(type, member)))
+  ((type *)(void *)((char *)(ptr) - offsetof(type, member)))
 
 #define nghttp3_arraylen(A) (sizeof(A) / sizeof(*(A)))
 

@@ -40,7 +40,10 @@ typedef struct nghttp3_memblock_hd nghttp3_memblock_hd;
  * nghttp3_memblock_hd is the header of memory block.
  */
 struct nghttp3_memblock_hd {
-  nghttp3_memblock_hd *next;
+  union {
+    nghttp3_memblock_hd *next;
+    uint64_t pad;
+  };
 };
 
 /*
