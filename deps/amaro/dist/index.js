@@ -489,7 +489,14 @@ module.exports = __toCommonJS(src_exports);
 // src/transform.ts
 var import_wasm = __toESM(require_wasm());
 var DEFAULT_OPTIONS = {
-  mode: "strip-only"
+  mode: "strip-only",
+  // default transform will only work when mode is "transform"
+  transform: {
+    verbatimModuleSyntax: true,
+    nativeClassProperties: true,
+    noEmptyExport: true,
+    importNotUsedAsValues: "preserve"
+  }
 };
 function transformSync(source, options) {
   const input = `${source ?? ""}`;
