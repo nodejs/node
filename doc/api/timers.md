@@ -528,9 +528,8 @@ added:
 An experimental API defined by the [Scheduling APIs][] draft specification
 being developed as a standard Web Platform API.
 
-Calling `timersPromises.scheduler.wait(delay, options)` is roughly equivalent
-to calling `timersPromises.setTimeout(delay, undefined, options)` except that
-the `ref` option is not supported.
+Calling `timersPromises.scheduler.wait(delay, options)` is equivalent
+to calling `timersPromises.setTimeout(delay, undefined, options)`.
 
 ```mjs
 import { scheduler } from 'node:timers/promises';
