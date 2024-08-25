@@ -265,17 +265,6 @@ bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {
   return isolate->debug()->HasDebugInfo(*this);
 }
 
-// Needs to be kept in sync with Scope::UniqueIdInScript and
-// ScopeInfo::UniqueIdInScript.
-int SharedFunctionInfo::UniqueIdInScript() const {
-  // Script scopes start "before" the script to avoid clashing with a scope that
-  // starts on character 0.
-  if (function_literal_id() == kFunctionLiteralIdTopLevel) return -1;
-  // Default constructors have the same start position as their parent class
-  // scope. Use the next char position to distinguish this scope.
-  return StartPosition() + IsDefaultConstructor(kind());
-}
-
 Tagged<DebugInfo> SharedFunctionInfo::GetDebugInfo(Isolate* isolate) const {
   return isolate->debug()->TryGetDebugInfo(*this).value();
 }

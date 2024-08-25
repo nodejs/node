@@ -99,6 +99,27 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let wrapper = ToPromising(instance.exports.test);
 })();
 
+(function TestInvalidWrappers() {
+  print(arguments.callee.name);
+  assertThrows(() => WebAssembly.promising({}), TypeError,
+      /Argument 0 must be a function/);
+  assertThrows(() => WebAssembly.promising(() => {}), TypeError,
+      /Argument 0 must be a WebAssembly exported function/);
+  assertThrows(() => WebAssembly.Suspending(() => {}), TypeError,
+      /WebAssembly.Suspending must be invoked with 'new'/);
+  assertThrows(() => new WebAssembly.Suspending({}), TypeError,
+      /Argument 0 must be a function/);
+  function asmModule() {
+    "use asm";
+    function x(v) {
+      v = v | 0;
+    }
+    return x;
+  }
+  assertThrows(() => WebAssembly.promising(asmModule()), TypeError,
+      /Argument 0 must be a WebAssembly exported function/);
+})();
+
 (function TestStackSwitchNoSuspend() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

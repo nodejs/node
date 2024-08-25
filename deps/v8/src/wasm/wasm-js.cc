@@ -2453,9 +2453,13 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::DirectHandle<i::WasmExportedFunctionData> data(
       wasm_exported_function->shared()->wasm_exported_function_data(),
       i_isolate);
+  if (data->instance_data()->module_object()->is_asm_js()) {
+    thrower.TypeError("Argument 0 must be a WebAssembly exported function");
+    return;
+  }
   bool with_suspender_param = false;
-  i::Handle<i::JSFunction> result = NewPromisingWasmExportedFunction(
-      i_isolate, data, thrower, with_suspender_param);
+  i::Handle<i::JSFunction> result =
+      NewPromisingWasmExportedFunction(i_isolate, data, thrower, with_suspender_param);
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
   return;
 }
