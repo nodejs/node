@@ -42,7 +42,7 @@ suite('named parameters', () => {
     stmt.run({ k: 1, v: 9 });
     t.assert.deepStrictEqual(
       db.prepare('SELECT * FROM data').get(),
-      { key: 1, val: 9 },
+      { __proto__: null, key: 1, val: 9 },
     );
   });
 
@@ -57,7 +57,7 @@ suite('named parameters', () => {
     stmt.run({ k: 1 });
     t.assert.deepStrictEqual(
       db.prepare('SELECT * FROM data').get(),
-      { key: 1, val: 1 },
+      { __proto__: null, key: 1, val: 1 },
     );
   });
 

@@ -77,11 +77,11 @@ test('in-memory databases are supported', (t) => {
   t.assert.strictEqual(setup2, undefined);
   t.assert.deepStrictEqual(
     db1.prepare('SELECT * FROM data').all(),
-    [{ key: 1 }]
+    [{ __proto__: null, key: 1 }]
   );
   t.assert.deepStrictEqual(
     db2.prepare('SELECT * FROM data').all(),
-    [{ key: 1 }]
+    [{ __proto__: null, key: 1 }]
   );
 });
 
@@ -90,10 +90,10 @@ test('PRAGMAs are supported', (t) => {
   t.after(() => { db.close(); });
   t.assert.deepStrictEqual(
     db.prepare('PRAGMA journal_mode = WAL').get(),
-    { journal_mode: 'wal' },
+    { __proto__: null, journal_mode: 'wal' },
   );
   t.assert.deepStrictEqual(
     db.prepare('PRAGMA journal_mode').get(),
-    { journal_mode: 'wal' },
+    { __proto__: null, journal_mode: 'wal' },
   );
 });

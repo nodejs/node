@@ -80,8 +80,8 @@ class StatementSync : public BaseObject {
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
-  v8::Local<v8::Value> ColumnToValue(const int column);
-  v8::Local<v8::Value> ColumnNameToValue(const int column);
+  v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
+  v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
 };
 
 }  // namespace sqlite
