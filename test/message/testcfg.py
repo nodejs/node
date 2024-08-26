@@ -1,4 +1,3 @@
-from __future__ import print_function
 # Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -37,7 +36,7 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 class MessageTestCase(test.TestCase):
 
   def __init__(self, path, file, expected, arch, mode, context, config):
-    super(MessageTestCase, self).__init__(context, path, arch, mode)
+    super().__init__(context, path, arch, mode)
     self.file = file
     self.expected = expected
     self.config = config
@@ -64,7 +63,7 @@ class MessageTestCase(test.TestCase):
         continue
       pattern = re.escape(line.rstrip() % env)
       pattern = pattern.replace('\\*', '.*')
-      pattern = '^%s$' % pattern
+      pattern = f'^{pattern}$'
       patterns.append(pattern)
     # Compare actual output with the expected
     raw_lines = (output.stdout + output.stderr).split('\n')
@@ -75,22 +74,22 @@ class MessageTestCase(test.TestCase):
       print("actual=%d" % len(outlines))
       print("patterns:")
       for i in range(len(patterns)):
-        print("pattern = %s" % patterns[i])
+        print(f"pattern = {patterns[i]}")
       print("outlines:")
       for i in range(len(outlines)):
-        print("outline = %s" % outlines[i])
+        print(f"outline = {outlines[i]}")
       return True
     for i in range(len(patterns)):
       if not re.match(patterns[i], outlines[i]):
         print("match failed")
         print("line=%d" % i)
-        print("expect=%s" % patterns[i])
-        print("actual=%s" % outlines[i])
+        print(f"expect={patterns[i]}")
+        print(f"actual={outlines[i]}")
         return True
     return False
 
   def GetLabel(self):
-    return "%s %s" % (self.mode, self.GetName())
+    return f"{self.mode} {self.GetName()}"
 
   def GetName(self):
     return self.path[-1]
@@ -126,7 +125,7 @@ class MessageTestConfiguration(test.TestConfiguration):
         file_path = join(self.root, reduce(join, tst[1:], ''))
         output_path = file_path[:file_path.rfind('.')] + '.out'
         if not exists(output_path):
-          raise Exception("Could not find %s" % output_path)
+          raise Exception(f"Could not find {output_path}")
         result.append(MessageTestCase(tst, file_path, output_path,
                                       arch, mode, self.context, self))
     return result

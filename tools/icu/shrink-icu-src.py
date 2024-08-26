@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
 import optparse
 import os
 import re
@@ -30,11 +29,11 @@ parser.add_option('--icutmp',
 (options, args) = parser.parse_args()
 
 if os.path.isdir(options.icudst):
-    print('Deleting existing icudst %s' % (options.icudst))
+    print(f'Deleting existing icudst {options.icudst}')
     shutil.rmtree(options.icudst)
 
 if not os.path.isdir(options.icusrc):
-    print('Missing source ICU dir --icusrc=%s' % (options.icusrc))
+    print(f'Missing source ICU dir --icusrc={options.icusrc}')
     sys.exit(1)
 
 # compression stuff. Keep the suffix and the compression function in sync.
@@ -83,7 +82,7 @@ def icu_ignore(dir, files):
 def icu_info(icu_full_path):
     uvernum_h = os.path.join(icu_full_path, 'source/common/unicode/uvernum.h')
     if not os.path.isfile(uvernum_h):
-        print(' Error: could not load %s - is ICU installed?' % uvernum_h)
+        print(f' Error: could not load {uvernum_h} - is ICU installed?')
         sys.exit(1)
     icu_ver_major = None
     matchVerExp = r'^\s*#define\s+U_ICU_VERSION_SHORT\s+"([^"]*)".*'
@@ -93,25 +92,25 @@ def icu_info(icu_full_path):
         if m:
             icu_ver_major = m.group(1)
     if not icu_ver_major:
-        print(' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
+        print(f' Could not read U_ICU_VERSION_SHORT version from {uvernum_h}')
         sys.exit(1)
     icu_endianness = sys.byteorder[0]  # TODO(srl295): EBCDIC should be 'e'
     return (icu_ver_major, icu_endianness)
 
 (icu_ver_major, icu_endianness) = icu_info(options.icusrc)
-print("Data file root: icudt%s%s" % (icu_ver_major, icu_endianness))
-dst_datafile = os.path.join(options.icudst, "source","data","in", "icudt%s%s.dat" % (icu_ver_major, icu_endianness))
+print(f"Data file root: icudt{icu_ver_major}{icu_endianness}")
+dst_datafile = os.path.join(options.icudst, "source","data","in", f"icudt{icu_ver_major}{icu_endianness}.dat")
 
-src_datafile = os.path.join(options.icusrc, "source/data/in/icudt%sl.dat" % (icu_ver_major))
-dst_cmp_datafile = "%s%s" % (dst_datafile, compression_suffix)
+src_datafile = os.path.join(options.icusrc, f"source/data/in/icudt{icu_ver_major}l.dat")
+dst_cmp_datafile = f"{dst_datafile}{compression_suffix}"
 
 if not os.path.isfile(src_datafile):
-    print("Error: icu data file not found: %s" % src_datafile)
+    print(f"Error: icu data file not found: {src_datafile}")
     exit(1)
 
-print("will use datafile %s" % (src_datafile))
+print(f"will use datafile {src_datafile}")
 
-print('%s --> %s' % (options.icusrc, options.icudst))
+print(f'{options.icusrc} --> {options.icudst}')
 shutil.copytree(options.icusrc, options.icudst, ignore=icu_ignore)
 
 # now, make the data dir (since we ignored it)
@@ -122,7 +121,7 @@ os.mkdir(icudst_in)
 
 print_size(src_datafile)
 
-print('%s --compress-> %s' % (src_datafile, dst_cmp_datafile))
+print(f'{src_datafile} --compress-> {dst_cmp_datafile}')
 compress_data(src_datafile, dst_cmp_datafile)
 print_size(dst_cmp_datafile)
 readme_name = os.path.join(options.icudst, "README-FULL-ICU.txt" )

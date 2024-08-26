@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 import glob
-import io
 import re
 import sys
 import itertools
@@ -16,7 +14,7 @@ def do_exist(file_name, lines, imported):
 
 
 def is_valid(file_name):
-  with io.open(file_name, encoding='utf-8') as source_file:
+  with open(file_name, encoding='utf-8') as source_file:
     lines = [line.strip() for line in source_file]
 
   usings, importeds, line_numbers, valid = [], [], [], True

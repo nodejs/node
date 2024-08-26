@@ -31,12 +31,12 @@ import sys
 __import__('copyfile')
 
 # Open the copied openssl.cnf file
-fin = open(sys.argv[2], "rt")
+fin = open(sys.argv[2])
 data = fin.read()
-data = data.replace('# .include fipsmodule.cnf', '.include %s' % sys.argv[3])
+data = data.replace('# .include fipsmodule.cnf', f'.include {sys.argv[3]}')
 data = data.replace('# fips = fips_sect', 'fips = fips_sect')
 data = data.replace('# activate = 1', 'activate = 1')
 fin.close()
-fin = open(sys.argv[2], "wt")
+fin = open(sys.argv[2], "w")
 fin.write(data)
 fin.close()

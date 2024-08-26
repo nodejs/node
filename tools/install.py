@@ -25,7 +25,7 @@ def try_unlink(path):
 
 def try_symlink(options, source_path, link_path):
   if not options.silent:
-    print('symlinking %s -> %s' % (source_path, link_path))
+    print(f'symlinking {source_path} -> {link_path}')
   try_unlink(link_path)
   try_mkdir_r(os.path.dirname(link_path))
   os.symlink(source_path, link_path)
@@ -61,7 +61,7 @@ def mkpaths(options, path, dest):
 def try_copy(options, path, dest):
   source_path, target_path = mkpaths(options, path, dest)
   if not options.silent:
-    print('installing %s' % target_path)
+    print(f'installing {target_path}')
   try_mkdir_r(os.path.dirname(target_path))
   try_unlink(target_path) # prevent ETXTBSY errors
   return shutil.copy2(source_path, target_path)
@@ -69,7 +69,7 @@ def try_copy(options, path, dest):
 def try_remove(options, path, dest):
   source_path, target_path = mkpaths(options, path, dest)
   if not options.silent:
-    print('removing %s' % target_path)
+    print(f'removing {target_path}')
   try_unlink(target_path)
   try_rmdir_r(options, os.path.dirname(target_path))
 
@@ -376,7 +376,7 @@ def run(options):
       files(options, uninstall)
       return
 
-  raise RuntimeError('Bad command: %s\n' % options.command)
+  raise RuntimeError(f'Bad command: {options.command}\n')
 
 def parse_options(args):
   parser = argparse.ArgumentParser(

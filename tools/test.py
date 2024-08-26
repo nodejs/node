@@ -28,7 +28,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from __future__ import print_function
 from typing import Dict
 import logging
 import optparse
@@ -46,27 +45,15 @@ import errno
 import copy
 import io
 
-if sys.version_info >= (3, 5):
-  from importlib import machinery, util
-  def get_module(name, path):
-    loader_details = (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES)
-    spec = machinery.FileFinder(path, loader_details).find_spec(name)
-    module = util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-else:
-  import imp
-  def get_module(name, path):
-    file = None
-    try:
-      (file, pathname, description) = imp.find_module(name, [path])
-      return imp.load_module(name, file, pathname, description)
-    finally:
-      if file:
-        file.close()
+from importlib import machinery, util
+def get_module(name, path):
+  loader_details = (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES)
+  spec = machinery.FileFinder(path, loader_details).find_spec(name)
+  module = util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  return module
 
 
-from io import open
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime, timedelta
 try:
@@ -75,6 +62,7 @@ except ImportError:
     from Queue import Queue, Empty  # Python 2
 
 from functools import reduce
+import builtins
 
 try:
   from urllib.parse import unquote    # Python 3
@@ -95,7 +83,7 @@ os.environ.pop('NODE_OPTIONS', None)
 # ---------------------------------------------
 
 
-class ProgressIndicator(object):
+class ProgressIndicator:
 
   def __init__(self, cases, flaky_tests_mode, measure_flakiness):
     self.cases = cases
@@ -126,9 +114,9 @@ class ProgressIndicator(object):
     if failure.output.stdout:
       output += ["--- stdout ---"]
       output += [failure.output.stdout.strip()]
-    output += ["Command: %s" % EscapeCommand(failure.command)]
+    output += [f"Command: {EscapeCommand(failure.command)}"]
     if failure.HasCrashed():
-      output += ["--- %s ---" % PrintCrashed(failure.output.exit_code)]
+      output += [f"--- {PrintCrashed(failure.output.exit_code)} ---"]
     if failure.HasTimedOut():
       output += ["--- TIMEOUT ---"]
     output = "\n".join(output)
@@ -142,11 +130,8 @@ class ProgressIndicator(object):
       negative_marker = '[negative] '
     else:
       negative_marker = ''
-    print("=== %(label)s %(negative)s===" % {
-      'label': test.GetLabel(),
-      'negative': negative_marker
-    })
-    print("Path: %s" % "/".join(test.path))
+    print(f"=== {test.GetLabel()} {negative_marker}===")
+    print("Path: {}".format("/".join(test.path)))
 
   def Run(self, tasks) -> Dict:
     self.Starting()
@@ -208,7 +193,7 @@ class ProgressIndicator(object):
             output = case.Run()
             output.diagnostic.append('ECONNREFUSED received, test retried')
         case.duration = (datetime.now() - start)
-      except IOError:
+      except OSError:
         return
       if self.shutdown_event.is_set():
         return
@@ -245,7 +230,7 @@ def EscapeCommand(command):
     if ' ' in part:
       # Escape spaces.  We may need to escape more characters for this
       # to work properly.
-      parts.append('"%s"' % part)
+      parts.append(f'"{part}"')
     else:
       parts.append(part)
   return " ".join(parts)
@@ -277,7 +262,7 @@ class SimpleProgressIndicator(ProgressIndicator):
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
   def AboutToRun(self, case):
-    print('Starting %s...' % case.GetLabel())
+    print(f'Starting {case.GetLabel()}...')
     sys.stdout.flush()
 
   def HasRun(self, output):
@@ -288,7 +273,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
-    print('Done running %s: %s' % (output.test.GetLabel(), outcome))
+    print(f'Done running {output.test.GetLabel()}: {outcome}')
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -322,7 +307,7 @@ class ActionsAnnotationProgressIndicator(DotsProgressIndicator):
 
   def GetAnnotationInfo(self, test, output):
     traceback = output.stdout + output.stderr
-    find_full_path = re.search(r' +at .*\(.*%s:([0-9]+):([0-9]+)' % test.file, traceback)
+    find_full_path = re.search(rf' +at .*\(.*{test.file}:([0-9]+):([0-9]+)', traceback)
     col = line = 0
     if find_full_path:
         line, col = map(int, find_full_path.groups())
@@ -440,9 +425,9 @@ class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
       ):
         if not printed_file:
           printed_file = True
-          print('==== %s ====' % command)
+          print(f'==== {command} ====')
           self.failed.append(output)
-        print('  %s' % line)
+        print(f'  {line}')
 
   def Done(self):
     pass
@@ -451,7 +436,7 @@ class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
 class CompactProgressIndicator(ProgressIndicator):
 
   def __init__(self, cases, flaky_tests_mode, measure_flakiness, templates):
-    super(CompactProgressIndicator, self).__init__(cases, flaky_tests_mode, measure_flakiness)
+    super().__init__(cases, flaky_tests_mode, measure_flakiness)
     self.templates = templates
     self.last_status_length = 0
     self.start_time = time.time()
@@ -475,9 +460,9 @@ class CompactProgressIndicator(ProgressIndicator):
       stderr = output.output.stderr.strip()
       if len(stderr):
         print(self.templates['stderr'] % stderr)
-      print("Command: %s" % EscapeCommand(output.command))
+      print(f"Command: {EscapeCommand(output.command)}")
       if output.HasCrashed():
-        print("--- %s ---" % PrintCrashed(output.output.exit_code))
+        print(f"--- {PrintCrashed(output.output.exit_code)} ---")
       if output.HasTimedOut():
         print("--- TIMEOUT ---")
       print("\n") # Two blank lines between failures, for visual separation
@@ -513,7 +498,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
       'stdout': "\033[1m%s\033[0m",
       'stderr': "\033[31m%s\033[0m",
     }
-    super(ColorProgressIndicator, self).__init__(cases, flaky_tests_mode, measure_flakiness, templates)
+    super().__init__(cases, flaky_tests_mode, measure_flakiness, templates)
 
   def ClearLine(self, last_line_length):
     print("\033[1K\r", end='')
@@ -529,7 +514,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
       'clear': lambda last_line_length: ("\r" + (" " * last_line_length) + "\r"),
       'max_length': 78
     }
-    super(MonochromeProgressIndicator, self).__init__(cases, flaky_tests_mode, measure_flakiness, templates)
+    super().__init__(cases, flaky_tests_mode, measure_flakiness, templates)
 
   def ClearLine(self, last_line_length):
     print(("\r" + (" " * last_line_length) + "\r"), end='')
@@ -551,7 +536,7 @@ PROGRESS_INDICATORS = {
 # -------------------------
 
 
-class CommandOutput(object):
+class CommandOutput:
 
   def __init__(self, exit_code, timed_out, stdout, stderr):
     self.exit_code = exit_code
@@ -561,7 +546,7 @@ class CommandOutput(object):
     self.failed = None
 
 
-class TestCase(object):
+class TestCase:
 
   def __init__(self, context, path, arch, mode):
     self.path = path
@@ -623,7 +608,7 @@ class TestCase(object):
     return result
 
 
-class TestOutput(object):
+class TestOutput:
 
   def __init__(self, test, command, output, store_unexpected_output):
     self.test = test
@@ -817,8 +802,8 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False,
   )
   os.close(fd_out)
   os.close(fd_err)
-  output = open(outname, encoding='utf8').read()
-  errors = open(errname, encoding='utf8').read()
+  output = builtins.open(outname, encoding='utf8').read()
+  errors = builtins.open(errname, encoding='utf8').read()
   CheckedUnlink(outname)
   CheckedUnlink(errname)
 
@@ -832,7 +817,7 @@ def CarCdr(path):
     return (path[0], path[1:])
 
 
-class TestConfiguration(object):
+class TestConfiguration:
   def __init__(self, context, root, section):
     self.context = context
     self.root = root
@@ -847,12 +832,12 @@ class TestConfiguration(object):
     return True
 
   def GetTestStatus(self, sections, defs):
-    status_file = join(self.root, '%s.status' % self.section)
+    status_file = join(self.root, f'{self.section}.status')
     if exists(status_file):
       ReadConfigurationInto(status_file, sections, defs)
 
 
-class TestSuite(object):
+class TestSuite:
 
   def __init__(self, name):
     self.name = name
@@ -865,7 +850,7 @@ class TestRepository(TestSuite):
 
   def __init__(self, path):
     normalized_path = abspath(path)
-    super(TestRepository, self).__init__(basename(normalized_path))
+    super().__init__(basename(normalized_path))
     self.path = normalized_path
     self.is_loaded = False
     self.config = None
@@ -899,7 +884,7 @@ class TestRepository(TestSuite):
 
 class LiteralTestSuite(TestSuite):
   def __init__(self, tests_repos, test_root):
-    super(LiteralTestSuite, self).__init__('root')
+    super().__init__('root')
     self.tests_repos = tests_repos
     self.test_root = test_root
 
@@ -939,7 +924,7 @@ TIMEOUT_SCALEFACTOR = {
     's390'      : { 'debug' :  4, 'release' : 1 } }
 
 
-class Context(object):
+class Context:
 
   def __init__(self, workspace, verbose, vm, args, expect_fail,
                timeout, processor, suppress_dialogs,
@@ -964,7 +949,7 @@ class Context(object):
     if arch == 'none':
       name = 'out/Debug/node' if mode == 'debug' else 'out/Release/node'
     else:
-      name = 'out/%s.%s/node' % (arch, mode)
+      name = f'out/{arch}.{mode}/node'
 
     # Currently GYP does not support output_dir for MSVS.
     # http://code.google.com/p/gyp/issues/detail?id=40
@@ -1012,7 +997,7 @@ FLAKY = 'flaky'
 DONTCARE = 'dontcare'
 KEEP_RETRYING = 'keep_retrying'
 
-class Expression(object):
+class Expression:
   pass
 
 
@@ -1089,7 +1074,7 @@ def IsAlpha(str):
   return True
 
 
-class Tokenizer(object):
+class Tokenizer:
   """A simple string tokenizer that chops expressions into variables,
   parens and operators"""
 
@@ -1157,7 +1142,7 @@ class Tokenizer(object):
     return self.tokens
 
 
-class Scanner(object):
+class Scanner:
   """A simple scanner that can serve out tokens from a given list"""
 
   def __init__(self, tokens):
@@ -1248,20 +1233,20 @@ def ParseCondition(expr):
   """Parses a logical expression into an Expression object"""
   tokens = Tokenizer(expr).Tokenize()
   if not tokens:
-    print("Malformed expression: '%s'" % expr)
+    print(f"Malformed expression: '{expr}'")
     return None
   scan = Scanner(tokens)
   ast = ParseLogicalExpression(scan)
   if not ast:
-    print("Malformed expression: '%s'" % expr)
+    print(f"Malformed expression: '{expr}'")
     return None
   if scan.HasMore():
-    print("Malformed expression: '%s'" % expr)
+    print(f"Malformed expression: '{expr}'")
     return None
   return ast
 
 
-class Configuration(object):
+class Configuration:
   """The parsed contents of a configuration file"""
 
   def __init__(self, sections, defs):
@@ -1286,7 +1271,7 @@ class Configuration(object):
     return result, unused_rules
 
 
-class Section(object):
+class Section:
   """A section of the configuration file.  Sections are enabled or
   disabled prior to running the tests, based on their conditions"""
 
@@ -1298,7 +1283,7 @@ class Section(object):
     self.rules.append(rule)
 
 
-class Rule(object):
+class Rule:
   """A single rule that specifies the expected outcome for a single
   test."""
 
@@ -1359,7 +1344,7 @@ def ReadConfigurationInto(path, sections, defs):
     if prefix_match:
       prefix = SplitPath(prefix_match.group(1).strip())
       continue
-    raise Exception("Malformed line: '%s'." % line)
+    raise Exception(f"Malformed line: '{line}'.")
 
 
 # ---------------
@@ -1379,7 +1364,7 @@ def BuildOptions():
   result.add_option('--logfile', dest='logfile',
       help='write test output to file. NOTE: this only applies the tap progress indicator')
   result.add_option("-p", "--progress",
-      help="The style of progress indicator (%s)" % ", ".join(PROGRESS_INDICATORS.keys()),
+      help="The style of progress indicator ({})".format(", ".join(PROGRESS_INDICATORS.keys())),
       choices=list(PROGRESS_INDICATORS.keys()), default="mono")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
@@ -1487,7 +1472,7 @@ def ProcessOptions(options):
     # became a legacy no-op.
     print('Warning: Legacy -J option is ignored. Using the -j option.')
   if options.flaky_tests not in [RUN, SKIP, DONTCARE, KEEP_RETRYING]:
-    print("Unknown flaky-tests mode %s" % options.flaky_tests)
+    print(f"Unknown flaky-tests mode {options.flaky_tests}")
     return False
   return True
 
@@ -1501,7 +1486,7 @@ Total: %(total)i tests
 """
 
 
-class Pattern(object):
+class Pattern:
 
   def __init__(self, pattern):
     self.pattern = pattern
@@ -1595,7 +1580,7 @@ def ArgsToTestPaths(test_root, args, suites):
     args = [a for a in args if a != 'default'] + def_suites
   subsystem_regex = re.compile(r'^[a-zA-Z-]*$')
   check = lambda arg: subsystem_regex.match(arg) and (arg not in suites)
-  mapped_args = ["*/test*-%s-*" % arg if check(arg) else arg for arg in args]
+  mapped_args = [f"*/test*-{arg}-*" if check(arg) else arg for arg in args]
   paths = [SplitPath(NormalizePath(a)) for a in mapped_args]
   return paths
 
@@ -1696,12 +1681,12 @@ def Main():
       for mode in options.mode:
         vm = context.GetVm(arch, mode)
         if not exists(vm):
-          print("Can't find shell executable: '%s'" % vm)
+          print(f"Can't find shell executable: '{vm}'")
           continue
         archEngineContext = Execute([vm, "-p", "process.arch"], context)
         vmArch = archEngineContext.stdout.rstrip()
         if archEngineContext.exit_code != 0 or vmArch == "undefined":
-          print("Can't determine the arch of: '%s'" % vm)
+          print(f"Can't determine the arch of: '{vm}'")
           print(archEngineContext.stderr.rstrip())
           continue
         env = {
@@ -1740,15 +1725,15 @@ def Main():
       if key in visited:
         continue
       visited.add(key)
-      print("--- begin source: %s ---" % test.GetLabel())
+      print(f"--- begin source: {test.GetLabel()} ---")
       source = test.GetSource().strip()
       print(source)
-      print("--- end source: %s ---" % test.GetLabel())
+      print(f"--- end source: {test.GetLabel()} ---")
     return 0
 
   if options.warn_unused:
     for rule in globally_unused_rules:
-      print("Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path]))
+      print("Rule for '{}' was not used.".format('/'.join([str(s) for s in rule.path])))
 
   tempdir = os.environ.get('NODE_TEST_DIR') or options.temp_dir
   if tempdir:
@@ -1809,7 +1794,7 @@ def Main():
     # Write the times to stderr to make it easy to separate from the
     # test output.
     print()
-    sys.stderr.write("--- Total time: %s ---\n" % FormatTime(duration))
+    sys.stderr.write(f"--- Total time: {FormatTime(duration)} ---\n")
     timed_tests = [ t for t in cases_to_run if not t.duration is None ]
     timed_tests.sort(key=lambda x: x.duration)
     for i, entry in enumerate(timed_tests[:20], start=1):

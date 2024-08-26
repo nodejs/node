@@ -29,7 +29,7 @@ import test
 import os
 import re
 from functools import reduce
-from io import open
+import builtins
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -38,7 +38,7 @@ LS_RE = re.compile(r'^test-.*\.m?js$')
 class SimpleTestCase(test.TestCase):
 
   def __init__(self, path, file, arch, mode, context, config, additional=None):
-    super(SimpleTestCase, self).__init__(context, path, arch, mode)
+    super().__init__(context, path, arch, mode)
     self.file = file
     self.config = config
     self.arch = arch
@@ -50,14 +50,14 @@ class SimpleTestCase(test.TestCase):
 
 
   def GetLabel(self):
-    return "%s %s" % (self.mode, self.GetName())
+    return f"{self.mode} {self.GetName()}"
 
   def GetName(self):
     return self.path[-1]
 
   def GetCommand(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
-    source = open(self.file, encoding='utf8').read()
+    source = builtins.open(self.file, encoding='utf8').read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       flags = flags_match.group(1).strip().split()
@@ -90,12 +90,12 @@ class SimpleTestCase(test.TestCase):
     return result
 
   def GetSource(self):
-    return open(self.file).read()
+    return builtins.open(self.file).read()
 
 
 class SimpleTestConfiguration(test.TestConfiguration):
   def __init__(self, context, root, section, additional=None):
-    super(SimpleTestConfiguration, self).__init__(context, root, section)
+    super().__init__(context, root, section)
     if additional is not None:
       self.additional_flags = additional
     else:
@@ -120,11 +120,11 @@ class SimpleTestConfiguration(test.TestConfiguration):
 
 class ParallelTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
-    super(ParallelTestConfiguration, self).__init__(context, root, section,
+    super().__init__(context, root, section,
                                                     additional)
 
   def ListTests(self, current_path, path, arch, mode):
-    result = super(ParallelTestConfiguration, self).ListTests(
+    result = super().ListTests(
          current_path, path, arch, mode)
     for tst in result:
       tst.parallel = True
@@ -132,7 +132,7 @@ class ParallelTestConfiguration(SimpleTestConfiguration):
 
 class AddonTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
-    super(AddonTestConfiguration, self).__init__(context, root, section, additional)
+    super().__init__(context, root, section, additional)
 
   def Ls(self, path):
     def SelectTest(name):
@@ -158,11 +158,11 @@ class AddonTestConfiguration(SimpleTestConfiguration):
 
 class AbortTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
-    super(AbortTestConfiguration, self).__init__(context, root, section,
+    super().__init__(context, root, section,
                                                  additional)
 
   def ListTests(self, current_path, path, arch, mode):
-    result = super(AbortTestConfiguration, self).ListTests(
+    result = super().ListTests(
          current_path, path, arch, mode)
     for tst in result:
       tst.disable_core_files = True
@@ -170,11 +170,11 @@ class AbortTestConfiguration(SimpleTestConfiguration):
 
 class WasmAllocationTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
-    super(WasmAllocationTestConfiguration, self).__init__(context, root, section,
+    super().__init__(context, root, section,
                                                           additional)
 
   def ListTests(self, current_path, path, arch, mode):
-    result = super(WasmAllocationTestConfiguration, self).ListTests(
+    result = super().ListTests(
          current_path, path, arch, mode)
     for tst in result:
       tst.max_virtual_memory = 5 * 1024 * 1024 * 1024 # 5GB

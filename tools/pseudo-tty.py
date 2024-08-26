@@ -89,7 +89,7 @@ if __name__ == '__main__':
   while fds:
     try:
       rfds, _, _ = select.select(fds, [], [])
-    except select.error as e:
+    except OSError as e:
       if e[0] != errno.EINTR:
         raise
       if pid == os.waitpid(pid, os.WNOHANG)[0]:

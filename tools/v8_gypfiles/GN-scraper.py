@@ -20,5 +20,5 @@ def DoMain(args):
       continue
     files.append(m2.group(1))
   # always use `/` since GYP will process paths further downstream
-  rel_files = ['"%s/%s"' % (src_root, f) for f in files]
+  rel_files = [f'"{src_root}/{f}"' for f in files]
   return ' '.join(rel_files)

@@ -1,4 +1,3 @@
-from __future__ import print_function
 import os
 import re
 
@@ -19,7 +18,7 @@ def get_version():
       major = line.split()[2]
       return major
 
-  raise Exception('Could not find pattern matching %s' % regex)
+  raise Exception(f'Could not find pattern matching {regex}')
 
 
 if __name__ == '__main__':

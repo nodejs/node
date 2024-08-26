@@ -99,8 +99,6 @@ the input will be replaced with "bar":
                             [ "your_file.gypi" ])
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 from optparse import OptionParser
 import sys
 
@@ -214,7 +212,7 @@ def TranslateToGnChars(s):
     elif 32 <= code < 127:
       yield chr(code)
     else:
-      yield '$0x%02X' % code
+      yield f'$0x{code:02X}'
 
 
 def LoadPythonDictionary(path):
@@ -225,9 +223,9 @@ def LoadPythonDictionary(path):
     e.filename = path
     raise
   except Exception as e:
-    raise Exception("Unexpected error while reading %s: %s" % (path, str(e)))
+    raise Exception(f"Unexpected error while reading {path}: {e!s}")
 
-  assert isinstance(file_data, dict), "%s does not eval to a dictionary" % path
+  assert isinstance(file_data, dict), f"{path} does not eval to a dictionary"
 
   # Flatten any variables to the top level.
   if 'variables' in file_data:

@@ -9,17 +9,17 @@ def wrap(args):
   while l:
     if l[-1] == '\n':
       if firstline:
-        outstr = "{}".format(l)
+        outstr = f"{l}"
       else:
-        outstr = " {}".format(l)
+        outstr = f" {l}"
         firstline = True
       l = args.input.readline(72)
     else:
       if firstline:
-        outstr = "{:<71}*\n".format(l[:-1])
+        outstr = f"{l[:-1]:<71}*\n"
         firstline = False
       else:
-        outstr = " {:<70}*\n".format(l[:-1])
+        outstr = f" {l[:-1]:<70}*\n"
       l = l[-1] + args.input.readline(70)
     args.output.write(outstr)
 
@@ -66,7 +66,7 @@ def Main():
   if args.input is None:
     args.input = sys.stdin
   else:
-    args.input = open(args.input, 'r')
+    args.input = open(args.input)
 
   if args.output is None:
     args.output = sys.stdout

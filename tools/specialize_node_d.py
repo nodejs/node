@@ -6,7 +6,6 @@
 # Specialize node.d for given flavor (`freebsd`) and arch (`x64` or `ia32`)
 #
 
-from __future__ import print_function
 import re
 import sys
 
@@ -15,7 +14,7 @@ if len(sys.argv) != 5:
   sys.exit(2)
 
 outfile = open(sys.argv[1], 'w')
-infile = open(sys.argv[2], 'r')
+infile = open(sys.argv[2])
 flavor = sys.argv[3]
 arch = sys.argv[4]
 

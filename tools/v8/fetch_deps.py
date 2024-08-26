@@ -10,7 +10,6 @@ Usage: fetch_deps.py <v8-path>
 """
 
 # for py2/py3 compatibility
-from __future__ import print_function
 
 import os
 import subprocess
@@ -78,7 +77,7 @@ def FetchDeps(v8_path):
     # gclient needs to have depot_tools in the PATH.
     env["PATH"] = depot_tools + os.pathsep + env["PATH"]
     gclient = os.path.join(depot_tools, "gclient.py")
-    spec = "solutions = %s" % GCLIENT_SOLUTION
+    spec = f"solutions = {GCLIENT_SOLUTION}"
     subprocess.check_call([sys.executable, gclient, "sync", "--spec", spec],
                            cwd=os.path.join(v8_path, os.path.pardir),
                            env=env)

@@ -110,7 +110,7 @@ def main():
   # Write depfile. Force regenerating config.gypi when GN configs change.
   if args.dep_file:
     with open(args.dep_file, 'w') as f:
-      f.write('%s: %s '%(args.target, 'build.ninja'))
+      f.write('{}: {} '.format(args.target, 'build.ninja'))
 
 if __name__ == '__main__':
   main()

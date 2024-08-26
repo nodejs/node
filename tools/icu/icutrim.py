@@ -11,9 +11,7 @@
 # Usage:
 #  Use "-h" to get help options.
 
-from __future__ import print_function
 
-import io
 import json
 import optparse
 import os
@@ -82,7 +80,7 @@ parser.add_option('-L',"--locales",
                   help="sets the 'locales.only' variable",
                   default=None)
 
-parser.add_option('-e', '--endian', action='store', dest='endian', help='endian, big, little or host, your default is "%s".' % endian, default=endian, metavar='endianness')
+parser.add_option('-e', '--endian', action='store', dest='endian', help=f'endian, big, little or host, your default is "{endian}".', default=endian, metavar='endianness')
 
 (options, args) = parser.parse_args()
 
@@ -90,7 +88,7 @@ optVars = vars(options)
 
 for opt in [ "datfile", "filterfile", "tmpdir", "outfile" ]:
     if optVars[opt] is None:
-        print("Missing required option: %s" % opt)
+        print(f"Missing required option: {opt}")
         sys.exit(1)
 
 if options.verbose>0:
@@ -98,46 +96,46 @@ if options.verbose>0:
 
 if (os.path.isdir(options.tmpdir) and options.deltmpdir):
   if options.verbose>1:
-    print("Deleting tmp dir %s.." % (options.tmpdir))
+    print(f"Deleting tmp dir {options.tmpdir}..")
   shutil.rmtree(options.tmpdir)
 
 if not (os.path.isdir(options.tmpdir)):
     os.mkdir(options.tmpdir)
 else:
-    print("Please delete tmpdir %s before beginning." % options.tmpdir)
+    print(f"Please delete tmpdir {options.tmpdir} before beginning.")
     sys.exit(1)
 
 if options.endian not in ("big","little","host"):
-    print("Unknown endianness: %s" % options.endian)
+    print(f"Unknown endianness: {options.endian}")
     sys.exit(1)
 
 if options.endian == "host":
     options.endian = endian
 
 if not os.path.isdir(options.tmpdir):
-    print("Error, tmpdir not a directory: %s" % (options.tmpdir))
+    print(f"Error, tmpdir not a directory: {options.tmpdir}")
     sys.exit(1)
 
 if not os.path.isfile(options.filterfile):
-    print("Filterfile doesn't exist: %s" % (options.filterfile))
+    print(f"Filterfile doesn't exist: {options.filterfile}")
     sys.exit(1)
 
 if not os.path.isfile(options.datfile):
-    print("Datfile doesn't exist: %s" % (options.datfile))
+    print(f"Datfile doesn't exist: {options.datfile}")
     sys.exit(1)
 
 if not options.datfile.endswith(".dat"):
-    print("Datfile doesn't end with .dat: %s" % (options.datfile))
+    print(f"Datfile doesn't end with .dat: {options.datfile}")
     sys.exit(1)
 
 outfile = os.path.join(options.tmpdir, options.outfile)
 
 if os.path.isfile(outfile):
-    print("Error, output file does exist: %s" % (outfile))
+    print(f"Error, output file does exist: {outfile}")
     sys.exit(1)
 
 if not options.outfile.endswith(".dat"):
-    print("Outfile doesn't end with .dat: %s" % (options.outfile))
+    print(f"Outfile doesn't end with .dat: {options.outfile}")
     sys.exit(1)
 
 dataname=options.outfile[0:-4]
@@ -155,12 +153,12 @@ def runcmd(tool, cmd, doContinue=False):
 
     rc = os.system(cmd)
     if rc != 0 and not doContinue:
-        print("FAILED: %s" % cmd)
+        print(f"FAILED: {cmd}")
         sys.exit(1)
     return rc
 
 ## STEP 0 - read in json config
-with io.open(options.filterfile, encoding='utf-8') as fi:
+with open(options.filterfile, encoding='utf-8') as fi:
     config = json.load(fi)
 
 if options.locales:
@@ -172,17 +170,17 @@ if options.verbose > 6:
     print(config)
 
 if "comment" in config:
-    print("%s: %s" % (options.filterfile, config["comment"]))
+    print("{}: {}".format(options.filterfile, config["comment"]))
 
 ## STEP 1 - copy the data file, swapping endianness
 ## The first letter of endian_letter will be 'b' or 'l' for big or little
 endian_letter = options.endian[0]
 
-runcmd("icupkg", "-t%s %s %s""" % (endian_letter, options.datfile, outfile))
+runcmd("icupkg", f"-t{endian_letter} {options.datfile} {outfile}")
 
 ## STEP 2 - get listing
 listfile = os.path.join(options.tmpdir,"icudata.lst")
-runcmd("icupkg", "-l %s > %s""" % (outfile, listfile))
+runcmd("icupkg", f"-l {outfile} > {listfile}")
 
 with open(listfile, 'rb') as fi:
     items = [line.strip() for line in fi.read().decode("utf-8").splitlines()]
@@ -218,27 +216,27 @@ def queueForRemoval(tree):
     if isinstance(config["trees"][tree], basestring):
         treeStr = config["trees"][tree]
         if options.verbose > 5:
-            print(" Substituting $%s for tree %s" % (treeStr, tree))
+            print(f" Substituting ${treeStr} for tree {tree}")
         if treeStr not in config.get("variables", {}):
-            print(" ERROR: no variable:  variables.%s for tree %s" % (treeStr, tree))
+            print(f" ERROR: no variable:  variables.{treeStr} for tree {tree}")
             sys.exit(1)
         config["trees"][tree] = config["variables"][treeStr]
     myconfig = config["trees"][tree]
     if options.verbose > 4:
-        print(" Config: %s" % (myconfig))
+        print(f" Config: {myconfig}")
     # Process this tree
     if(len(myconfig)==0 or len(mytree["locs"])==0):
         if(options.verbose>2):
-            print(" No processing for %s - skipping" % (tree))
+            print(f" No processing for {tree} - skipping")
     else:
         only = None
         if "only" in myconfig:
             only = set(myconfig["only"])
             if (len(only)==0) and (mytree["treeprefix"] != ""):
-                thePool = "%spool.res" % (mytree["treeprefix"])
+                thePool = "{}pool.res".format(mytree["treeprefix"])
                 if (thePool in itemset):
                     if(options.verbose>0):
-                        print("Removing %s because tree %s is empty." % (thePool, tree))
+                        print(f"Removing {thePool} because tree {tree} is empty.")
                     remove.add(thePool)
         else:
             print("tree %s - no ONLY")
@@ -246,14 +244,14 @@ def queueForRemoval(tree):
             loc = mytree["locs"][l]
             if (only is not None) and not loc in only:
                 # REMOVE loc
-                toRemove = "%s%s%s" % (mytree["treeprefix"], loc, mytree["extension"])
+                toRemove = "{}{}{}".format(mytree["treeprefix"], loc, mytree["extension"])
                 if(options.verbose>6):
-                    print("Queueing for removal: %s" % toRemove)
+                    print(f"Queueing for removal: {toRemove}")
                 remove.add(toRemove)
 
 def addTreeByType(tree, mytree):
     if(options.verbose>1):
-        print("(considering %s): %s" % (tree, mytree))
+        print(f"(considering {tree}): {mytree}")
     trees[tree] = mytree
     mytree["locs"]=[]
     for i in range(len(items)):
@@ -280,16 +278,16 @@ for i in range(len(items)):
         else:
             tree = treeprefix[0:-1]
         if(options.verbose>6):
-            print("procesing %s" % (tree))
+            print(f"procesing {tree}")
         trees[tree] = { "extension": ".res", "treeprefix": treeprefix, "hasIndex": True }
         # read in the resource list for the tree
-        treelistfile = os.path.join(options.tmpdir,"%s.lst" % tree)
-        runcmd("iculslocs", "-i %s -N %s -T %s -l > %s" % (outfile, dataname, tree, treelistfile))
-        with io.open(treelistfile, 'r', encoding='utf-8') as fi:
+        treelistfile = os.path.join(options.tmpdir,f"{tree}.lst")
+        runcmd("iculslocs", f"-i {outfile} -N {dataname} -T {tree} -l > {treelistfile}")
+        with open(treelistfile, encoding='utf-8') as fi:
             treeitems = fi.readlines()
             trees[tree]["locs"] = [line.strip() for line in treeitems]
         if tree not in config.get("trees", {}):
-            print(" Warning: filter file %s does not mention trees.%s - will be kept as-is" % (options.filterfile, tree))
+            print(f" Warning: filter file {options.filterfile} does not mention trees.{tree} - will be kept as-is")
         else:
             queueForRemoval(tree)
 
@@ -308,7 +306,7 @@ def removeList(count=0):
         removefile = os.path.join(options.tmpdir, "REMOVE.lst")
         with open(removefile, 'wb') as fi:
             fi.write('\n'.join(remove).encode("utf-8") + b'\n')
-        rc = runcmd("icupkg","-r %s %s 2> %s" %  (removefile,outfile,hackerrfile),True)
+        rc = runcmd("icupkg",f"-r {removefile} {outfile} 2> {hackerrfile}",True)
         if rc != 0:
             if(options.verbose>5):
                 print("## Damage control, trying to parse stderr from icupkg..")
@@ -323,10 +321,10 @@ def removeList(count=0):
                 if m:
                     toDelete = m.group(1).decode("utf-8")
                     if(options.verbose > 5):
-                        print("<< %s added to delete" % toDelete)
+                        print(f"<< {toDelete} added to delete")
                     remove.add(toDelete)
                 else:
-                    print("ERROR: could not match errline: %s" % line)
+                    print(f"ERROR: could not match errline: {line}")
                     sys.exit(1)
             if(options.verbose > 5):
                 print(" now %d items to remove" % len(remove))
@@ -349,7 +347,7 @@ for tree in trees:
     if not (os.path.isdir(treebunddir)):
         os.mkdir(treebunddir)
     treebundres = os.path.join(treebunddir,RES_INDX)
-    treebundtxt = "%s.txt" % (treebundres[0:-4])
-    runcmd("iculslocs", "-i %s -N %s -T %s -b %s" % (outfile, dataname, tree, treebundtxt))
-    runcmd("genrb","-d %s -s %s res_index.txt" % (treebunddir, treebunddir))
-    runcmd("icupkg","-s %s -a %s%s %s" % (options.tmpdir, trees[tree]["treeprefix"], RES_INDX, outfile))
+    treebundtxt = f"{treebundres[0:-4]}.txt"
+    runcmd("iculslocs", f"-i {outfile} -N {dataname} -T {tree} -b {treebundtxt}")
+    runcmd("genrb",f"-d {treebunddir} -s {treebunddir} res_index.txt")
+    runcmd("icupkg","-s {} -a {}{} {}".format(options.tmpdir, trees[tree]["treeprefix"], RES_INDX, outfile))

@@ -27,6 +27,7 @@ select = [
   "TID",    # flake8-tidy-imports
   "W",      # pycodestyle
   "YTT",    # flake8-2020
+  "UP"
 ]
 ignore = [
   "E401",

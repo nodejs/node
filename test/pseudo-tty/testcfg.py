@@ -25,7 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import print_function
 
 import test
 import os
@@ -41,7 +40,7 @@ PTY_HELPER = join(dirname(__file__), '../../tools/pseudo-tty.py')
 class TTYTestCase(test.TestCase):
 
   def __init__(self, path, file, expected, input_arg, arch, mode, context, config):
-    super(TTYTestCase, self).__init__(context, path, arch, mode)
+    super().__init__(context, path, arch, mode)
     self.file = file
     self.expected = expected
     self.input = input_arg
@@ -65,7 +64,7 @@ class TTYTestCase(test.TestCase):
         continue
       pattern = re.escape(line.rstrip() % env)
       pattern = pattern.replace('\\*', '.*')
-      pattern = '^%s$' % pattern
+      pattern = f'^{pattern}$'
       patterns.append(pattern)
     # Compare actual output with the expected
     raw_lines = (output.stdout + output.stderr).split('\n')
@@ -76,22 +75,22 @@ class TTYTestCase(test.TestCase):
       print("actual=%d" % len(outlines))
       print("patterns:")
       for i in range(len(patterns)):
-        print("pattern = %s" % patterns[i])
+        print(f"pattern = {patterns[i]}")
       print("outlines:")
       for i in range(len(outlines)):
-        print("outline = %s" % outlines[i])
+        print(f"outline = {outlines[i]}")
       return True
     for i in range(len(patterns)):
       if not re.match(patterns[i], outlines[i]):
         print(" match failed")
         print("line=%d" % i)
-        print("expect=%s" % patterns[i])
-        print("actual=%s" % outlines[i])
+        print(f"expect={patterns[i]}")
+        print(f"actual={outlines[i]}")
         return True
     return False
 
   def GetLabel(self):
-    return "%s %s" % (self.mode, self.GetName())
+    return f"{self.mode} {self.GetName()}"
 
   def GetName(self):
     return self.path[-1]
@@ -151,7 +150,7 @@ class TTYTestConfiguration(test.TestConfiguration):
         input_path = file_prefix + ".in"
         output_path = file_prefix + ".out"
         if not exists(output_path):
-          raise Exception("Could not find %s" % output_path)
+          raise Exception(f"Could not find {output_path}")
         result.append(TTYTestCase(tst, file_path, output_path,
                                   input_path, arch, mode, self.context, self))
     return result
