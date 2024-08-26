@@ -481,13 +481,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       });
     });
 
-    it('should only allow a string in options.cwd', async () => {
-      [Symbol(), {}, [], () => {}, 0, 1, 0n, 1n, true, false]
-        .forEach((cwd) => assert.throws(() => run({ cwd }), {
-          code: 'ERR_INVALID_ARG_TYPE'
-        }));
-    });
-
     it('should only allow object as options', () => {
       [Symbol(), [], () => {}, 0, 1, 0n, 1n, '', '1', true, false]
         .forEach((options) => assert.throws(() => run(options), {
@@ -519,33 +512,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
     assert.match(stderr, /Warning: node:test run\(\) is being called recursively/);
-  });
-
-  it('should run with different cwd', async () => {
-    const stream = run({
-      cwd: fixtures.path('test-runner', 'cwd')
-    });
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(1));
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
-  });
-
-  it('should run with different cwd while in watch mode', async () => {
-    const controller = new AbortController();
-    const stream = run({
-      cwd: fixtures.path('test-runner', 'cwd'),
-      watch: true,
-      signal: controller.signal,
-    }).on('data', function({ type }) {
-      if (type === 'test:watch:drained') {
-        controller.abort();
-      }
-    });
-
-    stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(1));
   });
 });
 
