@@ -828,12 +828,7 @@ Maybe<void> ExportJWKEcKey(
 
   if (key->GetKeyType() == kKeyTypePrivate) {
     const BIGNUM* pvt = EC_KEY_get0_private_key(ec);
-    return SetEncodedValue(
-      env,
-      target,
-      env->jwk_d_string(),
-      pvt,
-      degree_bytes).IsJust() ? JustVoid() : Nothing<void>();
+    return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes);
   }
 
   return JustVoid();

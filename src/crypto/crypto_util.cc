@@ -604,12 +604,11 @@ MaybeLocal<Value> EncodeBignum(
                              error);
 }
 
-Maybe<bool> SetEncodedValue(
-    Environment* env,
-    Local<Object> target,
-    Local<String> name,
-    const BIGNUM* bn,
-    int size) {
+Maybe<void> SetEncodedValue(Environment* env,
+                            Local<Object> target,
+                            Local<String> name,
+                            const BIGNUM* bn,
+                            int size) {
   Local<Value> value;
   Local<Value> error;
   CHECK_NOT_NULL(bn);
@@ -617,9 +616,10 @@ Maybe<bool> SetEncodedValue(
   if (!EncodeBignum(env, bn, size, &error).ToLocal(&value)) {
     if (!error.IsEmpty())
       env->isolate()->ThrowException(error);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return target->Set(env->context(), name, value);
+  return target->Set(env->context(), name, value).IsJust() ? JustVoid()
+                                                           : Nothing<void>();
 }
 
 bool SetRsaOaepLabel(const EVPKeyCtxPointer& ctx, const ByteSource& label) {
