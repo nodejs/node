@@ -76,7 +76,7 @@ for (const isolation of ['none', 'process']) {
     assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
-    assert.match(stdout, /not ok 1 - .+index\.js/);
+    assert.match(stdout, /not ok 1 - index\.js/);
   }
 
   {
