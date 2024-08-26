@@ -1278,5 +1278,5 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [timers]: timers.md
-[webassembly-org]: https://webassembly.org
 [webassembly-mdn]: https://developer.mozilla.org/en-US/docs/WebAssembly
+[webassembly-org]: https://webassembly.org
