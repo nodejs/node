@@ -977,9 +977,6 @@ added: v22.4.0
 A browser-compatible implementation of [`sessionStorage`][]. Data is stored in
 memory, with a storage quota of 10 MB. `sessionStorage` data persists only within
 the currently running process, and is not shared between workers.
-[`--experimental-webstorage`][] CLI flag. `sessionStorage` data is not stored per
-user or per request when used in the context of a server, it is specific to
-a single context.
 
 ## `setImmediate(callback[, ...args])`
 
