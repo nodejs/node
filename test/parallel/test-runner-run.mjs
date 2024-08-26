@@ -481,6 +481,13 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       });
     });
 
+    it('should only allow a string in options.cwd', async () => {
+      [Symbol(), {}, [], () => {}, 0, 1, 0n, 1n, true, false]
+        .forEach((cwd) => assert.throws(() => run({ cwd }), {
+          code: 'ERR_INVALID_ARG_TYPE'
+        }));
+    });
+
     it('should only allow object as options', () => {
       [Symbol(), [], () => {}, 0, 1, 0n, 1n, '', '1', true, false]
         .forEach((options) => assert.throws(() => run(options), {

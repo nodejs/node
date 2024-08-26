@@ -4,10 +4,10 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
+import { writeFileSync, renameSync, unlinkSync, existsSync, mkdtempSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -221,5 +221,23 @@ describe('test runner watch mode', () => {
 
   it('should run new tests when a new file is created in the watched directory', async () => {
     await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
+  });
+
+  it('should run new tests when a new file is created in a different cwd', async () => {
+    const newTestWithoutDep = `
+      const test = require('node:test');
+      test('test without dep has ran');
+    `;
+    const differentCwd = mkdtempSync(`${tmpdir.path}/different-cwd`);
+    const testFileName = 'test-without-dep.js';
+    const newTestFilePath = join(differentCwd, testFileName);
+    writeFileSync(newTestFilePath, newTestWithoutDep);
+    const differentCwdTmpPath = basename(differentCwd);
+
+    await testWatch({
+      action: 'create',
+      fileToCreate: `${differentCwdTmpPath}/new-test-file.test.js`,
+      cwd: differentCwd
+    });
   });
 });

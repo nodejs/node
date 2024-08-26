@@ -1248,8 +1248,12 @@ added:
   - v16.19.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54225
+    description: Added the `cwd` option.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/53927
     description: Added the `isolation` option.
+option and update documentation)
   - version: v22.6.0
     pr-url: https://github.com/nodejs/node/pull/53866
     description: Added the `globPatterns` option.
@@ -1274,6 +1278,9 @@ changes:
     parallel.
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
+  * `cwd`: {string} Specifies the current working directory (cwd) to be used by the test runner.
+    The cwd serves as the base path for resolving files according to the [test runner execution model][].
+    **Default:** `process.cwd()`.
   * `files`: {Array} An array containing the list of files to run.
     **Default** matching files from [test runner execution model][].
   * `forceExit`: {boolean} Configures the test runner to exit the process once
