@@ -264,10 +264,11 @@ static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
 
   // +1 for disregarding node:util
   Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames + 1);
-  Local<Array> callsites = Array::New(isolate);
+  const int frame_count = stack->GetFrameCount();
+  std::vector<Local<Value>> callsite_objects{};
 
   // Frame 0 is node:util. It should be skipped.
-  for (int i = 1; i < stack->GetFrameCount(); ++i) {
+  for (int i = 1; i < frame_count; ++i) {
     Local<Object> obj = Object::New(isolate);
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
 
@@ -290,11 +291,12 @@ static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
              env->column_string(),
              Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()))
         .Check();
-    if (callsites->Set(env->context(), callsites->Length(), obj).IsNothing()) {
-      args.GetReturnValue().Set(Array::New(isolate));
-      return;
-    }
+
+    callsite_objects.push_back(obj);
   }
+
+  Local<Array> callsites =
+      Array::New(isolate, callsite_objects.data(), callsite_objects.size());
   args.GetReturnValue().Set(callsites);
 }
 
@@ -410,7 +412,7 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(
       context, target, "getConstructorName", GetConstructorName);
   SetMethodNoSideEffect(context, target, "getExternalValue", GetExternalValue);
-  SetMethod(context, target, "getCallSite", GetCallSite);
+  SetMethodNoSideEffect(context, target, "getCallSite", GetCallSite);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
 
