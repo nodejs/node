@@ -22,6 +22,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
+using v8::LocalVector;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
@@ -265,7 +266,7 @@ static void GetCallSite(const FunctionCallbackInfo<Value>& args) {
   // +1 for disregarding node:util
   Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames + 1);
   const int frame_count = stack->GetFrameCount();
-  std::vector<Local<Value>> callsite_objects{};
+  LocalVector<Value> callsite_objects(isolate);
 
   // Frame 0 is node:util. It should be skipped.
   for (int i = 1; i < frame_count; ++i) {
