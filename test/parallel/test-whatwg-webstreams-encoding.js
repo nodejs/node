@@ -45,32 +45,12 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
   assert.strictEqual(tds.encoding, 'utf-8');
   assert.strictEqual(tds.fatal, false);
   assert.strictEqual(tds.ignoreBOM, false);
-
-  assert.throws(
-    () => Reflect.get(TextDecoderStream.prototype, 'encoding', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
-  assert.throws(
-    () => Reflect.get(TextDecoderStream.prototype, 'fatal', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
-  assert.throws(
-    () => Reflect.get(TextDecoderStream.prototype, 'ignoreBOM', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
-  assert.throws(
-    () => Reflect.get(TextDecoderStream.prototype, 'readable', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
-  assert.throws(
-    () => Reflect.get(TextDecoderStream.prototype, 'writable', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
+  ['encoding', 'fatal', 'ignoreBOM', 'readable', 'writable'].forEach((getter) => {
+    assert.throws(
+      () => Reflect.get(TextDecoderStream.prototype, getter, {}),
+      { name: 'TypeError', message: /Cannot read private member/ }
+    )
+  });
 }
 
 {
@@ -91,20 +71,10 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
   ]).then(common.mustCall());
 
   assert.strictEqual(tds.encoding, 'utf-8');
-
-  assert.throws(
-    () => Reflect.get(TextEncoderStream.prototype, 'encoding', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
-  assert.throws(
-    () => Reflect.get(TextEncoderStream.prototype, 'readable', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
-  assert.throws(
-    () => Reflect.get(TextEncoderStream.prototype, 'writable', {}), {
-      name: 'TypeError',
-      message: /Cannot read private member/,
-    });
+  ['encoding', 'readable', 'writable'].forEach((getter) => {
+    assert.throws(
+      () => Reflect.get(TextDecoderStream.prototype, getter, {}),
+      { name: 'TypeError', message: /Cannot read private member/ }
+    )
+  });
 }
