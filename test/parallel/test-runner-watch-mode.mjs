@@ -151,10 +151,10 @@ async function testWatch({
     await once(child, 'exit');
 
     for (const run of runs) {
-      assert.match(run, / tests 1/);
-      assert.match(run, / pass 1/);
-      assert.match(run, / fail 0/);
-      assert.match(run, / cancelled 0/);
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
     }
   };
 
