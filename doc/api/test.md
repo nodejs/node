@@ -1253,7 +1253,6 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/53927
     description: Added the `isolation` option.
-option and update documentation)
   - version: v22.6.0
     pr-url: https://github.com/nodejs/node/pull/53866
     description: Added the `globPatterns` option.
