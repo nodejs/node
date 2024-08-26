@@ -93,10 +93,8 @@ assert.throws(
   }
 );
 
-if (common.isDebug) {
-  const { internalBinding } = require('internal/test/binding');
-  const { getV8FastApiCallCount } = internalBinding('debug');
-
+{
+  // V8 Fast API
   const foo = Buffer.from('foo');
   const bar = Buffer.from('bar');
   const longer = Buffer.from('longer');
@@ -111,6 +109,11 @@ if (common.isDebug) {
   assert.throws(() => testFastPath(foo, longer), {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
   });
-  assert.strictEqual(getV8FastApiCallCount('crypto.timingSafeEqual.ok'), 2);
-  assert.strictEqual(getV8FastApiCallCount('crypto.timingSafeEqual.error'), 1);
+
+  if (common.isDebug) {
+    const { internalBinding } = require('internal/test/binding');
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('crypto.timingSafeEqual.ok'), 2);
+    assert.strictEqual(getV8FastApiCallCount('crypto.timingSafeEqual.error'), 1);
+  }
 }
