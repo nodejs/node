@@ -41,7 +41,8 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath,
-                      ['--watch', '--test', file ? fixturePaths[file] : undefined].filter(Boolean),
+                      ['--watch', '--test', '--test-reporter=spec',
+                       file ? fixturePaths[file] : undefined].filter(Boolean),
                       { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
   let stdout = '';
   let currentRun = '';
@@ -50,7 +51,7 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
   child.stdout.on('data', (data) => {
     stdout += data.toString();
     currentRun += data.toString();
-    const testRuns = stdout.match(/# duration_ms\s\d+/g);
+    const testRuns = stdout.match(/duration_ms\s\d+/g);
     if (testRuns?.length >= 1) ran1.resolve();
     if (testRuns?.length >= 2) ran2.resolve();
   });
@@ -71,10 +72,10 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
     }
   };
 
@@ -94,10 +95,10 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
     }
   };
 
