@@ -103,7 +103,7 @@ void SegmentedTable<Entry, size>::TearDown() {
 }
 
 template <typename Entry, size_t size>
-SegmentedTable<Entry, size>::FreelistHead
+typename SegmentedTable<Entry, size>::FreelistHead
 SegmentedTable<Entry, size>::InitializeFreeList(Segment segment,
                                                 uint32_t start_offset) {
   DCHECK_LT(start_offset, kEntriesPerSegment);
