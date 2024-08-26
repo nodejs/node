@@ -542,7 +542,7 @@ The TSC serves as the final arbiter where required.
    example.
 6. Ideally, check the recent commits on `main` to evaluate any potential
    risk or breakage that may happen, e.g., due to multiple PRs that modify
-   the same subsystem or related subsystem(s).
+   the same or related subsystem(s).
 
 For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
