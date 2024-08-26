@@ -540,6 +540,9 @@ The TSC serves as the final arbiter where required.
    landing. If you are unsure exactly how to format the commit messages, use
    the commit log as a reference. See [this commit][commit-example] as an
    example.
+6. Ideally check the recent commits on main to evaluate any potentially
+   risk or breakage that may happen, e.g. when two or more PRs both modified
+   the same subsystem or related subsystem(s).
 
 For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
