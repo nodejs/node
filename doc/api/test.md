@@ -1278,7 +1278,7 @@ option and update documentation)
     parallel.
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
-  * `cwd`: {string} Specifies the current working directory (cwd) to be used by the test runner.
+  * `cwd`: {string} Specifies the current working directory to be used by the test runner.
     The cwd serves as the base path for resolving files according to the [test runner execution model][].
     **Default:** `process.cwd()`.
   * `files`: {Array} An array containing the list of files to run.
