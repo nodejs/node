@@ -155,7 +155,7 @@ The externally maintained libraries used by Node.js are:
     SOFTWARE.
   """
 
-- swc, located at deps/amaro, is licensed as follows:
+- swc, located at deps/amaro/dist, is licensed as follows:
   """
                                   Apache License
                             Version 2.0, January 2004
