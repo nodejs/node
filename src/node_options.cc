@@ -671,6 +671,15 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_coverage_lines,
             kAllowedInEnvvar);
 
+  AddOption("--test-runner-exclude",
+            "run tests whose filepath does not match this glob",
+            &EnvironmentOptions::test_runner_exclude,
+            kAllowedInEnvvar);
+  AddOption("--test-runner-include",
+            "only run tests whose filepath matches this glob",
+            &EnvironmentOptions::test_runner_include,
+            kAllowedInEnvvar);
+
   AddOption("--experimental-test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation);
