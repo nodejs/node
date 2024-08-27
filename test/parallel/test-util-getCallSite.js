@@ -29,6 +29,7 @@ const assert = require('node:assert');
   );
 }
 
+// Guarantee dot-left numbers are ignored
 {
   const callsite = getCallSite(3.6);
   assert.strictEqual(callsite.length, 3);
@@ -68,6 +69,7 @@ const assert = require('node:assert');
   );
 }
 
+// Guarantee [eval] will appear on stacktraces when using -e
 {
   const { status, stderr, stdout } = spawnSync(
     process.execPath,
@@ -84,6 +86,7 @@ const assert = require('node:assert');
   assert.strictEqual(stdout.toString(), '[eval]');
 }
 
+// Guarantee the stacktrace[0] is the filename
 {
   const { status, stderr, stdout } = spawnSync(
     process.execPath,
@@ -93,11 +96,11 @@ const assert = require('node:assert');
   assert.strictEqual(stdout.toString(), file);
 }
 
+// Error.stackTraceLimit should not influence callsite size
 {
   const originalStackTraceLimit = Error.stackTraceLimit;
   Error.stackTraceLimit = 0;
   const callsite = getCallSite();
-  // Error.stackTraceLimit should not influence callsite size
   assert.notStrictEqual(callsite.length, 0);
   Error.stackTraceLimit = originalStackTraceLimit;
 }

@@ -373,7 +373,7 @@ added: REPLACEME
 -->
 
 * `frames` {number} Number of frames returned in the stacktrace.
-  **Default:** `10`.
+  **Default:** `10`. Allowable range is between 1 and 200.
 * Returns: {Object\[]} An array of stacktrace objects
   * `functionName` {string} Returns the name of the function associated with this stack frame.
   * `scriptName` {string} Returns the name of the resource that contains the script for the
