@@ -56,7 +56,7 @@
 #include <fcntl.h>
 #include <limits.h>
 
-#if defined(__linux__) && defined(MSG_FASTOPEN)
+#if defined(__linux__) && defined(TCP_FASTOPEN_CONNECT)
 #  define TFO_SUPPORTED      1
 #  define TFO_SKIP_CONNECT   0
 #  define TFO_USE_SENDTO     0
