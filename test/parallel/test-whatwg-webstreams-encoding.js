@@ -49,7 +49,7 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
     assert.throws(
       () => Reflect.get(TextDecoderStream.prototype, getter, {}),
       { name: 'TypeError', message: /Cannot read private member/ }
-    )
+    );
   });
 }
 
@@ -75,6 +75,6 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
     assert.throws(
       () => Reflect.get(TextDecoderStream.prototype, getter, {}),
       { name: 'TypeError', message: /Cannot read private member/ }
-    )
+    );
   });
 }
