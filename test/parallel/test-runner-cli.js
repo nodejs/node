@@ -26,7 +26,8 @@ for (const isolation of ['none', 'process']) {
   {
     // Default behavior. node_modules is ignored. Files that don't match the
     // pattern are ignored except in test/ directories.
-    const args = ['--test', `--experimental-test-isolation=${isolation}`];
+    const args = ['--test', '--test-reporter=tap',
+                  `--experimental-test-isolation=${isolation}`];
     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'default-behavior') });
 
     assert.strictEqual(child.status, 1);
@@ -47,6 +48,7 @@ for (const isolation of ['none', 'process']) {
     const args = [
       '--require', join(testFixtures, 'protoMutation.js'),
       '--test',
+      '--test-reporter=tap',
       `--experimental-test-isolation=${isolation}`,
     ];
     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'default-behavior') });
@@ -67,6 +69,7 @@ for (const isolation of ['none', 'process']) {
     // User specified files that don't match the pattern are still run.
     const args = [
       '--test',
+      '--test-reporter=tap',
       `--experimental-test-isolation=${isolation}`,
       join(testFixtures, 'index.js'),
     ];
@@ -83,6 +86,7 @@ for (const isolation of ['none', 'process']) {
     // Searches node_modules if specified.
     const args = [
       '--test',
+      '--test-reporter=tap',
       `--experimental-test-isolation=${isolation}`,
       join(testFixtures, 'default-behavior/node_modules/*.js'),
     ];
@@ -105,18 +109,19 @@ for (const isolation of ['none', 'process']) {
     assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
-    assert.match(stdout, /ok 1 - this should pass/);
-    assert.match(stdout, /not ok 2 - this should fail/);
-    assert.match(stdout, /ok 3 - subdir.+subdir_test\.js/);
-    assert.match(stdout, /ok 4 - this should pass/);
-    assert.match(stdout, /ok 5 - this should be skipped/);
-    assert.match(stdout, /ok 6 - this should be executed/);
+    assert.match(stdout, /this should pass/);
+    assert.match(stdout, /this should fail/);
+    assert.match(stdout, /subdir.+subdir_test\.js/);
+    assert.match(stdout, /this should pass/);
+    assert.match(stdout, /this should be skipped/);
+    assert.match(stdout, /this should be executed/);
   }
 
   {
     // Test combined stream outputs
     const args = [
       '--test',
+      '--test-reporter=tap',
       `--experimental-test-isolation=${isolation}`,
       'test/fixtures/test-runner/default-behavior/index.test.js',
       'test/fixtures/test-runner/nested.js',
@@ -189,6 +194,7 @@ for (const isolation of ['none', 'process']) {
   // Test user logging in tests.
   const args = [
     '--test',
+    '--test-reporter=tap',
     'test/fixtures/test-runner/user-logs.js',
   ];
   const child = spawnSync(process.execPath, args);
@@ -223,7 +229,7 @@ for (const isolation of ['none', 'process']) {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
   const stdout = child.stdout.toString();
-  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, /this should pass/);
 }
 
 {
@@ -290,6 +296,7 @@ for (const isolation of ['none', 'process']) {
   // --test-shard option, first shard
   const args = [
     '--test',
+    '--test-reporter=tap',
     '--test-shard=1/2',
     join(testFixtures, 'shards/*.cjs'),
   ];
@@ -324,6 +331,7 @@ for (const isolation of ['none', 'process']) {
   // --test-shard option, last shard
   const args = [
     '--test',
+    '--test-reporter=tap',
     '--test-shard=2/2',
     join(testFixtures, 'shards/*.cjs'),
   ];

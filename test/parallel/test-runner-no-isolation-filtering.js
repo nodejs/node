@@ -11,6 +11,7 @@ const fixture2 = fixtures.path('test-runner', 'no-isolation', 'two.test.js');
 test('works with --test-only', () => {
   const args = [
     '--test',
+    '--test-reporter=tap',
     '--experimental-test-isolation=none',
     '--test-only',
     fixture1,
@@ -33,6 +34,7 @@ test('works with --test-only', () => {
 test('works with --test-name-pattern', () => {
   const args = [
     '--test',
+    '--test-reporter=tap',
     '--experimental-test-isolation=none',
     '--test-name-pattern=/test one/',
     fixture1,
@@ -52,6 +54,7 @@ test('works with --test-name-pattern', () => {
 test('works with --test-skip-pattern', () => {
   const args = [
     '--test',
+    '--test-reporter=tap',
     '--experimental-test-isolation=none',
     '--test-skip-pattern=/one/',
     fixture1,
