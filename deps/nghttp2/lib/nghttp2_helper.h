@@ -64,7 +64,7 @@ nghttp2_min_def(size, size_t);
 #define lstreq(A, B, N) ((sizeof((A)) - 1) == (N) && memcmp((A), (B), (N)) == 0)
 
 #define nghttp2_struct_of(ptr, type, member)                                   \
-  ((type *)(void *)((char *)(ptr)-offsetof(type, member)))
+  ((type *)(void *)((char *)(ptr) - offsetof(type, member)))
 
 /*
  * Copies 2 byte unsigned integer |n| in host byte order to |buf| in
