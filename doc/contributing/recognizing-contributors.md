@@ -47,7 +47,7 @@ by the Node.js social media accounts. They can request that a post highlighting
 that they are speaking at the event be amplified by the Node.js accounts by
 making a request in the #nodejs-social channel in the OpenJS Foundation slack.
 We trust that collaborators will only request amplification when they believe
-the event is revelant to a Node.js audience and the content of the post is
+the event is revelant to the Node.js community and the content of the post is
 in line wit the norms of the project.
 
 ## Bi-monthly contributor spotlight
