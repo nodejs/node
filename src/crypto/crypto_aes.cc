@@ -476,12 +476,9 @@ Maybe<bool> AESCipherTraits::AdditionalConfig(
   params->variant =
       static_cast<AESKeyVariant>(args[offset].As<Uint32>()->Value());
 
-  AESCipherMode cipher_op_mode;
   int cipher_nid;
-
-#define V(name, _, mode, nid)                                                  \
+#define V(name, _, nid)                                                        \
   case kKeyVariantAES_##name: {                                                \
-    cipher_op_mode = mode;                                                     \
     cipher_nid = nid;                                                          \
     break;                                                                     \
   }
@@ -492,15 +489,22 @@ Maybe<bool> AESCipherTraits::AdditionalConfig(
   }
 #undef V
 
-  if (cipher_op_mode != AESCipherMode::KW) {
+  params->cipher = EVP_get_cipherbynid(cipher_nid);
+  if (params->cipher == nullptr) {
+    THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
+    return Nothing<bool>();
+  }
+
+  int cipher_op_mode = EVP_CIPHER_mode(params->cipher);
+  if (cipher_op_mode != EVP_CIPH_WRAP_MODE) {
     if (!ValidateIV(env, mode, args[offset + 1], params)) {
       return Nothing<bool>();
     }
-    if (cipher_op_mode == AESCipherMode::CTR) {
+    if (cipher_op_mode == EVP_CIPH_CTR_MODE) {
       if (!ValidateCounter(env, args[offset + 2], params)) {
         return Nothing<bool>();
       }
-    } else if (cipher_op_mode == AESCipherMode::GCM) {
+    } else if (cipher_op_mode == EVP_CIPH_GCM_MODE) {
       if (!ValidateAuthTag(env, mode, cipher_mode, args[offset + 2], params) ||
           !ValidateAdditionalData(env, mode, args[offset + 3], params)) {
         return Nothing<bool>();
@@ -508,12 +512,6 @@ Maybe<bool> AESCipherTraits::AdditionalConfig(
     }
   } else {
     UseDefaultIV(params);
-  }
-
-  params->cipher = EVP_get_cipherbynid(cipher_nid);
-  if (params->cipher == nullptr) {
-    THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
-    return Nothing<bool>();
   }
 
   if (params->iv.size() <
@@ -532,7 +530,7 @@ WebCryptoCipherStatus AESCipherTraits::DoCipher(
     const AESCipherConfig& params,
     const ByteSource& in,
     ByteSource* out) {
-#define V(name, fn, _, __)                                                     \
+#define V(name, fn, _)                                                         \
   case kKeyVariantAES_##name:                                                  \
     return fn(env, key_data.get(), cipher_mode, params, in, out);
   switch (params.variant) {
@@ -546,7 +544,7 @@ WebCryptoCipherStatus AESCipherTraits::DoCipher(
 void AES::Initialize(Environment* env, Local<Object> target) {
   AESCryptoJob::Initialize(env, target);
 
-#define V(name, _, __, ___) NODE_DEFINE_CONSTANT(target, kKeyVariantAES_##name);
+#define V(name, _, __) NODE_DEFINE_CONSTANT(target, kKeyVariantAES_##name);
   VARIANTS(V)
 #undef V
 }
