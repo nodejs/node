@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_ASSEMBLER_H_
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_H_
 
+#include <concepts>
 #include <cstring>
 #include <iomanip>
 #include <iterator>
@@ -197,8 +198,8 @@ template <typename T>
 class IndexRange : public Range<T> {
  public:
   using base = Range<T>;
-  using value_type = base::value_type;
-  using iterator_type = base::iterator_type;
+  using value_type = typename base::value_type;
+  using iterator_type = typename base::iterator_type;
 
   explicit IndexRange(ConstOrV<T> count) : Range<T>(0, count, 1) {}
 };
@@ -226,8 +227,8 @@ class Sequence : private Range<T> {
   using base = Range<T>;
 
  public:
-  using value_type = base::value_type;
-  using iterator_type = base::iterator_type;
+  using value_type = typename base::value_type;
+  using iterator_type = typename base::iterator_type;
 
   explicit Sequence(ConstOrV<T> begin, ConstOrV<T> stride = 1)
       : base(begin, 0, stride) {}
@@ -731,7 +732,7 @@ struct LoopLabelForHelper<std::tuple<V<Ts>...>> {
 }  // namespace detail
 
 template <typename T>
-using LoopLabelFor = detail::LoopLabelForHelper<T>::type;
+using LoopLabelFor = typename detail::LoopLabelForHelper<T>::type;
 
 Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
 
