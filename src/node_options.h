@@ -257,6 +257,7 @@ class EnvironmentOptions : public Options {
 
   bool report_exclude_env = false;
   bool report_exclude_network = false;
+  std::string experimental_config_file;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
@@ -389,6 +390,7 @@ enum OptionType {
   kHostPort,
   kStringList,
 };
+std::unordered_map<std::string, OptionType> MapEnvOptionsFlagInputType();
 
 template <typename Options>
 class OptionsParser {
@@ -569,6 +571,10 @@ class OptionsParser {
   friend void GetCLIOptionsInfo(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   friend std::string GetBashCompletion();
+  friend std::unordered_map<std::string, OptionType>
+  MapEnvOptionsFlagInputType();
+  friend void GetEnvOptionsInputType(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 using StringVector = std::vector<std::string>;
