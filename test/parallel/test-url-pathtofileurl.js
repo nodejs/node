@@ -157,12 +157,8 @@ const posixTestCases = [
   { path: '/€', expected: 'file:///%E2%82%AC' },
   // Rocket emoji (non-BMP code point)
   { path: '/🚀', expected: 'file:///%F0%9F%9A%80' },
-  // caret
-  { path: '/foo^bar', expected: 'file:///foo%5Ebar' },
-  // left bracket
-  { path: '/foo[bar', expected: 'file:///foo%5Bbar' },
-  // right bracket
-  { path: '/foo]bar', expected: 'file:///foo%5Dbar' },
+  // "unsafe" chars
+  { path: '/foo\r\n\t<>"#%{}|^[\\~]`?bar', expected: 'file:///foo%0D%0A%09%3C%3E%22%23%25%7B%7D%7C%5E%5B%5C%7E%5D%60%3Fbar' },
 ];
 
 for (const { path, expected } of windowsTestCases) {
