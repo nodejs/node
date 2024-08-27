@@ -9,6 +9,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
+const path = require('path');
 
 {
   // Test that it works with non-existent directory.
@@ -43,9 +44,10 @@ const fs = require('fs');
       }
     });
 
-  const cacheDir = fs.readdirSync(tmpdir.path);
+  const baseDir = path.join(tmpdir.path, 'node-compile-cache');
+  const cacheDir = fs.readdirSync(baseDir);
   assert.strictEqual(cacheDir.length, 1);
-  const entries = fs.readdirSync(tmpdir.resolve(cacheDir[0]));
+  const entries = fs.readdirSync(path.join(baseDir, cacheDir[0]));
   assert.strictEqual(entries.length, 1);
 
   // Second run reads the cache, but no need to re-write because it didn't change.
