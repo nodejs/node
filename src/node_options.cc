@@ -29,6 +29,7 @@ using v8::Name;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::String;
 using v8::Undefined;
 using v8::Value;
 namespace node {
@@ -686,6 +687,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set environment variables from supplied file",
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
+  AddOption("--experimental-config-file",
+            "set config file from supplied file",
+            &EnvironmentOptions::experimental_config_file);
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner);
@@ -1317,6 +1321,19 @@ std::string GetBashCompletion() {
   return out.str();
 }
 
+std::unordered_map<std::string, options_parser::OptionType>
+MapEnvOptionsFlagInputType() {
+  std::unordered_map<std::string, options_parser::OptionType> type_map;
+  const auto& parser = _ppop_instance;
+  for (const auto& item : parser.options_) {
+    if (!item.first.empty() && !item.first.starts_with('[') &&
+        item.second.env_setting == kAllowedInEnvvar) {
+      type_map[item.first] = item.second.type;
+    }
+  }
+  return type_map;
+}
+
 struct IterateCLIOptionsScope {
   explicit IterateCLIOptionsScope(Environment* env) {
     // Temporarily act as if the current Environment's/IsolateData's options
@@ -1554,6 +1571,81 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+// This function returns a map containing all the options available
+// as NODE_OPTIONS and their input type
+// Example --experimental-transform types: kBoolean
+// This is used to determine the type of the input for each option
+// to generate the config file json schema
+void GetEnvOptionsInputType(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  if (!env->has_run_bootstrapping_code()) {
+    // No code because this is an assertion.
+    return env->ThrowError(
+        "Should not query options before bootstrapping is done");
+  }
+
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+
+  Local<Map> flags_map = Map::New(isolate);
+
+  for (const auto& item : _ppop_instance.options_) {
+    if (!item.first.empty() && !item.first.starts_with('[') &&
+        item.second.env_setting == kAllowedInEnvvar) {
+      std::string type;
+      switch (static_cast<int>(item.second.type)) {
+        case 0:   // No-op
+        case 1:   // V8 flags
+          break;  // V8 and NoOp flags are not supported
+
+        case 2:
+          type = "boolean";
+          break;
+        case 3:  // integer
+        case 4:  // unsigned integer
+        case 6:  // host port
+          type = "number";
+          break;
+        case 5:  // string
+          type = "string";
+          break;
+        case 7:  // string array
+          type = "array";
+          break;
+        default:
+          UNREACHABLE();
+      }
+
+      if (type.empty()) {
+        continue;
+      }
+
+      Local<String> value;
+      if (!String::NewFromUtf8(
+               isolate, type.data(), v8::NewStringType::kNormal, type.size())
+               .ToLocal(&value)) {
+        continue;
+      }
+
+      Local<String> field;
+      if (!String::NewFromUtf8(isolate,
+                               item.first.data(),
+                               v8::NewStringType::kNormal,
+                               item.first.size())
+               .ToLocal(&field)) {
+        continue;
+      }
+
+      if (flags_map->Set(context, field, value).IsEmpty()) {
+        return;
+      }
+    }
+  }
+  args.GetReturnValue().Set(flags_map);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1566,7 +1658,8 @@ void Initialize(Local<Object> target,
       context, target, "getCLIOptionsInfo", GetCLIOptionsInfo);
   SetMethodNoSideEffect(
       context, target, "getEmbedderOptions", GetEmbedderOptions);
-
+  SetMethodNoSideEffect(
+      context, target, "getEnvOptionsInputType", GetEnvOptionsInputType);
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvvar);
   NODE_DEFINE_CONSTANT(env_settings, kDisallowedInEnvvar);
@@ -1592,6 +1685,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetCLIOptionsValues);
   registry->Register(GetCLIOptionsInfo);
   registry->Register(GetEmbedderOptions);
+  registry->Register(GetEnvOptionsInputType);
 }
 }  // namespace options_parser
 
