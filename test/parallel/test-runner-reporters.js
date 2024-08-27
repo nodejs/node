@@ -16,10 +16,10 @@ describe('node:test reporters', { concurrency: true }, () => {
   it('should default to outputing TAP to stdout', async () => {
     const child = spawnSync(process.execPath, ['--test', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
-    assert.match(child.stdout.toString(), /TAP version 13/);
-    assert.match(child.stdout.toString(), /ok 1 - ok/);
-    assert.match(child.stdout.toString(), /not ok 2 - failing/);
-    assert.match(child.stdout.toString(), /ok 2 - top level/);
+    assert.match(child.stdout.toString(), /✖ failing tests:/);
+    assert.match(child.stdout.toString(), /✔ ok/);
+    assert.match(child.stdout.toString(), /✖ failing/);
+    assert.match(child.stdout.toString(), /✔ top level/);
   });
 
   it('should default destination to stdout when passing a single reporter', async () => {
