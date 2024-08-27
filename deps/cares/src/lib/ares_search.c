@@ -107,26 +107,37 @@ static void search_callback(void *arg, ares_status_t status, size_t timeouts,
 {
   struct search_query *squery  = (struct search_query *)arg;
   ares_channel_t      *channel = squery->channel;
-  ares_dns_rcode_t     rcode;
-  size_t               ancount;
+
   ares_status_t        mystatus;
   ares_bool_t          skip_cleanup = ARES_FALSE;
 
   squery->timeouts += timeouts;
 
-  if (status != ARES_SUCCESS) {
-    end_squery(squery, status, dnsrec);
-    return;
+  if (dnsrec) {
+    ares_dns_rcode_t rcode   = ares_dns_record_get_rcode(dnsrec);
+    size_t           ancount = ares_dns_record_rr_cnt(dnsrec,
+                                                      ARES_SECTION_ANSWER);
+    mystatus = ares_dns_query_reply_tostatus(rcode, ancount);
+  } else {
+    mystatus = status;
   }
 
-  rcode    = ares_dns_record_get_rcode(dnsrec);
-  ancount  = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
-  mystatus = ares_dns_query_reply_tostatus(rcode, ancount);
-
-  if (mystatus != ARES_ENODATA && mystatus != ARES_ESERVFAIL &&
-      mystatus != ARES_ENOTFOUND) {
-    end_squery(squery, mystatus, dnsrec);
-    return;
+  switch (mystatus) {
+    case ARES_ENODATA:
+    case ARES_ENOTFOUND:
+      break;
+    case ARES_ESERVFAIL:
+    case ARES_EREFUSED:
+       /* Issue #852, systemd-resolved may return SERVFAIL or REFUSED on a
+       * single label domain name. */
+      if (ares__name_label_cnt(squery->names[squery->next_name_idx-1]) != 1) {
+        end_squery(squery, mystatus, dnsrec);
+        return;
+      }
+      break;
+    default:
+      end_squery(squery, mystatus, dnsrec);
+      return;
   }
 
   /* If we ever get ARES_ENODATA along the way, record that; if the search
@@ -146,7 +157,6 @@ static void search_callback(void *arg, ares_status_t status, size_t timeouts,
     }
     return;
   }
-
 
   /* We have no more domains to search, return an appropriate response. */
   if (mystatus == ARES_ENOTFOUND && squery->ever_got_nodata) {
@@ -176,6 +186,25 @@ static ares_bool_t ares__search_eligible(const ares_channel_t *channel,
   return ARES_TRUE;
 }
 
+size_t ares__name_label_cnt(const char *name)
+{
+  const char   *p;
+  size_t        ndots = 0;
+
+  if (name == NULL) {
+    return 0;
+  }
+
+  for (p = name; p != NULL && *p != 0; p++) {
+    if (*p == '.') {
+      ndots++;
+    }
+  }
+
+  /* Label count is 1 greater than ndots */
+  return ndots+1;
+}
+
 ares_status_t ares__search_name_list(const ares_channel_t *channel,
                                      const char *name, char ***names,
                                      size_t *names_len)
@@ -186,7 +215,6 @@ ares_status_t ares__search_name_list(const ares_channel_t *channel,
   char         *alias    = NULL;
   size_t        ndots    = 0;
   size_t        idx      = 0;
-  const char   *p;
   size_t        i;
 
   /* Perform HOSTALIASES resolution */
@@ -223,12 +251,10 @@ ares_status_t ares__search_name_list(const ares_channel_t *channel,
     goto done;
   }
 
-  /* Count the number of dots in name */
-  ndots = 0;
-  for (p = name; *p != 0; p++) {
-    if (*p == '.') {
-      ndots++;
-    }
+  /* Count the number of dots in name, 1 less than label count */
+  ndots = ares__name_label_cnt(name);
+  if (ndots > 0) {
+    ndots--;
   }
 
   /* Allocate an entry for each search domain, plus one for as-is */

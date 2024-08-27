@@ -1,3 +1,35 @@
+## c-ares version 1.33.1 - August 23 2024
+
+This is a bugfix release.
+
+Bugfixes:
+* Work around systemd-resolved quirk that returns unexpected codes for single
+  label names.  Also adds test cases to validate the work around works and
+  will continue to work in future releases.
+  [PR #863](https://github.com/c-ares/c-ares/pull/863),
+  See Also https://github.com/systemd/systemd/issues/34101
+* Fix sysconfig ndots default value, also adds containerized test case to
+  prevent future regressions.
+  [PR #862](https://github.com/c-ares/c-ares/pull/862)
+* Fix blank DNS name returning error code rather than valid record for
+  commands like: `adig -t SOA .`.  Also adds test case to prevent future
+  regressions.
+  [9e574af](https://github.com/c-ares/c-ares/commit/9e574af)
+* Fix calculation of query times > 1s.
+  [2b2eae7](https://github.com/c-ares/c-ares/commit/2b2eae7)
+* Fix building on old Linux releases that don't have `TCP_FASTOPEN_CONNECT`.
+  [b7a89b9](https://github.com/c-ares/c-ares/commit/b7a89b9)
+* Fix minor Android build warnings.
+  [PR #848](https://github.com/c-ares/c-ares/pull/848)
+
+Thanks go to these friendly people for their efforts and contributions for this
+release:
+* Brad House (@bradh352)
+* Erik Lax (@eriklax)
+* Hans-Christian Egtvedt (@egtvedt)
+* Mikael Lindemann (@mikaellindemann)
+* Nodar Chkuaselidze (@nodech)
+
 ## c-ares version 1.33.0 - August 2 2024
 
 This is a feature and bugfix release.

@@ -571,7 +571,7 @@ static void process_timeouts(ares_channel_t *channel, const ares_timeval_t *now)
 
     conn = query->conn;
     server_increment_failures(conn->server, query->using_tcp);
-    ares__requeue_query(query, now, ARES_ETIMEOUT, ARES_TRUE);
+    ares__requeue_query(query, now, ARES_ETIMEOUT, ARES_TRUE, NULL);
   }
 }
 
@@ -711,7 +711,7 @@ static ares_status_t process_answer(ares_channel_t      *channel,
       }
 
       server_increment_failures(server, query->using_tcp);
-      ares__requeue_query(query, now, status, ARES_TRUE);
+      ares__requeue_query(query, now, status, ARES_TRUE, rdnsrec);
 
       /* Should any of these cause a connection termination?
        * Maybe SERVER_FAILURE? */
@@ -756,10 +756,11 @@ static void handle_conn_error(ares_conn_t *conn, ares_bool_t critical_failure,
   ares__close_connection(conn, failure_status);
 }
 
-ares_status_t ares__requeue_query(ares_query_t         *query,
-                                  const ares_timeval_t *now,
-                                  ares_status_t         status,
-                                  ares_bool_t           inc_try_count)
+ares_status_t ares__requeue_query(ares_query_t            *query,
+                                  const ares_timeval_t    *now,
+                                  ares_status_t            status,
+                                  ares_bool_t              inc_try_count,
+                                  const ares_dns_record_t *dnsrec)
 {
   ares_channel_t *channel = query->channel;
   size_t max_tries        = ares__slist_len(channel->servers) * channel->tries;
@@ -783,7 +784,7 @@ ares_status_t ares__requeue_query(ares_query_t         *query,
     query->error_status = ARES_ETIMEOUT;
   }
 
-  end_query(channel, NULL, query, query->error_status, NULL);
+  end_query(channel, NULL, query, query->error_status, dnsrec);
   return ARES_ETIMEOUT;
 }
 
@@ -1078,7 +1079,7 @@ ares_status_t ares__send_query(ares_query_t *query, const ares_timeval_t *now)
       case ARES_ECONNREFUSED:
       case ARES_EBADFAMILY:
         server_increment_failures(server, query->using_tcp);
-        return ares__requeue_query(query, now, status, ARES_TRUE);
+        return ares__requeue_query(query, now, status, ARES_TRUE, NULL);
 
       /* Anything else is not retryable, likely ENOMEM */
       default:
@@ -1104,7 +1105,7 @@ ares_status_t ares__send_query(ares_query_t *query, const ares_timeval_t *now)
     case ARES_ECONNREFUSED:
     case ARES_EBADFAMILY:
       handle_conn_error(conn, ARES_TRUE, status);
-      status = ares__requeue_query(query, now, status, ARES_TRUE);
+      status = ares__requeue_query(query, now, status, ARES_TRUE, NULL);
       if (status == ARES_ETIMEOUT) {
         status = ARES_ECONNREFUSED;
       }
@@ -1114,7 +1115,7 @@ ares_status_t ares__send_query(ares_query_t *query, const ares_timeval_t *now)
      * just requeue to a different server/connection. */
     default:
       server_increment_failures(server, query->using_tcp);
-      status = ares__requeue_query(query, now, status, ARES_TRUE);
+      status = ares__requeue_query(query, now, status, ARES_TRUE, NULL);
       return status;
   }
 
