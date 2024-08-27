@@ -2358,6 +2358,38 @@ changes:
 The destination for the corresponding test reporter. See the documentation on
 [test reporters][] for more details.
 
+### `--test-runner-exclude`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Excludes specific files from being ran in the test suite using a glob pattern, which
+can match the relative file path.
+
+This option may be specified multiple times to exclude multiple glob patterns.
+
+If both `--test-runner-exclude` and `--test-runner-include` are provided,
+files must meet **both** criteria to be included in the test suite.
+
+### `--test-runner-exclude`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Includes specific files in the test suite using a glob pattern, which can match
+both the relative file path.
+
+This option may be specified multiple times to include multiple glob patterns.
+
+If both `--test-runner-exclude` and `--test-runner-include` are provided,
+files must meet **both** criteria to be included in the test suite.
+
 ### `--test-shard`
 
 <!-- YAML
@@ -3059,6 +3091,8 @@ one is included in the list below.
 * `--test-only`
 * `--test-reporter-destination`
 * `--test-reporter`
+* `--test-runner-exclude`
+* `--test-runner-include`
 * `--test-shard`
 * `--test-skip-pattern`
 * `--throw-deprecation`
