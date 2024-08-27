@@ -59,7 +59,7 @@ static unsigned int ares__htable_generate_seed(ares__htable_t *htable)
    * collision attack is very low with a small amount of effort */
   seed |= (unsigned int)((size_t)htable & 0xFFFFFFFF);
   seed |= (unsigned int)((size_t)&seed & 0xFFFFFFFF);
-  seed |= (unsigned int)(t & 0xFFFFFFFF);
+  seed |= (unsigned int)(((ares_uint64_t)t) & 0xFFFFFFFF);
   return seed;
 }
 

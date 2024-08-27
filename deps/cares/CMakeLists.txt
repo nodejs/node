@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.33.0" )
+PROJECT (c-ares LANGUAGES C VERSION "1.33.1" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "20:0:18")
+SET (CARES_LIB_VERSIONINFO "20:1:18")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -772,12 +772,11 @@ IF (CARES_INSTALL)
 	INSTALL (EXPORT ${PROJECT_NAME}-targets COMPONENT Devel DESTINATION ${CMAKECONFIG_INSTALL_DIR} NAMESPACE ${PROJECT_NAME}::)
 	INSTALL (FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake" COMPONENT Devel DESTINATION ${CMAKECONFIG_INSTALL_DIR})
 
-	# pkgconfig support
-	IF (NOT CARES_SHARED)
-		FOREACH (LIB ${CARES_DEPENDENT_LIBS})
-			SET (CARES_PRIVATE_LIBS "${CARES_PRIVATE_LIBS} -l${LIB}")
-		ENDFOREACH ()
-	ENDIF ()
+	# pkgconfig support for static builds
+	FOREACH (LIB ${CARES_DEPENDENT_LIBS})
+		SET (CARES_PRIVATE_LIBS "${CARES_PRIVATE_LIBS} -l${LIB}")
+	ENDFOREACH ()
+
 	CONFIGURE_FILE("libcares.pc.cmake" "libcares.pc" @ONLY)
 	INSTALL (FILES "${CMAKE_CURRENT_BINARY_DIR}/libcares.pc" COMPONENT Devel DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 ENDIF ()

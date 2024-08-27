@@ -31,6 +31,8 @@
 ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
                                         ares_event_thread_t     *e)
 {
+  (void)configchg;
+  (void)e;
   /* No ability */
   return ARES_ENOTIMP;
 }
@@ -38,6 +40,7 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
 void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
 {
   /* No-op */
+  (void)configchg;
 }
 
 #elif defined(__linux__)
@@ -107,7 +110,7 @@ static void ares_event_configchg_cb(ares_event_thread_t *e, ares_socket_t fd,
      * size provided, so I assume it won't ever return partial events. */
     for (ptr  = buf; ptr < buf + len;
          ptr += sizeof(struct inotify_event) + event->len) {
-      event = (const struct inotify_event *)ptr;
+      event = (const struct inotify_event *)((const void *)ptr);
 
       if (event->len == 0 || ares_strlen(event->name) == 0) {
         continue;

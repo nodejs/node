@@ -62,7 +62,11 @@ static ares_status_t ares_apply_dns0x20(ares_channel_t    *channel,
   }
 
   len = ares_strlen(name);
-  if (len == 0 || len >= sizeof(dns0x20name)) {
+  if (len == 0) {
+    return ARES_SUCCESS;
+  }
+
+  if (len >= sizeof(dns0x20name)) {
     status = ARES_EBADNAME;
     goto done;
   }

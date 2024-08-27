@@ -27,6 +27,7 @@
 #  include "ares_private.h"
 #  include <jni.h>
 #  include <sys/prctl.h>
+#  include "ares_android.h"
 
 static JavaVM   *android_jvm                  = NULL;
 static jobject   android_connectivity_manager = NULL;
@@ -227,7 +228,7 @@ done:
     (*android_jvm)->DetachCurrentThread(android_jvm);
   }
 
-  return ret;
+  return (int)ret;
 }
 
 int ares_library_android_initialized(void)

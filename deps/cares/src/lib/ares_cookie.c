@@ -427,7 +427,8 @@ ares_status_t ares_cookie_validate(ares_query_t            *query,
     /* Resend the request, hopefully it will work the next time as we should
      * have recorded a server cookie */
     ares__requeue_query(query, now, ARES_SUCCESS,
-                        ARES_FALSE /* Don't increment try count */);
+                        ARES_FALSE /* Don't increment try count */,
+                        NULL);
 
     /* Parent needs to drop this response */
     return ARES_EBADRESP;
