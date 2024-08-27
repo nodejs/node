@@ -124,8 +124,9 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
   if (!sandbox_obj.IsEmpty()) {
     // Do not use the template with interceptors for vanilla contexts.
     object_template = env->contextify_global_template();
+    DCHECK(!object_template.IsEmpty());
   }
-  DCHECK(!object_template.IsEmpty());
+
   const SnapshotData* snapshot_data = env->isolate_data()->snapshot_data();
 
   MicrotaskQueue* queue =
