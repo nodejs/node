@@ -651,3 +651,43 @@ test('wrong import syntax should throw error after module mocking.', async () =>
   assert.match(stderr, /Error \[ERR_MODULE_NOT_FOUND\]: Cannot find module/);
   assert.strictEqual(code, 1);
 });
+
+test('should throw ERR_ACCESS_DENIED when permission model is enabled', async (t) => {
+  const cwd = fixtures.path('test-runner');
+  const fixture = fixtures.path('test-runner', 'mock-nm.js');
+  const args = [
+    '--experimental-permission',
+    '--allow-fs-read=*',
+    '--experimental-test-module-mocks',
+    fixture,
+  ];
+  const {
+    code,
+    stdout,
+  } = await common.spawnPromisified(process.execPath, args, { cwd });
+
+  assert.strictEqual(code, 1);
+  assert.match(stdout, /Access to this API has been restricted/);
+});
+
+test('should work when --allow-worker is passed and permission model is enabled', async (t) => {
+  const cwd = fixtures.path('test-runner');
+  const fixture = fixtures.path('test-runner', 'mock-nm.js');
+  const args = [
+    '--experimental-permission',
+    '--allow-fs-read=*',
+    '--allow-worker',
+    '--experimental-test-module-mocks',
+    fixture,
+  ];
+  const {
+    code,
+    stdout,
+    stderr,
+    signal,
+  } = await common.spawnPromisified(process.execPath, args, { cwd });
+
+  assert.strictEqual(code, 0, stderr);
+  assert.strictEqual(signal, null);
+  assert.match(stdout, /pass 1/, stderr);
+});
