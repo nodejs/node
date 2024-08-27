@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "6.19.2",
+  "version": "6.19.8",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -62,7 +62,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "build:node": "npx esbuild@0.19.4 index-fetch.js --bundle --platform=node --outfile=undici-fetch.js --define:esbuildDetection=1 --keep-names && node scripts/strip-comments.js",
+    "build:node": "npx esbuild@0.19.10 index-fetch.js --bundle --platform=node --outfile=undici-fetch.js --define:esbuildDetection=1 --keep-names && node scripts/strip-comments.js",
     "prebuild:wasm": "node build/wasm.js --prebuild",
     "build:wasm": "node build/wasm.js --docker",
     "lint": "standard | snazzy",
@@ -113,7 +113,7 @@
     "dns-packet": "^5.4.0",
     "fast-check": "^3.17.1",
     "form-data": "^4.0.0",
-    "formdata-node": "^4.3.1",
+    "formdata-node": "^6.0.3",
     "https-pem": "^3.0.0",
     "husky": "^9.0.7",
     "jest": "^29.0.2",
