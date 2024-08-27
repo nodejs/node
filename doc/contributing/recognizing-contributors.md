@@ -43,7 +43,7 @@ includes (in alphabetical order):
 ## Amplification of posts announcing talks by collaborators
 
 When a collaborator is speaking at a public event they may request amplification
-by the Node.js accounts in social media. They can request that a post highlighting
+by the Node.js social media accounts. They can request that a post highlighting
 that they are speaking at the event be amplified by the Node.js accounts by
 making a request in the #nodejs-social channel in the OpenJS Foundation slack.
 We trust that collaborators will only request amplification when they believe
