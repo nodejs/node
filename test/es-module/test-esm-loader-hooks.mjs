@@ -154,7 +154,7 @@ describe('Loader hooks', { concurrency: true }, () => {
     });
   });
 
-  it('should work without worker permission', async () => {
+  it('should not work without worker permission', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-permission',
@@ -165,9 +165,9 @@ describe('Loader hooks', { concurrency: true }, () => {
       fixtures.path('es-modules/esm-top-level-await.mjs'),
     ]);
 
-    assert.strictEqual(stderr, '');
-    assert.match(stdout, /^1\r?\n2\r?\n$/);
-    assert.strictEqual(code, 0);
+    assert.match(stderr, /Error: Access to this API has been restricted/);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
   });
 

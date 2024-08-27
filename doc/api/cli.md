@@ -1076,6 +1076,8 @@ added: v20.18.0
 
 Enable module mocking in the test runner.
 
+This feature requires `--allow-worker` if used with the [Permission Model][].
+
 ### `--experimental-vm-modules`
 
 <!-- YAML
