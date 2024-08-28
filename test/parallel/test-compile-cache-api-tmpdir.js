@@ -24,7 +24,7 @@ const path = require('path');
         NODE_DEBUG_NATIVE: 'COMPILE_CACHE',
         NODE_COMPILE_CACHE: undefined,
         NODE_TEST_COMPILE_CACHE_DIR: undefined,
-        TMPDIR: tmpdir.path
+        TMP: tmpdir.path
       },
       cwd: tmpdir.path
     },
@@ -60,7 +60,7 @@ const path = require('path');
         NODE_DEBUG_NATIVE: 'COMPILE_CACHE',
         NODE_COMPILE_CACHE: undefined,
         NODE_TEST_COMPILE_CACHE_DIR: undefined,
-        TMPDIR: tmpdir.path
+        TMP: tmpdir.path
       },
       cwd: tmpdir.path
     },
