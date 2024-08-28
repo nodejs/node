@@ -1,14 +1,14 @@
 'use strict';
 
 require('../common');
-const { spawnSyncAndExitWithoutError } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const { fixturesDir } = require('../common/fixtures');
 const stderr = /ExperimentalWarning: Support for loading ES Module in require/;
 
 function testPreload(preloadFlag) {
   // Test named exports.
   {
-    spawnSyncAndExitWithoutError(
+    spawnSyncAndAssert(
       process.execPath,
       [
         '--experimental-require-module',
@@ -29,7 +29,7 @@ function testPreload(preloadFlag) {
 
   // Test ESM that import ESM.
   {
-    spawnSyncAndExitWithoutError(
+    spawnSyncAndAssert(
       process.execPath,
       [
         '--experimental-require-module',
@@ -50,7 +50,7 @@ function testPreload(preloadFlag) {
 
   // Test ESM that import CJS.
   {
-    spawnSyncAndExitWithoutError(
+    spawnSyncAndAssert(
       process.execPath,
       [
         '--experimental-require-module',
@@ -73,7 +73,7 @@ function testPreload(preloadFlag) {
   // Can't use the common/index.mjs here because that checks the globals, and
   // -r injects a bunch of globals.
   {
-    spawnSyncAndExitWithoutError(
+    spawnSyncAndAssert(
       process.execPath,
       [
         '--experimental-require-module',
@@ -99,7 +99,7 @@ testPreload('--import');
 // Test "type": "module" and "main" field in package.json, this is only for --require because
 // --import does not support extension-less preloads.
 {
-  spawnSyncAndExitWithoutError(
+  spawnSyncAndAssert(
     process.execPath,
     [
       '--experimental-require-module',
