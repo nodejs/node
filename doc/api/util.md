@@ -1825,7 +1825,7 @@ changes:
   * `stream` {Stream} A stream that will be validated if it can be colored. **Default:** `process.stdout`.
 
 This function returns a formatted text considering the `format` passed
-for printing in a terminal, it is aware of the terminal's capabilities
+for printing in a terminal. It is aware of the terminal's capabilities
 and act according to the configuration set via `NO_COLORS`,
 `NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
