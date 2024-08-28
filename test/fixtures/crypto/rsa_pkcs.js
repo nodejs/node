@@ -96,7 +96,34 @@ module.exports = function () {
       '688c993b58a0ed35e8f0a106d4e8b1b360e334415c742e94675823db0fd25e22cff' +
       '7a6335c70e193235dcda48add6858626bd96311e60f7e5ea4491b6c1e6248afe12b' +
       'bbd54f8869b043a5b0444562813f0a98b300356f306e6b783a29f3bec97ca40ea20' +
-      '062cab8926ec5d96aa387cc84821a6d72b8ea126e7d', 'hex')
+      '062cab8926ec5d96aa387cc84821a6d72b8ea126e7d', 'hex'),
+    'sha3-256': Buffer.from(
+      'be1b476c1911a01d71710fd8a2f3158d6f7839e91443b01bed30dfdd04336d80c6b' +
+      'f692c06fad254877901c10a73853e8fb202a29cddefdf16c3adcda1fc123625897d' +
+      '1b81b32a9dec38957e023be221d8f31e7470ad32e761edce9170eefa37ec19bd0c3' +
+      'e0b0ad2a244e98f54a08f873efb63c6fad14d7322b50eb05b6bae767305da92a90a' +
+      '53cdae52b0d81e158a00003ec626e50423b7377a34a7b28cc7483b55bfde05bd431' +
+      'cfa436c38c285531e0d476ee13f151c8ae832ffd51ba00f2ab06f1844e73c0fe0f6' +
+      'ce17d966b1e07727af4161368aa0a74a594a6fdb782b46a9ae6098799c366fc0d71' +
+      '1b2d965cf5eeeed9175b39b1d0bcefdd7df376e8ac9', 'hex'),
+    'sha3-384': Buffer.from(
+      '002eaf5837443f1a33dc03729a308c503888d7a8cc013be424a91bce18105f7334a' +
+      '499a5eddc5f4fab2fdf80f52988d53bf8bd5e78c3ce1a43abaf3b8146c260b6ce8b' +
+      'ffc9857f4b35c190cea85921c46d3ab573113744472d1afb637a0e9ab5021bcb355' +
+      '7f5b52faf89fa864a7d3bf5799096c54ee53fa139e1bc13842a2a5bf0f1d85f041d' +
+      'a4e0e87425b421f22f0240ad62ef77ba6f090e0d48e17c07fd1e477c7e16a3196f5' +
+      '0142d0f0c5e525a10325569e5a1f50cb4577e782a643972857cc918ae5409587d9e' +
+      '44e1c1e89540e87deed7dda5005ac63ba609f522fdd92c81d95c1ffa383558a10f3' +
+      '064f59ca0534bfad31acbf3e2807cb7d3147c59ee4d', 'hex'),
+    'sha3-512': Buffer.from(
+      '561585b621c916453762285c8bb6ede3f303074ad6f2826ca15b3900e49c4d94c07' +
+      'aab0b875eaa79049ba2ed97e9a87c44fff9bffe638a1bf8c4db69c627b6adbe8fca' +
+      '2b38cb8b4c2810a16286bef498327b9db4b53043ed5012c7c58f037edf669baf772' +
+      '9b58e413e133ebb90a5fcb6dc3936f4f87971c0e85f362189b4279bbb2d9293a427' +
+      '5653068c1bc8772cebc4733a5d1df0b454d4f628c645c22bb1c8cc601fbc92dc091' +
+      'db38fad4a36289ae9ed424c46643a8161a102ae511877d25f2eab7342dff6b92bf3' +
+      '65951e76ee84c2bd84a595f63d7cc04d00e1589870956491e518b3ba245efc37a28' +
+      'ec018d8788a92ab93a90bb314f9ab0788a0b5b50489', 'hex')
   }
 
   const vectors = [
@@ -131,7 +158,31 @@ module.exports = function () {
       hash: 'SHA-512',
       plaintext,
       signature: signatures['sha-512']
-    }
+    },
+    {
+      publicKeyBuffer: spki,
+      privateKeyBuffer: pkcs8,
+      algorithm: { name: 'RSASSA-PKCS1-v1_5' },
+      hash: 'SHA3-256',
+      plaintext,
+      signature: signatures['sha3-256']
+    },
+    {
+      publicKeyBuffer: spki,
+      privateKeyBuffer: pkcs8,
+      algorithm: { name: 'RSASSA-PKCS1-v1_5' },
+      hash: 'SHA3-384',
+      plaintext,
+      signature: signatures['sha3-384']
+    },
+    {
+      publicKeyBuffer: spki,
+      privateKeyBuffer: pkcs8,
+      algorithm: { name: 'RSASSA-PKCS1-v1_5' },
+      hash: 'SHA3-512',
+      plaintext,
+      signature: signatures['sha3-512']
+    },
   ];
 
   return vectors;

@@ -236,7 +236,15 @@ async function testSaltLength(keyLength, hash, hLen) {
   });
 
   for (const keyLength of [1024, 2048]) {
-    for (const [hash, hLen] of [['SHA-1', 20], ['SHA-256', 32], ['SHA-384', 48], ['SHA-512', 64]]) {
+    for (const [hash, hLen] of [
+      ['SHA-1', 20],
+      ['SHA-256', 32],
+      ['SHA-384', 48],
+      ['SHA-512', 64],
+      ['SHA3-256', 32],
+      ['SHA3-384', 48],
+      ['SHA3-512', 64],
+    ]) {
       variations.push(testSaltLength(keyLength, hash, hLen));
     }
   }
