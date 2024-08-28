@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const rangeBuffer = Buffer.from('abc');
@@ -99,7 +99,10 @@ assert.throws(() => {
   message: 'Unknown encoding: null'
 });
 
-
-const largeBuffer = Buffer.alloc(2 ** 32);
 // Must not throw when start and end are within kMaxLength
-largeBuffer.toString('utf8', 2 ** 31 + 1, 2 ** 31 + 10);
+// Cannot test on 32bit machine as we are testing the case
+// when start and end are above the threshold
+common.skipIf32Bits();
+const threshold = 0xFFFFFFFF;
+const largeBuffer = Buffer.alloc(threshold + 20);
+largeBuffer.toString('utf8', threshold, threshold + 20);
