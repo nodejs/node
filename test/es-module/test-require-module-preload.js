@@ -2,8 +2,7 @@
 
 require('../common');
 const { spawnSyncAndExitWithoutError } = require('../common/child_process');
-const fixtures = require('../common/fixtures');
-
+const { fixturesDir } = require('../common/fixtures');
 const stderr = /ExperimentalWarning: Support for loading ES Module in require/;
 
 function testPreload(preloadFlag) {
@@ -14,9 +13,12 @@ function testPreload(preloadFlag) {
       [
         '--experimental-require-module',
         preloadFlag,
-        fixtures.path('es-module-loaders/module-named-exports.mjs'),
-        fixtures.path('printA.js'),
+        './es-module-loaders/module-named-exports.mjs',
+        './printA.js',
       ],
+      {
+        cwd: fixturesDir
+      },
       {
         stdout: 'A',
         stderr,
@@ -32,9 +34,12 @@ function testPreload(preloadFlag) {
       [
         '--experimental-require-module',
         preloadFlag,
-        fixtures.path('es-modules/import-esm.mjs'),
-        fixtures.path('printA.js'),
+        './es-modules/import-esm.mjs',
+        './printA.js',
       ],
+      {
+        cwd: fixturesDir
+      },
       {
         stderr,
         stdout: /^world\s+A$/,
@@ -50,9 +55,12 @@ function testPreload(preloadFlag) {
       [
         '--experimental-require-module',
         preloadFlag,
-        fixtures.path('es-modules/cjs-exports.mjs'),
-        fixtures.path('printA.js'),
+        './es-modules/cjs-exports.mjs',
+        './printA.js',
       ],
+      {
+        cwd: fixturesDir
+      },
       {
         stdout: /^ok\s+A$/,
         stderr,
@@ -70,9 +78,12 @@ function testPreload(preloadFlag) {
       [
         '--experimental-require-module',
         preloadFlag,
-        fixtures.path('es-modules/require-cjs.mjs'),
-        fixtures.path('printA.js'),
+        './es-modules/require-cjs.mjs',
+        './printA.js',
       ],
+      {
+        cwd: fixturesDir
+      },
       {
         stdout: /^world\s+A$/,
         stderr,
@@ -93,9 +104,12 @@ testPreload('--import');
     [
       '--experimental-require-module',
       '--require',
-      fixtures.path('es-modules/package-type-module'),
-      fixtures.path('printA.js'),
+      './es-modules/package-type-module',
+      './printA.js',
     ],
+    {
+      cwd: fixturesDir
+    },
     {
       stdout: /^package-type-module\s+A$/,
       stderr,
