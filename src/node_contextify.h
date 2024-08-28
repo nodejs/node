@@ -44,7 +44,7 @@ class ContextifyContext : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static ContextifyContext* ContextFromContextifiedSandbox(
-      Environment* env, const v8::Local<v8::Object>& referrer);
+      Environment* env, const v8::Local<v8::Object>& wrapper_holder);
 
   inline v8::Local<v8::Context> context() const {
     return PersistentToLocal::Default(env()->isolate(), context_);
