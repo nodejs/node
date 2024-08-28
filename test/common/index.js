@@ -143,6 +143,7 @@ const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isMacOS = process.platform === 'darwin';
 const isASan = process.config.variables.asan === 1;
+const isRiscv64 = process.arch === 'riscv64';
 const isDebug = process.features.debug;
 const isPi = (() => {
   try {
@@ -289,6 +290,10 @@ function platformTimeout(ms) {
 
   if (isPi)
     return multipliers.two * ms;  // Raspberry Pi devices
+
+  if (isRiscv64) {
+    return multipliers.four * ms;
+  }
 
   return ms;
 }
