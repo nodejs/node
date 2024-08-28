@@ -24,7 +24,12 @@ const path = require('path');
         NODE_DEBUG_NATIVE: 'COMPILE_CACHE',
         NODE_COMPILE_CACHE: undefined,
         NODE_TEST_COMPILE_CACHE_DIR: undefined,
-        TMP: tmpdir.path
+        // TMPDIR is ignored on Windows while on other platforms, TMPDIR takes precedence.
+        // Override all related environment variables to ensure the tmpdir is configured properly
+        // regardless of the global environment variables used to run the test.
+        TMPDIR: tmpdir.path,
+        TEMP: tmpdir.path,
+        TMP: tmpdir.path,
       },
       cwd: tmpdir.path
     },
@@ -60,7 +65,12 @@ const path = require('path');
         NODE_DEBUG_NATIVE: 'COMPILE_CACHE',
         NODE_COMPILE_CACHE: undefined,
         NODE_TEST_COMPILE_CACHE_DIR: undefined,
-        TMP: tmpdir.path
+        // TMPDIR is ignored on Windows while on other platforms, TMPDIR takes precedence.
+        // Override all related environment variables to ensure the tmpdir is configured properly
+        // regardless of the global environment variables used to run the test.
+        TMPDIR: tmpdir.path,
+        TEMP: tmpdir.path,
+        TMP: tmpdir.path,
       },
       cwd: tmpdir.path
     },
