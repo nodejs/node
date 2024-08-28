@@ -1123,12 +1123,23 @@ void Environment::InitializeCompileCache() {
 CompileCacheEnableResult Environment::EnableCompileCache(
     const std::string& cache_dir) {
   CompileCacheEnableResult result;
+  std::string disable_env;
+  if (credentials::SafeGetenv(
+          "NODE_DISABLE_COMPILE_CACHE", &disable_env, env_vars())) {
+    result.status = CompileCacheEnableStatus::DISABLED;
+    result.message = "Disabled by NODE_DISABLE_COMPILE_CACHE";
+    Debug(this,
+          DebugCategory::COMPILE_CACHE,
+          "[compile cache] %s.\n",
+          result.message);
+    return result;
+  }
 
   if (!compile_cache_handler_) {
     std::unique_ptr<CompileCacheHandler> handler =
         std::make_unique<CompileCacheHandler>(this);
     result = handler->Enable(this, cache_dir);
-    if (result.status == CompileCacheEnableStatus::kEnabled) {
+    if (result.status == CompileCacheEnableStatus::ENABLED) {
       compile_cache_handler_ = std::move(handler);
       AtExit(
           [](void* env) {
@@ -1143,7 +1154,7 @@ CompileCacheEnableResult Environment::EnableCompileCache(
             result.message);
     }
   } else {
-    result.status = CompileCacheEnableStatus::kAlreadyEnabled;
+    result.status = CompileCacheEnableStatus::ALREADY_ENABLED;
     result.cache_directory = compile_cache_handler_->cache_dir();
   }
   return result;

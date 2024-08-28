@@ -381,7 +381,7 @@ CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
           cache_dir_with_tag_str))) {
     result.message = "Skipping compile cache because write permission for " +
                      cache_dir_with_tag_str + " is not granted";
-    result.status = CompileCacheEnableStatus::kFailed;
+    result.status = CompileCacheEnableStatus::FAILED;
     return result;
   }
 
@@ -391,7 +391,7 @@ CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
           cache_dir_with_tag_str))) {
     result.message = "Skipping compile cache because read permission for " +
                      cache_dir_with_tag_str + " is not granted";
-    result.status = CompileCacheEnableStatus::kFailed;
+    result.status = CompileCacheEnableStatus::FAILED;
     return result;
   }
 
@@ -406,14 +406,14 @@ CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
   if (err != 0 && err != UV_EEXIST) {
     result.message =
         "Cannot create cache directory: " + std::string(uv_strerror(err));
-    result.status = CompileCacheEnableStatus::kFailed;
+    result.status = CompileCacheEnableStatus::FAILED;
     return result;
   }
 
   compile_cache_dir_str_ = absolute_cache_dir_base;
   result.cache_directory = absolute_cache_dir_base;
   compile_cache_dir_ = cache_dir_with_tag;
-  result.status = CompileCacheEnableStatus::kEnabled;
+  result.status = CompileCacheEnableStatus::ENABLED;
   return result;
 }
 
