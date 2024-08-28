@@ -10,6 +10,7 @@ const sources = [
   import('../fixtures/webcrypto/supports-level-2.mjs'),
   import('../fixtures/webcrypto/supports-secure-curves.mjs'),
   import('../fixtures/webcrypto/supports-modern-algorithms.mjs'),
+  import('../fixtures/webcrypto/supports-sha3.mjs'),
 ];
 
 const vectors = {};

@@ -11,7 +11,7 @@ const { subtle } = globalThis.crypto;
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
 
-// Test Encrypt/Decrypt RSA-OAEP
+// Test Encrypt/Decrypt RSA-OAEP w/ SHA-2
 {
   const buf = globalThis.crypto.getRandomValues(new Uint8Array(50));
 
@@ -22,6 +22,51 @@ const { subtle } = globalThis.crypto;
       modulusLength: 2048,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-384',
+    }, true, ['encrypt', 'decrypt']);
+
+    const ciphertext = await subtle.encrypt({
+      name: 'RSA-OAEP',
+      label: ec.encode('a label')
+    }, publicKey, buf);
+
+    const plaintext = await subtle.decrypt({
+      name: 'RSA-OAEP',
+      label: ec.encode('a label')
+    }, privateKey, ciphertext);
+
+    assert.strictEqual(
+      Buffer.from(plaintext).toString('hex'),
+      Buffer.from(buf).toString('hex'));
+
+    await assert.rejects(() => subtle.encrypt({
+      name: 'RSA-OAEP',
+    }, privateKey, buf), {
+      name: 'InvalidAccessError',
+      message: 'The requested operation is not valid for the provided key'
+    });
+
+    await assert.rejects(() => subtle.decrypt({
+      name: 'RSA-OAEP',
+    }, publicKey, ciphertext), {
+      name: 'InvalidAccessError',
+      message: 'The requested operation is not valid for the provided key'
+    });
+  }
+
+  test().then(common.mustCall());
+}
+
+// Test Encrypt/Decrypt RSA-OAEP w/ SHA-3
+{
+  const buf = globalThis.crypto.getRandomValues(new Uint8Array(50));
+
+  async function test() {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name: 'RSA-OAEP',
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA3-384',
     }, true, ['encrypt', 'decrypt']);
 
     const ciphertext = await subtle.encrypt({
