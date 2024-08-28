@@ -15,6 +15,9 @@ const kTests = [
   ['SHA-256', ['sha256'], 256],
   ['SHA-384', ['sha384'], 384],
   ['SHA-512', ['sha512'], 512],
+  ['SHA3-256', ['sha3-256'], 256],
+  ['SHA3-384', ['sha3-384'], 384],
+  ['SHA3-512', ['sha3-512'], 512],
   [{ name: 'cSHAKE128', length: 256 }, ['shake128', { outputLength: 256 >> 3 }], 256],
   [{ name: 'cSHAKE256', length: 512 }, ['shake256', { outputLength: 512 >> 3 }], 512],
 ];
@@ -163,6 +166,40 @@ const kDigestedData = {
           'd5290933492f9d17411926a613dd0611668c2ac999e8' +
           'c011aabaa9004323425fbad75b0f58ee6e777a94'
   },
+  'sha3-256': {
+    empty: 'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a',
+    short: '3059af7aa33b517084e8ad7bbc4fb208a44c28ef32b4698d103dd540e4f91aa1',
+    medium: '1fa7cd1da74cd8046417508c8314e74a9a4a9d38f9f18e6cb215b8c891a0a80e',
+    long: 'b2cfc61e0386cdaef5e10a2be189891f5ef52a7624bfcd8edc893acc64fec600'
+  },
+  'sha3-384': {
+    empty: '0c63a75b845e4f7d01107d852e4c2485c51a50aaaa9' +
+           '4fc61995e71bbee983a2ac3713831264adb47fb6bd1' +
+           'e058d5f004',
+    short: '54b8f0e4cf4974de740098f66b3024479b01631315a' +
+           '6773606c33eadc32556a6e778e08f0225ae79265aec' +
+           '666cb2390b',
+    medium: '437b7d8b68b250b5c1739ea4cc86db2033879dfb18' +
+            'de292c9c50d9c193a4c79a08a6cae3f4e483c2795e' +
+            'a5d1ef7e69d2',
+    long: '3b39c4c97ad87613305d0ccc987181713e2d5e84b1f9' +
+          '760011bcce0c297499005bdce8a3d2409b5ad0164f32' +
+          'bb8778d0'
+  },
+  'sha3-512': {
+    empty: 'a69f73cca23a9ac5c8b567dc185a756e97c982164fe' +
+           '25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9' +
+           '402c3ac558f500199d95b6d3e301758586281dcd26',
+    short: '2dd2e07a62e6ad0498ba84f313c4d4024cb46001f78' +
+           'f75db336b0d4d8bd2a9ec152c4ad20878735d82ba08' +
+           '72ecf59608ef3ced2b2a8669427e7da31e362333d8',
+    medium: 'e640a21909536640369e9b0a48931c5cb2efcbc91f' +
+           'ecf247306bc96a0e4ca33307cb8e1b9af367946dd01' +
+           'c243f3907508d04f1692a3161df1f898de8ee25febe',
+    long: 'bd262cecf565c338032de5ba0138f0aacfe7dde83d27' +
+          '2d0d37d952829ed25de1a1342d98659ef7d2fa4aca7c' +
+          'e2b1aa0784d8fc1dcbf81bcec7a7431a3da36bf7'
+  }
 };
 
 async function testDigest(size, alg) {

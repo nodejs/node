@@ -4,6 +4,9 @@
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
     description: SHAKE algorithms are now supported.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59365
@@ -100,6 +103,9 @@ Algorithms:
 * `'ML-DSA-44'`[^openssl35]
 * `'ML-DSA-65'`[^openssl35]
 * `'ML-DSA-87'`[^openssl35]
+* `'SHA3-256'`
+* `'SHA3-384'`
+* `'SHA3-512'`
 
 Key Formats:
 
@@ -497,6 +503,9 @@ implementation and the APIs supported for each:
 | `'SHA-256'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
 | `'SHA-384'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
 | `'SHA-512'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'SHA3-256'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'SHA3-384'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'SHA3-512'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
 | `'X25519'`                   | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 | `'X448'`[^secure-curves]     | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 
@@ -811,6 +820,9 @@ added: v15.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
     description: SHAKE algorithms are now supported.
 -->
 
@@ -830,6 +842,9 @@ If `algorithm` is provided as a {string}, it must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If `algorithm` is provided as an {Object}, it must have a `name` property
 whose value is one of the above.
@@ -1521,6 +1536,10 @@ added: v15.0.0
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
 -->
 
 * Type: {string|Algorithm}
@@ -1531,6 +1550,9 @@ If represented as a {string}, the value must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If represented as an {Algorithm}, the object's `name` property
 must be one of the above listed values.
@@ -1650,6 +1672,10 @@ added: v15.0.0
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
 -->
 
 * Type: {string|Algorithm}
@@ -1660,6 +1686,9 @@ If represented as a {string}, the value must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If represented as an {Algorithm}, the object's `name` property
 must be one of the above listed values.
@@ -1706,6 +1735,10 @@ added: v15.0.0
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
 -->
 
 * Type: {string|Algorithm}
@@ -1716,6 +1749,9 @@ If represented as a {string}, the value must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If represented as an {Algorithm}, the object's `name` property
 must be one of the above listed values.
@@ -1781,6 +1817,10 @@ added: v15.0.0
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
 -->
 
 * Type: {string|Algorithm}
@@ -1791,6 +1831,9 @@ If represented as a {string}, the value must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If represented as an {Algorithm}, the object's `name` property
 must be one of the above listed values.
@@ -1839,6 +1882,10 @@ added: v15.0.0
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
 -->
 
 * Type: {string|Algorithm}
@@ -1849,6 +1896,9 @@ If represented as a {string}, the value must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If represented as an {Algorithm}, the object's `name` property
 must be one of the above listed values.
@@ -1891,6 +1941,10 @@ added: v15.0.0
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
 -->
 
 * Type: {string|Algorithm}
@@ -1901,6 +1955,9 @@ If represented as a {string}, the value must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If represented as an {Algorithm}, the object's `name` property
 must be one of the above listed values.
@@ -1966,6 +2023,10 @@ added: v15.0.0
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHA-3 algorithms are now supported.
 -->
 
 * Type: {string|Algorithm}
@@ -1976,6 +2037,9 @@ If represented as a {string}, the value must be one of:
 * `'SHA-256'`
 * `'SHA-384'`
 * `'SHA-512'`
+* `'SHA3-256'`[^modern-algos]
+* `'SHA3-384'`[^modern-algos]
+* `'SHA3-512'`[^modern-algos]
 
 If represented as an {Algorithm}, the object's `name` property
 must be one of the above listed values.
