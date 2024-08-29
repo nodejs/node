@@ -3396,6 +3396,14 @@ Setting it to 0 disables stack trace collection. The default value is 10.
 node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 ```
 
+### --localstorage-file
+
+The `--localstorage-file` option specifies the file used for `localStorage` in Node.js. 
+
+- This file can be accessed by multiple processes simultaneously, which might require implementing file locking or other synchronization mechanisms to ensure data integrity.
+- The storage quota for `localStorage` is 10MB per process.
+
+
 <!-- v8-options end -->
 
 [#42511]: https://github.com/nodejs/node/issues/42511
