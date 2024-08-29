@@ -39,7 +39,6 @@ function safeMetricsInfo(cb) {
 
     fs.open(__filename, 'r', (err) => {
       assert.ifError(err);
-      safeMetricsInfo(afterOpenFile);
     });
   }
 
