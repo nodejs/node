@@ -47,8 +47,11 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
   assert.strictEqual(tds.ignoreBOM, false);
   ['encoding', 'fatal', 'ignoreBOM', 'readable', 'writable'].forEach((getter) => {
     assert.throws(
-      () => Reflect.get(TextDecoderStream.prototype, getter, {}),
-      { name: 'TypeError', message: /Cannot read private member/ }
+      () => Reflect.get(TextDecoderStream.prototype, getter, {}), {
+        name: 'TypeError',
+        message: /Cannot read private member/,
+        stack: new RegExp(`at get ${getter}`)
+      }
     );
   });
 }
@@ -73,8 +76,11 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
   assert.strictEqual(tds.encoding, 'utf-8');
   ['encoding', 'readable', 'writable'].forEach((getter) => {
     assert.throws(
-      () => Reflect.get(TextDecoderStream.prototype, getter, {}),
-      { name: 'TypeError', message: /Cannot read private member/ }
+      () => Reflect.get(TextDecoderStream.prototype, getter, {}), {
+        name: 'TypeError',
+        message: /Cannot read private member/,
+        stack: new RegExp(`at get ${getter}`)
+      }
     );
   });
 }
