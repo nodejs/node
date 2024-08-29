@@ -19,6 +19,7 @@ struct ContextOptions {
   v8::Local<v8::Boolean> allow_code_gen_wasm;
   std::unique_ptr<v8::MicrotaskQueue> own_microtask_queue;
   v8::Local<v8::Symbol> host_defined_options_id;
+  bool vanilla = false;
 };
 
 class ContextifyContext : public BaseObject {
@@ -43,8 +44,7 @@ class ContextifyContext : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static ContextifyContext* ContextFromContextifiedSandbox(
-      Environment* env,
-      const v8::Local<v8::Object>& sandbox);
+      Environment* env, const v8::Local<v8::Object>& wrapper_holder);
 
   inline v8::Local<v8::Context> context() const {
     return PersistentToLocal::Default(env()->isolate(), context_);
@@ -55,8 +55,12 @@ class ContextifyContext : public BaseObject {
   }
 
   inline v8::Local<v8::Object> sandbox() const {
-    return context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject)
-        .As<v8::Object>();
+    // Only vanilla contexts have undefined sandboxes. sandbox() is only used by
+    // interceptors who are not supposed to be called on vanilla contexts.
+    v8::Local<v8::Value> result =
+        context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject);
+    CHECK(!result->IsUndefined());
+    return result.As<v8::Object>();
   }
 
   inline v8::MicrotaskQueue* microtask_queue() const {

@@ -111,9 +111,15 @@ Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
 
 BaseObjectPtr<ContextifyContext> ContextifyContext::New(
     Environment* env, Local<Object> sandbox_obj, ContextOptions* options) {
+  Local<ObjectTemplate> object_template;
   HandleScope scope(env->isolate());
-  Local<ObjectTemplate> object_template = env->contextify_global_template();
-  DCHECK(!object_template.IsEmpty());
+  CHECK_IMPLIES(sandbox_obj.IsEmpty(), options->vanilla);
+  if (!sandbox_obj.IsEmpty()) {
+    // Do not use the template with interceptors for vanilla contexts.
+    object_template = env->contextify_global_template();
+    DCHECK(!object_template.IsEmpty());
+  }
+
   const SnapshotData* snapshot_data = env->isolate_data()->snapshot_data();
 
   MicrotaskQueue* queue =
@@ -208,7 +214,7 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   EscapableHandleScope scope(isolate);
 
   Local<Context> ctx;
-  if (snapshot_data == nullptr) {
+  if (object_template.IsEmpty() || snapshot_data == nullptr) {
     ctx = Context::New(
         isolate,
         nullptr,  // extensions
@@ -240,6 +246,7 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
     Local<Object> sandbox_obj,
     ContextOptions* options) {
   HandleScope scope(env->isolate());
+  CHECK_IMPLIES(sandbox_obj.IsEmpty(), options->vanilla);
   // This only initializes part of the context. The primordials are
   // only initialized when needed because even deserializing them slows
   // things down significantly and they are only needed in rare occasions
@@ -258,8 +265,13 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
   // embedder data field. The sandbox uses a private symbol to hold a reference
   // to the ContextifyContext wrapper which in turn internally references
   // the context from its constructor.
-  v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
-                              sandbox_obj);
+  if (sandbox_obj.IsEmpty()) {
+    v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
+                                v8::Undefined(env->isolate()));
+  } else {
+    v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
+                                sandbox_obj);
+  }
 
   // Delegate the code generation validation to
   // node::ModifyCodeGenerationFromStrings.
@@ -281,16 +293,19 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
   Local<Object> wrapper;
   {
     Context::Scope context_scope(v8_context);
-    Local<String> ctor_name = sandbox_obj->GetConstructorName();
-    if (!ctor_name->Equals(v8_context, env->object_string()).FromMaybe(false) &&
-        new_context_global
-            ->DefineOwnProperty(
-                v8_context,
-                v8::Symbol::GetToStringTag(env->isolate()),
-                ctor_name,
-                static_cast<v8::PropertyAttribute>(v8::DontEnum))
-            .IsNothing()) {
-      return BaseObjectPtr<ContextifyContext>();
+    if (!sandbox_obj.IsEmpty()) {
+      Local<String> ctor_name = sandbox_obj->GetConstructorName();
+      if (!ctor_name->Equals(v8_context, env->object_string())
+               .FromMaybe(false) &&
+          new_context_global
+              ->DefineOwnProperty(
+                  v8_context,
+                  v8::Symbol::GetToStringTag(env->isolate()),
+                  ctor_name,
+                  static_cast<v8::PropertyAttribute>(v8::DontEnum))
+              .IsNothing()) {
+        return BaseObjectPtr<ContextifyContext>();
+      }
     }
 
     // Assign host_defined_options_id to the global object so that in the
@@ -319,23 +334,27 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
     result->MakeWeak();
   }
 
-  if (sandbox_obj
+  Local<Object> wrapper_holder =
+      sandbox_obj.IsEmpty() ? new_context_global : sandbox_obj;
+  if (!wrapper_holder.IsEmpty() &&
+      wrapper_holder
           ->SetPrivate(
               v8_context, env->contextify_context_private_symbol(), wrapper)
           .IsNothing()) {
     return BaseObjectPtr<ContextifyContext>();
   }
-  // Assign host_defined_options_id to the sandbox object so that module
-  // callbacks like importModuleDynamically can be registered once back to the
-  // JS land.
-  if (sandbox_obj
+
+  // Assign host_defined_options_id to the sandbox object or the global object
+  // (for vanilla contexts) so that module callbacks like
+  // importModuleDynamically can be registered once back to the JS land.
+  if (!sandbox_obj.IsEmpty() &&
+      sandbox_obj
           ->SetPrivate(v8_context,
                        env->host_defined_option_symbol(),
                        options->host_defined_options_id)
           .IsNothing()) {
     return BaseObjectPtr<ContextifyContext>();
   }
-
   return result;
 }
 
@@ -368,18 +387,21 @@ void ContextifyContext::RegisterExternalReferences(
 // makeContext(sandbox, name, origin, strings, wasm);
 void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  ContextOptions options;
 
   CHECK_EQ(args.Length(), 7);
-  CHECK(args[0]->IsObject());
-  Local<Object> sandbox = args[0].As<Object>();
-
-  // Don't allow contextifying a sandbox multiple times.
-  CHECK(
-      !sandbox->HasPrivate(
-          env->context(),
-          env->contextify_context_private_symbol()).FromJust());
-
-  ContextOptions options;
+  Local<Object> sandbox;
+  if (args[0]->IsObject()) {
+    sandbox = args[0].As<Object>();
+    // Don't allow contextifying a sandbox multiple times.
+    CHECK(!sandbox
+               ->HasPrivate(env->context(),
+                            env->contextify_context_private_symbol())
+               .FromJust());
+  } else {
+    CHECK(args[0]->IsSymbol());
+    options.vanilla = true;
+  }
 
   CHECK(args[1]->IsString());
   options.name = args[1].As<String>();
@@ -412,6 +434,12 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
       try_catch.ReThrow();
     return;
   }
+
+  if (sandbox.IsEmpty()) {
+    args.GetReturnValue().Set(context_ptr->context()->Global());
+  } else {
+    args.GetReturnValue().Set(sandbox);
+  }
 }
 
 void ContextifyContext::WeakCallback(
@@ -422,14 +450,13 @@ void ContextifyContext::WeakCallback(
 
 // static
 ContextifyContext* ContextifyContext::ContextFromContextifiedSandbox(
-    Environment* env,
-    const Local<Object>& sandbox) {
-  Local<Value> context_global;
-  if (sandbox
+    Environment* env, const Local<Object>& wrapper_holder) {
+  Local<Value> contextify;
+  if (wrapper_holder
           ->GetPrivate(env->context(), env->contextify_context_private_symbol())
-          .ToLocal(&context_global) &&
-      context_global->IsObject()) {
-    return Unwrap<ContextifyContext>(context_global.As<Object>());
+          .ToLocal(&contextify) &&
+      contextify->IsObject()) {
+    return Unwrap<ContextifyContext>(contextify.As<Object>());
   }
   return nullptr;
 }
