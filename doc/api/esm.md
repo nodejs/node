@@ -189,7 +189,7 @@ typically configured server.
 ES modules are resolved and cached as URLs. This means that special characters
 must be [percent-encoded][], such as `#` with `%23` and `?` with `%3F`.
 
-`file:`, `node:`, and `data:` URL schemes are supported. A specifier like
+`file:`, `node:`, `data:`, and `blob:` URL schemes are supported. A specifier like
 `'https://example.com/app.js'` is not supported natively in Node.js unless using
 a [custom HTTPS loader][].
 
@@ -230,6 +230,34 @@ and [absolute specifiers][Terminology]. Resolving
 [special scheme][]. For example, attempting to load `./foo`
 from `data:text/javascript,import "./foo";` fails to resolve because there
 is no concept of relative resolution for `data:` URLs.
+
+#### `blob:` imports
+
+<!-- YAML
+added: REPLACEME
+-->
+
+`blob:` URLs are supported for importing with the following MIME types:
+
+* `text/javascript` for ES modules
+* `application/json` for JSON
+* `application/wasm` for Wasm
+
+Blob URLs are registered within the current thread. Loaders will not be
+able to handle resolve Blob's from the main thread.
+
+```mjs
+import { Blob } from 'node:buffer';
+
+const mjs = new Blob(['export "Hello, World!"'], { type: 'text/javascript' });
+await import(URL.createObjectURL(mjs));
+
+const json = new Blob(['{}'], { type: 'application/json' });
+await import(URL.createObjectURL(json), { with: { type: 'json' } });
+
+const wasm = new Blob(['WASM Data'], { type: 'application/wasm' });
+await import(URL.createObjectURL(wasm));
+```
 
 #### `node:` imports
 
@@ -721,7 +749,7 @@ The default resolver has the following properties:
 The default loader has the following properties
 
 * Support for builtin module loading via `node:` URLs
-* Support for "inline" module loading via `data:` URLs
+* Support for "inline" module loading via `data:` and `blob:` URLs
 * Support for `file:` module loading
 * Fails on any other URL protocol
 * Fails on unknown extensions for `file:` loading
@@ -739,7 +767,7 @@ does not determine whether the resolved URL protocol can be loaded,
 or whether the file extensions are permitted, instead these validations
 are applied by Node.js during the load phase
 (for example, if it was asked to load a URL that has a protocol that is
-not `file:`, `data:` or `node:`.
+not `file:`, `data:`, `blob:`, or `node:`).
 
 The algorithm also tries to determine the format of the file based
 on the extension (see `ESM_FILE_FORMAT` algorithm below). If it does
