@@ -4,6 +4,7 @@
 #include <openssl/dh.h>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509v3.h>
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -1250,6 +1251,84 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
   }
 
   return out;
+}
+
+// ============================================================================
+// HKDF
+
+const EVP_MD* getDigestByName(const std::string_view name) {
+  return EVP_get_digestbyname(name.data());
+}
+
+bool checkHkdfLength(const EVP_MD* md, size_t length) {
+  // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as
+  // the output of the hash function. 255 is a hard limit because HKDF appends
+  // an 8-bit counter to each HMAC'd message, starting at 1.
+  static constexpr size_t kMaxDigestMultiplier = 255;
+  size_t max_length = EVP_MD_size(md) * kMaxDigestMultiplier;
+  if (length > max_length) return false;
+  return true;
+}
+
+DataPointer hkdf(const EVP_MD* md,
+                 const Buffer<const unsigned char>& key,
+                 const Buffer<const unsigned char>& info,
+                 const Buffer<const unsigned char>& salt,
+                 size_t length) {
+  if (!checkHkdfLength(md, length) ||
+      info.len > INT_MAX ||
+      salt.len > INT_MAX) {
+    return {};
+  }
+
+  EVPKeyCtxPointer ctx =
+      EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
+  if (!ctx ||
+      !EVP_PKEY_derive_init(ctx.get()) ||
+      !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), md) ||
+      !EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), info.data, info.len)) {
+    return {};
+  }
+
+  std::string_view actual_salt;
+  static const char default_salt[EVP_MAX_MD_SIZE] = {0};
+  if (salt.len > 0) {
+    actual_salt = {reinterpret_cast<const char*>(salt.data), salt.len};
+  } else {
+    actual_salt = {default_salt, static_cast<unsigned>(EVP_MD_size(md))};
+  }
+
+  // We do not use EVP_PKEY_HKDF_MODE_EXTRACT_AND_EXPAND because and instead
+  // implement the extraction step ourselves because EVP_PKEY_derive does not
+  // handle zero-length keys, which are required for Web Crypto.
+  // TODO: Once OpenSSL 1.1.1 support is dropped completely, and once BoringSSL
+  // is confirmed to support it, wen can hopefully drop this and use EVP_KDF
+  // directly which does support zero length keys.
+  unsigned char pseudorandom_key[EVP_MAX_MD_SIZE];
+  unsigned pseudorandom_key_len = sizeof(pseudorandom_key);
+
+  if (HMAC(md,
+           actual_salt.data(),
+           actual_salt.size(),
+           key.data,
+           key.len,
+           pseudorandom_key,
+           &pseudorandom_key_len) == nullptr) {
+    return {};
+  }
+  if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
+      !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), pseudorandom_key, pseudorandom_key_len)) {
+    return {};
+  }
+
+  auto buf = DataPointer::Alloc(length);
+  if (!buf) return {};
+
+  if (EVP_PKEY_derive(ctx.get(), static_cast<unsigned char*>(buf.get()), &length) <= 0) {
+    return {};
+  }
+
+  return buf;
 }
 
 }  // namespace ncrypto
