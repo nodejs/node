@@ -589,7 +589,7 @@ BIOPointer ExportPublicKey(const char* input, size_t length);
 Buffer<char> ExportChallenge(const char* input, size_t length);
 
 // ============================================================================
-// HKDF
+// KDF
 
 const EVP_MD* getDigestByName(const std::string_view name);
 
@@ -603,6 +603,16 @@ DataPointer hkdf(const EVP_MD* md,
                  const Buffer<const unsigned char>& info,
                  const Buffer<const unsigned char>& salt,
                  size_t length);
+
+bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem);
+
+DataPointer scrypt(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint64_t N,
+                   uint64_t r,
+                   uint64_t p,
+                   uint64_t maxmem,
+                   size_t length);
 
 // ============================================================================
 // Version metadata

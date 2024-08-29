@@ -1254,7 +1254,7 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
 }
 
 // ============================================================================
-// HKDF
+// KDF
 
 const EVP_MD* getDigestByName(const std::string_view name) {
   return EVP_get_digestbyname(name.data());
@@ -1275,6 +1275,8 @@ DataPointer hkdf(const EVP_MD* md,
                  const Buffer<const unsigned char>& info,
                  const Buffer<const unsigned char>& salt,
                  size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
   if (!checkHkdfLength(md, length) ||
       info.len > INT_MAX ||
       salt.len > INT_MAX) {
@@ -1329,6 +1331,34 @@ DataPointer hkdf(const EVP_MD* md,
   }
 
   return buf;
+}
+
+bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem) {
+  return EVP_PBE_scrypt(nullptr, 0, nullptr, 0, N, r, p, maxmem, nullptr, 0) == 1;
+}
+
+DataPointer scrypt(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint64_t N,
+                   uint64_t r,
+                   uint64_t p,
+                   uint64_t maxmem,
+                   size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  if (pass.len > INT_MAX ||
+      salt.len > INT_MAX) {
+    return {};
+  }
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && EVP_PBE_scrypt(
+      pass.data, pass.len, salt.data, salt.len, N, r, p, maxmem,
+      reinterpret_cast<unsigned char*>(dp.get()), length)) {
+    return dp;
+  }
+
+  return {};
 }
 
 }  // namespace ncrypto
