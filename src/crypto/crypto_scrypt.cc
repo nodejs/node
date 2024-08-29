@@ -93,17 +93,11 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
   params->p = args[offset + 4].As<Uint32>()->Value();
   params->maxmem = args[offset + 5]->IntegerValue(env->context()).ToChecked();
 
-  if (EVP_PBE_scrypt(
-          nullptr,
-          0,
-          nullptr,
-          0,
-          params->N,
-          params->r,
-          params->p,
-          params->maxmem,
-          nullptr,
-          0) != 1) {
+  params->length = args[offset + 6].As<Int32>()->Value();
+  CHECK_GE(params->length, 0);
+
+  if (!ncrypto::checkScryptParams(
+          params->N, params->r, params->p, params->maxmem)) {
     // Do not use CryptoErrorStore or ThrowCryptoError here in order to maintain
     // backward compatibility with ERR_CRYPTO_INVALID_SCRYPT_PARAMS.
     uint32_t err = ERR_peek_last_error();
@@ -118,9 +112,6 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
     return Nothing<bool>();
   }
 
-  params->length = args[offset + 6].As<Int32>()->Value();
-  CHECK_GE(params->length, 0);
-
   return Just(true);
 }
 
@@ -128,23 +119,30 @@ bool ScryptTraits::DeriveBits(
     Environment* env,
     const ScryptConfig& params,
     ByteSource* out) {
-  ByteSource::Builder buf(params.length);
-
-  // Both the pass and salt may be zero-length at this point
-
-  if (!EVP_PBE_scrypt(params.pass.data<char>(),
-                      params.pass.size(),
-                      params.salt.data<unsigned char>(),
-                      params.salt.size(),
-                      params.N,
-                      params.r,
-                      params.p,
-                      params.maxmem,
-                      buf.data<unsigned char>(),
-                      params.length)) {
-    return false;
+  // If the params.length is zero-length, just return an empty buffer.
+  // It's useless, yes, but allowed via the API.
+  if (params.length == 0) {
+    *out = ByteSource();
+    return true;
   }
-  *out = std::move(buf).release();
+
+  auto dp = ncrypto::scrypt(
+      ncrypto::Buffer<const char>{
+          .data = params.pass.data<char>(),
+          .len = params.pass.size(),
+      },
+      ncrypto::Buffer<const unsigned char>{
+          .data = params.salt.data<unsigned char>(),
+          .len = params.salt.size(),
+      },
+      params.N,
+      params.r,
+      params.p,
+      params.maxmem,
+      params.length);
+
+  if (!dp) return false;
+  *out = ByteSource::Allocated(dp.release());
   return true;
 }
 

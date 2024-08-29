@@ -589,6 +589,38 @@ BIOPointer ExportPublicKey(const char* input, size_t length);
 Buffer<char> ExportChallenge(const char* input, size_t length);
 
 // ============================================================================
+// KDF
+
+const EVP_MD* getDigestByName(const std::string_view name);
+
+// Verify that the specified HKDF output length is valid for the given digest.
+// The maximum length for HKDF output for a given digest is 255 times the
+// hash size for the given digest algorithm.
+bool checkHkdfLength(const EVP_MD* md, size_t length);
+
+DataPointer hkdf(const EVP_MD* md,
+                 const Buffer<const unsigned char>& key,
+                 const Buffer<const unsigned char>& info,
+                 const Buffer<const unsigned char>& salt,
+                 size_t length);
+
+bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem);
+
+DataPointer scrypt(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint64_t N,
+                   uint64_t r,
+                   uint64_t p,
+                   uint64_t maxmem,
+                   size_t length);
+
+DataPointer pbkdf2(const EVP_MD* md,
+                   const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint32_t iterations,
+                   size_t length);
+
+// ============================================================================
 // Version metadata
 #define NCRYPTO_VERSION "0.0.1"
 
