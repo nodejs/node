@@ -37,7 +37,12 @@ function refresh() {
     .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 }
 
-async function testWatch({ fileToUpdate, file, action = 'update' }) {
+async function testWatch({
+  fileToUpdate,
+  file,
+  action = 'update',
+  fileToCreate,
+}) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath,
@@ -127,9 +132,36 @@ async function testWatch({ fileToUpdate, file, action = 'update' }) {
     }
   };
 
+  const testCreate = async () => {
+    await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
+    const newFilePath = tmpdir.resolve(fileToCreate);
+    const interval = setInterval(
+      () => writeFileSync(
+        newFilePath,
+        'module.exports = {};'
+      ),
+      common.platformTimeout(1000)
+    );
+    await ran2.promise;
+    runs.push(currentRun);
+    clearInterval(interval);
+    child.kill();
+    await once(child, 'exit');
+
+    for (const run of runs) {
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
+    }
+  };
+
   action === 'update' && await testUpdate();
   action === 'rename' && await testRename();
   action === 'delete' && await testDelete();
+  action === 'create' && await testCreate();
 }
 
 describe('test runner watch mode', () => {
@@ -156,5 +188,9 @@ describe('test runner watch mode', () => {
 
   it('should not throw when delete a watched test file', { skip: common.isAIX }, async () => {
     await testWatch({ fileToUpdate: 'test.js', action: 'delete' });
+  });
+
+  it('should run new tests when a new file is created in the watched directory', async () => {
+    await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
   });
 });
