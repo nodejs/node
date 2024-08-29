@@ -182,7 +182,7 @@ directory will be recreated the next time the same directory is used for for com
 storage. To avoid filling up the disk with stale cache, it is recommended to use a directory
 under the [`os.tmpdir()`][]. If the compile cache is enabled by a call to
 [`module.enableCompileCache()`][] without specifying the directory, Node.js will use
-the [`NODE_DISABLE_COMPILE_CACHE=1`][] environment variable if it's set, or defaults
+the [`NODE_COMPILE_CACHE=dir`][] environment variable if it's set, or defaults
 to `path.join(os.tmpdir(), 'node-compile-cache')` otherwise. To locate the compile cache
 directory used by a running Node.js instance, use [`module.getCompileCacheDir()`][].
 
