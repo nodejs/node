@@ -1,4 +1,5 @@
 {
+  "description": "Formatting C++ files for Node.js core",
   "dependencies": {
     "@wasm-fmt/clang-format": "^18.1.8"
   }
