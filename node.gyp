@@ -466,11 +466,6 @@
       }, {
         'use_openssl_def%': 0,
       }],
-      [ 'node_use_amaro=="true"', {
-          'deps_files': [
-              'deps/amaro/dist/index.js',
-          ]
-      } ]
     ],
   },
 
