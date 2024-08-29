@@ -1554,21 +1554,9 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "hexWrite", StringWrite<HEX>);
   SetMethod(context, target, "ucs2Write", StringWrite<UCS2>);
 
-  SetFastMethod(context,
-                target,
-                "asciiWriteStatic",
-                SlowWriteString<ASCII>,
-                &fast_write_string);
-  SetFastMethod(context,
-                target,
-                "latin1WriteStatic",
-                SlowWriteString<LATIN1>,
-                &fast_write_string);
-  SetFastMethod(context,
-                target,
-                "utf8WriteStatic",
-                SlowWriteString<UTF8>,
-                &fast_write_string);
+  SetMethod(context, target, "asciiWriteStatic", SlowWriteString<ASCII>);
+  SetMethod(context, target, "latin1WriteStatic", SlowWriteString<LATIN1>);
+  SetMethod(context, target, "utf8WriteStatic", SlowWriteString<UTF8>);
 
   SetMethod(context, target, "getZeroFillToggle", GetZeroFillToggle);
 }
