@@ -567,7 +567,7 @@ The algorithms currently supported include:
 * `'RSA-OAEP'`
 * `'AES-CTR'`
 * `'AES-CBC'`
-* `'AES-GCM`'
+* `'AES-GCM'`
 
 ### `subtle.deriveBits(algorithm, baseKey[, length])`
 
@@ -701,7 +701,7 @@ The algorithms currently supported include:
 * `'RSA-OAEP'`
 * `'AES-CTR'`
 * `'AES-CBC'`
-* `'AES-GCM`'
+* `'AES-GCM'`
 
 ### `subtle.exportKey(format, key)`
 
