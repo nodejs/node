@@ -1,12 +1,9 @@
 #include "embedtest_node_api.h"
 
-#define NAPI_EXPERIMENTAL
-#include <node_api_embedding.h>
-
 #include <stdio.h>
 #include <string.h>
 
-int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
+extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
   if (argc < 3) {
     fprintf(stderr, "node_api_modules <cjs.cjs> <es6.mjs>\n");
     return 2;
@@ -19,7 +16,6 @@ int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
   CHECK(node_api_create_env_options(&options));
   napi_env env;
   CHECK(node_api_create_env(options, NULL, NULL, NULL, NAPI_VERSION, &env));
-  CHECK(node_api_delete_env_options(options));
 
   CHECK(node_api_open_env_scope(env));
 

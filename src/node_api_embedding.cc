@@ -119,11 +119,12 @@ struct EmbeddedEnvironmentOptions {
   EmbeddedEnvironmentOptions& operator=(const EmbeddedEnvironmentOptions&) =
       delete;
 
+  bool is_frozen_{false};
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
   node::EmbedderSnapshotData::Pointer snapshot_;
   std::function<void(const node::EmbedderSnapshotData*)> create_snapshot_;
-  std::optional<node::SnapshotConfig> snapshot_config_;
+  node::SnapshotConfig snapshot_config_{};
 };
 
 struct IsolateLocker {
@@ -155,12 +156,16 @@ struct IsolateLocker {
 class EmbeddedEnvironment final : public node_napi_env__ {
  public:
   explicit EmbeddedEnvironment(
+      std::unique_ptr<EmbeddedEnvironmentOptions>&& env_options,
       std::unique_ptr<node::CommonEnvironmentSetup>&& env_setup,
       v8::Local<v8::Context> context,
       const std::string& module_filename,
       int32_t module_api_version)
       : node_napi_env__(context, module_filename, module_api_version),
-        env_setup_(std::move(env_setup)) {}
+        env_options_(std::move(env_options)),
+        env_setup_(std::move(env_setup)) {
+    env_options_->is_frozen_ = true;
+  }
 
   static EmbeddedEnvironment* FromNapiEnv(napi_env env) {
     return static_cast<EmbeddedEnvironment*>(env);
@@ -191,9 +196,17 @@ class EmbeddedEnvironment final : public node_napi_env__ {
 
   bool IsScopeOpened() const { return isolate_locker_.has_value(); }
 
-  std::function<void(const node::EmbedderSnapshotData*)> create_snapshot_;
+  const node::EmbedderSnapshotData::Pointer& snapshot() const {
+    return env_options_->snapshot_;
+  }
+
+  const std::function<void(const node::EmbedderSnapshotData*)>&
+  create_snapshot() {
+    return env_options_->create_snapshot_;
+  }
 
  private:
+  std::unique_ptr<EmbeddedEnvironmentOptions> env_options_;
   std::unique_ptr<node::CommonEnvironmentSetup> env_setup_;
   std::optional<IsolateLocker> isolate_locker_;
 };
@@ -328,15 +341,6 @@ node_api_create_env_options(node_api_env_options* result) {
 }
 
 napi_status NAPI_CDECL
-node_api_delete_env_options(node_api_env_options options) {
-  if (options == nullptr) return napi_invalid_arg;
-  // Acquire ownership of the options object to delete it.
-  std::unique_ptr<v8impl::EmbeddedEnvironmentOptions> options_ptr{
-      reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options)};
-  return napi_ok;
-}
-
-napi_status NAPI_CDECL
 node_api_env_options_get_args(node_api_env_options options,
                               node_api_get_strings_callback get_strings_cb,
                               void* strings_data) {
@@ -358,8 +362,9 @@ napi_status NAPI_CDECL node_api_env_options_set_args(
 
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
-  env_options->args_.assign(argv, argv + argc);
+  if (env_options->is_frozen_) return napi_generic_failure;
 
+  env_options->args_.assign(argv, argv + argc);
   return napi_ok;
 }
 
@@ -385,8 +390,9 @@ napi_status NAPI_CDECL node_api_env_options_set_exec_args(
 
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
-  env_options->exec_args_.assign(argv, argv + argc);
+  if (env_options->is_frozen_) return napi_generic_failure;
 
+  env_options->exec_args_.assign(argv, argv + argc);
   return napi_ok;
 }
 
@@ -399,9 +405,10 @@ node_api_env_options_set_snapshot(node_api_env_options options,
 
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
+  if (env_options->is_frozen_) return napi_generic_failure;
+
   env_options->snapshot_ = node::EmbedderSnapshotData::FromBlob(
       std::string_view(snapshot_data, snapshot_size));
-
   return napi_ok;
 }
 
@@ -415,6 +422,8 @@ node_api_env_options_create_snapshot(node_api_env_options options,
 
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
+  if (env_options->is_frozen_) return napi_generic_failure;
+
   env_options->create_snapshot_ =
       [get_blob_cb, blob_cb_data](const node::EmbedderSnapshotData* snapshot) {
         std::vector<char> blob = snapshot->ToBlob();
@@ -422,13 +431,9 @@ node_api_env_options_create_snapshot(node_api_env_options options,
       };
 
   if ((snapshot_flags & node_api_snapshot_no_code_cache) != 0) {
-    if (!env_options->snapshot_config_.has_value()) {
-      env_options->snapshot_config_ = node::SnapshotConfig{};
-    }
-    env_options->snapshot_config_.value().flags =
-        static_cast<node::SnapshotFlags>(
-            static_cast<uint32_t>(env_options->snapshot_config_.value().flags) |
-            static_cast<uint32_t>(node::SnapshotFlags::kWithoutCodeCache));
+    env_options->snapshot_config_.flags = static_cast<node::SnapshotFlags>(
+        static_cast<uint32_t>(env_options->snapshot_config_.flags) |
+        static_cast<uint32_t>(node::SnapshotFlags::kWithoutCodeCache));
   }
 
   return napi_ok;
@@ -445,8 +450,8 @@ node_api_create_env(node_api_env_options options,
   if (result == nullptr) return napi_invalid_arg;
   if (api_version == 0) api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
 
-  v8impl::EmbeddedEnvironmentOptions* env_options =
-      reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
+  std::unique_ptr<v8impl::EmbeddedEnvironmentOptions> env_options{
+      reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options)};
   std::vector<std::string> errors;
 
   std::unique_ptr<node::CommonEnvironmentSetup> env_setup;
@@ -465,17 +470,12 @@ node_api_create_env(node_api_env_options options,
         env_options->exec_args_,
         flags);
   } else if (env_options->create_snapshot_) {
-    if (env_options->snapshot_config_.has_value()) {
-      env_setup = node::CommonEnvironmentSetup::CreateForSnapshotting(
-          platform,
-          &errors,
-          env_options->args_,
-          env_options->exec_args_,
-          env_options->snapshot_config_.value());
-    } else {
-      env_setup = node::CommonEnvironmentSetup::CreateForSnapshotting(
-          platform, &errors, env_options->args_, env_options->exec_args_);
-    }
+    env_setup = node::CommonEnvironmentSetup::CreateForSnapshotting(
+        platform,
+        &errors,
+        env_options->args_,
+        env_options->exec_args_,
+        env_options->snapshot_config_);
   } else {
     env_setup = node::CommonEnvironmentSetup::Create(
         platform, &errors, env_options->args_, env_options->exec_args_, flags);
@@ -495,20 +495,27 @@ node_api_create_env(node_api_env_options options,
   node::CommonEnvironmentSetup* env_setup_ptr = env_setup.get();
 
   v8impl::IsolateLocker isolate_locker(env_setup_ptr);
-  v8impl::EmbeddedEnvironment* embedded_env = new v8impl::EmbeddedEnvironment(
-      std::move(env_setup), env_setup_ptr->context(), filename, api_version);
-  embedded_env->create_snapshot_ = env_options->create_snapshot_;
+  std::unique_ptr<v8impl::EmbeddedEnvironment> embedded_env =
+      std::make_unique<v8impl::EmbeddedEnvironment>(std::move(env_options),
+                                                    std::move(env_setup),
+                                                    env_setup_ptr->context(),
+                                                    filename,
+                                                    api_version);
   embedded_env->node_env()->AddCleanupHook(
       [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
-      static_cast<void*>(embedded_env));
-  *result = embedded_env;
+      static_cast<void*>(embedded_env.get()));
+  *result = embedded_env.get();
 
   node::Environment* node_env = env_setup_ptr->env();
 
+  // TODO(vmoroz): If we return an error here, then it is not clear if the
+  // environment must be deleted after that or not.
   v8::MaybeLocal<v8::Value> ret =
-      env_options->snapshot_
+      embedded_env->snapshot()
           ? node::LoadEnvironment(node_env, node::StartExecutionCallback{})
           : node::LoadEnvironment(node_env, std::string_view(main_script));
+
+  embedded_env.release();
 
   if (ret.IsEmpty()) return napi_pending_exception;
 
@@ -532,10 +539,10 @@ napi_status NAPI_CDECL node_api_delete_env(napi_env env, int* exit_code) {
   std::unique_ptr<node::CommonEnvironmentSetup> env_setup =
       embedded_env->ResetEnvSetup();
 
-  if (embedded_env->create_snapshot_) {
+  if (embedded_env->create_snapshot()) {
     node::EmbedderSnapshotData::Pointer snapshot = env_setup->CreateSnapshot();
     assert(snapshot);
-    embedded_env->create_snapshot_(snapshot.get());
+    embedded_env->create_snapshot()(snapshot.get());
   }
 
   node::Stop(embedded_env->node_env());

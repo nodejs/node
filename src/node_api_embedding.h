@@ -60,9 +60,6 @@ NAPI_EXTERN napi_status NAPI_CDECL
 node_api_create_env_options(node_api_env_options* result);
 
 NAPI_EXTERN napi_status NAPI_CDECL
-node_api_delete_env_options(node_api_env_options options);
-
-NAPI_EXTERN napi_status NAPI_CDECL
 node_api_env_options_get_args(node_api_env_options options,
                               node_api_get_strings_callback get_strings_cb,
                               void* strings_data);
@@ -91,7 +88,6 @@ node_api_env_options_create_snapshot(node_api_env_options options,
 
 // TODO(vmoroz): Remove the main_script parameter.
 // TODO(vmoroz): Add ABI-safe way to access internal module functionality.
-// TODO(vmoroz): Add ability to create snapshots and to load them.
 // TODO(vmoroz): Pass EnvironmentFlags
 // TODO(vmoroz): Allow setting the global inspector for a specific environment.
 NAPI_EXTERN napi_status NAPI_CDECL
