@@ -102,21 +102,21 @@ bool HKDFTraits::DeriveBits(
     Environment* env,
     const HKDFConfig& params,
     ByteSource* out) {
-  auto dp = ncrypto::hkdf(
-      params.digest,
-      ncrypto::Buffer<const unsigned char> {
-        .data = reinterpret_cast<const unsigned char*>(params.key->GetSymmetricKey()),
-        .len = params.key->GetSymmetricKeySize(),
-      },
-      ncrypto::Buffer<const unsigned char> {
-        .data = params.info.data<const unsigned char>(),
-        .len = params.info.size(),
-      },
-      ncrypto::Buffer<const unsigned char> {
-        .data = params.salt.data<const unsigned char>(),
-        .len = params.salt.size(),
-      },
-      params.length);
+  auto dp = ncrypto::hkdf(params.digest,
+                          ncrypto::Buffer<const unsigned char>{
+                              .data = reinterpret_cast<const unsigned char*>(
+                                  params.key->GetSymmetricKey()),
+                              .len = params.key->GetSymmetricKeySize(),
+                          },
+                          ncrypto::Buffer<const unsigned char>{
+                              .data = params.info.data<const unsigned char>(),
+                              .len = params.info.size(),
+                          },
+                          ncrypto::Buffer<const unsigned char>{
+                              .data = params.salt.data<const unsigned char>(),
+                              .len = params.salt.size(),
+                          },
+                          params.length);
   if (!dp) return false;
 
   *out = ByteSource::Allocated(dp.release());

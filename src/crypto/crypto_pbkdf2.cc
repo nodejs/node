@@ -111,18 +111,21 @@ Maybe<bool> PBKDF2Traits::AdditionalConfig(
   return Just(true);
 }
 
-bool PBKDF2Traits::DeriveBits(
-    Environment* env,
-    const PBKDF2Config& params,
-    ByteSource* out) {
-
+bool PBKDF2Traits::DeriveBits(Environment* env,
+                              const PBKDF2Config& params,
+                              ByteSource* out) {
   // Both pass and salt may be zero length here.
-  auto dp = ncrypto::pbkdf2(
-    params.digest,
-    ncrypto::Buffer<const char>(params.pass.data<char>(), params.pass.size()),
-    ncrypto::Buffer<const unsigned char>(params.salt.data<unsigned char>(), params.salt.size()),
-    params.iterations,
-    params.length);
+  auto dp = ncrypto::pbkdf2(params.digest,
+                            ncrypto::Buffer<const char>{
+                                .data = params.pass.data<const char>(),
+                                .len = params.pass.size(),
+                            },
+                            ncrypto::Buffer<const unsigned char>{
+                                .data = params.salt.data<unsigned char>(),
+                                .len = params.salt.size(),
+                            },
+                            params.iterations,
+                            params.length);
 
   if (!dp) return false;
   *out = ByteSource::Allocated(dp.release());

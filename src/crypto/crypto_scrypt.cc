@@ -96,7 +96,8 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
   params->length = args[offset + 6].As<Int32>()->Value();
   CHECK_GE(params->length, 0);
 
-  if (!ncrypto::checkScryptParams(params->N, params->r, params->p, params->maxmem)) {
+  if (!ncrypto::checkScryptParams(
+          params->N, params->r, params->p, params->maxmem)) {
     // Do not use CryptoErrorStore or ThrowCryptoError here in order to maintain
     // backward compatibility with ERR_CRYPTO_INVALID_SCRYPT_PARAMS.
     uint32_t err = ERR_peek_last_error();
@@ -118,7 +119,6 @@ bool ScryptTraits::DeriveBits(
     Environment* env,
     const ScryptConfig& params,
     ByteSource* out) {
-
   // If the params.length is zero-length, just return an empty buffer.
   // It's useless, yes, but allowed via the API.
   if (params.length == 0) {
@@ -127,13 +127,13 @@ bool ScryptTraits::DeriveBits(
   }
 
   auto dp = ncrypto::scrypt(
-      ncrypto::Buffer<const char> {
-        .data = params.pass.data<char>(),
-        .len = params.pass.size(),
+      ncrypto::Buffer<const char>{
+          .data = params.pass.data<char>(),
+          .len = params.pass.size(),
       },
-      ncrypto::Buffer<const unsigned char> {
-        .data = params.salt.data<unsigned char>(),
-        .len = params.salt.size(),
+      ncrypto::Buffer<const unsigned char>{
+          .data = params.salt.data<unsigned char>(),
+          .len = params.salt.size(),
       },
       params.N,
       params.r,
