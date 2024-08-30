@@ -1472,6 +1472,39 @@ console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
 ```
 
+### `subprocess.readLines([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `rejectIfNonZeroExitCode` {boolean} **Default:** `false`
+  * `listenTo` {string} Can be one of `'stdout'`, or `'stderr'`.
+    **Default:** `'stdout'`
+* Returns: {readline.InterfaceConstructor}
+
+Convenience method to create a `node:readline` interface and stream over the
+output of the child process.
+
+```mjs
+import { spawn } from 'node:child_process';
+
+for await (const fileInfo of spawn('ls', ['-a']).readLines()) {
+  console.log(fileInfo);
+}
+```
+
+```cjs
+const { spawn } = require('node:child_process');
+
+(async () => {
+  for await (const fileInfo of spawn('ls', ['-a']).readLines()) {
+    console.log(fileInfo);
+  }
+})();
+```
+
 ### `subprocess.ref()`
 
 <!-- YAML
