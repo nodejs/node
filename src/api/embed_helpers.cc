@@ -19,7 +19,24 @@ using v8::TryCatch;
 
 namespace node {
 
-Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
+enum class SpinEventLoopCleanupMode {
+  kNormal,
+  kNoCleanup,
+};
+
+/**
+ * Spin the event loop until there are no pending callbacks and
+ * then shutdown the environment. Returns a reference to the
+ * exit value or an empty reference on unexpected exit.
+ * If cleanupMode is kNoCleanup, then the environment will not be cleaned up.
+ * If shouldContinue is an invocable that returns bool, then the loop will
+ * break after shouldContinue returns false.
+ */
+template <
+    SpinEventLoopCleanupMode cleanupMode = SpinEventLoopCleanupMode::kNormal,
+    typename ShouldContinuePredicate = int>
+Maybe<ExitCode> SpinEventLoopInternalImpl(
+    Environment* env, const ShouldContinuePredicate& shouldContinue = 0) {
   CHECK_NOT_NULL(env);
   MultiIsolatePlatform* platform = GetMultiIsolatePlatform(env);
   CHECK_NOT_NULL(platform);
@@ -31,49 +48,89 @@ Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
 
   if (env->is_stopping()) return Nothing<ExitCode>();
 
-  env->set_trace_sync_io(env->options()->trace_sync_io);
+  // Run the UV loop
   {
-    bool more;
+    env->set_trace_sync_io(env->options()->trace_sync_io);
+    auto clear_set_trace_sync_io =
+        OnScopeLeave([env] { env->set_trace_sync_io(false); });
+
     env->performance_state()->Mark(
         node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
+    auto mark_loop_exit = OnScopeLeave([env] {
+      env->performance_state()->Mark(
+          node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
+    });
+
+    bool more;
     do {
-      if (env->is_stopping()) break;
-      uv_run(env->event_loop(), UV_RUN_DEFAULT);
+      if constexpr (std::is_invocable_r_v<bool, ShouldContinuePredicate>) {
+        do {
+          if (env->is_stopping()) break;
+          more = uv_run(env->event_loop(), UV_RUN_NOWAIT);
+        } while (more && shouldContinue());
+      } else {
+        if (env->is_stopping()) break;
+        uv_run(env->event_loop(), UV_RUN_DEFAULT);
+      }
       if (env->is_stopping()) break;
 
       platform->DrainTasks(isolate);
 
       more = uv_loop_alive(env->event_loop());
-      if (more && !env->is_stopping()) continue;
+      if constexpr (cleanupMode == SpinEventLoopCleanupMode::kNormal) {
+        if (more) continue;
 
-      if (EmitProcessBeforeExit(env).IsNothing())
-        break;
+        if (EmitProcessBeforeExit(env).IsNothing()) break;
 
-      {
-        HandleScope handle_scope(isolate);
-        if (env->RunSnapshotSerializeCallback().IsEmpty()) {
-          break;
+        {
+          HandleScope handle_scope(isolate);
+          if (env->RunSnapshotSerializeCallback().IsEmpty()) {
+            break;
+          }
         }
-      }
 
-      // Emit `beforeExit` if the loop became alive either after emitting
-      // event, or after running some callbacks.
-      more = uv_loop_alive(env->event_loop());
-    } while (more == true && !env->is_stopping());
-    env->performance_state()->Mark(
-        node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
+        // Emit `beforeExit` again if the loop became alive either after
+        // emitting event, or after running some callbacks.
+        more = uv_loop_alive(env->event_loop());
+      }
+    } while (more);
   }
   if (env->is_stopping()) return Nothing<ExitCode>();
 
-  env->set_trace_sync_io(false);
-  // Clear the serialize callback even though the JS-land queue should
-  // be empty this point so that the deserialized instance won't
-  // attempt to call into JS again.
-  env->set_snapshot_serialize_callback(Local<Function>());
+  if constexpr (cleanupMode == SpinEventLoopCleanupMode::kNormal) {
+    // Clear the serialize callback even though the JS-land queue should
+    // be empty this point so that the deserialized instance won't
+    // attempt to call into JS again.
+    env->set_snapshot_serialize_callback(Local<Function>());
 
-  env->PrintInfoForSnapshotIfDebug();
-  env->ForEachRealm([](Realm* realm) { realm->VerifyNoStrongBaseObjects(); });
-  return EmitProcessExitInternal(env);
+    env->PrintInfoForSnapshotIfDebug();
+    env->ForEachRealm([](Realm* realm) { realm->VerifyNoStrongBaseObjects(); });
+    return EmitProcessExitInternal(env);
+  }
+  return Just(ExitCode::kNoFailure);
+}
+
+v8::Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
+  return SpinEventLoopInternalImpl(env);
+}
+
+Maybe<int> ExitCodeToInt(Maybe<ExitCode> value) {
+  if (value.IsNothing()) return Nothing<int>();
+  return Just(static_cast<int>(value.FromJust()));
+}
+
+Maybe<int> SpinEventLoop(Environment* env) {
+  return ExitCodeToInt(SpinEventLoopInternalImpl(env));
+}
+
+v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(Environment* env) {
+  return SpinEventLoopInternalImpl<SpinEventLoopCleanupMode::kNoCleanup>(env);
+}
+
+v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(
+    Environment* env, const std::function<bool(void)>& shouldContinue) {
+  return SpinEventLoopInternalImpl<SpinEventLoopCleanupMode::kNoCleanup>(
+      env, shouldContinue);
 }
 
 struct CommonEnvironmentSetup::Impl {
@@ -216,9 +273,10 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
     }
 
     bool platform_finished = false;
-    impl_->platform->AddIsolateFinishedCallback(isolate, [](void* data) {
-      *static_cast<bool*>(data) = true;
-    }, &platform_finished);
+    impl_->platform->AddIsolateFinishedCallback(
+        isolate,
+        [](void* data) { *static_cast<bool*>(data) = true; },
+        &platform_finished);
     impl_->platform->UnregisterIsolate(isolate);
     if (impl_->snapshot_creator.has_value())
       impl_->snapshot_creator.reset();
@@ -226,8 +284,7 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
       isolate->Dispose();
 
     // Wait until the platform has cleaned up all relevant resources.
-    while (!platform_finished)
-      uv_run(&impl_->loop, UV_RUN_ONCE);
+    while (!platform_finished) uv_run(&impl_->loop, UV_RUN_ONCE);
   }
 
   if (impl_->isolate || impl_->loop.data != nullptr)
@@ -246,14 +303,6 @@ EmbedderSnapshotData::Pointer CommonEnvironmentSetup::CreateSnapshot() {
   if (exit_code != ExitCode::kNoFailure) return {};
 
   return result;
-}
-
-Maybe<int> SpinEventLoop(Environment* env) {
-  Maybe<ExitCode> result = SpinEventLoopInternal(env);
-  if (result.IsNothing()) {
-    return Nothing<int>();
-  }
-  return Just(static_cast<int>(result.FromJust()));
 }
 
 uv_loop_t* CommonEnvironmentSetup::event_loop() const {

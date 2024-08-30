@@ -1,0 +1,53 @@
+#ifndef TEST_EMBEDDING_NODE_API_EMBEDTEST_H_
+#define TEST_EMBEDDING_NODE_API_EMBEDTEST_H_
+
+#include <node_api_embedding.h>
+
+#ifdef __cplusplus
+
+#include <string>
+#include <vector>
+
+extern "C" inline void NAPI_CDECL GetStringVector(void* data,
+                                                  size_t count,
+                                                  const char** strs) {
+  static_cast<std::vector<std::string>*>(data)->assign(strs, strs + count);
+}
+
+#endif
+
+#define CHECK(expr)                                                            \
+  do {                                                                         \
+    if ((expr) != napi_ok) {                                                   \
+      fprintf(stderr, "Failed: %s\n", #expr);                                  \
+      fprintf(stderr, "File: %s\n", __FILE__);                                 \
+      fprintf(stderr, "Line: %d\n", __LINE__);                                 \
+      return 1;                                                                \
+    }                                                                          \
+  } while (0)
+
+#define CHECK_TRUE(expr)                                                       \
+  do {                                                                         \
+    if (!(expr)) {                                                             \
+      fprintf(stderr, "Failed: %s\n", #expr);                                  \
+      fprintf(stderr, "File: %s\n", __FILE__);                                 \
+      fprintf(stderr, "Line: %d\n", __LINE__);                                 \
+      return 1;                                                                \
+    }                                                                          \
+  } while (0)
+
+#define FAIL(...)                                                              \
+  do {                                                                         \
+    fprintf(stderr, __VA_ARGS__);                                              \
+    return 1;                                                                  \
+  } while (0)
+
+#define CHECK_EXIT_CODE(code)                                                  \
+  do {                                                                         \
+    int exit_code = (code);                                                    \
+    if (exit_code != 0) {                                                      \
+      return exit_code;                                                        \
+    }                                                                          \
+  } while (0)
+
+#endif  // TEST_EMBEDDING_NODE_API_EMBEDTEST_H_

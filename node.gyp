@@ -100,6 +100,7 @@
       'src/module_wrap.cc',
       'src/node.cc',
       'src/node_api.cc',
+      'src/node_api_embedding.cc',
       'src/node_binding.cc',
       'src/node_blob.cc',
       'src/node_buffer.cc',
@@ -226,6 +227,7 @@
       'src/module_wrap.h',
       'src/node.h',
       'src/node_api.h',
+      'src/node_api_embedding.h',
       'src/node_api_types.h',
       'src/node_binding.h',
       'src/node_blob.h',
@@ -1266,6 +1268,12 @@
       'sources': [
         'src/node_snapshot_stub.cc',
         'test/embedding/embedtest.cc',
+        'test/embedding/embedtest_concurrent_node_api.cc',
+        'test/embedding/embedtest_main.cc',
+        'test/embedding/embedtest_modules_node_api.c',
+        'test/embedding/embedtest_node_api.c',
+        'test/embedding/embedtest_node_api.h',
+        'test/embedding/embedtest_snapshot_node_api.cc',
       ],
 
       'conditions': [
