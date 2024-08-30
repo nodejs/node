@@ -323,3 +323,29 @@ test('expect error when executing a TypeScript file with generics', async () => 
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
+
+test('execute a TypeScript loader and a .ts file', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--no-warnings',
+    '--import',
+    fixtures.fileURL('typescript/ts/test-loader.ts'),
+    fixtures.path('typescript/ts/test-typescript.ts'),
+  ]);
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
+
+test('execute a TypeScript loader and a .js file', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-strip-types',
+    '--no-warnings',
+    '--import',
+    fixtures.fileURL('typescript/ts/test-loader.ts'),
+    fixtures.path('typescript/ts/test-simple.js'),
+  ]);
+  strictEqual(result.stderr, '');
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
+});
