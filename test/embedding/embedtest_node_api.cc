@@ -17,8 +17,8 @@ static const char* main_script =
 static const char* exe_name;
 
 static void NAPI_CDECL get_errors(void* data,
-                                  size_t count,
-                                  const char* errors[]) {
+                                  const char* errors[],
+                                  size_t count) {
   for (size_t i = 0; i < count && i < 30; ++i) {
     fprintf(stderr, "%s: %s\n", exe_name, errors[i]);
   }

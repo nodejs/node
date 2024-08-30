@@ -10,8 +10,8 @@
 #include <vector>
 
 extern "C" inline void NAPI_CDECL GetStringVector(void* data,
-                                                  size_t count,
-                                                  const char** strs) {
+                                                  const char* strs[],
+                                                  size_t count) {
   static_cast<std::vector<std::string>*>(data)->assign(strs, strs + count);
 }
 

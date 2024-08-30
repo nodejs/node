@@ -291,7 +291,7 @@ node_api_init_once_per_process(int32_t argc,
 
   if (get_errors_cb != nullptr && !platform_init_result->errors().empty()) {
     v8impl::CStringArray errors(platform_init_result->errors());
-    get_errors_cb(errors_data, errors.size(), errors.cstrings());
+    get_errors_cb(errors_data, errors.cstrings(), errors.size());
   }
 
   if (early_return != nullptr) {
@@ -350,7 +350,7 @@ node_api_env_options_get_args(node_api_env_options options,
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
   v8impl::CStringArray args(env_options->args_);
-  get_strings_cb(strings_data, args.size(), args.cstrings());
+  get_strings_cb(strings_data, args.cstrings(), args.size());
 
   return napi_ok;
 }
@@ -378,7 +378,7 @@ node_api_env_options_get_exec_args(node_api_env_options options,
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
   v8impl::CStringArray exec_args(env_options->exec_args_);
-  get_strings_cb(strings_data, exec_args.size(), exec_args.cstrings());
+  get_strings_cb(strings_data, exec_args.cstrings(), exec_args.size());
 
   return napi_ok;
 }
@@ -397,7 +397,7 @@ napi_status NAPI_CDECL node_api_env_options_set_exec_args(
 }
 
 napi_status NAPI_CDECL
-node_api_env_options_set_snapshot(node_api_env_options options,
+node_api_env_options_use_snapshot(node_api_env_options options,
                                   const char* snapshot_data,
                                   size_t snapshot_size) {
   if (options == nullptr) return napi_invalid_arg;
@@ -483,7 +483,7 @@ node_api_create_env(node_api_env_options options,
 
   if (get_errors_cb != nullptr && !errors.empty()) {
     v8impl::CStringArray cerrors(errors);
-    get_errors_cb(errors_data, cerrors.size(), cerrors.cstrings());
+    get_errors_cb(errors_data, cerrors.cstrings(), cerrors.size());
   }
 
   if (env_setup == nullptr) {
