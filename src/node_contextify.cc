@@ -769,19 +769,25 @@ Intercepted ContextifyContext::PropertyDeleterCallback(
 // static
 void ContextifyContext::PropertyEnumeratorCallback(
     const PropertyCallbackInfo<Array>& args) {
+  // Named enumerator will be invoked on Object.keys,
+  // Object.getOwnPropertyNames, Object.getOwnPropertySymbols,
+  // Object.getOwnPropertyDescriptors, for...in, etc. operations.
+  // Named enumerator should return all own non-indices property names,
+  // including string properties and symbol properties. V8 will filter the
+  // result array to match the expected symbol-only, enumerable-only with
+  // NamedPropertyQueryCallback.
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
   if (IsStillInitializing(ctx)) return;
 
   Local<Array> properties;
-  // Only get named properties, exclude symbols and indices.
+  // Only get own named properties, exclude indices.
   if (!ctx->sandbox()
            ->GetPropertyNames(
                ctx->context(),
-               KeyCollectionMode::kIncludePrototypes,
-               static_cast<PropertyFilter>(PropertyFilter::ONLY_ENUMERABLE |
-                                           PropertyFilter::SKIP_SYMBOLS),
+               KeyCollectionMode::kOwnOnly,
+               static_cast<PropertyFilter>(PropertyFilter::ALL_PROPERTIES),
                IndexFilter::kSkipIndices)
            .ToLocal(&properties))
     return;
@@ -792,6 +798,12 @@ void ContextifyContext::PropertyEnumeratorCallback(
 // static
 void ContextifyContext::IndexedPropertyEnumeratorCallback(
     const PropertyCallbackInfo<Array>& args) {
+  // Indexed enumerator will be invoked on Object.keys,
+  // Object.getOwnPropertyNames, Object.getOwnPropertyDescriptors, for...in,
+  // etc. operations. Indexed enumerator should return all own non-indices index
+  // properties. V8 will filter the result array to match the expected
+  // enumerable-only with IndexedPropertyQueryCallback.
+
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   ContextifyContext* ctx = ContextifyContext::Get(args);
@@ -802,9 +814,15 @@ void ContextifyContext::IndexedPropertyEnumeratorCallback(
 
   Local<Array> properties;
 
-  // By default, GetPropertyNames returns string and number property names, and
-  // doesn't convert the numbers to strings.
-  if (!ctx->sandbox()->GetPropertyNames(context).ToLocal(&properties)) return;
+  // Only get own index properties.
+  if (!ctx->sandbox()
+           ->GetPropertyNames(
+               context,
+               KeyCollectionMode::kOwnOnly,
+               static_cast<PropertyFilter>(PropertyFilter::SKIP_SYMBOLS),
+               IndexFilter::kIncludeIndices)
+           .ToLocal(&properties))
+    return;
 
   std::vector<v8::Global<Value>> properties_vec;
   if (FromV8Array(context, properties, &properties_vec).IsNothing()) {
