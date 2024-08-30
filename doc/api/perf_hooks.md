@@ -880,6 +880,40 @@ added: v8.5.0
 The high resolution millisecond timestamp at which the Node.js process was
 initialized.
 
+### `performanceNodeTiming.uvMetricsInfo`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+  * `loopCount` {number} Number of event loop iterations.
+  * `events` {number} Number of events that have been processed by the event handler.
+  * `eventsWaiting` {number} Number of events that were waiting to be processed when the event provider was called.
+
+This is a wrapper to the `uv_metrics_info` function.
+It returns the current set of event loop metrics.
+
+It is recommended to use this property inside a function whose execution was
+scheduled using `setImmediate` to avoid collecting metrics before finishing all
+operations scheduled during the current loop iteration.
+
+```cjs
+const { performance } = require('node:perf_hooks');
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfo);
+});
+```
+
+```mjs
+import { performance } from 'node:perf_hooks';
+
+setImmediate(() => {
+  console.log(performance.nodeTiming.uvMetricsInfo);
+});
+```
+
 ### `performanceNodeTiming.v8Start`
 
 <!-- YAML
