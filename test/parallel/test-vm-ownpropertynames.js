@@ -15,11 +15,9 @@ Object.defineProperty(sandbox, sym2, { value: true });
 
 const ctx = vm.createContext(sandbox);
 
-// Sanity check
-// Please uncomment these when the test is no longer broken
-// assert.deepStrictEqual(Reflect.ownKeys(sandbox), ['a', 'b', sym1, sym2]);
-// assert.deepStrictEqual(Object.getOwnPropertyNames(sandbox), ['a', 'b']);
-// assert.deepStrictEqual(Object.getOwnPropertySymbols(sandbox), [sym1, sym2]);
+assert.deepStrictEqual(Reflect.ownKeys(sandbox), ['a', 'b', sym1, sym2]);
+assert.deepStrictEqual(Object.getOwnPropertyNames(sandbox), ['a', 'b']);
+assert.deepStrictEqual(Object.getOwnPropertySymbols(sandbox), [sym1, sym2]);
 
 const nativeNames = vm.runInNewContext('Object.getOwnPropertyNames(this);');
 const ownNames = vm.runInContext('Object.getOwnPropertyNames(this);', ctx);
