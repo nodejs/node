@@ -65,8 +65,8 @@ extern "C" int32_t test_main_snapshot_node_api(int32_t argc, char* argv[]) {
 static const char* exe_name;
 
 static void NAPI_CDECL get_errors(void* data,
-                                  size_t count,
-                                  const char* errors[]) {
+                                  const char* errors[],
+                                  size_t count) {
   for (size_t i = 0; i < count && i < 30; ++i) {
     fprintf(stderr, "%s: %s\n", exe_name, errors[i]);
   }
@@ -140,7 +140,7 @@ int32_t RunNodeInstance() {
     int32_t ret = fclose(fp);
     assert(ret == 0);
 
-    CHECK(node_api_env_options_set_snapshot(options, vec.data(), vec.size()));
+    CHECK(node_api_env_options_use_snapshot(options, vec.data(), vec.size()));
   }
 
   if (is_building_snapshot) {
