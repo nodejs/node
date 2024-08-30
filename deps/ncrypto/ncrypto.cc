@@ -1361,4 +1361,27 @@ DataPointer scrypt(const Buffer<const char>& pass,
   return {};
 }
 
+DataPointer pbkdf2(const EVP_MD* md,
+                   const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint32_t iterations,
+                   size_t length) {
+  ClearErrorOnReturn clearErrorOnReturn;
+
+  if (pass.len > INT_MAX ||
+      salt.len > INT_MAX ||
+      length > INT_MAX) {
+    return {};
+  }
+
+  auto dp = DataPointer::Alloc(length);
+  if (dp && PKCS5_PBKDF2_HMAC(pass.data, pass.len, salt.data, salt.len,
+                              iterations, md, length,
+                              reinterpret_cast<unsigned char*>(dp.get()))) {
+    return dp;
+  }
+
+  return {};
+}
+
 }  // namespace ncrypto

@@ -614,6 +614,12 @@ DataPointer scrypt(const Buffer<const char>& pass,
                    uint64_t maxmem,
                    size_t length);
 
+DataPointer pbkdf2(const EVP_MD* md,
+                   const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint32_t iterations,
+                   size_t length);
+
 // ============================================================================
 // Version metadata
 #define NCRYPTO_VERSION "0.0.1"
