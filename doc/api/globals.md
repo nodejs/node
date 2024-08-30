@@ -1204,7 +1204,9 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 In Node.js, the localStorage and sessionStorage objects function differently compared to browsers or Deno:
 
 * Both localStorage and sessionStorage are scoped to the current process, not individual users or server requests. This is crucial for applications like server-side rendering.
-* localStorage uses the value of the --localstorage-file flag as its origin. This file can be accessed simultaneously by multiple processes, which may require implementing file locking or other synchronization mechanisms to ensure data integrity.
+* `localStorage` uses the value of the `--localstorage-file` flag as its origin. This file can be accessed simultaneously by multiple processes,
+  which may require implementing file locking or other synchronization mechanisms to ensure data integrity.
+  cli.md
 * The storage quota for both localStorage and sessionStorage is 10MB per process.
 
 [CommonJS module]: modules.md
