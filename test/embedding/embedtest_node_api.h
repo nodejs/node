@@ -1,6 +1,7 @@
-#ifndef TEST_EMBEDDING_NODE_API_EMBEDTEST_H_
-#define TEST_EMBEDDING_NODE_API_EMBEDTEST_H_
+#ifndef TEST_EMBEDDING_EMBEDTEST_NODE_API_H_
+#define TEST_EMBEDDING_EMBEDTEST_NODE_API_H_
 
+#define NAPI_EXPERIMENTAL
 #include <node_api_embedding.h>
 
 #ifdef __cplusplus
@@ -50,4 +51,4 @@ extern "C" inline void NAPI_CDECL GetStringVector(void* data,
     }                                                                          \
   } while (0)
 
-#endif  // TEST_EMBEDDING_NODE_API_EMBEDTEST_H_
+#endif  // TEST_EMBEDDING_EMBEDTEST_NODE_API_H_

@@ -1,4 +1,3 @@
-#define NAPI_EXPERIMENTAL
 #include "embedtest_node_api.h"
 
 #include <assert.h>
