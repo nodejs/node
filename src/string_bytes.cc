@@ -449,27 +449,27 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       break;
 
     case BASE64URL:
-    case BASE64:
-      data_size = str->Length() % 4 <= 1
-                      ? str->Length() / 4 * 3
-                      : str->Length() / 4 * 3 + (str->Length() % 4) - 1;
-      // When the string is external, we can check if it ends with one or two
-      // padding characters and adjust the size accordingly. Note that the
-      // input can contain non-base64 characters, so, at best, we can provide
-      // an upper bound. A correct size would requires scanning the entire
-      // input. We try to keep the function as fast as possible, so we only
-      // check the last two characters when the string is one-byte external.
-      if (str->IsExternalOneByte()) {
-        auto ext = str->GetExternalOneByteStringResource();
-        if (ext->length() > 1) {
-          if (ext->data()[ext->length() - 1] == '=') {
+    case BASE64: {
+      String::ValueView view(isolate, str);
+      size_t data_size = view.length() % 4 <= 1
+                      ? view.length() / 4 * 3
+                      : view.length() / 4 * 3 + (view.length() % 4) - 1;
+      // Check if the string ends with one or two padding characters and adjust the
+      // size accordingly. Note that the input can contain non-base64 characters, so,
+      // at best, we can provide an upper bound. A correct size would requires
+      // scanning the entire input. We try to keep the function as fast as possible,
+      // so we only check the last two characters when the string is one-byte.
+      if (view.is_one_byte()) {
+        if (view.length() > 1) {
+          if (view.data8()[view.length() - 1] == '=') {
             data_size--;
-            if (ext->data()[ext->length() - 2] == '=') {
+            if (view.data8()[view.length() - 2] == '=') {
               data_size--;
             }
           }
         }
       }
+    }
       break;
 
     case HEX:
@@ -510,21 +510,20 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
 
     case BASE64URL:
     case BASE64: {
-      size_t data_size = str->Length() % 4 <= 1
-                             ? str->Length() / 4 * 3
-                             : str->Length() / 4 * 3 + (str->Length() % 4) - 1;
-      // When the string is external, we can check if it ends with one or two
-      // padding characters and adjust the size accordingly. Note that the
-      // input can contain non-base64 characters, so, at best, we can provide
-      // an upper bound. A correct size would requires scanning the entire
-      // input. We try to keep the function as fast as possible, so we only
-      // check the last two characters when the string is one-byte external.
-      if (str->IsExternalOneByte()) {
-        auto ext = str->GetExternalOneByteStringResource();
-        if (ext->length() > 1) {
-          if (ext->data()[ext->length() - 1] == '=') {
+      String::ValueView view(isolate, str);
+      size_t data_size = view.length() % 4 <= 1
+                      ? view.length() / 4 * 3
+                      : view.length() / 4 * 3 + (view.length() % 4) - 1;
+      // Check if the string ends with one or two padding characters and adjust the
+      // size accordingly. Note that the input can contain non-base64 characters, so,
+      // at best, we can provide an upper bound. A correct size would requires
+      // scanning the entire input. We try to keep the function as fast as possible,
+      // so we only check the last two characters when the string is one-byte.
+      if (view.is_one_byte()) {
+        if (view.length() > 1) {
+          if (view.data8()[view.length() - 1] == '=') {
             data_size--;
-            if (ext->data()[ext->length() - 2] == '=') {
+            if (view.data8()[view.length() - 2] == '=') {
               data_size--;
             }
           }
