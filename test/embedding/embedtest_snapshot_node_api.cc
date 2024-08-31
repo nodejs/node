@@ -39,13 +39,13 @@ extern "C" int32_t test_main_snapshot_node_api(int32_t argc, char* argv[]) {
   int32_t exit_code = 0;
 
   std::vector<std::string> errors;
-  node_api_init_once_per_process(argc,
-                                 argv,
-                                 node_api_platform_no_flags,
-                                 GetStringVector,
-                                 &errors,
-                                 &early_return,
-                                 &exit_code);
+  node_api_initialize_platform(argc,
+                               argv,
+                               node_api_platform_no_flags,
+                               GetMessageVector,
+                               &errors,
+                               &early_return,
+                               &exit_code);
   if (early_return) {
     if (exit_code != 0) {
       for (const std::string& err : errors)
@@ -58,7 +58,7 @@ extern "C" int32_t test_main_snapshot_node_api(int32_t argc, char* argv[]) {
 
   CHECK_EXIT_CODE(RunNodeInstance());
 
-  CHECK(node_api_uninit_once_per_process());
+  CHECK(node_api_dispose_platform());
   return 0;
 }
 
@@ -92,9 +92,8 @@ int32_t RunNodeInstance() {
   node_api_env_options options;
   CHECK(node_api_create_env_options(&options));
   std::vector<std::string> args, exec_args;
-  CHECK(node_api_env_options_get_args(options, GetStringVector, &args));
-  CHECK(
-      node_api_env_options_get_exec_args(options, GetStringVector, &exec_args));
+  CHECK(node_api_env_options_get_args(options, GetArgsVector, &args));
+  CHECK(node_api_env_options_get_exec_args(options, GetArgsVector, &exec_args));
 
   exe_name = args[0].c_str();
   std::vector<std::string> filtered_args;
@@ -159,12 +158,12 @@ int32_t RunNodeInstance() {
   if (!snapshot_blob_path.empty() && is_building_snapshot) {
     CHECK(node_api_env_options_create_snapshot(
         options,
-        [](void* cb_data, const char* snapshot_data, size_t snapshot_size) {
+        [](void* cb_data, const uint8_t* blob, size_t size) {
           const char* snapshot_blob_path = static_cast<const char*>(cb_data);
           FILE* fp = fopen(snapshot_blob_path, "wb");
           assert(fp != nullptr);
 
-          size_t written = fwrite(snapshot_data, snapshot_size, 1, fp);
+          size_t written = fwrite(blob, size, 1, fp);
           assert(written == 1);
 
           int32_t ret = fclose(fp);

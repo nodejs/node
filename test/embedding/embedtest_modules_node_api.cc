@@ -9,7 +9,7 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
     return 2;
   }
 
-  CHECK(node_api_init_once_per_process(
+  CHECK(node_api_initialize_platform(
       argc, argv, node_api_platform_no_flags, NULL, NULL, NULL, NULL));
 
   node_api_env_options options;
@@ -56,6 +56,6 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
 
   CHECK(node_api_close_env_scope(env));
   CHECK(node_api_delete_env(env, NULL));
-  CHECK(node_api_uninit_once_per_process());
+  CHECK(node_api_dispose_platform());
   return 0;
 }

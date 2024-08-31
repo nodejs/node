@@ -9,10 +9,17 @@
 #include <string>
 #include <vector>
 
-extern "C" inline void NAPI_CDECL GetStringVector(void* data,
-                                                  const char* strs[],
-                                                  size_t count) {
-  static_cast<std::vector<std::string>*>(data)->assign(strs, strs + count);
+extern "C" inline void NAPI_CDECL GetMessageVector(void* data,
+                                                   const char* messages[],
+                                                   size_t size) {
+  static_cast<std::vector<std::string>*>(data)->assign(messages,
+                                                       messages + size);
+}
+
+extern "C" inline void NAPI_CDECL GetArgsVector(void* data,
+                                                int32_t argc,
+                                                const char* argv[]) {
+  static_cast<std::vector<std::string>*>(data)->assign(argv, argv + argc);
 }
 
 #endif
