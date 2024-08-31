@@ -224,45 +224,42 @@ std::vector<const char*> ToCStringVector(const std::vector<std::string>& vec) {
 node::ProcessInitializationFlags::Flags GetProcessInitializationFlags(
     node_api_platform_flags flags) {
   uint32_t result = node::ProcessInitializationFlags::kNoFlags;
-  if ((flags & node_api_platform_enable_env_var) == 0) {
-    // Disable reading the NODE_OPTIONS environment variable.
+  if ((flags & node_api_platform_enable_stdio_inheritance) != 0) {
+    result |= node::ProcessInitializationFlags::kEnableStdioInheritance;
+  }
+  if ((flags & node_api_platform_disable_node_options_env) != 0) {
     result |= node::ProcessInitializationFlags::kDisableNodeOptionsEnv;
   }
-  if ((flags & node_api_platform_init_icu) == 0) {
-    // Do not initialize ICU.
+  if ((flags & node_api_platform_disable_cli_options) != 0) {
+    result |= node::ProcessInitializationFlags::kDisableCLIOptions;
+  }
+  if ((flags & node_api_platform_no_icu) != 0) {
     result |= node::ProcessInitializationFlags::kNoICU;
   }
-  // Do not modify stdio file descriptor or TTY state.
-  result |= node::ProcessInitializationFlags::kNoStdioInitialization;
-  // Do not register Node.js-specific signal handlers
-  // and reset other signal handlers to default state.
-  result |= node::ProcessInitializationFlags::kNoDefaultSignalHandling;
-  // Do not perform V8 initialization.
+  if ((flags & node_api_platform_no_stdio_initialization) != 0) {
+    result |= node::ProcessInitializationFlags::kNoStdioInitialization;
+  }
+  if ((flags & node_api_platform_no_default_signal_handling) != 0) {
+    result |= node::ProcessInitializationFlags::kNoDefaultSignalHandling;
+  }
   result |= node::ProcessInitializationFlags::kNoInitializeV8;
-  // Do not initialize a default Node.js-provided V8 platform instance.
   result |= node::ProcessInitializationFlags::kNoInitializeNodeV8Platform;
-  if ((flags & node_api_platform_init_openssl) == 0) {
-    // Do not initialize OpenSSL config.
+  if ((flags & node_api_platform_no_init_openssl) != 0) {
     result |= node::ProcessInitializationFlags::kNoInitOpenSSL;
   }
-  if ((flags & node_api_platform_parse_global_debug_vars) == 0) {
-    // Do not initialize Node.js debugging based on environment variables.
+  if ((flags & node_api_platform_no_parse_global_debug_variables) != 0) {
     result |= node::ProcessInitializationFlags::kNoParseGlobalDebugVariables;
   }
-  if ((flags & node_api_platform_adjust_resource_limits) == 0) {
-    // Do not adjust OS resource limits for this process.
+  if ((flags & node_api_platform_no_adjust_resource_limits) != 0) {
     result |= node::ProcessInitializationFlags::kNoAdjustResourceLimits;
   }
-  if ((flags & node_api_platform_no_large_pages) != 0) {
-    // Do not map code segments into large pages for this process.
+  if ((flags & node_api_platform_no_use_large_pages) != 0) {
     result |= node::ProcessInitializationFlags::kNoUseLargePages;
   }
-  if ((flags & node_api_platform_print_help_or_version) == 0) {
-    // Skip printing output for --help, --version, --v8-options.
+  if ((flags & node_api_platform_no_print_help_or_version_output) != 0) {
     result |= node::ProcessInitializationFlags::kNoPrintHelpOrVersionOutput;
   }
-  if ((flags & node_api_platform_generate_predictable_snapshot) == 0) {
-    // Initialize the process for predictable snapshot generation.
+  if ((flags & node_api_platform_generate_predictable_snapshot) != 0) {
     result |= node::ProcessInitializationFlags::kGeneratePredictableSnapshot;
   }
   return static_cast<node::ProcessInitializationFlags::Flags>(result);
