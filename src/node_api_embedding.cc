@@ -41,8 +41,9 @@ class CStringArray {
   CStringArray(const CStringArray&) = delete;
   CStringArray& operator=(const CStringArray&) = delete;
 
-  const char** cstrings() const { return cstrings_; }
   size_t size() const { return size_; }
+  int32_t argc() const { return static_cast<int>(size_); }
+  const char** argv() const { return cstrings_; }
 
  private:
   const char** cstrings_;
@@ -271,13 +272,13 @@ node::ProcessInitializationFlags::Flags GetProcessInitializationFlags(
 }  // end of namespace v8impl
 
 napi_status NAPI_CDECL
-node_api_init_once_per_process(int32_t argc,
-                               char* argv[],
-                               node_api_platform_flags flags,
-                               node_api_get_strings_callback get_errors_cb,
-                               void* errors_data,
-                               bool* early_return,
-                               int32_t* exit_code) {
+node_api_initialize_platform(int32_t argc,
+                             char* argv[],
+                             node_api_platform_flags flags,
+                             node_api_error_message_handler error_handler,
+                             void* error_handler_data,
+                             bool* early_return,
+                             int32_t* exit_code) {
   if (argc == 0) return napi_invalid_arg;
   if (argv == nullptr) return napi_invalid_arg;
   if (!v8impl::EmbeddedPlatform::InitOncePerProcess())
@@ -289,9 +290,9 @@ node_api_init_once_per_process(int32_t argc,
       node::InitializeOncePerProcess(
           args, v8impl::GetProcessInitializationFlags(flags));
 
-  if (get_errors_cb != nullptr && !platform_init_result->errors().empty()) {
+  if (error_handler != nullptr && !platform_init_result->errors().empty()) {
     v8impl::CStringArray errors(platform_init_result->errors());
-    get_errors_cb(errors_data, errors.cstrings(), errors.size());
+    error_handler(error_handler_data, errors.argv(), errors.size());
   }
 
   if (early_return != nullptr) {
@@ -320,7 +321,7 @@ node_api_init_once_per_process(int32_t argc,
   return napi_ok;
 }
 
-napi_status NAPI_CDECL node_api_uninit_once_per_process() {
+napi_status NAPI_CDECL node_api_dispose_platform() {
   if (!v8impl::EmbeddedPlatform::UninitOncePerProcess())
     return napi_generic_failure;
   v8::V8::Dispose();
@@ -342,15 +343,15 @@ node_api_create_env_options(node_api_env_options* result) {
 
 napi_status NAPI_CDECL
 node_api_env_options_get_args(node_api_env_options options,
-                              node_api_get_strings_callback get_strings_cb,
-                              void* strings_data) {
+                              node_api_get_args_callback get_args_cb,
+                              void* cb_data) {
   if (options == nullptr) return napi_invalid_arg;
-  if (get_strings_cb == nullptr) return napi_invalid_arg;
+  if (get_args_cb == nullptr) return napi_invalid_arg;
 
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
   v8impl::CStringArray args(env_options->args_);
-  get_strings_cb(strings_data, args.cstrings(), args.size());
+  get_args_cb(cb_data, args.argc(), args.argv());
 
   return napi_ok;
 }
@@ -370,15 +371,15 @@ napi_status NAPI_CDECL node_api_env_options_set_args(
 
 napi_status NAPI_CDECL
 node_api_env_options_get_exec_args(node_api_env_options options,
-                                   node_api_get_strings_callback get_strings_cb,
-                                   void* strings_data) {
+                                   node_api_get_args_callback get_args_cb,
+                                   void* cb_data) {
   if (options == nullptr) return napi_invalid_arg;
-  if (get_strings_cb == nullptr) return napi_invalid_arg;
+  if (get_args_cb == nullptr) return napi_invalid_arg;
 
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
-  v8impl::CStringArray exec_args(env_options->exec_args_);
-  get_strings_cb(strings_data, exec_args.cstrings(), exec_args.size());
+  v8impl::CStringArray args(env_options->exec_args_);
+  get_args_cb(cb_data, args.argc(), args.argv());
 
   return napi_ok;
 }
@@ -414,20 +415,22 @@ node_api_env_options_use_snapshot(node_api_env_options options,
 
 napi_status NAPI_CDECL
 node_api_env_options_create_snapshot(node_api_env_options options,
-                                     node_api_get_string_callback get_blob_cb,
-                                     void* blob_cb_data,
+                                     node_api_store_blob_callback store_blob_cb,
+                                     void* cb_data,
                                      node_api_snapshot_flags snapshot_flags) {
   if (options == nullptr) return napi_invalid_arg;
-  if (get_blob_cb == nullptr) return napi_invalid_arg;
+  if (store_blob_cb == nullptr) return napi_invalid_arg;
 
   v8impl::EmbeddedEnvironmentOptions* env_options =
       reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
   if (env_options->is_frozen_) return napi_generic_failure;
 
   env_options->create_snapshot_ =
-      [get_blob_cb, blob_cb_data](const node::EmbedderSnapshotData* snapshot) {
+      [store_blob_cb, cb_data](const node::EmbedderSnapshotData* snapshot) {
         std::vector<char> blob = snapshot->ToBlob();
-        get_blob_cb(blob_cb_data, blob.data(), blob.size());
+        store_blob_cb(cb_data,
+                      reinterpret_cast<const uint8_t*>(blob.data()),
+                      blob.size());
       };
 
   if ((snapshot_flags & node_api_snapshot_no_code_cache) != 0) {
@@ -441,8 +444,8 @@ node_api_env_options_create_snapshot(node_api_env_options options,
 
 napi_status NAPI_CDECL
 node_api_create_env(node_api_env_options options,
-                    node_api_get_strings_callback get_errors_cb,
-                    void* errors_data,
+                    node_api_error_message_handler error_handler,
+                    void* error_handler_data,
                     const char* main_script,
                     int32_t api_version,
                     napi_env* result) {
@@ -481,9 +484,9 @@ node_api_create_env(node_api_env_options options,
         platform, &errors, env_options->args_, env_options->exec_args_, flags);
   }
 
-  if (get_errors_cb != nullptr && !errors.empty()) {
+  if (error_handler != nullptr && !errors.empty()) {
     v8impl::CStringArray cerrors(errors);
-    get_errors_cb(errors_data, cerrors.cstrings(), cerrors.size());
+    error_handler(error_handler_data, cerrors.argv(), cerrors.size());
   }
 
   if (env_setup == nullptr) {

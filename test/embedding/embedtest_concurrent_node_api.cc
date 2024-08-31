@@ -11,13 +11,13 @@ static const char* main_script =
 extern "C" int32_t test_main_concurrent_node_api(int32_t argc, char* argv[]) {
   std::atomic<int32_t> global_count{0};
   std::atomic<int32_t> global_exit_code{0};
-  CHECK(node_api_init_once_per_process(argc,
-                                       argv,
-                                       node_api_platform_no_flags,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr));
+  CHECK(node_api_initialize_platform(argc,
+                                     argv,
+                                     node_api_platform_no_flags,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr));
 
   const size_t thread_count = 12;
   std::vector<std::thread> threads;
@@ -56,7 +56,7 @@ extern "C" int32_t test_main_concurrent_node_api(int32_t argc, char* argv[]) {
 
   CHECK_EXIT_CODE(global_exit_code.load());
 
-  CHECK(node_api_uninit_once_per_process());
+  CHECK(node_api_dispose_platform());
 
   fprintf(stdout, "%d\n", global_count.load());
 
@@ -66,13 +66,13 @@ extern "C" int32_t test_main_concurrent_node_api(int32_t argc, char* argv[]) {
 // We can use multiple environments at the same thread.
 // For each use we must open and close the environment scope.
 extern "C" int32_t test_main_multi_env_node_api(int32_t argc, char* argv[]) {
-  CHECK(node_api_init_once_per_process(argc,
-                                       argv,
-                                       node_api_platform_no_flags,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr));
+  CHECK(node_api_initialize_platform(argc,
+                                     argv,
+                                     node_api_platform_no_flags,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr));
 
   const size_t env_count = 12;
   std::vector<napi_env> envs;
@@ -147,7 +147,7 @@ extern "C" int32_t test_main_multi_env_node_api(int32_t argc, char* argv[]) {
     CHECK(node_api_delete_env(env, nullptr));
   }
 
-  CHECK(node_api_uninit_once_per_process());
+  CHECK(node_api_dispose_platform());
 
   fprintf(stdout, "%d\n", global_count);
 
@@ -157,13 +157,13 @@ extern "C" int32_t test_main_multi_env_node_api(int32_t argc, char* argv[]) {
 // We can use the environment from different threads as long as only one thread
 // at a time is using it.
 extern "C" int32_t test_main_multi_thread_node_api(int32_t argc, char* argv[]) {
-  CHECK(node_api_init_once_per_process(argc,
-                                       argv,
-                                       node_api_platform_no_flags,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr,
-                                       nullptr));
+  CHECK(node_api_initialize_platform(argc,
+                                     argv,
+                                     node_api_platform_no_flags,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr,
+                                     nullptr));
 
   node_api_env_options options;
   CHECK(node_api_create_env_options(&options));
@@ -217,7 +217,7 @@ extern "C" int32_t test_main_multi_thread_node_api(int32_t argc, char* argv[]) {
   CHECK_EXIT_CODE(result_exit_code.load());
 
   CHECK(node_api_delete_env(env, nullptr));
-  CHECK(node_api_uninit_once_per_process());
+  CHECK(node_api_dispose_platform());
 
   fprintf(stdout, "%d\n", result_count.load());
 

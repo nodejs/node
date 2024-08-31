@@ -28,20 +28,20 @@ extern "C" int32_t test_main_node_api(int32_t argc, char* argv[]) {
   exe_name = argv[0];
   bool early_return = false;
   int32_t exit_code = 0;
-  node_api_init_once_per_process(argc,
-                                 argv,
-                                 node_api_platform_no_flags,
-                                 get_errors,
-                                 NULL,
-                                 &early_return,
-                                 &exit_code);
+  node_api_initialize_platform(argc,
+                               argv,
+                               node_api_platform_no_flags,
+                               get_errors,
+                               NULL,
+                               &early_return,
+                               &exit_code);
   if (early_return) {
     return exit_code;
   }
 
   CHECK_EXIT_CODE(RunNodeInstance());
 
-  CHECK(node_api_uninit_once_per_process());
+  CHECK(node_api_dispose_platform());
   return 0;
 }
 
