@@ -452,13 +452,14 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
     case BASE64: {
       String::ValueView view(isolate, str);
       size_t data_size = view.length() % 4 <= 1
-                      ? view.length() / 4 * 3
-                      : view.length() / 4 * 3 + (view.length() % 4) - 1;
-      // Check if the string ends with one or two padding characters and adjust the
-      // size accordingly. Note that the input can contain non-base64 characters, so,
-      // at best, we can provide an upper bound. A correct size would requires
-      // scanning the entire input. We try to keep the function as fast as possible,
-      // so we only check the last two characters when the string is one-byte.
+                             ? view.length() / 4 * 3
+                             : view.length() / 4 * 3 + (view.length() % 4) - 1;
+      // Check if the string ends with one or two padding characters and adjust
+      // the size accordingly. Note that the input can contain non-base64
+      // characters, so, at best, we can provide an upper bound. A correct size
+      // would requires scanning the entire input. We try to keep the function
+      // as fast as possible, so we only check the last two characters when the
+      // string is one-byte.
       if (view.is_one_byte()) {
         if (view.length() > 1) {
           if (view.data8()[view.length() - 1] == '=') {
@@ -469,8 +470,7 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
           }
         }
       }
-    }
-      break;
+    } break;
 
     case HEX:
       CHECK(str->Length() % 2 == 0 && "invalid hex string length");
@@ -512,13 +512,14 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
     case BASE64: {
       String::ValueView view(isolate, str);
       size_t data_size = view.length() % 4 <= 1
-                      ? view.length() / 4 * 3
-                      : view.length() / 4 * 3 + (view.length() % 4) - 1;
-      // Check if the string ends with one or two padding characters and adjust the
-      // size accordingly. Note that the input can contain non-base64 characters, so,
-      // at best, we can provide an upper bound. A correct size would requires
-      // scanning the entire input. We try to keep the function as fast as possible,
-      // so we only check the last two characters when the string is one-byte.
+                             ? view.length() / 4 * 3
+                             : view.length() / 4 * 3 + (view.length() % 4) - 1;
+      // Check if the string ends with one or two padding characters and adjust
+      // the size accordingly. Note that the input can contain non-base64
+      // characters, so, at best, we can provide an upper bound. A correct size
+      // would requires scanning the entire input. We try to keep the function
+      // as fast as possible, so we only check the last two characters when the
+      // string is one-byte.
       if (view.is_one_byte()) {
         if (view.length() > 1) {
           if (view.data8()[view.length() - 1] == '=') {
