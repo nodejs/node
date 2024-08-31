@@ -62,31 +62,6 @@ inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
 }
 
-inline void IsolateData::SetCppgcReference(v8::Isolate* isolate,
-                                           v8::Local<v8::Object> object,
-                                           void* wrappable) {
-  v8::CppHeap* heap = isolate->GetCppHeap();
-  CHECK_NOT_NULL(heap);
-  v8::WrapperDescriptor descriptor = heap->wrapper_descriptor();
-  uint16_t required_size = std::max(descriptor.wrappable_instance_index,
-                                    descriptor.wrappable_type_index);
-  CHECK_GT(object->InternalFieldCount(), required_size);
-
-  uint16_t* id_ptr = nullptr;
-  {
-    Mutex::ScopedLock lock(isolate_data_mutex_);
-    auto it =
-        wrapper_data_map_.find(descriptor.embedder_id_for_garbage_collected);
-    CHECK_NE(it, wrapper_data_map_.end());
-    id_ptr = &(it->second->cppgc_id);
-  }
-
-  object->SetAlignedPointerInInternalField(descriptor.wrappable_type_index,
-                                           id_ptr);
-  object->SetAlignedPointerInInternalField(descriptor.wrappable_instance_index,
-                                           wrappable);
-}
-
 inline uint16_t* IsolateData::embedder_id_for_cppgc() const {
   return &(wrapper_data_->cppgc_id);
 }
@@ -590,11 +565,6 @@ inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
   return options_;
 }
 
-inline void IsolateData::set_options(
-    std::shared_ptr<PerIsolateOptions> options) {
-  options_ = std::move(options);
-}
-
 template <typename Fn>
 void Environment::SetImmediate(Fn&& cb, CallbackFlags::Flags flags) {
   auto callback = native_immediates_.CreateCallback(std::move(cb), flags);
@@ -675,7 +645,12 @@ inline bool Environment::owns_inspector() const {
 
 inline bool Environment::should_create_inspector() const {
   return (flags_ & EnvironmentFlags::kNoCreateInspector) == 0 &&
-         !options_->test_runner && !options_->watch_mode;
+         !(options_->test_runner && options_->test_isolation == "process") &&
+         !options_->watch_mode;
+}
+
+inline bool Environment::should_wait_for_inspector_frontend() const {
+  return (flags_ & EnvironmentFlags::kNoWaitForInspectorFrontend) == 0;
 }
 
 inline bool Environment::tracks_unmanaged_fds() const {
@@ -930,6 +905,26 @@ inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
                                         heap_limit);
 }
 
+inline void Environment::SetAsyncResourceContextFrame(
+    std::uintptr_t async_resource_handle,
+    v8::Global<v8::Value>&& context_frame) {
+  async_resource_context_frames_.emplace(
+      std::make_pair(async_resource_handle, std::move(context_frame)));
+}
+
+inline const v8::Global<v8::Value>& Environment::GetAsyncResourceContextFrame(
+    std::uintptr_t async_resource_handle) {
+  auto&& async_resource_context_frame =
+      async_resource_context_frames_.find(async_resource_handle);
+  CHECK_NE(async_resource_context_frame, async_resource_context_frames_.end());
+
+  return async_resource_context_frame->second;
+}
+
+inline void Environment::RemoveAsyncResourceContextFrame(
+    std::uintptr_t async_resource_handle) {
+  async_resource_context_frames_.erase(async_resource_handle);
+}
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this

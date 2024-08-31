@@ -30,6 +30,7 @@ const optionator = require("optionator");
  * @property {boolean} errorOnUnmatchedPattern Prevent errors when pattern is unmatched
  * @property {boolean} eslintrc Disable use of configuration from .eslintrc.*
  * @property {string[]} [ext] Specify JavaScript file extensions
+ * @property {string[]} [flag] Feature flags
  * @property {boolean} fix Automatically fix problems
  * @property {boolean} fixDryRun Automatically fix problems without saving the changes to the file system
  * @property {("directive" | "problem" | "suggestion" | "layout")[]} [fixType] Specify the types of fixes to apply (directive, problem, suggestion, layout)
@@ -173,6 +174,16 @@ module.exports = function(usingFlatConfig) {
             type: "Boolean",
             default: "true",
             description: "Suppress warnings when the file list includes ignored files"
+        };
+    }
+
+    let flagFlag;
+
+    if (usingFlatConfig) {
+        flagFlag = {
+            option: "flag",
+            type: "[String]",
+            description: "Enable a feature flag"
         };
     }
 
@@ -424,7 +435,8 @@ module.exports = function(usingFlatConfig) {
                 type: "path::String",
                 description: "Print the configuration for the given file"
             },
-            statsFlag
+            statsFlag,
+            flagFlag
         ].filter(value => !!value)
     });
 };

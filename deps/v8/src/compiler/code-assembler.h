@@ -592,6 +592,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<String> StringConstant(const char* str);
   TNode<Boolean> BooleanConstant(bool value);
   TNode<ExternalReference> ExternalConstant(ExternalReference address);
+  TNode<ExternalReference> IsolateField(IsolateFieldId id);
   TNode<Float32T> Float32Constant(double value);
   TNode<Float64T> Float64Constant(double value);
   TNode<BoolT> Int32TrueConstant() {
@@ -636,8 +637,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   static_assert(kTargetParameterIndex == -1);
 
   template <class T>
-  TNode<T> Parameter(
-      int value, cppgc::SourceLocation loc = cppgc::SourceLocation::Current()) {
+  TNode<T> Parameter(int value,
+                     const SourceLocation& loc = SourceLocation::Current()) {
     static_assert(
         std::is_convertible<TNode<T>, TNode<Object>>::value,
         "Parameter is only for tagged types. Use UncheckedParameter instead.");
@@ -670,6 +671,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<Float32T> value);
   void Return(TNode<Float64T> value);
   void Return(TNode<WordT> value1, TNode<WordT> value2);
+  void Return(TNode<Word32T> value1, TNode<Word32T> value2);
   void Return(TNode<WordT> value1, TNode<Object> value2);
   void PopAndReturn(Node* pop, Node* value);
   void PopAndReturn(Node* pop, Node* value1, Node* value2, Node* value3,
@@ -684,12 +686,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Hack for supporting SourceLocation alongside template packs.
   struct MessageWithSourceLocation {
     const char* message;
-    SourceLocation loc;
+    const SourceLocation& loc;
 
     // Allow implicit construction, necessary for the hack.
     // NOLINTNEXTLINE
-    MessageWithSourceLocation(const char* message,
-                              SourceLocation loc = SourceLocation::Current())
+    MessageWithSourceLocation(
+        const char* message,
+        const SourceLocation& loc = SourceLocation::Current())
         : message(message), loc(loc) {}
   };
   template <class... Args>
@@ -786,7 +789,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #if V8_ENABLE_WEBASSEMBLY
   // Access to the stack pointer.
   TNode<RawPtrT> LoadStackPointer();
-  void SetStackPointer(TNode<RawPtrT> ptr, wasm::FPRelativeScope fp_scope);
+  void SetStackPointer(TNode<RawPtrT> ptr);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);

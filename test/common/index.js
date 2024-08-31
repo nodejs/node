@@ -141,8 +141,9 @@ const isSunOS = process.platform === 'sunos';
 const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
-const isOSX = process.platform === 'darwin';
+const isMacOS = process.platform === 'darwin';
 const isASan = process.config.variables.asan === 1;
+const isDebug = process.features.debug;
 const isPi = (() => {
   try {
     // Normal Raspberry Pi detection is to find the `Raspberry Pi` string in
@@ -280,7 +281,7 @@ function platformTimeout(ms) {
   const multipliers = typeof ms === 'bigint' ?
     { two: 2n, four: 4n, seven: 7n } : { two: 2, four: 4, seven: 7 };
 
-  if (process.features.debug)
+  if (isDebug)
     ms = multipliers.two * ms;
 
   if (exports.isAIX || exports.isIBMi)
@@ -850,30 +851,6 @@ function skipIfDumbTerminal() {
   }
 }
 
-function gcUntil(name, condition) {
-  if (typeof name === 'function') {
-    condition = name;
-    name = undefined;
-  }
-  return new Promise((resolve, reject) => {
-    let count = 0;
-    function gcAndCheck() {
-      setImmediate(() => {
-        count++;
-        global.gc();
-        if (condition()) {
-          resolve();
-        } else if (count < 10) {
-          gcAndCheck();
-        } else {
-          reject(name === undefined ? undefined : 'Test ' + name + ' failed');
-        }
-      });
-    }
-    gcAndCheck();
-  });
-}
-
 function requireNoPackageJSONAbove(dir = __dirname) {
   let possiblePackage = path.join(dir, '..', 'package.json');
   let lastPackage = null;
@@ -964,9 +941,14 @@ function getPrintedStackTrace(stderr) {
  * @param {object} mod result returned by require()
  * @param {object} expectation shape of expected namespace.
  */
-function expectRequiredModule(mod, expectation) {
+function expectRequiredModule(mod, expectation, checkESModule = true) {
+  const clone = { ...mod };
+  if (Object.hasOwn(mod, 'default') && checkESModule) {
+    assert.strictEqual(mod.__esModule, true);
+    delete clone.__esModule;
+  }
   assert(isModuleNamespaceObject(mod));
-  assert.deepStrictEqual({ ...mod }, { ...expectation });
+  assert.deepStrictEqual(clone, { ...expectation });
 }
 
 const common = {
@@ -979,7 +961,6 @@ const common = {
   expectsError,
   expectRequiredModule,
   expectWarning,
-  gcUntil,
   getArrayBufferViews,
   getBufferSources,
   getCallSite,
@@ -993,12 +974,13 @@ const common = {
   invalidArgTypeHelper,
   isAlive,
   isASan,
+  isDebug,
   isDumbTerminal,
   isFreeBSD,
   isLinux,
   isMainThread,
   isOpenBSD,
-  isOSX,
+  isMacOS,
   isPi,
   isSunOS,
   isWindows,

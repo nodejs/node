@@ -261,6 +261,30 @@ void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(1.0 * idle_time / NANOS_PER_MILLIS);
 }
 
+void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_metrics_t metrics;
+
+  // uv_metrics_info always return 0
+  CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
+
+  Local<Object> obj = Object::New(env->isolate());
+  obj->Set(env->context(),
+           env->loop_count(),
+           Integer::NewFromUnsigned(env->isolate(), metrics.loop_count))
+      .Check();
+  obj->Set(env->context(),
+           env->events(),
+           Integer::NewFromUnsigned(env->isolate(), metrics.events))
+      .Check();
+  obj->Set(env->context(),
+           env->events_waiting(),
+           Integer::NewFromUnsigned(env->isolate(), metrics.events_waiting))
+      .Check();
+
+  args.GetReturnValue().Set(obj);
+}
+
 void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int64_t interval = args[0].As<Integer>()->Value();
@@ -324,6 +348,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "loopIdleTime", LoopIdleTime);
   SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
   SetMethod(isolate, target, "markBootstrapComplete", MarkBootstrapComplete);
+  SetMethod(isolate, target, "uvMetricsInfo", UvMetricsInfo);
   SetFastMethodNoSideEffect(
       isolate, target, "now", SlowPerformanceNow, &fast_performance_now);
 }
@@ -390,6 +415,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LoopIdleTime);
   registry->Register(CreateELDHistogram);
   registry->Register(MarkBootstrapComplete);
+  registry->Register(UvMetricsInfo);
   registry->Register(SlowPerformanceNow);
   registry->Register(FastPerformanceNow);
   registry->Register(fast_performance_now.GetTypeInfo());

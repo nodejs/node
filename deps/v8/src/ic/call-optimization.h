@@ -73,7 +73,7 @@ class CallOptimization {
   // fast api call builtin.
   template <class IsolateT>
   void AnalyzePossibleApiFunction(IsolateT* isolate,
-                                  Handle<JSFunction> function);
+                                  DirectHandle<JSFunction> function);
 
   Handle<JSFunction> constant_function_;
   Handle<FunctionTemplateInfo> expected_receiver_type_;

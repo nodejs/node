@@ -187,6 +187,44 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
 });
 
+test('coverage works with isolation=none', skipIfNoInspector, () => {
+  // There is a bug in coverage calculation. The branch % in the common.js
+  // fixture is different depending on the test isolation mode. The 'none' mode
+  // is closer to what c8 reports here, so the bug is likely in the code that
+  // merges reports from different processes.
+  let report = [
+    '# start of coverage report',
+    '# -------------------------------------------------------------------',
+    '# file           | line % | branch % | funcs % | uncovered lines',
+    '# -------------------------------------------------------------------',
+    '# common.js      |  89.86 |    68.42 |  100.00 | 8 13-14 18 34-35 53',
+    '# first.test.js  |  83.33 |   100.00 |   50.00 | 5-6',
+    '# second.test.js | 100.00 |   100.00 |  100.00 | ',
+    '# third.test.js  | 100.00 |   100.00 |  100.00 | ',
+    '# -------------------------------------------------------------------',
+    '# all files      |  92.11 |    76.00 |   88.89 |',
+    '# -------------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('v8-coverage', 'combined_coverage');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', '--experimental-test-isolation=none',
+  ];
+  const result = spawnSync(process.execPath, args, {
+    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+    cwd: fixture,
+  });
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+});
+
 test('coverage reports on lines, functions, and branches', skipIfNoInspector, async (t) => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
   const child = spawnSync(process.execPath,
@@ -331,6 +369,112 @@ test('coverage with ESM hook - source transpiled', skipIfNoInspector, () => {
   ];
   const result = spawnSync(process.execPath, args, { cwd: fixture });
 
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+});
+
+test('coverage with excluded files', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage-exclude=test/*/test-runner/invalid-tap.js',
+    fixture];
+  const result = spawnSync(process.execPath, args);
+  const report = [
+    '# start of coverage report',
+    '# ' + '-'.repeat(112),
+    '# file                                  | line % | branch % | funcs % | uncovered lines',
+    '# ' + '-'.repeat(112),
+    '# test/fixtures/test-runner/coverage.js |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '# test/fixtures/v8-coverage/throw.js    |  71.43 |    50.00 |  100.00 | 5-6',
+    '# ' + '-'.repeat(112),
+    '# all files                             |  78.13 |    40.00 |   60.00 |',
+    '# ' + '-'.repeat(112),
+    '# end of coverage report',
+  ].join('\n');
+
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage with included files', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage-include=test/fixtures/test-runner/coverage.js',
+    '--test-coverage-include=test/fixtures/v8-coverage/throw.js',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = [
+    '# start of coverage report',
+    '# ' + '-'.repeat(112),
+    '# file                                  | line % | branch % | funcs % | uncovered lines',
+    '# ' + '-'.repeat(112),
+    '# test/fixtures/test-runner/coverage.js |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '# test/fixtures/v8-coverage/throw.js    |  71.43 |    50.00 |  100.00 | 5-6',
+    '# ' + '-'.repeat(112),
+    '# all files                             |  78.13 |    40.00 |   60.00 |',
+    '# ' + '-'.repeat(112),
+    '# end of coverage report',
+  ].join('\n');
+
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage with included and excluded files', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--experimental-test-coverage', '--test-reporter', 'tap',
+    '--test-coverage-include=test/fixtures/test-runner/*.js',
+    '--test-coverage-exclude=test/fixtures/test-runner/*-tap.js',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = [
+    '# start of coverage report',
+    '# ' + '-'.repeat(112),
+    '# file                                  | line % | branch % | funcs % | uncovered lines',
+    '# ' + '-'.repeat(112),
+    '# test/fixtures/test-runner/coverage.js |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '# ' + '-'.repeat(112),
+    '# all files                             |  78.65 |    38.46 |   60.00 |',
+    '# ' + '-'.repeat(112),
+    '# end of coverage report',
+  ].join('\n');
+
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('properly accounts for line endings in source maps', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'source-map-line-lengths', 'index.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = 'index.ts | 100.00 |   100.00 |  100.00 |';
   assert.strictEqual(result.stderr.toString(), '');
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);

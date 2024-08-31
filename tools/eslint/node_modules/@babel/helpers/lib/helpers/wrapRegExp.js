@@ -4,8 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = _wrapRegExp;
-var _setPrototypeOf = require("setPrototypeOf");
-var _inherits = require("inherits");
+var _setPrototypeOf = require("./setPrototypeOf.js");
+var _inherits = require("./inherits.js");
 function _wrapRegExp() {
   exports.default = _wrapRegExp = function (re, groups) {
     return new BabelRegExp(re, undefined, groups);
@@ -15,9 +15,9 @@ function _wrapRegExp() {
   function BabelRegExp(re, flags, groups) {
     var _this = new RegExp(re, flags);
     _groups.set(_this, groups || _groups.get(re));
-    return _setPrototypeOf(_this, BabelRegExp.prototype);
+    return (0, _setPrototypeOf.default)(_this, BabelRegExp.prototype);
   }
-  _inherits(BabelRegExp, RegExp);
+  (0, _inherits.default)(BabelRegExp, RegExp);
   BabelRegExp.prototype.exec = function (str) {
     var result = _super.exec.call(this, str);
     if (result) {
@@ -54,7 +54,9 @@ function _wrapRegExp() {
       var i = g[name];
       if (typeof i === "number") groups[name] = result[i];else {
         var k = 0;
-        while (result[i[k]] === undefined && k + 1 < i.length) k++;
+        while (result[i[k]] === undefined && k + 1 < i.length) {
+          k++;
+        }
         groups[name] = result[i[k]];
       }
       return groups;

@@ -8,7 +8,7 @@
 
 const { RegExpValidator } = require("@eslint-community/regexpp");
 
-const REGEXPP_LATEST_ECMA_VERSION = 2024;
+const REGEXPP_LATEST_ECMA_VERSION = 2025;
 
 /**
  * Checks if the given regular expression pattern would be valid with the `u` flag.

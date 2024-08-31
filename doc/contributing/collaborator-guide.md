@@ -361,6 +361,7 @@ Existing stable public APIs that change in a backward-incompatible way must
 undergo deprecation. The exceptions to this rule are:
 
 * Adding or removing errors thrown or reported by a public API.
+* Emitting a runtime warning.
 * Changing error messages for errors without error code.
 * Altering the timing and non-internal side effects of the public API.
 * Changes to errors thrown by dependencies of Node.js, such as V8.

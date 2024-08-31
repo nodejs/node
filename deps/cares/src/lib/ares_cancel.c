@@ -24,10 +24,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-#include <assert.h>
-
-#include "ares.h"
 #include "ares_private.h"
 
 /*
@@ -57,34 +53,32 @@ void ares_cancel(ares_channel_t *channel)
     /* Out of memory, this function doesn't return a result code though so we
      * can't report to caller */
     if (channel->all_queries == NULL) {
-      channel->all_queries = list_copy;
-      goto done;
+      channel->all_queries = list_copy; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto done;                        /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     node = ares__llist_node_first(list_copy);
     while (node != NULL) {
-      struct query             *query;
-      struct server_connection *conn;
+      ares_query_t *query;
 
       /* Cache next since this node is being deleted */
       next = ares__llist_node_next(node);
 
       query                   = ares__llist_node_claim(node);
-      conn                    = query->conn;
       query->node_all_queries = NULL;
 
       /* NOTE: its possible this may enqueue new queries */
       query->callback(query->arg, ARES_ECANCELLED, 0, NULL);
       ares__free_query(query);
 
-      /* See if the connection should be cleaned up */
-      ares__check_cleanup_conn(channel, conn);
-
       node = next;
     }
 
     ares__llist_destroy(list_copy);
   }
+
+  /* See if the connections should be cleaned up */
+  ares__check_cleanup_conns(channel);
 
   ares_queue_notify_empty(channel);
 

@@ -284,9 +284,10 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         ToV8String(isolate, "markObjectAsNotInspectable"),
         v8::FunctionTemplate::New(
             isolate, &InspectorExtension::MarkObjectAsNotInspectable));
-    inspector->Set(ToV8String(isolate, "createObjectWithAccessor"),
-                   v8::FunctionTemplate::New(
-                       isolate, &InspectorExtension::CreateObjectWithAccessor));
+    inspector->Set(
+        ToV8String(isolate, "createObjectWithNativeDataProperty"),
+        v8::FunctionTemplate::New(
+            isolate, &InspectorExtension::CreateObjectWithNativeDataProperty));
     inspector->Set(ToV8String(isolate, "storeCurrentStackTrace"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::StoreCurrentStackTrace));
@@ -437,7 +438,7 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         .ToChecked();
   }
 
-  static void CreateObjectWithAccessor(
+  static void CreateObjectWithNativeDataProperty(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     DCHECK(ValidateCallbackInfo(info));
     if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsBoolean()) {
@@ -446,10 +447,11 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
     if (info[1].As<v8::Boolean>()->Value()) {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter,
-                         AccessorSetter);
+      templ->SetNativeDataProperty(v8::Local<v8::String>::Cast(info[0]),
+                                   AccessorGetter, AccessorSetter);
     } else {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter);
+      templ->SetNativeDataProperty(v8::Local<v8::String>::Cast(info[0]),
+                                   AccessorGetter);
     }
     info.GetReturnValue().Set(
         templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked());

@@ -75,9 +75,9 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 
   template <typename IsolateT>
   inline static Handle<SwissNameDictionary> Add(
-      IsolateT* isolate, Handle<SwissNameDictionary> table, Handle<Name> key,
-      Handle<Object> value, PropertyDetails details,
-      InternalIndex* entry_out = nullptr);
+      IsolateT* isolate, Handle<SwissNameDictionary> table,
+      DirectHandle<Name> key, DirectHandle<Object> value,
+      PropertyDetails details, InternalIndex* entry_out = nullptr);
 
   static Handle<SwissNameDictionary> Shrink(Isolate* isolate,
                                             Handle<SwissNameDictionary> table);
@@ -94,7 +94,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // for FindEntry keys due to its Key typedef, but that's also used
   // for adding, where we do need handles.
   template <typename IsolateT>
-  inline InternalIndex FindEntry(IsolateT* isolate, Handle<Object> key);
+  inline InternalIndex FindEntry(IsolateT* isolate, DirectHandle<Object> key);
 
   static inline bool IsKey(ReadOnlyRoots roots, Tagged<Object> key_candidate);
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry,
@@ -136,9 +136,9 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
                   int capacity);
 
   template <typename IsolateT>
-  static Handle<SwissNameDictionary> Rehash(IsolateT* isolate,
-                                            Handle<SwissNameDictionary> table,
-                                            int new_capacity);
+  static Handle<SwissNameDictionary> Rehash(
+      IsolateT* isolate, DirectHandle<SwissNameDictionary> table,
+      int new_capacity);
   template <typename IsolateT>
   void Rehash(IsolateT* isolate);
 
@@ -265,7 +265,6 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 #endif
   DECL_VERIFIER(SwissNameDictionary)
   DECL_PRINTER(SwissNameDictionary)
-  DECL_CAST(SwissNameDictionary)
   OBJECT_CONSTRUCTORS(SwissNameDictionary, HeapObject);
 
  private:

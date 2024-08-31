@@ -10,8 +10,9 @@
 
 namespace node {
 
-bool IsPathSeparator(const char c) noexcept;
+class Environment;
 
+constexpr bool IsPathSeparator(char c) noexcept;
 std::string NormalizeString(const std::string_view path,
                             bool allowAboveRoot,
                             const std::string_view separator);
@@ -24,6 +25,7 @@ constexpr bool IsWindowsDeviceRoot(const char c) noexcept;
 #endif  // _WIN32
 
 void ToNamespacedPath(Environment* env, BufferValue* path);
+void FromNamespacedPath(std::string* path);
 
 }  // namespace node
 

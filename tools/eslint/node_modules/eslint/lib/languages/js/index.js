@@ -20,7 +20,9 @@ const { validateLanguageOptions } = require("./validate-language-options");
 // Type Definitions
 //-----------------------------------------------------------------------------
 
-/** @typedef {import("../../linter/vfile").VFile} VFile */
+/** @typedef {import("@eslint/core").File} File */
+/** @typedef {import("@eslint/core").Language} Language */
+/** @typedef {import("@eslint/core").OkParseResult} OkParseResult */
 
 //-----------------------------------------------------------------------------
 // Helpers
@@ -56,6 +58,9 @@ function analyzeScope(ast, languageOptions, visitorKeys) {
 // Exports
 //-----------------------------------------------------------------------------
 
+/**
+ * @type {Language}
+ */
 module.exports = {
 
     fileType: "text",
@@ -143,7 +148,7 @@ module.exports = {
 
     /**
      * Parses the given file into an AST.
-     * @param {VFile} file The virtual file to parse.
+     * @param {File} file The virtual file to parse.
      * @param {Object} options Additional options passed from ESLint.
      * @param {LanguageOptions} options.languageOptions The language options.
      * @returns {Object} The result of parsing.
@@ -200,7 +205,7 @@ module.exports = {
         } catch (ex) {
 
             // If the message includes a leading line number, strip it:
-            const message = `Parsing error: ${ex.message.replace(/^line \d+:/iu, "").trim()}`;
+            const message = ex.message.replace(/^line \d+:/iu, "").trim();
 
             debug("%s\n%s", message, ex.stack);
 
@@ -218,8 +223,8 @@ module.exports = {
 
     /**
      * Creates a new `SourceCode` object from the given information.
-     * @param {VFile} file The virtual file to create a `SourceCode` object from.
-     * @param {Object} parseResult The result returned from `parse()`.
+     * @param {File} file The virtual file to create a `SourceCode` object from.
+     * @param {OkParseResult} parseResult The result returned from `parse()`.
      * @param {Object} options Additional options passed from ESLint.
      * @param {LanguageOptions} options.languageOptions The language options.
      * @returns {SourceCode} The new `SourceCode` object.

@@ -63,6 +63,17 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // Prepares for reconfiguring elements kind and performs the steps 1-6.
   Handle<Map> ReconfigureElementsKind(ElementsKind elements_kind);
 
+  // Prepares for an UpdatePrototype. Similar to reconfigure elements kind,
+  // prototype transitions are put first. I.e., a prototype transition for
+  // `{__proto__: foo, a: 1}.__proto__ = bar` produces the following graph:
+  //
+  //   foo {} -- foo {a}
+  //    \
+  //     bar {} -- bar {a}
+  //
+  // and JSObject::UpdatePrototype performs a map update and instance migration.
+  Handle<Map> ApplyPrototypeTransition(Handle<HeapObject> prototype);
+
   // Prepares for updating deprecated map to most up-to-date non-deprecated
   // version and performs the steps 1-6.
   Handle<Map> Update();
@@ -80,7 +91,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
                                                  PropertyAttributes attributes,
                                                  PropertyConstness constness);
 
-  static void GeneralizeField(Isolate* isolate, Handle<Map> map,
+  static void GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
                               InternalIndex modify_index,
                               PropertyConstness new_constness,
                               Representation new_representation,
@@ -141,7 +152,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // - Walk the tree again starting from the root towards |target_map|. Stop at
   //   |split_map|, the first map whose descriptor array does not match the
   //   merged descriptor array.
-  Handle<Map> FindSplitMap(Handle<DescriptorArray> descriptors);
+  Handle<Map> FindSplitMap(DirectHandle<DescriptorArray> descriptors);
 
   // Step 5.
   // - If |target_map| == |split_map|, |target_map| is in the expected state.
@@ -188,20 +199,20 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // type for the descriptor's value and |representation|.
   // The |location| value must be a pre-fetched location for |descriptor|.
   inline Handle<FieldType> GetOrComputeFieldType(
-      Handle<DescriptorArray> descriptors, InternalIndex descriptor,
+      DirectHandle<DescriptorArray> descriptors, InternalIndex descriptor,
       PropertyLocation location, Representation representation);
 
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:
   // it must be either a simple type or a map wrapped in a weak cell.
-  static void UpdateFieldType(Isolate* isolate, Handle<Map> map,
+  static void UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
                               InternalIndex descriptor_number,
                               Handle<Name> name,
                               PropertyConstness new_constness,
                               Representation new_representation,
-                              const MaybeObjectHandle& new_wrapped_type);
+                              Handle<FieldType> new_type);
 
-  void GeneralizeField(Handle<Map> map, InternalIndex modify_index,
+  void GeneralizeField(DirectHandle<Map> map, InternalIndex modify_index,
                        PropertyConstness new_constness,
                        Representation new_representation,
                        Handle<FieldType> new_field_type);
@@ -225,6 +236,8 @@ class V8_EXPORT_PRIVATE MapUpdater {
   State state_ = kInitialized;
   ElementsKind new_elements_kind_;
   bool is_transitionable_fast_elements_kind_;
+
+  Handle<HeapObject> new_prototype_;
 
   // If |modified_descriptor_.is_found()|, then the fields below form
   // an "update" of the |old_map_|'s descriptors.

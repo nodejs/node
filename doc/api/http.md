@@ -1705,8 +1705,10 @@ setTimeout(() => {
 added: v18.2.0
 -->
 
-Closes all connections connected to this server, including active connections
-connected to this server which are sending a request or waiting for a response.
+Closes all established HTTP(S) connections connected to this server, including
+active connections connected to this server which are sending a request or
+waiting for a response. This does _not_ destroy sockets upgraded to a different
+protocol, such as WebSocket or HTTP/2.
 
 > This is a forceful way of closing all connections and should be used with
 > caution. Whenever using this in conjunction with `server.close`, calling this
@@ -4226,6 +4228,15 @@ added:
 
 Set the maximum number of idle HTTP parsers.
 
+## `WebSocket`
+
+<!-- YAML
+added:
+  - v22.5.0
+-->
+
+A browser-compatible implementation of [`WebSocket`][].
+
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue
@@ -4242,6 +4253,7 @@ Set the maximum number of idle HTTP parsers.
 [`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
+[`WebSocket`]: #websocket
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
 [`agent.getName()`]: #agentgetnameoptions
 [`destroy()`]: #agentdestroy

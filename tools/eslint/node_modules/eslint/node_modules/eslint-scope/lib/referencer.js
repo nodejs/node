@@ -395,7 +395,7 @@ class Referencer extends esrecurse.Visitor {
             this.currentScope().__define(pattern,
                 new Definition(
                     Variable.CatchClause,
-                    node.param,
+                    pattern,
                     node,
                     null,
                     null,

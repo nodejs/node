@@ -33,7 +33,7 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
     TNode<ExternalReference> func = ExternalConstant(
         ExternalReference::jsarray_array_join_concat_to_sequential_string());
     TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+        ExternalConstant(ExternalReference::isolate_address());
     return UncheckedCast<String>(
         CallCFunction(func,
                       MachineType::AnyTagged(),  // <return> String

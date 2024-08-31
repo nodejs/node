@@ -173,6 +173,7 @@
   V(JSCreateLiteralObject)       \
   V(JSCreateLiteralRegExp)       \
   V(JSCreateObject)              \
+  V(JSCreateStringWrapper)       \
   V(JSCreatePromise)             \
   V(JSCreateStringIterator)      \
   V(JSCreateTypedArray)          \
@@ -429,6 +430,14 @@
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+#define SIMPLIFIED_CPED_OP_LIST(V)        \
+  V(GetContinuationPreservedEmbedderData) \
+  V(SetContinuationPreservedEmbedderData)
+#else
+#define SIMPLIFIED_CPED_OP_LIST(V)
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
 #define SIMPLIFIED_OTHER_OP_LIST(V)     \
   V(Allocate)                           \
   V(AllocateRaw)                        \
@@ -534,7 +543,8 @@
   V(TransitionElementsKind)             \
   V(TypeOf)                             \
   V(Unsigned32Divide)                   \
-  V(VerifyType)
+  V(VerifyType)                         \
+  SIMPLIFIED_CPED_OP_LIST(V)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \
@@ -1167,6 +1177,7 @@
   V(I8x32GtU)                      \
   V(I8x32GeS)                      \
   V(I8x32GeU)                      \
+  V(I32x8SConvertF32x8)            \
   V(I32x8UConvertF32x8)            \
   V(F64x4ConvertI32x4S)            \
   V(F32x8SConvertI32x8)            \
@@ -1229,7 +1240,21 @@
   V(F64x4Pmax)                     \
   V(F64x4Splat)                    \
   V(F32x8Splat)                    \
-  V(I8x32Shuffle)
+  V(I8x32Shuffle)                  \
+  V(F32x8Qfma)                     \
+  V(F32x8Qfms)                     \
+  V(F64x4Qfma)                     \
+  V(F64x4Qfms)                     \
+  V(I64x4RelaxedLaneSelect)        \
+  V(I32x8RelaxedLaneSelect)        \
+  V(I16x16RelaxedLaneSelect)       \
+  V(I8x32RelaxedLaneSelect)        \
+  V(I32x8DotI8x32I7x32AddS)        \
+  V(I16x16DotI8x32I7x32S)          \
+  V(F32x8RelaxedMin)               \
+  V(F32x8RelaxedMax)               \
+  V(F64x4RelaxedMin)               \
+  V(F64x4RelaxedMax)
 
 #define VALUE_OP_LIST(V)              \
   COMMON_OP_LIST(V)                   \

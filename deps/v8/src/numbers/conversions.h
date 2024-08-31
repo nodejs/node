@@ -221,13 +221,12 @@ double FlatStringToDouble(Tagged<String> string, int flags,
 // {max_length_for_conversion}. 23 was chosen because any representable double
 // can be represented using a string of length 23.
 V8_EXPORT_PRIVATE base::Optional<double> TryStringToDouble(
-    LocalIsolate* isolate, Handle<String> object,
+    LocalIsolate* isolate, DirectHandle<String> object,
     int max_length_for_conversion = 23);
 
 // Return base::nullopt if the string is longer than 20.
-V8_EXPORT_PRIVATE base::Optional<double> TryStringToInt(LocalIsolate* isolate,
-                                                        Handle<String> object,
-                                                        int radix);
+V8_EXPORT_PRIVATE base::Optional<double> TryStringToInt(
+    LocalIsolate* isolate, DirectHandle<String> object, int radix);
 
 inline bool TryNumberToSize(Tagged<Object> number, size_t* result);
 

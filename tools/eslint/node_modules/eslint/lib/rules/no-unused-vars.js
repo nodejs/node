@@ -148,6 +148,36 @@ module.exports = {
         }
 
         /**
+         * Determines what variable type a def is.
+         * @param  {Object} def the declaration to check
+         * @returns {VariableType} a simple name for the types of variables that this rule supports
+         */
+        function defToVariableType(def) {
+
+            /*
+             * This `destructuredArrayIgnorePattern` error report works differently from the catch
+             * clause and parameter error reports. _Both_ the `varsIgnorePattern` and the
+             * `destructuredArrayIgnorePattern` will be checked for array destructuring. However,
+             * for the purposes of the report, the currently defined behavior is to only inform the
+             * user of the `destructuredArrayIgnorePattern` if it's present (regardless of the fact
+             * that the `varsIgnorePattern` would also apply). If it's not present, the user will be
+             * informed of the `varsIgnorePattern`, assuming that's present.
+             */
+            if (config.destructuredArrayIgnorePattern && def.name.parent.type === "ArrayPattern") {
+                return "array-destructure";
+            }
+
+            switch (def.type) {
+                case "CatchClause":
+                    return "catch-clause";
+                case "Parameter":
+                    return "parameter";
+                default:
+                    return "variable";
+            }
+        }
+
+        /**
          * Gets a given variable's description and configured ignore pattern
          * based on the provided variableType
          * @param {VariableType} variableType a simple name for the types of variables that this rule supports
@@ -167,7 +197,7 @@ module.exports = {
 
                 case "catch-clause":
                     pattern = config.caughtErrorsIgnorePattern;
-                    variableDescription = "args";
+                    variableDescription = "caught errors";
                     break;
 
                 case "parameter":
@@ -202,28 +232,7 @@ module.exports = {
             let additionalMessageData = "";
 
             if (def) {
-                let pattern;
-                let variableDescription;
-
-                switch (def.type) {
-                    case "CatchClause":
-                        if (config.caughtErrorsIgnorePattern) {
-                            [variableDescription, pattern] = getVariableDescription("catch-clause");
-                        }
-                        break;
-
-                    case "Parameter":
-                        if (config.argsIgnorePattern) {
-                            [variableDescription, pattern] = getVariableDescription("parameter");
-                        }
-                        break;
-
-                    default:
-                        if (config.varsIgnorePattern) {
-                            [variableDescription, pattern] = getVariableDescription("variable");
-                        }
-                        break;
-                }
+                const [variableDescription, pattern] = getVariableDescription(defToVariableType(def));
 
                 if (pattern && variableDescription) {
                     additionalMessageData = `. Allowed unused ${variableDescription} must match ${pattern}`;
@@ -248,14 +257,7 @@ module.exports = {
             let additionalMessageData = "";
 
             if (def) {
-                let pattern;
-                let variableDescription;
-
-                if (def.name.parent.type === "ArrayPattern" && config.destructuredArrayIgnorePattern) {
-                    [variableDescription, pattern] = getVariableDescription("array-destructure");
-                } else if (config.varsIgnorePattern) {
-                    [variableDescription, pattern] = getVariableDescription("variable");
-                }
+                const [variableDescription, pattern] = getVariableDescription(defToVariableType(def));
 
                 if (pattern && variableDescription) {
                     additionalMessageData = `. Allowed unused ${variableDescription} must match ${pattern}`;
@@ -338,7 +340,7 @@ module.exports = {
         /**
          * Determines if a variable has a sibling rest property
          * @param {Variable} variable eslint-scope variable object.
-         * @returns {boolean} True if the variable is exported, false if not.
+         * @returns {boolean} True if the variable has a sibling rest property, false if not.
          * @private
          */
         function hasRestSpreadSibling(variable) {

@@ -10,6 +10,7 @@ This a list of all the dependencies:
 
 * [acorn][]
 * [ada][]
+* [amaro][]
 * [base64][]
 * [brotli][]
 * [c-ares][]
@@ -109,7 +110,7 @@ shared library is available can added by:
 Support for an externalizable dependency with JavaScript code
 can be added by:
 
-* adding an entry to the `sharable_builtins` map in
+* adding an entry to the `shareable_builtins` map in
   `configure.py`. The path should correspond to the file
   within the deps directory that is normally bundled into
   Node.js. For example `deps/cjs-module-lexer/lexer.js`.
@@ -167,6 +168,11 @@ an abstract syntax tree walker for the ESTree format.
 
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
+
+### amaro
+
+The [amaro](https://www.npmjs.com/package/amaro) dependency is a wrapper around the
+WebAssembly version of the SWC JavaScript/TypeScript parser.
 
 ### brotli
 
@@ -336,6 +342,7 @@ performance improvements not currently available in standard zlib.
 
 [acorn]: #acorn
 [ada]: #ada
+[amaro]: #amaro
 [base64]: #base64
 [brotli]: #brotli
 [c-ares]: #c-ares

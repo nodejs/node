@@ -741,7 +741,7 @@ struct DebugStatement : Statement {
 
 struct AssertStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AssertStatement)
-  enum class AssertKind { kDcheck, kCheck, kStaticAssert };
+  enum class AssertKind { kDcheck, kCheck, kSbxCheck, kStaticAssert };
   AssertStatement(SourcePosition pos, AssertKind kind, Expression* expression,
                   std::string source)
       : Statement(kKind, pos),

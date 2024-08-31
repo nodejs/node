@@ -273,10 +273,11 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   std::unique_ptr<BackingStore> bs;
   {
     NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(env->isolate(), BN_num_bytes(b));
+    bs = ArrayBuffer::NewBackingStore(env->isolate(),
+                                      BignumPointer::GetByteCount(b));
   }
-  CHECK_EQ(static_cast<int>(bs->ByteLength()),
-           BN_bn2binpad(
+  CHECK_EQ(bs->ByteLength(),
+           BignumPointer::EncodePaddedInto(
                b, static_cast<unsigned char*>(bs->Data()), bs->ByteLength()));
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
@@ -295,8 +296,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   if (UNLIKELY(!priv_buffer.CheckSizeInt32()))
     return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
 
-  BignumPointer priv(BN_bin2bn(
-      priv_buffer.data(), priv_buffer.size(), nullptr));
+  BignumPointer priv(priv_buffer.data(), priv_buffer.size());
   if (!priv) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
         "Failed to convert Buffer to BN");
@@ -372,13 +372,13 @@ bool ECDH::IsKeyValidForCurve(const BignumPointer& private_key) {
   CHECK(private_key);
   // Private keys must be in the range [1, n-1].
   // Ref: Section 3.2.1 - http://www.secg.org/sec1-v2.pdf
-  if (BN_cmp(private_key.get(), BN_value_one()) < 0) {
+  if (private_key < BignumPointer::One()) {
     return false;
   }
-  BignumPointer order(BN_new());
+  auto order = BignumPointer::New();
   CHECK(order);
   return EC_GROUP_get_order(group_, order.get(), nullptr) &&
-         BN_cmp(private_key.get(), order.get()) < 0;
+         private_key < order;
 }
 
 bool ECDH::IsKeyPairValid() {
@@ -736,7 +736,7 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
         CHECK_EQ(1, EC_KEY_set_public_key(ec.get(), uncompressed.get()));
         EVPKeyPointer pkey(EVP_PKEY_new());
         CHECK_EQ(1, EVP_PKEY_set1_EC_KEY(pkey.get(), ec.get()));
-        BIOPointer bio(BIO_new(BIO_s_mem()));
+        auto bio = BIOPointer::NewMem();
         CHECK(bio);
         if (!i2d_PUBKEY_bio(bio.get(), pkey.get()))
           return WebCryptoKeyExportStatus::FAILED;
@@ -767,8 +767,8 @@ Maybe<void> ExportJWKEcKey(
   int degree_bytes =
     (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
 
-  BignumPointer x(BN_new());
-  BignumPointer y(BN_new());
+  auto x = BignumPointer::New();
+  auto y = BignumPointer::New();
 
   if (!EC_POINT_get_affine_coordinates(group, pub, x.get(), y.get(), nullptr)) {
     ThrowCryptoError(env, ERR_get_error(),
@@ -828,21 +828,15 @@ Maybe<void> ExportJWKEcKey(
 
   if (key->GetKeyType() == kKeyTypePrivate) {
     const BIGNUM* pvt = EC_KEY_get0_private_key(ec);
-    return SetEncodedValue(
-      env,
-      target,
-      env->jwk_d_string(),
-      pvt,
-      degree_bytes).IsJust() ? JustVoid() : Nothing<void>();
+    return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes);
   }
 
   return JustVoid();
 }
 
-Maybe<bool> ExportJWKEdKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
+Maybe<void> ExportJWKEdKey(Environment* env,
+                           std::shared_ptr<KeyObjectData> key,
+                           Local<Object> target) {
   ManagedEVPPKey pkey = key->GetAsymmetricKey();
   Mutex::ScopedLock lock(*pkey.mutex());
 
@@ -867,7 +861,7 @@ Maybe<bool> ExportJWKEdKey(
           env->context(),
           env->jwk_crv_string(),
           OneByteString(env->isolate(), curve)).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   size_t len = 0;
@@ -875,7 +869,7 @@ Maybe<bool> ExportJWKEdKey(
   Local<Value> error;
 
   if (!EVP_PKEY_get_raw_public_key(pkey.get(), nullptr, &len))
-    return Nothing<bool>();
+    return Nothing<void>();
 
   ByteSource::Builder out(len);
 
@@ -888,7 +882,7 @@ Maybe<bool> ExportJWKEdKey(
         !target->Set(env->context(), env->jwk_d_string(), encoded).IsJust()) {
       if (!error.IsEmpty())
         env->isolate()->ThrowException(error);
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -900,17 +894,17 @@ Maybe<bool> ExportJWKEdKey(
       !target->Set(env->context(), env->jwk_x_string(), encoded).IsJust()) {
     if (!error.IsEmpty())
       env->isolate()->ThrowException(error);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (target->Set(
           env->context(),
           env->jwk_kty_string(),
           env->jwk_okp_string()).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 std::shared_ptr<KeyObjectData> ImportJWKEcKey(
@@ -1006,9 +1000,9 @@ size_t GroupOrderSize(const ManagedEVPPKey& key) {
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(key.get());
   CHECK_NOT_NULL(ec);
   const EC_GROUP* group = EC_KEY_get0_group(ec);
-  BignumPointer order(BN_new());
+  auto order = BignumPointer::New();
   CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
-  return BN_num_bytes(order.get());
+  return order.byteLength();
 }
 }  // namespace crypto
 }  // namespace node

@@ -91,7 +91,10 @@ bool SafeGetenv(const char* key,
     env_vars = per_process::system_environment;
   }
 
-  return env_vars->Get(key).To(text);
+  std::optional<std::string> value = env_vars->Get(key);
+  if (!value.has_value()) return false;
+  *text = value.value();
+  return true;
 }
 
 static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {

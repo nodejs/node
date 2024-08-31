@@ -20,6 +20,7 @@ const isNewPromiseExpression = (node) => {
  */
 const isVoidPromise = (node) => {
   return /** @type {import('@typescript-eslint/types').TSESTree.TSTypeReference} */ (node)?.typeArguments?.params?.[0]?.type === 'TSVoidKeyword'
+    /* c8 ignore next */
     || /** @type {import('@typescript-eslint/types').TSESTree.TSTypeReference} */ (node)?.typeParameters?.params?.[0]?.type === 'TSVoidKeyword';
 };
 

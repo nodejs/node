@@ -151,7 +151,7 @@ TEST_F(ConcurrentTransitionArrayTest, FullFieldTransitions) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -209,7 +209,7 @@ TEST_F(ConcurrentTransitionArrayTest, WeakRefToFullFieldTransitions) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -272,12 +272,12 @@ TEST_F(ConcurrentTransitionArrayTest, FullFieldTransitions_withSlack) {
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map3 =
+  DirectHandle<Map> map3 =
       Map::CopyWithField(i_isolate(), map0, name3, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -341,7 +341,7 @@ TEST_F(ConcurrentTransitionArrayTest, UninitializedToFullFieldTransitions) {
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(i_isolate(), 0);
-  Handle<Map> map1 =
+  DirectHandle<Map> map1 =
       Map::CopyWithField(i_isolate(), map0, name1, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
@@ -399,7 +399,7 @@ TEST_F(ConcurrentTransitionArrayTest,
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
-  Handle<Map> map2 =
+  DirectHandle<Map> map2 =
       Map::CopyWithField(i_isolate(), map0, name2, FieldType::Any(i_isolate()),
                          attributes, PropertyConstness::kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)

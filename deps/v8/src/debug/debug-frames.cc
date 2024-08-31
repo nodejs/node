@@ -26,7 +26,7 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
 
   is_constructor_ = summary.is_constructor();
   source_position_ = summary.SourcePosition();
-  script_ = Handle<Script>::cast(summary.script());
+  script_ = Cast<Script>(summary.script());
   receiver_ = summary.receiver();
 
   if (summary.IsJavaScript()) {
@@ -78,8 +78,8 @@ Handle<String> FrameInspector::GetFunctionName() {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     auto wasm_frame = WasmFrame::cast(frame_);
-    auto wasm_instance = handle(wasm_frame->wasm_instance(), isolate_);
-    return GetWasmFunctionDebugName(isolate_, wasm_instance,
+    auto instance_data = handle(wasm_frame->trusted_instance_data(), isolate_);
+    return GetWasmFunctionDebugName(isolate_, instance_data,
                                     wasm_frame->function_index());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -93,7 +93,7 @@ bool FrameInspector::IsWasm() { return frame_->is_wasm(); }
 bool FrameInspector::IsJavaScript() { return frame_->is_java_script(); }
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
-    Handle<ScopeInfo> info, Handle<String> parameter_name) {
+    DirectHandle<ScopeInfo> info, Handle<String> parameter_name) {
   return info->ContextSlotIndex(parameter_name) != -1;
 }
 

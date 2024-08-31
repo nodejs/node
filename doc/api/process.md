@@ -327,6 +327,18 @@ possible to record such errors in an error log, either periodically (which is
 likely best for long-running application) or upon process exit (which is likely
 most convenient for scripts).
 
+### Event: `'workerMessage'`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+* `value` {any} A value transmitted using [`postMessageToThread()`][].
+* `source` {number} The transmitting worker thread ID or `0` for the main thread.
+
+The `'workerMessage'` event is emitted for any incoming message send by the other
+party by using [`postMessageToThread()`][].
+
 ### Event: `'uncaughtException'`
 
 <!-- YAML
@@ -676,6 +688,10 @@ A few of the warning types that are most common include:
 * `'TimeoutOverflowWarning'` - Indicates that a numeric value that cannot fit
   within a 32-bit signed integer has been provided to either the `setTimeout()`
   or `setInterval()` functions.
+* `'TimeoutNegativeWarning'` - Indicates that a negative number has provided to
+  either the `setTimeout()` or `setInterval()` functions.
+* `'TimeoutNaNWarning'` - Indicates that a value which is not a number has
+  provided to either the `setTimeout()` or `setInterval()` functions.
 * `'UnsupportedWarning'` - Indicates use of an unsupported option or feature
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
@@ -1085,7 +1101,6 @@ An example of the possible output looks like:
      node_shared_zlib: 'false',
      node_use_openssl: 'true',
      node_shared_openssl: 'false',
-     strict_aliasing: 'true',
      target_arch: 'x64',
      v8_use_snapshot: 1
    }
@@ -1881,6 +1896,219 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
+## `process.finalization.register(ref, callback)`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `ref` {Object | Function} The reference to the resource that is being tracked.
+* `callback` {Function} The callback function to be called when the resource
+  is finalized.
+  * `ref` {Object | Function} The reference to the resource that is being tracked.
+  * `event` {string} The event that triggered the finalization. Defaults to 'exit'.
+
+This function registers a callback to be called when the process emits the `exit`
+event if the `ref` object was not garbage collected. If the object `ref` was garbage collected
+before the `exit` event is emitted, the callback will be removed from the finalization registry,
+and it will not be called on process exit.
+
+Inside the callback you can release the resources allocated by the `ref` object.
+Be aware that all limitations applied to the `beforeExit` event are also applied to the `callback` function,
+this means that there is a possibility that the callback will not be called under special circumstances.
+
+The idea of ​​this function is to help you free up resources when the starts process exiting,
+but also let the object be garbage collected if it is no longer being used.
+
+Eg: you can register an object that contains a buffer, you want to make sure that buffer is released
+when the process exit, but if the object is garbage collected before the process exit, we no longer
+need to release the buffer, so in this case we just remove the callback from the finalization registry.
+
+```cjs
+const { finalization } = require('node:process');
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  finalization.register(myDisposableObject, onFinalize);
+}
+
+setup();
+```
+
+```mjs
+import { finalization } from 'node:process';
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  finalization.register(myDisposableObject, onFinalize);
+}
+
+setup();
+```
+
+The code above relies on the following assumptions:
+
+* arrow functions are avoided
+* regular functions are recommended to be within the global context (root)
+
+Regular functions _could_ reference the context where the `obj` lives, making the `obj` not garbage collectible.
+
+Arrow functions will hold the previous context. Consider, for example:
+
+```js
+class Test {
+  constructor() {
+    finalization.register(this, (ref) => ref.dispose());
+
+    // even something like this is highly discouraged
+    // finalization.register(this, () => this.dispose());
+   }
+   dispose() {}
+}
+```
+
+It is very unlikely (not impossible) that this object will be garbage collected,
+but if it is not, `dispose` will be called when `process.exit` is called.
+
+Be careful and avoid relying on this feature for the disposal of critical resources,
+as it is not guaranteed that the callback will be called under all circumstances.
+
+## `process.finalization.registerBeforeExit(ref, callback)`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `ref` {Object | Function} The reference
+  to the resource that is being tracked.
+* `callback` {Function} The callback function to be called when the resource
+  is finalized.
+  * `ref` {Object | Function} The reference to the resource that is being tracked.
+  * `event` {string} The event that triggered the finalization. Defaults to 'beforeExit'.
+
+This function behaves exactly like the `register`, except that the callback will be called
+when the process emits the `beforeExit` event if `ref` object was not garbage collected.
+
+Be aware that all limitations applied to the `beforeExit` event are also applied to the `callback` function,
+this means that there is a possibility that the callback will not be called under special circumstances.
+
+## `process.finalization.unregister(ref)`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+* `ref` {Object | Function} The reference
+  to the resource that was registered previously.
+
+This function remove the register of the object from the finalization
+registry, so the callback will not be called anymore.
+
+```cjs
+const { finalization } = require('node:process');
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  finalization.register(myDisposableObject, onFinalize);
+
+  // Do something
+
+  myDisposableObject.dispose();
+  finalization.unregister(myDisposableObject);
+}
+
+setup();
+```
+
+```mjs
+import { finalization } from 'node:process';
+
+// Please make sure that the function passed to finalization.register()
+// does not create a closure around unnecessary objects.
+function onFinalize(obj, event) {
+  // You can do whatever you want with the object
+  obj.dispose();
+}
+
+function setup() {
+  // This object can be safely garbage collected,
+  // and the resulting shutdown function will not be called.
+  // There are no leaks.
+  const myDisposableObject = {
+    dispose() {
+      // Free your resources synchronously
+    },
+  };
+
+  // Please make sure that the function passed to finalization.register()
+  // does not create a closure around unnecessary objects.
+  function onFinalize(obj, event) {
+    // You can do whatever you want with the object
+    obj.dispose();
+  }
+
+  finalization.register(myDisposableObject, onFinalize);
+
+  // Do something
+
+  myDisposableObject.dispose();
+  finalization.unregister(myDisposableObject);
+}
+
+setup();
+```
+
 ## `process.getActiveResourcesInfo()`
 
 <!-- YAML
@@ -1924,7 +2152,9 @@ console.log('After:', getActiveResourcesInfo());
 ## `process.getBuiltinModule(id)`
 
 <!-- YAML
-added: v22.3.0
+added:
+- v22.3.0
+- v20.16.0
 -->
 
 * `id` {string} ID of the built-in module being requested.
@@ -2480,6 +2710,9 @@ console.log(memoryUsage.rss());
 <!-- YAML
 added: v0.1.26
 changes:
+  - version: v22.7.0
+    pr-url: https://github.com/nodejs/node/pull/51280
+    description: Changed stability to Legacy.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2489,6 +2722,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/1077
     description: Additional arguments after `callback` are now supported.
 -->
+
+> Stability: 3 - Legacy: Use [`queueMicrotask()`][] instead.
 
 * `callback` {Function}
 * `...args` {any} Additional arguments to pass when invoking the `callback`
@@ -4069,6 +4304,7 @@ cases:
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants
+[`postMessageToThread()`]: worker_threads.md#workerpostmessagetothreadthreadid-value-transferlist-timeout
 [`process.argv`]: #processargv
 [`process.config`]: #processconfig
 [`process.execPath`]: #processexecpath
