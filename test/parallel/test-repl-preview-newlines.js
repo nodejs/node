@@ -1,9 +1,11 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
+
+common.skipIfInspectorDisabled();
 
 const inputStream = new ArrayStream();
 const outputStream = new ArrayStream();
