@@ -1,9 +1,12 @@
 name: Close stale issues
 on:
+  schedule:
+    # Run every day at 1:00 AM UTC.
+    - cron: 0 1 * * *
   workflow_dispatch:
     inputs:
       endDate:
-        description: stop processing PRs after this date
+        description: stop processing issues after this date
         required: false
         type: string
 
