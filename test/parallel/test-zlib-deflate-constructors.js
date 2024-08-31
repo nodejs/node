@@ -1,3 +1,4 @@
+// Flags: --no-deprecation
 'use strict';
 
 require('../common');

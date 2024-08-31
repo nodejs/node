@@ -35,11 +35,11 @@ const nonStringInputs = [
 
 // zlib.Unzip classes need to get valid data, or else they'll throw.
 const unzips = [
-  zlib.Unzip(),
-  zlib.Gunzip(),
-  zlib.Inflate(),
-  zlib.InflateRaw(),
-  zlib.BrotliDecompress(),
+  new zlib.Unzip(),
+  new zlib.Gunzip(),
+  new zlib.Inflate(),
+  new zlib.InflateRaw(),
+  new zlib.BrotliDecompress(),
 ];
 
 nonStringInputs.forEach(common.mustCall((input) => {

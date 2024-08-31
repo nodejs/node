@@ -30,7 +30,7 @@ const { test } = require('node:test');
 test('zlib should properly handle zero byte input', async () => {
   for (const Compressor of [zlib.Gzip, zlib.BrotliCompress]) {
     const { promise, resolve, reject } = Promise.withResolvers();
-    const gz = Compressor();
+    const gz = new Compressor();
     const emptyBuffer = Buffer.alloc(0);
     let received = 0;
     gz.on('data', function(c) {
