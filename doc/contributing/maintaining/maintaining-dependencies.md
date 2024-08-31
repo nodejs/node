@@ -107,7 +107,7 @@ shared library is available can added by:
 Support for an externalizable dependency with JavaScript code
 can be added by:
 
-* adding an entry to the `sharable_builtins` map in
+* adding an entry to the `shareable_builtins` map in
   `configure.py`. The path should correspond to the file
   within the deps directory that is normally bundled into
   Node.js. For example `deps/cjs-module-lexer/lexer.js`.
