@@ -772,7 +772,6 @@ const errorTests = [
       'Object [console] {',
       '  log: [Function: log],',
       '  warn: [Function: warn],',
-      '  error: [Function: error],',
       '  dir: [Function: dir],',
       '  time: [Function: time],',
       '  timeEnd: [Function: timeEnd],',
@@ -788,6 +787,7 @@ const errorTests = [
       / {2}debug: \[Function: (debug|log)],/,
       / {2}info: \[Function: (info|log)],/,
       / {2}dirxml: \[Function: (dirxml|log)],/,
+      / {2}error: \[Function: (error|warn)],/,
       / {2}groupCollapsed: \[Function: (groupCollapsed|group)],/,
       / {2}Console: \[Function: Console],?/,
       ...process.features.inspector ? [
