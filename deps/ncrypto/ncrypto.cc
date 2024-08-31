@@ -1194,7 +1194,7 @@ DataPointer DHPointer::computeSecret(const BignumPointer& peer) const {
 
   // The size of the computed key can be smaller than the size of the DH key.
   // We want to make sure that the key is correctly padded.
-  if (size < dp.size()) {
+  if (static_cast<size_t>(size) < dp.size()) {
     const size_t padding = dp.size() - size;
     uint8_t* data = static_cast<uint8_t*>(dp.get());
     memmove(data + padding, data, size);
