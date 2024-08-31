@@ -41,7 +41,7 @@ extern "C" int32_t test_main_snapshot_node_api(int32_t argc, char* argv[]) {
   std::vector<std::string> errors;
   node_api_initialize_platform(argc,
                                argv,
-                               node_api_platform_no_flags,
+                               node_api_platform_disable_node_options_env,
                                GetMessageVector,
                                &errors,
                                &early_return,

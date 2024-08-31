@@ -9,22 +9,32 @@ typedef struct node_api_env_options__* node_api_env_options;
 
 typedef enum {
   node_api_platform_no_flags = 0,
-  // Enable reading the NODE_OPTIONS environment variable.
-  node_api_platform_enable_env_var = 1 << 0,
-  // Initialize ICU.
-  node_api_platform_init_icu = 1 << 1,
-  // Initialize OpenSSL config.
-  node_api_platform_init_openssl = 1 << 2,
-  // Initialize Node.js debugging based on environment variables.
-  node_api_platform_parse_global_debug_vars = 1 << 3,
-  // Adjust OS resource limits for this process.
-  node_api_platform_adjust_resource_limits = 1 << 4,
+  // Enable stdio inheritance, which is disabled by default.
+  // This flag is also implied by node_api_platform_no_stdio_initialization.
+  node_api_platform_enable_stdio_inheritance = 1 << 0,
+  // Disable reading the NODE_OPTIONS environment variable.
+  node_api_platform_disable_node_options_env = 1 << 1,
+  // Do not parse CLI options.
+  node_api_platform_disable_cli_options = 1 << 2,
+  // Do not initialize ICU.
+  node_api_platform_no_icu = 1 << 3,
+  // Do not modify stdio file descriptor or TTY state.
+  node_api_platform_no_stdio_initialization = 1 << 4,
+  // Do not register Node.js-specific signal handlers
+  // and reset other signal handlers to default state.
+  node_api_platform_no_default_signal_handling = 1 << 5,
+  // Do not initialize OpenSSL config.
+  node_api_platform_no_init_openssl = 1 << 8,
+  // Do not initialize Node.js debugging based on environment variables.
+  node_api_platform_no_parse_global_debug_variables = 1 << 9,
+  // Do not adjust OS resource limits for this process.
+  node_api_platform_no_adjust_resource_limits = 1 << 10,
   // Do not map code segments into large pages for this process.
-  node_api_platform_no_large_pages = 1 << 5,
-  // Allow printing output for --help, --version, --v8-options.
-  node_api_platform_print_help_or_version = 1 << 6,
+  node_api_platform_no_use_large_pages = 1 << 11,
+  // Skip printing output for --help, --version, --v8-options.
+  node_api_platform_no_print_help_or_version_output = 1 << 12,
   // Initialize the process for predictable snapshot generation.
-  node_api_platform_generate_predictable_snapshot = 1 << 7,
+  node_api_platform_generate_predictable_snapshot = 1 << 14,
 } node_api_platform_flags;
 
 typedef enum {
@@ -122,7 +132,6 @@ EXTERN_C_END
 
 #endif  // SRC_NODE_API_EMBEDDING_H_
 
-// TODO: (vmoroz) Match node_api_platform_flags to the existing Node.js flags.
 // TODO: (vmoroz) Remove the main_script parameter.
 // TODO: (vmoroz) Add startup callback with process and require parameters.
 // TODO: (vmoroz) Add ABI-safe way to access internal module functionality.

@@ -30,7 +30,7 @@ extern "C" int32_t test_main_node_api(int32_t argc, char* argv[]) {
   int32_t exit_code = 0;
   node_api_initialize_platform(argc,
                                argv,
-                               node_api_platform_no_flags,
+                               node_api_platform_disable_node_options_env,
                                get_errors,
                                NULL,
                                &early_return,
