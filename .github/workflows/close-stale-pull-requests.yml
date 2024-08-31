@@ -1,28 +1,23 @@
 name: Close stale pull requests
 on:
-  workflow_dispatch:
-    inputs:
-      endDate:
-        description: stop processing PRs after this date
-        required: false
-        type: string
+  schedule:
+    # Run every day at 1:00 AM UTC.
+    - cron: 0 1 * * *
 
 # yamllint disable rule:empty-lines
 env:
   CLOSE_MESSAGE: >
-    This pull request was opened more than a year ago and there has
-    been no activity in the last 6 months. We value your contribution
-    but since it has not progressed in the last 6 months it is being
-    closed. If you feel closing this pull request is not the right thing
-    to do, please leave a comment.
+    This pull request has had no updates in the past 6 months.
+    We appreciate your contribution, but due to the lack of
+    recent activity, we're closing it for now. If you believe this
+    decision should be reconsidered, please feel free to leave a comment.
 
   WARN_MESSAGE: >
-    This pull request was opened more than a year ago and there has
-    been no activity in the last 5 months. We value your contribution
-    but since it has not progressed in the last 5 months it is being
-    marked stale and will be closed if there is no progress in the
-    next month. If you feel that is not the right thing to do please
-    comment on the pull request.
+    This pull request has had no updates in the last 5 months. We value your
+    contribution, but since there hasn't been any recent progress, it is being
+    marked as stale and will be closed if there is no activity in the next month.
+    If you believe this decision is not appropriate, please leave a comment
+    on the pull request.
 # yamllint enable
 
 permissions:
@@ -35,14 +30,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - name: Set default end date which is 1 year ago
-        run: echo "END_DATE=$(date --date='525600 minutes ago' --rfc-2822)"  >> "$GITHUB_ENV"
-      - name: if date set in event override the default end date
-        env:
-          END_DATE_INPUT_VALUE: ${{ github.event.inputs.endDate }}
-        if: ${{ github.event.inputs.endDate != '' }}
-        run: echo "END_DATE=$END_DATE_INPUT_VALUE"  >> "$GITHUB_ENV"
-      - uses: mhdawson/stale@453d6581568dc43dbe345757f24408d7b451c651  # PR to add support for endDate
+      - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e  # v9.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           end-date: ${{ env.END_DATE }}
