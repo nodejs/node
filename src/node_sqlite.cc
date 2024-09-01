@@ -52,11 +52,8 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
-inline Local<Value> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
-  int errcode = sqlite3_extended_errcode(db);
-  const char* errstr = sqlite3_errstr(errcode);
-  const char* errmsg = sqlite3_errmsg(db);
-  Local<String> js_msg = String::NewFromUtf8(isolate, errmsg).ToLocalChecked();
+inline Local<Object> CreateSQLiteError(Isolate* isolate, const char* message) {
+  Local<String> js_msg = String::NewFromUtf8(isolate, message).ToLocalChecked();
   Local<Object> e = Exception::Error(js_msg)
                         ->ToObject(isolate->GetCurrentContext())
                         .ToLocalChecked();
@@ -64,6 +61,14 @@ inline Local<Value> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
          OneByteString(isolate, "code"),
          OneByteString(isolate, "ERR_SQLITE_ERROR"))
       .Check();
+  return e;
+}
+
+inline Local<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
+  int errcode = sqlite3_extended_errcode(db);
+  const char* errstr = sqlite3_errstr(errcode);
+  const char* errmsg = sqlite3_errmsg(db);
+  Local<Object> e = CreateSQLiteError(isolate, errmsg);
   e->Set(isolate->GetCurrentContext(),
          OneByteString(isolate, "errcode"),
          Integer::New(isolate, errcode))
@@ -77,6 +82,10 @@ inline Local<Value> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, sqlite3* db) {
   isolate->ThrowException(CreateSQLiteError(isolate, db));
+}
+
+inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
+  isolate->ThrowException(CreateSQLiteError(isolate, message));
 }
 
 DatabaseSync::DatabaseSync(Environment* env,
@@ -623,7 +632,13 @@ void StatementSync::ExpandedSQL(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+
+  // sqlite3_expanded_sql may return nullptr without producing an error code.
   char* expanded = sqlite3_expanded_sql(stmt->statement_);
+  if (expanded == nullptr) {
+    return THROW_ERR_SQLITE_ERROR(
+        env->isolate(), "Expanded SQL text would exceed configured limits");
+  }
   auto maybe_expanded = String::NewFromUtf8(env->isolate(), expanded);
   sqlite3_free(expanded);
   Local<String> result;
