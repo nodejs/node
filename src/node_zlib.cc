@@ -25,6 +25,7 @@
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
@@ -270,6 +271,8 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     CHECK_EQ(zlib_memory_, 0);
     CHECK_EQ(unreported_allocations_, 0);
   }
+
+  Environment* env() const { return this->ThreadPoolWork::env(); }
 
   void Close() {
     if (write_in_progress_) {
@@ -694,7 +697,11 @@ class BrotliCompressionStream final :
           static_cast<CompressionStream<CompressionContext>*>(wrap));
     if (err.IsError()) {
       wrap->EmitError(err);
-      args.GetReturnValue().Set(false);
+      // TODO(addaleax): Sometimes we generate better error codes in C++ land,
+      // e.g. ERR_BROTLI_PARAM_SET_FAILED -- it's hard to access them with
+      // the current bindings setup, though.
+      THROW_ERR_ZLIB_INITIALIZATION_FAILED(wrap->env(),
+                                           "Initialization failed");
       return;
     }
 
@@ -708,12 +715,11 @@ class BrotliCompressionStream final :
       err = wrap->context()->SetParams(i, data[i]);
       if (err.IsError()) {
         wrap->EmitError(err);
-        args.GetReturnValue().Set(false);
+        THROW_ERR_ZLIB_INITIALIZATION_FAILED(wrap->env(),
+                                             "Initialization failed");
         return;
       }
     }
-
-    args.GetReturnValue().Set(true);
   }
 
   static void Params(const FunctionCallbackInfo<Value>& args) {
