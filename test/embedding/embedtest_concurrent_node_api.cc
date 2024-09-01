@@ -27,6 +27,9 @@ extern "C" int32_t test_main_concurrent_node_api(int32_t argc, char* argv[]) {
       int32_t exit_code = [&]() {
         node_api_env_options options;
         CHECK(node_api_create_env_options(&options));
+        CHECK(node_api_env_options_set_flags(
+            options,
+            node_api_env_default_flags | node_api_env_no_create_inspector));
         napi_env env;
         CHECK(node_api_create_env(
             options, nullptr, nullptr, main_script, NAPI_VERSION, &env));
@@ -80,6 +83,9 @@ extern "C" int32_t test_main_multi_env_node_api(int32_t argc, char* argv[]) {
   for (size_t i = 0; i < env_count; i++) {
     node_api_env_options options;
     CHECK(node_api_create_env_options(&options));
+    CHECK(node_api_env_options_set_flags(
+        options,
+        node_api_env_default_flags | node_api_env_no_create_inspector));
     napi_env env;
     CHECK(node_api_create_env(
         options, nullptr, nullptr, main_script, NAPI_VERSION, &env));

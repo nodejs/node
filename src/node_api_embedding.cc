@@ -121,6 +121,7 @@ struct EmbeddedEnvironmentOptions {
       delete;
 
   bool is_frozen_{false};
+  node_api_env_flags flags_{node_api_env_default_flags};
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
   node::EmbedderSnapshotData::Pointer snapshot_;
@@ -212,15 +213,6 @@ class EmbeddedEnvironment final : public node_napi_env__ {
   std::optional<IsolateLocker> isolate_locker_;
 };
 
-std::vector<const char*> ToCStringVector(const std::vector<std::string>& vec) {
-  std::vector<const char*> result;
-  result.reserve(vec.size());
-  for (const std::string& str : vec) {
-    result.push_back(str.c_str());
-  }
-  return result;
-}
-
 node::ProcessInitializationFlags::Flags GetProcessInitializationFlags(
     node_api_platform_flags flags) {
   uint32_t result = node::ProcessInitializationFlags::kNoFlags;
@@ -263,6 +255,47 @@ node::ProcessInitializationFlags::Flags GetProcessInitializationFlags(
     result |= node::ProcessInitializationFlags::kGeneratePredictableSnapshot;
   }
   return static_cast<node::ProcessInitializationFlags::Flags>(result);
+}
+
+node::EnvironmentFlags::Flags GetEnvironmentFlags(node_api_env_flags flags) {
+  uint64_t result = node::EnvironmentFlags::kNoFlags;
+  if ((flags & node_api_env_default_flags) != 0) {
+    result |= node::EnvironmentFlags::kDefaultFlags;
+  }
+  if ((flags & node_api_env_owns_process_state) != 0) {
+    result |= node::EnvironmentFlags::kOwnsProcessState;
+  }
+  if ((flags & node_api_env_owns_inspector) != 0) {
+    result |= node::EnvironmentFlags::kOwnsInspector;
+  }
+  if ((flags & node_api_env_no_register_esm_loader) != 0) {
+    result |= node::EnvironmentFlags::kNoRegisterESMLoader;
+  }
+  if ((flags & node_api_env_track_unmanaged_fds) != 0) {
+    result |= node::EnvironmentFlags::kTrackUnmanagedFds;
+  }
+  if ((flags & node_api_env_hide_console_windows) != 0) {
+    result |= node::EnvironmentFlags::kHideConsoleWindows;
+  }
+  if ((flags & node_api_env_no_native_addons) != 0) {
+    result |= node::EnvironmentFlags::kNoNativeAddons;
+  }
+  if ((flags & node_api_env_no_global_search_paths) != 0) {
+    result |= node::EnvironmentFlags::kNoGlobalSearchPaths;
+  }
+  if ((flags & node_api_env_no_browser_globals) != 0) {
+    result |= node::EnvironmentFlags::kNoBrowserGlobals;
+  }
+  if ((flags & node_api_env_no_create_inspector) != 0) {
+    result |= node::EnvironmentFlags::kNoCreateInspector;
+  }
+  if ((flags & node_api_env_no_start_debug_signal_handler) != 0) {
+    result |= node::EnvironmentFlags::kNoStartDebugSignalHandler;
+  }
+  if ((flags & node_api_env_no_wait_for_inspector_frontend) != 0) {
+    result |= node::EnvironmentFlags::kNoWaitForInspectorFrontend;
+  }
+  return static_cast<node::EnvironmentFlags::Flags>(result);
 }
 
 }  // end of anonymous namespace
@@ -353,19 +386,6 @@ node_api_env_options_get_args(node_api_env_options options,
   return napi_ok;
 }
 
-napi_status NAPI_CDECL node_api_env_options_set_args(
-    node_api_env_options options, size_t argc, const char* argv[]) {
-  if (options == nullptr) return napi_invalid_arg;
-  if (argv == nullptr) return napi_invalid_arg;
-
-  v8impl::EmbeddedEnvironmentOptions* env_options =
-      reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
-  if (env_options->is_frozen_) return napi_generic_failure;
-
-  env_options->args_.assign(argv, argv + argc);
-  return napi_ok;
-}
-
 napi_status NAPI_CDECL
 node_api_env_options_get_exec_args(node_api_env_options options,
                                    node_api_get_args_callback get_args_cb,
@@ -378,6 +398,31 @@ node_api_env_options_get_exec_args(node_api_env_options options,
   v8impl::CStringArray args(env_options->exec_args_);
   get_args_cb(cb_data, args.argc(), args.argv());
 
+  return napi_ok;
+}
+
+napi_status NAPI_CDECL node_api_env_options_set_flags(
+    node_api_env_options options, node_api_env_flags flags) {
+  if (options == nullptr) return napi_invalid_arg;
+
+  v8impl::EmbeddedEnvironmentOptions* env_options =
+      reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
+  if (env_options->is_frozen_) return napi_generic_failure;
+
+  env_options->flags_ = flags;
+  return napi_ok;
+}
+
+napi_status NAPI_CDECL node_api_env_options_set_args(
+    node_api_env_options options, size_t argc, const char* argv[]) {
+  if (options == nullptr) return napi_invalid_arg;
+  if (argv == nullptr) return napi_invalid_arg;
+
+  v8impl::EmbeddedEnvironmentOptions* env_options =
+      reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
+  if (env_options->is_frozen_) return napi_generic_failure;
+
+  env_options->args_.assign(argv, argv + argc);
   return napi_ok;
 }
 
@@ -458,9 +503,7 @@ node_api_create_env(node_api_env_options options,
   node::MultiIsolatePlatform* platform =
       v8impl::EmbeddedPlatform::GetInstance()->get_v8_platform();
   node::EnvironmentFlags::Flags flags =
-      static_cast<node::EnvironmentFlags::Flags>(
-          node::EnvironmentFlags::kDefaultFlags |
-          node::EnvironmentFlags::kNoCreateInspector);
+      v8impl::GetEnvironmentFlags(env_options->flags_);
   if (env_options->snapshot_) {
     env_setup = node::CommonEnvironmentSetup::CreateFromSnapshot(
         platform,
@@ -605,7 +648,8 @@ napi_status NAPI_CDECL node_api_run_env_while(napi_env env,
 
 napi_status NAPI_CDECL node_api_await_promise(napi_env env,
                                               napi_value promise,
-                                              napi_value* result) {
+                                              napi_value* result,
+                                              bool* has_more_work) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
@@ -641,6 +685,11 @@ napi_status NAPI_CDECL node_api_await_promise(napi_env env,
 
   *result =
       v8impl::JsValueFromV8LocalValue(scope.Escape(promise_object->Result()));
+
+  if (has_more_work != nullptr) {
+    *has_more_work = uv_loop_alive(embedded_env->node_env()->event_loop());
+  }
+
   if (promise_object->State() == v8::Promise::PromiseState::kRejected)
     return napi_pending_exception;
 

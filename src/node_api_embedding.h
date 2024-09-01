@@ -37,6 +37,57 @@ typedef enum {
   node_api_platform_generate_predictable_snapshot = 1 << 14,
 } node_api_platform_flags;
 
+typedef enum : uint64_t {
+  node_api_env_no_flags = 0,
+  // Use the default behaviour for Node.js instances.
+  node_api_env_default_flags = 1 << 0,
+  // Controls whether this Environment is allowed to affect per-process state
+  // (e.g. cwd, process title, uid, etc.).
+  // This is set when using node_api_env_default_flags.
+  node_api_env_owns_process_state = 1 << 1,
+  // Set if this Environment instance is associated with the global inspector
+  // handling code (i.e. listening on SIGUSR1).
+  // This is set when using node_api_env_default_flags.
+  node_api_env_owns_inspector = 1 << 2,
+  // Set if Node.js should not run its own esm loader. This is needed by some
+  // embedders, because it's possible for the Node.js esm loader to conflict
+  // with another one in an embedder environment, e.g. Blink's in Chromium.
+  node_api_env_no_register_esm_loader = 1 << 3,
+  // Set this flag to make Node.js track "raw" file descriptors, i.e. managed
+  // by fs.open() and fs.close(), and close them during node_api_delete_env().
+  node_api_env_track_unmanaged_fds = 1 << 4,
+  // Set this flag to force hiding console windows when spawning child
+  // processes. This is usually used when embedding Node.js in GUI programs on
+  // Windows.
+  node_api_env_hide_console_windows = 1 << 5,
+  // Set this flag to disable loading native addons via `process.dlopen`.
+  // This environment flag is especially important for worker threads
+  // so that a worker thread can't load a native addon even if `execArgv`
+  // is overwritten and `--no-addons` is not specified but was specified
+  // for this Environment instance.
+  node_api_env_no_native_addons = 1 << 6,
+  // Set this flag to disable searching modules from global paths like
+  // $HOME/.node_modules and $NODE_PATH. This is used by standalone apps that
+  // do not expect to have their behaviors changed because of globally
+  // installed modules.
+  node_api_env_no_global_search_paths = 1 << 7,
+  // Do not export browser globals like setTimeout, console, etc.
+  node_api_env_no_browser_globals = 1 << 8,
+  // Controls whether or not the Environment should call V8Inspector::create().
+  // This control is needed by embedders who may not want to initialize the V8
+  // inspector in situations where one has already been created,
+  // e.g. Blink's in Chromium.
+  node_api_env_no_create_inspector = 1 << 9,
+  // Controls whether or not the InspectorAgent for this Environment should
+  // call StartDebugSignalHandler. This control is needed by embedders who may
+  // not want to allow other processes to start the V8 inspector.
+  node_api_env_no_start_debug_signal_handler = 1 << 10,
+  // Controls whether the InspectorAgent created for this Environment waits for
+  // Inspector frontend events during the Environment creation. It's used to
+  // call node::Stop(env) on a Worker thread that is waiting for the events.
+  node_api_env_no_wait_for_inspector_frontend = 1 << 11
+} node_api_env_flags;
+
 typedef enum {
   node_api_snapshot_no_flags = 0,
   // Whether code cache should be generated as part of the snapshot.
@@ -79,13 +130,16 @@ node_api_env_options_get_args(node_api_env_options options,
                               node_api_get_args_callback get_args_cb,
                               void* cb_data);
 
-NAPI_EXTERN napi_status NAPI_CDECL node_api_env_options_set_args(
-    node_api_env_options options, size_t argc, const char* argv[]);
-
 NAPI_EXTERN napi_status NAPI_CDECL
 node_api_env_options_get_exec_args(node_api_env_options options,
                                    node_api_get_args_callback get_args_cb,
                                    void* cb_data);
+
+NAPI_EXTERN napi_status NAPI_CDECL node_api_env_options_set_flags(
+    node_api_env_options options, node_api_env_flags flags);
+
+NAPI_EXTERN napi_status NAPI_CDECL node_api_env_options_set_args(
+    node_api_env_options options, size_t argc, const char* argv[]);
 
 NAPI_EXTERN napi_status NAPI_CDECL node_api_env_options_set_exec_args(
     node_api_env_options options, size_t argc, const char* argv[]);
@@ -126,21 +180,42 @@ node_api_run_env_while(napi_env env,
 
 NAPI_EXTERN napi_status NAPI_CDECL node_api_await_promise(napi_env env,
                                                           napi_value promise,
-                                                          napi_value* result);
+                                                          napi_value* result,
+                                                          bool* has_more_work);
 
 EXTERN_C_END
+
+#ifdef __cplusplus
+
+inline node_api_platform_flags operator|(node_api_platform_flags lhs,
+                                         node_api_platform_flags rhs) {
+  return static_cast<node_api_platform_flags>(static_cast<int32_t>(lhs) |
+                                              static_cast<int32_t>(rhs));
+}
+
+inline node_api_env_flags operator|(node_api_env_flags lhs,
+                                    node_api_env_flags rhs) {
+  return static_cast<node_api_env_flags>(static_cast<uint64_t>(lhs) |
+                                         static_cast<uint64_t>(rhs));
+}
+
+inline node_api_snapshot_flags operator|(node_api_snapshot_flags lhs,
+                                         node_api_snapshot_flags rhs) {
+  return static_cast<node_api_snapshot_flags>(static_cast<int32_t>(lhs) |
+                                              static_cast<int32_t>(rhs));
+}
+
+#endif
 
 #endif  // SRC_NODE_API_EMBEDDING_H_
 
 // TODO: (vmoroz) Remove the main_script parameter.
 // TODO: (vmoroz) Add startup callback with process and require parameters.
 // TODO: (vmoroz) Add ABI-safe way to access internal module functionality.
-// TODO: (vmoroz) Add EnvironmentFlags to env_options.
 // TODO: (vmoroz) Allow setting the global inspector for a specific environment.
 // TODO: (vmoroz) Start workers from C++.
 // TODO: (vmoroz) Worker to inherit parent inspector.
 // TODO: (vmoroz) Cancel pending tasks on delete env.
-// TODO: (vmoroz) await_promise -> add has_more_work parameter.
 // TODO: (vmoroz) Can we init plat again if it retuns early?
 // TODO: (vmoroz) Add simpler threading model - without open/close scope.
 // TODO: (vmoroz) Simplify API use for simple default cases.
