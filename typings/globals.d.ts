@@ -18,6 +18,7 @@ import { UtilBinding } from './internalBinding/util';
 import { WASIBinding } from './internalBinding/wasi';
 import { WorkerBinding } from './internalBinding/worker';
 import { ModulesBinding } from './internalBinding/modules';
+import { ZlibBinding } from './internalBinding/zlib';
 
 interface InternalBindingMap {
   async_wrap: AsyncWrapBinding;
@@ -40,6 +41,7 @@ interface InternalBindingMap {
   util: UtilBinding;
   wasi: WASIBinding;
   worker: WorkerBinding;
+  zlib: ZlibBinding;
 }
 
 type InternalBindingKeys = keyof InternalBindingMap;
