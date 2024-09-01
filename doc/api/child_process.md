@@ -1867,7 +1867,7 @@ For example, in the parent script:
 
 ```cjs
 const { fork } = require('node:child_process');
-const forkedProcess = fork('sub.js');
+const forkedProcess = fork(`${__dirname}/sub.js`);
 
 forkedProcess.on('message', (message) => {
   console.log('PARENT got message:', message);
