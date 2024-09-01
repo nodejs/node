@@ -59,7 +59,8 @@ When using the ESM version, Wasm is supported instead:
 
 ```js
 import { parse, init } from 'cjs-module-lexer';
-// init needs to be called and waited upon
+// init() needs to be called and waited upon, or use initSync() to compile
+// Wasm blockingly and synchronously.
 await init();
 const { exports, reexports } = parse(source);
 ```

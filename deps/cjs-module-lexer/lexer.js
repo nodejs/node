@@ -1439,4 +1439,5 @@ function isExpressionTerminator (curPos) {
 const initPromise = Promise.resolve();
 
 module.exports.init = () => initPromise;
+module.exports.initSync = () => {};
 module.exports.parse = parseCJS;
