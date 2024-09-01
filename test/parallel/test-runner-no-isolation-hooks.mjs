@@ -12,8 +12,6 @@ const testFiles = [
   fixtures.path('test-runner', 'no-isolation', 'two.test.js'),
 ];
 
-const hookFixture = fixtures.path('test-runner', 'no-isolation', 'global-hooks.js');
-
 const order = [
   'before(): global',
 
@@ -59,7 +57,7 @@ const order = [
 test('Using --require to define global hooks works', async (t) => {
   const spawned = await common.spawnPromisified(process.execPath, [
     ...testArguments,
-    '--require', hookFixture,
+    '--require', fixtures.path('test-runner', 'no-isolation', 'global-hooks.js'),
     ...testFiles,
   ]);
 
@@ -69,9 +67,10 @@ test('Using --require to define global hooks works', async (t) => {
 test('Using --import to define global hooks works', async (t) => {
   const spawned = await common.spawnPromisified(process.execPath, [
     ...testArguments,
-    '--import', hookFixture,
+    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.js'),
     ...testFiles,
   ]);
 
   t.assert.ok(spawned.stdout.includes(order.join('\n')));
 });
+
