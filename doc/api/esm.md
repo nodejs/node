@@ -246,7 +246,7 @@ added: REPLACEME
 * `application/wasm` for Wasm
 
 Blob URLs are registered within the current thread. Loaders will not be
-able to handle resolve Blob's from the main thread.
+able to resolve Blob URLs created from the main thread.
 
 ```mjs
 import { Blob } from 'node:buffer';
