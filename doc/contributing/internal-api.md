@@ -12,7 +12,7 @@ application usage.
 
 #### `--debug-arraybuffer-allocations`
 
-Enables debugging of ArrayBuffer allocations.
+Enables debugging of `ArrayBuffer` allocations.
 
 #### `--expose-internals`
 
