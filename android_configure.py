@@ -61,6 +61,9 @@ if platform.system() == "Darwin":
 elif platform.system() == "Linux":
     host_os = "linux"
     toolchain_path = android_ndk_path + "/toolchains/llvm/prebuilt/linux-x86_64"
+    if platform.machine() in {"x86_64", "x86"}:
+       os.environ['CC_host'] = os.popen("which gcc").read().strip()
+       os.environ['CCX_host'] = os.popen('which g++').read().strip()
 
 os.environ['PATH'] += os.pathsep + toolchain_path + "/bin"
 os.environ['CC'] = toolchain_path + "/bin/" + TOOLCHAIN_PREFIX + android_sdk_version + "-" +  "clang"
