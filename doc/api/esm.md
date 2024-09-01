@@ -237,6 +237,8 @@ is no concept of relative resolution for `data:` URLs.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 `blob:` URLs are supported for importing with the following MIME types:
 
 * `text/javascript` for ES modules
