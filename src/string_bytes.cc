@@ -452,8 +452,8 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
     case BASE64: {
       String::ValueView view(isolate, str);
       data_size = view.length() % 4 <= 1
-                             ? view.length() / 4 * 3
-                             : view.length() / 4 * 3 + (view.length() % 4) - 1;
+                      ? view.length() / 4 * 3
+                      : view.length() / 4 * 3 + (view.length() % 4) - 1;
       // Check if the string ends with one or two padding characters and adjust
       // the size accordingly. Note that the input can contain non-base64
       // characters, so, at best, we can provide an upper bound. A correct size
