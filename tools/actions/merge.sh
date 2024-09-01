@@ -14,15 +14,6 @@ pr=$1
 commit_head=$2
 shift 2 || { echo "Expected two arguments"; exit 1; }
 
-commit_queue_failed() {
-  pr=$1
-
-  echo "Failed to merge $pr"
-  cat output
-
-  rm output
-}
-
 OWNER=nodejs
 REPOSITORY=node
 
@@ -34,8 +25,16 @@ elif ! expr "X$pr" : 'X[0-9]\{1,\}' >/dev/null; then
   echo "The first argument should be the PR ID or URL"
 fi
 
-git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" || { echo "Invalid PR-URL trailer"; exit 1; }
-git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divider | grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" && { echo "Refuse to squash and merge a PR landing in more than one commit"; exit 1; }
+git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | \
+  grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" || {
+    echo "Invalid PR-URL trailer"
+    exit 1
+  }
+git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divider | \
+  grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" && {
+    echo "Refuse to squash and merge a PR landing in more than one commit"
+    exit 1
+  }
 
 commit_title=$(git log -1 --pretty='format:%s')
 commit_body=$(git log -1 --pretty='format:%b')
@@ -47,12 +46,15 @@ jq -n \
     '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
 cat output.json
 if ! gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input output.json > output; then
-    commit_queue_failed "$pr"
+    cat output
+    echo "Failed to merge $pr"
+    rm output output.json
     exit 1
 fi
 cat output
 if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
-    commit_queue_failed "$pr"
+    echo "Failed to merge $pr"
+    rm output output.json
     exit 1
 fi
 rm output.json output
