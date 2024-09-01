@@ -1879,7 +1879,7 @@ forkedProcess.send({ hello: 'world' });
 
 ```mjs
 import { fork } from 'node:child_process';
-const forkedProcess = fork('sub.js');
+const forkedProcess = fork(`${import.meta.dirname}/sub.js`);
 
 forkedProcess.on('message', (message) => {
   console.log('PARENT got message:', message);
