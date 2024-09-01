@@ -73,4 +73,3 @@ test('Using --import to define global hooks works', async (t) => {
 
   t.assert.ok(spawned.stdout.includes(order.join('\n')));
 });
-
