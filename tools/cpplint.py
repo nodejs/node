@@ -325,7 +325,6 @@ _ERROR_CATEGORIES = [
     'readability/casting',
     'readability/check',
     'readability/constructors',
-    'readability/fn_size',
     'readability/inheritance',
     'readability/pointer_notation',
     'readability/multiline_comment',
