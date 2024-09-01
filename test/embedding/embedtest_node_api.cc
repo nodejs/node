@@ -176,7 +176,7 @@ int32_t waitMeWithCheese(napi_env env) {
       FAIL("Result is not a Promise\n");
     }
 
-    napi_status r = node_api_await_promise(env, promise, &result);
+    napi_status r = node_api_await_promise(env, promise, &result, nullptr);
     if (r != napi_ok && r != napi_pending_exception) {
       FAIL("Failed awaiting promise: %d\n", r);
     }
