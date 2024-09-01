@@ -12,7 +12,7 @@ set -xe
 
 pr=$1
 commit_head=$2
-shift 2 || (echo "Expected two arguments" && exit 1)
+shift 2 || { echo "Expected two arguments"; exit 1; }
 
 commit_queue_failed() {
   pr=$1
@@ -34,8 +34,8 @@ elif ! expr "X$pr" : 'X[0-9]\{1,\}' >/dev/null; then
   echo "The first argument should be the PR ID or URL"
 fi
 
-git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" || (echo "Invalid PR-URL trailer" && exit 1)
-git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divider | grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" && echo "Refuse to squash and merge a PR landing in more than one commit" && exit 1
+git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" || { echo "Invalid PR-URL trailer"; exit 1; }
+git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divider | grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" && { echo "Refuse to squash and merge a PR landing in more than one commit"; exit 1; }
 
 commit_title=$(git log -1 --pretty='format:%s')
 commit_body=$(git log -1 --pretty='format:%b')
