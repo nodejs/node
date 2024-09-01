@@ -35,7 +35,7 @@ body:
         - macOS ARM64
         - macOS x64
         - SmartOS
-        - Windows
+        - Windows x64
         - Windows ARM64
         - Other
   - type: textarea
