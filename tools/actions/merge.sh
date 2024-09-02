@@ -59,4 +59,4 @@ if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < outp
 fi
 rm output.json output
 
-gh pr comment "$pr" --body "Landed in $commits"
+gh pr comment "$pr" --repo "$OWNER/$REPOSITORY" --body "Landed in $commits"
