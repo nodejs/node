@@ -3723,7 +3723,7 @@ changes:
 Type: Documentation-only
 
 Instantiating classes without the `new` qualifier exported by the `node:zlib` module is deprecated.
-It is recommended to use the new qualifier instead. This applies to all Zlib classes such as `Deflate`,
+It is recommended to use the `new` qualifier instead. This applies to all Zlib classes, such as `Deflate`,
 `DeflateRaw`, `Gunzip`, `Inflate`, `InflateRaw`, `Unzip`, and `Zlib`.
 
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
