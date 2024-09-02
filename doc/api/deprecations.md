@@ -3711,7 +3711,7 @@ switch to its new provider model. The `clientCertEngine` option for
 the `privateKeyEngine` and `privateKeyIdentifier` for [`tls.createSecureContext()`][];
 and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
 
-### DEP0184: Zlib classes
+### DEP0184: Instantiating `node:zlib` classes without `new`
 
 <!-- YAML
 changes:
