@@ -521,6 +521,9 @@ added:
 * `delay` {number} The number of milliseconds to wait before resolving the
   promise.
 * `options` {Object}
+  * `ref` {boolean} Set to `false` to indicate that the scheduled `Timeout`
+    should not require the Node.js event loop to remain active.
+    **Default:** `true`.
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel waiting.
 * Returns: {Promise}
