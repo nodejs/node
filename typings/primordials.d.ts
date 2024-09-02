@@ -330,7 +330,7 @@ declare namespace primordials {
   export const ObjectEntries: typeof Object.entries
   export const ObjectFromEntries: typeof Object.fromEntries
   export const ObjectValues: typeof Object.values
-  export const ObjectPrototypeHasOwnProperty: UncurryThis<typeof Object.prototype.hasOwnProperty>
+  export const ObjectHasOwn: typeof Object.hasOwn
   export const ObjectPrototypeIsPrototypeOf: UncurryThis<typeof Object.prototype.isPrototypeOf>
   export const ObjectPrototypePropertyIsEnumerable: UncurryThis<typeof Object.prototype.propertyIsEnumerable>
   export const ObjectPrototypeToString: UncurryThis<typeof Object.prototype.toString>
