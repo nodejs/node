@@ -96,8 +96,8 @@ A list of mirrors is [located here](https://cran.r-project.org/mirrors.html).
 
 ### Setting CPU Frequency scaling governor to "performance"
 
-It is recommended to set the CPU frequency to 'performance' before running
-benchmarks. This ensures that each benchmark run can achieve peak performance
+It is recommended to set the CPU frequency to `performance` before running
+benchmarks. This increases the likelihood of each benchmark achieving peak performance
 according to the hardware. Therefore, run:
 
 ```console
