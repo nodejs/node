@@ -24,6 +24,7 @@ all: \
   dh512.pem \
   dh1024.pem \
   dh2048.pem \
+  dh3072.pem \
   dherror.pem \
   dsa_params.pem \
   dsa_private.pem \
@@ -593,6 +594,9 @@ dh1024.pem:
 
 dh2048.pem:
 	openssl dhparam -out dh2048.pem 2048
+
+dh3072.pem:
+	openssl dhparam -out dh3072.pem 3072
 
 dherror.pem: dh1024.pem
 	sed 's/^[^-].*/AAAAAAAAAA/g' dh1024.pem > dherror.pem
