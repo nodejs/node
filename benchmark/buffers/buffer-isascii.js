@@ -7,7 +7,7 @@ const assert = require('node:assert');
 const bench = common.createBenchmark(main, {
   n: [2e7],
   length: ['short', 'long'],
-  input: ['hello world']
+  input: ['hello world'],
 });
 
 
