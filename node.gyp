@@ -478,13 +478,12 @@
     # Putting these explicitly here so not to depend on `common.gypi`.
     # `common.gypi` need to be more general because it is used to build userland native addons.
     # Refs: https://github.com/nodejs/node-gyp/issues/1118
-    'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', '-Wno-restrict', ],
+    'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
     'xcode_settings': {
       'WARNING_CFLAGS': [
         '-Wall',
         '-Wendif-labels',
         '-W',
-        '-Wno-restrict',
         '-Wno-unused-parameter',
         '-Werror=undefined-inline',
         '-Werror=extra-semi',
@@ -492,6 +491,9 @@
     },
 
     'conditions': [
+      ['clang==0 and OS!="win"', {
+        'cflags': [ '-Wno-restrict', ],
+      }],
       # Pointer authentication for ARM64.
       ['target_arch=="arm64"', {
           'target_conditions': [
