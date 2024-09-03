@@ -7,12 +7,12 @@ const assert = require('node:assert');
 const bench = common.createBenchmark(main, {
   n: [2e7],
   length: ['short', 'long'],
-  input: ['regular string', 'ğ'],
+  input: ['regular string', '∀x∈ℝ: ⌈x⌉ = −⌊−x⌋'],
 });
 
 
-function main({ n, input }) {
-  const normalizedInput = input === 'short' ? input : input.repeat(300);
+function main({ n, input, length }) {
+  const normalizedInput = length === 'short' ? input : input.repeat(300);
   const encoder = new TextEncoder();
   const buff = encoder.encode(normalizedInput);
   bench.start();
