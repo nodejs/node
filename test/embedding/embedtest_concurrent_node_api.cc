@@ -66,7 +66,7 @@ extern "C" int32_t test_main_concurrent_node_api(int32_t argc, char* argv[]) {
   return 0;
 }
 
-// We can use multiple environments at the same thread.
+// We can use multiple environments on the same thread.
 // For each use we must open and close the environment scope.
 extern "C" int32_t test_main_multi_env_node_api(int32_t argc, char* argv[]) {
   CHECK(node_api_initialize_platform(argc,
