@@ -24,7 +24,7 @@ ${licenseTextTrimmed}
 
 
 if ! [ -d "${rootdir}/deps/icu/" ] && ! [ -d "${rootdir}/deps/icu-small/" ]; then
-  echo "ICU not installed, run configure to download it, e.g. ./configure --with-intl=small-icu --download=icu"
+  echo "ICU not installed, run \`./configure --with-intl=small-icu --download=icu\` to download it."
   exit 1
 fi
 
