@@ -52,7 +52,7 @@ function main({ n, type, method }) {
   }
 
   if (method === 'access') {
-    // warmup the filesystem - it doesn't need to use the async method
+    // Warmup the filesystem - it doesn't need to use the async method
     runBench(n, path);
 
     bench.start();
