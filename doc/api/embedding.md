@@ -172,7 +172,9 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 <!--introduced_in=REPLACEME-->
 
 As an alternative, an embedded Node.js can also be fully controlled through
-Node-API. This API supports both C and C++ through [node-addon-api][].
+Node-API. This API supports both C and C++ through [node-addon-api][]. Although
+the embedding API is not promised to be ABI stable at this time, it uses node-api types
+and implementation so that it might be a some time in the future.
 
 An example can be found [in the Node.js source tree][napi_embedding.c].
 
