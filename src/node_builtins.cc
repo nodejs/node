@@ -56,7 +56,7 @@ BuiltinLoader::BuiltinLoader()
   AddExternalizedBuiltin("internal/deps/amaro/dist/index",
                          STRINGIFY(NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH));
 #endif  // NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
-#endif  // NODE_USE_ARARO
+#endif  // HAVE_AMARO
 }
 
 bool BuiltinLoader::Exists(const char* id) {
