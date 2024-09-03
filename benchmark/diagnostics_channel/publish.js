@@ -35,7 +35,7 @@ function main({ n, subscribers, checkSubscribers, objSize }) {
   bench.start();
   for (let i = 0; i < n; i++) {
     if (checkSubscribers) {
-      if(channel.hasSubscribers) {
+      if (channel.hasSubscribers) {
         channel.publish(data);
       }
     } else {
