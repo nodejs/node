@@ -308,11 +308,11 @@ exception.
 
 | SQLite    | JavaScript           |
 | --------- | -------------------- |
-| `NULL`    | `null`               |
-| `INTEGER` | `number` or `BigInt` |
-| `REAL`    | `number`             |
-| `TEXT`    | `string`             |
-| `BLOB`    | `Uint8Array`         |
+| `NULL`    | {null}               |
+| `INTEGER` | {number} or {bigint} |
+| `REAL`    | {number}             |
+| `TEXT`    | {string}             |
+| `BLOB`    | {Uint8Array}         |
 
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite
