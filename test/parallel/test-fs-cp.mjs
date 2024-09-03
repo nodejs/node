@@ -119,6 +119,23 @@ function nextdir() {
 }
 
 
+// It overrides target directory with what symlink points to, when dereference is true.
+{
+  const src = nextdir();
+  const symlink = nextdir();
+  const dest = nextdir();
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
+  symlinkSync(src, symlink);
+
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
+
+  cpSync(symlink, dest, mustNotMutateObjectDeep({ dereference: true, recursive: true }));
+  const destStat = lstatSync(dest);
+  assert(!destStat.isSymbolicLink());
+  assertDirEquivalent(src, dest);
+}
+
 // It throws error when verbatimSymlinks is not a boolean.
 {
   const src = './test/fixtures/copy/kitchen-sink';
