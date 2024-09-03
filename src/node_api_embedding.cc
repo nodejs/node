@@ -1,14 +1,15 @@
+#define NAPI_EXPERIMENTAL
+#include "node_api_embedding.h"
+
+#include "env-inl.h"
+#include "js_native_api_v8.h"
+#include "node_api_internals.h"
+#include "util-inl.h"
+
 #include <algorithm>
 #include <climits>  // INT_MAX
 #include <cmath>
-#define NAPI_EXPERIMENTAL
-#include "env-inl.h"
-#include "js_native_api.h"
-#include "js_native_api_v8.h"
-#include "node_api_embedding.h"
-#include "node_api_internals.h"
-#include "simdutf.h"
-#include "util-inl.h"
+#include <mutex>
 
 namespace node {
 
@@ -22,33 +23,43 @@ v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(
 namespace v8impl {
 namespace {
 
+// A helper class to convert std::vector<std::string> to an array of C strings.
+// If the number of strings is less than kInplaceBufferSize, the strings are
+// stored in the inplace_buffer_ array. Otherwise, the strings are stored in the
+// allocated_buffer_ array.
+// Ideally the class must be allocated on the stack.
+// In any case it must not outlive the passed vector since it keeps only the
+// string pointers returned by std::stirng::c_str() method.
 class CStringArray {
+  static constexpr size_t kInplaceBufferSize = 32;
+
  public:
   explicit CStringArray(const std::vector<std::string>& strings) noexcept
       : size_(strings.size()) {
-    if (size_ < inplace_buffer_.size()) {
-      cstrings_ = inplace_buffer_.data();
+    if (size_ <= inplace_buffer_.size()) {
+      c_strs_ = inplace_buffer_.data();
     } else {
       allocated_buffer_ = std::make_unique<const char*[]>(size_);
-      cstrings_ = allocated_buffer_.get();
+      c_strs_ = allocated_buffer_.get();
     }
     for (size_t i = 0; i < size_; ++i) {
-      cstrings_[i] = strings[i].c_str();
+      c_strs_[i] = strings[i].c_str();
     }
   }
 
-  CStringArray() = delete;
   CStringArray(const CStringArray&) = delete;
   CStringArray& operator=(const CStringArray&) = delete;
 
+  const char** c_strs() const { return c_strs_; }
   size_t size() const { return size_; }
+
+  const char** argv() const { return c_strs_; }
   int32_t argc() const { return static_cast<int>(size_); }
-  const char** argv() const { return cstrings_; }
 
  private:
-  const char** cstrings_;
-  size_t size_;
-  std::array<const char*, 32> inplace_buffer_;
+  const char** c_strs_{};
+  size_t size_{};
+  std::array<const char*, kInplaceBufferSize> inplace_buffer_;
   std::unique_ptr<const char*[]> allocated_buffer_;
 };
 
@@ -124,6 +135,7 @@ struct EmbeddedEnvironmentOptions {
   node_api_env_flags flags_{node_api_env_default_flags};
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
+  node::EmbedderPreloadCallback preload_cb_{};
   node::EmbedderSnapshotData::Pointer snapshot_;
   std::function<void(const node::EmbedderSnapshotData*)> create_snapshot_;
   node::SnapshotConfig snapshot_config_{};
@@ -167,6 +179,22 @@ class EmbeddedEnvironment final : public node_napi_env__ {
         env_options_(std::move(env_options)),
         env_setup_(std::move(env_setup)) {
     env_options_->is_frozen_ = true;
+
+    std::scoped_lock<std::mutex> lock(shared_mutex_);
+    node_env_to_node_api_env_.emplace(env_setup_->env(), this);
+  }
+
+  static node_napi_env GetOrCreateNodeApiEnv(node::Environment* node_env) {
+    std::scoped_lock<std::mutex> lock(shared_mutex_);
+    auto it = node_env_to_node_api_env_.find(node_env);
+    if (it != node_env_to_node_api_env_.end()) return it->second;
+    // TODO: (vmoroz) propagate API version from the root environment.
+    node_napi_env env = new node_napi_env__(
+        node_env->context(), "<worker_thread>", NAPI_VERSION_EXPERIMENTAL);
+    node_env->AddCleanupHook(
+        [](void* arg) { static_cast<node_napi_env>(arg)->Unref(); }, env);
+    node_env_to_node_api_env_.try_emplace(node_env, env);
+    return env;
   }
 
   static EmbeddedEnvironment* FromNapiEnv(napi_env env) {
@@ -198,6 +226,8 @@ class EmbeddedEnvironment final : public node_napi_env__ {
 
   bool IsScopeOpened() const { return isolate_locker_.has_value(); }
 
+  const EmbeddedEnvironmentOptions& options() const { return *env_options_; }
+
   const node::EmbedderSnapshotData::Pointer& snapshot() const {
     return env_options_->snapshot_;
   }
@@ -211,7 +241,15 @@ class EmbeddedEnvironment final : public node_napi_env__ {
   std::unique_ptr<EmbeddedEnvironmentOptions> env_options_;
   std::unique_ptr<node::CommonEnvironmentSetup> env_setup_;
   std::optional<IsolateLocker> isolate_locker_;
+
+  static std::mutex shared_mutex_;
+  static std::unordered_map<node::Environment*, node_napi_env>
+      node_env_to_node_api_env_;
 };
+
+std::mutex EmbeddedEnvironment::shared_mutex_{};
+std::unordered_map<node::Environment*, node_napi_env>
+    EmbeddedEnvironment::node_env_to_node_api_env_{};
 
 node::ProcessInitializationFlags::Flags GetProcessInitializationFlags(
     node_api_platform_flags flags) {
@@ -322,7 +360,7 @@ node_api_initialize_platform(int32_t argc,
 
   if (error_handler != nullptr && !platform_init_result->errors().empty()) {
     v8impl::CStringArray errors(platform_init_result->errors());
-    error_handler(error_handler_data, errors.argv(), errors.size());
+    error_handler(error_handler_data, errors.c_strs(), errors.size());
   }
 
   if (early_return != nullptr) {
@@ -440,6 +478,34 @@ napi_status NAPI_CDECL node_api_env_options_set_exec_args(
 }
 
 napi_status NAPI_CDECL
+node_api_env_options_set_preload_callback(node_api_env_options options,
+                                          node_api_preload_callback preload_cb,
+                                          void* cb_data) {
+  if (options == nullptr) return napi_invalid_arg;
+
+  v8impl::EmbeddedEnvironmentOptions* env_options =
+      reinterpret_cast<v8impl::EmbeddedEnvironmentOptions*>(options);
+  if (env_options->is_frozen_) return napi_generic_failure;
+
+  if (preload_cb != nullptr) {
+    env_options->preload_cb_ = node::EmbedderPreloadCallback(
+        [preload_cb, cb_data](node::Environment* node_env,
+                              v8::Local<v8::Value> process,
+                              v8::Local<v8::Value> require) {
+          node_napi_env env =
+              v8impl::EmbeddedEnvironment::GetOrCreateNodeApiEnv(node_env);
+          napi_value process_value = v8impl::JsValueFromV8LocalValue(process);
+          napi_value require_value = v8impl::JsValueFromV8LocalValue(require);
+          preload_cb(env, process_value, require_value, cb_data);
+        });
+  } else {
+    env_options->preload_cb_ = {};
+  }
+
+  return napi_ok;
+}
+
+napi_status NAPI_CDECL
 node_api_env_options_use_snapshot(node_api_env_options options,
                                   const char* snapshot_data,
                                   size_t snapshot_size) {
@@ -525,8 +591,8 @@ node_api_create_env(node_api_env_options options,
   }
 
   if (error_handler != nullptr && !errors.empty()) {
-    v8impl::CStringArray cerrors(errors);
-    error_handler(error_handler_data, cerrors.argv(), cerrors.size());
+    v8impl::CStringArray error_arr(errors);
+    error_handler(error_handler_data, error_arr.c_strs(), error_arr.size());
   }
 
   if (env_setup == nullptr) {
@@ -556,7 +622,9 @@ node_api_create_env(node_api_env_options options,
   v8::MaybeLocal<v8::Value> ret =
       embedded_env->snapshot()
           ? node::LoadEnvironment(node_env, node::StartExecutionCallback{})
-          : node::LoadEnvironment(node_env, std::string_view(main_script));
+          : node::LoadEnvironment(node_env,
+                                  std::string_view(main_script),
+                                  embedded_env->options().preload_cb_);
 
   embedded_env.release();
 
