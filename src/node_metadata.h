@@ -28,7 +28,11 @@ namespace node {
 #endif
 
 #if HAVE_AMARO
+#ifndef NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
 #define NODE_VERSIONS_KEY_AMARO(V) V(amaro)
+#else
+#define NODE_VERSIONS_KEY_AMARO(V)
+#endif
 #else
 #define NODE_VERSIONS_KEY_AMARO(V)
 #endif
