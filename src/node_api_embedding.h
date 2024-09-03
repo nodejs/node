@@ -109,6 +109,11 @@ typedef void(NAPI_CDECL* node_api_store_blob_callback)(void* cb_data,
                                                        const uint8_t* blob,
                                                        size_t size);
 
+typedef void(NAPI_CDECL* node_api_preload_callback)(napi_env env,
+                                                    napi_value process,
+                                                    napi_value require,
+                                                    void* cb_data);
+
 typedef bool(NAPI_CDECL* node_api_run_predicate)(void* predicate_data);
 
 NAPI_EXTERN napi_status NAPI_CDECL
@@ -143,6 +148,11 @@ NAPI_EXTERN napi_status NAPI_CDECL node_api_env_options_set_args(
 
 NAPI_EXTERN napi_status NAPI_CDECL node_api_env_options_set_exec_args(
     node_api_env_options options, size_t argc, const char* argv[]);
+
+NAPI_EXTERN napi_status NAPI_CDECL
+node_api_env_options_set_preload_callback(node_api_env_options options,
+                                          node_api_preload_callback preload_cb,
+                                          void* cb_data);
 
 NAPI_EXTERN napi_status NAPI_CDECL
 node_api_env_options_use_snapshot(node_api_env_options options,

@@ -10,7 +10,6 @@ const {
 } = require('../common/child_process');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 
 tmpdir.refresh();
 common.allowGlobals(global.require);
@@ -120,7 +119,8 @@ function runCommonApiTests(apiType) {
     {
       status: 9,
       signal: null,
-      stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv${os.EOL}`,
+      trim: true,
+      stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv`,
     }
   );
 }
@@ -308,6 +308,19 @@ runSnapshotTests('snapshot-node-api');
     {
       trim: true,
       stdout: '5',
+    }
+  );
+
+  const preloadScriptPath = path.join(__dirname, 'preload-with-worker.js');
+
+  runTest(
+    'preload-node-api: run preload callback',
+    spawnSyncAndAssert,
+    ['preload-node-api', `eval(${getReadFileCodeForPath(preloadScriptPath)})`],
+    {
+      cwd: __dirname,
+      trim: true,
+      stdout: `preloadValue=42; worker preloadValue=42`,
     }
   );
 }
