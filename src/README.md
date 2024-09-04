@@ -1013,7 +1013,7 @@ A `cppgc`-managed native wrapper should look something like this:
 // CPPGC_MIXIN is a helper macro for inheriting from cppgc::GarbageCollected,
 // cppgc::NameProvider and public CppgcMixin. Per cppgc rules, it must be
 // placed at the left-most position in the class hierarchy.
-class MyWrap final : CPPGC_MIXIN(ContextifyScript) {
+class MyWrap final : CPPGC_MIXIN(MyWrap) {
  public:
   SET_CPPGC_NAME(MyWrap)  // Sets the heap snapshot name to "Node / MyWrap"
 
