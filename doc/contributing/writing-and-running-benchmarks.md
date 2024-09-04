@@ -272,6 +272,19 @@ process/bench-env.js operation="query" n=1000000: 3,625,787.2150573144
 process/bench-env.js operation="delete" n=1000000: 1,521,131.5742806569
 ```
 
+#### Grouping benchmarks
+
+Benchmarks can also have groups, giving the developer greater flexibility in differentiating between test cases
+and also helping reduce the time to run the combination of benchmark parameters.
+
+By default, all groups are executed when running the benchmark.
+However, it is possible to specify individual groups by setting the
+`NODE_RUN_BENCHMARK_GROUPS` environment variable when running `compare.js`:
+
+```bash
+NODE_RUN_BENCHMARK_GROUPS=fewHeaders,manyHeaders node http/headers.js
+```
+
 ### Comparing Node.js versions
 
 To compare the effect of a new Node.js version use the `compare.js` tool. This
@@ -492,6 +505,23 @@ The arguments of `createBenchmark` are:
 * `options` {Object} The benchmark options. Supported options:
   * `flags` {Array} Contains node-specific command line flags to pass to
     the child process.
+
+  * `byGroups` {Boolean} option for processing `configs` by groups:
+    ```js
+    const bench = common.createBenchmark(main, {
+      groupA: {
+        source: ['array'],
+        len: [10, 2048],
+        n: [50],
+      },
+      groupB: {
+        source: ['buffer', 'string'],
+        len: [2048],
+        n: [50, 2048],
+      },
+    }, { byGroups: true });
+    ```
+
   * `combinationFilter` {Function} Has a single parameter which is an object
     containing a combination of benchmark parameters. It should return `true`
     or `false` to indicate whether the combination should be included or not.
