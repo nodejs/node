@@ -110,7 +110,7 @@ class PublicKeyCipher {
             EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
             EVP_PKEY_cipher_t EVP_PKEY_cipher>
   static bool Cipher(Environment* env,
-                     const ManagedEVPPKey& pkey,
+                     const EVPKeyPointer& pkey,
                      int padding,
                      const EVP_MD* digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
@@ -195,27 +195,23 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     CryptoJob<CipherTraits>::RegisterExternalReferences(New, registry);
   }
 
-  CipherJob(
-      Environment* env,
-      v8::Local<v8::Object> object,
-      CryptoJobMode mode,
-      KeyObjectHandle* key,
-      WebCryptoCipherMode cipher_mode,
-      const ArrayBufferOrViewContents<char>& data,
-      AdditionalParams&& params)
-      : CryptoJob<CipherTraits>(
-            env,
-            object,
-            AsyncWrap::PROVIDER_CIPHERREQUEST,
-            mode,
-            std::move(params)),
-        key_(key->Data()),
+  CipherJob(Environment* env,
+            v8::Local<v8::Object> object,
+            CryptoJobMode mode,
+            KeyObjectHandle* key,
+            WebCryptoCipherMode cipher_mode,
+            const ArrayBufferOrViewContents<char>& data,
+            AdditionalParams&& params)
+      : CryptoJob<CipherTraits>(env,
+                                object,
+                                AsyncWrap::PROVIDER_CIPHERREQUEST,
+                                mode,
+                                std::move(params)),
+        key_(key->Data().addRef()),
         cipher_mode_(cipher_mode),
-        in_(mode == kCryptoJobAsync
-            ? data.ToCopy()
-            : data.ToByteSource()) {}
+        in_(mode == kCryptoJobAsync ? data.ToCopy() : data.ToByteSource()) {}
 
-  std::shared_ptr<KeyObjectData> key() const { return key_; }
+  const KeyObjectData& key() const { return key_; }
 
   WebCryptoCipherMode cipher_mode() const { return cipher_mode_; }
 
@@ -278,7 +274,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
   }
 
  private:
-  std::shared_ptr<KeyObjectData> key_;
+  KeyObjectData key_;
   WebCryptoCipherMode cipher_mode_;
   ByteSource in_;
   ByteSource out_;

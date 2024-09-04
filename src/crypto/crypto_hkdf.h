@@ -15,7 +15,7 @@ struct HKDFConfig final : public MemoryRetainer {
   CryptoJobMode mode;
   size_t length;
   const EVP_MD* digest;
-  std::shared_ptr<KeyObjectData> key;
+  KeyObjectData key;
   ByteSource salt;
   ByteSource info;
 

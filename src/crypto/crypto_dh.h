@@ -73,18 +73,17 @@ struct DHKeyExportTraits final {
       unsigned int offset,
       DHKeyExportConfig* config);
 
-  static WebCryptoKeyExportStatus DoExport(
-      std::shared_ptr<KeyObjectData> key_data,
-      WebCryptoKeyFormat format,
-      const DHKeyExportConfig& params,
-      ByteSource* out);
+  static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
+                                           WebCryptoKeyFormat format,
+                                           const DHKeyExportConfig& params,
+                                           ByteSource* out);
 };
 
 using DHKeyExportJob = KeyExportJob<DHKeyExportTraits>;
 
 struct DHBitsConfig final : public MemoryRetainer {
-  std::shared_ptr<KeyObjectData> private_key;
-  std::shared_ptr<KeyObjectData> public_key;
+  KeyObjectData private_key;
+  KeyObjectData public_key;
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(DHBitsConfig)
   SET_SELF_SIZE(DHBitsConfig)
@@ -116,10 +115,9 @@ struct DHBitsTraits final {
 
 using DHBitsJob = DeriveBitsJob<DHBitsTraits>;
 
-v8::Maybe<bool> GetDhKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    v8::Local<v8::Object> target);
+v8::Maybe<bool> GetDhKeyDetail(Environment* env,
+                               const KeyObjectData& key,
+                               v8::Local<v8::Object> target);
 
 }  // namespace crypto
 }  // namespace node

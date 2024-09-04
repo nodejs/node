@@ -421,8 +421,8 @@ ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
   CHECK(handle->IsObject());
   KeyObjectHandle* key = Unwrap<KeyObjectHandle>(handle.As<Object>());
   CHECK_NOT_NULL(key);
-  return Foreign(key->Data()->GetSymmetricKey(),
-                 key->Data()->GetSymmetricKeySize());
+  return Foreign(key->Data().GetSymmetricKey(),
+                 key->Data().GetSymmetricKeySize());
 }
 
 ByteSource ByteSource::Allocated(void* data, size_t size) {
