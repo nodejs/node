@@ -1045,6 +1045,7 @@ class Environment final : public MemoryRetainer {
   // Enable built-in compile cache if it has not yet been enabled.
   // The cache will be persisted to disk on exit.
   CompileCacheEnableResult EnableCompileCache(const std::string& cache_dir);
+  void FlushCompileCache();
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
