@@ -30,21 +30,29 @@ function main({ n, subscribers, checkSubscribers, objSize }) {
     channel.subscribe(noop);
   }
 
-  const data = createObj(objSize);
+  const publishWithCheck = () => {
+    const data = createObj(objSize);
+    bench.start();
+    for (let i = 0; i < n; i++) {
+      if (channel.hasSubscribers) {
+        channel.publish(data);
+      }
+    }
+    bench.end(n);
+  };
 
-  const publishWithCheck = (data) => {
-    if (channel.hasSubscribers) {
+  const publishWithoutCheck = () => {
+    const data = createObj(objSize);
+    bench.start();
+    for (let i = 0; i < n; i++) {
       channel.publish(data);
     }
-  };
-  const publishWithoutCheck = (data) => {
-    channel.publish(data);
+    bench.end(n);
   };
 
-  const fn = checkSubscribers ? publishWithCheck : publishWithoutCheck;
-  bench.start();
-  for (let i = 0; i < n; i++) {
-    fn(data);
+  if (checkSubscribers) {
+    publishWithCheck();
+  } else {
+    publishWithoutCheck();
   }
-  bench.end(n);
 }
