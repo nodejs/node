@@ -4,10 +4,13 @@
 require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
+const { test } = require('node:test');
 const { dataURLProcessor } = require('internal/data_url');
 
 // https://github.com/web-platform-tests/wpt/blob/7c79d998ff42e52de90290cb847d1b515b3b58f7/fetch/data-urls/processing.any.js
-async function test(tests) {
+test('parsing data URLs', async () => {
+  const tests = require(fixtures.path('wpt/fetch/data-urls/resources/data-urls.json'));
+
   for (let i = 0; i < tests.length; i++) {
     const input = tests[i][0];
     const expectedMimeType = tests[i][1];
@@ -24,6 +27,4 @@ async function test(tests) {
       assert.deepStrictEqual(expectedMimeType, mimeType.toString());
     }
   }
-}
-
-test(require(fixtures.path('wpt/fetch/data-urls/resources/data-urls.json')));
+});
