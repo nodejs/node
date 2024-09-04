@@ -1,14 +1,15 @@
 'use strict';
 
 const { createBenchmark } = require('../common.js');
-const path = require('path');
-const fs = require('fs');
-const util = reuire('util');
+const path = require('node:path');
+const fs = require('node:fs');
+const util = require('node:util');
 
 const bench = createBenchmark(main, {
   n: 3e4,
 });
-const env = fs.readFileSync(path.resolve(__dirname, '../fixtures/valid.env'));
+
+const env = fs.readFileSync(path.resolve(__dirname, '../fixtures/valid.env'), 'utf-8');
 
 function main({ n }) {
   bench.start();
