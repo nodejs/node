@@ -32,11 +32,19 @@ function main({ n, subscribers, checkSubscribers, objSize }) {
 
   const data = createObj(objSize);
 
-  bench.start();
-  for (let i = 0; i < n; i++) {
-    if (!checkSubscribers || channel.hasSubscribers) {
+  const publishWithCheck = (data) => {
+    if (channel.hasSubscribers) {
       channel.publish(data);
     }
+  };
+  const publishWithoutCheck = (data) => {
+    channel.publish(data);
+  };
+
+  const fn = checkSubscribers ? publishWithCheck : publishWithoutCheck;
+  bench.start();
+  for (let i = 0; i < n; i++) {
+    fn(data);
   }
   bench.end(n);
 }
