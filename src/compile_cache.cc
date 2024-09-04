@@ -309,6 +309,13 @@ void CompileCacheHandler::Persist() {
 
   // TODO(joyeecheung): do this using a separate event loop to utilize the
   // libuv thread pool and do the file system operations concurrently.
+  // TODO(joyeecheung): Currently flushing is triggered by either process
+  // shutdown or user requests. In the future we should simply start the
+  // writes right after module loading on a separate thread, and this method
+  // only blocks until all the pending writes (if any) on the other thread are
+  // finished. In that case, the off-thread writes should finish long
+  // before any attempt of flushing is made so the method would then only
+  // incur a negligible overhead from thread synchronization.
   for (auto& pair : compiler_cache_store_) {
     auto* entry = pair.second.get();
     if (entry->cache == nullptr) {
