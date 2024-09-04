@@ -71,7 +71,7 @@ struct ECDHBitsTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
@@ -82,11 +82,9 @@ struct ECDHBitsTraits final {
       const ECDHBitsConfig& params,
       ByteSource* out_);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const ECDHBitsConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const ECDHBitsConfig& params,
+                                                ByteSource* out);
 };
 
 using ECDHBitsJob = DeriveBitsJob<ECDHBitsTraits>;
@@ -107,7 +105,7 @@ struct EcKeyGenTraits final {
 
   static EVPKeyCtxPointer Setup(EcKeyPairGenConfig* params);
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
@@ -129,7 +127,7 @@ struct ECKeyExportTraits final {
   static constexpr const char* JobName = "ECKeyExportJob";
   using AdditionalParameters = ECKeyExportConfig;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       ECKeyExportConfig* config);
@@ -155,7 +153,7 @@ KeyObjectData ImportJWKEcKey(Environment* env,
                              const v8::FunctionCallbackInfo<v8::Value>& args,
                              unsigned int offset);
 
-v8::Maybe<bool> GetEcKeyDetail(Environment* env,
+v8::Maybe<void> GetEcKeyDetail(Environment* env,
                                const KeyObjectData& key,
                                v8::Local<v8::Object> target);
 }  // namespace crypto

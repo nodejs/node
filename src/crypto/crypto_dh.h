@@ -49,7 +49,7 @@ struct DhKeyGenTraits final {
 
   static EVPKeyCtxPointer Setup(DhKeyPairGenConfig* params);
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
@@ -68,7 +68,7 @@ struct DHKeyExportTraits final {
   static constexpr const char* JobName = "DHKeyExportJob";
   using AdditionalParameters = DHKeyExportConfig;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       DHKeyExportConfig* config);
@@ -95,7 +95,7 @@ struct DHBitsTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
@@ -106,16 +106,14 @@ struct DHBitsTraits final {
       const DHBitsConfig& params,
       ByteSource* out_);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const DHBitsConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const DHBitsConfig& params,
+                                                ByteSource* out);
 };
 
 using DHBitsJob = DeriveBitsJob<DHBitsTraits>;
 
-v8::Maybe<bool> GetDhKeyDetail(Environment* env,
+v8::Maybe<void> GetDhKeyDetail(Environment* env,
                                const KeyObjectData& key,
                                v8::Local<v8::Object> target);
 
