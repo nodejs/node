@@ -107,6 +107,11 @@ added: v22.5.0
   * `open` {boolean} If `true`, the database is opened by the constructor. When
     this value is `false`, the database must be opened via the `open()` method.
     **Default:** `true`.
+  * `enableForeignKeyConstraints` {boolean} If `true`, foreign key constraints
+    are enabled. This is recommended but can be disabled for compatibility with
+    legacy database schemas. The enforcement of foreign key constraints can be
+    enabled and disabled after opening the database using
+    [`PRAGMA foreign_keys`][]. **Default:** `true`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -317,6 +322,7 @@ exception.
 
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [`--experimental-sqlite`]: cli.md#--experimental-sqlite
+[`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
