@@ -13,7 +13,7 @@ const env = fs.readFileSync(path.resolve(__dirname, '../fixtures/valid.env'));
 function main({ n }) {
   bench.start();
   for (let i = 0; i < n; i++) {
-    util.parseEnv(file);
+    util.parseEnv(env);
   }
   bench.end(n);
 }
