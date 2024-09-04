@@ -449,13 +449,10 @@ void HashConfig::MemoryInfo(MemoryTracker* tracker) const {
     tracker->TrackFieldWithSize("in", in.size());
 }
 
-Maybe<bool> HashTraits::EncodeOutput(
-    Environment* env,
-    const HashConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> HashTraits::EncodeOutput(Environment* env,
+                                           const HashConfig& params,
+                                           ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
 Maybe<void> HashTraits::AdditionalConfig(

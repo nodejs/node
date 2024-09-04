@@ -512,11 +512,12 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
     if (success_) {
       CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
-      return DeriveBitsTraits::EncodeOutput(
-          env,
-          *CryptoJob<DeriveBitsTraits>::params(),
-          &out_,
-          result);
+      if (!DeriveBitsTraits::EncodeOutput(
+               env, *CryptoJob<DeriveBitsTraits>::params(), &out_)
+               .ToLocal(result)) {
+        return v8::Nothing<bool>();
+      }
+      return v8::Just(true);
     }
 
     if (errors->Empty())

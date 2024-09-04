@@ -254,25 +254,19 @@ bool HmacTraits::DeriveBits(
   return true;
 }
 
-Maybe<bool> HmacTraits::EncodeOutput(
-    Environment* env,
-    const HmacConfig& params,
-    ByteSource* out,
-    Local<Value>* result) {
+MaybeLocal<Value> HmacTraits::EncodeOutput(Environment* env,
+                                           const HmacConfig& params,
+                                           ByteSource* out) {
   switch (params.mode) {
     case SignConfiguration::kSign:
-      *result = out->ToArrayBuffer(env);
-      break;
+      return out->ToArrayBuffer(env);
     case SignConfiguration::kVerify:
-      *result = Boolean::New(
+      return Boolean::New(
           env->isolate(),
           out->size() > 0 && out->size() == params.signature.size() &&
               memcmp(out->data(), params.signature.data(), out->size()) == 0);
-      break;
-    default:
-      UNREACHABLE();
   }
-  return Just(!result->IsEmpty());
+  UNREACHABLE();
 }
 
 }  // namespace crypto

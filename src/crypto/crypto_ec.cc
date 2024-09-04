@@ -30,6 +30,7 @@ using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
@@ -437,13 +438,10 @@ void ECDHBitsConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("private", private_);
 }
 
-Maybe<bool> ECDHBitsTraits::EncodeOutput(
-    Environment* env,
-    const ECDHBitsConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> ECDHBitsTraits::EncodeOutput(Environment* env,
+                                               const ECDHBitsConfig& params,
+                                               ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
 Maybe<void> ECDHBitsTraits::AdditionalConfig(

@@ -82,11 +82,9 @@ struct ECDHBitsTraits final {
       const ECDHBitsConfig& params,
       ByteSource* out_);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const ECDHBitsConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const ECDHBitsConfig& params,
+                                                ByteSource* out);
 };
 
 using ECDHBitsJob = DeriveBitsJob<ECDHBitsTraits>;

@@ -14,6 +14,7 @@ using v8::Int32;
 using v8::Just;
 using v8::JustVoid;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Uint32;
 using v8::Value;
@@ -44,13 +45,10 @@ void ScryptConfig::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-Maybe<bool> ScryptTraits::EncodeOutput(
-    Environment* env,
-    const ScryptConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> ScryptTraits::EncodeOutput(Environment* env,
+                                             const ScryptConfig& params,
+                                             ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
 Maybe<void> ScryptTraits::AdditionalConfig(

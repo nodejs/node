@@ -22,19 +22,16 @@ using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-Maybe<bool> RandomBytesTraits::EncodeOutput(
-    Environment* env,
-    const RandomBytesConfig& params,
-    ByteSource* unused,
-    v8::Local<v8::Value>* result) {
-  *result = v8::Undefined(env->isolate());
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> RandomBytesTraits::EncodeOutput(
+    Environment* env, const RandomBytesConfig& params, ByteSource* unused) {
+  return v8::Undefined(env->isolate());
 }
 
 Maybe<void> RandomBytesTraits::AdditionalConfig(
@@ -70,11 +67,8 @@ void RandomPrimeConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("prime", prime ? bits * 8 : 0);
 }
 
-Maybe<bool> RandomPrimeTraits::EncodeOutput(
-    Environment* env,
-    const RandomPrimeConfig& params,
-    ByteSource* unused,
-    v8::Local<v8::Value>* result) {
+MaybeLocal<Value> RandomPrimeTraits::EncodeOutput(
+    Environment* env, const RandomPrimeConfig& params, ByteSource* unused) {
   size_t size = params.prime.byteLength();
   std::shared_ptr<BackingStore> store =
       ArrayBuffer::NewBackingStore(env->isolate(), size);
@@ -83,8 +77,7 @@ Maybe<bool> RandomPrimeTraits::EncodeOutput(
                params.prime.get(),
                reinterpret_cast<unsigned char*>(store->Data()),
                size));
-  *result = ArrayBuffer::New(env->isolate(), store);
-  return Just(true);
+  return ArrayBuffer::New(env->isolate(), store);
 }
 
 Maybe<void> RandomPrimeTraits::AdditionalConfig(
@@ -210,13 +203,10 @@ bool CheckPrimeTraits::DeriveBits(
   return true;
 }
 
-Maybe<bool> CheckPrimeTraits::EncodeOutput(
-    Environment* env,
-    const CheckPrimeConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = Boolean::New(env->isolate(), out->data<char>()[0] != 0);
-  return Just(true);
+MaybeLocal<Value> CheckPrimeTraits::EncodeOutput(Environment* env,
+                                                 const CheckPrimeConfig& params,
+                                                 ByteSource* out) {
+  return Boolean::New(env->isolate(), out->data<char>()[0] != 0);
 }
 
 namespace Random {

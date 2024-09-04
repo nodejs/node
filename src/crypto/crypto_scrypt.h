@@ -62,11 +62,9 @@ struct ScryptTraits final {
       const ScryptConfig& params,
       ByteSource* out);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const ScryptConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const ScryptConfig& params,
+                                                ByteSource* out);
 };
 
 using ScryptJob = DeriveBitsJob<ScryptTraits>;

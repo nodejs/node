@@ -78,11 +78,9 @@ struct HmacTraits final {
       const HmacConfig& params,
       ByteSource* out);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const HmacConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const HmacConfig& params,
+                                                ByteSource* out);
 };
 
 using HmacJob = DeriveBitsJob<HmacTraits>;

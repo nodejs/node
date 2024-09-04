@@ -516,13 +516,10 @@ Maybe<void> DHBitsTraits::AdditionalConfig(
   return JustVoid();
 }
 
-Maybe<bool> DHBitsTraits::EncodeOutput(
-    Environment* env,
-    const DHBitsConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,
+                                             const DHBitsConfig& params,
+                                             ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
 bool DHBitsTraits::DeriveBits(

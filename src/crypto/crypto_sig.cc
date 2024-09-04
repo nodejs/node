@@ -24,6 +24,7 @@ using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
@@ -819,22 +820,16 @@ bool SignTraits::DeriveBits(
   return true;
 }
 
-Maybe<bool> SignTraits::EncodeOutput(
-    Environment* env,
-    const SignConfiguration& params,
-    ByteSource* out,
-    Local<Value>* result) {
+MaybeLocal<Value> SignTraits::EncodeOutput(Environment* env,
+                                           const SignConfiguration& params,
+                                           ByteSource* out) {
   switch (params.mode) {
     case SignConfiguration::kSign:
-      *result = out->ToArrayBuffer(env);
-      break;
+      return out->ToArrayBuffer(env);
     case SignConfiguration::kVerify:
-      *result = Boolean::New(env->isolate(), out->data<char>()[0] == 1);
-      break;
-    default:
-      UNREACHABLE();
+      return Boolean::New(env->isolate(), out->data<char>()[0] == 1);
   }
-  return Just(!result->IsEmpty());
+  UNREACHABLE();
 }
 
 }  // namespace crypto

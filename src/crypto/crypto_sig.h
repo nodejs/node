@@ -151,11 +151,9 @@ struct SignTraits final {
       const SignConfiguration& params,
       ByteSource* out);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const SignConfiguration& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const SignConfiguration& params,
+                                                ByteSource* out);
 };
 
 using SignJob = DeriveBitsJob<SignTraits>;

@@ -37,11 +37,9 @@ struct RandomBytesTraits final {
       const RandomBytesConfig& params,
       ByteSource* out_);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const RandomBytesConfig& params,
-      ByteSource* unused,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const RandomBytesConfig& params,
+                                                ByteSource* unused);
 };
 
 using RandomBytesJob = DeriveBitsJob<RandomBytesTraits>;
@@ -74,11 +72,9 @@ struct RandomPrimeTraits final {
       const RandomPrimeConfig& params,
       ByteSource* out_);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const RandomPrimeConfig& params,
-      ByteSource* unused,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const RandomPrimeConfig& params,
+                                                ByteSource* unused);
 };
 
 using RandomPrimeJob = DeriveBitsJob<RandomPrimeTraits>;
@@ -110,11 +106,9 @@ struct CheckPrimeTraits final {
       const CheckPrimeConfig& params,
       ByteSource* out);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const CheckPrimeConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const CheckPrimeConfig& params,
+                                                ByteSource* out);
 };
 
 using CheckPrimeJob = DeriveBitsJob<CheckPrimeTraits>;

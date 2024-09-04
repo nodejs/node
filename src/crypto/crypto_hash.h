@@ -75,11 +75,9 @@ struct HashTraits final {
       const HashConfig& params,
       ByteSource* out);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const HashConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const HashConfig& params,
+                                                ByteSource* out);
 };
 
 using HashJob = DeriveBitsJob<HashTraits>;
