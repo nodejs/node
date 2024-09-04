@@ -14,7 +14,6 @@ namespace node {
 
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
