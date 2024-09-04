@@ -18,6 +18,7 @@ using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -79,11 +80,14 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
   return KeyGenJobStatus::OK;
 }
 
-Maybe<bool> SecretKeyGenTraits::EncodeKey(Environment* env,
-                                          SecretKeyGenConfig* params,
-                                          Local<Value>* result) {
+MaybeLocal<Value> SecretKeyGenTraits::EncodeKey(Environment* env,
+                                          SecretKeyGenConfig* params) {
   auto data = KeyObjectData::CreateSecret(std::move(params->out));
-  return Just(KeyObjectHandle::Create(env, data).ToLocal(result));
+  Local<Value> ret;
+  if (!KeyObjectHandle::Create(env, data).ToLocal(&ret)) {
+    return MaybeLocal<Value>();
+  }
+  return ret;
 }
 
 namespace Keygen {

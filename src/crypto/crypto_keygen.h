@@ -99,11 +99,16 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
 
     if (status_ == KeyGenJobStatus::OK) {
-      v8::Maybe<bool> ret = KeyGenTraits::EncodeKey(env, params, result);
-      if (ret.IsJust() && ret.FromJust()) {
+      v8::TryCatch try_catch(env->isolate());
+      if (KeyGenTraits::EncodeKey(env, params).ToLocal(result)) {
         *err = Undefined(env->isolate());
+      } else {
+        CHECK(try_catch.HasCaught());
+        CHECK(try_catch.CanContinue());
+        *result = Undefined(env->isolate());
+        *err = try_catch.Exception();
       }
-      return ret;
+      return v8::Just(true);
     }
 
     if (errors->Empty())
@@ -176,10 +181,9 @@ struct KeyPairGenTraits final {
     return KeyGenJobStatus::OK;
   }
 
-  static v8::Maybe<bool> EncodeKey(
+  static v8::MaybeLocal<v8::Value> EncodeKey(
       Environment* env,
-      AdditionalParameters* params,
-      v8::Local<v8::Value>* result) {
+      AdditionalParameters* params) {
     v8::Local<v8::Value> keys[2];
     if (params->key
             .ToEncodedPublicKey(env, params->public_key_encoding, &keys[0])
@@ -187,10 +191,9 @@ struct KeyPairGenTraits final {
         params->key
             .ToEncodedPrivateKey(env, params->private_key_encoding, &keys[1])
             .IsNothing()) {
-      return v8::Nothing<bool>();
+      return v8::MaybeLocal<v8::Value>();
     }
-    *result = v8::Array::New(env->isolate(), keys, arraysize(keys));
-    return v8::Just(true);
+    return v8::Array::New(env->isolate(), keys, arraysize(keys));
   }
 };
 
@@ -219,10 +222,9 @@ struct SecretKeyGenTraits final {
       Environment* env,
       SecretKeyGenConfig* params);
 
-  static v8::Maybe<bool> EncodeKey(
+  static v8::MaybeLocal<v8::Value> EncodeKey(
       Environment* env,
-      SecretKeyGenConfig* params,
-      v8::Local<v8::Value>* result);
+      SecretKeyGenConfig* params);
 };
 
 template <typename AlgorithmParams>
