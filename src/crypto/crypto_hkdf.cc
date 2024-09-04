@@ -10,7 +10,6 @@
 namespace node {
 
 using v8::FunctionCallbackInfo;
-using v8::Just;
 using v8::JustVoid;
 using v8::Maybe;
 using v8::MaybeLocal;
