@@ -1,5 +1,8 @@
 {
   "name": "Node.js Core Developer Environment",
+  "runArgs": [
+    "--platform=linux/amd64"
+  ],
   "customizations": {
     "vscode": {
       "extensions": [
