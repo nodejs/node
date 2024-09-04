@@ -26,5 +26,4 @@ async function test(tests) {
   }
 }
 
-// https://github.com/web-platform-tests/wpt/blob/7c79d998ff42e52de90290cb847d1b515b3b58f7/fetch/data-urls/resources/data-urls.json
-test(require(fixtures.path('data-urls.json')));
+test(require(fixtures.path('wpt/fetch/data-urls/resources/data-urls.json')));
