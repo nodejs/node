@@ -2,6 +2,9 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+if (!common.hasOpenSSL3)
+  common.skip('OpenSSL legacy failures are only testable with OpenSSL 3+');
+
 const fixtures = require('../common/fixtures');
 
 const {
