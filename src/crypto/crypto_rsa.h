@@ -68,11 +68,10 @@ struct RSAKeyExportTraits final {
       unsigned int offset,
       RSAKeyExportConfig* config);
 
-  static WebCryptoKeyExportStatus DoExport(
-      std::shared_ptr<KeyObjectData> key_data,
-      WebCryptoKeyFormat format,
-      const RSAKeyExportConfig& params,
-      ByteSource* out);
+  static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
+                                           WebCryptoKeyFormat format,
+                                           const RSAKeyExportConfig& params,
+                                           ByteSource* out);
 };
 
 using RSAKeyExportJob = KeyExportJob<RSAKeyExportTraits>;
@@ -103,31 +102,28 @@ struct RSACipherTraits final {
       WebCryptoCipherMode cipher_mode,
       RSACipherConfig* config);
 
-  static WebCryptoCipherStatus DoCipher(
-      Environment* env,
-      std::shared_ptr<KeyObjectData> key_data,
-      WebCryptoCipherMode cipher_mode,
-      const RSACipherConfig& params,
-      const ByteSource& in,
-      ByteSource* out);
+  static WebCryptoCipherStatus DoCipher(Environment* env,
+                                        const KeyObjectData& key_data,
+                                        WebCryptoCipherMode cipher_mode,
+                                        const RSACipherConfig& params,
+                                        const ByteSource& in,
+                                        ByteSource* out);
 };
 
 using RSACipherJob = CipherJob<RSACipherTraits>;
 
 v8::Maybe<void> ExportJWKRsaKey(Environment* env,
-                                std::shared_ptr<KeyObjectData> key,
+                                const KeyObjectData& key,
                                 v8::Local<v8::Object> target);
 
-std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
-    Environment* env,
-    v8::Local<v8::Object> jwk,
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    unsigned int offset);
+KeyObjectData ImportJWKRsaKey(Environment* env,
+                              v8::Local<v8::Object> jwk,
+                              const v8::FunctionCallbackInfo<v8::Value>& args,
+                              unsigned int offset);
 
-v8::Maybe<bool> GetRsaKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    v8::Local<v8::Object> target);
+v8::Maybe<bool> GetRsaKeyDetail(Environment* env,
+                                const KeyObjectData& key,
+                                v8::Local<v8::Object> target);
 
 namespace RSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);

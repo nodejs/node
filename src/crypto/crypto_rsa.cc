@@ -187,24 +187,22 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
 }
 
 namespace {
-WebCryptoKeyExportStatus RSA_JWK_Export(
-    KeyObjectData* key_data,
-    const RSAKeyExportConfig& params,
-    ByteSource* out) {
+WebCryptoKeyExportStatus RSA_JWK_Export(const KeyObjectData& key_data,
+                                        const RSAKeyExportConfig& params,
+                                        ByteSource* out) {
   return WebCryptoKeyExportStatus::FAILED;
 }
 
 template <PublicKeyCipher::EVP_PKEY_cipher_init_t init,
           PublicKeyCipher::EVP_PKEY_cipher_t cipher>
-WebCryptoCipherStatus RSA_Cipher(
-    Environment* env,
-    KeyObjectData* key_data,
-    const RSACipherConfig& params,
-    const ByteSource& in,
-    ByteSource* out) {
-  CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
-  ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
+WebCryptoCipherStatus RSA_Cipher(Environment* env,
+                                 const KeyObjectData& key_data,
+                                 const RSACipherConfig& params,
+                                 const ByteSource& in,
+                                 ByteSource* out) {
+  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
+  Mutex::ScopedLock lock(key_data.mutex());
+  const auto& m_pkey = key_data.GetAsymmetricKey();
 
   EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(m_pkey.get(), nullptr));
 
@@ -259,26 +257,26 @@ Maybe<bool> RSAKeyExportTraits::AdditionalConfig(
 }
 
 WebCryptoKeyExportStatus RSAKeyExportTraits::DoExport(
-    std::shared_ptr<KeyObjectData> key_data,
+    const KeyObjectData& key_data,
     WebCryptoKeyFormat format,
     const RSAKeyExportConfig& params,
     ByteSource* out) {
-  CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
 
   switch (format) {
     case kWebCryptoKeyFormatRaw:
       // Not supported for RSA keys of either type
       return WebCryptoKeyExportStatus::FAILED;
     case kWebCryptoKeyFormatJWK:
-      return RSA_JWK_Export(key_data.get(), params, out);
+      return RSA_JWK_Export(key_data, params, out);
     case kWebCryptoKeyFormatPKCS8:
-      if (key_data->GetKeyType() != kKeyTypePrivate)
+      if (key_data.GetKeyType() != kKeyTypePrivate)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data.get(), out);
+      return PKEY_PKCS8_Export(key_data, out);
     case kWebCryptoKeyFormatSPKI:
-      if (key_data->GetKeyType() != kKeyTypePublic)
+      if (key_data.GetKeyType() != kKeyTypePublic)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data.get(), out);
+      return PKEY_SPKI_Export(key_data, out);
     default:
       UNREACHABLE();
   }
@@ -339,31 +337,30 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
   return Just(true);
 }
 
-WebCryptoCipherStatus RSACipherTraits::DoCipher(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key_data,
-    WebCryptoCipherMode cipher_mode,
-    const RSACipherConfig& params,
-    const ByteSource& in,
-    ByteSource* out) {
+WebCryptoCipherStatus RSACipherTraits::DoCipher(Environment* env,
+                                                const KeyObjectData& key_data,
+                                                WebCryptoCipherMode cipher_mode,
+                                                const RSACipherConfig& params,
+                                                const ByteSource& in,
+                                                ByteSource* out) {
   switch (cipher_mode) {
     case kWebCryptoCipherEncrypt:
-      CHECK_EQ(key_data->GetKeyType(), kKeyTypePublic);
+      CHECK_EQ(key_data.GetKeyType(), kKeyTypePublic);
       return RSA_Cipher<EVP_PKEY_encrypt_init, EVP_PKEY_encrypt>(
-          env, key_data.get(), params, in, out);
+          env, key_data, params, in, out);
     case kWebCryptoCipherDecrypt:
-      CHECK_EQ(key_data->GetKeyType(), kKeyTypePrivate);
+      CHECK_EQ(key_data.GetKeyType(), kKeyTypePrivate);
       return RSA_Cipher<EVP_PKEY_decrypt_init, EVP_PKEY_decrypt>(
-          env, key_data.get(), params, in, out);
+          env, key_data, params, in, out);
   }
   return WebCryptoCipherStatus::FAILED;
 }
 
 Maybe<void> ExportJWKRsaKey(Environment* env,
-                            std::shared_ptr<KeyObjectData> key,
+                            const KeyObjectData& key,
                             Local<Object> target) {
-  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& m_pkey = key.GetAsymmetricKey();
   int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
@@ -399,7 +396,7 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
     return Nothing<void>();
   }
 
-  if (key->GetKeyType() == kKeyTypePrivate) {
+  if (key.GetKeyType() == kKeyTypePrivate) {
     RSA_get0_factors(rsa, &p, &q);
     RSA_get0_crt_params(rsa, &dp, &dq, &qi);
     if (SetEncodedValue(env, target, env->jwk_d_string(), d).IsNothing() ||
@@ -415,11 +412,10 @@ Maybe<void> ExportJWKRsaKey(Environment* env,
   return JustVoid();
 }
 
-std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
-    Environment* env,
-    Local<Object> jwk,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset) {
+KeyObjectData ImportJWKRsaKey(Environment* env,
+                              Local<Object> jwk,
+                              const FunctionCallbackInfo<Value>& args,
+                              unsigned int offset) {
   Local<Value> n_value;
   Local<Value> e_value;
   Local<Value> d_value;
@@ -430,12 +426,12 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
       !n_value->IsString() ||
       !e_value->IsString()) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   if (!d_value->IsUndefined() && !d_value->IsString()) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
@@ -451,7 +447,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
           e.ToBN().release(),
           nullptr)) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
-    return std::shared_ptr<KeyObjectData>();
+    return {};
   }
 
   if (type == kKeyTypePrivate) {
@@ -467,7 +463,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
         !jwk->Get(env->context(), env->jwk_dq_string()).ToLocal(&dq_value) ||
         !jwk->Get(env->context(), env->jwk_qi_string()).ToLocal(&qi_value)) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
-      return std::shared_ptr<KeyObjectData>();
+      return {};
     }
 
     if (!p_value->IsString() ||
@@ -476,7 +472,7 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
         !dq_value->IsString() ||
         !qi_value->IsString()) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
-      return std::shared_ptr<KeyObjectData>();
+      return {};
     }
 
     ByteSource d = ByteSource::FromEncodedString(env, d_value.As<String>());
@@ -494,25 +490,24 @@ std::shared_ptr<KeyObjectData> ImportJWKRsaKey(
             dq.ToBN().release(),
             qi.ToBN().release())) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
-      return std::shared_ptr<KeyObjectData>();
+      return {};
     }
   }
 
   EVPKeyPointer pkey(EVP_PKEY_new());
   CHECK_EQ(EVP_PKEY_set1_RSA(pkey.get(), rsa.get()), 1);
 
-  return KeyObjectData::CreateAsymmetric(type, ManagedEVPPKey(std::move(pkey)));
+  return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
-Maybe<bool> GetRsaKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
+Maybe<bool> GetRsaKeyDetail(Environment* env,
+                            const KeyObjectData& key,
+                            Local<Object> target) {
   const BIGNUM* e;  // Public Exponent
   const BIGNUM* n;  // Modulus
 
-  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& m_pkey = key.GetAsymmetricKey();
   int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 

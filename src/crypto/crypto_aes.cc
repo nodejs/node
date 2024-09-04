@@ -31,15 +31,13 @@ namespace {
 // The key_data must be a secret key.
 // On success, this function sets out to a new ByteSource
 // instance containing the results and returns WebCryptoCipherStatus::OK.
-WebCryptoCipherStatus AES_Cipher(
-    Environment* env,
-    KeyObjectData* key_data,
-    WebCryptoCipherMode cipher_mode,
-    const AESCipherConfig& params,
-    const ByteSource& in,
-    ByteSource* out) {
-  CHECK_NOT_NULL(key_data);
-  CHECK_EQ(key_data->GetKeyType(), kKeyTypeSecret);
+WebCryptoCipherStatus AES_Cipher(Environment* env,
+                                 const KeyObjectData& key_data,
+                                 WebCryptoCipherMode cipher_mode,
+                                 const AESCipherConfig& params,
+                                 const ByteSource& in,
+                                 ByteSource* out) {
+  CHECK_EQ(key_data.GetKeyType(), kKeyTypeSecret);
 
   const int mode = EVP_CIPHER_mode(params.cipher);
 
@@ -69,14 +67,13 @@ WebCryptoCipherStatus AES_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (!EVP_CIPHER_CTX_set_key_length(
-          ctx.get(),
-          key_data->GetSymmetricKeySize()) ||
+  if (!EVP_CIPHER_CTX_set_key_length(ctx.get(),
+                                     key_data.GetSymmetricKeySize()) ||
       !EVP_CipherInit_ex(
           ctx.get(),
           nullptr,
           nullptr,
-          reinterpret_cast<const unsigned char*>(key_data->GetSymmetricKey()),
+          reinterpret_cast<const unsigned char*>(key_data.GetSymmetricKey()),
           params.iv.data<unsigned char>(),
           encrypt)) {
     return WebCryptoCipherStatus::FAILED;
@@ -217,13 +214,12 @@ std::vector<unsigned char> BlockWithZeroedCounter(
   return new_counter_block;
 }
 
-WebCryptoCipherStatus AES_CTR_Cipher2(
-    KeyObjectData* key_data,
-    WebCryptoCipherMode cipher_mode,
-    const AESCipherConfig& params,
-    const ByteSource& in,
-    unsigned const char* counter,
-    unsigned char* out) {
+WebCryptoCipherStatus AES_CTR_Cipher2(const KeyObjectData& key_data,
+                                      WebCryptoCipherMode cipher_mode,
+                                      const AESCipherConfig& params,
+                                      const ByteSource& in,
+                                      unsigned const char* counter,
+                                      unsigned char* out) {
   CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
   const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
 
@@ -231,7 +227,7 @@ WebCryptoCipherStatus AES_CTR_Cipher2(
           ctx.get(),
           params.cipher,
           nullptr,
-          reinterpret_cast<const unsigned char*>(key_data->GetSymmetricKey()),
+          reinterpret_cast<const unsigned char*>(key_data.GetSymmetricKey()),
           counter,
           encrypt)) {
     // Cipher init failed
@@ -259,13 +255,12 @@ WebCryptoCipherStatus AES_CTR_Cipher2(
   return WebCryptoCipherStatus::OK;
 }
 
-WebCryptoCipherStatus AES_CTR_Cipher(
-    Environment* env,
-    KeyObjectData* key_data,
-    WebCryptoCipherMode cipher_mode,
-    const AESCipherConfig& params,
-    const ByteSource& in,
-    ByteSource* out) {
+WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
+                                     const KeyObjectData& key_data,
+                                     WebCryptoCipherMode cipher_mode,
+                                     const AESCipherConfig& params,
+                                     const ByteSource& in,
+                                     ByteSource* out) {
   auto num_counters = BignumPointer::New();
   if (!BN_lshift(num_counters.get(), BignumPointer::One(), params.length))
     return WebCryptoCipherStatus::FAILED;
@@ -518,16 +513,15 @@ Maybe<bool> AESCipherTraits::AdditionalConfig(
   return Just(true);
 }
 
-WebCryptoCipherStatus AESCipherTraits::DoCipher(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key_data,
-    WebCryptoCipherMode cipher_mode,
-    const AESCipherConfig& params,
-    const ByteSource& in,
-    ByteSource* out) {
+WebCryptoCipherStatus AESCipherTraits::DoCipher(Environment* env,
+                                                const KeyObjectData& key_data,
+                                                WebCryptoCipherMode cipher_mode,
+                                                const AESCipherConfig& params,
+                                                const ByteSource& in,
+                                                ByteSource* out) {
 #define V(name, fn, _)                                                         \
   case kKeyVariantAES_##name:                                                  \
-    return fn(env, key_data.get(), cipher_mode, params, in, out);
+    return fn(env, key_data, cipher_mode, params, in, out);
   switch (params.variant) {
     VARIANTS(V)
     default:

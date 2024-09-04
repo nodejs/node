@@ -59,7 +59,7 @@ class SecureContext final : public BaseObject {
 
   v8::Maybe<void> AddCert(Environment* env, BIOPointer&& bio);
   v8::Maybe<void> SetCRL(Environment* env, const BIOPointer& bio);
-  v8::Maybe<void> UseKey(Environment* env, std::shared_ptr<KeyObjectData> key);
+  v8::Maybe<void> UseKey(Environment* env, const KeyObjectData& key);
 
   void SetCACert(const BIOPointer& bio);
   void SetRootCerts();

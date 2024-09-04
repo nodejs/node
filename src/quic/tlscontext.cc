@@ -92,12 +92,11 @@ bool SetOption(Environment* env,
       if (!values->Get(context, n).ToLocal(&item)) {
         return false;
       }
-      if constexpr (std::is_same<T, std::shared_ptr<crypto::KeyObjectData>>::
-                        value) {
+      if constexpr (std::is_same<T, crypto::KeyObjectData>::value) {
         if (crypto::KeyObjectHandle::HasInstance(env, item)) {
           crypto::KeyObjectHandle* handle;
           ASSIGN_OR_RETURN_UNWRAP(&handle, item, false);
-          (options->*member).push_back(handle->Data());
+          (options->*member).push_back(handle->Data().addRef());
         } else {
           Utf8Value namestr(env->isolate(), name);
           THROW_ERR_INVALID_ARG_TYPE(
@@ -118,12 +117,11 @@ bool SetOption(Environment* env,
       }
     }
   } else {
-    if constexpr (std::is_same<T,
-                               std::shared_ptr<crypto::KeyObjectData>>::value) {
+    if constexpr (std::is_same<T, crypto::KeyObjectData>::value) {
       if (crypto::KeyObjectHandle::HasInstance(env, value)) {
         crypto::KeyObjectHandle* handle;
         ASSIGN_OR_RETURN_UNWRAP(&handle, value, false);
-        (options->*member).push_back(handle->Data());
+        (options->*member).push_back(handle->Data().addRef());
       } else {
         Utf8Value namestr(env->isolate(), name);
         THROW_ERR_INVALID_ARG_TYPE(
@@ -354,11 +352,11 @@ crypto::SSLCtxPointer TLSContext::Initialize() {
   {
     crypto::ClearErrorOnReturn clear_error_on_return;
     for (const auto& key : options_.keys) {
-      if (key->GetKeyType() != crypto::KeyType::kKeyTypePrivate) {
+      if (key.GetKeyType() != crypto::KeyType::kKeyTypePrivate) {
         validation_error_ = "Invalid key";
         return crypto::SSLCtxPointer();
       }
-      if (!SSL_CTX_use_PrivateKey(ctx.get(), key->GetAsymmetricKey().get())) {
+      if (!SSL_CTX_use_PrivateKey(ctx.get(), key.GetAsymmetricKey().get())) {
         validation_error_ = "Invalid key";
         return crypto::SSLCtxPointer();
       }
@@ -438,8 +436,7 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
 
   if (!SET(verify_client) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(sni) || !SET(ciphers) || !SET(groups) || !SET(verify_private_key) ||
-      !SET(keylog) ||
-      !SET_VECTOR(std::shared_ptr<crypto::KeyObjectData>, keys) ||
+      !SET(keylog) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
       !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
       !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();

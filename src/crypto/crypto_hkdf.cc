@@ -21,7 +21,7 @@ HKDFConfig::HKDFConfig(HKDFConfig&& other) noexcept
     : mode(other.mode),
       length(other.length),
       digest(other.digest),
-      key(other.key),
+      key(std::move(other.key)),
       salt(std::move(other.salt)),
       info(std::move(other.info)) {}
 
@@ -64,7 +64,7 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
 
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<bool>());
-  params->key = key->Data();
+  params->key = key->Data().addRef();
 
   ArrayBufferOrViewContents<char> salt(args[offset + 2]);
   ArrayBufferOrViewContents<char> info(args[offset + 3]);
@@ -105,8 +105,8 @@ bool HKDFTraits::DeriveBits(
   auto dp = ncrypto::hkdf(params.digest,
                           ncrypto::Buffer<const unsigned char>{
                               .data = reinterpret_cast<const unsigned char*>(
-                                  params.key->GetSymmetricKey()),
-                              .len = params.key->GetSymmetricKeySize(),
+                                  params.key.GetSymmetricKey()),
+                              .len = params.key.GetSymmetricKeySize(),
                           },
                           ncrypto::Buffer<const unsigned char>{
                               .data = params.info.data<const unsigned char>(),

@@ -42,7 +42,7 @@ class Hmac : public BaseObject {
 struct HmacConfig final : public MemoryRetainer {
   CryptoJobMode job_mode;
   SignConfiguration::Mode mode;
-  std::shared_ptr<KeyObjectData> key;
+  KeyObjectData key;
   ByteSource data;
   ByteSource signature;
   const EVP_MD* digest;

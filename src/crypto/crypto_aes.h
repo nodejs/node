@@ -67,13 +67,12 @@ struct AESCipherTraits final {
       WebCryptoCipherMode cipher_mode,
       AESCipherConfig* config);
 
-  static WebCryptoCipherStatus DoCipher(
-      Environment* env,
-      std::shared_ptr<KeyObjectData> key_data,
-      WebCryptoCipherMode cipher_mode,
-      const AESCipherConfig& params,
-      const ByteSource& in,
-      ByteSource* out);
+  static WebCryptoCipherStatus DoCipher(Environment* env,
+                                        const KeyObjectData& key_data,
+                                        WebCryptoCipherMode cipher_mode,
+                                        const AESCipherConfig& params,
+                                        const ByteSource& in,
+                                        ByteSource* out);
 };
 
 using AESCryptoJob = CipherJob<AESCipherTraits>;
