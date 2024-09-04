@@ -18,7 +18,6 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
@@ -123,7 +122,7 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
 //   11. Private Type
 //   12. Cipher
 //   13. Passphrase
-Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
+Maybe<void> RsaKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -154,7 +153,7 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       params->params.md = EVP_get_digestbyname(*digest);
       if (params->params.md == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
 
@@ -165,7 +164,7 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       if (params->params.mgf1_md == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(
             env, "Invalid MGF1 digest: %s", *digest);
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
 
@@ -176,14 +175,14 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
         THROW_ERR_OUT_OF_RANGE(
           env,
           "salt length is out of range");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
 
     *offset += 3;
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 namespace {
@@ -246,14 +245,14 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
 }
 }  // namespace
 
-Maybe<bool> RSAKeyExportTraits::AdditionalConfig(
+Maybe<void> RSAKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     RSAKeyExportConfig* params) {
   CHECK(args[offset]->IsUint32());  // RSAKeyVariant
   params->variant =
       static_cast<RSAKeyVariant>(args[offset].As<Uint32>()->Value());
-  return Just(true);
+  return JustVoid();
 }
 
 WebCryptoKeyExportStatus RSAKeyExportTraits::DoExport(
@@ -293,7 +292,7 @@ void RSACipherConfig::MemoryInfo(MemoryTracker* tracker) const {
     tracker->TrackFieldWithSize("label", label.size());
 }
 
-Maybe<bool> RSACipherTraits::AdditionalConfig(
+Maybe<void> RSACipherTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -316,14 +315,14 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
       params->digest = EVP_get_digestbyname(*digest);
       if (params->digest == nullptr) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-        return Nothing<bool>();
+        return Nothing<void>();
       }
 
       if (IsAnyBufferSource(args[offset + 2])) {
         ArrayBufferOrViewContents<char> label(args[offset + 2]);
         if (UNLIKELY(!label.CheckSizeInt32())) {
           THROW_ERR_OUT_OF_RANGE(env, "label is too big");
-          return Nothing<bool>();
+          return Nothing<void>();
         }
         params->label = label.ToCopy();
       }
@@ -331,10 +330,10 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
     }
     default:
       THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-      return Nothing<bool>();
+      return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 WebCryptoCipherStatus RSACipherTraits::DoCipher(Environment* env,
@@ -500,7 +499,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
-Maybe<bool> GetRsaKeyDetail(Environment* env,
+Maybe<void> GetRsaKeyDetail(Environment* env,
                             const KeyObjectData& key,
                             Local<Object> target) {
   const BIGNUM* e;  // Public Exponent
@@ -529,7 +528,7 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                 Number::New(env->isolate(),
                             static_cast<double>(BignumPointer::GetBitCount(n))))
           .IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   std::unique_ptr<BackingStore> public_exponent;
@@ -549,7 +548,7 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                 env->public_exponent_string(),
                 ArrayBuffer::New(env->isolate(), std::move(public_exponent)))
           .IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (type == EVP_PKEY_RSA_PSS) {
@@ -581,7 +580,7 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                   env->hash_algorithm_string(),
                   OneByteString(env->isolate(), OBJ_nid2ln(hash_nid)))
               .IsNothing()) {
-        return Nothing<bool>();
+        return Nothing<void>();
       }
 
       if (params->maskGenAlgorithm != nullptr) {
@@ -604,14 +603,14 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                     env->mgf1_hash_algorithm_string(),
                     OneByteString(env->isolate(), OBJ_nid2ln(mgf1_hash_nid)))
                 .IsNothing()) {
-          return Nothing<bool>();
+          return Nothing<void>();
         }
       }
 
       if (params->saltLength != nullptr) {
         if (ASN1_INTEGER_get_int64(&salt_length, params->saltLength) != 1) {
           ThrowCryptoError(env, ERR_get_error(), "ASN1_INTEGER_get_in64 error");
-          return Nothing<bool>();
+          return Nothing<void>();
         }
       }
 
@@ -621,12 +620,12 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                   env->salt_length_string(),
                   Number::New(env->isolate(), static_cast<double>(salt_length)))
               .IsNothing()) {
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
   }
 
-  return Just<bool>(true);
+  return JustVoid();
 }
 
 namespace RSAAlg {

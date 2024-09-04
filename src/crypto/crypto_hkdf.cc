@@ -10,8 +10,9 @@
 namespace node {
 
 using v8::FunctionCallbackInfo;
-using v8::Just;
+using v8::JustVoid;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Uint32;
 using v8::Value;
@@ -31,16 +32,13 @@ HKDFConfig& HKDFConfig::operator=(HKDFConfig&& other) noexcept {
   return *new (this) HKDFConfig(std::move(other));
 }
 
-Maybe<bool> HKDFTraits::EncodeOutput(
-    Environment* env,
-    const HKDFConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> HKDFTraits::EncodeOutput(Environment* env,
+                                           const HKDFConfig& params,
+                                           ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
-Maybe<bool> HKDFTraits::AdditionalConfig(
+Maybe<void> HKDFTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -59,11 +57,11 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
   params->digest = ncrypto::getDigestByName(hash.ToStringView());
   if (params->digest == nullptr) {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *hash);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<bool>());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<void>());
   params->key = key->Data().addRef();
 
   ArrayBufferOrViewContents<char> salt(args[offset + 2]);
@@ -71,11 +69,11 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
 
   if (UNLIKELY(!salt.CheckSizeInt32())) {
     THROW_ERR_OUT_OF_RANGE(env, "salt is too big");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
   if (UNLIKELY(!info.CheckSizeInt32())) {
     THROW_ERR_OUT_OF_RANGE(env, "info is too big");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   params->salt = mode == kCryptoJobAsync
@@ -92,10 +90,10 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
   // 8-bit counter to each HMAC'd message, starting at 1.
   if (!ncrypto::checkHkdfLength(params->digest, params->length)) {
     THROW_ERR_CRYPTO_INVALID_KEYLEN(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool HKDFTraits::DeriveBits(

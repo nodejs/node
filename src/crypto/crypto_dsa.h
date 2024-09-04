@@ -28,7 +28,7 @@ struct DsaKeyGenTraits final {
 
   static EVPKeyCtxPointer Setup(DsaKeyPairGenConfig* params);
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
@@ -47,7 +47,7 @@ struct DSAKeyExportTraits final {
   static constexpr const char* JobName = "DSAKeyExportJob";
   using AdditionalParameters = DSAKeyExportConfig;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       DSAKeyExportConfig* config);
@@ -60,7 +60,7 @@ struct DSAKeyExportTraits final {
 
 using DSAKeyExportJob = KeyExportJob<DSAKeyExportTraits>;
 
-v8::Maybe<bool> GetDsaKeyDetail(Environment* env,
+v8::Maybe<void> GetDsaKeyDetail(Environment* env,
                                 const KeyObjectData& key,
                                 v8::Local<v8::Object> target);
 

@@ -245,9 +245,8 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     }
   }
 
-  v8::Maybe<bool> ToResult(
-      v8::Local<v8::Value>* err,
-      v8::Local<v8::Value>* result) override {
+  v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
+                           v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
     CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
 
@@ -258,11 +257,18 @@ class CipherJob final : public CryptoJob<CipherTraits> {
       CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
-      return v8::Just(!result->IsEmpty());
+      if (result->IsEmpty()) {
+        return v8::Nothing<void>();
+      }
+    } else {
+      *result = v8::Undefined(env->isolate());
+      if (!errors->ToException(env).ToLocal(err)) {
+        return v8::Nothing<void>();
+      }
     }
-
-    *result = v8::Undefined(env->isolate());
-    return v8::Just(errors->ToException(env).ToLocal(err));
+    CHECK(!result->IsEmpty());
+    CHECK(!err->IsEmpty());
+    return v8::JustVoid();
   }
 
   SET_SELF_SIZE(CipherJob)

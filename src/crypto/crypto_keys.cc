@@ -516,19 +516,23 @@ KeyObjectData ImportJWKAsymmetricKey(Environment* env,
   return {};
 }
 
-Maybe<bool> GetSecretKeyDetail(Environment* env,
+Maybe<void> GetSecretKeyDetail(Environment* env,
                                const KeyObjectData& key,
                                Local<Object> target) {
   // For the secret key detail, all we care about is the length,
   // converted to bits.
-
   size_t length = key.GetSymmetricKeySize() * CHAR_BIT;
-  return target->Set(env->context(),
-                     env->length_string(),
-                     Number::New(env->isolate(), static_cast<double>(length)));
+  if (target
+          ->Set(env->context(),
+                env->length_string(),
+                Number::New(env->isolate(), static_cast<double>(length)))
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+  return JustVoid();
 }
 
-Maybe<bool> GetAsymmetricKeyDetail(Environment* env,
+Maybe<void> GetAsymmetricKeyDetail(Environment* env,
                                    const KeyObjectData& key,
                                    Local<Object> target) {
   switch (EVP_PKEY_id(key.GetAsymmetricKey().get())) {
@@ -540,7 +544,7 @@ Maybe<bool> GetAsymmetricKeyDetail(Environment* env,
     case EVP_PKEY_DH: return GetDhKeyDetail(env, key, target);
   }
   THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-  return Nothing<bool>();
+  return Nothing<void>();
 }
 }  // namespace
 
