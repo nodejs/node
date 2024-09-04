@@ -432,30 +432,30 @@ Maybe<bool> DHKeyExportTraits::AdditionalConfig(
 }
 
 WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
-    std::shared_ptr<KeyObjectData> key_data,
+    const KeyObjectData& key_data,
     WebCryptoKeyFormat format,
     const DHKeyExportConfig& params,
     ByteSource* out) {
-  CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
 
   switch (format) {
     case kWebCryptoKeyFormatPKCS8:
-      if (key_data->GetKeyType() != kKeyTypePrivate)
+      if (key_data.GetKeyType() != kKeyTypePrivate)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data.get(), out);
+      return PKEY_PKCS8_Export(key_data, out);
     case kWebCryptoKeyFormatSPKI:
-      if (key_data->GetKeyType() != kKeyTypePublic)
+      if (key_data.GetKeyType() != kKeyTypePublic)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data.get(), out);
+      return PKEY_SPKI_Export(key_data, out);
     default:
       UNREACHABLE();
   }
 }
 
 namespace {
-ByteSource StatelessDiffieHellmanThreadsafe(const ManagedEVPPKey& our_key,
-                                            const ManagedEVPPKey& their_key) {
-  auto dp = DHPointer::stateless(our_key.pkey(), their_key.pkey());
+ByteSource StatelessDiffieHellmanThreadsafe(const EVPKeyPointer& our_key,
+                                            const EVPKeyPointer& their_key) {
+  auto dp = DHPointer::stateless(our_key, their_key);
   if (!dp) return {};
 
   return ByteSource::Allocated(dp.release());
@@ -467,13 +467,13 @@ void Stateless(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject() && args[1]->IsObject());
   KeyObjectHandle* our_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
-  CHECK_EQ(our_key_object->Data()->GetKeyType(), kKeyTypePrivate);
+  CHECK_EQ(our_key_object->Data().GetKeyType(), kKeyTypePrivate);
   KeyObjectHandle* their_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
-  CHECK_NE(their_key_object->Data()->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(their_key_object->Data().GetKeyType(), kKeyTypeSecret);
 
-  ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
-  ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
+  const auto& our_key = our_key_object->Data().GetAsymmetricKey();
+  const auto& their_key = their_key_object->Data().GetAsymmetricKey();
 
   Local<Value> out;
   if (!StatelessDiffieHellmanThreadsafe(our_key, their_key)
@@ -503,14 +503,14 @@ Maybe<bool> DHBitsTraits::AdditionalConfig(
   ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<bool>());
   ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<bool>());
 
-  if (private_key->Data()->GetKeyType() != kKeyTypePrivate ||
-      public_key->Data()->GetKeyType() != kKeyTypePublic) {
+  if (private_key->Data().GetKeyType() != kKeyTypePrivate ||
+      public_key->Data().GetKeyType() != kKeyTypePublic) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
     return Nothing<bool>();
   }
 
-  params->public_key = public_key->Data();
-  params->private_key = private_key->Data();
+  params->public_key = public_key->Data().addRef();
+  params->private_key = private_key->Data().addRef();
 
   return Just(true);
 }
@@ -528,18 +528,15 @@ bool DHBitsTraits::DeriveBits(
     Environment* env,
     const DHBitsConfig& params,
     ByteSource* out) {
-  *out = StatelessDiffieHellmanThreadsafe(
-      params.private_key->GetAsymmetricKey(),
-      params.public_key->GetAsymmetricKey());
+  *out = StatelessDiffieHellmanThreadsafe(params.private_key.GetAsymmetricKey(),
+                                          params.public_key.GetAsymmetricKey());
   return true;
 }
 
-Maybe<bool> GetDhKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_DH);
+Maybe<bool> GetDhKeyDetail(Environment* env,
+                           const KeyObjectData& key,
+                           Local<Object> target) {
+  CHECK_EQ(EVP_PKEY_id(key.GetAsymmetricKey().get()), EVP_PKEY_DH);
   return Just(true);
 }
 

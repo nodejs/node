@@ -162,7 +162,7 @@ HmacConfig& HmacConfig::operator=(HmacConfig&& other) noexcept {
 }
 
 void HmacConfig::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("key", key.get());
+  tracker->TrackField("key", key);
   // If the job is sync, then the HmacConfig does not own the data
   if (job_mode == kCryptoJobAsync) {
     tracker->TrackFieldWithSize("data", data.size());
@@ -195,7 +195,7 @@ Maybe<bool> HmacTraits::AdditionalConfig(
 
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 2], Nothing<bool>());
-  params->key = key->Data();
+  params->key = key->Data().addRef();
 
   ArrayBufferOrViewContents<char> data(args[offset + 3]);
   if (UNLIKELY(!data.CheckSizeInt32())) {
@@ -226,13 +226,11 @@ bool HmacTraits::DeriveBits(
     ByteSource* out) {
   HMACCtxPointer ctx(HMAC_CTX_new());
 
-  if (!ctx ||
-      !HMAC_Init_ex(
-          ctx.get(),
-          params.key->GetSymmetricKey(),
-          params.key->GetSymmetricKeySize(),
-          params.digest,
-          nullptr)) {
+  if (!ctx || !HMAC_Init_ex(ctx.get(),
+                            params.key.GetSymmetricKey(),
+                            params.key.GetSymmetricKeySize(),
+                            params.digest,
+                            nullptr)) {
     return false;
   }
 

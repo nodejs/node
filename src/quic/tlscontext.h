@@ -147,7 +147,7 @@ class TLSContext final : public MemoryRetainer,
 
     // The TLS private key(s) to use for this session.
     // JavaScript option name "keys"
-    std::vector<std::shared_ptr<crypto::KeyObjectData>> keys;
+    std::vector<crypto::KeyObjectData> keys;
 
     // Collection of certificates to use for this session.
     // JavaScript option name "certs"

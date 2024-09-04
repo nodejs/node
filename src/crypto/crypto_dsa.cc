@@ -103,38 +103,37 @@ Maybe<bool> DSAKeyExportTraits::AdditionalConfig(
 }
 
 WebCryptoKeyExportStatus DSAKeyExportTraits::DoExport(
-    std::shared_ptr<KeyObjectData> key_data,
+    const KeyObjectData& key_data,
     WebCryptoKeyFormat format,
     const DSAKeyExportConfig& params,
     ByteSource* out) {
-  CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
 
   switch (format) {
     case kWebCryptoKeyFormatRaw:
       // Not supported for RSA keys of either type
       return WebCryptoKeyExportStatus::FAILED;
     case kWebCryptoKeyFormatPKCS8:
-      if (key_data->GetKeyType() != kKeyTypePrivate)
+      if (key_data.GetKeyType() != kKeyTypePrivate)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data.get(), out);
+      return PKEY_PKCS8_Export(key_data, out);
     case kWebCryptoKeyFormatSPKI:
-      if (key_data->GetKeyType() != kKeyTypePublic)
+      if (key_data.GetKeyType() != kKeyTypePublic)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data.get(), out);
+      return PKEY_SPKI_Export(key_data, out);
     default:
       UNREACHABLE();
   }
 }
 
-Maybe<bool> GetDsaKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
+Maybe<bool> GetDsaKeyDetail(Environment* env,
+                            const KeyObjectData& key,
+                            Local<Object> target) {
   const BIGNUM* p;  // Modulus length
   const BIGNUM* q;  // Divisor length
 
-  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
+  Mutex::ScopedLock lock(key.mutex());
+  const auto& m_pkey = key.GetAsymmetricKey();
   int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_DSA);
 

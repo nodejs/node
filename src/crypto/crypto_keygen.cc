@@ -81,8 +81,7 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
 Maybe<bool> SecretKeyGenTraits::EncodeKey(Environment* env,
                                           SecretKeyGenConfig* params,
                                           Local<Value>* result) {
-  std::shared_ptr<KeyObjectData> data =
-      KeyObjectData::CreateSecret(std::move(params->out));
+  auto data = KeyObjectData::CreateSecret(std::move(params->out));
   return Just(KeyObjectHandle::Create(env, data).ToLocal(result));
 }
 

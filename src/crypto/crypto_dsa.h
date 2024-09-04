@@ -52,19 +52,17 @@ struct DSAKeyExportTraits final {
       unsigned int offset,
       DSAKeyExportConfig* config);
 
-  static WebCryptoKeyExportStatus DoExport(
-      std::shared_ptr<KeyObjectData> key_data,
-      WebCryptoKeyFormat format,
-      const DSAKeyExportConfig& params,
-      ByteSource* out);
+  static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
+                                           WebCryptoKeyFormat format,
+                                           const DSAKeyExportConfig& params,
+                                           ByteSource* out);
 };
 
 using DSAKeyExportJob = KeyExportJob<DSAKeyExportTraits>;
 
-v8::Maybe<bool> GetDsaKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    v8::Local<v8::Object> target);
+v8::Maybe<bool> GetDsaKeyDetail(Environment* env,
+                                const KeyObjectData& key,
+                                v8::Local<v8::Object> target);
 
 namespace DSAAlg {
 void Initialize(Environment* env, v8::Local<v8::Object> target);

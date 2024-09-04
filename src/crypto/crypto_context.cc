@@ -613,15 +613,14 @@ void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
 
-Maybe<void> SecureContext::UseKey(Environment* env,
-                                  std::shared_ptr<KeyObjectData> key) {
-  if (key->GetKeyType() != KeyType::kKeyTypePrivate) {
+Maybe<void> SecureContext::UseKey(Environment* env, const KeyObjectData& key) {
+  if (key.GetKeyType() != KeyType::kKeyTypePrivate) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
     return Nothing<void>();
   }
 
   ClearErrorOnReturn clear_error_on_return;
-  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get())) {
+  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key.GetAsymmetricKey().get())) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
     return Nothing<void>();
   }
