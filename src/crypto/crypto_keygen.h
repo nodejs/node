@@ -129,7 +129,7 @@ struct KeyPairGenTraits final {
       AsyncWrap::PROVIDER_KEYPAIRGENREQUEST;
   static constexpr const char* JobName = KeyPairAlgorithmTraits::JobName;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
@@ -141,7 +141,7 @@ struct KeyPairGenTraits final {
     // number of input parameters specific to each job type.
     if (KeyPairAlgorithmTraits::AdditionalConfig(mode, args, offset, params)
             .IsNothing()) {
-      return v8::Just(false);
+      return v8::Nothing<void>();
     }
 
     params->public_key_encoding = KeyObjectData::GetPublicKeyEncodingFromJs(
@@ -153,7 +153,7 @@ struct KeyPairGenTraits final {
     if (!private_key_encoding.IsEmpty())
       params->private_key_encoding = private_key_encoding.Release();
 
-    return v8::Just(true);
+    return v8::JustVoid();
   }
 
   static KeyGenJobStatus DoKeyGen(
@@ -209,7 +209,7 @@ struct SecretKeyGenTraits final {
       AsyncWrap::PROVIDER_KEYGENREQUEST;
   static constexpr const char* JobName = "SecretKeyGenJob";
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
@@ -281,7 +281,7 @@ struct NidKeyPairGenTraits final {
 
   static EVPKeyCtxPointer Setup(NidKeyPairGenConfig* params);
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,

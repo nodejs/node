@@ -49,7 +49,7 @@ struct PBKDF2Traits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_PBKDF2REQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,

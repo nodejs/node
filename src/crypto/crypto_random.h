@@ -26,7 +26,7 @@ struct RandomBytesTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_RANDOMBYTESREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
@@ -63,7 +63,7 @@ struct RandomPrimeTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_RANDOMPRIMEREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
@@ -99,7 +99,7 @@ struct CheckPrimeTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_CHECKPRIMEREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,

@@ -17,6 +17,7 @@ using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -457,7 +458,7 @@ Maybe<bool> HashTraits::EncodeOutput(
   return Just(!result->IsEmpty());
 }
 
-Maybe<bool> HashTraits::AdditionalConfig(
+Maybe<void> HashTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -471,13 +472,13 @@ Maybe<bool> HashTraits::AdditionalConfig(
   params->digest = EVP_get_digestbyname(*digest);
   if (UNLIKELY(params->digest == nullptr)) {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   ArrayBufferOrViewContents<char> data(args[offset + 1]);
   if (UNLIKELY(!data.CheckSizeInt32())) {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
   params->in = mode == kCryptoJobAsync
       ? data.ToCopy()
@@ -493,12 +494,12 @@ Maybe<bool> HashTraits::AdditionalConfig(
     if (params->length != expected) {
       if ((EVP_MD_flags(params->digest) & EVP_MD_FLAG_XOF) == 0) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Digest method not supported");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool HashTraits::DeriveBits(

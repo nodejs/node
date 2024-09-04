@@ -67,7 +67,7 @@ struct HmacTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_SIGNREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,

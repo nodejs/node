@@ -24,6 +24,7 @@ using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -338,7 +339,7 @@ void Check(const FunctionCallbackInfo<Value>& args) {
 //   * Private type
 //   * Cipher
 //   * Passphrase
-Maybe<bool> DhKeyGenTraits::AdditionalConfig(
+Maybe<void> DhKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -350,7 +351,7 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
     auto group = DHPointer::FindGroup(group_name.ToStringView());
     if (!group) {
       THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     static constexpr int kStandardizedGenerator = 2;
@@ -363,14 +364,14 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
       int size = args[*offset].As<Int32>()->Value();
       if (size < 0) {
         THROW_ERR_OUT_OF_RANGE(env, "Invalid prime size");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
       params->params.prime = size;
     } else {
       ArrayBufferOrViewContents<unsigned char> input(args[*offset]);
       if (UNLIKELY(!input.CheckSizeInt32())) {
         THROW_ERR_OUT_OF_RANGE(env, "prime is too big");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
       params->params.prime = BignumPointer(input.data(), input.size());
     }
@@ -380,7 +381,7 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
     *offset += 2;
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
@@ -424,11 +425,11 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
   return ctx;
 }
 
-Maybe<bool> DHKeyExportTraits::AdditionalConfig(
+Maybe<void> DHKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     DHKeyExportConfig* params) {
-  return Just(true);
+  return JustVoid();
 }
 
 WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
@@ -487,7 +488,7 @@ void Stateless(const FunctionCallbackInfo<Value>& args) {
 }
 }  // namespace
 
-Maybe<bool> DHBitsTraits::AdditionalConfig(
+Maybe<void> DHBitsTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -500,19 +501,19 @@ Maybe<bool> DHBitsTraits::AdditionalConfig(
   KeyObjectHandle* private_key;
   KeyObjectHandle* public_key;
 
-  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<bool>());
-  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<bool>());
+  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<void>());
+  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<void>());
 
   if (private_key->Data().GetKeyType() != kKeyTypePrivate ||
       public_key->Data().GetKeyType() != kKeyTypePublic) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   params->public_key = public_key->Data().addRef();
   params->private_key = private_key->Data().addRef();
 
-  return Just(true);
+  return JustVoid();
 }
 
 Maybe<bool> DHBitsTraits::EncodeOutput(

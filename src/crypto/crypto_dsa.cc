@@ -28,6 +28,7 @@ namespace node {
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -78,7 +79,7 @@ EVPKeyCtxPointer DsaKeyGenTraits::Setup(DsaKeyPairGenConfig* params) {
 //   7. Private Type
 //   8. Cipher
 //   9. Passphrase
-Maybe<bool> DsaKeyGenTraits::AdditionalConfig(
+Maybe<void> DsaKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -92,14 +93,14 @@ Maybe<bool> DsaKeyGenTraits::AdditionalConfig(
 
   *offset += 2;
 
-  return Just(true);
+  return JustVoid();
 }
 
-Maybe<bool> DSAKeyExportTraits::AdditionalConfig(
+Maybe<void> DSAKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     DSAKeyExportConfig* params) {
-  return Just(true);
+  return JustVoid();
 }
 
 WebCryptoKeyExportStatus DSAKeyExportTraits::DoExport(

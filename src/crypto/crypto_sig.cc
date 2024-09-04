@@ -21,6 +21,7 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -627,7 +628,7 @@ void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-Maybe<bool> SignTraits::AdditionalConfig(
+Maybe<void> SignTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -657,7 +658,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
   ArrayBufferOrViewContents<char> data(args[offset + 5]);
   if (UNLIKELY(!data.CheckSizeInt32())) {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
   params->data = mode == kCryptoJobAsync
       ? data.ToCopy()
@@ -668,7 +669,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     params->digest = EVP_get_digestbyname(*digest);
     if (params->digest == nullptr) {
       THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -687,7 +688,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     if (params->dsa_encoding != kSigEncDER &&
         params->dsa_encoding != kSigEncP1363) {
       THROW_ERR_OUT_OF_RANGE(env, "invalid signature encoding");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -695,7 +696,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     ArrayBufferOrViewContents<char> signature(args[offset + 10]);
     if (UNLIKELY(!signature.CheckSizeInt32())) {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
     // If this is an EC key (assuming ECDSA) we need to convert the
     // the signature from WebCrypto format into DER format...
@@ -710,7 +711,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     }
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool SignTraits::DeriveBits(

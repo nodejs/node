@@ -49,7 +49,7 @@ struct DhKeyGenTraits final {
 
   static EVPKeyCtxPointer Setup(DhKeyPairGenConfig* params);
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
@@ -68,7 +68,7 @@ struct DHKeyExportTraits final {
   static constexpr const char* JobName = "DHKeyExportJob";
   using AdditionalParameters = DHKeyExportConfig;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       DHKeyExportConfig* config);
@@ -95,7 +95,7 @@ struct DHBitsTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,

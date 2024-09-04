@@ -12,6 +12,7 @@ namespace node {
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
+using v8::JustVoid;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Uint32;
@@ -52,7 +53,7 @@ Maybe<bool> ScryptTraits::EncodeOutput(
   return Just(!result->IsEmpty());
 }
 
-Maybe<bool> ScryptTraits::AdditionalConfig(
+Maybe<void> ScryptTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -66,12 +67,12 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
 
   if (UNLIKELY(!pass.CheckSizeInt32())) {
     THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (UNLIKELY(!salt.CheckSizeInt32())) {
     THROW_ERR_OUT_OF_RANGE(env, "salt is too large");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   params->pass = mode == kCryptoJobAsync
@@ -109,10 +110,10 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
     } else {
       THROW_ERR_CRYPTO_INVALID_SCRYPT_PARAMS(env);
     }
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool ScryptTraits::DeriveBits(

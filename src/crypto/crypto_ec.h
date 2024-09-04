@@ -71,7 +71,7 @@ struct ECDHBitsTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
@@ -107,7 +107,7 @@ struct EcKeyGenTraits final {
 
   static EVPKeyCtxPointer Setup(EcKeyPairGenConfig* params);
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
@@ -129,7 +129,7 @@ struct ECKeyExportTraits final {
   static constexpr const char* JobName = "ECKeyExportJob";
   using AdditionalParameters = ECKeyExportConfig;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       ECKeyExportConfig* config);

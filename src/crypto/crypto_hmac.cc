@@ -19,6 +19,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -170,7 +171,7 @@ void HmacConfig::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-Maybe<bool> HmacTraits::AdditionalConfig(
+Maybe<void> HmacTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -190,17 +191,17 @@ Maybe<bool> HmacTraits::AdditionalConfig(
   params->digest = EVP_get_digestbyname(*digest);
   if (params->digest == nullptr) {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 2], Nothing<bool>());
+  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 2], Nothing<void>());
   params->key = key->Data().addRef();
 
   ArrayBufferOrViewContents<char> data(args[offset + 3]);
   if (UNLIKELY(!data.CheckSizeInt32())) {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
   params->data = mode == kCryptoJobAsync
       ? data.ToCopy()
@@ -210,14 +211,14 @@ Maybe<bool> HmacTraits::AdditionalConfig(
     ArrayBufferOrViewContents<char> signature(args[offset + 4]);
     if (UNLIKELY(!signature.CheckSizeInt32())) {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
     params->signature = mode == kCryptoJobAsync
         ? signature.ToCopy()
         : signature.ToByteSource();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool HmacTraits::DeriveBits(

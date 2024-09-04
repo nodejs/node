@@ -19,6 +19,7 @@ using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -36,7 +37,7 @@ Maybe<bool> RandomBytesTraits::EncodeOutput(
   return Just(!result->IsEmpty());
 }
 
-Maybe<bool> RandomBytesTraits::AdditionalConfig(
+Maybe<void> RandomBytesTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -55,7 +56,7 @@ Maybe<bool> RandomBytesTraits::AdditionalConfig(
   params->buffer = in.data() + byte_offset;
   params->size = size;
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool RandomBytesTraits::DeriveBits(
@@ -86,7 +87,7 @@ Maybe<bool> RandomPrimeTraits::EncodeOutput(
   return Just(true);
 }
 
-Maybe<bool> RandomPrimeTraits::AdditionalConfig(
+Maybe<void> RandomPrimeTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -104,7 +105,7 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
     params->add.reset(add.data(), add.size());
     if (!params->add) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -113,7 +114,7 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
     params->rem.reset(rem.data(), rem.size());
     if (!params->rem) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -128,14 +129,14 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
       // loop within OpenSSL, blocking the main thread or one of the threads
       // in the thread pool.
       THROW_ERR_OUT_OF_RANGE(env, "invalid options.add");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     if (params->rem && params->add <= params->rem) {
       // This would definitely lead to an infinite loop if allowed since
       // OpenSSL does not check this condition.
       THROW_ERR_OUT_OF_RANGE(env, "invalid options.rem");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
@@ -144,10 +145,10 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
   params->prime = BignumPointer::NewSecure();
   if (!params->prime) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool RandomPrimeTraits::DeriveBits(Environment* env,
@@ -174,7 +175,7 @@ void CheckPrimeConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("prime", candidate ? candidate.byteLength() : 0);
 }
 
-Maybe<bool> CheckPrimeTraits::AdditionalConfig(
+Maybe<void> CheckPrimeTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -187,7 +188,7 @@ Maybe<bool> CheckPrimeTraits::AdditionalConfig(
   params->checks = args[offset + 1].As<Int32>()->Value();
   CHECK_GE(params->checks, 0);
 
-  return Just(true);
+  return JustVoid();
 }
 
 bool CheckPrimeTraits::DeriveBits(

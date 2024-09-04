@@ -15,6 +15,7 @@ namespace node {
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Object;
@@ -31,7 +32,7 @@ namespace crypto {
 //   6. Private Type
 //   7. Cipher
 //   8. Passphrase
-Maybe<bool> NidKeyPairGenTraits::AdditionalConfig(
+Maybe<void> NidKeyPairGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -41,7 +42,7 @@ Maybe<bool> NidKeyPairGenTraits::AdditionalConfig(
 
   *offset += 1;
 
-  return Just(true);
+  return JustVoid();
 }
 
 EVPKeyCtxPointer NidKeyPairGenTraits::Setup(NidKeyPairGenConfig* params) {
@@ -57,7 +58,7 @@ void SecretKeyGenConfig::MemoryInfo(MemoryTracker* tracker) const {
   if (out) tracker->TrackFieldWithSize("out", length);
 }
 
-Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
+Maybe<void> SecretKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -66,7 +67,7 @@ Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
   uint32_t bits = args[*offset].As<Uint32>()->Value();
   params->length = bits / CHAR_BIT;
   *offset += 1;
-  return Just(true);
+  return JustVoid();
 }
 
 KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,

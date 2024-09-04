@@ -18,6 +18,7 @@ namespace node {
 
 using v8::FunctionCallbackInfo;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -452,7 +453,7 @@ void AESCipherConfig::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-Maybe<bool> AESCipherTraits::AdditionalConfig(
+Maybe<void> AESCipherTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -482,22 +483,22 @@ Maybe<bool> AESCipherTraits::AdditionalConfig(
   params->cipher = EVP_get_cipherbynid(cipher_nid);
   if (params->cipher == nullptr) {
     THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   int cipher_op_mode = EVP_CIPHER_mode(params->cipher);
   if (cipher_op_mode != EVP_CIPH_WRAP_MODE) {
     if (!ValidateIV(env, mode, args[offset + 1], params)) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
     if (cipher_op_mode == EVP_CIPH_CTR_MODE) {
       if (!ValidateCounter(env, args[offset + 2], params)) {
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     } else if (cipher_op_mode == EVP_CIPH_GCM_MODE) {
       if (!ValidateAuthTag(env, mode, cipher_mode, args[offset + 2], params) ||
           !ValidateAdditionalData(env, mode, args[offset + 3], params)) {
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
   } else {
@@ -507,10 +508,10 @@ Maybe<bool> AESCipherTraits::AdditionalConfig(
   if (params->iv.size() <
       static_cast<size_t>(EVP_CIPHER_iv_length(params->cipher))) {
     THROW_ERR_CRYPTO_INVALID_IV(env);
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 WebCryptoCipherStatus AESCipherTraits::DoCipher(Environment* env,
