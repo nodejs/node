@@ -391,7 +391,7 @@ test('Test assertion messages', () => {
   assert.throws(
     () => assert.strictEqual(1, 2, 'oh no'),
     {
-      message: 'oh no',
+      message: 'oh no\n\n1 !== 2\n',
       generatedMessage: false
     }
   );
@@ -1203,7 +1203,7 @@ test('Additional assert', () => {
       ),
       {
         actual,
-        message,
+        message: "message\n+ actual - expected\n\n+ 'foobar'\n- {\n-   message: 'foobar'\n- }",
         operator: 'throws',
         generatedMessage: false
       }
@@ -1247,6 +1247,17 @@ test('Additional assert', () => {
       name: 'AssertionError',
       message: 'Expected "actual" not to be reference-equal to "expected":\n\n' +
               '{\n  a: true\n}\n'
+    }
+  );
+
+  assert.throws(
+    () => {
+      assert.deepStrictEqual({ a: true }, { a: false }, 'custom message');
+    },
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      message: 'custom message\n+ actual - expected\n\n  {\n+   a: true\n-   a: false\n  }'
     }
   );
 
