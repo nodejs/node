@@ -52,13 +52,10 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
 
 // Helper function to promisify exec
 function execPromise(cmd) {
-  return new Promise((resolve, reject) => {
-    exec(cmd, (err, stdout, stderr) => {
-      if (err) {
-        reject({ ...err, stdout, stderr });
-      } else {
-        resolve({ stdout, stderr });
-      }
-    });
+  const { promise, resolve, reject } = Promise.withResolvers();
+  exec(cmb, (err, stdout, stderr) => {
+    if (err) return reject({...err, stdout, stderr});
+    resolve({ stdout, stderr });
   });
+  return promise;
 }
