@@ -96,7 +96,7 @@ function createBase64URL(mime, body) {
   {
     const body = 'null';
     const plainESMURL = createURL('invalid', body);
-    await assert.rejects(import(plainESMURL), { code: 'ERR_UNKNOWN_MODULE_FORMAT' })
+    await assert.rejects(import(plainESMURL), { code: 'ERR_UNKNOWN_MODULE_FORMAT' });
   }
   {
     const plainESMURL = 'data:text/javascript,export%20default%202';
