@@ -1406,6 +1406,9 @@ Follows [ECMAScript module][] resolution rules.
 Use [`--require`][] to load a [CommonJS module][].
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
+Modules are preloaded into the main thread as well as any worker threads,
+forked processes, or clustered processes.
+
 ### `--input-type=type`
 
 <!-- YAML
@@ -2054,6 +2057,9 @@ rules. `module` may be either a path to a file, or a node module name.
 Only CommonJS modules are supported.
 Use [`--import`][] to preload an [ECMAScript module][].
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
+
+Modules are preloaded into the main thread as well as any worker threads,
+forked processes, or clustered processes.
 
 ### `--run`
 
