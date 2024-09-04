@@ -60,7 +60,7 @@ struct DSAKeyExportTraits final {
 
 using DSAKeyExportJob = KeyExportJob<DSAKeyExportTraits>;
 
-v8::Maybe<bool> GetDsaKeyDetail(Environment* env,
+v8::Maybe<void> GetDsaKeyDetail(Environment* env,
                                 const KeyObjectData& key,
                                 v8::Local<v8::Object> target);
 

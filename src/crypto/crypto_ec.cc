@@ -965,11 +965,26 @@ KeyObjectData ImportJWKEcKey(Environment* env,
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
+<<<<<<< HEAD
 Maybe<bool> GetEcKeyDetail(Environment* env,
                            const KeyObjectData& key,
                            Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
+||||||| parent of 6b5b11a52a (src: convert more uses of Maybe<bool> to Maybe<void>)
+Maybe<bool> GetEcKeyDetail(
+    Environment* env,
+    std::shared_ptr<KeyObjectData> key,
+    Local<Object> target) {
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+=======
+Maybe<void> GetEcKeyDetail(Environment* env,
+                           std::shared_ptr<KeyObjectData> key,
+                           Local<Object> target) {
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+>>>>>>> 6b5b11a52a (src: convert more uses of Maybe<bool> to Maybe<void>)
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
@@ -978,10 +993,14 @@ Maybe<bool> GetEcKeyDetail(Environment* env,
   const EC_GROUP* group = EC_KEY_get0_group(ec);
   int nid = EC_GROUP_get_curve_name(group);
 
-  return target->Set(
-      env->context(),
-      env->named_curve_string(),
-      OneByteString(env->isolate(), OBJ_nid2sn(nid)));
+  if (target
+          ->Set(env->context(),
+                env->named_curve_string(),
+                OneByteString(env->isolate(), OBJ_nid2sn(nid)))
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+  return JustVoid();
 }
 
 // WebCrypto requires a different format for ECDSA signatures than

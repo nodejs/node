@@ -528,7 +528,7 @@ Maybe<bool> GetSecretKeyDetail(Environment* env,
                      Number::New(env->isolate(), static_cast<double>(length)));
 }
 
-Maybe<bool> GetAsymmetricKeyDetail(Environment* env,
+Maybe<void> GetAsymmetricKeyDetail(Environment* env,
                                    const KeyObjectData& key,
                                    Local<Object> target) {
   switch (EVP_PKEY_id(key.GetAsymmetricKey().get())) {
@@ -540,7 +540,7 @@ Maybe<bool> GetAsymmetricKeyDetail(Environment* env,
     case EVP_PKEY_DH: return GetDhKeyDetail(env, key, target);
   }
   THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-  return Nothing<bool>();
+  return Nothing<void>();
 }
 }  // namespace
 

@@ -18,7 +18,6 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
@@ -500,7 +499,7 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
-Maybe<bool> GetRsaKeyDetail(Environment* env,
+Maybe<void> GetRsaKeyDetail(Environment* env,
                             const KeyObjectData& key,
                             Local<Object> target) {
   const BIGNUM* e;  // Public Exponent
@@ -529,7 +528,7 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                 Number::New(env->isolate(),
                             static_cast<double>(BignumPointer::GetBitCount(n))))
           .IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   std::unique_ptr<BackingStore> public_exponent;
@@ -549,7 +548,7 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                 env->public_exponent_string(),
                 ArrayBuffer::New(env->isolate(), std::move(public_exponent)))
           .IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (type == EVP_PKEY_RSA_PSS) {
@@ -581,7 +580,7 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                   env->hash_algorithm_string(),
                   OneByteString(env->isolate(), OBJ_nid2ln(hash_nid)))
               .IsNothing()) {
-        return Nothing<bool>();
+        return Nothing<void>();
       }
 
       if (params->maskGenAlgorithm != nullptr) {
@@ -604,14 +603,14 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                     env->mgf1_hash_algorithm_string(),
                     OneByteString(env->isolate(), OBJ_nid2ln(mgf1_hash_nid)))
                 .IsNothing()) {
-          return Nothing<bool>();
+          return Nothing<void>();
         }
       }
 
       if (params->saltLength != nullptr) {
         if (ASN1_INTEGER_get_int64(&salt_length, params->saltLength) != 1) {
           ThrowCryptoError(env, ERR_get_error(), "ASN1_INTEGER_get_in64 error");
-          return Nothing<bool>();
+          return Nothing<void>();
         }
       }
 
@@ -621,12 +620,12 @@ Maybe<bool> GetRsaKeyDetail(Environment* env,
                   env->salt_length_string(),
                   Number::New(env->isolate(), static_cast<double>(salt_length)))
               .IsNothing()) {
-        return Nothing<bool>();
+        return Nothing<void>();
       }
     }
   }
 
-  return Just<bool>(true);
+  return JustVoid();
 }
 
 namespace RSAAlg {
