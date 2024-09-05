@@ -314,7 +314,8 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "setKey", SetKey);
     SetProtoMethod(isolate, tmpl, "setCert", SetCert);
     SetProtoMethod(isolate, tmpl, "addCACert", AddCACert);
-    SetProtoMethod(isolate, tmpl, "setAllowPartialTrustChain", SetAllowPartialTrustChain);
+    SetProtoMethod(
+        isolate, tmpl, "setAllowPartialTrustChain", SetAllowPartialTrustChain);
     SetProtoMethod(isolate, tmpl, "addCRL", AddCRL);
     SetProtoMethod(isolate, tmpl, "addRootCerts", AddRootCerts);
     SetProtoMethod(isolate, tmpl, "setCipherSuites", SetCipherSuites);
@@ -771,7 +772,8 @@ X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
   return owned_cert_store_cached_ = cert_store;
 }
 
-void SecureContext::SetAllowPartialTrustChain(const FunctionCallbackInfo<Value>& args) {
+void SecureContext::SetAllowPartialTrustChain(
+    const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   sc->SetX509StoreFlag(X509_V_FLAG_PARTIAL_CHAIN);
@@ -782,7 +784,9 @@ void SecureContext::SetCACert(const BIOPointer& bio) {
   if (!bio) return;
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    CHECK_EQ(1, X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509.get()));
+    CHECK_EQ(1,
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
+                                 x509.get()));
     CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
   }
 }
