@@ -104,7 +104,11 @@ function testCustomParam(keylen, expectedCipher) {
   }, /DH parameter is less than 1024 bits/);
 
   // Custom DHE parameters are supported (but discouraged).
-  await testCustomParam(1024, dheCipher);
+  if (!common.hasOpenSSL(3, 2)) {
+    await testCustomParam(1024, dheCipher);
+  } else {
+    await testCustomParam(3072, dheCipher);
+  }
   await testCustomParam(2048, dheCipher);
 
   // Invalid DHE parameters are discarded. ECDHE remains enabled.
