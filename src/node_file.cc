@@ -3155,7 +3155,9 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
 
   bool dest_exists = !error_code && dest_status.type() !=
                                         std::filesystem::file_type::not_found;
-  bool src_is_dir = src_status.type() == std::filesystem::file_type::directory;
+  bool src_is_dir =
+      (src_status.type() == std::filesystem::file_type::directory) ||
+      (dereference && src_status.type() == std::filesystem::file_type::symlink);
 
   if (!error_code) {
     // Check if src and dest are identical.
