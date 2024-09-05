@@ -756,6 +756,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   USE(sc->AddCert(env, std::move(bio)));
 }
 
+// NOLINTNEXTLINE(runtime/int)
 void SecureContext::SetX509StoreFlag(unsigned long flags) {
   X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
   CHECK_EQ(1, X509_STORE_set_flags(cert_store, flags));

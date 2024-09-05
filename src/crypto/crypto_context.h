@@ -64,7 +64,7 @@ class SecureContext final : public BaseObject {
   void SetCACert(const BIOPointer& bio);
   void SetRootCerts();
 
-  void SetX509StoreFlag(unsigned long flags);
+  void SetX509StoreFlag(unsigned long flags);  // NOLINT(runtime/int)
   X509_STORE* GetCertStoreOwnedByThisSecureContext();
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
