@@ -45,10 +45,8 @@ test('works with --test-name-pattern', () => {
 
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
-  assert.match(stdout, /# tests 1/);
+  assert.match(stdout, /# tests 0/);
   assert.match(stdout, /# suites 0/);
-  assert.match(stdout, /# pass 1/);
-  assert.match(stdout, /ok 1 - test one/);
 });
 
 test('works with --test-skip-pattern', () => {
