@@ -24,8 +24,8 @@ import tmpdir from '../common/tmpdir.js';
 tmpdir.refresh();
 
 let dirc = 0;
-function nextdir() {
-  return tmpdir.resolve(`copy_${++dirc}`);
+function nextdir(dirname) {
+  return tmpdir.resolve(dirname || `copy_${++dirc}`);
 }
 
 // Synchronous implementation of copy.
@@ -303,6 +303,16 @@ function nextdir() {
     () => cpSync(src, dest),
     { code: 'ERR_FS_CP_EINVAL' }
   );
+}
+
+// It must not throw error if attempt is made to copy to dest
+// directory with same prefix as src directory
+{
+  const src = nextdir('prefix');
+  const dest = nextdir('prefix-a');
+  mkdirSync(src);
+  mkdirSync(dest);
+  cpSync(src, dest, { recursive: true });
 }
 
 // It throws an error if attempt is made to copy socket.

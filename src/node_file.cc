@@ -3184,7 +3184,8 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
 
   std::string dest_path_str = dest_path.string();
   // Check if dest_path is a subdirectory of src_path.
-  if (src_is_dir && dest_path_str.starts_with(src_path.string())) {
+  if (src_is_dir && dest_path.has_parent_path() &&
+      dest_path.parent_path() == src_path) {
     std::string message = "Cannot copy " + src_path.string() +
                           " to a subdirectory of self " + dest_path.string();
     return THROW_ERR_FS_CP_EINVAL(env, message.c_str());
