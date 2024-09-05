@@ -30,15 +30,6 @@ const order = [
   'afterEach one: suite one - test',
   'afterEach two: suite one - test',
 
-  'beforeEach(): global',
-  'beforeEach one: test one',
-  'beforeEach two: test one',
-  'test one',
-
-  'afterEach(): global',
-  'afterEach one: test one',
-  'afterEach two: test one',
-
   'before suite two: suite two',
   'beforeEach(): global',
   'beforeEach one: suite two - test',

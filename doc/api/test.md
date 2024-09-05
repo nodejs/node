@@ -229,10 +229,10 @@ const { describe, it } = require('node:test');
 
 ## `only` tests
 
-If Node.js is started with the [`--test-only`][] command-line option, it is
-possible to skip all tests except for a selected subset by passing
-the `only` option to the tests that should run. When a test with the `only`
-option is set, all subtests are also run.
+If Node.js is started with the [`--test-only`][] command-line option, or test
+isolation is disabled, it is possible to skip all tests except for a selected
+subset by passing the `only` option to the tests that should run. When a test
+with the `only` option is set, all subtests are also run.
 If a suite has the `only` option set, all tests within the suite are run,
 unless it has descendants with the `only` option set, in which case only those
 tests are run.
