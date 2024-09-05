@@ -1110,6 +1110,16 @@ done:
   if (!ret) {
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
+      // OpenSSL's "unsupported" error without any context is very
+      // common and not very helpful, so we override it:
+      return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+          env, "Unsupported PKCS12 PFX data");
+    }
+#endif
+
     const char* str = ERR_reason_error_string(err);
     str = str != nullptr ? str : "Unknown error";
 
