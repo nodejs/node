@@ -392,6 +392,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(AddCACert);
   registry->Register(AddCRL);
   registry->Register(AddRootCerts);
+  registry->Register(SetAllowPartialTrustChain);
   registry->Register(SetCipherSuites);
   registry->Register(SetCiphers);
   registry->Register(SetSigalgs);
