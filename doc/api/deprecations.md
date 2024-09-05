@@ -2874,12 +2874,15 @@ Use [`request.destroy()`][] instead of [`request.abort()`][].
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54750
+    description: Runtime Deprecation.
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33294
     description: Documentation-only (supports [`--pending-deprecation`][]).
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The `node:repl` module exported the input and output stream twice. Use `.input`
 instead of `.inputStream` and `.output` instead of `.outputStream`.
@@ -2888,12 +2891,15 @@ instead of `.inputStream` and `.output` instead of `.outputStream`.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54750
+    description: Runtime Deprecation.
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33294
     description: Documentation-only (supports [`--pending-deprecation`][]).
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The `node:repl` module exports a `_builtinLibs` property that contains an array
 of built-in modules. It was incomplete so far and instead it's better to rely

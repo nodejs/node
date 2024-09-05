@@ -49,9 +49,9 @@ class REPLStream extends Stream {
 }
 
 function runAndWait(cmds, repl) {
-  const promise = repl.inputStream.wait();
+  const promise = repl.input.wait();
   for (const cmd of cmds) {
-    repl.inputStream.run(cmd);
+    repl.input.run(cmd);
   }
   return promise;
 }
@@ -65,7 +65,7 @@ async function tests(options) {
     ...options
   });
 
-  repl.inputStream.run([
+  repl.input.run([
     'function foo(x) { return x; }',
     'function koo() { console.log("abc"); }',
     'a = undefined;',

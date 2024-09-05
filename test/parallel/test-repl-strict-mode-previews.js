@@ -30,7 +30,7 @@ if (process.argv[2] === 'child') {
     }),
     useColors: false,
     terminal: true
-  }).inputStream.run('xyz');
+  }).input.run('xyz');
 } else {
   const assert = require('assert');
   const { spawnSync } = require('child_process');

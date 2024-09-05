@@ -265,6 +265,6 @@ function runTest(assertCleaned) {
       }
     }
 
-    repl.inputStream.run(test);
+    repl.input.run(test);
   });
 }
