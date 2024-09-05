@@ -526,7 +526,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     if (IsAnyStore(access_mode)) {
       // ES#sec-module-namespace-exotic-objects-set-p-v-receiver
       // ES#sec-module-namespace-exotic-objects-defineownproperty-p-desc
-      //
+      // 
       // Storing to a module namespace object is always an error or a no-op in
       // JS.
       return PropertyAccessInfo::Invalid(zone);

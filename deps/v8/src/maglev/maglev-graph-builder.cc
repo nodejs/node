@@ -2701,7 +2701,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
         access_info.holder().value());
   }
 
-  switch (access_info.kind()) {
+  switch (access_info.kind()) { 
     case compiler::PropertyAccessInfo::kFastAccessorConstant:
       return TryBuildPropertySetterCall(access_info, receiver,
                                         GetAccumulatorTagged());
