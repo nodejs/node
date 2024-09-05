@@ -123,6 +123,17 @@ can be added by:
   paste one of the existing entries and then update to match the
   import name for the dependency and the #define generated.
 
+* if the version of the dependency is reported in `process.versions`,
+  update `src/node_metadata.h` and `src/node_metadata.cc` so that the
+  version is not reported when the dependency is externalized.
+  Not reporting the version is better than incorrectly reporting
+  the version of the dependency bundled with Node.js, instead of the
+  version for the externalized dependency. Use one of the existing
+  externalized dependencies, like Undici, as an example of how to
+  update these files correctly. Make sure to run the tests with the
+  dependency externalized, as the tests will also need to be updated
+  to handle this properly.
+
 ## Supporting non-externalized dependencies with JavaScript code
 
 If the dependency consists of JavaScript in the
