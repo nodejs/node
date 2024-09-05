@@ -314,6 +314,7 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "setKey", SetKey);
     SetProtoMethod(isolate, tmpl, "setCert", SetCert);
     SetProtoMethod(isolate, tmpl, "addCACert", AddCACert);
+    SetProtoMethod(isolate, tmpl, "setAllowPartialTrustChain", SetAllowPartialTrustChain);
     SetProtoMethod(isolate, tmpl, "addCRL", AddCRL);
     SetProtoMethod(isolate, tmpl, "addRootCerts", AddRootCerts);
     SetProtoMethod(isolate, tmpl, "setCipherSuites", SetCipherSuites);
@@ -753,17 +754,35 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   USE(sc->AddCert(env, std::move(bio)));
 }
 
+void SecureContext::SetX509StoreFlag(unsigned long flags) {
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
+  CHECK_EQ(1, X509_STORE_set_flags(cert_store, flags));
+}
+
+X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
+  if (owned_cert_store_cached_ != nullptr) return owned_cert_store_cached_;
+
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  if (cert_store == GetOrCreateRootCertStore()) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+  }
+
+  return owned_cert_store_cached_ = cert_store;
+}
+
+void SecureContext::SetAllowPartialTrustChain(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
+  sc->SetX509StoreFlag(X509_V_FLAG_PARTIAL_CHAIN);
+}
+
 void SecureContext::SetCACert(const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
   if (!bio) return;
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-    }
-    CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
+    CHECK_EQ(1, X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509.get()));
     CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
   }
 }
@@ -793,11 +812,7 @@ Maybe<void> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
     return Nothing<void>();
   }
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
-  if (cert_store == GetOrCreateRootCertStore()) {
-    cert_store = NewRootCertStore();
-    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-  }
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
 
   CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
   CHECK_EQ(1,
@@ -1080,8 +1095,6 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   sc->issuer_.reset();
   sc->cert_.reset();
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-
   DeleteFnPtr<PKCS12, PKCS12_free> p12;
   EVPKeyPointer pkey;
   X509Pointer cert;
@@ -1135,11 +1148,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
     X509* ca = sk_X509_value(extra_certs.get(), i);
 
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-    }
-    X509_STORE_add_cert(cert_store, ca);
+    X509_STORE_add_cert(sc->GetCertStoreOwnedByThisSecureContext(), ca);
     SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
   }
   ret = true;

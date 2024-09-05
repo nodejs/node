@@ -1,0 +1,44 @@
+'use strict';
+const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+const assert = require('assert');
+const { once } = require('events');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
+
+// agent6-cert.pem is signed by intermediate cert of ca3.
+// The server has a cert chain of agent6->ca3->ca1(root) but
+
+async function test() {
+  const server = tls.createServer({
+    ca: fixtures.readKey('ca3-cert.pem'),
+    key: fixtures.readKey('agent6-key.pem'),
+    cert: fixtures.readKey('agent6-cert.pem'),
+  }, (socket) => socket.resume());
+  server.listen(0);
+  await once(server, 'listening');
+
+  const opts = {
+    port: server.address().port,
+    ca: fixtures.readKey('ca3-cert.pem'),
+    checkServerIdentity() {}
+  };
+
+  // Connecting succeeds with allowPartialTrustChain: true
+  const client = tls.connect({ ...opts, allowPartialTrustChain: true });
+  await once(client, 'secureConnect');
+  client.destroy();
+
+  // Consistency check: Connecting fails without allowPartialTrustChain: true
+  await assert.rejects(async () => {
+    const client = tls.connect(opts);
+    await once(client, 'secureConnect');
+  }, { code: 'UNABLE_TO_GET_ISSUER_CERT' });
+
+  server.close();
+}
+
+test().catch((err) => process.nextTick(() => { throw err; }));
