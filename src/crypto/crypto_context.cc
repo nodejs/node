@@ -761,7 +761,7 @@ void SecureContext::SetX509StoreFlag(unsigned long flags) {
 }
 
 X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
-  if (owned_cert_store_cached_ != nullptr) return owned_cert_store_cached_;
+  if (own_cert_store_cache_ != nullptr) return own_cert_store_cache_;
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
   if (cert_store == GetOrCreateRootCertStore()) {
@@ -769,7 +769,7 @@ X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
     SSL_CTX_set_cert_store(ctx_.get(), cert_store);
   }
 
-  return owned_cert_store_cached_ = cert_store;
+  return own_cert_store_cache_ = cert_store;
 }
 
 void SecureContext::SetAllowPartialTrustChain(

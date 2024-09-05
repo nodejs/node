@@ -1,12 +1,9 @@
 'use strict';
 const common = require('../common');
-
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) { common.skip('missing crypto'); };
 
 const assert = require('assert');
 const { once } = require('events');
-const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 // agent6-cert.pem is signed by intermediate cert of ca3.
@@ -14,7 +11,8 @@ const fixtures = require('../common/fixtures');
 
 const { it, beforeEach, afterEach, describe } = require('node:test');
 
-describe('allowPartialTrustChain', function() {
+describe('allowPartialTrustChain', { skip: !common.hasCrypto }, function() {
+  const tls = require('tls');
   let server;
   let client;
   let opts;

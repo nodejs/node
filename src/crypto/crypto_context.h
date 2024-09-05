@@ -147,7 +147,8 @@ class SecureContext final : public BaseObject {
   SSLCtxPointer ctx_;
   X509Pointer cert_;
   X509Pointer issuer_;
-  X509_STORE* owned_cert_store_cached_ = nullptr;
+  // Non-owning cache for SSL_CTX_get_cert_store(ctx_.get())
+  X509_STORE* own_cert_store_cache_ = nullptr;
 #ifndef OPENSSL_NO_ENGINE
   bool client_cert_engine_provided_ = false;
   ncrypto::EnginePointer private_key_engine_;
