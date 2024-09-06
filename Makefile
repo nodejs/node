@@ -1388,8 +1388,11 @@ run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
 	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
+tools/eslint/node_modules: tools/eslint/package-lock.json
+	-cd tools/eslint && $(call available-node,$(run-npm-ci))
+
 .PHONY: lint-js-fix
-lint-js-fix:
+lint-js-fix: tools/eslint/node_modules
 	@$(call available-node,$(run-lint-js-fix))
 
 .PHONY: lint-js
@@ -1397,7 +1400,7 @@ lint-js-fix:
 # Note that on the CI `lint-js-ci` is run instead.
 # Lints the JavaScript code with eslint.
 lint-js-doc: LINT_JS_TARGETS=doc
-lint-js lint-js-doc:
+lint-js lint-js-doc: tools/eslint/node_modules
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping $@ (no crypto)"; \
 	else \
@@ -1414,7 +1417,7 @@ run-lint-js-ci = tools/eslint/node_modules/eslint/bin/eslint.js \
 
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
-lint-js-ci:
+lint-js-ci: tools/eslint/node_modules
 	$(info Running JS linter...)
 	@$(call available-node,$(run-lint-js-ci))
 
@@ -1568,7 +1571,7 @@ lint-yaml:
 
 .PHONY: lint
 .PHONY: lint-ci
-ifneq ("","$(wildcard tools/eslint/node_modules/eslint/)")
+ifneq ("","$(wildcard tools/eslint/)")
 lint: ## Run JS, C++, MD and doc linters.
 	@EXIT_STATUS=0 ; \
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
@@ -1599,6 +1602,7 @@ endif
 lint-clean:
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
+	$(RM) -r tools/eslint/node_modules
 
 HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 
