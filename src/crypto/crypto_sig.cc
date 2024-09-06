@@ -92,12 +92,15 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
     sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
   }
   EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
-  if (pkctx &&
-      EVP_PKEY_sign_init(pkctx.get()) &&
+  if (pkctx && EVP_PKEY_sign_init(pkctx.get()) > 0 &&
       ApplyRSAOptions(pkey, pkctx.get(), padding, pss_salt_len) &&
-      EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) &&
-      EVP_PKEY_sign(pkctx.get(), static_cast<unsigned char*>(sig->Data()),
-                    &sig_len, m, m_len)) {
+      EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) >
+          0 &&
+      EVP_PKEY_sign(pkctx.get(),
+                    static_cast<unsigned char*>(sig->Data()),
+                    &sig_len,
+                    m,
+                    m_len) > 0) {
     CHECK_LE(sig_len, sig->ByteLength());
     if (sig_len == 0) {
       sig = ArrayBuffer::NewBackingStore(env->isolate(), 0);
@@ -527,14 +530,18 @@ SignBase::Error Verify::VerifyFinal(const ManagedEVPPKey& pkey,
     return kSignPublicKey;
 
   EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
-  if (pkctx &&
-      EVP_PKEY_verify_init(pkctx.get()) > 0 &&
-      ApplyRSAOptions(pkey, pkctx.get(), padding, saltlen) &&
-      EVP_PKEY_CTX_set_signature_md(pkctx.get(),
-                                    EVP_MD_CTX_md(mdctx.get())) > 0) {
-    const unsigned char* s = sig.data<unsigned char>();
-    const int r = EVP_PKEY_verify(pkctx.get(), s, sig.size(), m, m_len);
-    *verify_result = r == 1;
+  if (pkctx) {
+    const int init_ret = EVP_PKEY_verify_init(pkctx.get());
+    if (init_ret == -2) {
+      return kSignPublicKey;
+    }
+    if (init_ret > 0 && ApplyRSAOptions(pkey, pkctx.get(), padding, saltlen) &&
+        EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) >
+            0) {
+      const unsigned char* s = sig.data<unsigned char>();
+      const int r = EVP_PKEY_verify(pkctx.get(), s, sig.size(), m, m_len);
+      *verify_result = r == 1;
+    }
   }
 
   return kSignOk;
