@@ -23,6 +23,8 @@ test-error-serdes: PASS, FLAKY
 test-sqlite: PASS, FLAKY
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/54807
+test-runner-watch-mode-complex: PASS, FLAKY
 
 # Windows on x86
 [$system==win32 && $arch==ia32]
