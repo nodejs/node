@@ -23,6 +23,8 @@ test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
 test-http2-large-file: PASS, FLAKY
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/54817
+test-http-server-request-timeouts-mixed: PASS, FLAKY
 
 [$system==macos]
 # https://github.com/nodejs/node/issues/54816
