@@ -38,6 +38,8 @@ test-worker-nearheaplimit-deadlock: PASS, FLAKY
 test-http-server-request-timeouts-mixed: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54803
 test-performance-function: PASS, FLAKY
+# https://github.com/nodejs/node/issues/54346
+test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
