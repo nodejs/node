@@ -3213,7 +3213,11 @@ documented here:
 
 ### `--perf-prof-unwinding-info`
 
-### `--max-old-space-size=SIZE` (in megabytes)
+<!-- Anchor to make sure old links find a target -->
+
+<a id="--max-old-space-sizesize-in-megabytes"></a>
+
+### `--max-old-space-size=SIZE` (in MiB)
 
 Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
@@ -3226,10 +3230,14 @@ On a machine with 2 GiB of memory, consider setting this to
 node --max-old-space-size=1536 index.js
 ```
 
-### `--max-semi-space-size=SIZE` (in megabytes)
+<!-- Anchor to make sure old links find a target -->
+
+<a id="--max-semi-space-sizesize-in-megabytes"></a>
+
+### `--max-semi-space-size=SIZE` (in MiB)
 
 Sets the maximum [semi-space][] size for V8's [scavenge garbage collector][] in
-MiB (megabytes).
+MiB (mebibytes).
 Increasing the max size of a semi-space may improve throughput for Node.js at
 the cost of more memory consumption.
 
