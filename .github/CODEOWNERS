@@ -189,3 +189,6 @@
 /doc/api/typescript.md @nodejs/typescript
 /test/fixtures/typescript/ @nodejs/typescript
 /tools/dep_updaters/update-amaro.sh @nodejs/typescript
+
+# Performance
+/benchmark/* @nodejs/performance
