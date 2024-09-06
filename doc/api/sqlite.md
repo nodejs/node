@@ -112,6 +112,10 @@ added: v22.5.0
     legacy database schemas. The enforcement of foreign key constraints can be
     enabled and disabled after opening the database using
     [`PRAGMA foreign_keys`][]. **Default:** `true`.
+  * `enableDoubleQuotedStringLiterals` {boolean} If `true`, SQLite will accept
+    [double-quoted string literals][]. This is not recommended but can be
+    enabled for compatibility with legacy database schemas.
+    **Default:** `false`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -332,6 +336,7 @@ exception.
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
+[double-quoted string literals]: https://www.sqlite.org/quirks.html#dblquote
 [in memory]: https://www.sqlite.org/inmemorydb.html
 [parameters are bound]: https://www.sqlite.org/c3ref/bind_blob.html
 [prepared statement]: https://www.sqlite.org/c3ref/stmt.html

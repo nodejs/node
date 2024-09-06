@@ -86,6 +86,34 @@ suite('DatabaseSync() constructor', () => {
     t.after(() => { db.close(); });
     db.exec('INSERT INTO bar (foo_id) VALUES (1)');
   });
+
+  test('throws if options.enableDoubleQuotedStringLiterals is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { enableDoubleQuotedStringLiterals: 5 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.enableDoubleQuotedStringLiterals" argument must be a boolean/,
+    });
+  });
+
+  test('disables double-quoted string literals by default', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    t.assert.throws(() => {
+      db.exec('SELECT "foo";');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /no such column: "foo"/,
+    });
+  });
+
+  test('allows enabling double-quoted string literals', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { enableDoubleQuotedStringLiterals: true });
+    t.after(() => { db.close(); });
+    db.exec('SELECT "foo";');
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {
