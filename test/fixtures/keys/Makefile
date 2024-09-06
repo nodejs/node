@@ -26,6 +26,8 @@ all: \
   dh2048.pem \
   dh3072.pem \
   dherror.pem \
+  dh_private.pem \
+  dh_public.pem \
   dsa_params.pem \
   dsa_private.pem \
   dsa_private_encrypted.pem \
@@ -600,6 +602,12 @@ dh3072.pem:
 
 dherror.pem: dh1024.pem
 	sed 's/^[^-].*/AAAAAAAAAA/g' dh1024.pem > dherror.pem
+
+dh_private.pem:
+	openssl genpkey -algorithm dh -out dh_private.pem -pkeyopt dh_param:ffdhe2048
+
+dh_public.pem: dh_private.pem
+	openssl pkey -in dh_private.pem -pubout -out dh_public.pem
 
 dsa_params.pem:
 	openssl dsaparam -out dsa_params.pem 2048
