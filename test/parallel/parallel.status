@@ -29,6 +29,8 @@ test-snapshot-incompatible: SKIP
 [$system==win32]
 # https://github.com/nodejs/node/issues/54807
 test-runner-watch-mode-complex: PASS, FLAKY
+# https://github.com/nodejs/node/issues/54808
+test-async-context-frame: PASS, FLAKY
 
 # Windows on x86
 [$system==win32 && $arch==ia32]
