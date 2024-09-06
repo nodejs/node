@@ -1,4 +1,4 @@
-/* auto-generated on 2024-08-23 15:38:16 -0400. Do not edit! */
+/* auto-generated on 2024-09-04 18:13:32 +0200. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -5908,6 +5908,99 @@ simdutf_warn_unused size_t base64_length_from_binary(size_t length, base64_optio
 
 #endif
 /* end file src/scalar/base64.h */
+/* begin file src/scalar/latin1_to_utf8/latin1_to_utf8.h */
+#ifndef SIMDUTF_LATIN1_TO_UTF8_H
+#define SIMDUTF_LATIN1_TO_UTF8_H
+
+namespace simdutf {
+namespace scalar {
+namespace {
+namespace latin1_to_utf8 {
+
+inline size_t convert(const char* buf, size_t len, char* utf8_output) {
+  const unsigned char *data = reinterpret_cast<const unsigned char *>(buf);
+  size_t pos = 0;
+  size_t utf8_pos = 0;
+  while (pos < len) {
+    // try to convert the next block of 16 ASCII bytes
+    if (pos + 16 <= len) { // if it is safe to read 16 more bytes, check that they are ascii
+      uint64_t v1;
+      ::memcpy(&v1, data + pos, sizeof(uint64_t));
+      uint64_t v2;
+      ::memcpy(&v2, data + pos + sizeof(uint64_t), sizeof(uint64_t));
+      uint64_t v{v1 | v2}; // We are only interested in these bits: 1000 1000 1000 1000, so it makes sense to concatenate everything
+      if ((v & 0x8080808080808080) == 0) { // if NONE of these are set, e.g. all of them are zero, then everything is ASCII
+        size_t final_pos = pos + 16;
+        while(pos < final_pos) {
+          utf8_output[utf8_pos++] = char(buf[pos]);
+          pos++;
+        }
+        continue;
+      }
+    }
+
+    unsigned char byte = data[pos];
+    if((byte & 0x80) == 0) { // if ASCII
+      // will generate one UTF-8 bytes
+      utf8_output[utf8_pos++] = char(byte);
+      pos++;
+    } else {
+      // will generate two UTF-8 bytes
+      utf8_output[utf8_pos++] = char((byte>>6) | 0b11000000);
+      utf8_output[utf8_pos++] = char((byte & 0b111111) | 0b10000000);
+      pos++;
+    }
+  }
+  return utf8_pos;
+}
+
+inline size_t convert_safe(const char* buf, size_t len, char* utf8_output, size_t utf8_len) {
+  const unsigned char *data = reinterpret_cast<const unsigned char *>(buf);
+  size_t pos = 0;
+  size_t skip_pos = 0;
+  size_t utf8_pos = 0;
+  while (pos < len && utf8_pos < utf8_len) {
+    // try to convert the next block of 16 ASCII bytes
+    if (pos >= skip_pos && pos + 16 <= len && utf8_pos + 16 <= utf8_len) { // if it is safe to read 16 more bytes, check that they are ascii
+      uint64_t v1;
+      ::memcpy(&v1, data + pos, sizeof(uint64_t));
+      uint64_t v2;
+      ::memcpy(&v2, data + pos + sizeof(uint64_t), sizeof(uint64_t));
+      uint64_t v{v1 | v2}; // We are only interested in these bits: 1000 1000 1000 1000, so it makes sense to concatenate everything
+      if ((v & 0x8080808080808080) == 0) { // if NONE of these are set, e.g. all of them are zero, then everything is ASCII
+        ::memcpy(utf8_output + utf8_pos, buf + pos, 16);
+        utf8_pos += 16;
+        pos += 16;
+      } else {
+				// At least one of the next 16 bytes are not ASCII, we will process them one by one
+        skip_pos = pos + 16;
+      }
+    } else {
+      const auto byte = data[pos];
+      if((byte & 0x80) == 0) { // if ASCII
+        // will generate one UTF-8 bytes
+        utf8_output[utf8_pos++] = char(byte);
+        pos++;
+      } else if (utf8_pos + 2 <= utf8_len) {
+        // will generate two UTF-8 bytes
+        utf8_output[utf8_pos++] = char((byte>>6) | 0b11000000);
+        utf8_output[utf8_pos++] = char((byte & 0b111111) | 0b10000000);
+        pos++;
+      } else {
+        break;
+      }
+    }
+  }
+  return utf8_pos;
+}
+
+} // latin1_to_utf8 namespace
+} // unnamed namespace
+} // namespace scalar
+} // namespace simdutf
+
+#endif
+/* end file src/scalar/latin1_to_utf8/latin1_to_utf8.h */
 
 namespace simdutf {
 bool implementation::supported_by_runtime_system() const {
@@ -6074,7 +6167,7 @@ public:
   }
 
   simdutf_warn_unused size_t convert_latin1_to_utf8(const char * buf, size_t len, char* utf8_output) const noexcept final override {
-    return set_best()->convert_latin1_to_utf8(buf, len,utf8_output);
+    return set_best()->convert_latin1_to_utf8(buf, len, utf8_output);
   }
 
   simdutf_warn_unused size_t convert_latin1_to_utf16le(const char * buf, size_t len, char16_t* utf16_output) const noexcept final override {
@@ -7244,6 +7337,31 @@ simdutf_warn_unused result base64_to_binary_safe_impl(const chartype * input, si
   }
   r.count += input_index;
   return r;
+}
+
+
+
+simdutf_warn_unused size_t convert_latin1_to_utf8_safe(const char * buf, size_t len, char* utf8_output, size_t utf8_len) noexcept {
+  const auto start{utf8_output};
+
+  while (true) {
+    // convert_latin1_to_utf8 will never write more than input length * 2
+    auto read_len = std::min(len, utf8_len >> 1);
+    if (read_len <= 16) {
+      break;
+    }
+
+    const auto write_len = simdutf::convert_latin1_to_utf8(buf, read_len, utf8_output);
+
+    utf8_output += write_len;
+    utf8_len -= write_len;
+    buf += read_len;
+    len -= read_len;
+  }
+
+  utf8_output += scalar::latin1_to_utf8::convert_safe(buf, len, utf8_output, utf8_len);
+
+  return utf8_output - start;
 }
 
 
@@ -13578,59 +13696,6 @@ inline result rewind_and_convert_with_errors(size_t prior_bytes, const char* buf
 #endif
 /* end file src/scalar/utf8_to_utf32/utf8_to_utf32.h */
 
-/* begin file src/scalar/latin1_to_utf8/latin1_to_utf8.h */
-#ifndef SIMDUTF_LATIN1_TO_UTF8_H
-#define SIMDUTF_LATIN1_TO_UTF8_H
-
-namespace simdutf {
-namespace scalar {
-namespace {
-namespace latin1_to_utf8 {
-
-inline size_t convert(const char* buf, size_t len, char* utf8_output) {
-  const unsigned char *data = reinterpret_cast<const unsigned char *>(buf);
-  size_t pos = 0;
-  char* start{utf8_output};
-  while (pos < len) {
-    // try to convert the next block of 16 ASCII bytes
-    if (pos + 16 <= len) { // if it is safe to read 16 more bytes, check that they are ascii
-      uint64_t v1;
-      ::memcpy(&v1, data + pos, sizeof(uint64_t));
-      uint64_t v2;
-      ::memcpy(&v2, data + pos + sizeof(uint64_t), sizeof(uint64_t));
-      uint64_t v{v1 | v2}; // We are only interested in these bits: 1000 1000 1000 1000, so it makes sense to concatenate everything
-      if ((v & 0x8080808080808080) == 0) { // if NONE of these are set, e.g. all of them are zero, then everything is ASCII
-        size_t final_pos = pos + 16;
-        while(pos < final_pos) {
-          *utf8_output++ = char(buf[pos]);
-          pos++;
-        }
-        continue;
-      }
-    }
-
-    unsigned char byte = data[pos];
-    if((byte & 0x80) == 0) { // if ASCII
-      // will generate one UTF-8 bytes
-      *utf8_output++ = char(byte);
-      pos++;
-    } else {
-      // will generate two UTF-8 bytes
-      *utf8_output++ = char((byte>>6) | 0b11000000);
-      *utf8_output++ = char((byte & 0b111111) | 0b10000000);
-      pos++;
-    }
-  }
-  return utf8_output - start;
-}
-
-} // latin1_to_utf8 namespace
-} // unnamed namespace
-} // namespace scalar
-} // namespace simdutf
-
-#endif
-/* end file src/scalar/latin1_to_utf8/latin1_to_utf8.h */
 /* begin file src/scalar/latin1_to_utf16/latin1_to_utf16.h */
 #ifndef SIMDUTF_LATIN1_TO_UTF16_H
 #define SIMDUTF_LATIN1_TO_UTF16_H
@@ -19490,7 +19555,7 @@ simdutf_warn_unused result implementation::validate_utf32_with_errors(const char
 }
 
 simdutf_warn_unused size_t implementation::convert_latin1_to_utf8(const char * buf, size_t len, char* utf8_output) const noexcept {
-  return scalar::latin1_to_utf8::convert(buf,len,utf8_output);
+  return scalar::latin1_to_utf8::convert(buf, len, utf8_output);
 }
 
 simdutf_warn_unused size_t implementation::convert_latin1_to_utf16le(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
@@ -19502,7 +19567,7 @@ simdutf_warn_unused size_t implementation::convert_latin1_to_utf16be(const char*
 }
 
 simdutf_warn_unused size_t implementation::convert_latin1_to_utf32(const char * buf, size_t len, char32_t* utf32_output) const noexcept {
-  return scalar::latin1_to_utf32::convert(buf,len,utf32_output);
+  return scalar::latin1_to_utf32::convert(buf, len, utf32_output);
 }
 
 simdutf_warn_unused size_t implementation::convert_utf8_to_latin1(const char* buf, size_t len, char* latin1_output) const noexcept {
