@@ -16,9 +16,6 @@ test-worker-arraybuffer-zerofill: PASS, FLAKY
 # https://github.com/nodejs/node/issues/51862
 test-fs-read-stream-concurrent-reads: PASS, FLAKY
 
-# https://github.com/nodejs/node/issues/52630
-test-error-serdes: PASS, FLAKY
-
 # Until V8 provides a better way to check for flag mismatch without
 # making the code cache/snapshot unreproducible, disable the test
 # for a preemptive check now. It should idealy fail more gracefully
