@@ -1480,13 +1480,13 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
     switch (order) {
       case DNS_ORDER_IPV4_FIRST:
-        if (add(true, false).IsNothing()) return;
-        if (add(false, true).IsNothing()) return;
+        if (add(true, false).IsNothing() || add(false, true).IsNothing())
+          return;
 
         break;
       case DNS_ORDER_IPV6_FIRST:
-        if (add(false, true).IsNothing()) return;
-        if (add(true, false).IsNothing()) return;
+        if (add(false, true).IsNothing() || add(true, false).IsNothing())
+          return;
 
         break;
       default:

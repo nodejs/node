@@ -173,7 +173,7 @@ class BaseObject : public MemoryRetainer {
   virtual std::unique_ptr<worker::TransferData> CloneForMessaging() const;
   virtual v8::Maybe<std::vector<BaseObjectPtrImpl<BaseObject, false>>>
       NestedTransferables() const;
-  virtual v8::Maybe<bool> FinalizeTransferRead(
+  virtual v8::Maybe<void> FinalizeTransferRead(
       v8::Local<v8::Context> context, v8::ValueDeserializer* deserializer);
 
   // Indicates whether this object is expected to use a strong reference during

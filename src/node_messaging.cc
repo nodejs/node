@@ -25,6 +25,7 @@ using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -337,7 +338,11 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       // methods like toString(). It's probably confusing if that gets lost
       // in transmission.
       Local<Object> normal_object = Object::New(isolate);
-      env_->env_vars()->AssignToObject(isolate, env_->context(), normal_object);
+      if (env_->env_vars()
+              ->AssignToObject(isolate, env_->context(), normal_object)
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
       serializer->WriteUint32(kNormalObject);  // Instead of a BaseObject.
       return serializer->WriteValue(env_->context(), normal_object);
     }
@@ -1389,25 +1394,25 @@ JSTransferable::NestedTransferables() const {
   return Just(ret);
 }
 
-Maybe<bool> JSTransferable::FinalizeTransferRead(
+Maybe<void> JSTransferable::FinalizeTransferRead(
     Local<Context> context, ValueDeserializer* deserializer) {
   // Call `this[kDeserialize](data)` where `data` comes from the return value
   // of `this[kTransfer]()` or `this[kClone]()`.
   HandleScope handle_scope(env()->isolate());
   Local<Value> data;
-  if (!deserializer->ReadValue(context).ToLocal(&data)) return Nothing<bool>();
+  if (!deserializer->ReadValue(context).ToLocal(&data)) return Nothing<void>();
 
   Local<Symbol> method_name = env()->messaging_deserialize_symbol();
   Local<Value> method;
   if (!target()->Get(context, method_name).ToLocal(&method)) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  if (!method->IsFunction()) return Just(true);
+  if (!method->IsFunction()) return JustVoid();
 
   if (method.As<Function>()->Call(context, target(), 1, &data).IsEmpty()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return Just(true);
+  return JustVoid();
 }
 
 JSTransferable::Data::Data(std::string&& deserialize_info,

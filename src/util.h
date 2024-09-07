@@ -323,7 +323,7 @@ class KVStore {
   virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
   virtual v8::Maybe<void> AssignFromObject(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> entries);
-  v8::Maybe<bool> AssignToObject(v8::Isolate* isolate,
+  v8::Maybe<void> AssignToObject(v8::Isolate* isolate,
                                  v8::Local<v8::Context> context,
                                  v8::Local<v8::Object> object);
 
