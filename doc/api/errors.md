@@ -1879,6 +1879,12 @@ the worker thread.
 There was a bug in Node.js or incorrect usage of Node.js internals.
 To fix the error, open an issue at <https://github.com/nodejs/node/issues>.
 
+<a id="ERR_INVALID_ADDRESS"></a>
+
+### `ERR_INVALID_ADDRESS`
+
+The provided address is not understood by the Node.js API.
+
 <a id="ERR_INVALID_ADDRESS_FAMILY"></a>
 
 ### `ERR_INVALID_ADDRESS_FAMILY`
