@@ -66,18 +66,14 @@ const filename = tmpdir.resolve('sync-write-stream.txt');
   assert.strictEqual(stream.fd, null);
 }
 
-// Verify that the callback will be called when already destroy()ed.
+// Verify behavior of destroy() when already destroy()ed
 {
   const fd = fs.openSync(filename, 'w');
   const stream = new SyncWriteStream(fd);
-  const theErr = new Error('my error');
-  const cb = () => {};
 
   stream.on('close', common.mustCall());
   assert.strictEqual(stream.destroy(), stream);
-  stream.destroy(theErr, common.mustCall(cb));
-  stream.destroySoon(theErr, common.mustCall(cb));
-  stream._destroy(theErr, common.mustCall(cb));
+  assert.strictEqual(stream.destroy(), stream);
 }
 
 // Verify that the file is not closed when autoClose=false
@@ -85,9 +81,10 @@ const filename = tmpdir.resolve('sync-write-stream.txt');
   const fd = fs.openSync(filename, 'w');
   const stream = new SyncWriteStream(fd, { autoClose: false });
 
-  stream.on('close', common.mustNotCall());
-  stream._destroy(null, () => {});
-  assert.strictEqual(stream.closed, false);
+  assert.strictEqual(stream.destroy(), stream);
+  fs.fstatSync(fd); // Does not throw
+  stream.on('close', common.mustCall());
+  fs.closeSync(fd);
 }
 
 // Verify that calling end() will also destroy the stream.
