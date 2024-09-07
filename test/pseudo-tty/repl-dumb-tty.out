@@ -1,5 +1,4 @@
-> >
-console.log("foo")
+> > console.log("foo")
 foo
 undefined
 > 1 + 2
