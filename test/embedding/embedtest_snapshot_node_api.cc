@@ -1,78 +1,65 @@
 #include "embedtest_node_api.h"
 
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
-
+#include <array>
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+#include <memory>
 #include <optional>
 
 class CStringArray {
+  static constexpr size_t kInplaceBufferSize = 32;
+
  public:
   explicit CStringArray(const std::vector<std::string>& strings) noexcept
       : size_(strings.size()) {
-    if (size_ < inplace_buffer_.size()) {
-      cstrings_ = inplace_buffer_.data();
+    if (size_ <= inplace_buffer_.size()) {
+      c_strs_ = inplace_buffer_.data();
     } else {
       allocated_buffer_ = std::make_unique<const char*[]>(size_);
-      cstrings_ = allocated_buffer_.get();
+      c_strs_ = allocated_buffer_.get();
     }
     for (size_t i = 0; i < size_; ++i) {
-      cstrings_[i] = strings[i].c_str();
+      c_strs_[i] = strings[i].c_str();
     }
   }
 
-  const char** cstrings() const { return cstrings_; }
+  CStringArray(const CStringArray&) = delete;
+  CStringArray& operator=(const CStringArray&) = delete;
+
+  const char** c_strs() const { return c_strs_; }
   size_t size() const { return size_; }
 
  private:
-  const char** cstrings_;
-  size_t size_;
-  std::array<const char*, 32> inplace_buffer_;
+  const char** c_strs_{};
+  size_t size_{};
+  std::array<const char*, kInplaceBufferSize> inplace_buffer_;
   std::unique_ptr<const char*[]> allocated_buffer_;
 };
 
-static int32_t RunNodeInstance();
+static int32_t RunNodeInstance(node_embedding_platform platform);
 
 extern "C" int32_t test_main_snapshot_node_api(int32_t argc, char* argv[]) {
-  std::vector<std::string> args(argv, argv + argc);
-  bool early_return = false;
-  int32_t exit_code = 0;
+  CHECK(node_embedding_on_error(HandleTestError, argv[0]));
 
-  std::vector<std::string> errors;
-  node_api_initialize_platform(argc,
-                               argv,
-                               node_api_platform_disable_node_options_env,
-                               GetMessageVector,
-                               &errors,
-                               &early_return,
-                               &exit_code);
+  node_embedding_platform platform;
+  CHECK(node_embedding_create_platform(NODE_EMBEDDING_VERSION, &platform));
+  CHECK(node_embedding_platform_set_args(platform, argc, argv));
+  CHECK(node_embedding_platform_set_flags(
+      platform, node_embedding_platform_disable_node_options_env));
+  bool early_return = false;
+  CHECK(node_embedding_platform_initialize(platform, &early_return));
   if (early_return) {
-    if (exit_code != 0) {
-      for (const std::string& err : errors)
-        fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
-    } else {
-      for (const std::string& err : errors) printf("%s\n", err.c_str());
-    }
-    return exit_code;
+    return 0;
   }
 
-  CHECK_EXIT_CODE(RunNodeInstance());
+  CHECK_EXIT_CODE(RunNodeInstance(platform));
 
-  CHECK(node_api_dispose_platform());
+  CHECK(node_embedding_delete_platform(platform));
   return 0;
 }
 
-static const char* exe_name;
-
-static void NAPI_CDECL get_errors(void* data,
-                                  const char* errors[],
-                                  size_t count) {
-  for (size_t i = 0; i < count && i < 30; ++i) {
-    fprintf(stderr, "%s: %s\n", exe_name, errors[i]);
-  }
-}
-
-int32_t RunNodeInstance() {
+int32_t RunNodeInstance(node_embedding_platform platform) {
   // Format of the arguments of this binary:
   // Building snapshot:
   // embedtest js_code_to_eval arg1 arg2...
@@ -87,18 +74,13 @@ int32_t RunNodeInstance() {
   // No snapshot:
   // embedtest arg1 arg2...
 
-  int32_t exit_code = 0;
+  std::vector<std::string> args;
+  CHECK(node_embedding_platform_get_args(platform, GetArgsVector, &args));
 
-  node_api_env_options options;
-  CHECK(node_api_create_env_options(&options));
-  std::vector<std::string> args, exec_args;
-  CHECK(node_api_env_options_get_args(options, GetArgsVector, &args));
-  CHECK(node_api_env_options_get_exec_args(options, GetArgsVector, &exec_args));
-
-  exe_name = args[0].c_str();
   std::vector<std::string> filtered_args;
   bool is_building_snapshot = false;
-  node_api_snapshot_flags snapshot_flags = node_api_snapshot_no_flags;
+  node_embedding_snapshot_flags snapshot_flags =
+      node_embedding_snapshot_no_flags;
   std::string snapshot_blob_path;
   for (size_t i = 0; i < args.size(); ++i) {
     const std::string& arg = args[i];
@@ -108,8 +90,7 @@ int32_t RunNodeInstance() {
       // This parameter is not implemented by the Node-API, and we must not
       // include it in the filtered_args.
     } else if (arg == "--without-code-cache") {
-      snapshot_flags = static_cast<node_api_snapshot_flags>(
-          snapshot_flags | node_api_snapshot_no_code_cache);
+      snapshot_flags = snapshot_flags | node_embedding_snapshot_no_code_cache;
     } else if (arg == "--embedder-snapshot-blob") {
       assert(i + 1 < args.size());
       snapshot_blob_path = args[i + 1];
@@ -119,27 +100,27 @@ int32_t RunNodeInstance() {
     }
   }
 
+  node_embedding_runtime runtime;
+  CHECK(node_embedding_create_runtime(platform, &runtime));
+
   bool use_snapshot = false;
   if (!snapshot_blob_path.empty() && !is_building_snapshot) {
     use_snapshot = true;
     FILE* fp = fopen(snapshot_blob_path.c_str(), "rb");
     assert(fp != nullptr);
     // Node-API only supports loading snapshots from blobs.
-    uv_fs_t req = uv_fs_t();
-    int32_t statret =
-        uv_fs_stat(nullptr, &req, snapshot_blob_path.c_str(), nullptr);
-    assert(statret == 0);
-    size_t filesize = req.statbuf.st_size;
-    uv_fs_req_cleanup(&req);
+    fseek(fp, 0, SEEK_END);
+    size_t filesize = static_cast<size_t>(ftell(fp));
+    fseek(fp, 0, SEEK_SET);
 
-    std::vector<char> vec(filesize);
+    std::vector<uint8_t> vec(filesize);
     size_t read = fread(vec.data(), filesize, 1, fp);
     assert(read == 1);
     assert(snapshot);
     int32_t ret = fclose(fp);
     assert(ret == 0);
 
-    CHECK(node_api_env_options_use_snapshot(options, vec.data(), vec.size()));
+    CHECK(node_embedding_runtime_use_snapshot(runtime, vec.data(), vec.size()));
   }
 
   if (is_building_snapshot) {
@@ -152,12 +133,12 @@ int32_t RunNodeInstance() {
   }
 
   CStringArray filtered_args_arr(filtered_args);
-  CHECK(node_api_env_options_set_args(
-      options, filtered_args_arr.size(), filtered_args_arr.cstrings()));
+  CHECK(node_embedding_runtime_set_args(
+      runtime, filtered_args_arr.size(), filtered_args_arr.c_strs()));
 
   if (!snapshot_blob_path.empty() && is_building_snapshot) {
-    CHECK(node_api_env_options_create_snapshot(
-        options,
+    CHECK(node_embedding_runtime_on_create_snapshot(
+        runtime,
         [](void* cb_data, const uint8_t* blob, size_t size) {
           const char* snapshot_blob_path = static_cast<const char*>(cb_data);
           FILE* fp = fopen(snapshot_blob_path, "wb");
@@ -173,39 +154,29 @@ int32_t RunNodeInstance() {
         snapshot_flags));
   }
 
-  napi_env env;
   if (use_snapshot) {
-    CHECK(node_api_create_env(
-        options, get_errors, nullptr, nullptr, NAPI_VERSION, &env));
+    CHECK(node_embedding_runtime_initialize(runtime, nullptr));
   } else if (is_building_snapshot) {
     // Environment created for snapshotting must set process.argv[1] to
     // the name of the main script, which was inserted above.
-    CHECK(node_api_create_env(
-        options,
-        get_errors,
-        nullptr,
+    CHECK(node_embedding_runtime_initialize(
+        runtime,
         "const assert = require('assert');"
         "assert(require('v8').startupSnapshot.isBuildingSnapshot());"
         "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
         "globalThis.require = require;"
-        "require('vm').runInThisContext(process.argv[2]);",
-        NAPI_VERSION,
-        &env));
+        "require('vm').runInThisContext(process.argv[2]);"));
   } else {
-    CHECK(node_api_create_env(
-        options,
-        get_errors,
-        nullptr,
+    CHECK(node_embedding_runtime_initialize(
+        runtime,
         "const publicRequire = require('module').createRequire(process.cwd() + "
         "'/');"
         "globalThis.require = publicRequire;"
         "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
-        "require('vm').runInThisContext(process.argv[1]);",
-        NAPI_VERSION,
-        &env));
+        "require('vm').runInThisContext(process.argv[1]);"));
   }
 
-  CHECK(node_api_delete_env(env, &exit_code));
+  CHECK(node_embedding_delete_runtime(runtime));
 
-  return exit_code;
+  return 0;
 }

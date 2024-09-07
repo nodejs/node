@@ -7,37 +7,37 @@ static const char* main_script =
     "globalThis.require = require('module').createRequire(process.execPath);\n"
     "require('vm').runInThisContext(process.argv[1]);";
 
-// Test the preload callback being called.
+// Tests that the same preload callback is called from the main thread and from
+// the worker thread.
 extern "C" int32_t test_main_preload_node_api(int32_t argc, char* argv[]) {
-  CHECK(node_api_initialize_platform(argc,
-                                     argv,
-                                     node_api_platform_no_flags,
-                                     nullptr,
-                                     nullptr,
-                                     nullptr,
-                                     nullptr));
+  node_embedding_platform platform;
+  CHECK(node_embedding_create_platform(NODE_EMBEDDING_VERSION, &platform));
+  CHECK(node_embedding_platform_set_args(platform, argc, argv));
+  bool early_return = false;
+  CHECK(node_embedding_platform_initialize(platform, &early_return));
+  if (early_return) {
+    return 0;
+  }
 
-  node_api_env_options options;
-  CHECK(node_api_create_env_options(&options));
-  CHECK(node_api_env_options_set_preload_callback(
-      options,
-      [](napi_env env,
+  node_embedding_runtime runtime;
+  CHECK(node_embedding_create_runtime(platform, &runtime));
+  CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
+  CHECK(node_embedding_runtime_on_preload(
+      runtime,
+      [](void* /*cb_data*/,
+         napi_env env,
          napi_value /*process*/,
-         napi_value /*require*/,
-         void* /*cb_data*/) {
+         napi_value /*require*/
+      ) {
         napi_value global, value;
         napi_get_global(env, &global);
         napi_create_int32(env, 42, &value);
         napi_set_named_property(env, global, "preloadValue", value);
       },
       nullptr));
-  napi_env env;
-  CHECK(node_api_create_env(
-      options, nullptr, nullptr, main_script, NAPI_VERSION, &env));
-
-  CHECK(node_api_delete_env(env, nullptr));
-
-  CHECK(node_api_dispose_platform());
+  CHECK(node_embedding_runtime_initialize(runtime, main_script));
+  CHECK(node_embedding_delete_runtime(runtime));
+  CHECK(node_embedding_delete_platform(platform));
 
   return 0;
 }

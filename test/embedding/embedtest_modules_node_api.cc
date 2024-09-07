@@ -1,7 +1,7 @@
 #include "embedtest_node_api.h"
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
   if (argc < 3) {
@@ -9,15 +9,25 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
     return 2;
   }
 
-  CHECK(node_api_initialize_platform(
-      argc, argv, node_api_platform_no_flags, NULL, NULL, NULL, NULL));
+  CHECK(node_embedding_on_error(HandleTestError, argv[0]));
 
-  node_api_env_options options;
-  CHECK(node_api_create_env_options(&options));
+  node_embedding_platform platform;
+  CHECK(node_embedding_create_platform(NODE_EMBEDDING_VERSION, &platform));
+  CHECK(node_embedding_platform_set_args(platform, argc, argv));
+  bool early_return = false;
+  CHECK(node_embedding_platform_initialize(platform, &early_return));
+  if (early_return) {
+    return 0;
+  }
+
+  node_embedding_runtime runtime;
+  CHECK(node_embedding_create_runtime(platform, &runtime));
+  CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
+  CHECK(node_embedding_runtime_initialize(runtime, nullptr));
   napi_env env;
-  CHECK(node_api_create_env(options, NULL, NULL, NULL, NAPI_VERSION, &env));
+  CHECK(node_embedding_runtime_get_node_api_env(runtime, &env));
 
-  CHECK(node_api_open_env_scope(env));
+  CHECK(node_embedding_runtime_open_scope(runtime));
 
   napi_value global, import_name, require_name, import, require, cjs, es6,
       value;
@@ -37,7 +47,8 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
   size_t bufferlen;
 
   CHECK(napi_call_function(env, global, import, 1, &es6, &es6_promise));
-  CHECK(node_api_await_promise(env, es6_promise, &es6_module, nullptr));
+  CHECK(node_embedding_runtime_await_promise(
+      runtime, es6_promise, &es6_module, nullptr));
 
   CHECK(napi_get_property(env, es6_module, value, &es6_result));
   CHECK(napi_get_value_string_utf8(
@@ -54,8 +65,8 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
     FAIL("Unexpected value: %s\n", buffer);
   }
 
-  CHECK(node_api_close_env_scope(env));
-  CHECK(node_api_delete_env(env, NULL));
-  CHECK(node_api_dispose_platform());
+  CHECK(node_embedding_runtime_close_scope(runtime));
+  CHECK(node_embedding_delete_runtime(runtime));
+  CHECK(node_embedding_delete_platform(platform));
   return 0;
 }

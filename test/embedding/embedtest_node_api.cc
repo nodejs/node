@@ -4,44 +4,30 @@
 #include <stdio.h>
 #include <string.h>
 
-// Note: This file is being referred to from doc/api/embedding.md, and excerpts
-// from it are included in the documentation. Try to keep these in sync.
-
-static int32_t RunNodeInstance();
-
 static const char* main_script =
     "globalThis.require = require('module').createRequire(process.execPath);\n"
     "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };\n"
     "require('vm').runInThisContext(process.argv[1]);";
 
-static const char* exe_name;
-
-static void NAPI_CDECL get_errors(void* data,
-                                  const char* errors[],
-                                  size_t count) {
-  for (size_t i = 0; i < count && i < 30; ++i) {
-    fprintf(stderr, "%s: %s\n", exe_name, errors[i]);
-  }
-}
+static int32_t RunNodeInstance(node_embedding_platform platform);
 
 extern "C" int32_t test_main_node_api(int32_t argc, char* argv[]) {
-  exe_name = argv[0];
+  CHECK(node_embedding_on_error(HandleTestError, argv[0]));
+
+  node_embedding_platform platform;
+  CHECK(node_embedding_create_platform(NODE_EMBEDDING_VERSION, &platform));
+  CHECK(node_embedding_platform_set_args(platform, argc, argv));
+  CHECK(node_embedding_platform_set_flags(
+      platform, node_embedding_platform_disable_node_options_env));
   bool early_return = false;
-  int32_t exit_code = 0;
-  node_api_initialize_platform(argc,
-                               argv,
-                               node_api_platform_disable_node_options_env,
-                               get_errors,
-                               NULL,
-                               &early_return,
-                               &exit_code);
+  CHECK(node_embedding_platform_initialize(platform, &early_return));
   if (early_return) {
-    return exit_code;
+    return 0;
   }
 
-  CHECK_EXIT_CODE(RunNodeInstance());
+  CHECK_EXIT_CODE(RunNodeInstance(platform));
 
-  CHECK(node_api_dispose_platform());
+  CHECK(node_embedding_delete_platform(platform));
   return 0;
 }
 
@@ -49,8 +35,6 @@ int32_t callMe(napi_env env) {
   napi_value global;
   napi_value cb;
   napi_value key;
-
-  CHECK(node_api_open_env_scope(env));
 
   CHECK(napi_get_global(env, &global));
   CHECK(napi_create_string_utf8(env, "callMe", NAPI_AUTO_LENGTH, &key));
@@ -79,7 +63,6 @@ int32_t callMe(napi_env env) {
     FAIL("Invalid callMe value\n");
   }
 
-  CHECK(node_api_close_env_scope(env));
   return 0;
 }
 
@@ -94,12 +77,10 @@ napi_value c_cb(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-int32_t waitMe(napi_env env) {
+int32_t waitMe(napi_env env, node_embedding_runtime runtime) {
   napi_value global;
   napi_value cb;
   napi_value key;
-
-  CHECK(node_api_open_env_scope(env));
 
   CHECK(napi_get_global(env, &global));
   CHECK(napi_create_string_utf8(env, "waitMe", NAPI_AUTO_LENGTH, &key));
@@ -124,7 +105,7 @@ int32_t waitMe(napi_env env) {
       FAIL("Anachronism detected: %s\n", callback_buf);
     }
 
-    CHECK(node_api_run_env(env));
+    CHECK(node_embedding_runtime_run_event_loop(runtime));
 
     if (strcmp(callback_buf, "waited you") != 0) {
       FAIL("Invalid value received: %s\n", callback_buf);
@@ -134,16 +115,13 @@ int32_t waitMe(napi_env env) {
     FAIL("Invalid waitMe value\n");
   }
 
-  CHECK(node_api_close_env_scope(env));
   return 0;
 }
 
-int32_t waitMeWithCheese(napi_env env) {
+int32_t waitMeWithCheese(napi_env env, node_embedding_runtime runtime) {
   napi_value global;
   napi_value cb;
   napi_value key;
-
-  CHECK(node_api_open_env_scope(env));
 
   CHECK(napi_get_global(env, &global));
   CHECK(napi_create_string_utf8(env, "waitPromise", NAPI_AUTO_LENGTH, &key));
@@ -176,7 +154,8 @@ int32_t waitMeWithCheese(napi_env env) {
       FAIL("Result is not a Promise\n");
     }
 
-    napi_status r = node_api_await_promise(env, promise, &result, nullptr);
+    napi_status r = node_embedding_runtime_await_promise(
+        runtime, promise, &result, nullptr);
     if (r != napi_ok && r != napi_pending_exception) {
       FAIL("Failed awaiting promise: %d\n", r);
     }
@@ -197,23 +176,24 @@ int32_t waitMeWithCheese(napi_env env) {
     FAIL("Invalid waitPromise value\n");
   }
 
-  CHECK(node_api_close_env_scope(env));
   return 0;
 }
 
-int32_t RunNodeInstance() {
-  node_api_env_options options;
-  CHECK(node_api_create_env_options(&options));
+int32_t RunNodeInstance(node_embedding_platform platform) {
+  node_embedding_runtime runtime;
+  CHECK(node_embedding_create_runtime(platform, &runtime));
+  CHECK(node_embedding_runtime_set_node_api_version(runtime, NAPI_VERSION));
+  CHECK(node_embedding_runtime_initialize(runtime, main_script));
   napi_env env;
-  CHECK(node_api_create_env(
-      options, NULL, NULL, main_script, NAPI_VERSION, &env));
+  CHECK(node_embedding_runtime_get_node_api_env(runtime, &env));
 
+  CHECK(node_embedding_runtime_open_scope(runtime));
   CHECK_EXIT_CODE(callMe(env));
-  CHECK_EXIT_CODE(waitMe(env));
-  CHECK_EXIT_CODE(waitMeWithCheese(env));
+  CHECK_EXIT_CODE(waitMe(env, runtime));
+  CHECK_EXIT_CODE(waitMeWithCheese(env, runtime));
+  CHECK(node_embedding_runtime_close_scope(runtime));
 
-  int32_t exit_code;
-  CHECK(node_api_delete_env(env, &exit_code));
+  CHECK(node_embedding_delete_runtime(runtime));
 
-  return exit_code;
+  return 0;
 }
