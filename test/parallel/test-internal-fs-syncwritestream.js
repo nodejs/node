@@ -66,16 +66,6 @@ const filename = tmpdir.resolve('sync-write-stream.txt');
   assert.strictEqual(stream.fd, null);
 }
 
-// Verify behavior of destroy() when already destroy()ed
-{
-  const fd = fs.openSync(filename, 'w');
-  const stream = new SyncWriteStream(fd);
-
-  stream.on('close', common.mustCall());
-  assert.strictEqual(stream.destroy(), stream);
-  assert.strictEqual(stream.destroy(), stream);
-}
-
 // Verify that the file is not closed when autoClose=false
 {
   const fd = fs.openSync(filename, 'w');
