@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --stack-size=64
 'use strict';
 require('../common');
 const assert = require('assert');
