@@ -531,6 +531,7 @@ declare namespace primordials {
   export const PromisePrototypeThen: UncurryThis<typeof Promise.prototype.then>
   export const PromisePrototypeCatch: UncurryThis<typeof Promise.prototype.catch>
   export const PromisePrototypeFinally: UncurryThis<typeof Promise.prototype.finally>
+  export const PromiseWithResolvers: typeof Promise.withResolvers
   export import Proxy = globalThis.Proxy
   import _globalThis = globalThis
   export { _globalThis as globalThis }
