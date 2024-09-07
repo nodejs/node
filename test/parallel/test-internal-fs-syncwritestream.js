@@ -71,9 +71,10 @@ const filename = tmpdir.resolve('sync-write-stream.txt');
   const fd = fs.openSync(filename, 'w');
   const stream = new SyncWriteStream(fd, { autoClose: false });
 
+  stream.on('close', common.mustCall());
+
   assert.strictEqual(stream.destroy(), stream);
   fs.fstatSync(fd); // Does not throw
-  stream.on('close', common.mustCall());
   fs.closeSync(fd);
 }
 
