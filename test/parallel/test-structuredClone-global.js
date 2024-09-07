@@ -26,3 +26,6 @@ assert.strictEqual(structuredClone(undefined, { }), undefined);
 
   assert.deepStrictEqual(cloned, {});
 }
+
+const blob = new Blob();
+assert.throws(() => structuredClone(blob, { transfer: [blob] }), { name: 'DataCloneError' });
