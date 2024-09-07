@@ -853,24 +853,6 @@ socket.write(frame.data);
 
 The serialized `Buffer` may be retrieved using the `frame.data` property.
 
-### Class: DataFrame extends Frame
-
-The `http2.DataFrame` is a subclass of `http2.Frame` that serializes a `DATA`
-frame.
-
-<!-- eslint-disable no-undef, node-core/require-common-first, node-core/required-modules -->
-
-```js
-// id is the 32-bit stream identifier
-// payload is a Buffer containing the DATA payload
-// padlen is an 8-bit integer giving the number of padding bytes to include
-// final is a boolean indicating whether the End-of-stream flag should be set,
-// defaults to false.
-const frame = new http2.DataFrame(id, payload, padlen, final);
-
-socket.write(frame.data);
-```
-
 ### Class: HeadersFrame
 
 The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
@@ -1137,19 +1119,6 @@ Returns `true` if the available blocks of the file system underlying `path`
 are likely sufficient to hold a single file of `size` bytes. This is useful for
 skipping tests that require hundreds of megabytes or even gigabytes of temporary
 files, but it is inaccurate and susceptible to race conditions.
-
-## UDP pair helper
-
-The `common/udppair` module exports a function `makeUDPPair` and a class
-`FakeUDPWrap`.
-
-`FakeUDPWrap` emits `'send'` events when data is to be sent on it, and provides
-an `emitReceived()` API for actin as if data has been received on it.
-
-`makeUDPPair` returns an object `{ clientSide, serverSide }` where each side
-is an `FakeUDPWrap` connected to the other side.
-
-There is no difference between client or server side beyond their names.
 
 ## WPT module
 
