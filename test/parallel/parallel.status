@@ -40,8 +40,6 @@ test-http2-socket-close: PASS, FLAKY
 [$system==win32 && $arch==arm64]
 
 [$system==linux]
-# https://github.com/nodejs/node/issues/43465
-test-http-server-request-timeouts-mixed: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54803
 test-performance-function: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
