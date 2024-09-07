@@ -36,7 +36,9 @@ template <
     SpinEventLoopCleanupMode cleanupMode = SpinEventLoopCleanupMode::kNormal,
     typename ShouldContinuePredicate = int>
 Maybe<ExitCode> SpinEventLoopInternalImpl(
-    Environment* env, const ShouldContinuePredicate& shouldContinue = 0) {
+    Environment* env,
+    uv_run_mode run_mode = UV_RUN_DEFAULT,
+    const ShouldContinuePredicate& shouldContinue = 0) {
   CHECK_NOT_NULL(env);
   MultiIsolatePlatform* platform = GetMultiIsolatePlatform(env);
   CHECK_NOT_NULL(platform);
@@ -63,11 +65,12 @@ Maybe<ExitCode> SpinEventLoopInternalImpl(
 
     bool more;
     do {
-      if constexpr (std::is_invocable_r_v<bool, ShouldContinuePredicate>) {
+      if constexpr (std::
+                        is_invocable_r_v<bool, ShouldContinuePredicate, bool>) {
         do {
           if (env->is_stopping()) break;
-          more = uv_run(env->event_loop(), UV_RUN_NOWAIT);
-        } while (more && shouldContinue());
+          more = uv_run(env->event_loop(), run_mode);
+        } while (more && shouldContinue(more));
       } else {
         if (env->is_stopping()) break;
         uv_run(env->event_loop(), UV_RUN_DEFAULT);
@@ -128,9 +131,11 @@ v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(Environment* env) {
 }
 
 v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(
-    Environment* env, const std::function<bool(void)>& shouldContinue) {
+    Environment* env,
+    uv_run_mode run_mode,
+    const std::function<bool(bool)>& shouldContinue) {
   return SpinEventLoopInternalImpl<SpinEventLoopCleanupMode::kNoCleanup>(
-      env, shouldContinue);
+      env, run_mode, shouldContinue);
 }
 
 struct CommonEnvironmentSetup::Impl {

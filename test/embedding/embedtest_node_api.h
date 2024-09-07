@@ -2,24 +2,33 @@
 #define TEST_EMBEDDING_EMBEDTEST_NODE_API_H_
 
 #define NAPI_EXPERIMENTAL
-#include <node_api_embedding.h>
+#include <node_embedding_api.h>
 
 #ifdef __cplusplus
 
 #include <string>
 #include <vector>
 
-extern "C" inline void NAPI_CDECL GetMessageVector(void* data,
-                                                   const char* messages[],
-                                                   size_t size) {
-  static_cast<std::vector<std::string>*>(data)->assign(messages,
-                                                       messages + size);
-}
-
 extern "C" inline void NAPI_CDECL GetArgsVector(void* data,
                                                 int32_t argc,
                                                 const char* argv[]) {
   static_cast<std::vector<std::string>*>(data)->assign(argv, argv + argc);
+}
+
+extern "C" inline napi_status NAPI_CDECL HandleTestError(void* handler_data,
+                                                         const char* messages[],
+                                                         size_t messages_size,
+                                                         int32_t exit_code,
+                                                         napi_status status) {
+  auto exe_name = static_cast<const char*>(handler_data);
+  if (exit_code != 0) {
+    for (size_t i = 0; i < messages_size; ++i)
+      fprintf(stderr, "%s: %s\n", exe_name, messages[i]);
+    exit(exit_code);
+  } else {
+    for (size_t i = 0; i < messages_size; ++i) printf("%s\n", messages[i]);
+  }
+  return status;
 }
 
 #endif

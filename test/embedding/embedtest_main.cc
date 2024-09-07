@@ -39,10 +39,10 @@ NODE_MAIN(int32_t argc, node::argv_type raw_argv[]) {
       return CallWithoutArg1(test_main_multi_env_node_api, argc, argv);
     } else if (strcmp(arg1, "multi-thread-node-api") == 0) {
       return CallWithoutArg1(test_main_multi_thread_node_api, argc, argv);
-    } else if (strcmp(arg1, "snapshot-node-api") == 0) {
-      return CallWithoutArg1(test_main_snapshot_node_api, argc, argv);
     } else if (strcmp(arg1, "preload-node-api") == 0) {
       return CallWithoutArg1(test_main_preload_node_api, argc, argv);
+    } else if (strcmp(arg1, "snapshot-node-api") == 0) {
+      return CallWithoutArg1(test_main_snapshot_node_api, argc, argv);
     }
   }
   return test_main_cpp_api(argc, argv);
