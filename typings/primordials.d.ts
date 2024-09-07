@@ -150,7 +150,9 @@ declare namespace primordials {
   export import ArrayBuffer = globalThis.ArrayBuffer;
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
   export const ArrayBufferIsView: typeof ArrayBuffer.isView
+  export const ArrayBufferPrototypeGetDetached: UncurryThis<typeof ArrayBuffer.prototype.detached>
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
+  export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
   export const AsyncIteratorPrototype: AsyncIterable<any>;
   export import BigInt = globalThis.BigInt;
   export const BigIntPrototype: typeof BigInt.prototype
