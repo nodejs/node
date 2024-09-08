@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.22.0",
+    "@npmcli/template-oss": "4.23.3",
     "benchmark": "^2.1.4",
     "minify-registry-metadata": "^3.0.0",
     "nock": "^13.3.3",
@@ -54,12 +54,13 @@
     "posttest": "npm run lint",
     "snap": "tap",
     "test-proxy": "ARBORIST_TEST_PROXY=1 tap --snapshot",
-    "lint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
-    "lintfix": "npm run lint -- --fix",
+    "lint": "npm run eslint",
+    "lintfix": "npm run eslint -- --fix",
     "benchmark": "node scripts/benchmark.js",
     "benchclean": "rm -rf scripts/benchmark/*/",
     "postlint": "template-oss-check",
-    "template-oss-apply": "template-oss-apply --force"
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
   },
   "repository": {
     "type": "git",
@@ -92,7 +93,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.22.0",
+    "version": "4.23.3",
     "content": "../../scripts/template-oss/index.js"
   }
 }
