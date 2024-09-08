@@ -67,7 +67,7 @@ const siblingModule = require('./sibling-module');
 ### `module.constants.compileCacheStatus`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -120,7 +120,7 @@ The following constants are returned as the `status` field in the object returne
 ### `module.enableCompileCache([cacheDir])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -165,13 +165,13 @@ be inheritend into the child workers. The directory can be obtained either from 
 <!-- YAML
 added: v22.1.0
 changes:
-  - version: REPLACEME
+  - version: v22.8.0
     pr-url: https://github.com/nodejs/node/pull/54501
     description: add initial JavaScript APIs for runtime access.
 -->
 
 The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
-method or the [`NODE_COMPILE_CACHE=dir`][] environemnt variable. After it's enabled,
+method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
 whenever Node.js compiles a CommonJS or a ECMAScript Module, it will use on-disk
 [V8 code cache][] persisted in the specified directory to speed up the compilation.
 This may slow down the first load of a module graph, but subsequent loads of the same module
@@ -202,7 +202,7 @@ separately if the same base directory is used to persist the cache, so they can 
 ### `module.getCompileCacheDir()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development

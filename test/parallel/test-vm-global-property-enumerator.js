@@ -8,6 +8,9 @@ const assert = require('assert');
 
 const cases = [
   {
+    get 1() {
+      return 'value';
+    },
     get key() {
       return 'value';
     },
@@ -16,13 +19,19 @@ const cases = [
     // Intentionally single setter.
     // eslint-disable-next-line accessor-pairs
     set key(value) {},
+    // eslint-disable-next-line accessor-pairs
+    set 1(value) {},
   },
   {},
   {
     key: 'value',
+    1: 'value',
   },
   (new class GetterObject {
     get key() {
+      return 'value';
+    }
+    get 1() {
       return 'value';
     }
   }()),
@@ -32,12 +41,17 @@ const cases = [
     set key(value) {
       // noop
     }
+    // eslint-disable-next-line accessor-pairs
+    set 1(value) {
+      // noop
+    }
   }()),
   [],
   [['key', 'value']],
   {
     __proto__: {
       key: 'value',
+      1: 'value',
     },
   },
   (() => {

@@ -2022,39 +2022,18 @@ class ConstantPoolPointerForwarder {
   }
 
   void RecordScopeInfos(Tagged<MaybeObject> maybe_old_info) {
-    RecordScopeInfos(maybe_old_info.GetHeapObjectAssumeWeak());
-  }
-
-  // Record all scope infos relevant for a shared function info or scope info
-  // (recorded for eval).
-  void RecordScopeInfos(Tagged<HeapObject> info) {
     Tagged<ScopeInfo> scope_info;
+    Tagged<HeapObject> info = maybe_old_info.GetHeapObjectAssumeWeak();
     if (Is<SharedFunctionInfo>(info)) {
       Tagged<SharedFunctionInfo> old_sfi = Cast<SharedFunctionInfo>(info);
-      // Also record context-having own scope infos for SFIs.
-      if (!old_sfi->scope_info()->IsEmpty() &&
-          old_sfi->scope_info()->HasContext()) {
-        scope_info = old_sfi->scope_info();
-      } else if (old_sfi->HasOuterScopeInfo()) {
-        scope_info = old_sfi->GetOuterScopeInfo();
-      } else {
-        return;
-      }
+      if (!old_sfi->HasOuterScopeInfo()) return;
+      scope_info = old_sfi->GetOuterScopeInfo();
     } else {
       scope_info = Cast<ScopeInfo>(info);
     }
-
     while (true) {
-      auto it = scope_infos_to_update_.find(scope_info->UniqueIdInScript());
-      if (it != scope_infos_to_update_.end()) {
-        // Once we find an already recorded scope info, it need to match the one
-        // on the chain.
-        if (V8_UNLIKELY(*it->second != scope_info)) {
-          info->Print();
-          (*it->second)->Print();
-          scope_info->Print();
-          UNREACHABLE();
-        }
+      if (scope_infos_to_update_.find(scope_info->UniqueIdInScript()) !=
+          scope_infos_to_update_.end()) {
         return;
       }
       scope_infos_to_update_[scope_info->UniqueIdInScript()] =
@@ -2083,51 +2062,17 @@ class ConstantPoolPointerForwarder {
            !scope_infos_to_update_.empty();
   }
 
-  // Find an own scope info for the sfi based on the UniqueIdInScript that the
-  // own scope info would have. This works even if the SFI doesn't yet have a
-  // scope info attached by computing UniqueIdInScript from the SFI position.
-  //
-  // This should only directly be used for SFIs that already existed on the
-  // script. Their outer scope info will already be correct.
-  bool InstallOwnScopeInfo(Tagged<SharedFunctionInfo> sfi) {
-    auto it = scope_infos_to_update_.find(sfi->UniqueIdInScript());
-    if (it == scope_infos_to_update_.end()) return false;
-    sfi->SetScopeInfo(*it->second);
-    return true;
-  }
-
-  // Either replace the own scope info of the sfi, or the first outer scope info
-  // that was recorded.
-  //
-  // This has to be used for all newly created SFIs since their outer scope info
-  // also may need to be reattached.
-  void UpdateScopeInfo(Tagged<SharedFunctionInfo> sfi) {
-    // This should not be called on already existing SFIs. Their scope infos are
-    // already correct.
-    DCHECK_NE(MakeWeak(sfi),
-              old_script_->infos()->get(sfi->function_literal_id()));
-    if (InstallOwnScopeInfo(sfi)) return;
+  void UpdateOuterScopeInfo(Tagged<SharedFunctionInfo> sfi) {
     if (!sfi->HasOuterScopeInfo()) return;
-
-    Tagged<ScopeInfo> parent =
-        sfi->scope_info()->IsEmpty() ? Tagged<ScopeInfo>() : sfi->scope_info();
     Tagged<ScopeInfo> outer_info = sfi->GetOuterScopeInfo();
-
     auto it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
-    while (it == scope_infos_to_update_.end()) {
-      if (!outer_info->HasOuterScopeInfo()) return;
-      parent = outer_info;
-      outer_info = outer_info->OuterScopeInfo();
-      it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
-    }
+    if (it == scope_infos_to_update_.end()) return;
     if (outer_info == *it->second) return;
-
     VerifyScopeInfo(outer_info, *it->second);
-
-    if (parent.is_null()) {
-      sfi->set_raw_outer_scope_info_or_feedback_metadata(*it->second);
+    if (sfi->is_compiled()) {
+      sfi->scope_info()->set_outer_scope_info(*it->second);
     } else {
-      parent->set_outer_scope_info(*it->second);
+      sfi->set_raw_outer_scope_info_or_feedback_metadata(*it->second);
     }
   }
 
@@ -2309,16 +2254,6 @@ void BackgroundMergeTask::BeginMergeInBackground(
           new_compiled_data_for_cached_sfis_.push_back(
               {local_heap->NewPersistentHandle(old_sfi),
                local_heap->NewPersistentHandle(new_sfi)});
-          // Pick up existing scope infos from the old sfi. The new sfi will be
-          // copied over the old sfi later. This will ensure that we'll keep
-          // using the old sfis. This will also allow us check later whether new
-          // scope infos have appeared that need to be reused.
-          if (!old_sfi->scope_info()->IsEmpty()) {
-            new_sfi->SetScopeInfo(old_sfi->scope_info());
-          } else if (old_sfi->HasOuterScopeInfo()) {
-            new_sfi->scope_info()->set_outer_scope_info(
-                old_sfi->GetOuterScopeInfo());
-          }
           forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
         }
       } else {
@@ -2343,23 +2278,13 @@ void BackgroundMergeTask::BeginMergeInBackground(
 
   if (forwarder.HasAnythingToForward()) {
     for (DirectHandle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
-      forwarder.UpdateScopeInfo(*new_sfi);
-    }
-    for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-      // It's possible that new_compiled_data.cached_sfi had
-      // scope_info()->IsEmpty() while an inner function has scope info if the
-      // cached_sfi was recreated when an outer function was recompiled. If so,
-      // new_compiled_data.new_sfi does not have a reused scope info yet, and
-      // we'll have found it when we visited the inner function. Try to pick it
-      // up here.
-      forwarder.InstallOwnScopeInfo(*new_compiled_data.new_sfi);
+      forwarder.UpdateOuterScopeInfo(*new_sfi);
     }
     forwarder.IterateAndForwardPointers();
   }
   persistent_handles_ = local_heap->DetachPersistentHandles();
   state_ = kPendingForegroundWork;
 }
-
 Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     Isolate* isolate, DirectHandle<Script> new_script) {
   DCHECK_EQ(state_, kPendingForegroundWork);
@@ -2370,8 +2295,8 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       isolate, isolate->main_thread_local_heap(), old_script);
 
   for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-    Tagged<SharedFunctionInfo> sfi = *new_compiled_data.cached_sfi;
-    if (!sfi->is_compiled() && new_compiled_data.new_sfi->is_compiled()) {
+    if (!new_compiled_data.cached_sfi->is_compiled() &&
+        new_compiled_data.new_sfi->is_compiled()) {
       // Updating existing DebugInfos is not supported, but we don't expect
       // uncompiled SharedFunctionInfos to contain DebugInfos.
       DCHECK(!new_compiled_data.cached_sfi->HasDebugInfo(isolate));
@@ -2381,7 +2306,8 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       // cached_sfi to new_sfi, and then copy every field using CopyFrom.
       new_compiled_data.new_sfi->set_script(
           new_compiled_data.cached_sfi->script(kAcquireLoad), kReleaseStore);
-      sfi->CopyFrom(*new_compiled_data.new_sfi, isolate);
+      new_compiled_data.cached_sfi->CopyFrom(*new_compiled_data.new_sfi,
+                                             isolate);
     }
   }
 
@@ -2410,17 +2336,12 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // pools is required.
   if (forwarder.HasAnythingToForward()) {
     for (DirectHandle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
-      forwarder.UpdateScopeInfo(*new_sfi);
+      forwarder.UpdateOuterScopeInfo(*new_sfi);
       if (new_sfi->HasBytecodeArray(isolate)) {
         forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
       }
     }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-      // It's possible that cached_sfi wasn't compiled, but an inner function
-      // existed that didn't exist when be background merged. In that case, pick
-      // up the relevant scope infos.
-      Tagged<SharedFunctionInfo> sfi = *new_compiled_data.cached_sfi;
-      forwarder.InstallOwnScopeInfo(sfi);
       if (new_compiled_data.cached_sfi->HasBytecodeArray(isolate)) {
         forwarder.AddBytecodeArray(
             new_compiled_data.cached_sfi->GetBytecodeArray(isolate));
@@ -2441,45 +2362,6 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   if (isolate->NeedsSourcePositions()) {
     Script::InitLineEnds(isolate, new_script);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, result);
-  }
-
-  if (v8_flags.verify_code_merge) {
-    // Check that there aren't any duplicate scope infos. Every scope/context
-    // should correspond to at most one scope info.
-    std::unordered_map<int, Tagged<ScopeInfo>> scope_infos;
-    for (int i = 0; i < old_script->infos()->length(); i++) {
-      Tagged<ScopeInfo> scope_info;
-      if (!old_script->infos()->get(i).IsWeak()) continue;
-      Tagged<HeapObject> info =
-          old_script->infos()->get(i).GetHeapObjectAssumeWeak();
-      if (Is<SharedFunctionInfo>(info)) {
-        Tagged<SharedFunctionInfo> old_sfi = Cast<SharedFunctionInfo>(info);
-        if (!old_sfi->scope_info()->IsEmpty()) {
-          scope_info = old_sfi->scope_info();
-        } else if (old_sfi->HasOuterScopeInfo()) {
-          scope_info = old_sfi->GetOuterScopeInfo();
-        } else {
-          continue;
-        }
-      } else {
-        scope_info = Cast<ScopeInfo>(info);
-      }
-      while (true) {
-        auto it = scope_infos.find(scope_info->UniqueIdInScript());
-        if (it != scope_infos.end()) {
-          if (*it->second != scope_info) {
-            old_script->infos()->get(i).GetHeapObjectAssumeWeak()->Print();
-            (*it->second)->Print();
-            scope_info->Print();
-            UNREACHABLE();
-          }
-          break;
-        }
-        scope_infos[scope_info->UniqueIdInScript()] = scope_info;
-        if (!scope_info->HasOuterScopeInfo()) break;
-        scope_info = scope_info->OuterScopeInfo();
-      }
-    }
   }
 
   return handle_scope.CloseAndEscape(result);

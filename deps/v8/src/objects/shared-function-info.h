@@ -597,8 +597,6 @@ class SharedFunctionInfo
 
   inline FunctionKind kind() const;
 
-  int UniqueIdInScript() const;
-
   // Defines the index in a native context of closure's map instantiated using
   // this shared function info.
   DECL_INT_ACCESSORS(function_map_index)

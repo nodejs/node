@@ -466,11 +466,6 @@
       }, {
         'use_openssl_def%': 0,
       }],
-      [ 'node_use_amaro=="true"', {
-          'deps_files': [
-              'deps/amaro/dist/index.js',
-          ]
-      } ]
     ],
   },
 
@@ -491,6 +486,9 @@
     },
 
     'conditions': [
+      ['clang==0 and OS!="win"', {
+        'cflags': [ '-Wno-restrict', ],
+      }],
       # Pointer authentication for ARM64.
       ['target_arch=="arm64"', {
           'target_conditions': [

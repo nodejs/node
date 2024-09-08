@@ -259,8 +259,8 @@ the [Permission Model][].
 The valid arguments for the `--allow-fs-write` flag are:
 
 * `*` - To allow all `FileSystemWrite` operations.
-* Multiple paths can be allowed using multiple `--allow-fs-read` flags.
-  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
+* Multiple paths can be allowed using multiple `--allow-fs-write` flags.
+  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder1/`
 
 Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
@@ -474,12 +474,16 @@ source node_bash_completion
 added:
   - v14.9.0
   - v12.19.0
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/54209
+    description: The flag is no longer experimental.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
-Enable experimental support for custom [conditional exports][] resolution
-conditions.
+Provide custom [conditional exports][] resolution conditions.
 
 Any number of custom string condition names are permitted.
 
@@ -1096,7 +1100,7 @@ report is not generated. See the documentation on
 ### `--experimental-test-isolation=mode`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1405,6 +1409,9 @@ with the ones provided in [`NODE_OPTIONS`][].
 Follows [ECMAScript module][] resolution rules.
 Use [`--require`][] to load a [CommonJS module][].
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
+
+Modules are preloaded into the main thread as well as any worker threads,
+forked processes, or clustered processes.
 
 ### `--input-type=type`
 
@@ -2055,6 +2062,9 @@ Only CommonJS modules are supported.
 Use [`--import`][] to preload an [ECMAScript module][].
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
+Modules are preloaded into the main thread as well as any worker threads,
+forked processes, or clustered processes.
+
 ### `--run`
 
 <!-- YAML
@@ -2221,7 +2231,7 @@ is ignored and concurrency is one. Otherwise, concurrency defaults to
 ### `--test-coverage-branches=threshold`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -2249,7 +2259,7 @@ files must meet **both** criteria to be included in the coverage report.
 ### `--test-coverage-functions=threshold`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -2277,7 +2287,7 @@ files must meet **both** criteria to be included in the coverage report.
 ### `--test-coverage-lines=threshold`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -2867,7 +2877,7 @@ When set, colors will not be used in the REPL.
 ### `NODE_DISABLE_COMPILE_CACHE=1`
 
 <!-- YAML
-added: REPLACEME
+added: v22.8.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3446,7 +3456,11 @@ documented here:
 
 ### `--perf-prof-unwinding-info`
 
-### `--max-old-space-size=SIZE` (in megabytes)
+<!-- Anchor to make sure old links find a target -->
+
+<a id="--max-old-space-sizesize-in-megabytes"></a>
+
+### `--max-old-space-size=SIZE` (in MiB)
 
 Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
@@ -3459,10 +3473,14 @@ On a machine with 2 GiB of memory, consider setting this to
 node --max-old-space-size=1536 index.js
 ```
 
-### `--max-semi-space-size=SIZE` (in megabytes)
+<!-- Anchor to make sure old links find a target -->
+
+<a id="--max-semi-space-sizesize-in-megabytes"></a>
+
+### `--max-semi-space-size=SIZE` (in MiB)
 
 Sets the maximum [semi-space][] size for V8's [scavenge garbage collector][] in
-MiB (megabytes).
+MiB (mebibytes).
 Increasing the max size of a semi-space may improve throughput for Node.js at
 the cost of more memory consumption.
 

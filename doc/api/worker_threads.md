@@ -1500,8 +1500,8 @@ thread spawned will spawn another until the application crashes.
 [`'close'` event]: #event-close
 [`'exit'` event]: #event-exit
 [`'online'` event]: #event-online
-[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-megabytes
-[`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-megabytes
+[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
+[`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`AsyncResource`]: async_hooks.md#class-asyncresource
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
