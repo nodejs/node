@@ -362,6 +362,8 @@ std::string GetVariableName(const std::string& id) {
 
 
 
+// 382106 is the length of the string "0,1,2,3,...,65535,".
+// 65537 is 2**16 + 1
 constexpr std::pair<std::array<char, 382106>,std::array<uint32_t, 65537>> precompute_string() {
   std::array<char, 382106> str;
   std::array<uint32_t, 65537> off;
