@@ -129,6 +129,18 @@ const strictModeTests = [
   },
 ];
 
+const possibleTokensAfterIdentifier = [
+  '()',
+  '[0]',
+  '+ 1', '- 1', '* 1', '/ 1', '% 1', '** 1',
+  '== 1', '=== 1', '!= 1', '!== 1', '< 1', '> 1', '<= 1', '>= 1',
+  '&& 1', '|| 1', '?? 1',
+  '= 1', '+= 1', '-= 1', '*= 1', '/= 1', '%= 1',
+  '++', '--',
+  ':',
+  '? 1: 1',
+];
+
 const errorTests = [
   // Uncaught error throws and prints out
   {
@@ -386,6 +398,16 @@ const errorTests = [
       '(Press Ctrl+D to exit.)',
     ]
   },
+  {
+    send: 'let npm = () => {};',
+    expect: 'undefined'
+  },
+  ...possibleTokensAfterIdentifier.map((token) => (
+    {
+      send: `npm ${token}; undefined`,
+      expect: 'undefined'
+    }
+  )),
   {
     send: '(function() {\n\nreturn 1;\n})()',
     expect: '... ... ... 1'
