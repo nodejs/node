@@ -165,8 +165,10 @@ class RunScript extends BaseCommand {
       return
     }
 
-    // TODO this is missing things like prepare, prepublishOnly, and dependencies
     const cmdList = [
+      'prepare', 'prepublishOnly',
+      'prepack', 'postpack',
+      'dependencies',
       'preinstall', 'install', 'postinstall',
       'prepublish', 'publish', 'postpublish',
       'prerestart', 'restart', 'postrestart',

@@ -1,6 +1,6 @@
 {
   "name": "libnpmexec",
-  "version": "8.1.3",
+  "version": "8.1.4",
   "files": [
     "bin/",
     "lib/"
@@ -33,13 +33,14 @@
   ],
   "license": "ISC",
   "scripts": {
-    "lint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "lint": "npm run eslint",
     "posttest": "npm run lint",
     "test": "tap",
     "snap": "tap",
     "postlint": "template-oss-check",
-    "lintfix": "npm run lint -- --fix",
-    "template-oss-apply": "template-oss-apply --force"
+    "lintfix": "npm run eslint -- --fix",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
   },
   "tap": {
     "files": "test/*.js",
@@ -51,7 +52,7 @@
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
     "@npmcli/mock-registry": "^1.0.0",
-    "@npmcli/template-oss": "4.22.0",
+    "@npmcli/template-oss": "4.23.3",
     "bin-links": "^4.0.4",
     "chalk": "^5.2.0",
     "just-extend": "^6.2.0",
@@ -72,7 +73,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.22.0",
+    "version": "4.23.3",
     "content": "../../scripts/template-oss/index.js"
   }
 }
