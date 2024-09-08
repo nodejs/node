@@ -95,7 +95,7 @@ class Init extends BaseCommand {
     await this.update(workspacesPaths)
   }
 
-  async execCreate (args, path = process.cwd()) {
+  async execCreate (args, runPath = process.cwd()) {
     const [initerName, ...otherArgs] = args
     let packageName = initerName
 
@@ -129,7 +129,6 @@ class Init extends BaseCommand {
       globalBin,
       chalk,
     } = this.npm
-    const runPath = path
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const yes = this.npm.config.get('yes')
 
@@ -140,7 +139,7 @@ class Init extends BaseCommand {
       globalBin,
       output,
       chalk,
-      path,
+      path: this.npm.localPrefix,
       runPath,
       scriptShell,
       yes,

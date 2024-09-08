@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "July 2024" "NPM@10.8.2" ""
+.TH "PACKAGE.JSON" "5" "August 2024" "NPM@10.8.3" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -585,6 +585,8 @@ See \fBsemver\fR \fI\(lahttps://github.com/npm/node-semver#versions\(ra\fR for m
 \fBtag\fR A specific version tagged and published as \fBtag\fR See npm help dist-tag
 .IP \(bu 4
 \fBpath/path/path\fR See \fBLocal Paths\fR \fI(Local Paths)\fR below
+.IP \(bu 4
+\fBnpm:@scope/pkg@version\fR Custom alias for a pacakge See \fB\fBpackage-spec\fR\fR \fI\(la/using-npm/package-spec#aliases\(ra\fR
 .RE 0
 
 .P
@@ -605,7 +607,8 @@ For example, these are all valid:
     "two": "2.x",
     "thr": "3.3.x",
     "lat": "latest",
-    "dyl": "file:../dyl"
+    "dyl": "file:../dyl",
+    "kpg": "npm:pkg@1.0.0"
   }
 }
 .fi

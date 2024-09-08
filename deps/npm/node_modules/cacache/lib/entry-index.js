@@ -22,7 +22,6 @@ const { moveFile } = require('@npmcli/fs')
 const pMap = require('p-map')
 const lsStreamConcurrency = 5
 
-
 module.exports.NotFoundError = class NotFoundError extends Error {
   constructor (cache, key) {
     super(`No cache entry for ${key} found in ${cache}`)
