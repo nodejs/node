@@ -1,4 +1,4 @@
-/* auto-generated on 2024-08-24 20:20:43 -0400. Do not edit! */
+/* auto-generated on 2024-09-02 20:07:32 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -11553,21 +11553,21 @@ ada_really_inline bool url::parse_scheme(const std::string_view input) {
       // If url's scheme is not a special scheme and buffer is a special scheme,
       // then return.
       if (is_special() != is_input_special) {
-        return true;
+        return false;
       }
 
       // If url includes credentials or has a non-null port, and buffer is
       // "file", then return.
       if ((has_credentials() || port.has_value()) &&
           parsed_type == ada::scheme::type::FILE) {
-        return true;
+        return false;
       }
 
       // If url's scheme is "file" and its host is an empty host, then return.
       // An empty host is the empty string.
       if (type == ada::scheme::type::FILE && host.has_value() &&
           host.value().empty()) {
-        return true;
+        return false;
       }
     }
 
@@ -13215,21 +13215,21 @@ template <bool has_state_override>
       // If url's scheme is not a special scheme and buffer is a special scheme,
       // then return.
       if (is_special() != is_input_special) {
-        return true;
+        return false;
       }
 
       // If url includes credentials or has a non-null port, and buffer is
       // "file", then return.
       if ((has_credentials() || components.port != url_components::omitted) &&
           parsed_type == ada::scheme::type::FILE) {
-        return true;
+        return false;
       }
 
       // If url's scheme is "file" and its host is an empty host, then return.
       // An empty host is the empty string.
       if (type == ada::scheme::type::FILE &&
           components.host_start == components.host_end) {
-        return true;
+        return false;
       }
     }
 
