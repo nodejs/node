@@ -360,31 +360,30 @@ std::string GetVariableName(const std::string& id) {
   return result;
 }
 
-
-
 // 382106 is the length of the string "0,1,2,3,...,65535,".
 // 65537 is 2**16 + 1
-constexpr std::pair<std::array<char, 382106>,std::array<uint32_t, 65537>> precompute_string() {
+constexpr std::pair<std::array<char, 382106>, std::array<uint32_t, 65537>>
+precompute_string() {
   std::array<char, 382106> str;
   std::array<uint32_t, 65537> off;
   off[0] = 0;
-  char *p = &str[0];
+  char* p = &str[0];
   // We roll our own int to string conversion to get constexpr
-  constexpr auto const_int_to_str = [](uint16_t value, char *s) -> size_t {
+  constexpr auto const_int_to_str = [](uint16_t value, char* s) -> size_t {
     int index = 0;
     do {
-        s[index++] = '0' + (value % 10);
-        value /= 10;
+      s[index++] = '0' + (value % 10);
+      value /= 10;
     } while (value != 0);
 
     for (int i = 0; i < index / 2; ++i) {
-        char temp = s[i];
-        s[i] = s[index - i - 1];
-        s[index - i - 1] = temp;
+      char temp = s[i];
+      s[i] = s[index - i - 1];
+      s[index - i - 1] = temp;
     }
     s[index] = ',';
     return index;
-};
+  };
   for (int i = 0; i < 65536; ++i) {
     size_t offset = const_int_to_str(i, p);
     p += offset;
@@ -396,8 +395,8 @@ constexpr std::pair<std::array<char, 382106>,std::array<uint32_t, 65537>> precom
 const std::string_view GetCode(uint16_t index) {
   // uses about 644254 bytes of memory. An array of 65536 strings might use
   // 2097152 bytes so we save 3x the memory
-  // Furthermore, compilers such as GCC will evaluate precompute_string() at compile time, thus
-  // potentially speeding up the program's startup time.
+  // Furthermore, compilers such as GCC will evaluate precompute_string() at
+  // compile time, thus potentially speeding up the program's startup time.
   static auto [backing_string, offsets] = precompute_string();
   return std::string_view(&backing_string[offsets[index]],
                           offsets[index + 1] - offsets[index]);
