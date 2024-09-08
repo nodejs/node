@@ -1,4 +1,4 @@
-// Flags: --experimental-shadow-realm --max-old-space-size=20
+// Flags: --experimental-shadow-realm --max-old-space-size=25
 'use strict';
 
 /**
