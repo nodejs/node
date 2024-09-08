@@ -4,6 +4,9 @@
 
 #include "src/wasm/wasm-code-pointer-table.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 

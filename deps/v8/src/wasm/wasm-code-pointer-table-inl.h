@@ -5,6 +5,8 @@
 #ifndef V8_WASM_WASM_CODE_POINTER_TABLE_INL_H_
 #define V8_WASM_WASM_CODE_POINTER_TABLE_INL_H_
 
+#include <atomic>
+
 #include "src/common/code-memory-access-inl.h"
 #include "src/common/segmented-table-inl.h"
 #include "src/wasm/wasm-code-pointer-table.h"

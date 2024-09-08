@@ -5,6 +5,9 @@
 #ifndef V8_WASM_WASM_CODE_POINTER_TABLE_H_
 #define V8_WASM_WASM_CODE_POINTER_TABLE_H_
 
+#include <atomic>
+#include <vector>
+
 #include "include/v8-internal.h"
 #include "src/common/segmented-table.h"
 
