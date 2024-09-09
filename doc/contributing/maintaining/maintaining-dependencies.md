@@ -132,7 +132,7 @@ can be added by:
   Not reporting the version is better than incorrectly reporting
   the version of the dependency bundled with Node.js, instead of the
   version for the externalized dependency. Use one of the existing
-  externalized dependencies, like undici, as an example of how to
+  externalized dependencies, like Undici, as an example of how to
   update these files correctly. Make sure to run the tests with the
   dependency externalized, as the tests will also need to be updated
   to handle this properly.
