@@ -45,7 +45,7 @@ const id3 = new h2test.HeadersFrame(3, h2test.kFakeRequestHeaders, 0, true);
 const id5 = new h2test.HeadersFrame(5, h2test.kFakeRequestHeaders, 0, true);
 
 server.listen(0, () => {
-  let client = net.connect(server.address().port, () => {
+  const client = net.connect(server.address().port, () => {
     client.write(h2test.kClientMagic, () => {
       client.write(settings.data, () => {
         client.write(settingsAck.data);
