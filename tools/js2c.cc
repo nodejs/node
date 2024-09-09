@@ -369,20 +369,20 @@ precompute_string() {
   off[0] = 0;
   char* p = &str[0];
   // We roll our own int to string conversion to get constexpr
-  constexpr auto const_int_to_str = [](uint16_t value, char* s) -> size_t {
-    int index = 0;
+  constexpr auto const_int_to_str = [](uint16_t value, char* s) -> uint32_t {
+    uint32_t index = 0;
     do {
       s[index++] = '0' + (value % 10);
       value /= 10;
     } while (value != 0);
 
-    for (int i = 0; i < index / 2; ++i) {
+    for (uint32_t i = 0; i < index / 2; ++i) {
       char temp = s[i];
       s[i] = s[index - i - 1];
       s[index - i - 1] = temp;
     }
     s[index] = ',';
-    return index;
+    return index + 1;
   };
   for (int i = 0; i < 65536; ++i) {
     size_t offset = const_int_to_str(i, p);
@@ -397,7 +397,10 @@ const std::string_view GetCode(uint16_t index) {
   // 2097152 bytes so we save 3x the memory
   // Furthermore, compilers such as GCC will evaluate precompute_string() at
   // compile time, thus potentially speeding up the program's startup time.
+  // Theoretically, we could use consteval, but the function is expensive and
+  // some compilers will refuse to compile it.
   static auto [backing_string, offsets] = precompute_string();
+  //return std::to_string(index) + ",";
   return std::string_view(&backing_string[offsets[index]],
                           offsets[index + 1] - offsets[index]);
 }
