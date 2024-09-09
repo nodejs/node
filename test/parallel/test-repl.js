@@ -129,18 +129,6 @@ const strictModeTests = [
   },
 ];
 
-const possibleTokensAfterIdentifier = [
-  '()',
-  '[0]',
-  '+ 1', '- 1', '* 1', '/ 1', '% 1', '** 1',
-  '== 1', '=== 1', '!= 1', '!== 1', '< 1', '> 1', '<= 1', '>= 1',
-  '&& 1', '|| 1', '?? 1',
-  '= 1', '+= 1', '-= 1', '*= 1', '/= 1', '%= 1',
-  '++', '--',
-  ':',
-  '? 1: 1',
-];
-
 const possibleTokensAfterIdentifierWithLineBreak = [
   '(\n)',
   '[\n0]',
@@ -412,16 +400,6 @@ const errorTests = [
   {
     send: 'let npm = () => {};',
     expect: 'undefined'
-  },
-  ...possibleTokensAfterIdentifier.map((token) => (
-    {
-      send: `npm ${token}; undefined`,
-      expect: 'undefined'
-    }
-  )),
-  {
-    send: 'npm = () => {};',
-    expect: '[Function: npm]'
   },
   ...possibleTokensAfterIdentifierWithLineBreak.map((token) => (
     {
