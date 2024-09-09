@@ -11,7 +11,7 @@ const configs = {
   dir: ['lib', 'test/parallel', 'benchmark'],
   pattern: ['**/*', '*.js', '**/**.js'],
   mode: ['async', 'sync'],
-  recursive: ['true', 'false']
+  recursive: ['true', 'false'],
 };
 
 const bench = common.createBenchmark(main, configs);
