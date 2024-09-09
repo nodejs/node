@@ -141,6 +141,17 @@ const possibleTokensAfterIdentifier = [
   '? 1: 1',
 ];
 
+const possibleTokensAfterIdentifierWithLineBreak = [
+  '(\n)',
+  '[\n0]',
+  '+\n1', '- \n1', '* \n1', '/ \n1', '% \n1', '** \n1',
+  '== \n1', '=== \n1', '!= \n1', '!== \n1', '< \n1', '> \n1', '<= \n1', '>= \n1',
+  '&& \n1', '|| \n1', '?? \n1',
+  '= \n1', '+= \n1', '-= \n1', '*= \n1', '/= \n1', '%= \n1',
+  ': \n',
+  '? \n1: 1',
+] 
+
 const errorTests = [
   // Uncaught error throws and prints out
   {
@@ -406,6 +417,16 @@ const errorTests = [
     {
       send: `npm ${token}; undefined`,
       expect: 'undefined'
+    }
+  )),
+  {
+    send: 'npm = () => {};',
+    expect: '[Function: npm]'
+  },
+  ...possibleTokensAfterIdentifierWithLineBreak.map((token) => (
+    {
+      send: `npm ${token}; undefined`,
+      expect: '... undefined'
     }
   )),
   {
