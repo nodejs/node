@@ -400,7 +400,6 @@ const std::string_view GetCode(uint16_t index) {
   // Theoretically, we could use consteval, but the function is expensive and
   // some compilers will refuse to compile it.
   static auto [backing_string, offsets] = precompute_string();
-  //return std::to_string(index) + ",";
   return std::string_view(&backing_string[offsets[index]],
                           offsets[index + 1] - offsets[index]);
 }
