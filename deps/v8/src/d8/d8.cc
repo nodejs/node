@@ -1268,17 +1268,10 @@ struct DynamicImportData {
 };
 
 namespace {
-struct ModuleResolutionData {
-  ModuleResolutionData(Isolate* isolate_, Local<Value> module_namespace_,
-                       Local<Promise::Resolver> resolver_)
-      : isolate(isolate_) {
-    module_namespace.Reset(isolate, module_namespace_);
-    resolver.Reset(isolate, resolver_);
-  }
 
-  Isolate* isolate;
-  Global<Value> module_namespace;
-  Global<Promise::Resolver> resolver;
+enum ModuleResolutionDataIndex : uint32_t {
+  kResolver = 0,
+  kNamespace = 1,
 };
 
 }  // namespace
@@ -1286,16 +1279,19 @@ struct ModuleResolutionData {
 void Shell::ModuleResolutionSuccessCallback(
     const FunctionCallbackInfo<Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  std::unique_ptr<ModuleResolutionData> module_resolution_data(
-      static_cast<ModuleResolutionData*>(
-          info.Data().As<v8::External>()->Value()));
-  Isolate* isolate(module_resolution_data->isolate);
+  Isolate* isolate(info.GetIsolate());
   HandleScope handle_scope(isolate);
+  Local<Array> module_resolution_data(info.Data().As<Array>());
+  Local<Context> context(isolate->GetCurrentContext());
 
   Local<Promise::Resolver> resolver(
-      module_resolution_data->resolver.Get(isolate));
+      module_resolution_data->Get(context, ModuleResolutionDataIndex::kResolver)
+          .ToLocalChecked()
+          .As<Promise::Resolver>());
   Local<Value> module_namespace(
-      module_resolution_data->module_namespace.Get(isolate));
+      module_resolution_data
+          ->Get(context, ModuleResolutionDataIndex::kNamespace)
+          .ToLocalChecked());
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
@@ -1307,14 +1303,15 @@ void Shell::ModuleResolutionSuccessCallback(
 void Shell::ModuleResolutionFailureCallback(
     const FunctionCallbackInfo<Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  std::unique_ptr<ModuleResolutionData> module_resolution_data(
-      static_cast<ModuleResolutionData*>(
-          info.Data().As<v8::External>()->Value()));
-  Isolate* isolate(module_resolution_data->isolate);
+  Isolate* isolate(info.GetIsolate());
   HandleScope handle_scope(isolate);
+  Local<Array> module_resolution_data(info.Data().As<Array>());
+  Local<Context> context(isolate->GetCurrentContext());
 
   Local<Promise::Resolver> resolver(
-      module_resolution_data->resolver.Get(isolate));
+      module_resolution_data->Get(context, ModuleResolutionDataIndex::kResolver)
+          .ToLocalChecked()
+          .As<Promise::Resolver>());
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
@@ -1492,15 +1489,20 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Promise> result_promise = result.As<Promise>();
 
   // Setup callbacks, and then chain them to the result promise.
-  // ModuleResolutionData will be deleted by the callbacks.
-  auto module_resolution_data =
-      new ModuleResolutionData(isolate, module_namespace, resolver);
-  Local<v8::External> edata = External::New(isolate, module_resolution_data);
+  Local<Array> module_resolution_data = v8::Array::New(isolate);
+  module_resolution_data
+      ->Set(realm, ModuleResolutionDataIndex::kResolver, resolver)
+      .ToChecked();
+  module_resolution_data
+      ->Set(realm, ModuleResolutionDataIndex::kNamespace, module_namespace)
+      .ToChecked();
   Local<Function> callback_success;
-  CHECK(Function::New(realm, ModuleResolutionSuccessCallback, edata)
+  CHECK(Function::New(realm, ModuleResolutionSuccessCallback,
+                      module_resolution_data)
             .ToLocal(&callback_success));
   Local<Function> callback_failure;
-  CHECK(Function::New(realm, ModuleResolutionFailureCallback, edata)
+  CHECK(Function::New(realm, ModuleResolutionFailureCallback,
+                      module_resolution_data)
             .ToLocal(&callback_failure));
   result_promise->Then(realm, callback_success, callback_failure)
       .ToLocalChecked();

@@ -771,7 +771,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   DirectHandle<Script> script = factory()->NewScript(source);
   script->set_type(Script::Type::kNative);
   DirectHandle<WeakFixedArray> infos = factory()->NewWeakFixedArray(2);
-  script->set_infos(*infos);
+  script->set_shared_function_infos(*infos);
   ReadOnlyRoots roots{isolate()};
   Tagged<SharedFunctionInfo> sfi = empty_function->shared();
   sfi->set_raw_scope_info(roots.empty_function_scope_info());

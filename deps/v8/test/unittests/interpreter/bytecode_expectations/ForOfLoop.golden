@@ -152,7 +152,7 @@ bytecodes: [
                 B(Star13),
                 B(LdaZero),
                 B(Star), R(17),
-                B(LdaSmi), I8(2),
+                B(LdaSmi), I8(37),
                 B(Star), R(18),
                 B(LdaSmi), I8(41),
                 B(Star), R(19),

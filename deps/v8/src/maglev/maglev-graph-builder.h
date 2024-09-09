@@ -2008,7 +2008,7 @@ class MaglevGraphBuilder {
       compiler::OptionalAllocationSiteRef maybe_allocation_site = {});
   ReduceResult TryReduceConstructBuiltin(
       compiler::JSFunctionRef builtin,
-      compiler::SharedFunctionInfoRef shared_function_info,
+      compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
       CallArguments& args);
   ReduceResult TryReduceConstructGeneric(
       compiler::JSFunctionRef function,

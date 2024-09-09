@@ -4602,13 +4602,14 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     FunctionLiteral* function_literal) {
   DCHECK(function_literal->shared_function_info().is_null());
   int function_literal_id = function_literal->function_literal_id();
-  CHECK_NE(function_literal_id, kInvalidInfoId);
+  CHECK_NE(function_literal_id, kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
-  CHECK_LT(function_literal_id, script->infos()->length());
-  Tagged<MaybeObject> shared = script->infos()->get(function_literal_id);
+  CHECK_LT(function_literal_id, script->shared_function_info_count());
+  Tagged<MaybeObject> shared =
+      script->shared_function_infos()->get(function_literal_id);
   Tagged<HeapObject> heap_object;
   if (!shared.GetHeapObject(&heap_object) ||
       IsUndefined(heap_object, isolate)) {

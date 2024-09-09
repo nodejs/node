@@ -924,8 +924,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
     sfi->set_script(*new_script, kReleaseStore);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
-    new_script->infos()->set(mapping.second->function_literal_id(),
-                             MakeWeak(*sfi));
+    new_script->shared_function_infos()->set(
+        mapping.second->function_literal_id(), MakeWeak(*sfi));
     DCHECK_EQ(sfi->function_literal_id(),
               mapping.second->function_literal_id());
 
@@ -1016,8 +1016,9 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // Grab that function id from the new script's SFI list, which should have
       // already been updated in in the unchanged pass.
       Tagged<SharedFunctionInfo> old_unchanged_inner_sfi =
-          Cast<SharedFunctionInfo>(
-              new_script->infos()->get(unchanged_it->second).GetHeapObject());
+          Cast<SharedFunctionInfo>(new_script->shared_function_infos()
+                                       ->get(unchanged_it->second)
+                                       .GetHeapObject());
       if (old_unchanged_inner_sfi == inner_sfi) continue;
       DCHECK_NE(old_unchanged_inner_sfi, inner_sfi);
       // Now some sanity checks. Make sure that the unchanged SFI has already
@@ -1058,7 +1059,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
         Tagged<SharedFunctionInfo> inner_sfi =
             Cast<SharedFunctionInfo>(constants->get(i));
         DCHECK_EQ(inner_sfi->script(), *new_script);
-        DCHECK_EQ(inner_sfi, new_script->infos()
+        DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
                                  ->get(inner_sfi->function_literal_id())
                                  .GetHeapObject());
       }

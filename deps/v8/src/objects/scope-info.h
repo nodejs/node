@@ -138,8 +138,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  int UniqueIdInScript() const;
-
   Tagged<SourceTextModuleInfo> ModuleDescriptorInfo() const;
 
   // Return true if the local names are inlined in the scope info object.

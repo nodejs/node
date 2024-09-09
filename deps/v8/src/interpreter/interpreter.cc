@@ -212,7 +212,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
   int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
-    DeclarationScope::AllocateScopeInfos(parse_info(), script, isolate);
+    DeclarationScope::AllocateScopeInfos(parse_info(), isolate);
 
     DirectHandle<BytecodeArray> new_bytecode =
         generator()->FinalizeBytecode(isolate, script);

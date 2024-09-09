@@ -98,7 +98,7 @@ bytecodes: [
                 B(Star8),
                 B(LdaZero),
                 B(Star12),
-                B(LdaSmi), I8(2),
+                B(LdaSmi), I8(31),
                 B(Star13),
                 B(LdaSmi), I8(48),
                 B(Star14),

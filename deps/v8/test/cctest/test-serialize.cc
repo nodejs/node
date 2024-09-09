@@ -3323,10 +3323,9 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
 
   Handle<HeapObject> retained_toplevel_sfi;
   if (retain_toplevel_sfi) {
-    retained_toplevel_sfi = handle(script->infos()
-                                       ->get(kFunctionLiteralIdTopLevel)
-                                       .GetHeapObjectAssumeWeak(),
-                                   isolate);
+    retained_toplevel_sfi = handle(
+        script->shared_function_infos()->get(0).GetHeapObjectAssumeWeak(),
+        isolate);
   }
 
   // GC twice in case incremental marking had already marked the bytecode array.
@@ -5772,16 +5771,15 @@ UNINITIALIZED_TEST(ClassFieldsWithBindings) {
   FreeCurrentEmbeddedBlob();
 }
 
-void CheckInfosAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
+void CheckSFIsAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
   CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
   for (int i = 0; i < sfis->length(); ++i) {
     Tagged<MaybeObject> maybe_object = sfis->get(i);
     Tagged<HeapObject> heap_object;
-    CHECK(!maybe_object.GetHeapObjectIfWeak(isolate, &heap_object) ||
+    CHECK(maybe_object.IsWeakOrCleared() ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
-           IsUndefined(heap_object, isolate)) ||
-          Is<SharedFunctionInfo>(heap_object) || Is<ScopeInfo>(heap_object));
+           IsUndefined(heap_object, isolate)));
     if (maybe_object.IsWeak()) {
       ++no_of_weak;
     }
@@ -5833,10 +5831,10 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
     DirectHandle<JSFunction> function =
         Cast<JSFunction>(v8::Utils::OpenDirectHandle(*x));
 
-    // Verify that the pointers in infos are weak.
+    // Verify that the pointers in shared_function_infos are weak.
     Tagged<WeakFixedArray> sfis =
-        Cast<Script>(function->shared()->script())->infos();
-    CheckInfosAreWeak(sfis, reinterpret_cast<i::Isolate*>(isolate));
+        Cast<Script>(function->shared()->script())->shared_function_infos();
+    CheckSFIsAreWeak(sfis, reinterpret_cast<i::Isolate*>(isolate));
   }
   isolate->Dispose();
   delete[] blob.data;
@@ -5866,9 +5864,10 @@ TEST(WeakArraySerializationInCodeCache) {
       CompileScript(isolate, src, script_details, cache,
                     v8::ScriptCompiler::kConsumeCodeCache);
 
-  // Verify that the pointers in infos are weak.
-  Tagged<WeakFixedArray> sfis = Cast<Script>(copy->script())->infos();
-  CheckInfosAreWeak(sfis, isolate);
+  // Verify that the pointers in shared_function_infos are weak.
+  Tagged<WeakFixedArray> sfis =
+      Cast<Script>(copy->script())->shared_function_infos();
+  CheckSFIsAreWeak(sfis, isolate);
 
   delete cache;
 }
