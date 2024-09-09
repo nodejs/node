@@ -2586,7 +2586,7 @@ enum class StubCallMode {
 
 enum class NeedsContext { kYes, kNo };
 
-constexpr int kInvalidInfoId = -1;
+constexpr int kFunctionLiteralIdInvalid = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;
 
 constexpr int kSwissNameDictionaryInitialCapacity = 4;

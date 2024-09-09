@@ -2397,13 +2397,12 @@ void Script::ScriptVerify(Isolate* isolate) {
 #else   // V8_ENABLE_WEBASSEMBLY
   CHECK(CanHaveLineEnds());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  for (int i = 0; i < infos()->length(); ++i) {
-    Tagged<MaybeObject> maybe_object = infos()->get(i);
+  for (int i = 0; i < shared_function_info_count(); ++i) {
+    Tagged<MaybeObject> maybe_object = shared_function_infos()->get(i);
     Tagged<HeapObject> heap_object;
-    CHECK(!maybe_object.GetHeapObjectIfWeak(isolate, &heap_object) ||
+    CHECK(maybe_object.IsWeak() || maybe_object.IsCleared() ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
-           IsUndefined(heap_object, isolate)) ||
-          Is<SharedFunctionInfo>(heap_object) || Is<ScopeInfo>(heap_object));
+           IsUndefined(heap_object, isolate)));
   }
 }
 

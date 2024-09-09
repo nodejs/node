@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --reuse-scope-infos
+import './modules-skip-async-error-parent-static1.mjs';
+import './modules-skip-async-error-parent-static2.mjs';
 
-with({}){function h(){}}
+await {};
+
+throw new Error('aaa');

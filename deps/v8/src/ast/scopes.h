@@ -101,11 +101,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 #endif
 
-  // An ID that uniquely identifies this scope within the script. Inner scopes
-  // have a higher ID than their outer scopes. ScopeInfo created from a scope
-  // has the same ID as the scope.
-  int UniqueIdInScript() const;
-
   DeclarationScope* AsDeclarationScope();
   const DeclarationScope* AsDeclarationScope() const;
   ModuleScope* AsModuleScope();
@@ -338,10 +333,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Scopes created for desugaring are hidden. I.e. not visible to the debugger.
   bool is_hidden() const { return is_hidden_; }
   void set_is_hidden() { is_hidden_ = true; }
-
-  bool is_hidden_catch_scope() const {
-    return is_hidden() && scope_type() == CATCH_SCOPE;
-  }
 
   void ForceContextAllocationForParameters() {
     DCHECK(!already_resolved_);
@@ -728,9 +719,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void AllocateVariablesRecursively();
 
   template <typename IsolateT>
-  void AllocateScopeInfosRecursively(
-      IsolateT* isolate, MaybeHandle<ScopeInfo> outer_scope,
-      std::unordered_map<int, Handle<ScopeInfo>>& scope_infos_to_reuse);
+  void AllocateScopeInfosRecursively(IsolateT* isolate,
+                                     MaybeHandle<ScopeInfo> outer_scope);
+
+  void AllocateDebuggerScopeInfos(Isolate* isolate,
+                                  MaybeHandle<ScopeInfo> outer_scope);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, AstValueFactory* ast_value_factory,
@@ -829,6 +822,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool private_name_lookup_skips_outer_class_ : 1;
 
   bool must_use_preparsed_scope_data_ : 1;
+
+  // True if this is a script scope that originated from
+  // DebugEvaluate::GlobalREPL().
+  bool is_repl_mode_scope_ : 1;
 
   // True if this is a deserialized scope which caches its lookups on another
   // Scope's variable map. This will be true for every scope above the first
@@ -1164,7 +1161,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Does nothing if ScopeInfo is already allocated.
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
-                                                   Handle<Script> script,
                                                    IsolateT* isolate);
 
   // Determine if we can use lazy compilation for this scope.

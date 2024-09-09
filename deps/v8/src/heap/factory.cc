@@ -1543,7 +1543,8 @@ Handle<Script> Factory::CloneScript(DirectHandle<Script> script,
     new_script->set_line_ends(Smi::zero());
     new_script->set_eval_from_shared_or_wrapped_arguments(
         script->eval_from_shared_or_wrapped_arguments());
-    new_script->set_infos(*empty_weak_fixed_array(), SKIP_WRITE_BARRIER);
+    new_script->set_shared_function_infos(*empty_weak_fixed_array(),
+                                          SKIP_WRITE_BARRIER);
     new_script->set_eval_from_position(old_script->eval_from_position());
     new_script->set_flags(old_script->flags());
     new_script->set_host_defined_options(old_script->host_defined_options());

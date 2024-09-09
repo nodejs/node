@@ -758,7 +758,7 @@ class SharedFunctionInfo
   class ScriptIterator {
    public:
     V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Tagged<Script> script);
-    explicit ScriptIterator(Handle<WeakFixedArray> infos);
+    explicit ScriptIterator(Handle<WeakFixedArray> shared_function_infos);
     ScriptIterator(const ScriptIterator&) = delete;
     ScriptIterator& operator=(const ScriptIterator&) = delete;
     V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> Next();
@@ -768,7 +768,7 @@ class SharedFunctionInfo
     void Reset(Isolate* isolate, Tagged<Script> script);
 
    private:
-    Handle<WeakFixedArray> infos_;
+    Handle<WeakFixedArray> shared_function_infos_;
     int index_;
   };
 

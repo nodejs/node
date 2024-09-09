@@ -592,6 +592,7 @@ class ValueType {
 
   static constexpr ValueType FromIndex(ValueKind kind, uint32_t index) {
     DCHECK(kind == kRefNull || kind == kRef || kind == kRtt);
+    CHECK_LT(index, kV8MaxWasmTypes);
     return ValueType(KindField::encode(kind) | HeapTypeField::encode(index));
   }
 

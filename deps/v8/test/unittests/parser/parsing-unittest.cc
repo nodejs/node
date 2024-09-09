@@ -1431,7 +1431,7 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
       flags.set_allow_lazy_parsing(false);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK_PARSE_PROGRAM(&info, script, isolate);
-      i::DeclarationScope::AllocateScopeInfos(&info, script, isolate);
+      i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
 
       i::DeclarationScope* script_scope = info.literal()->scope();
@@ -1507,24 +1507,26 @@ TEST_F(ParsingTest, ScopePositions) {
   };
 
   const SourceData source_data[] = {
-      {"  with ({}", "){ block; }", " more;", i::WITH_SCOPE,
+      {"  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({}", "){ block; }", "; more;", i::WITH_SCOPE,
+      {"  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({}",
-       "){\n"
+      {"  with ({}) ",
+       "{\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
-      {"  with ({}", ")statement;", " more;", i::WITH_SCOPE,
+      {"  with ({}) ", "statement;", " more;", i::WITH_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  with ({}", ")statement",
+      {"  with ({}) ", "statement",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
-      {"  with ({}", ")statement;",
+      {"  with ({})\n"
+       "    ",
+       "statement;",
        "\n"
        "  more;",
        i::WITH_SCOPE, i::LanguageMode::kSloppy},
@@ -1575,25 +1577,25 @@ TEST_F(ParsingTest, ScopePositions) {
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      {"  for (", "let x = 1 ; x < 10; ++ x) { block; }", " more;",
+      {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for (", "let x = 1 ; x < 10; ++ x) { block; }", "; more;",
+      {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for (",
-       "let x = 1 ; x < 10; ++ x) {\n"
+      {"  for ",
+       "(let x = 1 ; x < 10; ++ x) {\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for (", "let x = 1 ; x < 10; ++ x) statement;", " more;",
+      {"  for ", "(let x = 1 ; x < 10; ++ x) statement;", " more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for (", "let x = 1 ; x < 10; ++ x) statement",
+      {"  for ", "(let x = 1 ; x < 10; ++ x) statement",
        "\n"
        "  more;",
        i::BLOCK_SCOPE, i::LanguageMode::kStrict},
-      {"  for (",
-       "let x = 1 ; x < 10; ++ x)\n"
+      {"  for ",
+       "(let x = 1 ; x < 10; ++ x)\n"
        "    statement;",
        "\n"
        "  more;",
@@ -12306,7 +12308,7 @@ TEST_F(ParsingTest, LexicalLoopVariable) {
     i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK_PARSE_PROGRAM(&info, script, isolate);
 
-    i::DeclarationScope::AllocateScopeInfos(&info, script, isolate);
+    i::DeclarationScope::AllocateScopeInfos(&info, isolate);
     CHECK_NOT_NULL(info.literal());
 
     i::DeclarationScope* script_scope = info.literal()->scope();

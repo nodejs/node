@@ -1731,7 +1731,7 @@ class CallBase : public Expression {
 class Call final : public CallBase {
  public:
   bool is_possibly_eval() const {
-    return EvalScopeInfoIndexField::decode(bit_field_) > 0;
+    return IsPossiblyEvalField::decode(bit_field_);
   }
 
   bool is_tagged_template() const {
@@ -1740,15 +1740,6 @@ class Call final : public CallBase {
 
   bool is_optional_chain_link() const {
     return IsOptionalChainLinkField::decode(bit_field_);
-  }
-
-  uint32_t eval_scope_info_index() const {
-    return EvalScopeInfoIndexField::decode(bit_field_);
-  }
-
-  void adjust_eval_scope_info_index(int delta) {
-    bit_field_ = EvalScopeInfoIndexField::update(
-        bit_field_, eval_scope_info_index() + delta);
   }
 
   enum CallType {
@@ -1766,6 +1757,11 @@ class Call final : public CallBase {
     OTHER_CALL,
   };
 
+  enum PossiblyEval {
+    IS_POSSIBLY_EVAL,
+    NOT_EVAL,
+  };
+
   // Helpers to determine how to handle the call.
   CallType GetCallType() const;
 
@@ -1777,26 +1773,26 @@ class Call final : public CallBase {
 
   Call(Zone* zone, Expression* expression,
        const ScopedPtrList<Expression>& arguments, int pos, bool has_spread,
-       int eval_scope_info_index, bool optional_chain)
+       PossiblyEval possibly_eval, bool optional_chain)
       : CallBase(zone, kCall, expression, arguments, pos, has_spread) {
-    bit_field_ |= IsTaggedTemplateField::encode(false) |
-                  IsOptionalChainLinkField::encode(optional_chain) |
-                  EvalScopeInfoIndexField::encode(eval_scope_info_index);
-    DCHECK_EQ(eval_scope_info_index > 0, is_possibly_eval());
+    bit_field_ |=
+        IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL) |
+        IsTaggedTemplateField::encode(false) |
+        IsOptionalChainLinkField::encode(optional_chain);
   }
 
   Call(Zone* zone, Expression* expression,
        const ScopedPtrList<Expression>& arguments, int pos,
        TaggedTemplateTag tag)
       : CallBase(zone, kCall, expression, arguments, pos, false) {
-    bit_field_ |= IsTaggedTemplateField::encode(true) |
-                  IsOptionalChainLinkField::encode(false) |
-                  EvalScopeInfoIndexField::encode(0);
+    bit_field_ |= IsPossiblyEvalField::encode(false) |
+                  IsTaggedTemplateField::encode(true) |
+                  IsOptionalChainLinkField::encode(false);
   }
 
-  using IsTaggedTemplateField = CallBase::NextBitField<bool, 1>;
+  using IsPossiblyEvalField = CallBase::NextBitField<bool, 1>;
+  using IsTaggedTemplateField = IsPossiblyEvalField::Next<bool, 1>;
   using IsOptionalChainLinkField = IsTaggedTemplateField::Next<bool, 1>;
-  using EvalScopeInfoIndexField = IsOptionalChainLinkField::Next<uint32_t, 20>;
 };
 
 class CallNew final : public CallBase {
@@ -3188,11 +3184,12 @@ class AstNodeFactory final {
 
   Call* NewCall(Expression* expression,
                 const ScopedPtrList<Expression>& arguments, int pos,
-                bool has_spread, int eval_scope_info_index = 0,
+                bool has_spread,
+                Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
                 bool optional_chain = false) {
-    DCHECK_IMPLIES(eval_scope_info_index > 0, !optional_chain);
+    DCHECK_IMPLIES(possibly_eval == Call::IS_POSSIBLY_EVAL, !optional_chain);
     return zone_->New<Call>(zone_, expression, arguments, pos, has_spread,
-                            eval_scope_info_index, optional_chain);
+                            possibly_eval, optional_chain);
   }
 
   SuperCallForwardArgs* NewSuperCallForwardArgs(SuperCallReference* expression,

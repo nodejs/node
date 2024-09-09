@@ -22,6 +22,7 @@
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/tagged-impl.h"
 #include "src/parsing/expression-scope.h"
 #include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/parse-info.h"
@@ -262,7 +263,7 @@ class ParserBase {
         expression_scope_(nullptr),
         scanner_(scanner),
         flags_(flags),
-        info_id_(0),
+        function_literal_id_(0),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile) {
     pointer_buffer_.reserve(32);
     variable_buffer_.reserve(32);
@@ -291,13 +292,13 @@ class ParserBase {
   int loop_nesting_depth() const {
     return function_state_->loop_nesting_depth();
   }
-  int PeekNextInfoId() { return info_id_ + 1; }
-  int GetNextInfoId() { return ++info_id_; }
-  int GetLastInfoId() const { return info_id_; }
+  int PeekNextFunctionLiteralId() { return function_literal_id_ + 1; }
+  int GetNextFunctionLiteralId() { return ++function_literal_id_; }
+  int GetLastFunctionLiteralId() const { return function_literal_id_; }
 
-  void SkipInfos(int delta) { info_id_ += delta; }
+  void SkipFunctionLiterals(int delta) { function_literal_id_ += delta; }
 
-  void ResetInfoId() { info_id_ = 0; }
+  void ResetFunctionLiteralId() { function_literal_id_ = 0; }
 
   // The Zone where the parsing outputs are stored.
   Zone* main_zone() const { return ast_value_factory()->single_parse_zone(); }
@@ -619,7 +620,7 @@ class ParserBase {
             FunctionKind::kClassStaticInitializerFunction);
         static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
         static_elements_scope->set_start_position(beg_pos);
-        static_elements_function_id = parser->GetNextInfoId();
+        static_elements_function_id = parser->GetNextFunctionLiteralId();
       }
       return static_elements_scope;
     }
@@ -631,7 +632,7 @@ class ParserBase {
             FunctionKind::kClassMembersInitializerFunction);
         instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
         instance_members_scope->set_start_position(beg_pos);
-        instance_members_function_id = parser->GetNextInfoId();
+        instance_members_function_id = parser->GetNextFunctionLiteralId();
       }
       return instance_members_scope;
     }
@@ -1556,15 +1557,17 @@ class ParserBase {
   // Keep track of eval() calls since they disable all local variable
   // optimizations. This checks if expression is an eval call, and if yes,
   // forwards the information to scope.
-  bool CheckPossibleEvalCall(ExpressionT expression, bool is_optional_call,
-                             Scope* scope) {
+  Call::PossiblyEval CheckPossibleEvalCall(ExpressionT expression,
+                                           bool is_optional_call,
+                                           Scope* scope) {
     if (impl()->IsIdentifier(expression) &&
         impl()->IsEval(impl()->AsIdentifier(expression)) && !is_optional_call) {
       function_state_->RecordFunctionOrEvalCall();
       scope->RecordEvalCall();
-      return true;
+
+      return Call::IS_POSSIBLY_EVAL;
     }
-    return false;
+    return Call::NOT_EVAL;
   }
 
   // Convenience method which determines the type of return statement to emit
@@ -1678,7 +1681,7 @@ class ParserBase {
   Scanner* scanner_;
 
   const UnoptimizedCompileFlags flags_;
-  int info_id_;
+  int function_literal_id_;
 
   FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
 
@@ -1887,7 +1890,7 @@ bool ParserBase<Impl>::IsExtraordinaryPrivateNameAccessAllowed() const {
         return true;
       // Top-level wrapper function scopes.
       case FUNCTION_SCOPE:
-        return info_id_ == kFunctionLiteralIdTopLevel;
+        return function_literal_id_ == kFunctionLiteralIdTopLevel;
       // Used by debug-evaluate. If the outer scope is top-level,
       // extraordinary private name access is allowed.
       case EVAL_SCOPE:
@@ -2073,7 +2076,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     }
 
     if (V8_UNLIKELY(peek() == Token::kArrow)) {
-      ArrowHeadParsingScope parsing_scope(impl(), kind, PeekNextInfoId());
+      ArrowHeadParsingScope parsing_scope(impl(), kind,
+                                          PeekNextFunctionLiteralId());
       IdentifierT name = ParseAndClassifyIdentifier(token);
       ClassifyParameter(name, beg_pos, end_position());
       ExpressionT result =
@@ -2140,7 +2144,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
         if (peek() != Token::kArrow) ReportUnexpectedToken(Token::kRightParen);
         next_arrow_function_info_.scope =
             NewFunctionScope(FunctionKind::kArrowFunction);
-        next_arrow_function_info_.function_literal_id = PeekNextInfoId();
+        next_arrow_function_info_.function_literal_id =
+            PeekNextFunctionLiteralId();
         next_arrow_function_info_.could_be_immediately_invoked =
             position_after_last_primary_expression_open_parenthesis_ == beg_pos;
         return factory()->NewEmptyParentheses(beg_pos);
@@ -2149,7 +2154,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       bool could_be_immediately_invoked_arrow_function =
           position_after_last_primary_expression_open_parenthesis_ == beg_pos;
       ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kArrowFunction,
-                                        PeekNextInfoId());
+                                        PeekNextFunctionLiteralId());
       position_after_last_primary_expression_open_parenthesis_ =
           peek_position();
       // Heuristically try to detect immediately called functions before
@@ -3134,7 +3139,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
     // function, and checks whether it's still the function id we wanted. If
     // not, we'll reindex the arrow function formal parameters to shift them all
     // 1 down to make space for the arrow function.
-    if (function_literal_id != GetNextInfoId()) {
+    if (function_literal_id != GetNextFunctionLiteralId()) {
       impl()->ReindexArrowFunctionFormalParameters(&parameters);
     }
 
@@ -3719,7 +3724,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     int pos = position();
 
     ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kAsyncArrowFunction,
-                                      PeekNextInfoId());
+                                      PeekNextFunctionLiteralId());
     Scope::Snapshot scope_snapshot(scope());
 
     ExpressionListT args(pointer_buffer());
@@ -3825,13 +3830,11 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         // no explicit receiver.
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
-        int eval_scope_info_index = 0;
-        if (CheckPossibleEvalCall(result, is_optional, scope())) {
-          eval_scope_info_index = GetNextInfoId();
-        }
+        Call::PossiblyEval is_possibly_eval =
+            CheckPossibleEvalCall(result, is_optional, scope());
 
         result = factory()->NewCall(result, args, pos, has_spread,
-                                    eval_scope_info_index, is_optional);
+                                    is_possibly_eval, is_optional);
 
         fni_.RemoveLastFunction();
         break;
@@ -4672,7 +4675,7 @@ void ParserBase<Impl>::ParseFunctionBody(
     if (has_error()) return;
 
     inner_scope = NewVarblockScope();
-    inner_scope->set_start_position(end_position());
+    inner_scope->set_start_position(scanner()->location().beg_pos);
   }
 
   StatementListT inner_body(pointer_buffer());
@@ -6091,7 +6094,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
   StatementT body = impl()->NullStatement();
   {
     BlockState block_state(&scope_, with_scope);
-    with_scope->set_start_position(position());
+    with_scope->set_start_position(scanner()->peek_location().beg_pos);
     body = ParseStatement(labels, nullptr);
     with_scope->set_end_position(end_position());
   }
@@ -6293,7 +6296,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
 
       if (has_binding) {
         catch_info.scope = NewScope(CATCH_SCOPE);
-        catch_info.scope->set_start_position(position());
+        catch_info.scope->set_start_position(scanner()->location().beg_pos);
 
         {
           BlockState catch_block_state(&scope_, catch_info.scope);
@@ -6303,7 +6306,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
           // as part of destructuring the catch parameter.
           {
             BlockState catch_variable_block_state(zone(), &scope_);
-            scope()->set_start_position(peek_position());
+            scope()->set_start_position(position());
 
             if (peek_any_identifier()) {
               IdentifierT identifier = ParseNonRestrictedIdentifier();
@@ -6420,7 +6423,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     // Create an inner block scope which will be the parent scope of scopes
     // possibly created by ParseVariableDeclarations.
     Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
-    inner_block_scope->set_start_position(end_position());
     {
       BlockState inner_state(&scope_, inner_block_scope);
       ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
@@ -6446,6 +6448,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     // above was parsed there. We'll finalize the unnecessary outer block scope
     // after parsing the rest of the loop.
     StatementT result = impl()->NullStatement();
+    inner_block_scope->set_start_position(scope()->start_position());
     {
       BlockState inner_state(&scope_, inner_block_scope);
       StatementT init =
@@ -6465,7 +6468,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
                               &for_info.bound_names);
     DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kVar);
-    for_info.position = position();
+    for_info.position = scanner()->location().beg_pos;
 
     if (CheckInOrOf(&for_info.mode)) {
       return ParseForEachStatementWithDeclarations(stmt_pos, &for_info, labels,
@@ -6571,6 +6574,10 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   }
 
   Expect(Token::kRightParen);
+
+  if (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode)) {
+    inner_block_scope->set_start_position(position());
+  }
 
   ExpressionT each_variable = impl()->NullExpression();
   BlockT body_block = impl()->NullBlock();
@@ -6750,7 +6757,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   Expect(Token::kFor);
   Expect(Token::kAwait);
   Expect(Token::kLeftParen);
-  scope()->set_start_position(position());
+  scope()->set_start_position(scanner()->location().beg_pos);
   scope()->set_is_hidden();
 
   auto loop = factory()->NewForOfStatement(stmt_pos, IteratorType::kAsync);
@@ -6764,7 +6771,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
   bool has_declarations = false;
   Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
-  inner_block_scope->set_start_position(peek_position());
 
   bool starts_with_let = peek() == Token::kLet;
   if (peek() == Token::kVar || peek() == Token::kConst ||
@@ -6781,7 +6787,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
       ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
                                 &for_info.bound_names);
     }
-    for_info.position = position();
+    for_info.position = scanner()->location().beg_pos;
 
     // Only a single declaration is allowed in for-await-of loops
     if (for_info.parsing_result.declarations.size() != 1) {
@@ -6836,6 +6842,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   StatementT body = impl()->NullStatement();
   {
     BlockState block_state(&scope_, inner_block_scope);
+    scope()->set_start_position(scanner()->location().beg_pos);
 
     SourceRange body_range;
     {
