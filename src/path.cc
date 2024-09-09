@@ -174,7 +174,7 @@ std::string PathResolve(Environment* env,
             while (j < len && !IsPathSeparator(path[j])) {
               j++;
             }
-            if ((j == len || j != last)) {
+            if (j == len || j != last) {
               if (firstPart != "." && firstPart != "?") {
                 // We matched a UNC root
                 device =
