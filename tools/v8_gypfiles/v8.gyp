@@ -508,6 +508,9 @@
             },
           ],
         }],
+        ['OS in "aix os400"', {
+          'dependencies': ['fp16'],
+        }],
       ],
     },  # v8_snapshot
     {
