@@ -28,6 +28,18 @@ test('execute a TypeScript file with imports', async () => {
   strictEqual(result.code, 0);
 });
 
+test('execute a TypeScript file with imports', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--eval',
+    `assert.throws(() => require(${JSON.stringify(fixtures.path('typescript/ts/test-import-fs.ts'))}), {code: 'ERR_REQUIRE_ESM'})`,
+  ]);
+
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 0);
+});
+
 test('execute a TypeScript file with imports with default-type module', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-strip-types',
