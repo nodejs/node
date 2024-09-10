@@ -296,7 +296,7 @@ size_t StringBytes::Write(Isolate* isolate,
           nbytes = written_len;
         } else {
           // The input does not follow the WHATWG forgiving-base64 specification
-          // adapted for base64url
+          // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
           nbytes = nbytes::Base64Decode(
               buf,
