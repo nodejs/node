@@ -2873,7 +2873,7 @@ changes:
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `streamResetBurst` {number} and `streamResetRate` {number} Sets the rate
-    limit for the incoming stream reset (RST_STREAM frame). Both settings must
+    limit for the incoming stream reset (RST\_STREAM frame). Both settings must
     be set to have any effect, and default to 1000 and 33 respectively.
   * `remoteCustomSettings` {Array} The array of integer values determines the
     settings types, which are included in the `CustomSettings`-property of
