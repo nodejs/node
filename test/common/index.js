@@ -38,6 +38,7 @@ const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
+const { mock } = require('node:test');
 
 const {
   atob,
@@ -51,8 +52,6 @@ const {
 // thread.
 if (isMainThread)
   process.umask(0o022);
-
-const noop = () => {};
 
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
@@ -418,32 +417,45 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
 }
 
 const mustCallChecks = [];
+const logFn = mock.fn();
+logFn.mock.mockImplementation((context, message) => {
+  console.log('Mismatched %s function calls. Expected %s, actual %d.',
+              context.name,
+              message,
+              context.value);
+  console.log(context.stack.split('\n').slice(2).join('\n'));
+});
 
 function runCallChecks(exitCode) {
   if (exitCode !== 0) return;
 
-  const failed = mustCallChecks.filter(function(context) {
-    if ('minimum' in context) {
-      context.messageSegment = `at least ${context.minimum}`;
-      return context.actual < context.minimum;
+  logFn.mock.resetCalls();
+
+  for (const checks of mustCallChecks) {
+    const callCount = checks.fn.mock.callCount();
+    switch (checks.context) {
+      case 'exact':
+        if (callCount !== checks.value) {
+          logFn(checks, `exactly ${checks.value}`);
+        }
+        break;
+      case 'minumum':
+        if (callCount < checks.value) {
+          logFn(checks, `at least ${checks.value}`);
+        }
+        break;
+      default:
+        throw new Error('Unreachable');
     }
-    context.messageSegment = `exactly ${context.exact}`;
-    return context.actual !== context.exact;
-  });
+  }
 
-  failed.forEach(function(context) {
-    console.log('Mismatched %s function calls. Expected %s, actual %d.',
-                context.name,
-                context.messageSegment,
-                context.actual);
-    console.log(context.stack.split('\n').slice(2).join('\n'));
-  });
-
-  if (failed.length) process.exit(1);
+  if (logFn.mock.callCount() > 0) {
+    process.exit(1);
+  }
 }
 
 function mustCall(fn, exact) {
-  return _mustCallInner(fn, exact, 'exact');
+  return _mustCall(fn, exact, 'exact');
 }
 
 function mustSucceed(fn, exact) {
@@ -455,56 +467,21 @@ function mustSucceed(fn, exact) {
 }
 
 function mustCallAtLeast(fn, minimum) {
-  return _mustCallInner(fn, minimum, 'minimum');
+  return _mustCall(fn, minimum, 'minimum');
 }
 
-function _mustCallInner(fn, criteria = 1, field) {
-  if (process._exiting)
-    throw new Error('Cannot use common.mustCall*() in process exit handler');
-  if (typeof fn === 'number') {
-    criteria = fn;
-    fn = noop;
-  } else if (fn === undefined) {
-    fn = noop;
-  }
-
-  if (typeof criteria !== 'number')
-    throw new TypeError(`Invalid ${field} value: ${criteria}`);
-
-  const context = {
-    [field]: criteria,
-    actual: 0,
-    stack: inspect(new Error()),
-    name: fn.name || '<anonymous>',
-  };
-
+function _mustCall(fn, value, context) {
+  const mockedFn = mock.fn();
+  mockedFn.mock.mockImplementation(fn);
   // Add the exit listener only once to avoid listener leak warnings
   if (mustCallChecks.length === 0) process.on('exit', runCallChecks);
-
-  mustCallChecks.push(context);
-
-  const _return = function() { // eslint-disable-line func-style
-    context.actual++;
-    return fn.apply(this, arguments);
-  };
-  // Function instances have own properties that may be relevant.
-  // Let's replicate those properties to the returned function.
-  // Refs: https://tc39.es/ecma262/#sec-function-instances
-  Object.defineProperties(_return, {
-    name: {
-      value: fn.name,
-      writable: false,
-      enumerable: false,
-      configurable: true,
-    },
-    length: {
-      value: fn.length,
-      writable: false,
-      enumerable: false,
-      configurable: true,
-    },
+  mustCallChecks.push({
+    fn: mockedFn,
+    context,
+    value,
+    stack: inspect(new Error()),
   });
-  return _return;
+  return mockedFn;
 }
 
 function hasMultiLocalhost() {
@@ -516,19 +493,28 @@ function hasMultiLocalhost() {
   return ret === 0;
 }
 
+let isEslintMissing;
+
 function skipIfEslintMissing() {
-  if (!fs.existsSync(
-    path.join(__dirname, '..', '..', 'tools', 'eslint', 'node_modules', 'eslint'),
-  )) {
+  if (isEslintMissing === undefined) {
+    isEslintMissing = fs.existsSync(
+      path.join(__dirname, '..', '..', 'tools', 'eslint', 'node_modules', 'eslint'),
+    );
+  }
+
+  if (isEslintMissing) {
     skip('missing ESLint');
   }
 }
 
-function canCreateSymLink() {
-  // On Windows, creating symlinks requires admin privileges.
-  // We'll only try to run symlink test if we have enough privileges.
-  // On other platforms, creating symlinks shouldn't need admin privileges
-  if (isWindows) {
+let canCreateSymLink = () => true;
+
+if (isWindows) {
+  canCreateSymLink = function() {
+    // On Windows, creating symlinks requires admin privileges.
+    // We'll only try to run symlink test if we have enough privileges.
+    //
+    // On other platforms, creating symlinks shouldn't need admin privileges
     // whoami.exe needs to be the one from System32
     // If unix tools are in the path, they can shadow the one we want,
     // so use the full path while executing whoami
@@ -541,9 +527,7 @@ function canCreateSymLink() {
     } catch {
       return false;
     }
-  }
-  // On non-Windows platforms, this always returns `true`
-  return true;
+  };
 }
 
 function getCallSite(top) {
