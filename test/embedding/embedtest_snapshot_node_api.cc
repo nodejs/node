@@ -167,13 +167,7 @@ int32_t RunNodeInstance(node_embedding_platform platform) {
         "globalThis.require = require;"
         "require('vm').runInThisContext(process.argv[2]);"));
   } else {
-    CHECK(node_embedding_runtime_initialize(
-        runtime,
-        "const publicRequire = require('module').createRequire(process.cwd() + "
-        "'/');"
-        "globalThis.require = publicRequire;"
-        "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
-        "require('vm').runInThisContext(process.argv[1]);"));
+    CHECK(node_embedding_runtime_initialize(runtime, main_script));
   }
 
   CHECK(node_embedding_delete_runtime(runtime));

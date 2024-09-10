@@ -215,7 +215,6 @@ The C embedder API has the four major API function groups:
   set of functions. The embedding APIs provide access to functions that
   retrieve or create `napi_env` instances related to a runtime instance.
 
-
 ## API reference
 
 The C embedder API is split up by the four major groups described above.
@@ -234,7 +233,6 @@ added: REPLACEME
 
 This is an opaque pointer that represents a Node.js platform instance.
 Node.js allows only a single platform instance per process.
-
 
 ##### `node_embedding_platform_flags`
 
@@ -292,7 +290,6 @@ Node.js platform initialization.
 - `node_embedding_platform_generate_predictable_snapshot` - Initialize the
   process for predictable snapshot generation.
 
-
 #### Callback types
 
 ##### `node_embedding_error_handler`
@@ -324,7 +321,6 @@ The callback parameters:
   `exit_code` is zero, then the callback is used to output non-error messages.
 - `[in] status`: Reported Node-API status.
 
-
 ##### `node_embedding_get_args_callback`
 
 <!-- YAML
@@ -347,7 +343,6 @@ The callback parameters:
 - `[in] cb_data`: The user data associated with this callback.
 - `[in] argc`: Number of items in the `argv` array.
 - `[in] argv`: CLI arguments as an array of zero terminating strings.
-
 
 #### Functions
 
@@ -384,7 +379,6 @@ process with the `exit_code` when it is not zero.
 The zero `exit_code` indicates reported warnings or text messages. For example,
 it can be Node.js help text returned in response to the `--help` CLI argument.
 
-
 ##### `node_embedding_create_platform`
 
 <!-- YAML
@@ -411,7 +405,6 @@ other complex work that may fail. It only checks the argument.
 
 Node.js allows only a single platform instance per process.
 
-
 ##### `node_embedding_delete_platform`
 
 <!-- YAML
@@ -433,7 +426,6 @@ Returns `napi_ok` if there were no issues.
 
 If the platform was initialized before the deletion, then the method
 uninitializes the platform before deletion.
-
 
 ##### `node_embedding_platform_is_initialized`
 
@@ -460,7 +452,6 @@ The platform instance settings can be changed until the platform is initialized.
 After the `node_embedding_platform_initialize` function call any attempt to
 change platform instance settings will fail.
 
-
 ##### `node_embedding_platform_set_flags`
 
 <!-- YAML
@@ -481,7 +472,6 @@ node_embedding_platform_set_flags(node_embedding_platform platform,
 - `[in] flags`: The platform flags that control the platform behavior.
 
 Returns `napi_ok` if there were no issues.
-
 
 ##### `node_embedding_platform_set_args`
 
@@ -505,7 +495,6 @@ node_embedding_platform_set_args(node_embedding_platform platform,
 - `[in] argv`: CLI arguments as an array of zero terminating strings.
 
 Returns `napi_ok` if there were no issues.
-
 
 ##### `node_embedding_platform_initialize`
 
@@ -539,7 +528,6 @@ changed anymore. The parsed arguments can be accessed by calling the
 `node_embedding_platform_get_args` and `node_embedding_platform_get_exec_args`
 functions.
 
-
 ##### `node_embedding_platform_get_args`
 
 <!-- YAML
@@ -563,7 +551,6 @@ node_embedding_platform_get_args(node_embedding_platform platform,
   the `get_args_cb` callback. It can be deleted right after the function call.
 
 Returns `napi_ok` if there were no issues.
-
 
 ##### `node_embedding_platform_get_exec_args`
 
@@ -589,7 +576,6 @@ node_embedding_platform_get_exec_args(
   the `get_args_cb` callback. It can be deleted right after the function call.
 
 Returns `napi_ok` if there were no issues.
-
 
 ### Runtime instance APIs
 
@@ -682,7 +668,6 @@ Node.js runtime initialization.
   during the runtime creation. It's used to call `node::Stop(env)` on a Worker
   thread that is waiting for the events.
 
-
 ##### `node_embedding_snapshot_flags`
 
 <!-- YAML
@@ -708,7 +693,6 @@ Node.js runtime snapshot creation.
   generated as part of the snapshot. Code cache reduces the time spent on
   compiling functions included in the snapshot at the expense of a bigger
   snapshot size and potentially breaking portability of the snapshot.
-
 
 #### Callback types
 
@@ -738,7 +722,6 @@ The callback parameters:
 - `[in] process`: The Node.js `process` object.
 - `[in] require`: The internal `require` function.
 
-
 ##### `node_embedding_store_blob_callback`
 
 <!-- YAML
@@ -763,6 +746,35 @@ The callback parameters:
 - `[in] blob`: Start of the blob memory span.
 - `[in] size`: Size of the blob memory span.
 
+##### `node_embedding_initialize_module_callback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+typedef napi_value(NAPI_CDECL* node_embedding_initialize_module_callback)(
+    void* cb_data,
+    napi_env env,
+    const char* module_name,
+    napi_value exports);
+```
+
+Function pointer type for initializing linked native module that can be defined
+in the embedder executable.
+
+The callback parameters:
+
+- `[in] cb_data`: The user data associated with this callback.
+- `[in] env`: Node API environment.
+- `[in] module_name`: Name of the module.
+- `[in] exports`: The `exports` module object.
+
+All module exports must be added as properties to the `exports` object.
+As an alternative a new object or another value can be created in the callback
+and returned.
 
 #### Functions
 
@@ -801,7 +813,6 @@ If it is planned to create more than one runtime instance or a non-default
 platform configuration is required, then it is recommended to create the
 Node.js platform instance explicitly.
 
-
 ##### `node_embedding_delete_runtime`
 
 <!-- YAML
@@ -828,7 +839,6 @@ As a part of the un-initialization it can store created snapshot blob if the
 `node_embedding_runtime_on_create_snapshot` set the callback to save the
 snapshot blob.
 
-
 ##### `node_embedding_runtime_is_initialized`
 
 <!-- YAML
@@ -854,7 +864,6 @@ The runtime settings can be changed until the runtime is initialized.
 After the `node_embedding_runtime_initialize` function is called any attempt to change
 runtime settings will fail.
 
-
 ##### `node_embedding_runtime_set_flags`
 
 <!-- YAML
@@ -876,7 +885,6 @@ node_embedding_runtime_set_flags(node_embedding_runtime runtime,
 
 Returns `napi_ok` if there were no issues.
 
-
 ##### `node_embedding_runtime_set_args`
 
 Sets the non-Node.js arguments for the Node.js runtime instance.
@@ -894,7 +902,6 @@ node_embedding_runtime_set_args(node_embedding_runtime runtime,
 
 Returns `napi_ok` if there were no issues.
 
-
 ##### `node_embedding_runtime_set_exec_args`
 
 Sets the Node.js arguments for the Node.js runtime instance.
@@ -911,7 +918,6 @@ node_embedding_runtime_set_exec_args(node_embedding_runtime runtime,
 - `[in] argv`: Node.js arguments as an array of zero terminating strings.
 
 Returns `napi_ok` if there were no issues.
-
 
 ##### `node_embedding_runtime_on_preload`
 
@@ -940,7 +946,6 @@ node_embedding_runtime_on_preload(
 
 Returns `napi_ok` if there were no issues.
 
-
 ##### `node_embedding_runtime_use_snapshot`
 
 <!-- YAML
@@ -963,7 +968,6 @@ node_embedding_runtime_use_snapshot(node_embedding_runtime runtime,
 - `[in] size`: Size of the snapshot memory span.
 
 Returns `napi_ok` if there were no issues.
-
 
 ##### `node_embedding_runtime_on_create_snapshot`
 
@@ -995,6 +999,38 @@ node_embedding_runtime_on_create_snapshot(
 
 Returns `napi_ok` if there were no issues.
 
+##### `node_embedding_runtime_add_module`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Adds a linked module for the Node.js runtime instance.
+
+```c
+napi_status NAPI_CDECL
+node_embedding_runtime_add_module(
+    node_embedding_runtime runtime,
+    const char* module_name,
+    node_embedding_initialize_module_callback init_module_cb,
+    void* init_module_cb_data,
+    int32_t module_node_api_version);
+```
+
+- `[in] runtime`: The Node.js runtime instance.
+- `[in] module_name`: The name of the module.
+- `[in] init_module_cb`: Module initialization callback. It is called for the
+  main and worker threads. The caller must take care about the thread safety.
+- `[in] init_module_cb_data`: The user data for the init_module_cb.
+- `[in] module_node_api_version`: The Node API version used by the module.
+
+Returns `napi_ok` if there were no issues.
+
+The registered module can be accessed in JavaScript as
+`process._linkedBinding(module_name)` in the main JS and in the related
+worker threads.
 
 ##### `node_embedding_runtime_initialize`
 
@@ -1022,7 +1058,6 @@ with a V8 `Isolate` and V8 `Context`.
 
 After the initialization is completed the Node.js runtime settings cannot be
 changed anymore.
-
 
 ### Event loop APIs
 
@@ -1053,7 +1088,6 @@ beahvior.
 - `node_embedding_event_loop_run_nowait` - Run the event loop once and do not
   wait if there are no items. It matches the `UV_RUN_NOWAIT` behavior.
 
-
 #### Callback types
 
 ##### `node_embedding_event_loop_predicate`
@@ -1080,7 +1114,6 @@ The callback parameters:
 
 Returns `true` if the runtime loop must continue to run.
 
-
 #### Functions
 
 ##### `node_embedding_runtime_run_event_loop`
@@ -1103,7 +1136,6 @@ node_embedding_runtime_run_event_loop(node_embedding_runtime runtime);
 Returns `napi_ok` if there were no issues.
 
 The function exits when there are no more tasks to process in the loop.
-
 
 ##### `node_embedding_runtime_run_event_loop_while`
 
@@ -1130,7 +1162,7 @@ node_embedding_runtime_run_event_loop_while(
 - `[in] predicate`: The predicate to check before each runtime event loop
   task invocation.
 - `[in] predicate_data`: Optional. The predicate data that will be
-  passed to the `predicate` callback. It can be removed right after this 
+  passed to the `predicate` callback. It can be removed right after this
   function call.
 - `[in] run_mode`: Specifies behavior in case if the event loop does not have
   items to process. The `node_embedding_event_loop_run_once` will block the
@@ -1140,7 +1172,6 @@ node_embedding_runtime_run_event_loop_while(
   returning from the function.
 
 Returns `napi_ok` if there were no issues.
-
 
 ##### `node_embedding_runtime_await_promise`
 
@@ -1170,7 +1201,6 @@ node_embedding_runtime_await_promise(node_embedding_runtime runtime,
 
 Returns `napi_ok` if there were no issues.
 
-
 ### JavaScript/Native interop APIs
 
 #### Functions
@@ -1198,7 +1228,6 @@ Returns `napi_ok` if there were no issues.
 
 By default it is using the Node-API version 8.
 
-
 ##### `node_embedding_runtime_get_node_api_env`
 
 <!-- YAML
@@ -1219,7 +1248,6 @@ node_embedding_runtime_get_node_api_env(node_runtime embedding_runtime,
 - `[out] env`: An instance of `napi_env`.
 
 Returns `napi_ok` if there were no issues.
-
 
 ##### `node_embedding_runtime_open_scope`
 
@@ -1248,7 +1276,6 @@ Then, it opens the V8 Handle scope and the V8 Context scope.
 It enables use of V8 API and the Node APIs which is a C API on top of
 the V8 API.
 
-
 ##### `node_runtime_close_scope`
 
 <!-- YAML
@@ -1274,7 +1301,6 @@ current thread. Each opened runtime scoped must be closed in the end.
 
 This function closes V8 Context scope, V8 Handle scope, V8 Isolate scope, and
 then makes the V8 Isolate leave the current thread.
-
 
 ## Examples
 

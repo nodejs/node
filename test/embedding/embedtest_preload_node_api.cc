@@ -3,10 +3,6 @@
 #include <mutex>
 #include <thread>
 
-static const char* main_script =
-    "globalThis.require = require('module').createRequire(process.execPath);\n"
-    "require('vm').runInThisContext(process.argv[1]);";
-
 // Tests that the same preload callback is called from the main thread and from
 // the worker thread.
 extern "C" int32_t test_main_preload_node_api(int32_t argc, char* argv[]) {

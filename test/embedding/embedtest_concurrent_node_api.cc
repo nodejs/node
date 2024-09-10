@@ -3,10 +3,6 @@
 #include <mutex>
 #include <thread>
 
-static const char* main_script =
-    "globalThis.require = require('module').createRequire(process.execPath);\n"
-    "require('vm').runInThisContext(process.argv[1]);";
-
 // Tests that multiple runtimes can be run at the same time in their own
 // threads. The test creates 12 threads and 12 runtimes. Each runtime runs in it
 // own thread.

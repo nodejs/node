@@ -33,6 +33,10 @@ extern "C" inline napi_status NAPI_CDECL HandleTestError(void* handler_data,
 
 #endif
 
+extern const char* main_script;
+
+napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
+
 #define CHECK(expr)                                                            \
   do {                                                                         \
     if ((expr) != napi_ok) {                                                   \
