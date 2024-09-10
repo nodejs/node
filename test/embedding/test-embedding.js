@@ -120,7 +120,9 @@ function runCommonApiTests(apiType) {
       status: 9,
       signal: null,
       trim: true,
-      stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv`,
+      stderr:
+        `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with` +
+        ' kDisableNodeOptionsEnv',
     }
   );
 }
@@ -258,8 +260,10 @@ runSnapshotTests('snapshot-node-api');
     spawnSyncAndAssert,
     [
       'node-api',
-      'function waitPromise(text)' +
-        '{ return new Promise((res) => setTimeout(() => res(text + " with cheese"), 1)); }',
+      'function waitPromise(text) { ' +
+        'return new Promise((res) => ' +
+        '  setTimeout(() => res(text + " with cheese"), 1)); ' +
+        '}',
     ],
     { stdout: 'waited with cheese' }
   );
@@ -269,8 +273,10 @@ runSnapshotTests('snapshot-node-api');
     spawnSyncAndAssert,
     [
       'node-api',
-      'function waitPromise(text)' +
-        '{ return new Promise((res, rej) => setTimeout(() => rej(text + " without cheese"), 1)); }',
+      'function waitPromise(text) { ' +
+        'return new Promise((res, rej) => ' +
+        '  setTimeout(() => rej(text + " without cheese"), 1)); ' +
+        '}',
     ],
     { stdout: 'waited without cheese' }
   );
@@ -290,7 +296,11 @@ runSnapshotTests('snapshot-node-api');
     spawnSyncAndAssert,
     [
       'multi-env-node-api',
-      'myCount = 0; function incMyCount() { ++myCount; if (myCount < 5) { setTimeout(incMyCount, 1); } }',
+      'myCount = 0; ' +
+        'function incMyCount() { ' +
+        '  ++myCount; ' +
+        '  if (myCount < 5) setTimeout(incMyCount, 1); ' +
+        '}',
     ],
     {
       trim: true,
@@ -303,7 +313,11 @@ runSnapshotTests('snapshot-node-api');
     spawnSyncAndAssert,
     [
       'multi-thread-node-api',
-      'myCount = 0; function incMyCount() { ++myCount; if (myCount < 5) { setTimeout(incMyCount, 1); } }',
+      'myCount = 0; ' +
+        'function incMyCount() { ' +
+        '  ++myCount; ' +
+        '  if (myCount < 5) setTimeout(incMyCount, 1); ' +
+        '}',
     ],
     {
       trim: true,
@@ -321,6 +335,24 @@ runSnapshotTests('snapshot-node-api');
       cwd: __dirname,
       trim: true,
       stdout: `preloadValue=42; worker preloadValue=42`,
+    }
+  );
+
+  const linkedModulesScriptPath = path.join(__dirname, 'use-linked-modules.js');
+
+  runTest(
+    'linked-modules-node-api: run with two linked modules',
+    spawnSyncAndAssert,
+    [
+      'linked-modules-node-api',
+      `eval(${getReadFileCodeForPath(linkedModulesScriptPath)})`,
+      2, // expected number of greeter module calls
+      2, // expected number of replicator module calls
+    ],
+    {
+      cwd: __dirname,
+      trim: true,
+      stdout: 'main=Hello, World World; worker=Hello, Node Node',
     }
   );
 }

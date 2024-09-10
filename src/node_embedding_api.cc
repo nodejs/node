@@ -7,6 +7,7 @@
 #include "util-inl.h"
 
 #include <mutex>
+#include <string>
 
 // Use macros to handle errors since they can record the failing argument name
 // or expression and their location in the source code.
@@ -66,6 +67,10 @@ v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(
 }  // end of namespace node
 
 namespace v8impl {
+
+napi_env NewEnv(v8::Local<v8::Context> context,
+                const std::string& module_filename,
+                int32_t module_api_version);
 namespace {
 
 // A helper class to convert std::vector<std::string> to an array of C strings.
@@ -250,6 +255,12 @@ class EmbeddedRuntime {
       void* store_blob_cb_data,
       node_embedding_snapshot_flags snapshot_flags);
 
+  napi_status AddModule(
+      const char* module_name,
+      node_embedding_initialize_module_callback init_module_cb,
+      void* init_module_cb_data,
+      int32_t module_node_api_version);
+
   napi_status Initialize(const char* main_script);
 
   napi_status RunEventLoop();
@@ -282,6 +293,21 @@ class EmbeddedRuntime {
   static node::EnvironmentFlags::Flags GetEnvironmentFlags(
       node_embedding_runtime_flags flags);
 
+  void RegisterModules();
+
+  static void RegisterModule(v8::Local<v8::Object> exports,
+                             v8::Local<v8::Value> module,
+                             v8::Local<v8::Context> context,
+                             void* priv);
+
+ private:
+  struct ModuleInfo {
+    std::string module_name;
+    node_embedding_initialize_module_callback init_module_cb;
+    void* init_module_cb_data;
+    int32_t module_node_api_version;
+  };
+
  private:
   EmbeddedPlatform* platform_;
   bool is_initialized_{false};
@@ -300,6 +326,8 @@ class EmbeddedRuntime {
     bool args : 1;
     bool exec_args : 1;
   } optional_bits_{};
+
+  std::unordered_map<std::string, ModuleInfo> modules_;
 
   std::unique_ptr<node::CommonEnvironmentSetup> env_setup_;
   std::optional<IsolateLocker> isolate_locker_;
@@ -667,6 +695,31 @@ napi_status EmbeddedRuntime::OnCreateSnapshotBlob(
   return napi_ok;
 }
 
+napi_status EmbeddedRuntime::AddModule(
+    const char* module_name,
+    node_embedding_initialize_module_callback init_module_cb,
+    void* init_module_cb_data,
+    int32_t module_node_api_version) {
+  ARG_NOT_NULL(module_name);
+  ARG_NOT_NULL(init_module_cb);
+  ASSERT(!is_initialized_);
+
+  auto insert_result = modules_.try_emplace(module_name,
+                                            module_name,
+                                            init_module_cb,
+                                            init_module_cb_data,
+                                            module_node_api_version);
+  if (!insert_result.second) {
+    return EmbeddedErrorHandling::HandleError(
+        EmbeddedErrorHandling::FormatString(
+            "Module with name '%s' is already added.", module_name),
+        1,
+        napi_invalid_arg);
+  }
+
+  return napi_ok;
+}
+
 // TODO: (vmoroz) avoid passing the main_script this way.
 napi_status EmbeddedRuntime::Initialize(const char* main_script) {
   ASSERT(!is_initialized_);
@@ -709,6 +762,8 @@ napi_status EmbeddedRuntime::Initialize(const char* main_script) {
 
   node::Environment* node_env = env_setup_->env();
 
+  RegisterModules();
+
   v8::MaybeLocal<v8::Value> ret =
       snapshot_
           ? node::LoadEnvironment(node_env, node::StartExecutionCallback{})
@@ -728,7 +783,7 @@ napi_status EmbeddedRuntime::RunEventLoop() {
   return napi_ok;
 }
 
-// TODO: (vmoroz) add support for is_thread_blocking.
+// TODO: (vmoroz) add support node_embedding_event_loop_run_once.
 napi_status EmbeddedRuntime::RunEventLoopWhile(
     node_embedding_event_loop_predicate predicate,
     void* predicate_data,
@@ -894,6 +949,52 @@ node::EnvironmentFlags::Flags EmbeddedRuntime::GetEnvironmentFlags(
   return static_cast<node::EnvironmentFlags::Flags>(result);
 }
 
+void EmbeddedRuntime::RegisterModules() {
+  for (const auto& [module_name, module_info] : modules_) {
+    node::node_module mod = {
+        -1,                                     // nm_version for Node-API
+        NM_F_LINKED,                            // nm_flags
+        nullptr,                                // nm_dso_handle
+        nullptr,                                // nm_filename
+        nullptr,                                // nm_register_func
+        RegisterModule,                         // nm_context_register_func
+        module_name.c_str(),                    // nm_modname
+        const_cast<ModuleInfo*>(&module_info),  // nm_priv
+        nullptr                                 // nm_link
+    };
+    node::AddLinkedBinding(env_setup_->env(), mod);
+  }
+}
+
+/*static*/ void EmbeddedRuntime::RegisterModule(v8::Local<v8::Object> exports,
+                                                v8::Local<v8::Value> module,
+                                                v8::Local<v8::Context> context,
+                                                void* priv) {
+  ModuleInfo* module_info = static_cast<ModuleInfo*>(priv);
+
+  // Create a new napi_env for this specific module.
+  napi_env env = v8impl::NewEnv(
+      context, module_info->module_name, module_info->module_node_api_version);
+
+  napi_value node_api_exports = nullptr;
+  env->CallIntoModule([&](napi_env env) {
+    node_api_exports =
+        module_info->init_module_cb(module_info->init_module_cb_data,
+                                    env,
+                                    module_info->module_name.c_str(),
+                                    v8impl::JsValueFromV8LocalValue(exports));
+  });
+
+  // If register function returned a non-null exports object different from
+  // the exports object we passed it, set that as the "exports" property of
+  // the module.
+  if (node_api_exports != nullptr &&
+      node_api_exports != v8impl::JsValueFromV8LocalValue(exports)) {
+    napi_value node_api_module = v8impl::JsValueFromV8LocalValue(module);
+    napi_set_named_property(env, node_api_module, "exports", node_api_exports);
+  }
+}
+
 }  // end of anonymous namespace
 }  // end of namespace v8impl
 
@@ -1000,6 +1101,18 @@ napi_status NAPI_CDECL node_embedding_runtime_on_create_snapshot(
     node_embedding_snapshot_flags snapshot_flags) {
   return EMBEDDED_RUNTIME(runtime)->OnCreateSnapshotBlob(
       store_blob_cb, store_blob_cb_data, snapshot_flags);
+}
+
+NAPI_EXTERN napi_status NAPI_CDECL node_embedding_runtime_add_module(
+    node_embedding_runtime runtime,
+    const char* module_name,
+    node_embedding_initialize_module_callback init_module_cb,
+    void* init_module_cb_data,
+    int32_t module_node_api_version) {
+  return EMBEDDED_RUNTIME(runtime)->AddModule(module_name,
+                                              init_module_cb,
+                                              init_module_cb_data,
+                                              module_node_api_version);
 }
 
 napi_status NAPI_CDECL node_embedding_runtime_initialize(

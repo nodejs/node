@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static const char* main_script =
+const char* main_script =
     "globalThis.require = require('module').createRequire(process.execPath);\n"
     "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };\n"
     "require('vm').runInThisContext(process.argv[1]);";
@@ -29,6 +29,18 @@ extern "C" int32_t test_main_node_api(int32_t argc, char* argv[]) {
 
   CHECK(node_embedding_delete_platform(platform));
   return 0;
+}
+
+napi_status AddUtf8String(std::string& str, napi_env env, napi_value value) {
+  size_t str_size = 0;
+  napi_status status = napi_get_value_string_utf8(env, value, nullptr, 0, &str_size);
+  if (status != napi_ok) {
+    return status;
+  }
+  size_t offset = str.size();
+  str.resize(offset + str_size);
+  status = napi_get_value_string_utf8(env, value, &str[0] + offset, str_size + 1, &str_size);
+  return status;
 }
 
 int32_t callMe(napi_env env) {
