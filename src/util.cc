@@ -48,6 +48,8 @@
 #include <sys/types.h>
 #endif
 
+#include <simdutf.h>
+
 #include <atomic>
 #include <cstdio>
 #include <cstring>
@@ -100,11 +102,26 @@ static void MakeUtf8String(Isolate* isolate,
                            MaybeStackBuffer<T>* target) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
+  String::ValueView value_view(isolate, string);
 
-  size_t storage;
-  if (!StringBytes::StorageSize(isolate, string, UTF8).To(&storage)) return;
-  storage += 1;
+  if (value_view.is_one_byte()) {
+    target->AllocateSufficientStorage(value_view.length() + 1);
+    target->SetLengthAndZeroTerminate(value_view.length());
+    memcpy(target->out(),
+           reinterpret_cast<const char*>(value_view.data8()),
+           value_view.length());
+    return;
+  }
+
+  // Add +1 for null termination.
+  auto storage = simdutf::utf8_length_from_utf16(
+                     reinterpret_cast<const char16_t*>(value_view.data16()),
+                     value_view.length()) +
+                 1;
   target->AllocateSufficientStorage(storage);
+
+  // TODO(@anonrig): Use simdutf to speed up non-one-byte strings once it's
+  // implemented
   const int flags =
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
   const int length =
