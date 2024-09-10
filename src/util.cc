@@ -104,20 +104,26 @@ static void MakeUtf8String(Isolate* isolate,
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
   String::ValueView value_view(isolate, string);
 
+  auto value_length = value_view.length();
+
   if (value_view.is_one_byte()) {
-    target->AllocateSufficientStorage(value_view.length() + 1);
-    target->SetLengthAndZeroTerminate(value_view.length());
-    memcpy(target->out(),
-           reinterpret_cast<const char*>(value_view.data8()),
-           value_view.length());
+    auto const_char = reinterpret_cast<const char*>(value_view.data8());
+    auto expected_length =
+        target->capacity() > (static_cast<size_t>(value_length) * 2 + 1)
+            ? simdutf::utf8_length_from_latin1(const_char, value_length)
+            : value_length * 2;
+
+    // Add +1 for null termination.
+    target->AllocateSufficientStorage(expected_length + 1);
+    target->SetLengthAndZeroTerminate(expected_length);
+    auto actual_length = simdutf::convert_latin1_to_utf8(
+        const_char, value_length, target->out());
+    target->SetLength(actual_length);
     return;
   }
 
   // Add +1 for null termination.
-  auto storage = simdutf::utf8_length_from_utf16(
-                     reinterpret_cast<const char16_t*>(value_view.data16()),
-                     value_view.length()) +
-                 1;
+  size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
 
   // TODO(@anonrig): Use simdutf to speed up non-one-byte strings once it's
