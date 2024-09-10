@@ -365,7 +365,7 @@ for (const isolation of ['none', 'process']) {
 {
   // Should not match files like latest.js .
   const args = ['--test', '--test-reporter=tap'];
-  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, '54726') });
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'issue-54726') });
 
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
