@@ -361,3 +361,22 @@ for (const isolation of ['none', 'process']) {
   assert.match(stdout, /# fail 0/);
   assert.match(stdout, /# skipped 0/);
 }
+
+{
+  // Should not match files like latest.js .
+  const args = ['--test', '--test-reporter=tap'];
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, '54726') });
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+
+  assert.match(stdout, /tests 0/);
+  assert.match(stdout, /suites 0/);
+  assert.match(stdout, /pass 0/);
+  assert.match(stdout, /fail 0/);
+  assert.match(stdout, /cancelled 0/);
+  assert.match(stdout, /skipped 0/);
+  assert.match(stdout, /todo 0/);
+}
