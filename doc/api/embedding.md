@@ -346,6 +346,28 @@ The callback parameters:
 
 #### Functions
 
+##### `node_embedding_run_nodejs_main`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Runs Node.js main function as if it is invoked from Node.js CLI without any
+embedder customizations.
+
+```c
+int32_t NAPI_CDECL
+node_embedding_run_nodejs_main(int32_t argc,
+                               char* argv[]);
+```
+
+- `[in] argc`: Number of items in the `argv` array.
+- `[in] argv`: CLI arguments as an array of zero terminating strings.
+
+Returns 0 if there were no issues.
+
 ##### `node_embedding_on_error`
 
 <!-- YAML

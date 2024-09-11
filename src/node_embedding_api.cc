@@ -80,9 +80,8 @@ namespace {
 // Ideally the class must be allocated on the stack.
 // In any case it must not outlive the passed vector since it keeps only the
 // string pointers returned by std::string::c_str() method.
+template <size_t kInplaceBufferSize = 32>
 class CStringArray {
-  static constexpr size_t kInplaceBufferSize = 32;
-
  public:
   explicit CStringArray(const std::vector<std::string>& strings) noexcept
       : size_(strings.size()) {
@@ -200,13 +199,7 @@ class EmbeddedPlatform {
 
   std::shared_ptr<node::InitializationResult> init_result_;
   std::unique_ptr<node::MultiIsolatePlatform> v8_platform_;
-
-  static node_embedding_error_handler custom_error_handler_;
-  static void* custom_error_handler_data_;
 };
-
-node_embedding_error_handler EmbeddedPlatform::custom_error_handler_{};
-void* EmbeddedPlatform::custom_error_handler_data_{};
 
 struct IsolateLocker {
   IsolateLocker(node::CommonEnvironmentSetup* env_setup)
@@ -284,10 +277,9 @@ class EmbeddedRuntime {
 
   bool IsScopeOpened() const;
 
-  static node_napi_env GetOrCreateNodeApiEnv(
-      node::Environment* node_env,
-      const std::string& module_filename = "<worker_thread>",
-      int32_t node_api_version = 0);
+  static napi_env GetOrCreateNodeApiEnv(node::Environment* node_env,
+                                        const std::string& module_filename,
+                                        int32_t node_api_version);
 
  private:
   static node::EnvironmentFlags::Flags GetEnvironmentFlags(
@@ -308,6 +300,16 @@ class EmbeddedRuntime {
     int32_t module_node_api_version;
   };
 
+  struct SharedData {
+    std::mutex mutex;
+    std::unordered_map<node::Environment*, napi_env> node_env_to_node_api_env;
+
+    static SharedData& Get() {
+      static SharedData shared_data;
+      return shared_data;
+    }
+  };
+
  private:
   EmbeddedPlatform* platform_;
   bool is_initialized_{false};
@@ -319,7 +321,7 @@ class EmbeddedRuntime {
   std::function<void(const node::EmbedderSnapshotData*)> create_snapshot_;
   node::SnapshotConfig snapshot_config_{};
   int32_t node_api_version_{0};
-  node_napi_env node_api_env_{};
+  napi_env node_api_env_{};
 
   struct {
     bool flags : 1;
@@ -331,16 +333,7 @@ class EmbeddedRuntime {
 
   std::unique_ptr<node::CommonEnvironmentSetup> env_setup_;
   std::optional<IsolateLocker> isolate_locker_;
-
-  static std::mutex shared_mutex_;
-  static std::unordered_map<node::Environment*, node_napi_env>
-      node_env_to_node_api_env_;
 };
-
-// TODO: (vmoroz) remove from the static initialization on module load.
-std::mutex EmbeddedRuntime::shared_mutex_{};
-std::unordered_map<node::Environment*, node_napi_env>
-    EmbeddedRuntime::node_env_to_node_api_env_{};
 
 //-----------------------------------------------------------------------------
 // EmbeddedErrorHandling implementation.
@@ -642,17 +635,19 @@ napi_status EmbeddedRuntime::SetPreloadCallback(
     node_embedding_preload_callback preload_cb, void* preload_cb_data) {
   ASSERT(!is_initialized_);
 
-  // TODO: (vmoroz) use CallIntoModule to handle errors.
   if (preload_cb != nullptr) {
     preload_cb_ = node::EmbedderPreloadCallback(
-        [preload_cb, preload_cb_data](node::Environment* node_env,
-                                      v8::Local<v8::Value> process,
-                                      v8::Local<v8::Value> require) {
-          // TODO: (vmoroz) propagate node_api_version from the parent env.
-          node_napi_env env = GetOrCreateNodeApiEnv(node_env);
-          napi_value process_value = v8impl::JsValueFromV8LocalValue(process);
-          napi_value require_value = v8impl::JsValueFromV8LocalValue(require);
-          preload_cb(preload_cb_data, env, process_value, require_value);
+        [preload_cb, preload_cb_data, node_api_version = node_api_version_](
+            node::Environment* node_env,
+            v8::Local<v8::Value> process,
+            v8::Local<v8::Value> require) {
+          napi_env env = GetOrCreateNodeApiEnv(
+              node_env, "<worker thread>", node_api_version);
+          env->CallIntoModule([&](napi_env env) {
+            napi_value process_value = v8impl::JsValueFromV8LocalValue(process);
+            napi_value require_value = v8impl::JsValueFromV8LocalValue(require);
+            preload_cb(preload_cb_data, env, process_value, require_value);
+          });
         });
   } else {
     preload_cb_ = {};
@@ -720,7 +715,6 @@ napi_status EmbeddedRuntime::AddModule(
   return napi_ok;
 }
 
-// TODO: (vmoroz) avoid passing the main_script this way.
 napi_status EmbeddedRuntime::Initialize(const char* main_script) {
   ASSERT(!is_initialized_);
 
@@ -783,7 +777,6 @@ napi_status EmbeddedRuntime::RunEventLoop() {
   return napi_ok;
 }
 
-// TODO: (vmoroz) add support node_embedding_event_loop_run_once.
 napi_status EmbeddedRuntime::RunEventLoopWhile(
     node_embedding_event_loop_predicate predicate,
     void* predicate_data,
@@ -892,19 +885,27 @@ bool EmbeddedRuntime::IsScopeOpened() const {
   return isolate_locker_.has_value();
 }
 
-node_napi_env EmbeddedRuntime::GetOrCreateNodeApiEnv(
+napi_env EmbeddedRuntime::GetOrCreateNodeApiEnv(
     node::Environment* node_env,
     const std::string& module_filename,
     int32_t node_api_version) {
-  std::scoped_lock<std::mutex> lock(shared_mutex_);
-  auto it = node_env_to_node_api_env_.find(node_env);
-  if (it != node_env_to_node_api_env_.end()) return it->second;
-  node_napi_env env = new node_napi_env__(
-      node_env->context(), module_filename, node_api_version);
-  node_env->AddCleanupHook(
-      [](void* arg) { static_cast<node_napi_env>(arg)->Unref(); }, env);
-  node_env_to_node_api_env_.try_emplace(node_env, env);
-  return env;
+  SharedData& shared_data = SharedData::Get();
+
+  {
+    std::scoped_lock<std::mutex> lock(shared_data.mutex);
+    auto it = shared_data.node_env_to_node_api_env.find(node_env);
+    if (it != shared_data.node_env_to_node_api_env.end()) return it->second;
+  }
+
+  // Avoid creating the environment under the lock.
+  napi_env env = NewEnv(node_env->context(), module_filename, node_api_version);
+
+  std::scoped_lock<std::mutex> lock(shared_data.mutex);
+  auto insert_result =
+      shared_data.node_env_to_node_api_env.try_emplace(node_env, env);
+
+  // Return either the inserted or the existing environment.
+  return insert_result.first->second;
 }
 
 node::EnvironmentFlags::Flags EmbeddedRuntime::GetEnvironmentFlags(
@@ -997,6 +998,10 @@ void EmbeddedRuntime::RegisterModules() {
 
 }  // end of anonymous namespace
 }  // end of namespace v8impl
+
+int32_t NAPI_CDECL node_embedding_run_nodejs_main(int32_t argc, char* argv[]) {
+  return node::Start(argc, argv);
+}
 
 napi_status NAPI_CDECL node_embedding_on_error(
     node_embedding_error_handler error_handler, void* error_handler_data) {
