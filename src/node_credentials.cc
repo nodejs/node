@@ -109,6 +109,31 @@ static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+static void GetTempDir(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  std::string dir;
+
+  // Let's wrap SafeGetEnv since it returns true for empty string.
+  auto get_env = [&dir, &env](std::string_view key) {
+    USE(SafeGetenv(key.data(), &dir, env->env_vars()));
+    return !dir.empty();
+  };
+
+  // Try TMPDIR, TMP, and TEMP in that order.
+  if (!get_env("TMPDIR") && !get_env("TMP") && !get_env("TEMP")) {
+    return;
+  }
+
+  if (dir.size() > 1 && dir.ends_with("/")) {
+    dir.pop_back();
+  }
+
+  args.GetReturnValue().Set(
+      ToV8Value(isolate->GetCurrentContext(), dir).ToLocalChecked());
+}
+
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
 
 static const uid_t uid_not_found = static_cast<uid_t>(-1);
@@ -456,6 +481,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SafeGetenv);
+  registry->Register(GetTempDir);
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   registry->Register(GetUid);
@@ -478,6 +504,7 @@ static void Initialize(Local<Object> target,
                        Local<Context> context,
                        void* priv) {
   SetMethod(context, target, "safeGetenv", SafeGetenv);
+  SetMethod(context, target, "getTempDir", GetTempDir);
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   Environment* env = Environment::GetCurrent(context);
