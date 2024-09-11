@@ -138,7 +138,7 @@ const possibleTokensAfterIdentifierWithLineBreak = [
   '= \n1', '+= \n1', '-= \n1', '*= \n1', '/= \n1', '%= \n1',
   ': \n',
   '? \n1: 1',
-] 
+];
 
 const errorTests = [
   // Uncaught error throws and prints out
