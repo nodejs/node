@@ -360,6 +360,11 @@ std::string GetVariableName(const std::string& id) {
   return result;
 }
 
+// The function returns a string buffer and an array of
+// offsets. The string is just "0,1,2,3,...,65535,".
+// The second array contain the offsets indicating the
+// start of each substring ("0,", "1,", etc.) and the final
+// offset points just beyond the end of the string.
 // 382106 is the length of the string "0,1,2,3,...,65535,".
 // 65537 is 2**16 + 1
 // This function could be constexpr, but it might become too expensive to
