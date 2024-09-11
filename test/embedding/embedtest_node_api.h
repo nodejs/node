@@ -72,3 +72,8 @@ napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
   } while (0)
 
 #endif  // TEST_EMBEDDING_EMBEDTEST_NODE_API_H_
+
+// TODO: (vmoroz) Enable the test_main_modules_node_api test.
+// TODO: (vmoroz) Test failure in Preload callback.
+// TODO: (vmoroz) Test failure in linked modules.
+// TODO: (vmoroz) Make sure that delete call matches the create call.

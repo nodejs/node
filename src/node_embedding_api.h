@@ -9,7 +9,8 @@
 //
 // This file contains the C-based API for embedding Node.js in a host
 // application. The API is designed to be used by applications that want to
-// embed Node.js as a library and can interop with C-based API.
+// embed Node.js as a shared library (.so or .dll) and can interop with
+// C-based API.
 //
 
 #ifndef SRC_NODE_EMBEDDING_API_H_
@@ -164,7 +165,16 @@ typedef bool(NAPI_CDECL* node_embedding_event_loop_predicate)(
 //==============================================================================
 
 //------------------------------------------------------------------------------
-// Error handling functions
+// Node.js main function.
+//------------------------------------------------------------------------------
+
+// Runs Node.js main function as if it is invoked from Node.js CLI without any
+// embedder customizations.
+NAPI_EXTERN int32_t NAPI_CDECL node_embedding_run_nodejs_main(int32_t argc,
+                                                              char* argv[]);
+
+//------------------------------------------------------------------------------
+// Error handling functions.
 //------------------------------------------------------------------------------
 
 // Sets the global error handing for the Node.js embedding API.
@@ -348,18 +358,25 @@ inline constexpr node_embedding_snapshot_flags operator|(
 
 #endif  // SRC_NODE_EMBEDDING_API_H_
 
-// TODO: (vmoroz) Remove the main_script parameter.
+// TODO: (vmoroz) Add exit code enum. Replace napi_status with the exit code.
+// TODO: (vmoroz) Remove the main_script parameter from the initialize function.
 // TODO: (vmoroz) Add startup callback with process and require parameters.
-// TODO: (vmoroz) Add ABI-safe way to access internal module functionality.
-// TODO: (vmoroz) Allow setting the global inspector for a specific environment.
+// TODO: (vmoroz) Generate the main script based on the runtime settings.
+// TODO: (vmoroz) Set the global inspector for a specific environment.
 // TODO: (vmoroz) Start workers from C++.
 // TODO: (vmoroz) Worker to inherit parent inspector.
 // TODO: (vmoroz) Cancel pending tasks on delete env.
-// TODO: (vmoroz) Can we init plat again if it returns early?
+// TODO: (vmoroz) The runtime delete must avoid pumping tasks.
+// TODO: (vmoroz) Can we initialize platform again if it returns early?
 // TODO: (vmoroz) Add simpler threading model - without open/close scope.
 // TODO: (vmoroz) Simplify API use for simple default cases.
-// TODO: (vmoroz) Check how to pass the V8 thread pool size.
-
+// TODO: (vmoroz) Test passing the V8 thread pool size.
 // TODO: (vmoroz) Make the args story simpler or clear named.
 // TODO: (vmoroz) Consider to have one function to retrieve the both arg types.
 // TODO: (vmoroz) Consider to have one function to set the both arg types.
+// TODO: (vmoroz) Single runtime by default vs multiple runtimes on demand.
+// TODO: (vmoroz) Add a way to terminate the runtime.
+// TODO: (vmoroz) Allow to provide custom thread pool from the app.
+// TODO: (vmoroz) Follow the UV example that integrates UV loop with QT loop.
+// TODO: (vmoroz) Consider adding a v-table for the API functions to simplify
+//       binding with other languages.
