@@ -373,6 +373,7 @@ std::pair<std::array<char, 382106>, std::array<uint32_t, 65537>>
 precompute_string() {
   // the string "0,1,2,3,...,65535,".
   std::array<char, 382106> str;
+  // the offsets in the string pointing at the beginning of each substring
   std::array<uint32_t, 65537> off;
   off[0] = 0;
   char* p = &str[0];
