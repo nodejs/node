@@ -8,6 +8,6 @@ is not supported and can lead to unpredictable behavior.
 
 In certain scenarios, accessing these internal modules for debugging or
 experimental purposes might be necessary. Node.js provides the `--expose-internals`
-flag to expose these modules to userland code. Exercise caution when using
-this flag, as it can lead to unexpected results and is primarily intended
-for advanced users and debugging purposes.
+flag to expose these modules to userland code. This flag only exists to
+assist Node.js maintainers with debugging internals. It is not meant for
+use outside the project.
