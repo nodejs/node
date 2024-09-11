@@ -167,8 +167,9 @@ extern "C" int32_t test_main_modules_node_api(int32_t argc, char* argv[]) {
   size_t bufferlen;
 
   CHECK(napi_call_function(env, global, import, 1, &es6, &es6_promise));
+  node_embedding_promise_state es6_promise_state;
   CHECK(node_embedding_runtime_await_promise(
-      runtime, es6_promise, &es6_module, nullptr));
+      runtime, es6_promise, &es6_promise_state, &es6_module, nullptr));
 
   CHECK(napi_get_property(env, es6_module, value, &es6_result));
   CHECK(napi_get_value_string_utf8(

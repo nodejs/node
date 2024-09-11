@@ -33,13 +33,15 @@ extern "C" int32_t test_main_node_api(int32_t argc, char* argv[]) {
 
 napi_status AddUtf8String(std::string& str, napi_env env, napi_value value) {
   size_t str_size = 0;
-  napi_status status = napi_get_value_string_utf8(env, value, nullptr, 0, &str_size);
+  napi_status status =
+      napi_get_value_string_utf8(env, value, nullptr, 0, &str_size);
   if (status != napi_ok) {
     return status;
   }
   size_t offset = str.size();
   str.resize(offset + str_size);
-  status = napi_get_value_string_utf8(env, value, &str[0] + offset, str_size + 1, &str_size);
+  status = napi_get_value_string_utf8(
+      env, value, &str[0] + offset, str_size + 1, &str_size);
   return status;
 }
 
@@ -166,14 +168,12 @@ int32_t waitMeWithCheese(napi_env env, node_embedding_runtime runtime) {
       FAIL("Result is not a Promise\n");
     }
 
-    napi_status r = node_embedding_runtime_await_promise(
-        runtime, promise, &result, nullptr);
-    if (r != napi_ok && r != napi_pending_exception) {
-      FAIL("Failed awaiting promise: %d\n", r);
-    }
+    node_embedding_promise_state promise_state;
+    CHECK(node_embedding_runtime_await_promise(
+        runtime, promise, &promise_state, &result, nullptr));
 
     const char* expected;
-    if (r == napi_ok)
+    if (promise_state == node_embedding_promise_state_fulfilled)
       expected = "waited with cheese";
     else
       expected = "waited without cheese";

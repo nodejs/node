@@ -18,8 +18,7 @@
             "Argument must not be null: " #platform,                           \
             __FILE__,                                                          \
             __LINE__,                                                          \
-            1,                                                                 \
-            napi_invalid_arg)                                                  \
+            node_embedding_exit_code_generic_user_error)                       \
       : reinterpret_cast<v8impl::EmbeddedPlatform*>(platform)
 
 #define EMBEDDED_RUNTIME(runtime)                                              \
@@ -27,8 +26,7 @@
                              "Argument must not be null: " #runtime,           \
                              __FILE__,                                         \
                              __LINE__,                                         \
-                             1,                                                \
-                             napi_invalid_arg)                                 \
+                             node_embedding_exit_code_generic_user_error)      \
                        : reinterpret_cast<v8impl::EmbeddedRuntime*>(runtime)
 
 #define ARG_NOT_NULL(arg)                                                      \
@@ -38,8 +36,7 @@
           "Argument must not be null: " #arg,                                  \
           __FILE__,                                                            \
           __LINE__,                                                            \
-          1,                                                                   \
-          napi_invalid_arg);                                                   \
+          node_embedding_exit_code_generic_user_error);                        \
     }                                                                          \
   } while (false)
 
@@ -50,8 +47,7 @@
           "Expression returned false: " #expr,                                 \
           __FILE__,                                                            \
           __LINE__,                                                            \
-          1,                                                                   \
-          napi_generic_failure);                                               \
+          node_embedding_exit_code_generic_user_error);                        \
     }                                                                          \
   } while (false)
 
@@ -114,30 +110,29 @@ class CStringArray {
 
 class EmbeddedErrorHandling {
  public:
-  static napi_status SetErrorHandler(node_embedding_error_handler error_handler,
-                                     void* error_handler_data);
+  static node_embedding_exit_code SetErrorHandler(
+      node_embedding_error_handler error_handler, void* error_handler_data);
 
-  static napi_status HandleError(const std::string& message,
-                                 int32_t exit_code,
-                                 napi_status status);
+  static node_embedding_exit_code HandleError(
+      const std::string& message, node_embedding_exit_code exit_code);
 
-  static napi_status HandleError(const std::vector<std::string>& messages,
-                                 int32_t exit_code,
-                                 napi_status status);
+  static node_embedding_exit_code HandleError(
+      const std::vector<std::string>& messages,
+      node_embedding_exit_code exit_code);
 
-  static napi_status HandleError(const char* message,
-                                 const char* filename,
-                                 int32_t line,
-                                 int32_t exit_code,
-                                 napi_status status);
+  static node_embedding_exit_code HandleError(
+      const char* message,
+      const char* filename,
+      int32_t line,
+      node_embedding_exit_code exit_code);
 
   static std::string FormatString(const char* format, ...);
 
-  static napi_status DefaultErrorHandler(void* handler_data,
-                                         const char* messages[],
-                                         size_t messages_size,
-                                         int32_t exit_code,
-                                         napi_status status);
+  static node_embedding_exit_code DefaultErrorHandler(
+      void* handler_data,
+      const char* messages[],
+      size_t messages_size,
+      node_embedding_exit_code exit_code);
 
   static node_embedding_error_handler error_handler() {
     return error_handler_ ? error_handler_ : DefaultErrorHandler;
@@ -159,23 +154,23 @@ class EmbeddedPlatform {
   EmbeddedPlatform(const EmbeddedPlatform&) = delete;
   EmbeddedPlatform& operator=(const EmbeddedPlatform&) = delete;
 
-  napi_status DeleteMe();
+  node_embedding_exit_code DeleteMe();
 
-  napi_status IsInitialized(bool* result);
+  node_embedding_exit_code IsInitialized(bool* result);
 
-  napi_status SetFlags(node_embedding_platform_flags flags);
+  node_embedding_exit_code SetFlags(node_embedding_platform_flags flags);
 
-  napi_status SetArgs(int32_t argc, char* argv[]);
+  node_embedding_exit_code SetArgs(int32_t argc, char* argv[]);
 
-  napi_status Initialize(bool* early_return);
+  node_embedding_exit_code Initialize(bool* early_return);
 
-  napi_status GetArgs(node_embedding_get_args_callback get_args,
-                      void* get_args_data);
+  node_embedding_exit_code GetArgs(node_embedding_get_args_callback get_args,
+                                   void* get_args_data);
 
-  napi_status GetExecArgs(node_embedding_get_args_callback get_args,
-                          void* get_args_data);
+  node_embedding_exit_code GetExecArgs(
+      node_embedding_get_args_callback get_args, void* get_args_data);
 
-  napi_status CreateRuntime(node_embedding_runtime* result);
+  node_embedding_exit_code CreateRuntime(node_embedding_runtime* result);
 
   node::InitializationResult* init_result() { return init_result_.get(); }
 
@@ -228,52 +223,55 @@ class EmbeddedRuntime {
  public:
   explicit EmbeddedRuntime(EmbeddedPlatform* platform);
 
-  napi_status DeleteMe();
+  node_embedding_exit_code DeleteMe();
 
-  napi_status IsInitialized(bool* result);
+  node_embedding_exit_code IsInitialized(bool* result);
 
-  napi_status SetFlags(node_embedding_runtime_flags flags);
+  node_embedding_exit_code SetFlags(node_embedding_runtime_flags flags);
 
-  napi_status SetArgs(int32_t argc, const char* argv[]);
+  node_embedding_exit_code SetArgs(int32_t argc, const char* argv[]);
 
-  napi_status SetExecArgs(int32_t argc, const char* argv[]);
+  node_embedding_exit_code SetExecArgs(int32_t argc, const char* argv[]);
 
-  napi_status SetPreloadCallback(node_embedding_preload_callback preload_cb,
-                                 void* preload_cb_data);
+  node_embedding_exit_code SetPreloadCallback(
+      node_embedding_preload_callback preload_cb, void* preload_cb_data);
 
-  napi_status SetSnapshotBlob(const uint8_t* snapshot, size_t size);
+  node_embedding_exit_code SetSnapshotBlob(const uint8_t* snapshot,
+                                           size_t size);
 
-  napi_status OnCreateSnapshotBlob(
+  node_embedding_exit_code OnCreateSnapshotBlob(
       node_embedding_store_blob_callback store_blob_cb,
       void* store_blob_cb_data,
       node_embedding_snapshot_flags snapshot_flags);
 
-  napi_status AddModule(
+  node_embedding_exit_code AddModule(
       const char* module_name,
       node_embedding_initialize_module_callback init_module_cb,
       void* init_module_cb_data,
       int32_t module_node_api_version);
 
-  napi_status Initialize(const char* main_script);
+  node_embedding_exit_code Initialize(const char* main_script);
 
-  napi_status RunEventLoop();
+  node_embedding_exit_code RunEventLoop();
 
-  napi_status RunEventLoopWhile(node_embedding_event_loop_predicate predicate,
-                                void* predicate_data,
-                                node_embedding_event_loop_run_mode run_mode,
-                                bool* has_more_work);
+  node_embedding_exit_code RunEventLoopWhile(
+      node_embedding_event_loop_predicate predicate,
+      void* predicate_data,
+      node_embedding_event_loop_run_mode run_mode,
+      bool* has_more_work);
 
-  napi_status AwaitPromise(napi_value promise,
-                           napi_value* result,
-                           bool* has_more_work);
+  node_embedding_exit_code AwaitPromise(napi_value promise,
+                                        node_embedding_promise_state* state,
+                                        napi_value* result,
+                                        bool* has_more_work);
 
-  napi_status SetNodeApiVersion(int32_t node_api_version);
+  node_embedding_exit_code SetNodeApiVersion(int32_t node_api_version);
 
-  napi_status GetNodeApiEnv(napi_env* env);
+  node_embedding_exit_code GetNodeApiEnv(napi_env* env);
 
-  napi_status OpenScope();
+  node_embedding_exit_code OpenScope();
 
-  napi_status CloseScope();
+  node_embedding_exit_code CloseScope();
 
   bool IsScopeOpened() const;
 
@@ -339,62 +337,54 @@ class EmbeddedRuntime {
 // EmbeddedErrorHandling implementation.
 //-----------------------------------------------------------------------------
 
-napi_status EmbeddedErrorHandling::SetErrorHandler(
+node_embedding_exit_code EmbeddedErrorHandling::SetErrorHandler(
     node_embedding_error_handler error_handler, void* error_handler_data) {
   error_handler_ = error_handler;
   error_handler_data_ = error_handler_data;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedErrorHandling::HandleError(const std::string& message,
-                                               int32_t exit_code,
-                                               napi_status status) {
+node_embedding_exit_code EmbeddedErrorHandling::HandleError(
+    const std::string& message, node_embedding_exit_code exit_code) {
   const char* message_c_str = message.c_str();
-  return error_handler()(
-      error_handler_data_, &message_c_str, 1, exit_code, status);
+  return error_handler()(error_handler_data_, &message_c_str, 1, exit_code);
 }
 
-napi_status EmbeddedErrorHandling::HandleError(
+node_embedding_exit_code EmbeddedErrorHandling::HandleError(
     const std::vector<std::string>& messages,
-    int32_t exit_code,
-    napi_status status) {
+    node_embedding_exit_code exit_code) {
   CStringArray message_arr(messages);
-  return error_handler()(error_handler_data_,
-                         message_arr.c_strs(),
-                         message_arr.size(),
-                         exit_code,
-                         status);
+  return error_handler()(
+      error_handler_data_, message_arr.c_strs(), message_arr.size(), exit_code);
 }
 
-napi_status EmbeddedErrorHandling::HandleError(const char* message,
-                                               const char* filename,
-                                               int32_t line,
-                                               int32_t exit_code,
-                                               napi_status status) {
+node_embedding_exit_code EmbeddedErrorHandling::HandleError(
+    const char* message,
+    const char* filename,
+    int32_t line,
+    node_embedding_exit_code exit_code) {
   return HandleError(
-      FormatString("Error: %s at %s:%d", message, filename, line),
-      exit_code,
-      status);
+      FormatString("Error: %s at %s:%d", message, filename, line), exit_code);
 }
 
-napi_status EmbeddedErrorHandling::DefaultErrorHandler(void* /*handler_data*/,
-                                                       const char* messages[],
-                                                       size_t messages_size,
-                                                       int32_t exit_code,
-                                                       napi_status status) {
+node_embedding_exit_code EmbeddedErrorHandling::DefaultErrorHandler(
+    void* /*handler_data*/,
+    const char* messages[],
+    size_t messages_size,
+    node_embedding_exit_code exit_code) {
   if (exit_code != 0) {
     for (size_t i = 0; i < messages_size; ++i) {
       fprintf(stderr, "%s\n", messages[i]);
     }
     fflush(stderr);
-    exit(exit_code);
+    node::Exit(static_cast<node::ExitCode>(exit_code));
   } else {
     for (size_t i = 0; i < messages_size; ++i) {
       fprintf(stdout, "%s\n", messages[i]);
     }
     fflush(stdout);
   }
-  return status;
+  return exit_code;
 }
 
 std::string EmbeddedErrorHandling::FormatString(const char* format, ...) {
@@ -413,7 +403,7 @@ std::string EmbeddedErrorHandling::FormatString(const char* format, ...) {
 // EmbeddedPlatform implementation.
 //-----------------------------------------------------------------------------
 
-napi_status EmbeddedPlatform::DeleteMe() {
+node_embedding_exit_code EmbeddedPlatform::DeleteMe() {
   if (v8_is_initialized_ && !v8_is_uninitialized_) {
     v8::V8::Dispose();
     v8::V8::DisposePlatform();
@@ -422,36 +412,37 @@ napi_status EmbeddedPlatform::DeleteMe() {
   }
 
   delete this;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedPlatform::IsInitialized(bool* result) {
+node_embedding_exit_code EmbeddedPlatform::IsInitialized(bool* result) {
   ARG_NOT_NULL(result);
   *result = is_initialized_;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedPlatform::SetFlags(node_embedding_platform_flags flags) {
+node_embedding_exit_code EmbeddedPlatform::SetFlags(
+    node_embedding_platform_flags flags) {
   ASSERT(!is_initialized_);
   flags_ = flags;
   optional_bits_.flags = true;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedPlatform::SetArgs(int32_t argc, char* argv[]) {
+node_embedding_exit_code EmbeddedPlatform::SetArgs(int32_t argc, char* argv[]) {
   ARG_NOT_NULL(argv);
   ASSERT(!is_initialized_);
   args_.assign(argv, argv + argc);
   optional_bits_.args = true;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedPlatform::Initialize(bool* early_return) {
+node_embedding_exit_code EmbeddedPlatform::Initialize(bool* early_return) {
   ASSERT(!is_initialized_);
 
   is_initialized_ = true;
 
-  // TODO: (vmoroz) default initialize args_.
+  // TODO(vmoroz): default initialize args_.
 
   if (!optional_bits_.flags) {
     flags_ = node_embedding_platform_no_flags;
@@ -461,9 +452,9 @@ napi_status EmbeddedPlatform::Initialize(bool* early_return) {
       args_, GetProcessInitializationFlags(flags_));
 
   if (init_result_->exit_code() != 0 || !init_result_->errors().empty()) {
-    return EmbeddedErrorHandling::HandleError(init_result_->errors(),
-                                              init_result_->exit_code(),
-                                              napi_generic_failure);
+    return EmbeddedErrorHandling::HandleError(
+        init_result_->errors(),
+        static_cast<node_embedding_exit_code>(init_result_->exit_code()));
   }
 
   if (early_return != nullptr) {
@@ -473,7 +464,7 @@ napi_status EmbeddedPlatform::Initialize(bool* early_return) {
   }
 
   if (init_result_->early_return()) {
-    return init_result_->exit_code() == 0 ? napi_ok : napi_generic_failure;
+    return static_cast<node_embedding_exit_code>(init_result_->exit_code());
   }
 
   int32_t thread_pool_size =
@@ -484,10 +475,10 @@ napi_status EmbeddedPlatform::Initialize(bool* early_return) {
 
   v8_is_initialized_ = true;
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedPlatform::GetArgs(
+node_embedding_exit_code EmbeddedPlatform::GetArgs(
     node_embedding_get_args_callback get_args_cb, void* get_args_cb_data) {
   ARG_NOT_NULL(get_args_cb);
   ASSERT(is_initialized_);
@@ -495,10 +486,10 @@ napi_status EmbeddedPlatform::GetArgs(
   v8impl::CStringArray args(init_result_->args());
   get_args_cb(get_args_cb_data, args.argc(), args.argv());
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedPlatform::GetExecArgs(
+node_embedding_exit_code EmbeddedPlatform::GetExecArgs(
     node_embedding_get_args_callback get_args_cb, void* get_args_cb_data) {
   ARG_NOT_NULL(get_args_cb);
   ASSERT(is_initialized_);
@@ -506,10 +497,11 @@ napi_status EmbeddedPlatform::GetExecArgs(
   v8impl::CStringArray args(init_result_->exec_args());
   get_args_cb(get_args_cb_data, args.argc(), args.argv());
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedPlatform::CreateRuntime(node_embedding_runtime* result) {
+node_embedding_exit_code EmbeddedPlatform::CreateRuntime(
+    node_embedding_runtime* result) {
   ARG_NOT_NULL(result);
   ASSERT(is_initialized_);
   ASSERT(v8_is_initialized_);
@@ -519,7 +511,7 @@ napi_status EmbeddedPlatform::CreateRuntime(node_embedding_runtime* result) {
 
   *result = reinterpret_cast<node_embedding_runtime>(runtime.release());
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
 node::ProcessInitializationFlags::Flags
@@ -574,16 +566,17 @@ EmbeddedPlatform::GetProcessInitializationFlags(
 EmbeddedRuntime::EmbeddedRuntime(EmbeddedPlatform* platform)
     : platform_(platform) {}
 
-napi_status EmbeddedRuntime::DeleteMe() {
+node_embedding_exit_code EmbeddedRuntime::DeleteMe() {
   ASSERT(!IsScopeOpened());
 
   {
     v8impl::IsolateLocker isolate_locker(env_setup_.get());
 
-    int32_t ret = node::SpinEventLoop(env_setup_->env()).FromMaybe(1);
-    if (ret != 0) {
+    node_embedding_exit_code exit_code = static_cast<node_embedding_exit_code>(
+        node::SpinEventLoop(env_setup_->env()).FromMaybe(1));
+    if (exit_code != node_embedding_exit_code_ok) {
       return EmbeddedErrorHandling::HandleError(
-          "Failed while closing the runtime", ret, napi_generic_failure);
+          "Failed while closing the runtime", exit_code);
     }
   }
 
@@ -593,45 +586,48 @@ napi_status EmbeddedRuntime::DeleteMe() {
   if (create_snapshot_) {
     node::EmbedderSnapshotData::Pointer snapshot = env_setup->CreateSnapshot();
     ASSERT(snapshot);
-    // TODO: (vmoroz) handle error conditions.
+    // TODO(vmoroz): handle error conditions.
     create_snapshot_(snapshot.get());
   }
 
   node::Stop(env_setup->env());
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::IsInitialized(bool* result) {
+node_embedding_exit_code EmbeddedRuntime::IsInitialized(bool* result) {
   ARG_NOT_NULL(result);
   *result = is_initialized_;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::SetFlags(node_embedding_runtime_flags flags) {
+node_embedding_exit_code EmbeddedRuntime::SetFlags(
+    node_embedding_runtime_flags flags) {
   ASSERT(!is_initialized_);
   flags_ = flags;
   optional_bits_.flags = true;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::SetArgs(int32_t argc, const char* argv[]) {
+node_embedding_exit_code EmbeddedRuntime::SetArgs(int32_t argc,
+                                                  const char* argv[]) {
   ARG_NOT_NULL(argv);
   ASSERT(!is_initialized_);
   args_.assign(argv, argv + argc);
   optional_bits_.args = true;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::SetExecArgs(int32_t argc, const char* argv[]) {
+node_embedding_exit_code EmbeddedRuntime::SetExecArgs(int32_t argc,
+                                                      const char* argv[]) {
   ARG_NOT_NULL(argv);
   ASSERT(!is_initialized_);
   exec_args_.assign(argv, argv + argc);
   optional_bits_.exec_args = true;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::SetPreloadCallback(
+node_embedding_exit_code EmbeddedRuntime::SetPreloadCallback(
     node_embedding_preload_callback preload_cb, void* preload_cb_data) {
   ASSERT(!is_initialized_);
 
@@ -653,20 +649,20 @@ napi_status EmbeddedRuntime::SetPreloadCallback(
     preload_cb_ = {};
   }
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::SetSnapshotBlob(const uint8_t* snapshot,
-                                             size_t size) {
+node_embedding_exit_code EmbeddedRuntime::SetSnapshotBlob(
+    const uint8_t* snapshot, size_t size) {
   ARG_NOT_NULL(snapshot);
   ASSERT(!is_initialized_);
 
   snapshot_ = node::EmbedderSnapshotData::FromBlob(
       std::string_view(reinterpret_cast<const char*>(snapshot), size));
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::OnCreateSnapshotBlob(
+node_embedding_exit_code EmbeddedRuntime::OnCreateSnapshotBlob(
     node_embedding_store_blob_callback store_blob_cb,
     void* store_blob_cb_data,
     node_embedding_snapshot_flags snapshot_flags) {
@@ -687,10 +683,10 @@ napi_status EmbeddedRuntime::OnCreateSnapshotBlob(
         static_cast<uint32_t>(node::SnapshotFlags::kWithoutCodeCache));
   }
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::AddModule(
+node_embedding_exit_code EmbeddedRuntime::AddModule(
     const char* module_name,
     node_embedding_initialize_module_callback init_module_cb,
     void* init_module_cb_data,
@@ -708,14 +704,13 @@ napi_status EmbeddedRuntime::AddModule(
     return EmbeddedErrorHandling::HandleError(
         EmbeddedErrorHandling::FormatString(
             "Module with name '%s' is already added.", module_name),
-        1,
-        napi_invalid_arg);
+        node_embedding_exit_code_generic_user_error);
   }
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::Initialize(const char* main_script) {
+node_embedding_exit_code EmbeddedRuntime::Initialize(const char* main_script) {
   ASSERT(!is_initialized_);
 
   is_initialized_ = true;
@@ -745,7 +740,8 @@ napi_status EmbeddedRuntime::Initialize(const char* main_script) {
   }
 
   if (env_setup_ == nullptr || !errors.empty()) {
-    return EmbeddedErrorHandling::HandleError(errors, 1, napi_generic_failure);
+    return EmbeddedErrorHandling::HandleError(
+        errors, node_embedding_exit_code_generic_user_error);
   }
 
   v8impl::IsolateLocker isolate_locker(env_setup_.get());
@@ -764,20 +760,20 @@ napi_status EmbeddedRuntime::Initialize(const char* main_script) {
           : node::LoadEnvironment(
                 node_env, std::string_view(main_script), preload_cb_);
 
-  if (ret.IsEmpty()) return napi_pending_exception;
+  if (ret.IsEmpty()) return node_embedding_exit_code_generic_user_error;
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::RunEventLoop() {
+node_embedding_exit_code EmbeddedRuntime::RunEventLoop() {
   if (node::SpinEventLoopWithoutCleanup(env_setup_->env()).IsNothing()) {
-    return napi_closing;
+    return node_embedding_exit_code_generic_user_error;
   }
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::RunEventLoopWhile(
+node_embedding_exit_code EmbeddedRuntime::RunEventLoopWhile(
     node_embedding_event_loop_predicate predicate,
     void* predicate_data,
     node_embedding_event_loop_run_mode run_mode,
@@ -793,7 +789,7 @@ napi_status EmbeddedRuntime::RunEventLoopWhile(
               return predicate(predicate_data, has_work);
             })
             .IsNothing()) {
-      return napi_closing;
+      return node_embedding_exit_code_generic_user_error;
     }
   }
 
@@ -801,84 +797,91 @@ napi_status EmbeddedRuntime::RunEventLoopWhile(
     *has_more_work = uv_loop_alive(env_setup_->env()->event_loop());
   }
 
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::AwaitPromise(napi_value promise,
-                                          napi_value* result,
-                                          bool* has_more_work) {
-  NAPI_PREAMBLE(node_api_env_);
-  CHECK_ARG(node_api_env_, result);
+node_embedding_exit_code EmbeddedRuntime::AwaitPromise(
+    napi_value promise,
+    node_embedding_promise_state* state,
+    napi_value* result,
+    bool* has_more_work) {
+  napi_status status = [&]() {
+    NAPI_PREAMBLE(node_api_env_);
+    CHECK_ARG(node_api_env_, state);
+    CHECK_ARG(node_api_env_, result);
 
-  v8::EscapableHandleScope scope(node_api_env_->isolate);
+    v8::EscapableHandleScope scope(node_api_env_->isolate);
 
-  v8::Local<v8::Value> promise_value = v8impl::V8LocalValueFromJsValue(promise);
-  if (promise_value.IsEmpty() || !promise_value->IsPromise())
-    return napi_invalid_arg;
-  v8::Local<v8::Promise> promise_object = promise_value.As<v8::Promise>();
+    v8::Local<v8::Value> promise_value =
+        v8impl::V8LocalValueFromJsValue(promise);
+    if (promise_value.IsEmpty() || !promise_value->IsPromise())
+      return napi_invalid_arg;
+    v8::Local<v8::Promise> promise_object = promise_value.As<v8::Promise>();
 
-  v8::Local<v8::Value> rejected =
-      v8::Boolean::New(node_api_env_->isolate, false);
-  v8::Local<v8::Function> err_handler =
-      v8::Function::New(
-          node_api_env_->context(),
-          [](const v8::FunctionCallbackInfo<v8::Value>& info) { return; },
-          rejected)
-          .ToLocalChecked();
+    v8::Local<v8::Value> rejected =
+        v8::Boolean::New(node_api_env_->isolate, false);
+    v8::Local<v8::Function> err_handler =
+        v8::Function::New(
+            node_api_env_->context(),
+            [](const v8::FunctionCallbackInfo<v8::Value>& info) { return; },
+            rejected)
+            .ToLocalChecked();
 
-  if (promise_object->Catch(node_api_env_->context(), err_handler).IsEmpty())
-    return napi_pending_exception;
+    if (promise_object->Catch(node_api_env_->context(), err_handler).IsEmpty())
+      return napi_pending_exception;
 
-  if (node::SpinEventLoopWithoutCleanup(
-          env_setup_->env(),
-          UV_RUN_ONCE,
-          [&promise_object](bool /*has_work*/) {
-            return promise_object->State() ==
-                   v8::Promise::PromiseState::kPending;
-          })
-          .IsNothing())
-    return napi_closing;
+    if (node::SpinEventLoopWithoutCleanup(
+            env_setup_->env(),
+            UV_RUN_ONCE,
+            [&promise_object](bool /*has_work*/) {
+              return promise_object->State() ==
+                     v8::Promise::PromiseState::kPending;
+            })
+            .IsNothing())
+      return napi_closing;
 
-  *result =
-      v8impl::JsValueFromV8LocalValue(scope.Escape(promise_object->Result()));
+    *state = static_cast<node_embedding_promise_state>(promise_object->State());
+    *result =
+        v8impl::JsValueFromV8LocalValue(scope.Escape(promise_object->Result()));
 
-  if (has_more_work != nullptr) {
-    *has_more_work = uv_loop_alive(env_setup_->env()->event_loop());
-  }
+    if (has_more_work != nullptr) {
+      *has_more_work = uv_loop_alive(env_setup_->env()->event_loop());
+    }
 
-  if (promise_object->State() == v8::Promise::PromiseState::kRejected)
-    return napi_pending_exception;
-
-  return napi_ok;
+    return napi_ok;
+  }();
+  return (status == napi_ok) ? node_embedding_exit_code_ok
+                             : node_embedding_exit_code_generic_user_error;
 }
 
-napi_status EmbeddedRuntime::SetNodeApiVersion(int32_t node_api_version) {
+node_embedding_exit_code EmbeddedRuntime::SetNodeApiVersion(
+    int32_t node_api_version) {
   ASSERT(!is_initialized_);
   node_api_version_ = node_api_version;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::GetNodeApiEnv(napi_env* env) {
+node_embedding_exit_code EmbeddedRuntime::GetNodeApiEnv(napi_env* env) {
   ARG_NOT_NULL(env);
   *env = node_api_env_;
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::OpenScope() {
+node_embedding_exit_code EmbeddedRuntime::OpenScope() {
   if (isolate_locker_.has_value()) {
     ASSERT(isolate_locker_->IsLocked());
     isolate_locker_->IncrementLockCount();
   } else {
     isolate_locker_.emplace(env_setup_.get());
   }
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status EmbeddedRuntime::CloseScope() {
+node_embedding_exit_code EmbeddedRuntime::CloseScope() {
   ASSERT(isolate_locker_.has_value());
   ASSERT(isolate_locker_->IsLocked());
   if (isolate_locker_->DecrementLockCount()) isolate_locker_.reset();
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
 bool EmbeddedRuntime::IsScopeOpened() const {
@@ -999,94 +1002,95 @@ void EmbeddedRuntime::RegisterModules() {
 }  // end of anonymous namespace
 }  // end of namespace v8impl
 
-int32_t NAPI_CDECL node_embedding_run_nodejs_main(int32_t argc, char* argv[]) {
-  return node::Start(argc, argv);
+node_embedding_exit_code NAPI_CDECL
+node_embedding_run_nodejs_main(int32_t argc, char* argv[]) {
+  return static_cast<node_embedding_exit_code>(node::Start(argc, argv));
 }
 
-napi_status NAPI_CDECL node_embedding_on_error(
+node_embedding_exit_code NAPI_CDECL node_embedding_on_error(
     node_embedding_error_handler error_handler, void* error_handler_data) {
   return v8impl::EmbeddedErrorHandling::SetErrorHandler(error_handler,
                                                         error_handler_data);
 }
 
-napi_status NAPI_CDECL node_embedding_create_platform(
+node_embedding_exit_code NAPI_CDECL node_embedding_create_platform(
     int32_t api_version, node_embedding_platform* result) {
   ARG_NOT_NULL(result);
   *result = reinterpret_cast<node_embedding_platform>(
       new v8impl::EmbeddedPlatform(api_version));
-  return napi_ok;
+  return node_embedding_exit_code_ok;
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_delete_platform(node_embedding_platform platform) {
   return EMBEDDED_PLATFORM(platform)->DeleteMe();
 }
 
-napi_status NAPI_CDECL node_embedding_platform_is_initialized(
+node_embedding_exit_code NAPI_CDECL node_embedding_platform_is_initialized(
     node_embedding_platform platform, bool* result) {
   return EMBEDDED_PLATFORM(platform)->IsInitialized(result);
 }
 
-napi_status NAPI_CDECL node_embedding_platform_set_flags(
+node_embedding_exit_code NAPI_CDECL node_embedding_platform_set_flags(
     node_embedding_platform platform, node_embedding_platform_flags flags) {
   return EMBEDDED_PLATFORM(platform)->SetFlags(flags);
 }
 
-napi_status NAPI_CDECL node_embedding_platform_set_args(
+node_embedding_exit_code NAPI_CDECL node_embedding_platform_set_args(
     node_embedding_platform platform, int32_t argc, char* argv[]) {
   return EMBEDDED_PLATFORM(platform)->SetArgs(argc, argv);
 }
 
-napi_status NAPI_CDECL node_embedding_platform_initialize(
+node_embedding_exit_code NAPI_CDECL node_embedding_platform_initialize(
     node_embedding_platform platform, bool* early_return) {
   return EMBEDDED_PLATFORM(platform)->Initialize(early_return);
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_platform_get_args(node_embedding_platform platform,
                                  node_embedding_get_args_callback get_args,
                                  void* get_args_data) {
   return EMBEDDED_PLATFORM(platform)->GetArgs(get_args, get_args_data);
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_platform_get_exec_args(node_embedding_platform platform,
                                       node_embedding_get_args_callback get_args,
                                       void* get_args_data) {
   return EMBEDDED_PLATFORM(platform)->GetExecArgs(get_args, get_args_data);
 }
 
-napi_status NAPI_CDECL node_embedding_create_runtime(
+node_embedding_exit_code NAPI_CDECL node_embedding_create_runtime(
     node_embedding_platform platform, node_embedding_runtime* result) {
   return EMBEDDED_PLATFORM(platform)->CreateRuntime(result);
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_delete_runtime(node_embedding_runtime runtime) {
   return EMBEDDED_RUNTIME(runtime)->DeleteMe();
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_is_initialized(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_is_initialized(
     node_embedding_runtime runtime, bool* result) {
   return EMBEDDED_RUNTIME(runtime)->IsInitialized(result);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_set_flags(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_set_flags(
     node_embedding_runtime runtime, node_embedding_runtime_flags flags) {
   return EMBEDDED_RUNTIME(runtime)->SetFlags(flags);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_set_args(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_set_args(
     node_embedding_runtime runtime, int32_t argc, const char* argv[]) {
   return EMBEDDED_RUNTIME(runtime)->SetArgs(argc, argv);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_set_exec_args(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_set_exec_args(
     node_embedding_runtime runtime, int32_t argc, const char* argv[]) {
   return EMBEDDED_RUNTIME(runtime)->SetExecArgs(argc, argv);
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_on_preload(node_embedding_runtime runtime,
                                   node_embedding_preload_callback preload_cb,
                                   void* preload_cb_data) {
@@ -1094,12 +1098,12 @@ node_embedding_runtime_on_preload(node_embedding_runtime runtime,
                                                        preload_cb_data);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_use_snapshot(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_use_snapshot(
     node_embedding_runtime runtime, const uint8_t* snapshot, size_t size) {
   return EMBEDDED_RUNTIME(runtime)->SetSnapshotBlob(snapshot, size);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_on_create_snapshot(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_on_create_snapshot(
     node_embedding_runtime runtime,
     node_embedding_store_blob_callback store_blob_cb,
     void* store_blob_cb_data,
@@ -1108,7 +1112,7 @@ napi_status NAPI_CDECL node_embedding_runtime_on_create_snapshot(
       store_blob_cb, store_blob_cb_data, snapshot_flags);
 }
 
-NAPI_EXTERN napi_status NAPI_CDECL node_embedding_runtime_add_module(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_add_module(
     node_embedding_runtime runtime,
     const char* module_name,
     node_embedding_initialize_module_callback init_module_cb,
@@ -1120,17 +1124,17 @@ NAPI_EXTERN napi_status NAPI_CDECL node_embedding_runtime_add_module(
                                               module_node_api_version);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_initialize(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_initialize(
     node_embedding_runtime runtime, const char* main_script) {
   return EMBEDDED_RUNTIME(runtime)->Initialize(main_script);
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_run_event_loop(node_embedding_runtime runtime) {
   return EMBEDDED_RUNTIME(runtime)->RunEventLoop();
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_run_event_loop_while(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_run_event_loop_while(
     node_embedding_runtime runtime,
     node_embedding_event_loop_predicate predicate,
     void* predicate_data,
@@ -1140,31 +1144,32 @@ napi_status NAPI_CDECL node_embedding_runtime_run_event_loop_while(
       predicate, predicate_data, run_mode, has_more_work);
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_await_promise(node_embedding_runtime runtime,
                                      napi_value promise,
+                                     node_embedding_promise_state* state,
                                      napi_value* result,
                                      bool* has_more_work) {
   return EMBEDDED_RUNTIME(runtime)->AwaitPromise(
-      promise, result, has_more_work);
+      promise, state, result, has_more_work);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_set_node_api_version(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_set_node_api_version(
     node_embedding_runtime runtime, int32_t node_api_version) {
   return EMBEDDED_RUNTIME(runtime)->SetNodeApiVersion(node_api_version);
 }
 
-napi_status NAPI_CDECL node_embedding_runtime_get_node_api_env(
+node_embedding_exit_code NAPI_CDECL node_embedding_runtime_get_node_api_env(
     node_embedding_runtime runtime, napi_env* env) {
   return EMBEDDED_RUNTIME(runtime)->GetNodeApiEnv(env);
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_open_scope(node_embedding_runtime runtime) {
   return EMBEDDED_RUNTIME(runtime)->OpenScope();
 }
 
-napi_status NAPI_CDECL
+node_embedding_exit_code NAPI_CDECL
 node_embedding_runtime_close_scope(node_embedding_runtime runtime) {
   return EMBEDDED_RUNTIME(runtime)->CloseScope();
 }
