@@ -15,20 +15,20 @@ extern "C" inline void NAPI_CDECL GetArgsVector(void* data,
   static_cast<std::vector<std::string>*>(data)->assign(argv, argv + argc);
 }
 
-extern "C" inline napi_status NAPI_CDECL HandleTestError(void* handler_data,
-                                                         const char* messages[],
-                                                         size_t messages_size,
-                                                         int32_t exit_code,
-                                                         napi_status status) {
+extern "C" inline node_embedding_exit_code NAPI_CDECL
+HandleTestError(void* handler_data,
+                const char* messages[],
+                size_t messages_size,
+                node_embedding_exit_code exit_code) {
   auto exe_name = static_cast<const char*>(handler_data);
   if (exit_code != 0) {
     for (size_t i = 0; i < messages_size; ++i)
       fprintf(stderr, "%s: %s\n", exe_name, messages[i]);
-    exit(exit_code);
+    exit(static_cast<int32_t>(exit_code));
   } else {
     for (size_t i = 0; i < messages_size; ++i) printf("%s\n", messages[i]);
   }
-  return status;
+  return exit_code;
 }
 
 #endif
@@ -39,7 +39,7 @@ napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
 
 #define CHECK(expr)                                                            \
   do {                                                                         \
-    if ((expr) != napi_ok) {                                                   \
+    if ((expr) != node_embedding_exit_code_ok) {                               \
       fprintf(stderr, "Failed: %s\n", #expr);                                  \
       fprintf(stderr, "File: %s\n", __FILE__);                                 \
       fprintf(stderr, "Line: %d\n", __LINE__);                                 \
@@ -73,7 +73,7 @@ napi_status AddUtf8String(std::string& str, napi_env env, napi_value value);
 
 #endif  // TEST_EMBEDDING_EMBEDTEST_NODE_API_H_
 
-// TODO: (vmoroz) Enable the test_main_modules_node_api test.
-// TODO: (vmoroz) Test failure in Preload callback.
-// TODO: (vmoroz) Test failure in linked modules.
-// TODO: (vmoroz) Make sure that delete call matches the create call.
+// TODO(vmoroz): Enable the test_main_modules_node_api test.
+// TODO(vmoroz): Test failure in Preload callback.
+// TODO(vmoroz): Test failure in linked modules.
+// TODO(vmoroz): Make sure that delete call matches the create call.
