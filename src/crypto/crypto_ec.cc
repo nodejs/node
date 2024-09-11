@@ -965,26 +965,11 @@ KeyObjectData ImportJWKEcKey(Environment* env,
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 
-<<<<<<< HEAD
-Maybe<bool> GetEcKeyDetail(Environment* env,
+Maybe<void> GetEcKeyDetail(Environment* env,
                            const KeyObjectData& key,
                            Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& m_pkey = key.GetAsymmetricKey();
-||||||| parent of 6b5b11a52a (src: convert more uses of Maybe<bool> to Maybe<void>)
-Maybe<bool> GetEcKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
-=======
-Maybe<void> GetEcKeyDetail(Environment* env,
-                           std::shared_ptr<KeyObjectData> key,
-                           Local<Object> target) {
-  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
-  Mutex::ScopedLock lock(*m_pkey.mutex());
->>>>>>> 6b5b11a52a (src: convert more uses of Maybe<bool> to Maybe<void>)
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
   const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());

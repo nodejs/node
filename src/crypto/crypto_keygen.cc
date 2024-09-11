@@ -80,7 +80,7 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
 }
 
 MaybeLocal<Value> SecretKeyGenTraits::EncodeKey(Environment* env,
-                                          SecretKeyGenConfig* params) {
+                                                SecretKeyGenConfig* params) {
   auto data = KeyObjectData::CreateSecret(std::move(params->out));
   Local<Value> ret;
   if (!KeyObjectHandle::Create(env, data).ToLocal(&ret)) {

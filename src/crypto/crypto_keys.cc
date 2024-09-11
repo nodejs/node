@@ -521,7 +521,7 @@ Maybe<void> GetSecretKeyDetail(Environment* env,
                                Local<Object> target) {
   // For the secret key detail, all we care about is the length,
   // converted to bits.
-  size_t length = key->GetSymmetricKeySize() * CHAR_BIT;
+  size_t length = key.GetSymmetricKeySize() * CHAR_BIT;
   if (target
           ->Set(env->context(),
                 env->length_string(),

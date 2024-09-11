@@ -648,11 +648,11 @@ Maybe<void> SignTraits::AdditionalConfig(
   if (params->mode == SignConfiguration::kVerify) {
     auto data =
         KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &keyParamOffset);
-    if (!data) return Nothing<bool>();
+    if (!data) return Nothing<void>();
     params->key = std::move(data);
   } else {
     auto data = KeyObjectData::GetPrivateKeyFromJs(args, &keyParamOffset, true);
-    if (!data) return Nothing<bool>();
+    if (!data) return Nothing<void>();
     params->key = std::move(data);
   }
 
