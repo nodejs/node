@@ -8,7 +8,7 @@
 // We pick a small stack size to run the stack overflow test quickly, but big
 // enough to run all the tests.
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestSuspender() {
   print(arguments.callee.name);
@@ -97,6 +97,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate();
   let suspender = new WebAssembly.Suspender();
   let wrapper = ToPromising(instance.exports.test);
+})();
+
+(function TestInvalidWrappers() {
+  print(arguments.callee.name);
+  assertThrows(() => WebAssembly.promising({}), TypeError,
+      /Argument 0 must be a function/);
+  assertThrows(() => WebAssembly.promising(() => {}), TypeError,
+      /Argument 0 must be a WebAssembly exported function/);
+  assertThrows(() => WebAssembly.Suspending(() => {}), TypeError,
+      /WebAssembly.Suspending must be invoked with 'new'/);
+  assertThrows(() => new WebAssembly.Suspending({}), TypeError,
+      /Argument 0 must be a function/);
+  function asmModule() {
+    "use asm";
+    function x(v) {
+      v = v | 0;
+    }
+    return x;
+  }
+  assertThrows(() => WebAssembly.promising(asmModule()), TypeError,
+      /Argument 0 must be a WebAssembly exported function/);
 })();
 
 (function TestStackSwitchNoSuspend() {
@@ -780,4 +801,31 @@ function TestNestedSuspenders(suspend) {
   const suspender = new WebAssembly.Suspender();
   suspender.foo = "bar";
   gc();
+})();
+
+(function TestStackSwitchRegressStackLimit() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  suspend_index = builder.addImport('m', 'suspend', kSig_v_r);
+  let leaf_index = builder.addFunction("leaf", kSig_v_v)
+      .addBody([
+      ]).index;
+  let stackcheck_index = builder.addFunction("stackcheck", kSig_v_v)
+      .addBody([
+          kExprCallFunction, leaf_index,
+      ]).index;
+  builder.addFunction("test", kSig_v_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, suspend_index,
+          // This call should not throw a stack overflow.
+          kExprCallFunction, stackcheck_index,
+      ]).exportFunc();
+  let suspend = new WebAssembly.Function(
+      {parameters: ['externref'], results: []},
+      () => Promise.resolve(),
+      {suspending: 'first'});
+  let instance = builder.instantiate({m: {suspend}});
+  let wrapped_export = ToPromising(instance.exports.test);
+  assertPromiseResult(wrapped_export(), v => assertEquals(undefined, v));
 })();

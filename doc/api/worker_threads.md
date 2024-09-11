@@ -260,7 +260,7 @@ added: v22.5.0
 
 > Stability: 1.1 - Active development
 
-* `destination` {number} The target thread ID. If the thread ID is invalid, a
+* `threadId` {number} The target thread ID. If the thread ID is invalid, a
   [`ERR_WORKER_MESSAGING_FAILED`][] error will be thrown. If the target thread ID is the current thread ID,
   a [`ERR_WORKER_MESSAGING_SAME_THREAD`][] error will be thrown.
 * `value` {any} The value to send.
@@ -290,10 +290,8 @@ the last one will try to communicate with the main thread.
 
 ```mjs
 import { fileURLToPath } from 'node:url';
-import { once } from 'node:events';
 import process from 'node:process';
 import {
-  isMainThread,
   postMessageToThread,
   threadId,
   workerData,
@@ -328,9 +326,7 @@ channel.onmessage = channel.close;
 ```
 
 ```cjs
-const { once } = require('node:events');
 const {
-  isMainThread,
   postMessageToThread,
   threadId,
   workerData,
@@ -1504,8 +1500,8 @@ thread spawned will spawn another until the application crashes.
 [`'close'` event]: #event-close
 [`'exit'` event]: #event-exit
 [`'online'` event]: #event-online
-[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-megabytes
-[`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-megabytes
+[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
+[`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`AsyncResource`]: async_hooks.md#class-asyncresource
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize

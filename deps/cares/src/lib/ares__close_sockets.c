@@ -28,31 +28,30 @@
 #include "ares_private.h"
 #include <assert.h>
 
-static void ares__requeue_queries(struct server_connection *conn,
+static void ares__requeue_queries(ares_conn_t  *conn,
                                   ares_status_t requeue_status)
 {
-  struct query  *query;
+  ares_query_t  *query;
   ares_timeval_t now;
 
   ares__tvnow(&now);
 
   while ((query = ares__llist_first_val(conn->queries_to_conn)) != NULL) {
-    ares__requeue_query(query, &now, requeue_status);
+    ares__requeue_query(query, &now, requeue_status, ARES_TRUE, NULL);
   }
 }
 
-void ares__close_connection(struct server_connection *conn,
-                            ares_status_t requeue_status)
+void ares__close_connection(ares_conn_t *conn, ares_status_t requeue_status)
 {
-  struct server_state *server  = conn->server;
-  ares_channel_t      *channel = server->channel;
+  ares_server_t  *server  = conn->server;
+  ares_channel_t *channel = server->channel;
 
   /* Unlink */
   ares__llist_node_claim(
     ares__htable_asvp_get_direct(channel->connnode_by_socket, conn->fd));
   ares__htable_asvp_remove(channel->connnode_by_socket, conn->fd);
 
-  if (conn->is_tcp) {
+  if (conn->flags & ARES_CONN_FLAG_TCP) {
     /* Reset any existing input and output buffer. */
     ares__buf_consume(server->tcp_parser, ares__buf_len(server->tcp_parser));
     ares__buf_consume(server->tcp_send, ares__buf_len(server->tcp_send));
@@ -70,12 +69,12 @@ void ares__close_connection(struct server_connection *conn,
   ares_free(conn);
 }
 
-void ares__close_sockets(struct server_state *server)
+void ares__close_sockets(ares_server_t *server)
 {
   ares__llist_node_t *node;
 
   while ((node = ares__llist_node_first(server->connections)) != NULL) {
-    struct server_connection *conn = ares__llist_node_val(node);
+    ares_conn_t *conn = ares__llist_node_val(node);
     ares__close_connection(conn, ARES_SUCCESS);
   }
 }
@@ -91,17 +90,16 @@ void ares__check_cleanup_conns(const ares_channel_t *channel)
   /* Iterate across each server */
   for (snode = ares__slist_node_first(channel->servers); snode != NULL;
        snode = ares__slist_node_next(snode)) {
-
-    struct server_state *server = ares__slist_node_val(snode);
-    ares__llist_node_t  *cnode;
+    ares_server_t      *server = ares__slist_node_val(snode);
+    ares__llist_node_t *cnode;
 
     /* Iterate across each connection */
     cnode = ares__llist_node_first(server->connections);
     while (cnode != NULL) {
-      ares__llist_node_t       *next       = ares__llist_node_next(cnode);
-      struct server_connection *conn       = ares__llist_node_val(cnode);
-      ares_bool_t               do_cleanup = ARES_FALSE;
-      cnode = next;
+      ares__llist_node_t *next       = ares__llist_node_next(cnode);
+      ares_conn_t        *conn       = ares__llist_node_val(cnode);
+      ares_bool_t         do_cleanup = ARES_FALSE;
+      cnode                          = next;
 
       /* Has connections, not eligible */
       if (ares__llist_len(conn->queries_to_conn)) {
@@ -122,7 +120,7 @@ void ares__check_cleanup_conns(const ares_channel_t *channel)
       }
 
       /* If the udp connection hit its max queries, always close it */
-      if (!conn->is_tcp && channel->udp_max_queries > 0 &&
+      if (!(conn->flags & ARES_CONN_FLAG_TCP) && channel->udp_max_queries > 0 &&
           conn->total_queries >= channel->udp_max_queries) {
         do_cleanup = ARES_TRUE;
       }

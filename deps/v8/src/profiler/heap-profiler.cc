@@ -83,6 +83,11 @@ v8::EmbedderGraph::Node::Detachedness HeapProfiler::GetDetachedness(
       get_detachedness_callback_.second);
 }
 
+const char* HeapProfiler::CopyNameForHeapSnapshot(const char* name) {
+  CHECK(is_taking_snapshot_);
+  return names_->GetCopy(name);
+}
+
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     const v8::HeapProfiler::HeapSnapshotOptions options) {
   is_taking_snapshot_ = true;
@@ -224,9 +229,9 @@ HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
   return snapshots_.at(index).get();
 }
 
-SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
+SnapshotObjectId HeapProfiler::GetSnapshotObjectId(DirectHandle<Object> obj) {
   if (!IsHeapObject(*obj)) return v8::HeapProfiler::kUnknownObjectId;
-  return ids_->FindEntry(HeapObject::cast(*obj).address());
+  return ids_->FindEntry(Cast<HeapObject>(*obj).address());
 }
 
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(NativeObject obj) {
@@ -292,7 +297,7 @@ Heap* HeapProfiler::heap() const { return ids_->heap(); }
 
 Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 
-void HeapProfiler::QueryObjects(Handle<Context> context,
+void HeapProfiler::QueryObjects(DirectHandle<Context> context,
                                 v8::QueryObjectPredicate* predicate,
                                 std::vector<v8::Global<v8::Object>>* objects) {
   // We need a stack marker here to allow deterministic passes over the stack.
@@ -307,13 +312,13 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
       for (Tagged<HeapObject> heap_obj = heap_iterator.Next();
            !heap_obj.is_null(); heap_obj = heap_iterator.Next()) {
         if (IsFeedbackVector(heap_obj)) {
-          FeedbackVector::cast(heap_obj)->ClearSlots(isolate());
+          Cast<FeedbackVector>(heap_obj)->ClearSlots(isolate());
         } else if (IsJSTypedArray(heap_obj) &&
-                   JSTypedArray::cast(heap_obj)->is_on_heap()) {
+                   Cast<JSTypedArray>(heap_obj)->is_on_heap()) {
           // Cannot call typed_array->GetBuffer() here directly because it may
           // trigger GC. Defer that call by collecting the object in a vector.
           on_heap_typed_arrays.push_back(
-              handle(JSTypedArray::cast(heap_obj), isolate()));
+              handle(Cast<JSTypedArray>(heap_obj), isolate()));
         }
       }
       for (auto& typed_array : on_heap_typed_arrays) {
@@ -334,7 +339,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
           IsJSExternalObject(heap_obj, cage_base))
         continue;
       v8::Local<v8::Object> v8_obj(
-          Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
+          Utils::ToLocal(handle(Cast<JSObject>(heap_obj), isolate())));
       if (!predicate->Filter(v8_obj)) continue;
       objects->emplace_back(reinterpret_cast<v8::Isolate*>(isolate()), v8_obj);
     }

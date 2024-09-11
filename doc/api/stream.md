@@ -2689,7 +2689,9 @@ further errors except from `_destroy()` may be emitted as `'error'`.
 #### `stream.duplexPair([options])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v22.6.0
+  - v20.17.0
 -->
 
 * `options` {Object} A value to pass to both [`Duplex`][] constructors,

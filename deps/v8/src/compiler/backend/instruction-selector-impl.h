@@ -394,9 +394,9 @@ class OperandGeneratorT : public Adapter {
           case Kind::kNumber:
             return Constant(constant->number());
           case Kind::kFloat32:
-            return Constant(constant->float32());
+            return Constant(constant->float32_preserve_nan());
           case Kind::kFloat64:
-            return Constant(constant->float64());
+            return Constant(constant->float64_preserve_nan());
           case Kind::kTaggedIndex: {
             // Unencoded index value.
             intptr_t value = static_cast<intptr_t>(constant->tagged_index());
@@ -415,14 +415,14 @@ class OperandGeneratorT : public Adapter {
             auto mode = constant->kind == Kind::kRelocatableWasmCall
                             ? RelocInfo::WASM_CALL
                             : RelocInfo::WASM_STUB_CALL;
-            if (Is64()) {
-              return Constant(RelocatablePtrConstantInfo(
-                  base::checked_cast<int64_t>(value), mode));
-            } else {
-              return Constant(RelocatablePtrConstantInfo(
-                  base::checked_cast<int32_t>(value), mode));
-            }
+            using constant_type = std::conditional_t<Is64(), int64_t, int32_t>;
+            return Constant(RelocatablePtrConstantInfo(
+                base::checked_cast<constant_type>(value), mode));
           }
+          case Kind::kRelocatableWasmCanonicalSignatureId:
+            return Constant(RelocatablePtrConstantInfo(
+                base::checked_cast<int32_t>(constant->integral()),
+                RelocInfo::WASM_CANONICAL_SIG_ID));
         }
       }
       UNREACHABLE();

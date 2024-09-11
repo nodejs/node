@@ -1,98 +1,65 @@
-## c-ares version 1.32.3 - July 24 2024
-
-This is a bugfix release.
-
-Changes:
-* Prevent complex recursion during query requeuing and connection cleanup for
-  stability. [e8b32b8](https://github.com/c-ares/c-ares/commit/e8b32b8)
-* Better propagate error codes on requeue situations.
-  [a9bc0a2](https://github.com/c-ares/c-ares/commit/a9bc0a2)
-* Try to prevent SIGPIPE from being generated and delivered to integrations.
-  [de01baa](https://github.com/c-ares/c-ares/commit/de01baa)
-
-Bugfixes:
-* Missing manpage for `ares_dns_record_set_id()`
-  [aa462b3](https://github.com/c-ares/c-ares/commit/aa462b3)
-* Memory leak in `ares__hosts_entry_to_hostent()` due to allocation strategy.
-  [PR #824](https://github.com/c-ares/c-ares/pull/824)
-* UDP write failure detected via ICMP unreachable should trigger faster
-  failover.  [PR #821](https://github.com/c-ares/c-ares/pull/821)
-* Fix pycares test case regression due to wrong error code being returned.
-  Regression from 1.31.0. [PR #820](https://github.com/c-ares/c-ares/pull/820)
-* Fix possible Windows crash during `ares_destroy()` when using event threads.
-  [5609bd4](https://github.com/c-ares/c-ares/commit/5609bd4)
-* `ARES_OPT_MAXTIMEOUTMS` wasn't being honored in all cases.
-  [a649c60](https://github.com/c-ares/c-ares/commit/a649c60)
-
-## c-ares version 1.32.2 - July 15 2024
+## c-ares version 1.33.1 - August 23 2024
 
 This is a bugfix release.
 
 Bugfixes:
+* Work around systemd-resolved quirk that returns unexpected codes for single
+  label names.  Also adds test cases to validate the work around works and
+  will continue to work in future releases.
+  [PR #863](https://github.com/c-ares/c-ares/pull/863),
+  See Also https://github.com/systemd/systemd/issues/34101
+* Fix sysconfig ndots default value, also adds containerized test case to
+  prevent future regressions.
+  [PR #862](https://github.com/c-ares/c-ares/pull/862)
+* Fix blank DNS name returning error code rather than valid record for
+  commands like: `adig -t SOA .`.  Also adds test case to prevent future
+  regressions.
+  [9e574af](https://github.com/c-ares/c-ares/commit/9e574af)
+* Fix calculation of query times > 1s.
+  [2b2eae7](https://github.com/c-ares/c-ares/commit/2b2eae7)
+* Fix building on old Linux releases that don't have `TCP_FASTOPEN_CONNECT`.
+  [b7a89b9](https://github.com/c-ares/c-ares/commit/b7a89b9)
+* Fix minor Android build warnings.
+  [PR #848](https://github.com/c-ares/c-ares/pull/848)
 
-* Windows: rework EventThread AFD code for better stability.
-  [PR #811](https://github.com/c-ares/c-ares/pull/811)
-* Windows: If an IP address was detected to have changed, it could lead to a
-  crash due to a bad pointer.  Regression introduced in 1.31.0.
-  [59e3a1f4](https://github.com/c-ares/c-ares/commit/59e3a1f4)
-* Windows: use `QueryPerformanceCounters()` instead of `GetTickCount64()` for
-  better time accuracy (~15ms -> ~1us).
-* Windows 32bit config change callback needs to be tagged as `stdcall` otherwise
-  could result in a crash.
-  [5c2bab35](https://github.com/c-ares/c-ares/commit/5c2bab35)
-* Tests that need accurate timing should not depend on internal symbols as there
-  are C++ equivalents in `std::chrono`.
-  [PR #809](https://github.com/c-ares/c-ares/pull/809)
-* Kqueue (MacOS, \*BSD): If the open socket count exceeded 8 (unlikely), it
-  would try to allocate a new buffer that was too small.
-  [5aad7981](https://github.com/c-ares/c-ares/commit/5aad7981)
+Thanks go to these friendly people for their efforts and contributions for this
+release:
+* Brad House (@bradh352)
+* Erik Lax (@eriklax)
+* Hans-Christian Egtvedt (@egtvedt)
+* Mikael Lindemann (@mikaellindemann)
+* Nodar Chkuaselidze (@nodech)
 
-
-## c-ares version 1.32.1 - July 7 2024
-
-This is a bugfix release.
-
-Bugfixes:
-* Channel lock needs to be recursive to ensure calls into c-ares functions can
-  be made from callbacks otherwise deadlocks will occur.  This regression was
-  introduced in 1.32.0.
-
-
-## c-ares version 1.32.0 - July 4 2024
+## c-ares version 1.33.0 - August 2 2024
 
 This is a feature and bugfix release.
 
 Features:
-
-* Add support for DNS 0x20 to help prevent cache poisoning attacks, enabled
-  by specifying `ARES_FLAG_DNS0x20`.  Disabled by default. [PR #800](https://github.com/c-ares/c-ares/pull/800)
-* Rework query timeout logic to automatically adjust timeouts based on network
-  conditions.  The timeout specified now is only used as a hint until there
-  is enough history to calculate a more valid timeout. [PR #794](https://github.com/c-ares/c-ares/pull/794)
+* Add DNS cookie support (RFC7873 + RFC9018) to help prevent off-path cache
+  poisoning attacks. [PR #833](https://github.com/c-ares/c-ares/pull/833)
+* Implement TCP FastOpen (TFO) RFC7413, which will make TCP reconnects 0-RTT
+  on supported systems. [PR #840](https://github.com/c-ares/c-ares/pull/840)
 
 Changes:
-
-* DNS RR TXT strings should not be automatically concatenated as there are use
-  cases outside of RFC 7208.  In order to maintain ABI compliance, the ability
-  to retrieve TXT strings concatenated is retained as well as a new API to
-  retrieve the individual strings.  This restores behavior from c-ares 1.20.0.
-  [PR #801](https://github.com/c-ares/c-ares/pull/801)
-* Clean up header inclusion logic to make hacking on code easier. [PR #797](https://github.com/c-ares/c-ares/pull/797)
-* GCC/Clang: Enable even more strict warnings to catch more coding flaws. [253bdee](https://github.com/c-ares/c-ares/commit/253bdee)
-* MSVC: Enable `/W4` warning level. [PR #792](https://github.com/c-ares/c-ares/pull/792)
+* Reorganize source tree. [PR #822](https://github.com/c-ares/c-ares/pull/822)
+* Refactoring of connection handling to prevent code duplication.
+  [PR #839](https://github.com/c-ares/c-ares/pull/839)
+* New dynamic array data structure to prevent simple logic flaws in array
+  handling in various code paths.
+  [PR #841](https://github.com/c-ares/c-ares/pull/841)
 
 Bugfixes:
+* `ares_destroy()` race condition during shutdown due to missing lock.
+  [PR #831](https://github.com/c-ares/c-ares/pull/831)
+* Android: Preserve thread name after attaching it to JVM.
+  [PR #838](https://github.com/c-ares/c-ares/pull/838)
+* Windows UWP (Store) support fix.
+  [PR #845](https://github.com/c-ares/c-ares/pull/845)
 
-* Tests: Fix thread race condition in test cases for EventThread. [PR #803](https://github.com/c-ares/c-ares/pull/803)
-* Windows: Fix building with UNICODE. [PR #802](https://github.com/c-ares/c-ares/pull/802)
-* Thread Saftey: `ares_timeout()` was missing lock. [74a64e4](https://github.com/c-ares/c-ares/commit/74a64e4)
-* Fix building with DJGPP (32bit protected mode DOS). [PR #789](https://github.com/c-ares/c-ares/pull/789)
 
 Thanks go to these friendly people for their efforts and contributions for this
 release:
 
 * Brad House (@bradh352)
-* Cheng (@zcbenz)
-
-
+* Yauheni Khnykin (@Hsilgos)
 

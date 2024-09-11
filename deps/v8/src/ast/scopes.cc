@@ -94,14 +94,15 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
-Scope::Scope(Zone* zone)
-    : outer_scope_(nullptr), variables_(zone), scope_type_(SCRIPT_SCOPE) {
+Scope::Scope(Zone* zone, ScopeType scope_type)
+    : outer_scope_(nullptr), variables_(zone), scope_type_(scope_type) {
+  DCHECK(is_script_scope());
   SetDefaults();
 }
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     : outer_scope_(outer_scope), variables_(zone), scope_type_(scope_type) {
-  DCHECK_NE(SCRIPT_SCOPE, scope_type);
+  DCHECK(!is_script_scope());
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
   private_name_lookup_skips_outer_class_ =
@@ -139,14 +140,13 @@ Variable* Scope::DeclareStaticHomeObjectVariable(
 DeclarationScope::DeclarationScope(Zone* zone,
                                    AstValueFactory* ast_value_factory,
                                    REPLMode repl_mode)
-    : Scope(zone),
+    : Scope(zone, repl_mode == REPLMode::kYes ? REPL_MODE_SCOPE : SCRIPT_SCOPE),
       function_kind_(repl_mode == REPLMode::kYes
                          ? FunctionKind::kAsyncFunction
                          : FunctionKind::kNormalFunction),
       params_(4, zone) {
-  DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
+  DCHECK(is_script_scope());
   SetDefaults();
-  is_repl_mode_scope_ = repl_mode == REPLMode::kYes;
   receiver_ = DeclareDynamicGlobal(ast_value_factory->this_string(),
                                    THIS_VARIABLE, this);
 }
@@ -157,7 +157,7 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
     : Scope(zone, outer_scope, scope_type),
       function_kind_(function_kind),
       params_(4, zone) {
-  DCHECK_NE(scope_type, SCRIPT_SCOPE);
+  DCHECK(!is_script_scope());
   SetDefaults();
 }
 
@@ -271,7 +271,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
     : Scope(zone, scope_type, ast_value_factory, scope_info),
       function_kind_(scope_info->function_kind()),
       params_(0, zone) {
-  DCHECK_NE(scope_type, SCRIPT_SCOPE);
+  DCHECK(!is_script_scope());
   SetDefaults();
   if (scope_info->SloppyEvalCanExtendVars()) {
     DCHECK(!is_eval_scope());
@@ -365,12 +365,14 @@ void Scope::SetDefaults() {
   private_name_lookup_skips_outer_class_ = false;
 
   must_use_preparsed_scope_data_ = false;
-  is_repl_mode_scope_ = false;
 
   deserialized_scope_uses_external_cache_ = false;
 
   needs_home_object_ = false;
   is_block_scope_for_object_literal_ = false;
+
+  has_using_declaration_ = false;
+  has_await_using_declaration_ = false;
 
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
@@ -434,14 +436,13 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                        handle(scope_info, isolate));
       }
 
-    } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
+    } else if (scope_info->is_script_scope()) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
       // avoid nesting script scopes.
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
-      if (scope_info->IsReplModeScope()) script_scope->set_is_repl_mode_scope();
       DCHECK(!scope_info->HasOuterScopeInfo());
       break;
     } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
@@ -541,15 +542,6 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
         DeserializationMode deserialization_mode);
-
-#ifdef DEBUG
-bool Scope::IsReparsedMemberInitializerScope() const {
-  return is_declaration_scope() &&
-         IsClassMembersInitializerFunction(
-             AsDeclarationScope()->function_kind()) &&
-         outer_scope()->AsClassScope()->is_reparsed_class_scope();
-}
-#endif
 
 DeclarationScope* Scope::AsDeclarationScope() {
   // Here and below: if an attacker corrupts the in-sandox SFI::unique_id or
@@ -689,6 +681,12 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
+void DeclarationScope::TakeUnresolvedReferencesFromParent() {
+  DCHECK(outer_scope_->reparsing_for_class_initializer_);
+  unresolved_list_.MoveTail(&outer_scope_->unresolved_list_,
+                            outer_scope_->unresolved_list_.begin());
+}
+
 bool DeclarationScope::Analyze(ParseInfo* info) {
   RCS_SCOPE(info->runtime_call_stats(),
             RuntimeCallCounterId::kCompileScopeAnalysis,
@@ -714,7 +712,6 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 4) a class member initializer function scope
   // 3) 4 function/eval in a scope that was already resolved.
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
-         scope->IsReparsedMemberInitializerScope() ||
          scope->outer_scope()->already_resolved_);
 
   // The outer scope is never lazy.
@@ -957,15 +954,6 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   }
 }
 
-void Scope::ReplaceOuterScope(Scope* outer) {
-  DCHECK_NOT_NULL(outer);
-  DCHECK_NOT_NULL(outer_scope_);
-  DCHECK(!already_resolved_);
-  outer_scope_->RemoveInnerScope(this);
-  outer->AddInnerScope(this);
-  outer_scope_ = outer;
-}
-
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
@@ -1081,14 +1069,16 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // Private methods should be declared with ClassScope::DeclarePrivateName()
   DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   // This function handles VariableMode::kVar, VariableMode::kLet,
-  // VariableMode::kConst, and VariableMode::kUsing modes.
-  // VariableMode::kDynamic variables are introduced during variable allocation,
-  // and VariableMode::kTemporary variables are allocated via NewTemporary().
+  // VariableMode::kConst, VariableMode::kUsing, and VariableMode::kAwaitUsing
+  // modes. VariableMode::kDynamic variables are introduced during variable
+  // allocation, and VariableMode::kTemporary variables are allocated via
+  // NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK_IMPLIES(GetDeclarationScope()->is_being_lazily_parsed(),
                  mode == VariableMode::kVar || mode == VariableMode::kLet ||
                      mode == VariableMode::kConst ||
-                     mode == VariableMode::kUsing);
+                     mode == VariableMode::kUsing ||
+                     mode == VariableMode::kAwaitUsing);
   DCHECK(!GetDeclarationScope()->was_lazily_parsed());
   Variable* var =
       Declare(zone(), name, mode, kind, init_flag, kNotAssigned, was_added);
@@ -1243,7 +1233,10 @@ Variable* Scope::DeclareCatchVariableName(const AstRawString* name) {
 }
 
 void Scope::AddUnresolved(VariableProxy* proxy) {
-  DCHECK(!already_resolved_);
+  // The scope is only allowed to already be resolved if we're reparsing a class
+  // initializer. Class initializers will manually resolve these references
+  // separate from regular variable resolution.
+  DCHECK_IMPLIES(already_resolved_, reparsing_for_class_initializer_);
   DCHECK(!proxy->is_resolved());
   unresolved_list_.Add(proxy);
 }
@@ -1532,26 +1525,22 @@ DeclarationScope* Scope::GetConstructorScope() {
 }
 
 Scope* Scope::GetHomeObjectScope() {
-  Scope* scope = this;
-  while (scope != nullptr && !scope->is_home_object_scope()) {
-    if (scope->is_function_scope()) {
-      FunctionKind function_kind = scope->AsDeclarationScope()->function_kind();
-      // "super" in arrow functions binds outside the arrow function. But if we
-      // find a function which doesn't bind "super" (is not a method etc.) and
-      // not an arrow function, we know "super" here doesn't bind anywhere and
-      // we can return nullptr.
-      if (!IsArrowFunction(function_kind) && !BindsSuper(function_kind)) {
-        return nullptr;
-      }
-    }
-    if (scope->private_name_lookup_skips_outer_class()) {
-      DCHECK(scope->outer_scope()->is_class_scope());
-      scope = scope->outer_scope()->outer_scope();
-    } else {
-      scope = scope->outer_scope();
-    }
-  }
-  return scope;
+  Scope* scope = GetReceiverScope();
+  DCHECK(scope->is_function_scope());
+  FunctionKind kind = scope->AsDeclarationScope()->function_kind();
+  // "super" in arrow functions binds outside the arrow function. Arrow
+  // functions are also never receiver scopes since they close over the
+  // receiver.
+  DCHECK(!IsArrowFunction(kind));
+  // If we find a function which doesn't bind "super" (is not a method etc.), we
+  // know "super" here doesn't bind anywhere and we can return nullptr.
+  if (!BindsSuper(kind)) return nullptr;
+  // Functions that bind "super" can only syntactically occur nested inside home
+  // object scopes (i.e. class scopes and object literal scopes), so directly
+  // return the outer scope.
+  Scope* outer_scope = scope->outer_scope();
+  CHECK(outer_scope->is_home_object_scope());
+  return outer_scope;
 }
 
 DeclarationScope* Scope::GetScriptScope() {
@@ -1799,6 +1788,8 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
       if (IsArrowFunction(function_kind)) return "arrow";
       return "function";
     case MODULE_SCOPE: return "module";
+    case REPL_MODE_SCOPE:
+      return "repl";
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return is_declaration_scope ? "varblock" : "block";
@@ -2304,7 +2295,7 @@ void Scope::ResolveVariable(VariableProxy* proxy) {
     //
     // Because of the above, start resolving home objects directly at the home
     // object scope instead of the current scope.
-    Scope* scope = GetDeclarationScope()->GetHomeObjectScope();
+    Scope* scope = GetHomeObjectScope();
     DCHECK_NOT_NULL(scope);
     if (scope->scope_info_.is_null()) {
       var = Lookup<kParsedScope>(proxy, scope, nullptr);
@@ -2797,44 +2788,6 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   }
 }
 
-void ClassScope::FinalizeReparsedClassScope(
-    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
-    AstValueFactory* ast_value_factory, bool needs_allocation_fixup) {
-  // Set this bit so that DeclarationScope::Analyze recognizes
-  // the reparsed instance member initializer scope.
-#ifdef DEBUG
-  is_reparsed_class_scope_ = true;
-#endif
-
-  if (!needs_allocation_fixup) {
-    return;
-  }
-
-  // Restore variable allocation results for context-allocated variables in
-  // the class scope from ScopeInfo, so that we don't need to run
-  // resolution and allocation on these variables again when generating
-  // code for the initializer function.
-  DCHECK(!maybe_class_scope_info.is_null());
-  Handle<ScopeInfo> scope_info = maybe_class_scope_info.ToHandleChecked();
-  DCHECK_EQ(scope_info->scope_type(), CLASS_SCOPE);
-  DCHECK_EQ(scope_info->EndPosition(), end_position_);
-
-  int context_header_length = scope_info->ContextHeaderLength();
-  DisallowGarbageCollection no_gc;
-  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
-    int slot_index = context_header_length + it->index();
-    DCHECK_LT(slot_index, scope_info->ContextLength());
-
-    const AstRawString* string = ast_value_factory->GetString(
-        it->name(), SharedStringAccessGuardIfNeeded(isolate));
-    Variable* var = string->IsPrivateName() ? LookupLocalPrivateName(string)
-                                            : LookupLocal(string);
-    DCHECK_NOT_NULL(var);
-    var->AllocateTo(VariableLocation::CONTEXT, slot_index);
-  }
-  scope_info_ = scope_info;
-}
-
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
                                          VariableMode mode,
                                          IsStaticFlag is_static_flag,
@@ -2930,7 +2883,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
     return nullptr;
   }
 
-  DCHECK(IsConstVariableMode(lookup_result.mode));
+  DCHECK(IsImmutableLexicalOrPrivateVariableMode(lookup_result.mode));
   DCHECK_EQ(lookup_result.init_flag, InitializationFlag::kNeedsInitialization);
   DCHECK_EQ(lookup_result.maybe_assigned_flag, MaybeAssignedFlag::kNotAssigned);
 
@@ -3076,9 +3029,10 @@ Variable* ClassScope::DeclareClassVariable(AstValueFactory* ast_value_factory,
                                            const AstRawString* name,
                                            int class_token_pos) {
   DCHECK_NULL(class_variable_);
+  DCHECK_NOT_NULL(name);
   bool was_added;
   class_variable_ =
-      Declare(zone(), name == nullptr ? ast_value_factory->dot_string() : name,
+      Declare(zone(), name->IsEmpty() ? ast_value_factory->dot_string() : name,
               VariableMode::kConst, NORMAL_VARIABLE,
               InitializationFlag::kNeedsInitialization,
               MaybeAssignedFlag::kMaybeAssigned, &was_added);

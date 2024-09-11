@@ -30,7 +30,7 @@ ACCESSORS(JSRegExp, last_index, Tagged<Object>, kLastIndexOffset)
 JSRegExp::Type JSRegExp::type_tag() const {
   Tagged<Object> data = this->data();
   if (IsUndefined(data)) return JSRegExp::NOT_COMPILED;
-  Tagged<Smi> smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
+  Tagged<Smi> smi = Cast<Smi>(Cast<FixedArray>(data)->get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi.value());
 }
 
@@ -53,15 +53,15 @@ int JSRegExp::max_register_count() const {
 
 Tagged<String> JSRegExp::atom_pattern() const {
   DCHECK_EQ(type_tag(), ATOM);
-  return String::cast(DataAt(JSRegExp::kAtomPatternIndex));
+  return Cast<String>(DataAt(JSRegExp::kAtomPatternIndex));
 }
 
 Tagged<String> JSRegExp::source() const {
-  return String::cast(TorqueGeneratedClass::source());
+  return Cast<String>(TorqueGeneratedClass::source());
 }
 
 JSRegExp::Flags JSRegExp::flags() const {
-  Tagged<Smi> smi = Smi::cast(TorqueGeneratedClass::flags());
+  Tagged<Smi> smi = Cast<Smi>(TorqueGeneratedClass::flags());
   return Flags(smi.value());
 }
 
@@ -79,7 +79,7 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
 
 Tagged<String> JSRegExp::EscapedPattern() {
   DCHECK(IsString(source()));
-  return String::cast(source());
+  return Cast<String>(source());
 }
 
 Tagged<Object> JSRegExp::capture_name_map() {
@@ -99,14 +99,14 @@ void JSRegExp::set_capture_name_map(Handle<FixedArray> capture_name_map) {
 
 Tagged<Object> JSRegExp::DataAt(int index) const {
   DCHECK(type_tag() != NOT_COMPILED);
-  return FixedArray::cast(data())->get(index);
+  return Cast<FixedArray>(data())->get(index);
 }
 
 void JSRegExp::SetDataAt(int index, Tagged<Object> value) {
   DCHECK(type_tag() != NOT_COMPILED);
   // Only implementation data can be set this way.
   DCHECK_GE(index, kFirstTypeSpecificIndex);
-  FixedArray::cast(data())->set(index, value);
+  Cast<FixedArray>(data())->set(index, value);
 }
 
 bool JSRegExp::HasCompiledCode() const {

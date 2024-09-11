@@ -121,9 +121,11 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
       name_len--;
     }
 
-    status = ares__buf_append(buf, (const unsigned char *)name, name_len);
-    if (status != ARES_SUCCESS) {
-      goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+    if (name_len > 0) {
+      status = ares__buf_append(buf, (const unsigned char *)name, name_len);
+      if (status != ARES_SUCCESS) {
+        goto fail; /* LCOV_EXCL_LINE: OutOfMemory */
+      }
     }
   }
 
@@ -300,10 +302,10 @@ static unsigned int ares__qcache_soa_minimum(ares_dns_record_t *dnsrec)
 }
 
 /* On success, takes ownership of dnsrec */
-static ares_status_t ares__qcache_insert(ares__qcache_t            *qcache,
-                                         ares_dns_record_t         *qresp,
-                                         const ares_dns_record_t   *qreq,
-                                         const ares_timeval_t      *now)
+static ares_status_t ares__qcache_insert(ares__qcache_t          *qcache,
+                                         ares_dns_record_t       *qresp,
+                                         const ares_dns_record_t *qreq,
+                                         const ares_timeval_t    *now)
 {
   ares__qcache_entry_t *entry;
   unsigned int          ttl;
@@ -346,8 +348,8 @@ static ares_status_t ares__qcache_insert(ares__qcache_t            *qcache,
   }
 
   entry->dnsrec    = qresp;
-  entry->expire_ts = now->sec + (time_t)ttl;
-  entry->insert_ts = now->sec;
+  entry->expire_ts = (time_t)now->sec + (time_t)ttl;
+  entry->insert_ts = (time_t)now->sec;
 
   /* We can't guarantee the server responded with the same flags as the
    * request had, so we have to re-parse the request in order to generate the
@@ -422,9 +424,8 @@ done:
 
 ares_status_t ares_qcache_insert(ares_channel_t       *channel,
                                  const ares_timeval_t *now,
-                                 const struct query   *query,
+                                 const ares_query_t   *query,
                                  ares_dns_record_t    *dnsrec)
 {
-  return ares__qcache_insert(channel->qcache, dnsrec, query->query,
-                             now);
+  return ares__qcache_insert(channel->qcache, dnsrec, query->query, now);
 }

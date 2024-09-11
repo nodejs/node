@@ -57,8 +57,8 @@ class ECDH final : public BaseObject {
 
 struct ECDHBitsConfig final : public MemoryRetainer {
   int id_;
-  std::shared_ptr<KeyObjectData> private_;
-  std::shared_ptr<KeyObjectData> public_;
+  KeyObjectData private_;
+  KeyObjectData public_;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(ECDHBitsConfig)
@@ -134,34 +134,30 @@ struct ECKeyExportTraits final {
       unsigned int offset,
       ECKeyExportConfig* config);
 
-  static WebCryptoKeyExportStatus DoExport(
-      std::shared_ptr<KeyObjectData> key_data,
-      WebCryptoKeyFormat format,
-      const ECKeyExportConfig& params,
-      ByteSource* out);
+  static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
+                                           WebCryptoKeyFormat format,
+                                           const ECKeyExportConfig& params,
+                                           ByteSource* out);
 };
 
 using ECKeyExportJob = KeyExportJob<ECKeyExportTraits>;
 
-v8::Maybe<void> ExportJWKEcKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    v8::Local<v8::Object> target);
-
-v8::Maybe<void> ExportJWKEdKey(Environment* env,
-                               std::shared_ptr<KeyObjectData> key,
+v8::Maybe<void> ExportJWKEcKey(Environment* env,
+                               const KeyObjectData& key,
                                v8::Local<v8::Object> target);
 
-std::shared_ptr<KeyObjectData> ImportJWKEcKey(
-    Environment* env,
-    v8::Local<v8::Object> jwk,
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    unsigned int offset);
+v8::Maybe<void> ExportJWKEdKey(Environment* env,
+                               const KeyObjectData& key,
+                               v8::Local<v8::Object> target);
 
-v8::Maybe<bool> GetEcKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    v8::Local<v8::Object> target);
+KeyObjectData ImportJWKEcKey(Environment* env,
+                             v8::Local<v8::Object> jwk,
+                             const v8::FunctionCallbackInfo<v8::Value>& args,
+                             unsigned int offset);
+
+v8::Maybe<bool> GetEcKeyDetail(Environment* env,
+                               const KeyObjectData& key,
+                               v8::Local<v8::Object> target);
 }  // namespace crypto
 }  // namespace node
 

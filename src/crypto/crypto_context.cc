@@ -52,7 +52,7 @@ static const char* const root_certs[] = {
 
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
-static bool extra_root_certs_loaded = false;
+static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
 X509_STORE* GetOrCreateRootCertStore() {
   // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
@@ -64,16 +64,17 @@ X509_STORE* GetOrCreateRootCertStore() {
 // Caller responsible for BIO_free_all-ing the returned object.
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
   if (v->IsString() || v->IsArrayBufferView()) {
-    BIOPointer bio(BIO_new(BIO_s_secmem()));
-    if (!bio) return nullptr;
+    auto bio = BIOPointer::NewSecMem();
+    if (!bio) return {};
     ByteSource bsrc = ByteSource::FromStringOrBuffer(env, v);
-    if (bsrc.size() > INT_MAX) return nullptr;
-    int written = BIO_write(bio.get(), bsrc.data<char>(), bsrc.size());
-    if (written < 0) return nullptr;
-    if (static_cast<size_t>(written) != bsrc.size()) return nullptr;
+    if (bsrc.size() > INT_MAX) return {};
+    int written = BIOPointer::Write(
+        &bio, std::string_view(bsrc.data<char>(), bsrc.size()));
+    if (written < 0) return {};
+    if (static_cast<size_t>(written) != bsrc.size()) return {};
     return bio;
   }
-  return nullptr;
+  return {};
 }
 
 namespace {
@@ -121,7 +122,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       // TODO(tniessen): SSL_CTX_get_issuer does not allow the caller to
       // distinguish between a failed operation and an empty result. Fix that
       // and then handle the potential error properly here (set ret to 0).
-      *issuer_ = SSL_CTX_get_issuer(ctx, x.get());
+      *issuer_ = X509Pointer::IssuerFrom(ctx, x.view());
       // NOTE: get_cert_store doesn't increment reference count,
       // no need to free `store`
     } else {
@@ -197,26 +198,66 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        issuer);
 }
 
+unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
+    std::vector<X509*>* certs,
+    const char* file) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  auto bio = BIOPointer::NewFile(file, "r");
+  if (!bio) return ERR_get_error();
+
+  while (X509* x509 = PEM_read_bio_X509(
+             bio.get(), nullptr, NoPasswordCallback, nullptr)) {
+    certs->push_back(x509);
+  }
+
+  unsigned long err = ERR_peek_last_error();  // NOLINT(runtime/int)
+  // Ignore error if its EOF/no start line found.
+  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+    return 0;
+  } else {
+    return err;
+  }
+}
+
 X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
+  static bool root_certs_vector_loaded = false;
   static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
-  if (root_certs_vector.empty() &&
-      per_process::cli_options->ssl_openssl_cert_store == false) {
-    for (size_t i = 0; i < arraysize(root_certs); i++) {
-      X509* x509 =
-          PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
-                                              strlen(root_certs[i])).get(),
-                            nullptr,   // no re-use of X509 structure
-                            NoPasswordCallback,
-                            nullptr);  // no callback data
+  if (!root_certs_vector_loaded) {
+    if (per_process::cli_options->ssl_openssl_cert_store == false) {
+      for (size_t i = 0; i < arraysize(root_certs); i++) {
+        X509* x509 = PEM_read_bio_X509(
+            NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
+            nullptr,  // no re-use of X509 structure
+            NoPasswordCallback,
+            nullptr);  // no callback data
 
-      // Parse errors from the built-in roots are fatal.
-      CHECK_NOT_NULL(x509);
+        // Parse errors from the built-in roots are fatal.
+        CHECK_NOT_NULL(x509);
 
-      root_certs_vector.push_back(x509);
+        root_certs_vector.push_back(x509);
+      }
     }
+
+    if (!extra_root_certs_file.empty()) {
+      unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
+          &root_certs_vector,
+          extra_root_certs_file.c_str());
+      if (err) {
+        char buf[256];
+        ERR_error_string_n(err, buf, sizeof(buf));
+        fprintf(stderr,
+                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+                extra_root_certs_file.c_str(),
+                buf);
+      }
+    }
+
+    root_certs_vector_loaded = true;
   }
 
   X509_STORE* store = X509_STORE_new();
@@ -228,12 +269,11 @@ X509_STORE* NewRootCertStore() {
 
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->ssl_openssl_cert_store) {
-    X509_STORE_set_default_paths(store);
-  } else {
-    for (X509* cert : root_certs_vector) {
-      X509_up_ref(cert);
-      X509_STORE_add_cert(store, cert);
-    }
+    CHECK_EQ(1, X509_STORE_set_default_paths(store));
+  }
+
+  for (X509* cert : root_certs_vector) {
+    CHECK_EQ(1, X509_STORE_add_cert(store, cert));
   }
 
   return store;
@@ -274,6 +314,8 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "setKey", SetKey);
     SetProtoMethod(isolate, tmpl, "setCert", SetCert);
     SetProtoMethod(isolate, tmpl, "addCACert", AddCACert);
+    SetProtoMethod(
+        isolate, tmpl, "setAllowPartialTrustChain", SetAllowPartialTrustChain);
     SetProtoMethod(isolate, tmpl, "addCRL", AddCRL);
     SetProtoMethod(isolate, tmpl, "addRootCerts", AddRootCerts);
     SetProtoMethod(isolate, tmpl, "setCipherSuites", SetCipherSuites);
@@ -339,11 +381,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
 
   SetMethodNoSideEffect(
       context, target, "getRootCertificates", GetRootCertificates);
-  // Exposed for testing purposes only.
-  SetMethodNoSideEffect(context,
-                        target,
-                        "isExtraRootCertsFileLoaded",
-                        IsExtraRootCertsFileLoaded);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -355,6 +392,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(AddCACert);
   registry->Register(AddCRL);
   registry->Register(AddRootCerts);
+  registry->Register(SetAllowPartialTrustChain);
   registry->Register(SetCipherSuites);
   registry->Register(SetCiphers);
   registry->Register(SetSigalgs);
@@ -383,7 +421,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(CtxGetter);
 
   registry->Register(GetRootCertificates);
-  registry->Register(IsExtraRootCertsFileLoaded);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -576,15 +613,14 @@ void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
 
-Maybe<void> SecureContext::UseKey(Environment* env,
-                                  std::shared_ptr<KeyObjectData> key) {
-  if (key->GetKeyType() != KeyType::kKeyTypePrivate) {
+Maybe<void> SecureContext::UseKey(Environment* env, const KeyObjectData& key) {
+  if (key.GetKeyType() != KeyType::kKeyTypePrivate) {
     THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
     return Nothing<void>();
   }
 
   ClearErrorOnReturn clear_error_on_return;
-  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get())) {
+  if (!SSL_CTX_use_PrivateKey(ctx_.get(), key.GetAsymmetricKey().get())) {
     ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_use_PrivateKey");
     return Nothing<void>();
   }
@@ -719,17 +755,39 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   USE(sc->AddCert(env, std::move(bio)));
 }
 
+// NOLINTNEXTLINE(runtime/int)
+void SecureContext::SetX509StoreFlag(unsigned long flags) {
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
+  CHECK_EQ(1, X509_STORE_set_flags(cert_store, flags));
+}
+
+X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
+  if (own_cert_store_cache_ != nullptr) return own_cert_store_cache_;
+
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  if (cert_store == GetOrCreateRootCertStore()) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+  }
+
+  return own_cert_store_cache_ = cert_store;
+}
+
+void SecureContext::SetAllowPartialTrustChain(
+    const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
+  sc->SetX509StoreFlag(X509_V_FLAG_PARTIAL_CHAIN);
+}
+
 void SecureContext::SetCACert(const BIOPointer& bio) {
   ClearErrorOnReturn clear_error_on_return;
   if (!bio) return;
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-    }
-    CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
+    CHECK_EQ(1,
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
+                                 x509.get()));
     CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
   }
 }
@@ -759,11 +817,7 @@ Maybe<void> SecureContext::SetCRL(Environment* env, const BIOPointer& bio) {
     return Nothing<void>();
   }
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
-  if (cert_store == GetOrCreateRootCertStore()) {
-    cert_store = NewRootCertStore();
-    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
-  }
+  X509_STORE* cert_store = GetCertStoreOwnedByThisSecureContext();
 
   CHECK_EQ(1, X509_STORE_add_crl(cert_store, crl.get()));
   CHECK_EQ(1,
@@ -887,7 +941,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
   const BIGNUM* p;
   DH_get0_pqg(dh.get(), &p, nullptr, nullptr);
-  const int size = BN_num_bits(p);
+  const int size = BignumPointer::GetBitCount(p);
   if (size < 1024) {
     return THROW_ERR_INVALID_ARG_VALUE(
         env, "DH parameter is less than 1024 bits");
@@ -979,16 +1033,15 @@ void SecureContext::SetSessionIdContext(
   if (SSL_CTX_set_session_id_context(sc->ctx_.get(), sid_ctx, sid_ctx_len) == 1)
     return;
 
-  BUF_MEM* mem;
   Local<String> message;
 
-  BIOPointer bio(BIO_new(BIO_s_mem()));
+  auto bio = BIOPointer::NewMem();
   if (!bio) {
     message = FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "SSL_CTX_set_session_id_context error");
   } else {
     ERR_print_errors(bio.get());
-    BIO_get_mem_ptr(bio.get(), &mem);
+    BUF_MEM* mem = bio;
     message = OneByteString(env->isolate(), mem->data, mem->length);
   }
 
@@ -1047,8 +1100,6 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   sc->issuer_.reset();
   sc->cert_.reset();
 
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-
   DeleteFnPtr<PKCS12, PKCS12_free> p12;
   EVPKeyPointer pkey;
   X509Pointer cert;
@@ -1102,11 +1153,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
     X509* ca = sk_X509_value(extra_certs.get(), i);
 
-    if (cert_store == GetOrCreateRootCertStore()) {
-      cert_store = NewRootCertStore();
-      SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
-    }
-    X509_STORE_add_cert(cert_store, ca);
+    X509_STORE_add_cert(sc->GetCertStoreOwnedByThisSecureContext(), ca);
     SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
   }
   ret = true;
@@ -1115,6 +1162,16 @@ done:
   if (!ret) {
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (ERR_GET_REASON(err) == ERR_R_UNSUPPORTED) {
+      // OpenSSL's "unsupported" error without any context is very
+      // common and not very helpful, so we override it:
+      return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+          env, "Unsupported PKCS12 PFX data");
+    }
+#endif
+
     const char* str = ERR_reason_error_string(err);
     str = str != nullptr ? str : "Unknown error";
 
@@ -1383,54 +1440,9 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buff);
 }
 
-namespace {
-unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
-    X509_STORE* store,
-    const char* file) {
-  ERR_clear_error();
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  BIOPointer bio(BIO_new_file(file, "r"));
-  if (!bio)
-    return ERR_get_error();
-
-  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509(
-             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    X509_STORE_add_cert(store, x509.get());
-  }
-
-  unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
-  // Ignore error if its EOF/no start line found.
-  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
-    return 0;
-  }
-
-  return err;
-}
-}  // namespace
-
 // UseExtraCaCerts is called only once at the start of the Node.js process.
 void UseExtraCaCerts(const std::string& file) {
-  if (file.empty()) return;
-  ClearErrorOnReturn clear_error_on_return;
-  X509_STORE* store = GetOrCreateRootCertStore();
-  if (auto err = AddCertsFromFile(store, file.c_str())) {
-    char buf[256];
-    ERR_error_string_n(err, buf, sizeof(buf));
-    fprintf(stderr,
-            "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-            file.c_str(),
-            buf);
-  } else {
-    extra_root_certs_loaded = true;
-  }
-}
-
-// Exposed to JavaScript strictly for testing purposes.
-void IsExtraRootCertsFileLoaded(
-    const FunctionCallbackInfo<Value>& args) {
-  return args.GetReturnValue().Set(extra_root_certs_loaded);
+  extra_root_certs_file = file;
 }
 
 }  // namespace crypto

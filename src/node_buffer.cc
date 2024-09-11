@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "node.h"
 #include "node_blob.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_i18n.h"
@@ -35,6 +36,7 @@
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
+#include <stdint.h>
 #include <climits>
 #include <cstring>
 #include "nbytes.h"
@@ -530,17 +532,6 @@ MaybeLocal<Object> New(Environment* env,
 
 namespace {
 
-void CreateFromString(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsInt32());
-
-  enum encoding enc = static_cast<enum encoding>(args[1].As<Int32>()->Value());
-  Local<Object> buf;
-  if (New(args.GetIsolate(), args[0].As<String>(), enc).ToLocal(&buf))
-    args.GetReturnValue().Set(buf);
-}
-
-
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -576,44 +567,40 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-// bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
-void Copy(const FunctionCallbackInfo<Value> &args) {
+// Assume caller has properly validated args.
+void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
   ArrayBufferViewContents<char> source(args[0]);
-  Local<Object> target_obj = args[1].As<Object>();
-  SPREAD_BUFFER_ARG(target_obj, target);
+  SPREAD_BUFFER_ARG(args[1].As<Object>(), target);
 
-  size_t target_start = 0;
-  size_t source_start = 0;
-  size_t source_end = 0;
-
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &target_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &source_start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[4], source.length(),
-                                          &source_end));
-
-  // Copy 0 bytes; we're done
-  if (target_start >= target_length || source_start >= source_end)
-    return args.GetReturnValue().Set(0);
-
-  if (source_start > source.length())
-    return THROW_ERR_OUT_OF_RANGE(
-        env, "The value of \"sourceStart\" is out of range.");
-
-  if (source_end - source_start > target_length - target_start)
-    source_end = source_start + target_length - target_start;
-
-  uint32_t to_copy = std::min(
-      std::min(source_end - source_start, target_length - target_start),
-      source.length() - source_start);
+  const auto target_start = args[2]->Uint32Value(env->context()).ToChecked();
+  const auto source_start = args[3]->Uint32Value(env->context()).ToChecked();
+  const auto to_copy = args[4]->Uint32Value(env->context()).ToChecked();
 
   memmove(target_data + target_start, source.data() + source_start, to_copy);
   args.GetReturnValue().Set(to_copy);
 }
 
+// Assume caller has properly validated args.
+uint32_t FastCopy(Local<Value> receiver,
+                  const v8::FastApiTypedArray<uint8_t>& source,
+                  const v8::FastApiTypedArray<uint8_t>& target,
+                  uint32_t target_start,
+                  uint32_t source_start,
+                  uint32_t to_copy) {
+  uint8_t* source_data;
+  CHECK(source.getStorageIfAligned(&source_data));
+
+  uint8_t* target_data;
+  CHECK(target.getStorageIfAligned(&target_data));
+
+  memmove(target_data + target_start, source_data + source_start, to_copy);
+
+  return to_copy;
+}
+
+static v8::CFunction fast_copy(v8::CFunction::Make(FastCopy));
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -756,13 +743,40 @@ uint32_t FastByteLengthUtf8(Local<Value> receiver,
   if (source.length > 128) {
     return simdutf::utf8_length_from_latin1(source.data, source.length);
   }
+
   uint32_t length = source.length;
-  uint32_t result = length;
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(source.data);
-  for (uint32_t i = 0; i < length; ++i) {
-    result += (data[i] >> 7);
+  const auto input = reinterpret_cast<const uint8_t*>(source.data);
+
+  uint32_t answer = length;
+  uint32_t i = 0;
+
+  auto pop = [](uint64_t v) {
+    return static_cast<size_t>(((v >> 7) & UINT64_C(0x0101010101010101)) *
+                                   UINT64_C(0x0101010101010101) >>
+                               56);
+  };
+
+  for (; i + 32 <= length; i += 32) {
+    uint64_t v;
+    memcpy(&v, input + i, 8);
+    answer += pop(v);
+    memcpy(&v, input + i + 8, 8);
+    answer += pop(v);
+    memcpy(&v, input + i + 16, 8);
+    answer += pop(v);
+    memcpy(&v, input + i + 24, 8);
+    answer += pop(v);
   }
-  return result;
+  for (; i + 8 <= length; i += 8) {
+    uint64_t v;
+    memcpy(&v, input + i, 8);
+    answer += pop(v);
+  }
+  for (; i + 1 <= length; i += 1) {
+    answer += input[i] >> 7;
+  }
+
+  return answer;
 }
 
 static v8::CFunction fast_byte_length_utf8(
@@ -1429,6 +1443,142 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   memcpy(dest, src, bytes_to_copy);
 }
 
+size_t convert_latin1_to_utf8_s(const char* src,
+                                size_t src_len,
+                                char* dst,
+                                size_t dst_len) noexcept {
+  size_t src_pos = 0;
+  size_t dst_pos = 0;
+
+  const auto safe_len = std::min(src_len, dst_len >> 1);
+  if (safe_len > 16) {
+    // convert_latin1_to_utf8 will never write more than input length * 2.
+    dst_pos += simdutf::convert_latin1_to_utf8(src, safe_len, dst);
+    src_pos += safe_len;
+  }
+
+  // Based on:
+  // https://github.com/simdutf/simdutf/blob/master/src/scalar/latin1_to_utf8/latin1_to_utf8.h
+  // with an upper limit on the number of bytes to write.
+
+  const auto src_ptr = reinterpret_cast<const uint8_t*>(src);
+  const auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+
+  size_t skip_pos = src_pos;
+  while (src_pos < src_len && dst_pos < dst_len) {
+    if (skip_pos <= src_pos && src_pos + 16 <= src_len &&
+        dst_pos + 16 <= dst_len) {
+      uint64_t v1;
+      memcpy(&v1, src_ptr + src_pos + 0, 8);
+      uint64_t v2;
+      memcpy(&v2, src_ptr + src_pos + 8, 8);
+      if (((v1 | v2) & UINT64_C(0x8080808080808080)) == 0) {
+        memcpy(dst_ptr + dst_pos, src_ptr + src_pos, 16);
+        dst_pos += 16;
+        src_pos += 16;
+      } else {
+        skip_pos = src_pos + 16;
+      }
+    } else {
+      const auto byte = src_ptr[src_pos++];
+      if ((byte & 0x80) == 0) {
+        dst_ptr[dst_pos++] = byte;
+      } else if (dst_pos + 2 <= dst_len) {
+        dst_ptr[dst_pos++] = (byte >> 6) | 0b11000000;
+        dst_ptr[dst_pos++] = (byte & 0b111111) | 0b10000000;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return dst_pos;
+}
+
+template <encoding encoding>
+uint32_t WriteOneByteString(const char* src,
+                            uint32_t src_len,
+                            char* dst,
+                            uint32_t dst_len) {
+  if (dst_len == 0) {
+    return 0;
+  }
+
+  if (encoding == UTF8) {
+    return convert_latin1_to_utf8_s(src, src_len, dst, dst_len);
+  } else if (encoding == LATIN1 || encoding == ASCII) {
+    const auto size = std::min(src_len, dst_len);
+    memcpy(dst, src, size);
+    return size;
+  } else {
+    // TODO(ronag): Add support for more encoding.
+    UNREACHABLE();
+  }
+}
+
+template <encoding encoding>
+void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_BUFFER_ARG(args[0], ts_obj);
+
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[1], "argument");
+
+  Local<String> str = args[1]->ToString(env->context()).ToLocalChecked();
+
+  size_t offset = 0;
+  size_t max_length = 0;
+
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &offset));
+  THROW_AND_RETURN_IF_OOB(
+      ParseArrayIndex(env, args[3], ts_obj_length - offset, &max_length));
+
+  max_length = std::min(ts_obj_length - offset, max_length);
+
+  if (max_length == 0) return args.GetReturnValue().Set(0);
+
+  uint32_t written = 0;
+
+  if ((encoding == UTF8 || encoding == LATIN1 || encoding == ASCII) &&
+      str->IsExternalOneByte()) {
+    const auto src = str->GetExternalOneByteStringResource();
+    written = WriteOneByteString<encoding>(
+        src->data(), src->length(), ts_obj_data + offset, max_length);
+  } else {
+    written = StringBytes::Write(
+        env->isolate(), ts_obj_data + offset, max_length, str, encoding);
+  }
+
+  args.GetReturnValue().Set(written);
+}
+
+template <encoding encoding>
+uint32_t FastWriteString(Local<Value> receiver,
+                         const v8::FastApiTypedArray<uint8_t>& dst,
+                         const v8::FastOneByteString& src,
+                         uint32_t offset,
+                         uint32_t max_length) {
+  uint8_t* dst_data;
+  CHECK(dst.getStorageIfAligned(&dst_data));
+  CHECK(offset <= dst.length());
+  CHECK(dst.length() - offset <= std::numeric_limits<uint32_t>::max());
+  TRACK_V8_FAST_API_CALL("buffer.writeString");
+
+  return WriteOneByteString<encoding>(
+      src.data,
+      src.length,
+      reinterpret_cast<char*>(dst_data + offset),
+      std::min<uint32_t>(dst.length() - offset, max_length));
+}
+
+static v8::CFunction fast_write_string_ascii(
+    v8::CFunction::Make(FastWriteString<ASCII>));
+static v8::CFunction fast_write_string_latin1(
+    v8::CFunction::Make(FastWriteString<LATIN1>));
+static v8::CFunction fast_write_string_utf8(
+    v8::CFunction::Make(FastWriteString<UTF8>));
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1440,14 +1590,13 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "btoa", Btoa);
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
-  SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
 
   SetFastMethodNoSideEffect(context,
                             target,
                             "byteLengthUtf8",
                             SlowByteLengthUtf8,
                             &fast_byte_length_utf8);
-  SetMethod(context, target, "copy", Copy);
+  SetFastMethod(context, target, "copy", SlowCopy, &fast_copy);
   SetFastMethodNoSideEffect(context, target, "compare", Compare, &fast_compare);
   SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
   SetMethod(context, target, "fill", Fill);
@@ -1490,13 +1639,26 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "ucs2Slice", StringSlice<UCS2>);
   SetMethodNoSideEffect(context, target, "utf8Slice", StringSlice<UTF8>);
 
-  SetMethod(context, target, "asciiWrite", StringWrite<ASCII>);
   SetMethod(context, target, "base64Write", StringWrite<BASE64>);
   SetMethod(context, target, "base64urlWrite", StringWrite<BASE64URL>);
-  SetMethod(context, target, "latin1Write", StringWrite<LATIN1>);
   SetMethod(context, target, "hexWrite", StringWrite<HEX>);
   SetMethod(context, target, "ucs2Write", StringWrite<UCS2>);
-  SetMethod(context, target, "utf8Write", StringWrite<UTF8>);
+
+  SetFastMethod(context,
+                target,
+                "asciiWriteStatic",
+                SlowWriteString<ASCII>,
+                &fast_write_string_ascii);
+  SetFastMethod(context,
+                target,
+                "latin1WriteStatic",
+                SlowWriteString<LATIN1>,
+                &fast_write_string_latin1);
+  SetFastMethod(context,
+                target,
+                "utf8WriteStatic",
+                SlowWriteString<UTF8>,
+                &fast_write_string_utf8);
 
   SetMethod(context, target, "getZeroFillToggle", GetZeroFillToggle);
 }
@@ -1505,12 +1667,13 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
-  registry->Register(CreateFromString);
 
   registry->Register(SlowByteLengthUtf8);
   registry->Register(fast_byte_length_utf8.GetTypeInfo());
   registry->Register(FastByteLengthUtf8);
-  registry->Register(Copy);
+  registry->Register(SlowCopy);
+  registry->Register(fast_copy.GetTypeInfo());
+  registry->Register(FastCopy);
   registry->Register(Compare);
   registry->Register(FastCompare);
   registry->Register(fast_compare.GetTypeInfo());
@@ -1537,6 +1700,15 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringSlice<UCS2>);
   registry->Register(StringSlice<UTF8>);
 
+  registry->Register(SlowWriteString<ASCII>);
+  registry->Register(SlowWriteString<LATIN1>);
+  registry->Register(SlowWriteString<UTF8>);
+  registry->Register(FastWriteString<ASCII>);
+  registry->Register(fast_write_string_ascii.GetTypeInfo());
+  registry->Register(FastWriteString<LATIN1>);
+  registry->Register(fast_write_string_latin1.GetTypeInfo());
+  registry->Register(FastWriteString<UTF8>);
+  registry->Register(fast_write_string_utf8.GetTypeInfo());
   registry->Register(StringWrite<ASCII>);
   registry->Register(StringWrite<BASE64>);
   registry->Register(StringWrite<BASE64URL>);

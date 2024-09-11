@@ -71,16 +71,19 @@ struct BuiltinMetadata {
 #define DECL_CPP(Name, ...) \
   {#Name, Builtins::CPP, {FUNCTION_ADDR(Builtin_##Name)}},
 #define DECL_TFJ(Name, Count, ...) {#Name, Builtins::TFJ, {Count, 0}},
+#define DECL_TSC(Name, ...) {#Name, Builtins::TSC, {}},
 #define DECL_TFC(Name, ...) {#Name, Builtins::TFC, {}},
 #define DECL_TFS(Name, ...) {#Name, Builtins::TFS, {}},
 #define DECL_TFH(Name, ...) {#Name, Builtins::TFH, {}},
 #define DECL_BCH(Name, OperandScale, Bytecode) \
   {#Name, Builtins::BCH, {Bytecode, OperandScale}},
 #define DECL_ASM(Name, ...) {#Name, Builtins::ASM, {}},
-const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
-    DECL_CPP, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH, DECL_BCH, DECL_ASM)};
+const BuiltinMetadata builtin_metadata[] = {
+    BUILTIN_LIST(DECL_CPP, DECL_TFJ, DECL_TSC, DECL_TFC, DECL_TFS, DECL_TFH,
+                 DECL_BCH, DECL_ASM)};
 #undef DECL_CPP
 #undef DECL_TFJ
+#undef DECL_TSC
 #undef DECL_TFC
 #undef DECL_TFS
 #undef DECL_TFH
@@ -143,7 +146,7 @@ void Builtins::set_code(Builtin builtin, Tagged<Code> code) {
 
 Tagged<Code> Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Code::cast(Tagged<Object>(ptr));
+  return Cast<Code>(Tagged<Object>(ptr));
 }
 
 Handle<Code> Builtins::code_handle(Builtin builtin) {
@@ -169,7 +172,7 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER, CASE_OTHER,
-                 CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(builtin);
@@ -378,7 +381,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
     Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Handle<AbstractCode>::cast(builtin_code);
+    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
   }
@@ -386,7 +389,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
     Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Handle<AbstractCode>::cast(builtin_code);
+    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =
@@ -451,6 +454,7 @@ const char* Builtins::KindNameOf(Builtin builtin) {
   switch (kind) {
     case CPP: return "CPP";
     case TFJ: return "TFJ";
+    case TSC: return "TSC";
     case TFC: return "TFC";
     case TFS: return "TFS";
     case TFH: return "TFH";
@@ -481,6 +485,7 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
     case BCH:
       return kBytecodeHandlerEntrypointTag;
     case TFC:
+    case TSC:
     case TFS:
     case TFH:
     case ASM:
@@ -490,7 +495,8 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
 }
 
 // static
-bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
+bool Builtins::AllowDynamicFunction(Isolate* isolate,
+                                    DirectHandle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {
   if (v8_flags.allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();

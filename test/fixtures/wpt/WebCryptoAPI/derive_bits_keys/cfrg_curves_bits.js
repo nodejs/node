@@ -6,8 +6,6 @@ function define_tests() {
   // Verify the derive functions perform checks against the all-zero value results,
   // ensuring small-order points are rejected.
   // https://www.rfc-editor.org/rfc/rfc7748#section-6.1
-  // TODO: The spec states that the check must be done on use, but there is discussion about doing it on import.
-  // https://github.com/WICG/webcrypto-secure-curves/pull/13
   Object.keys(kSmallOrderPoint).forEach(function(algorithmName) {
       kSmallOrderPoint[algorithmName].forEach(function(test) {
           promise_test(async() => {
@@ -23,8 +21,8 @@ function define_tests() {
                                                  false, [])
                   derived = await subtle.deriveBits({name: algorithmName, public: publicKey}, privateKey, 8 * sizes[algorithmName]);
               } catch (err) {
-                  assert_false(privateKey === undefined, "Private key should be valid.");
-                  assert_false(publicKey === undefined, "Public key should be valid.");
+                  assert_true(privateKey !== undefined, "Private key should be valid.");
+                  assert_true(publicKey !== undefined, "Public key should be valid.");
                   assert_equals(err.name, "OperationError", "Should throw correct error, not " + err.name + ": " + err.message + ".");
               }
               assert_equals(derived, undefined, "Operation succeeded, but should not have.");
@@ -58,25 +56,6 @@ function define_tests() {
                   assert_unreached("deriveBits failed with error " + err.name + ": " + err.message);
               });
           }, algorithmName + " mixed case parameters");
-
-          // Null length
-          // "Null" is not valid per the current spec
-          //   - https://github.com/w3c/webcrypto/issues/322
-          //   - https://github.com/w3c/webcrypto/issues/329
-          //
-          // Proposal for a spec change:
-          //   - https://github.com/w3c/webcrypto/pull/345
-          //
-          // This test case may be replaced by these new tests:
-          //   - https://github.com/web-platform-tests/wpt/pull/43400
-          promise_test(function(test) {
-              return subtle.deriveBits({name: algorithmName, public: publicKeys[algorithmName]}, privateKeys[algorithmName], null)
-              .then(function(derivation) {
-                  assert_true(equalBuffers(derivation, derivations[algorithmName]), "Derived correct bits");
-              }, function(err) {
-                  assert_unreached("deriveBits failed with error " + err.name + ": " + err.message);
-              });
-          }, algorithmName + " with null length");
 
           // Shorter than entire derivation per algorithm
           promise_test(function(test) {

@@ -22,7 +22,6 @@ on:
           - cjs-module-lexer
           - corepack
           - doc
-          - eslint
           - github_reporter
           - googletest
           - gyp-next
@@ -85,7 +84,7 @@ jobs:
               rm temp-output
           - id: amaro
             subsystem: deps
-            label: dependencies
+            label: dependencies, strip-types
             run: |
               ./tools/dep_updaters/update-amaro.sh > temp-output
               cat temp-output
@@ -93,7 +92,7 @@ jobs:
               rm temp-output
           - id: brotli
             subsystem: deps
-            label: dependencies
+            label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-brotli.sh > temp-output
               cat temp-output
@@ -101,7 +100,7 @@ jobs:
               rm temp-output
           - id: c-ares
             subsystem: deps
-            label: dependencies
+            label: dependencies, cares
             run: |
               ./tools/dep_updaters/update-c-ares.sh > temp-output
               cat temp-output
@@ -137,14 +136,6 @@ jobs:
                 npm install --ignore-scripts $NEW_VERSION
                 npm install --ignore-scripts
               fi
-          - id: eslint
-            subsystem: tools
-            label: tools
-            run: |
-              ./tools/dep_updaters/update-eslint.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: github_reporter
             subsystem: tools
             label: tools
@@ -163,7 +154,7 @@ jobs:
               rm temp-output
           - id: gyp-next
             subsystem: tools
-            label: tools
+            label: tools, gyp
             run: |
               ./tools/dep_updaters/update-gyp-next.sh > temp-output
               cat temp-output
@@ -179,7 +170,7 @@ jobs:
               rm temp-output
           - id: icu
             subsystem: deps
-            label: dependencies, test
+            label: dependencies, test, icu
             run: |
               ./tools/dep_updaters/update-icu.sh > temp-output
               cat temp-output
@@ -293,7 +284,7 @@ jobs:
               rm temp-output
           - id: sqlite
             subsystem: deps
-            label: dependencies
+            label: dependencies, sqlite
             run: |
               ./tools/dep_updaters/update-sqlite.sh > temp-output
               cat temp-output
@@ -317,7 +308,7 @@ jobs:
               rm temp-output
           - id: zlib
             subsystem: deps
-            label: dependencies
+            label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-zlib.sh > temp-output
               cat temp-output
@@ -330,7 +321,7 @@ jobs:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: ${{ matrix.run }}

@@ -30,7 +30,7 @@ jobs:
             ~/.npm
           key: ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Install Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install @node-core/utils
@@ -45,7 +45,7 @@ jobs:
             cat temp-output
             tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
             rm temp-output
-      - uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c  # v6.1.0
+      - uses: peter-evans/create-pull-request@8867c4aba1b742c39f8d0ba35429c2dfa4b6cb20  # v7.0.1
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         with:
@@ -54,4 +54,4 @@ jobs:
           delete-branch: true
           title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
           body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
-          labels: v8 engine
+          labels: dependencies, v8 engine

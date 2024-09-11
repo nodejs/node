@@ -31,24 +31,34 @@ const filePath = path.join(testDirectory, 'folder-3');
 const childrenFile = 'file-4.txt';
 const childrenAbsolutePath = path.join(filePath, childrenFile);
 const childrenRelativePath = path.join(path.basename(filePath), childrenFile);
-
-const watcher = fs.watch(testDirectory, { recursive: true });
 let watcherClosed = false;
-watcher.on('change', function(event, filename) {
-  assert.strictEqual(event, 'rename');
-  assert.ok(filename === path.basename(filePath) || filename === childrenRelativePath);
 
-  if (filename === childrenRelativePath) {
-    watcher.close();
-    watcherClosed = true;
-  }
-});
+function doWatch() {
+  const watcher = fs.watch(testDirectory, { recursive: true });
+  watcher.on('change', function(event, filename) {
+    assert.strictEqual(event, 'rename');
+    assert.ok(filename === path.basename(filePath) || filename === childrenRelativePath);
 
-// Do the write with a delay to ensure that the OS is ready to notify us.
-setTimeout(() => {
-  fs.mkdirSync(filePath);
-  fs.writeFileSync(childrenAbsolutePath, 'world');
-}, common.platformTimeout(200));
+    if (filename === childrenRelativePath) {
+      watcher.close();
+      watcherClosed = true;
+    }
+  });
+
+  // Do the write with a delay to ensure that the OS is ready to notify us.
+  setTimeout(() => {
+    fs.mkdirSync(filePath);
+    fs.writeFileSync(childrenAbsolutePath, 'world');
+  }, common.platformTimeout(200));
+}
+
+if (common.isMacOS) {
+  // On macOS delay watcher start to avoid leaking previous events.
+  // Refs: https://github.com/libuv/libuv/pull/4503
+  setTimeout(doWatch, common.platformTimeout(100));
+} else {
+  doWatch();
+}
 
 process.once('exit', function() {
   assert(watcherClosed, 'watcher Object was not closed');

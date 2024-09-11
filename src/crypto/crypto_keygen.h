@@ -144,16 +144,11 @@ struct KeyPairGenTraits final {
       return v8::Just(false);
     }
 
-    params->public_key_encoding = ManagedEVPPKey::GetPublicKeyEncodingFromJs(
-        args,
-        offset,
-        kKeyContextGenerate);
+    params->public_key_encoding = KeyObjectData::GetPublicKeyEncodingFromJs(
+        args, offset, kKeyContextGenerate);
 
-    auto private_key_encoding =
-        ManagedEVPPKey::GetPrivateKeyEncodingFromJs(
-            args,
-            offset,
-            kKeyContextGenerate);
+    auto private_key_encoding = KeyObjectData::GetPrivateKeyEncodingFromJs(
+        args, offset, kKeyContextGenerate);
 
     if (!private_key_encoding.IsEmpty())
       params->private_key_encoding = private_key_encoding.Release();
@@ -174,7 +169,10 @@ struct KeyPairGenTraits final {
     if (!EVP_PKEY_keygen(ctx.get(), &pkey))
       return KeyGenJobStatus::FAILED;
 
-    params->key = ManagedEVPPKey(EVPKeyPointer(pkey));
+    auto data = KeyObjectData::CreateAsymmetric(KeyType::kKeyTypePrivate,
+                                                EVPKeyPointer(pkey));
+    if (UNLIKELY(!data)) return KeyGenJobStatus::FAILED;
+    params->key = std::move(data);
     return KeyGenJobStatus::OK;
   }
 
@@ -231,12 +229,14 @@ template <typename AlgorithmParams>
 struct KeyPairGenConfig final : public MemoryRetainer {
   PublicKeyEncodingConfig public_key_encoding;
   PrivateKeyEncodingConfig private_key_encoding;
-  ManagedEVPPKey key;
+  KeyObjectData key;
   AlgorithmParams params;
 
   KeyPairGenConfig() = default;
   ~KeyPairGenConfig() {
-    Mutex::ScopedLock priv_lock(*key.mutex());
+    if (key) {
+      Mutex::ScopedLock priv_lock(key.mutex());
+    }
   }
 
   explicit KeyPairGenConfig(KeyPairGenConfig&& other) noexcept

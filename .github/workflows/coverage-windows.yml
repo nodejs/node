@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - lib/**/*.js
-      - Makefile
+      - vcbuild.bat
       - src/**/*.cc
       - src/**/*.h
       - test/**
@@ -18,7 +18,7 @@ on:
       - main
     paths:
       - lib/**/*.js
-      - Makefile
+      - vcbuild.bat
       - src/**/*.cc
       - src/**/*.h
       - test/**
@@ -47,7 +47,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps

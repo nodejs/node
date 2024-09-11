@@ -262,7 +262,7 @@ class ByteSource {
   operator bool() const { return data_ != nullptr; }
 
   BignumPointer ToBN() const {
-    return BignumPointer(BN_bin2bn(data<unsigned char>(), size(), nullptr));
+    return BignumPointer(data<unsigned char>(), size());
   }
 
   // Creates a v8::BackingStore that takes over responsibility for
@@ -275,6 +275,12 @@ class ByteSource {
   v8::MaybeLocal<v8::Uint8Array> ToBuffer(Environment* env);
 
   static ByteSource Allocated(void* data, size_t size);
+
+  template <typename T>
+  static ByteSource Allocated(const ncrypto::Buffer<T>& buffer) {
+    return Allocated(buffer.data, buffer.len);
+  }
+
   static ByteSource Foreign(const void* data, size_t size);
 
   static ByteSource FromEncodedString(Environment* env,
@@ -707,12 +713,11 @@ v8::MaybeLocal<v8::Value> EncodeBignum(
     int size,
     v8::Local<v8::Value>* error);
 
-v8::Maybe<bool> SetEncodedValue(
-    Environment* env,
-    v8::Local<v8::Object> target,
-    v8::Local<v8::String> name,
-    const BIGNUM* bn,
-    int size = 0);
+v8::Maybe<void> SetEncodedValue(Environment* env,
+                                v8::Local<v8::Object> target,
+                                v8::Local<v8::String> name,
+                                const BIGNUM* bn,
+                                int size = 0);
 
 bool SetRsaOaepLabel(const EVPKeyCtxPointer& rsa, const ByteSource& label);
 

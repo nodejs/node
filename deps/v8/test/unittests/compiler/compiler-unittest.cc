@@ -74,7 +74,7 @@ static double Inc(Isolate* isolate, int x) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Inc) {
@@ -92,7 +92,7 @@ static double Add(Isolate* isolate, int x, int y) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Add) {
@@ -109,7 +109,7 @@ static double Abs(Isolate* isolate, int x) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Abs) {
@@ -127,7 +127,7 @@ static double Sum(Isolate* isolate, int n) {
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
-  return Object::Number(*GetGlobalProperty("result"));
+  return Object::NumberValue(*GetGlobalProperty("result"));
 }
 
 TEST_F(CompilerTest, Sum) {
@@ -182,7 +182,7 @@ TEST_F(CompilerTest, Stuff) {
   Execution::CallScript(i_isolate(), fun, global,
                         i_isolate()->factory()->empty_fixed_array())
       .Check();
-  EXPECT_EQ(511.0, Object::Number(*GetGlobalProperty("r")));
+  EXPECT_EQ(511.0, Object::NumberValue(*GetGlobalProperty("r")));
 }
 
 TEST_F(CompilerTest, UncaughtThrow) {
@@ -196,7 +196,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   EXPECT_TRUE(Execution::CallScript(isolate, fun, global,
                                     isolate->factory()->empty_fixed_array())
                   .is_null());
-  EXPECT_EQ(42.0, Object::Number(isolate->exception()));
+  EXPECT_EQ(42.0, Object::NumberValue(isolate->exception()));
 }
 
 using CompilerC2JSFramesTest = WithPrintExtensionMixin<v8::TestWithIsolate>;
@@ -235,8 +235,8 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
 
   Handle<Object> argv[] = {
       isolate->factory()->InternalizeString(base::StaticCharVector("hello"))};
-  Execution::Call(isolate, Handle<JSFunction>::cast(fun1), global,
-                  arraysize(argv), argv)
+  Execution::Call(isolate, Cast<JSFunction>(fun1), global, arraysize(argv),
+                  argv)
       .Check();
 }
 
@@ -289,14 +289,13 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
       "%PrepareFunctionForOptimization(f);"
       "function f(a) { a(); } f(fun1);");
 
-  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast(context()
-                                         ->Global()
-                                         ->Get(context(), NewString("f"))
-                                         .ToLocalChecked())));
+  DirectHandle<JSFunction> f = Cast<
+      JSFunction>(v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
+      context()->Global()->Get(context(), NewString("f")).ToLocalChecked())));
 
   // Verify that we gathered feedback.
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
+  DirectHandle<FeedbackVector> feedback_vector(f->feedback_vector(),
+                                               f->GetIsolate());
   EXPECT_TRUE(!feedback_vector->is_empty());
   FeedbackSlot slot_for_a(0);
   Tagged<MaybeObject> object = feedback_vector->Get(slot_for_a);
@@ -339,8 +338,8 @@ TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
       "}"
       "morphing_call = builder();");
 
-  Handle<JSFunction> f = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+  DirectHandle<JSFunction> f = Cast<JSFunction>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           context()
               ->Global()
               ->Get(context(), NewString("morphing_call"))
@@ -380,14 +379,14 @@ TEST_F(CompilerTest, OptimizedCodeSharing1) {
         "%DebugPrint(closure0());"
         "closure1();"
         "var closure2 = MakeClosure(); closure2();");
-    Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+    DirectHandle<JSFunction> fun1 = Cast<JSFunction>(
+        v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
             context()
                 ->Global()
                 ->Get(context(), NewString("closure1"))
                 .ToLocalChecked())));
-    Handle<JSFunction> fun2 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+    DirectHandle<JSFunction> fun2 = Cast<JSFunction>(
+        v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
             context()
                 ->Global()
                 ->Get(context(), NewString("closure2"))
@@ -614,12 +613,13 @@ TEST_F(CompilerTest, CompileFunctionScriptOrigin) {
       v8::ScriptCompiler::CompileFunction(context(), &script_source)
           .ToLocalChecked();
   EXPECT_TRUE(!fun.IsEmpty());
-  auto fun_i = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*fun));
+  auto fun_i = i::Cast<i::JSFunction>(Utils::OpenHandle(*fun));
   EXPECT_TRUE(IsSharedFunctionInfo(fun_i->shared()));
-  EXPECT_TRUE(Utils::ToLocal(
-                  i::handle(i::Script::cast(fun_i->shared()->script())->name(),
-                            i_isolate()))
-                  ->StrictEquals(NewString("test")));
+  EXPECT_TRUE(
+      Utils::ToLocal(
+          i::handle(i::Cast<i::Script>(fun_i->shared()->script())->name(),
+                    i_isolate()))
+          ->StrictEquals(NewString("test")));
   v8::TryCatch try_catch(isolate());
   isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
   EXPECT_TRUE(fun->Call(context(), context()->Global(), 0, nullptr).IsEmpty());
@@ -739,7 +739,7 @@ TEST_F(CompilerTest, InvocationCount) {
       "function foo() { return bar(); };"
       "%EnsureFeedbackVectorForFunction(foo);"
       "foo();");
-  Handle<JSFunction> foo = Handle<JSFunction>::cast(GetGlobalProperty("foo"));
+  DirectHandle<JSFunction> foo = Cast<JSFunction>(GetGlobalProperty("foo"));
   EXPECT_EQ(1, foo->feedback_vector()->invocation_count());
   RunJS("foo()");
   EXPECT_EQ(2, foo->feedback_vector()->invocation_count());
@@ -920,9 +920,10 @@ TEST_F(CompilerTest, ProfilerEnabledDuringBackgroundCompile) {
                                   v8::ScriptOrigin(NewString("foo")))
           .ToLocalChecked();
 
-  i::Handle<i::Object> obj = Utils::OpenHandle(*script);
-  EXPECT_TRUE(i::JSFunction::cast(*obj)->shared()->AreSourcePositionsAvailable(
-      i_isolate()));
+  i::DirectHandle<i::Object> obj = Utils::OpenDirectHandle(*script);
+  EXPECT_TRUE(
+      i::Cast<i::JSFunction>(*obj)->shared()->AreSourcePositionsAvailable(
+          i_isolate()));
 
   cpu_profiler->StopProfiling(profile);
 }

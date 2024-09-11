@@ -20,6 +20,7 @@ declare_args() {
     "deps/cjs-module-lexer/lexer.js",
     "deps/cjs-module-lexer/dist/lexer.js",
     "deps/undici/undici.js",
+    "deps/amaro/dist/index.js",
   ]
 }
 

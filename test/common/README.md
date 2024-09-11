@@ -982,7 +982,7 @@ module exports a single `onGC()` function.
 
 ```js
 require('../common');
-const onGC = require('../common/ongc');
+const { onGC } = require('../common/gc');
 
 onGC({}, { ongc() { console.log('collected'); } });
 ```

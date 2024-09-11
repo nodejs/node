@@ -12,6 +12,9 @@ import { join } from 'node:path';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
+
 // This test updates these files repeatedly,
 // Reading them from disk is unreliable due to race conditions.
 const fixtureContent = {
@@ -38,7 +41,7 @@ function refresh() {
 
 const runner = join(import.meta.dirname, '..', 'fixtures', 'test-runner-watch.mjs');
 
-async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.path }) {
+async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.path, fileToCreate }) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const args = [runner];
@@ -53,13 +56,15 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
   child.stdout.on('data', (data) => {
     stdout += data.toString();
     currentRun += data.toString();
-    const testRuns = stdout.match(/# duration_ms\s\d+/g);
+    const testRuns = stdout.match(/duration_ms\s\d+/g);
     if (testRuns?.length >= 1) ran1.resolve();
     if (testRuns?.length >= 2) ran2.resolve();
   });
 
   const testUpdate = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
     const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
@@ -68,17 +73,22 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     clearInterval(interval);
     child.kill();
     await once(child, 'exit');
+
+    assert.strictEqual(runs.length, 2);
+
     for (const run of runs) {
       assert.doesNotMatch(run, /run\(\) is being called recursively/);
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
     }
   };
 
   const testRename = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
     const interval = setInterval(() => renameSync(fileToRenamePath, newFileNamePath), common.platformTimeout(1000));
@@ -88,22 +98,31 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     child.kill();
     await once(child, 'exit');
 
-    for (const run of runs) {
-      assert.doesNotMatch(run, /run\(\) is being called recursively/);
-      if (action === 'rename2') {
-        assert.match(run, /MODULE_NOT_FOUND/);
-      } else {
-        assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
-      }
-      assert.match(run, /# tests 1/);
-      assert.match(run, /# pass 1/);
-      assert.match(run, /# fail 0/);
-      assert.match(run, /# cancelled 0/);
+    assert.strictEqual(runs.length, 2);
+
+    const [firstRun, secondRun] = runs;
+    assert.match(firstRun, /tests 1/);
+    assert.match(firstRun, /pass 1/);
+    assert.match(firstRun, /fail 0/);
+    assert.match(firstRun, /cancelled 0/);
+    assert.doesNotMatch(firstRun, /run\(\) is being called recursively/);
+
+    if (action === 'rename2') {
+      assert.match(secondRun, /MODULE_NOT_FOUND/);
+      return;
     }
+
+    assert.match(secondRun, /tests 1/);
+    assert.match(secondRun, /pass 1/);
+    assert.match(secondRun, /fail 0/);
+    assert.match(secondRun, /cancelled 0/);
+    assert.doesNotMatch(secondRun, /run\(\) is being called recursively/);
   };
 
   const testDelete = async () => {
     await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
     const fileToDeletePath = tmpdir.resolve(fileToUpdate);
     const interval = setInterval(() => {
       if (existsSync(fileToDeletePath)) {
@@ -118,8 +137,36 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
     child.kill();
     await once(child, 'exit');
 
+    assert.strictEqual(runs.length, 2);
+
     for (const run of runs) {
       assert.doesNotMatch(run, /MODULE_NOT_FOUND/);
+    }
+  };
+
+  const testCreate = async () => {
+    await ran1.promise;
+    runs.push(currentRun);
+    currentRun = '';
+    const newFilePath = tmpdir.resolve(fileToCreate);
+    const interval = setInterval(
+      () => writeFileSync(
+        newFilePath,
+        'module.exports = {};'
+      ),
+      common.platformTimeout(1000)
+    );
+    await ran2.promise;
+    runs.push(currentRun);
+    clearInterval(interval);
+    child.kill();
+    await once(child, 'exit');
+
+    for (const run of runs) {
+      assert.match(run, /tests 1/);
+      assert.match(run, /pass 1/);
+      assert.match(run, /fail 0/);
+      assert.match(run, /cancelled 0/);
     }
   };
 
@@ -127,6 +174,7 @@ async function testWatch({ fileToUpdate, file, action = 'update', cwd = tmpdir.p
   action === 'rename' && await testRename();
   action === 'rename2' && await testRename();
   action === 'delete' && await testDelete();
+  action === 'create' && await testCreate();
 }
 
 describe('test runner watch mode', () => {
@@ -171,5 +219,9 @@ describe('test runner watch mode', () => {
       cwd: import.meta.dirname,
       action: 'rename2'
     });
+  });
+
+  it('should run new tests when a new file is created in the watched directory', async () => {
+    await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
   });
 });

@@ -8,6 +8,7 @@
 #include "src/base/functional.h"
 #include "src/base/iterator.h"
 #include "src/codegen/machine-type.h"
+#include "src/sandbox/check.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -95,6 +96,12 @@ class Signature : public ZoneObject {
     void AddReturn(T val) {
       DCHECK_LT(rcursor_, return_count_);
       buffer_[rcursor_++] = val;
+    }
+
+    void AddReturnAt(size_t index, T val) {
+      DCHECK_LT(index, return_count_);
+      buffer_[index] = val;
+      rcursor_ = std::max(rcursor_, index + 1);
     }
 
     void AddParam(T val) {

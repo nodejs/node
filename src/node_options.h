@@ -94,6 +94,11 @@ class DebugOptions : public Options {
     break_first_line = true;
   }
 
+  void DisableWaitOrBreakFirstLine() {
+    inspect_wait = false;
+    break_first_line = false;
+  }
+
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line || inspect_wait;
   }
@@ -123,7 +128,6 @@ class EnvironmentOptions : public Options {
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
-  bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string input_type;  // Value of --input-type
@@ -137,6 +141,7 @@ class EnvironmentOptions : public Options {
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
+  bool async_context_frame = false;
   bool expose_internals = false;
   bool force_node_api_uncaught_exceptions_policy = false;
   bool frozen_intrinsics = false;
@@ -178,6 +183,9 @@ class EnvironmentOptions : public Options {
   uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
   bool test_runner_force_exit = false;
+  uint64_t test_coverage_branches = 0;
+  uint64_t test_coverage_functions = 0;
+  uint64_t test_coverage_lines = 0;
   bool test_runner_module_mocks = false;
   bool test_runner_snapshots = false;
   bool test_runner_update_snapshots = false;
@@ -186,6 +194,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_reporter_destination;
   bool test_only = false;
   bool test_udp_no_try_send = false;
+  std::string test_isolation = "process";
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
   std::vector<std::string> coverage_include_pattern;
@@ -234,6 +243,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool experimental_strip_types = false;
+  bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
 
@@ -251,6 +261,9 @@ class EnvironmentOptions : public Options {
 
 class PerIsolateOptions : public Options {
  public:
+  PerIsolateOptions() = default;
+  PerIsolateOptions(PerIsolateOptions&&) = default;
+
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
@@ -262,6 +275,11 @@ class PerIsolateOptions : public Options {
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+
+  inline std::shared_ptr<PerIsolateOptions> Clone() const;
+
+ private:
+  PerIsolateOptions(const PerIsolateOptions&) = default;
 };
 
 class PerProcessOptions : public Options {

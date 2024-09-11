@@ -45,7 +45,7 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
     Isolate* isolate, Tagged<SharedFunctionInfo> shared) {
-  Tagged<Script> script = Script::cast(shared->script());
+  Tagged<Script> script = Cast<Script>(shared->script());
 
   UnoptimizedCompileFlags flags(isolate, script->id());
 
@@ -57,7 +57,7 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 #if V8_ENABLE_WEBASSEMBLY
   flags.set_is_asm_wasm_broken(shared->is_asm_wasm_broken());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  flags.set_is_repl_mode(shared->is_repl_mode());
+  flags.set_is_repl_mode(script->is_repl_mode());
 
   // Do not support re-parsing top-level function of a wrapped script.
   DCHECK_IMPLIES(flags.is_toplevel(), !script->is_wrapped());
@@ -91,9 +91,6 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
   UnoptimizedCompileFlags flags(isolate, isolate->GetNextScriptId());
   flags.SetFlagsForToplevelCompile(is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
-  flags.set_compile_hints_magic_enabled(v8_flags.compile_hints_magic ||
-                                        isolate->allow_compile_hints_magic());
-
   LOG(isolate, ScriptEvent(ScriptEventType::kReserveId, flags.script_id()));
   return flags;
 }

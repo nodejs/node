@@ -252,7 +252,7 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
     ares_bool_t valid   = ARES_TRUE;
     const char *p;
     for (p = name; *p; p++) {
-      if (!isdigit(*p) && *p != '.') {
+      if (!ares__isdigit(*p) && *p != '.') {
         valid = ARES_FALSE;
         break;
       } else if (*p == '.') {
@@ -469,7 +469,7 @@ static void terminate_retries(const struct host_query *hquery,
   unsigned short term_qid =
     (qid == hquery->qid_a) ? hquery->qid_aaaa : hquery->qid_a;
   const ares_channel_t *channel = hquery->channel;
-  struct query         *query   = NULL;
+  ares_query_t         *query   = NULL;
 
   /* No other outstanding queries, nothing to do */
   if (!hquery->remaining) {
@@ -527,6 +527,13 @@ static void host_callback(void *arg, ares_status_t status, size_t timeouts,
       if (status == ARES_ENODATA || addinfostatus == ARES_ENODATA) {
         hquery->nodata_cnt++;
       }
+      next_lookup(hquery, hquery->nodata_cnt ? ARES_ENODATA : status);
+    } else if (
+        (status == ARES_ESERVFAIL || status == ARES_EREFUSED) &&
+        ares__name_label_cnt(hquery->names[hquery->next_name_idx-1]) == 1
+      ) {
+      /* Issue #852, systemd-resolved may return SERVFAIL or REFUSED on a
+       * single label domain name. */
       next_lookup(hquery, hquery->nodata_cnt ? ARES_ENODATA : status);
     } else {
       end_hquery(hquery, status);

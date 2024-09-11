@@ -1855,6 +1855,12 @@ the worker thread.
 There was a bug in Node.js or incorrect usage of Node.js internals.
 To fix the error, open an issue at <https://github.com/nodejs/node/issues>.
 
+<a id="ERR_INVALID_ADDRESS"></a>
+
+### `ERR_INVALID_ADDRESS`
+
+The provided address is not understood by the Node.js API.
+
 <a id="ERR_INVALID_ADDRESS_FAMILY"></a>
 
 ### `ERR_INVALID_ADDRESS_FAMILY`
@@ -3189,7 +3195,7 @@ changes:
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 8 KiB of HTTP header data is received then
+malconfigured clients, if more than `maxHeaderSize` of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
@@ -3582,23 +3588,6 @@ removed: v10.0.0
 -->
 
 Used by the `Node-API` when `Constructor.prototype` is not an object.
-
-<a id="ERR_NETWORK_IMPORT_BAD_RESPONSE"></a>
-
-### `ERR_NETWORK_IMPORT_BAD_RESPONSE`
-
-> Stability: 1 - Experimental
-
-Response was received but was invalid when importing a module over the network.
-
-<a id="ERR_NETWORK_IMPORT_DISALLOWED"></a>
-
-### `ERR_NETWORK_IMPORT_DISALLOWED`
-
-> Stability: 1 - Experimental
-
-A network module attempted to load another module that it is not allowed to
-load. Likely this restriction is for security reasons.
 
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 
@@ -4037,7 +4026,7 @@ An error occurred trying to allocate memory. This should never happen.
 #### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
 
 <!-- YAML
-added: REPLACEME
+added: v22.6.0
 -->
 
 Type stripping is not supported for files descendent of a `node_modules` directory.

@@ -27,12 +27,10 @@ PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
                                         const AstRawString* string,
                                         AstValueFactory* avf) {
   // These symbols require slightly different treatement:
-  // - regular keywords (async, await, etc.; treated in 1st switch.)
+  // - regular keywords (async, etc.; treated in 1st switch.)
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
-    case Token::kAwait:
-      return PreParserIdentifier::Await();
     case Token::kAsync:
       return PreParserIdentifier::Async();
     case Token::kPrivateName:
@@ -42,9 +40,6 @@ PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
   }
   if (string == avf->constructor_string()) {
     return PreParserIdentifier::Constructor();
-  }
-  if (string == avf->name_string()) {
-    return PreParserIdentifier::Name();
   }
   if (scanner->literal_contains_escapes()) {
     return PreParserIdentifier::Default();

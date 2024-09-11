@@ -801,7 +801,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       TailCallBuiltin(Builtin::kCallApiCallbackOptimized, context,
                       callback_address,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      callback_data, holder);
+                      function_template_info, holder);
       break;
     }
   }

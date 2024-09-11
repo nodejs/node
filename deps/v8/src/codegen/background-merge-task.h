@@ -34,19 +34,20 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
   // Alternative step 1: on the main thread, if the caller has already looked up
   // the script in the Isolate compilation cache, set up the necessary
   // persistent data for the background merge.
-  void SetUpOnMainThread(Isolate* isolate, Handle<Script> cached_script);
+  void SetUpOnMainThread(Isolate* isolate, DirectHandle<Script> cached_script);
 
   // Step 2: on the background thread, update pointers in the new Script's
   // object graph to point to corresponding objects from the cached Script where
   // appropriate. May only be called if HasPendingBackgroundWork returned true.
-  void BeginMergeInBackground(LocalIsolate* isolate, Handle<Script> new_script);
+  void BeginMergeInBackground(LocalIsolate* isolate,
+                              DirectHandle<Script> new_script);
 
   // Step 3: on the main thread again, complete the merge so that all relevant
   // objects are reachable from the cached Script. May only be called if
   // HasPendingForegroundWork returned true. Returns the top-level
   // SharedFunctionInfo that should be used.
   Handle<SharedFunctionInfo> CompleteMergeInForeground(
-      Isolate* isolate, Handle<Script> new_script);
+      Isolate* isolate, DirectHandle<Script> new_script);
 
   bool HasPendingBackgroundWork() const {
     return state_ == kPendingBackgroundWork;
