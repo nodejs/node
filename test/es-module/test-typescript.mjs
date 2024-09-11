@@ -424,4 +424,3 @@ test('expect error when executing a TypeScript file with generics', async () => 
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
 });
-
